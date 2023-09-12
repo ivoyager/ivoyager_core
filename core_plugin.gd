@@ -76,16 +76,17 @@ func _load_or_create_config_override() -> void:
 	if err == OK:
 		# Print warning if config sections don't exactly match the template.
 		var template_override = ConfigFile.new()
-		template_override.load("res://addons/ivoyager_core/ivoyager_override.cfg")
+		template_override.load("res://addons/ivoyager_core/ivoyager_override_template.cfg")
 		if _config_override.get_sections() != template_override.get_sections():
-			print("WARNING: Sections in config file 'res://ivoyager_override.cfg' do not exactly "
-					+ "match the template file 'res://addons/ivoyager_core/ivoyager_override.cfg'.")
+			print("WARNING: Sections in config file 'res://ivoyager_override.cfg' do not exactly")
+			print("match the template 'res://addons/ivoyager_core/ivoyager_override_template.cfg'.")
 			print("This may be due to a core plugin update. In any case, fix your file to match!")
 		return
 	print("Creating 'ivoyager_override.cfg' in your project directory.")
 	print("Modify this file to change I, Voyager settings and classes.")
 	var dir = DirAccess.open("res://addons/ivoyager_core/")
-	err = dir.copy("res://addons/ivoyager_core/ivoyager_override.cfg", "res://ivoyager_override.cfg")
+	err = dir.copy("res://addons/ivoyager_core/ivoyager_override_template.cfg",
+			"res://ivoyager_override.cfg")
 	if err != OK:
 		print("ERROR: Failed to copy 'ivoyager_override.cfg' to the project directory!")
 		_config_override = null
