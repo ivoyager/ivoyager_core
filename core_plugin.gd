@@ -99,8 +99,10 @@ func _add_autoload_singletons() -> void:
 			"merge_overwrite_autoload_paths")
 	paths.merge(overwrite, true)
 	for singleton_name in paths:
-		_autoload_singletons.append(singleton_name)
-		add_autoload_singleton(singleton_name, paths[singleton_name])
+		var path: String = paths[singleton_name]
+		if path:
+			_autoload_singletons.append(singleton_name)
+			add_autoload_singleton(singleton_name, path)
 
 
 func _remove_autoload_singletons() -> void:
