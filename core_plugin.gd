@@ -20,32 +20,30 @@
 @tool
 extends EditorPlugin
 
-# *EVERYTHING* that this plugin does is specified by 'ivoyager.cfg' and
-# 'ivoyager_override.cfg'. The latter is created in the project directory if
-# it doesn't exist already. After modifying 'ivoyager_override.cfg', you can
+# *EVERYTHING* that this plugin does is specified by 'ivoyager_base.cfg' and
+# 'ivoyager.cfg'. The latter is created in the project directory if
+# it doesn't exist already. After modifying 'ivoyager.cfg', you can
 # affect your changes by disabling and then re-enabling this plugin in your
 # Project Settings.
 
-const YMD := 20230910 # printed after version if version ends with '-dev'
-
-var _config: ConfigFile # res://addons/ivoyager_core/ivoyager.cfg
-var _config_override: ConfigFile # res://ivoyager_override.cfg
+var _base_cfg: ConfigFile # res://addons/ivoyager_core/ivoyager_base.cfg
+var _cfg: ConfigFile # res://ivoyager.cfg
 var _autoload_singletons: Array[String]
 
 
 func _enter_tree() -> void:
 	_print_plugin_version()
-	_load_config()
-	_load_or_create_config_override()
-	if !_config or !_config_override:
+	_load_base_cfg()
+	_load_or_create_cfg()
+	if !_base_cfg or !_cfg:
 		return
 	_add_autoload_singletons.call_deferred()
 
 
 func _exit_tree() -> void:
-	print("Removing I, Voyager - Core...")
-	_config = null
-	_config_override = null
+	print("Removing I, Voyager - Core (plugin)")
+	_base_cfg = null
+	_cfg = null
 	_remove_autoload_singletons()
 
 
@@ -56,50 +54,48 @@ func _print_plugin_version() -> void:
 		print("ERROR: Failed to load 'plugin.cfg'!")
 		return
 	var version: String = plugin_cfg.get_value("plugin", "version")
-	if version.ends_with("-dev"):
-		version += " " + str(YMD)
 	print("I, Voyager - Core (plugin) v%s - https://ivoyager.dev" % version)
 
 
-func _load_config() -> void:
-	_config = ConfigFile.new()
-	var err := _config.load("res://addons/ivoyager_core/ivoyager.cfg")
+func _load_base_cfg() -> void:
+	_base_cfg = ConfigFile.new()
+	var err := _base_cfg.load("res://addons/ivoyager_core/ivoyager_base.cfg")
 	if err == OK:
 		return
-	print("ERROR: Failed to load 'res://addons/ivoyager_core/ivoyager.cfg'!")
-	_config = null
+	print("ERROR: Failed to load 'res://addons/ivoyager_core/ivoyager_base.cfg'!")
+	_base_cfg = null
 
 
-func _load_or_create_config_override() -> void:
-	_config_override = ConfigFile.new()
-	var err := _config_override.load("res://ivoyager_override.cfg")
+func _load_or_create_cfg() -> void:
+	_cfg = ConfigFile.new()
+	var err := _cfg.load("res://ivoyager.cfg")
 	if err == OK:
 		# Print warning if config sections don't exactly match the template.
-		var template_override = ConfigFile.new()
-		template_override.load("res://addons/ivoyager_core/ivoyager_override_template.cfg")
-		if _config_override.get_sections() != template_override.get_sections():
-			print("WARNING: Sections in config file 'res://ivoyager_override.cfg' do not exactly")
-			print("match the template 'res://addons/ivoyager_core/ivoyager_override_template.cfg'.")
+		var template_cfg = ConfigFile.new()
+		template_cfg.load("res://addons/ivoyager_core/ivoyager_template.cfg")
+		if _cfg.get_sections() != template_cfg.get_sections():
+			print("WARNING: Sections in config file 'res://ivoyager.cfg' do not exactly")
+			print("match the template 'res://addons/ivoyager_core/ivoyager_template.cfg'.")
 			print("This may be due to a core plugin update. In any case, fix your file to match!")
 		return
-	print("Creating 'ivoyager_override.cfg' in your project directory.")
-	print("Modify this file to change I, Voyager settings and classes.")
+	print("Creating 'ivoyager.cfg' in your project directory. Modify this file to to change")
+	print("global program settings or to remove or replace autoloads or core classes used")
+	print("by the plugin.")
 	var dir = DirAccess.open("res://addons/ivoyager_core/")
-	err = dir.copy("res://addons/ivoyager_core/ivoyager_override_template.cfg",
-			"res://ivoyager_override.cfg")
+	err = dir.copy("res://addons/ivoyager_core/ivoyager_template.cfg", "res://ivoyager.cfg")
 	if err != OK:
-		print("ERROR: Failed to copy 'ivoyager_override.cfg' to the project directory!")
-		_config_override = null
+		print("ERROR: Failed to copy 'ivoyager.cfg' to the project directory!")
+		_cfg = null
 		return
-	err = _config_override.load("res://ivoyager_override.cfg")
+	err = _cfg.load("res://ivoyager.cfg")
 	if err != OK:
-		print("ERROR: Failed to save 'res://ivoyager_override.cfg'!")
-		_config_override = null
+		print("ERROR: Failed to save 'res://ivoyager.cfg'!")
+		_cfg = null
 
 
 func _add_autoload_singletons() -> void:
-	var paths: Dictionary = _config.get_value("autoloads", "paths")
-	var overwrite: Dictionary = _config_override.get_value("autoloads",
+	var paths: Dictionary = _base_cfg.get_value("autoloads", "paths")
+	var overwrite: Dictionary = _cfg.get_value("autoloads",
 			"merge_overwrite_autoload_paths")
 	paths.merge(overwrite, true)
 	for singleton_name in paths:
