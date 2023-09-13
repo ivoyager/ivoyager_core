@@ -20,7 +20,7 @@
 extends Node
 
 # Autoload singleton 'IVUnits'. You can remove or replace this class by
-# modifying ivoyager_overrides.cfg.
+# modifying ivoyager.cfg.
 #
 # This class defines base SI and derived units. You should need it only when
 # specifying quantities in tables or code (TO internal) and when converting

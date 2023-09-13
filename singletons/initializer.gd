@@ -1,4 +1,4 @@
-# global.gd
+# initializer.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -19,15 +19,17 @@
 # *****************************************************************************
 extends Node
 
-# Autoload singleton 'IVGlobal'. Modify properties in ivoyager.cfg or use
+# Autoload singleton 'IVInitializer'. Modify properties in ivoyager.cfg or use
 # an initializer GDScript. (It's also possible to remove, replace or rename
 # this autoload in ivoyager.cfg, but that's probably not a good idea.)
 
-# project settings here
-
+var init_delay := 5 # frames
 
 
 func _enter_tree() -> void:
-	IVConfigs.init_from_config(self, "res://ivoyager.cfg", "global_")
-
+	IVConfigs.init_from_config(self, "res://ivoyager.cfg", "initializer_")
+	var init_countdown := init_delay
+	while init_countdown > 0:
+		await get_tree().process_frame
+		init_countdown -= 1
 

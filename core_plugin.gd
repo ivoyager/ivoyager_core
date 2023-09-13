@@ -78,8 +78,9 @@ func _load_or_create_cfg() -> void:
 			print("match the template 'res://addons/ivoyager_core/ivoyager_template.cfg'.")
 			print("This may be due to a core plugin update. In any case, fix your file to match!")
 		return
-	print("Creating 'ivoyager.cfg' in your project directory. Modify this file to")
-	print("change autoloads and/or classes used by the plugin.")
+	print("Creating 'ivoyager.cfg' in your project directory. Modify this file to to change")
+	print("global program settings or to remove or replace autoloads or core classes used")
+	print("by the plugin.")
 	var dir = DirAccess.open("res://addons/ivoyager_core/")
 	err = dir.copy("res://addons/ivoyager_core/ivoyager_template.cfg", "res://ivoyager.cfg")
 	if err != OK:
