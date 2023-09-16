@@ -28,7 +28,8 @@ extends EditorPlugin
 
 var _base_cfg: ConfigFile # res://addons/ivoyager_core/ivoyager_base.cfg
 var _cfg: ConfigFile # res://ivoyager.cfg
-var _autoload_singletons: Array[String]
+var _autoload_singletons: Array[String] = []
+var _shader_globals := {}
 
 
 func _enter_tree() -> void:
@@ -38,6 +39,7 @@ func _enter_tree() -> void:
 	if !_base_cfg or !_cfg:
 		return
 	_add_autoload_singletons.call_deferred()
+	_add_shader_globals.call_deferred()
 
 
 func _exit_tree() -> void:
@@ -45,6 +47,7 @@ func _exit_tree() -> void:
 	_base_cfg = null
 	_cfg = null
 	_remove_autoload_singletons()
+	_remove_shader_globals()
 
 
 func _print_plugin_version() -> void:
@@ -109,6 +112,46 @@ func _remove_autoload_singletons() -> void:
 	while _autoload_singletons:
 		var singleton_name: String = _autoload_singletons.pop_back()
 		remove_autoload_singleton(singleton_name)
+
+
+func _add_shader_globals() -> void:
+	for name_ in _base_cfg.get_section_keys("shader_globals"):
+		_shader_globals[name_] = _base_cfg.get_value("shader_globals", name_)
+	if _cfg.has_section("shader_globals"):
+		for name_ in _cfg.get_section_keys("shader_globals"):
+			var dict_or_null: Variant = _cfg.get_value("shader_globals", name_)
+			if !dict_or_null: # empty dict or null
+				_shader_globals.erase(name_)
+				continue
+			_shader_globals[name_] = dict_or_null
+	if !_shader_globals:
+		return
+	for name_ in _shader_globals:
+		var dict: Dictionary = _shader_globals[name_]
+		
+		prints("Settig: shader_globals/" + "name_", dict)
+		
+		ProjectSettings.set_setting("shader_globals/" + name_, dict)
+		# These don't show up in editor menu, but are in project.godot and show
+		# up after restart. Does save() do anything...???
+		
+#		ProjectSettings.save()
+
+
+func _remove_shader_globals() -> void:
+	for name_ in _shader_globals:
+		ProjectSettings.set_setting("shader_globals/" + name_, null)
+#		ProjectSettings.save()
+
+
+
+
+
+
+
+
+
+
 
 
 
