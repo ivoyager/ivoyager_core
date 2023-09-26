@@ -28,6 +28,6 @@ extends Node
 
 
 func _enter_tree() -> void:
-	IVConfigs.init_from_config(self, "res://ivoyager.cfg", "global_")
-
-
+#	IVConfigs.init_from_config(self, "res://ivoyager.cfg", "global_")
+	pass
+	

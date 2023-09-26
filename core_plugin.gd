@@ -20,92 +20,66 @@
 @tool
 extends EditorPlugin
 
-# *EVERYTHING* that this plugin does is specified by 'ivoyager_base.cfg' and
-# 'ivoyager.cfg'. The latter is created in the project directory if
-# it doesn't exist already. After modifying 'ivoyager.cfg', you can
-# affect your changes by disabling and then re-enabling this plugin in your
-# Project Settings.
+# EVERYTHING that this plugin does is specified by 'res://addons/ivoyager_core/
+# ivoyager_core.cfg' and 'res://ivoyager_override.cfg'. The latter is created
+# in your project directory if it doesn't exist already.
+#
+# You can modify ivoyager_core functionality by:
+#
+#   1. Modifying 'res://ivoyager_override.cfg' (to change anything), or
+#   2. Modifying IVInitializer and IVGlobal values and dictionaries via script
+#      (to change anything except autoloads and shader globals).
+#
+# If you modify autoloads or shader globals, you'll need to disable and re-
+# enable the plugin (or quit and restart the editor) for your changes to have
+# effect.
 
-var _base_cfg: ConfigFile # res://addons/ivoyager_core/ivoyager_base.cfg
-var _override_cfg: ConfigFile # res://ivoyager.cfg
+const configs := preload("res://addons/ivoyager_core/static/configs.gd")
+
+var _config: ConfigFile # with overrides
+
 var _autoloads := {}
 var _shader_globals := {}
 
 
 func _enter_tree() -> void:
-	_print_plugin_version()
-	_load_base_cfg()
-	_load_or_create_override_cfg()
-	if !_base_cfg or !_override_cfg:
+	configs.print_plugin_with_version("res://addons/ivoyager_core/plugin.cfg",
+			" - https://ivoyager.dev")
+	_config = configs.get_config_with_override("res://addons/ivoyager_core/ivoyager_core.cfg",
+			"res://ivoyager_override.cfg", true, "core_")
+	if !_config:
 		return
+	if !configs.config_exists("res://ivoyager_override.cfg"):
+		_create_override_config()
 	_add_autoloads.call_deferred()
 	_add_shader_globals.call_deferred()
 
 
 func _exit_tree() -> void:
 	print("Removing I, Voyager - Core (plugin)")
-	_base_cfg = null
-	_override_cfg = null
+	_config = null
 	_remove_autoload_singletons()
 	_remove_shader_globals()
 
 
-func _print_plugin_version() -> void:
-	var plugin_cfg := ConfigFile.new()
-	var err := plugin_cfg.load("res://addons/ivoyager_core/plugin.cfg")
-	if err != OK:
-		print("ERROR: Failed to load 'plugin.cfg'!")
-		return
-	var version: String = plugin_cfg.get_value("plugin", "version")
-	print("I, Voyager - Core (plugin) v%s - https://ivoyager.dev" % version)
-
-
-func _load_base_cfg() -> void:
-	_base_cfg = ConfigFile.new()
-	var err := _base_cfg.load("res://addons/ivoyager_core/ivoyager_base.cfg")
-	if err == OK:
-		return
-	print("ERROR: Failed to load 'res://addons/ivoyager_core/ivoyager_base.cfg'!")
-	_base_cfg = null
-
-
-func _load_or_create_override_cfg() -> void:
-	_override_cfg = ConfigFile.new()
-	var err := _override_cfg.load("res://ivoyager.cfg")
-	if err == OK:
-		# Print warning if config sections don't exactly match the template.
-		var template_cfg = ConfigFile.new()
-		template_cfg.load("res://addons/ivoyager_core/ivoyager_template.cfg")
-		if _override_cfg.get_sections() != template_cfg.get_sections():
-			print("WARNING: Sections in config file 'res://ivoyager.cfg' do not exactly")
-			print("match the template 'res://addons/ivoyager_core/ivoyager_template.cfg'.")
-			print("This may be due to a core plugin update. In any case, fix your file to match!")
-		return
-	print("Creating 'ivoyager.cfg' in your project directory. Modify this file to to change")
-	print("global program settings or to remove or replace autoloads or core classes used")
-	print("by the plugin.")
-	var dir = DirAccess.open("res://addons/ivoyager_core/")
-	err = dir.copy("res://addons/ivoyager_core/ivoyager_template.cfg", "res://ivoyager.cfg")
-	if err != OK:
-		print("ERROR: Failed to copy 'ivoyager.cfg' to the project directory!")
-		_override_cfg = null
-		return
-	err = _override_cfg.load("res://ivoyager.cfg")
-	if err != OK:
-		print("ERROR: Failed to save 'res://ivoyager.cfg'!")
-		_override_cfg = null
+func _create_override_config() -> void:
+	print(
+		"\nCreating 'ivoyager_override.cfg' in your project directory. Modify this file to\n"
+		+ "change autoload singletons, shader globals, IVGlobal settings, or IVInitializer\n"
+		+ "program classes.\n"
+	)
+	var override_config := ConfigFile.new()
+	var err := override_config.save("res://ivoyager_override.cfg")
+	assert(err == OK, "Failed to save 'res://ivoyager_override.cfg'")
 
 
 func _add_autoloads() -> void:
-	for autoload_name in _base_cfg.get_section_keys("autoload"):
-		_autoloads[autoload_name] = _base_cfg.get_value("autoload", autoload_name)
-	if _override_cfg.has_section("autoload_overrides"):
-		for autoload_name in _override_cfg.get_section_keys("autoload_overrides"):
-			var path_or_null: Variant = _override_cfg.get_value("autoload_overrides", autoload_name)
-			if !path_or_null: # "" or null
-				_autoloads.erase(autoload_name)
-				continue
-			_autoloads[autoload_name] = path_or_null
+	for autoload_name in _config.get_section_keys("core_autoload"):
+		var value: Variant = _config.get_value("core_autoload", autoload_name)
+		if value: # could be null or "" to negate
+			assert(typeof(value) == TYPE_STRING,
+					"'%s' must specify a path as String" % autoload_name)
+			_autoloads[autoload_name] = value
 	for autoload_name in _autoloads:
 		var path: String = _autoloads[autoload_name]
 		add_autoload_singleton(autoload_name, path)
@@ -118,20 +92,17 @@ func _remove_autoload_singletons() -> void:
 
 
 func _add_shader_globals() -> void:
-	for global_name in _base_cfg.get_section_keys("shader_globals"):
-		_shader_globals[global_name] = _base_cfg.get_value("shader_globals", global_name)
-	if _override_cfg.has_section("shader_globals_overrides"):
-		for global_name in _override_cfg.get_section_keys("shader_globals_overrides"):
-			var dict_or_null: Variant = _override_cfg.get_value("shader_globals_overrides", global_name)
-			if !dict_or_null: # empty dict or null
-				_shader_globals.erase(global_name)
-				continue
-			_shader_globals[global_name] = dict_or_null
+	for global_name in _config.get_section_keys("core_shader_globals"):
+		var value: Variant = _config.get_value("core_shader_globals", global_name)
+		if value: # could be null or {} to negate
+			assert(typeof(value) == TYPE_DICTIONARY,
+				"'%s' must specify a Dictionary" % global_name)
+			_shader_globals[global_name] = value
 	for global_name in _shader_globals:
 		var dict: Dictionary = _shader_globals[global_name]
 		ProjectSettings.set_setting("shader_globals/" + global_name, dict)
-		# These don't show up in editor menu, but are in project.godot and show
-		# up after restart.
+		# These don't show up in editor menu immediately, but are in project.godot
+		# and show up in editor menu after restart.
 	ProjectSettings.save() # Does this do anything...???
 
 

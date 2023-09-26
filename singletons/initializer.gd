@@ -27,9 +27,16 @@ var init_delay := 5 # frames
 
 
 func _enter_tree() -> void:
-	IVConfigs.init_from_config(self, "res://ivoyager.cfg", "initializer_")
+#	IVConfigs.init_from_config(self, "res://ivoyager.cfg", "initializer_")
 	var init_countdown := init_delay
 	while init_countdown > 0:
 		await get_tree().process_frame
 		init_countdown -= 1
+
+
+func save_config() -> void:
+	# Use this function if you modify IVInitializer or IVGlobal contents via
+	# GDScript at initialization.
+	pass
+
 
