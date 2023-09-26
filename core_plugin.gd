@@ -20,15 +20,14 @@
 @tool
 extends EditorPlugin
 
-# EVERYTHING that this plugin does is specified by 'res://addons/ivoyager_core/
-# ivoyager_core.cfg' and 'res://ivoyager_override.cfg'. The latter is created
-# in your project directory if it doesn't exist already.
+# This file adds autoloads and shader globals for ivoyager_core. You can change
+# autoloads or shader globals by creating an override config file in your
+# project directory:
 #
-# You can modify ivoyager_core functionality by:
+#   'res://ivoyager_override.cfg'
 #
-#   1. Modifying 'res://ivoyager_override.cfg' (to change anything), or
-#   2. Modifying IVInitializer and IVGlobal values and dictionaries via script
-#      (to change anything except autoloads and shader globals).
+# See config file 'res://addons/ivoyager_core/ivoyager_core.cfg' for base
+# values and replacement comments.
 #
 # If you modify autoloads or shader globals, you'll need to disable and re-
 # enable the plugin (or quit and restart the editor) for your changes to have
@@ -49,8 +48,6 @@ func _enter_tree() -> void:
 			"res://ivoyager_override.cfg", true, "core_")
 	if !_config:
 		return
-	if !configs.config_exists("res://ivoyager_override.cfg"):
-		_create_override_config()
 	_add_autoloads.call_deferred()
 	_add_shader_globals.call_deferred()
 
@@ -60,17 +57,6 @@ func _exit_tree() -> void:
 	_config = null
 	_remove_autoload_singletons()
 	_remove_shader_globals()
-
-
-func _create_override_config() -> void:
-	print(
-		"\nCreating 'ivoyager_override.cfg' in your project directory. Modify this file to\n"
-		+ "change autoload singletons, shader globals, IVGlobal settings, or IVInitializer\n"
-		+ "program classes.\n"
-	)
-	var override_config := ConfigFile.new()
-	var err := override_config.save("res://ivoyager_override.cfg")
-	assert(err == OK, "Failed to save 'res://ivoyager_override.cfg'")
 
 
 func _add_autoloads() -> void:
