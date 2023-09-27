@@ -34,9 +34,3 @@ func _enter_tree() -> void:
 		init_countdown -= 1
 
 
-func save_config() -> void:
-	# Use this function if you modify IVInitializer or IVGlobal contents via
-	# GDScript at initialization.
-	pass
-
-

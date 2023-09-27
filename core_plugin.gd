@@ -21,19 +21,19 @@
 extends EditorPlugin
 
 # This file adds autoloads and shader globals for ivoyager_core. You can change
-# autoloads or shader globals by creating an override config file in your
-# project directory:
+# autoloads or shader globals by editing override config in your project
+# directory:
 #
 #   'res://ivoyager_override.cfg'
 #
-# See config file 'res://addons/ivoyager_core/ivoyager_core.cfg' for base
+# See config file 'res://addons/ivoyager_core/core.cfg' for base values
 # values and replacement comments.
 #
 # If you modify autoloads or shader globals, you'll need to disable and re-
 # enable the plugin (or quit and restart the editor) for your changes to have
 # effect.
 
-const configs := preload("res://addons/ivoyager_core/static/configs.gd")
+const config_utils := preload("res://addons/ivoyager_table_importer/config_utils.gd")
 
 var _config: ConfigFile # with overrides
 
@@ -42,12 +42,14 @@ var _shader_globals := {}
 
 
 func _enter_tree() -> void:
-	configs.print_plugin_with_version("res://addons/ivoyager_core/plugin.cfg",
+	config_utils.print_plugin_with_version("res://addons/ivoyager_core/plugin.cfg",
 			" - https://ivoyager.dev")
-	_config = configs.get_config_with_override("res://addons/ivoyager_core/ivoyager_core.cfg",
-			"res://ivoyager_override.cfg", true, "core_")
+	_config = config_utils.get_config_with_override("res://addons/ivoyager_core/core.cfg",
+			"res://ivoyager_override.cfg", "core_")
 	if !_config:
 		return
+	if !config_utils.config_exists("res://ivoyager_override.cfg"):
+		_create_override_config()
 	_add_autoloads.call_deferred()
 	_add_shader_globals.call_deferred()
 
@@ -55,8 +57,21 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	print("Removing I, Voyager - Core (plugin)")
 	_config = null
-	_remove_autoload_singletons()
+	_remove_autoloads()
 	_remove_shader_globals()
+
+
+func _create_override_config() -> void:
+	print(
+		"\nCreating 'ivoyager_override.cfg' in your project directory. Modify this file to\n"
+		+ "change autoload singletons, shader globals, IVGlobal settings, or IVInitializer\n"
+		+ "program classes.\n"
+	)
+	var dir = DirAccess.open("res://addons/ivoyager_core/")
+	var err := dir.copy("res://addons/ivoyager_core/override_template.cfg",
+			"res://ivoyager_override.cfg")
+	if err != OK:
+		print("ERROR: Failed to copy 'ivoyager_override.cfg' to the project directory!")
 
 
 func _add_autoloads() -> void:
@@ -71,7 +86,7 @@ func _add_autoloads() -> void:
 		add_autoload_singleton(autoload_name, path)
 
 
-func _remove_autoload_singletons() -> void:
+func _remove_autoloads() -> void:
 	for autoload_name in _autoloads:
 		remove_autoload_singleton(autoload_name)
 	_autoloads.clear()
