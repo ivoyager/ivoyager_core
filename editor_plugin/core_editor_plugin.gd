@@ -1,4 +1,4 @@
-# core_plugin.gd
+# core_editor_plugin.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -26,14 +26,14 @@ extends EditorPlugin
 #
 #   'res://ivoyager_override.cfg'
 #
-# See config file 'res://addons/ivoyager_core/core.cfg' for base values
-# values and replacement comments.
+# See config file 'res://addons/ivoyager_core/core.cfg' for base values and
+# replacement comments.
 #
 # If you modify autoloads or shader globals, you'll need to disable and re-
 # enable the plugin (or quit and restart the editor) for your changes to have
 # effect.
 
-const config_utils := preload("res://addons/ivoyager_table_importer/config_utils.gd")
+const config_utils := preload("config_utils.gd")
 
 var _config: ConfigFile # with overrides
 
@@ -63,9 +63,9 @@ func _exit_tree() -> void:
 
 func _create_override_config() -> void:
 	print(
-		"\nCreating 'ivoyager_override.cfg' in your project directory. Modify this file to\n"
-		+ "change autoload singletons, shader globals, IVGlobal settings, or IVInitializer\n"
-		+ "program classes.\n"
+		"\nCreating 'ivoyager_override.cfg' in your project directory. Modify this file to change\n"
+		+ "autoload singletons, shader globals, base settings defined in singletons/core_settings.gd\n"
+		+ "or base classes defined in singletons/core_initializer.\n"
 	)
 	var dir = DirAccess.open("res://addons/ivoyager_core/")
 	var err := dir.copy("res://addons/ivoyager_core/override_template.cfg",

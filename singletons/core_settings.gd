@@ -1,4 +1,4 @@
-# initializer.gd
+# core_settings.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -19,18 +19,17 @@
 # *****************************************************************************
 extends Node
 
-# Autoload singleton 'IVInitializer'. Modify properties in ivoyager.cfg or use
-# an initializer GDScript. (It's also possible to remove, replace or rename
-# this autoload in ivoyager.cfg, but that's probably not a good idea.)
+# This node is added as singleton 'IVCoreSettings'.
+#
+# Modify properties or dictionary classes using res://ivoyager_override.cfg.
+# Alternatively, you can use an initializer script.
+#
+# DON'T modify values here after program start!
 
-var init_delay := 5 # frames
 
 
 func _enter_tree() -> void:
 #	IVConfigs.init_from_config(self, "res://ivoyager.cfg", "initializer_")
-	var init_countdown := init_delay
-	while init_countdown > 0:
-		await get_tree().process_frame
-		init_countdown -= 1
+	pass
 
 
