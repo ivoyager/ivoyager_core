@@ -54,6 +54,7 @@ var persist := {}
 
 
 func _project_init() -> void:
-	if IVGlobal.pause_only_stops_time:
-		process_mode = PROCESS_MODE_ALWAYS
+	pass
+#	if IVGlobal.pause_only_stops_time:
+#		process_mode = PROCESS_MODE_ALWAYS
 

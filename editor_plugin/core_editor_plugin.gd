@@ -42,6 +42,7 @@ var _shader_globals := {}
 
 
 func _enter_tree() -> void:
+	await get_tree().process_frame # load after ivoyager_table_importer
 	config_utils.print_plugin_with_version("res://addons/ivoyager_core/plugin.cfg",
 			" - https://ivoyager.dev")
 	_config = config_utils.get_config_with_override("res://addons/ivoyager_core/core.cfg",
@@ -50,8 +51,8 @@ func _enter_tree() -> void:
 		return
 	if !config_utils.config_exists("res://ivoyager_override.cfg"):
 		_create_override_config()
-	_add_autoloads.call_deferred()
-	_add_shader_globals.call_deferred()
+	_add_autoloads()
+	_add_shader_globals()
 
 
 func _exit_tree() -> void:
@@ -82,6 +83,7 @@ func _add_autoloads() -> void:
 					"'%s' must specify a path as String" % autoload_name)
 			_autoloads[autoload_name] = value
 	for autoload_name in _autoloads:
+#		await get_tree().process_frame
 		var path: String = _autoloads[autoload_name]
 		add_autoload_singleton(autoload_name, path)
 

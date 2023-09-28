@@ -149,7 +149,7 @@ var auto_exposure_enabled := true
 var vertecies_per_orbit: int = 500
 var vertecies_per_orbit_low_res: int = 100 # for small bodies like asteroids
 var max_camera_distance: float = 5e3 * IVUnits.AU
-var obliquity_of_the_ecliptic := 23.439 * IVUnits.DEG
+var obliquity_of_the_ecliptic: float = 23.439 * IVUnits.DEG
 var ecliptic_rotation := IVMath.get_x_rotation_matrix(obliquity_of_the_ecliptic)
 var cache_dir := "user://cache"
 
@@ -171,11 +171,11 @@ var shared_resources := {
 	# loads any paths at project init.
 	
 	# shaders
-	&"points_id_shader" : preload("../shaders/points.id.gdshader"),
-	&"points_l4l5_id_shader" : preload("../shaders/points.l4l5.id.gdshader"),
-	&"orbit_id_shader" : preload("../shaders/orbit.id.gdshader"),
-	&"orbits_id_shader" : preload("../shaders/orbits.id.gdshader"),
-	&"rings_shader" : preload("../shaders/rings.gdshader"),
+	&"points_id_shader" : "../shaders/points.id.gdshader",
+	&"points_l4l5_id_shader" : "../shaders/points.l4l5.id.gdshader",
+	&"orbit_id_shader" : "../shaders/orbit.id.gdshader",
+	&"orbits_id_shader" : "../shaders/orbits.id.gdshader",
+	&"rings_shader" : "../shaders/rings.gdshader",
 	
 	# additional items are constructed & added by initializers/shared_initializer.gd
 }
