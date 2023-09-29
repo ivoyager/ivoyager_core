@@ -82,7 +82,7 @@ var allow_project_build := true # blockable by another autoload singleton
 # extension instantiated at the first step of this sequence.
 var init_sequence: Array[Array] = [
 	# [object, method, wait_for_signal]
-	[self, "_init_extensions", false],
+#	[self, "_init_extensions", false],
 	[self, "_set_simulator_root", false],
 	[self, "_set_simulator_top_gui", false],
 	[self, "_instantiate_initializers", false],
@@ -312,45 +312,45 @@ func build_project(override := false) -> void:
 
 # ************************ 'init_sequence' FUNCTIONS **************************
 
-func _init_extensions() -> void:
-	# Instantiates objects or scenes from files matching "res://<name>/<name>.gd"
-	# (where <name> != "ivoyager" and does not start with ".") and then calls
-	# their _extension_init() function.
-	var dir := DirAccess.open("res://")
-	dir.list_dir_begin() # TODOConverter3To4 fill missing arguments https://github.com/godotengine/godot/pull/40547
-	while true:
-		var dir_name := dir.get_next()
-		if !dir_name:
-			break
-		if !dir.current_is_dir() or dir_name == "ivoyager" or dir_name.begins_with("."):
-			continue
-		var path := "res://" + dir_name + "/" + dir_name + ".gd"
-		if !files.exists(path):
-			continue
-		var extension_script: GDScript = load(path)
-		if (
-				not "EXTENSION_NAME" in extension_script
-				or not "EXTENSION_VERSION" in extension_script
-				or not "EXTENSION_BUILD" in extension_script
-				or not "EXTENSION_STATE" in extension_script
-				or not "EXTENSION_YMD" in extension_script
-		):
-			print("WARNING! Missing required const members in extension file " + path)
-			continue
-		var extension: Object = extension_script.new()
-		_project_extensions.append(extension)
-		IVGlobal.extensions.append([
-			extension.get("EXTENSION_NAME"),
-			extension.get("EXTENSION_VERSION"),
-			extension.get("EXTENSION_BUILD"),
-			extension.get("EXTENSION_STATE"),
-			extension.get("EXTENSION_YMD"),
-		])
-	for extension in _project_extensions:
-		if extension.has_method("_extension_init"):
-			@warning_ignore("unsafe_method_access")
-			extension._extension_init()
-	IVGlobal.extentions_inited.emit()
+#func _init_extensions() -> void:
+#	# Instantiates objects or scenes from files matching "res://<name>/<name>.gd"
+#	# (where <name> != "ivoyager" and does not start with ".") and then calls
+#	# their _extension_init() function.
+#	var dir := DirAccess.open("res://")
+#	dir.list_dir_begin() # TODOConverter3To4 fill missing arguments https://github.com/godotengine/godot/pull/40547
+#	while true:
+#		var dir_name := dir.get_next()
+#		if !dir_name:
+#			break
+#		if !dir.current_is_dir() or dir_name == "ivoyager" or dir_name.begins_with("."):
+#			continue
+#		var path := "res://" + dir_name + "/" + dir_name + ".gd"
+#		if !files.exists(path):
+#			continue
+#		var extension_script: GDScript = load(path)
+#		if (
+#				not "EXTENSION_NAME" in extension_script
+#				or not "EXTENSION_VERSION" in extension_script
+#				or not "EXTENSION_BUILD" in extension_script
+#				or not "EXTENSION_STATE" in extension_script
+#				or not "EXTENSION_YMD" in extension_script
+#		):
+#			print("WARNING! Missing required const members in extension file " + path)
+#			continue
+#		var extension: Object = extension_script.new()
+#		_project_extensions.append(extension)
+#		IVGlobal.extensions.append([
+#			extension.get("EXTENSION_NAME"),
+#			extension.get("EXTENSION_VERSION"),
+#			extension.get("EXTENSION_BUILD"),
+#			extension.get("EXTENSION_STATE"),
+#			extension.get("EXTENSION_YMD"),
+#		])
+#	for extension in _project_extensions:
+#		if extension.has_method("_extension_init"):
+#			@warning_ignore("unsafe_method_access")
+#			extension._extension_init()
+#	IVGlobal.extentions_inited.emit()
 
 
 func _set_simulator_root() -> void:

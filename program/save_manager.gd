@@ -38,18 +38,18 @@ const DPRINT := false
 
 const PERSIST_MODE := IVEnums.PERSIST_PROPERTIES_ONLY
 const PERSIST_PROPERTIES := [
-	&"project_version",
-	&"project_ymd",
-	&"ivoyager_version",
-	&"ivoyager_ymd",
+#	&"project_version",
+#	&"project_ymd",
+#	&"ivoyager_version",
+#	&"ivoyager_ymd",
 	&"is_modded"
 ]
 	
 # persisted - values will be replaced by file values on game load!
-var project_version: String = IVGlobal.project_version
-var project_ymd: int = IVGlobal.project_ymd
-var ivoyager_version: String = IVGlobal.IVOYAGER_VERSION
-var ivoyager_ymd: int = IVGlobal.IVOYAGER_YMD
+#var project_version: String = IVGlobal.project_version
+#var project_ymd: int = IVGlobal.project_ymd
+#var ivoyager_version: String = IVGlobal.IVOYAGER_VERSION
+#var ivoyager_ymd: int = IVGlobal.IVOYAGER_YMD
 var is_modded: bool = IVGlobal.is_modded
 
 # private
@@ -205,15 +205,16 @@ func _on_load_requested(path: String, is_quick_load := false) -> void:
 
 
 func _test_version() -> void:
-	if project_version != IVGlobal.project_version \
-			or project_ymd != IVGlobal.project_ymd \
-			or ivoyager_version != IVGlobal.IVOYAGER_VERSION \
-			or ivoyager_ymd != IVGlobal.IVOYAGER_YMD:
-		print("WARNING! Loaded game was created with different program version...")
-		prints(" ivoayger running: ", IVGlobal.IVOYAGER_VERSION, IVGlobal.IVOYAGER_YMD)
-		prints(" ivoyager loaded:  ", ivoyager_version, ivoyager_ymd)
-		prints(" project running:  ", IVGlobal.project_version, IVGlobal.project_ymd)
-		prints(" project loaded:   ", project_version, project_ymd)
+	pass
+#	if project_version != IVGlobal.project_version \
+#			or project_ymd != IVGlobal.project_ymd \
+#			or ivoyager_version != IVGlobal.IVOYAGER_VERSION \
+#			or ivoyager_ymd != IVGlobal.IVOYAGER_YMD:
+#		print("WARNING! Loaded game was created with different program version...")
+#		prints(" ivoayger running: ", IVGlobal.IVOYAGER_VERSION, IVGlobal.IVOYAGER_YMD)
+#		prints(" ivoyager loaded:  ", ivoyager_version, ivoyager_ymd)
+#		prints(" project running:  ", IVGlobal.project_version, IVGlobal.project_ymd)
+#		prints(" project loaded:   ", project_version, project_ymd)
 
 
 # *****************************************************************************

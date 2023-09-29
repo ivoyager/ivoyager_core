@@ -171,11 +171,11 @@ var shared_resources := {
 	# loads any paths at project init.
 	
 	# shaders
-	&"points_id_shader" : "../shaders/points.id.gdshader",
-	&"points_l4l5_id_shader" : "../shaders/points.l4l5.id.gdshader",
-	&"orbit_id_shader" : "../shaders/orbit.id.gdshader",
-	&"orbits_id_shader" : "../shaders/orbits.id.gdshader",
-	&"rings_shader" : "../shaders/rings.gdshader",
+	&"points_id_shader" : "res://addons/ivoyager_core/shaders/points.id.gdshader",
+	&"points_l4l5_id_shader" : "res://addons/ivoyager_core/shaders/points.l4l5.id.gdshader",
+	&"orbit_id_shader" : "res://addons/ivoyager_core/shaders/orbit.id.gdshader",
+	&"orbits_id_shader" : "res://addons/ivoyager_core/shaders/orbits.id.gdshader",
+	&"rings_shader" : "res://addons/ivoyager_core/shaders/rings.gdshader",
 	
 	# additional items are constructed & added by initializers/shared_initializer.gd
 }
@@ -213,20 +213,20 @@ var body_tables: Array[String] = ["stars", "planets", "asteroids", "moons", "spa
 
 var asset_replacement_dir := ""  # replaces all "ivoyager_assets" below
 
-var models_search: Array[String] = ["res://ivoyager_assets/models"] # prepend to prioritize
-var maps_search: Array[String] = ["res://ivoyager_assets/maps"]
-var bodies_2d_search: Array[String] = ["res://ivoyager_assets/bodies_2d"]
-var rings_search: Array[String] = ["res://ivoyager_assets/rings"]
+var models_search: Array[String] = ["res://addons/ivoyager_assets/models"] # prepend to prioritize
+var maps_search: Array[String] = ["res://addons/ivoyager_assets/maps"]
+var bodies_2d_search: Array[String] = ["res://addons/ivoyager_assets/bodies_2d"]
+var rings_search: Array[String] = ["res://addons/ivoyager_assets/rings"]
 
 var asset_paths := {
-	starmap_8k = "res://ivoyager_assets/starmaps/starmap_8k.jpg",
-	starmap_16k = "res://ivoyager_assets/starmaps/starmap_16k.jpg",
+	starmap_8k = "res://addons/ivoyager_assets/starmaps/starmap_8k.jpg",
+	starmap_16k = "res://addons/ivoyager_assets/starmaps/starmap_16k.jpg",
 }
 var asset_paths_for_load := { # loaded into "assets" dict by IVAssetInitializer
-	primary_font = "res://ivoyager_assets/fonts/Roboto-NotoSansSymbols-merged.ttf",
-	fallback_albedo_map = "res://ivoyager_assets/fallbacks/blank_grid.jpg",
-	fallback_body_2d = "res://ivoyager_assets/fallbacks/blank_grid_2d_globe.256.png",
-#	fallback_model = "res://ivoyager_assets/models/phobos/Phobos.1_1000.glb", # implement in 0.0.14
+	primary_font = "res://addons/ivoyager_assets/fonts/Roboto-NotoSansSymbols-merged.ttf",
+	fallback_albedo_map = "res://addons/ivoyager_assets/fallbacks/blank_grid.jpg",
+	fallback_body_2d = "res://addons/ivoyager_assets/fallbacks/blank_grid_2d_globe.256.png",
+#	fallback_model = "res://addons/ivoyager_assets/models/phobos/Phobos.1_1000.glb", # implement in 0.0.14
 }
 var translations: Array[String] = [
 	# Added here so extensions can modify. Note that IVTranslationImporter will

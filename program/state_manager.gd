@@ -104,6 +104,12 @@ func _project_init() -> void:
 	_state.is_loaded_game = false
 	_state.last_save_path = ""
 	_state.network_state = NO_NETWORK
+	
+	var universe: Node3D = IVGlobal.program.Universe
+	if IVGlobal.pause_only_stops_time:
+		universe.process_mode = PROCESS_MODE_ALWAYS
+	else:
+		universe.process_mode = PROCESS_MODE_INHERIT
 
 
 func _ready() -> void:
