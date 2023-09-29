@@ -1,0 +1,41 @@
+id,en
+HINT_ALL_ASTEROIDS,Show all asteroids
+HINT_CAMERA_LOCK,Camera follows selection
+HINT_CENTAURS,Show Centaurs
+HINT_DECREASE_FOCAL_LENGTH,Decrease camera focal length
+HINT_INCREASE_FOCAL_LENGTH,Increase camera focal length
+HINT_L4_TROJANS,Show Jupiter L4 (Greek Camp) Trojans
+HINT_L5_TROJANS,Show Jupiter L5 (Trojan Camp) Trojans
+HINT_MAIN_BELT,Show Main Belt asteroids
+HINT_MARS_CROSSERS,Show Mars-crossing asteroids
+HINT_MOUSE_ONLY_GUI_NAV,"If checked, arrow keys move camera only;\notherwise, arrows navigate GUI controls"
+HINT_NAMES,Show names
+HINT_NAMES_SYMBOLS_CKBXS,"Toggle to show names or symbols, or hide both"
+HINT_NEAR_EARTH,Show near-Earth asteroids
+HINT_ORBITS,Show orbits
+HINT_ORBITS_CKBX_COLOR,Show/hide orbits and set their color
+HINT_POINTS_CKBX_COLOR,Show/hide points and set their color
+HINT_SAVE_VISIBILITIES_AND_COLORS,Save visibilities & colors
+HINT_SAVE_VIEW,Save view
+HINT_SELECTION_IMAGE,Click to center and orient
+HINT_SELECTION_BACK,Select last
+HINT_SELECTION_FORWARD,Select next
+HINT_SELECTION_UP,Select parent object
+HINT_SET_TIME,Set date & time
+HINT_SYMBOLS,Show symbols
+HINT_TIME_SLOW,Decrease speed
+HINT_TIME_SPEED,Increase speed
+HINT_TIME_REVERSE,Reverse time
+HINT_TIME_PAUSE,Pause
+HINT_TIME_REAL,Set actual time (UT)
+HINT_TRACK_GROUND,Camera will maintain latitude & longitude with respect to the target object
+HINT_TRACK_ORBIT,Camera will track orbit of the target object
+HINT_TRACK_ECLIPTIC,Camera follows the target object but orients to the ecliptic plane
+HINT_TRANS_NEPTUNE,Show trans-Neptunian asteroids
+HINT_TROJANS,Show Jupiter Trojans
+HINT_UP_LOCK,"Locks camera orientation with respect to reference frame: Ecliptic, Orbit or Ground"
+HINT_VIEW_45,View from 45\u00B0 above
+HINT_VIEW_OUTWARD,Look outward from current selection
+HINT_VIEW_TOP,View from top
+HINT_VIEW_ZOOM,View at close range
+HINT_VIS_ON_MO_CKBX,Uncheck for visibility\non mouse-over only

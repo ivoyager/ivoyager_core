@@ -1,0 +1,37 @@
+id,en
+TXT_GUI_HOTKEY_NOTE,"Note: GUI navigation and control hotkeys (\u2190 \u2191 \u2193 \u2192 Tab Shift-Tab Home PgUp PgDown Enter Space Esc) cannot be configured here due to hardcoding in the Godot Engine. This will likely be fixed in Godot 4.0 (see issue #43663). To prevent GUI from ""grabbing"" the arrow keys, select the ""Mouse-only GUI navigation"" checkbox in top-left corner."
+TXT_HTML5_LOADING,"Building the solar system and loading graphics...
+
+This may take a while...
+
+
+I, Voyager wants to become an official nonprofit entity!
+
+To help, follow the \'Support Us!\' link on our web page or under the main menu of this app."
+TXT_PBD_LONG,"Pale Blue Dot\n\nEarth as seen by Voyager 1 from a distance of 6.4 billion kilometers.\n\nLook again at that dot. That's here. That's home. That's us. On it everyone you love, everyone you know, everyone you ever heard of, every human being who ever was, lived out their lives. The aggregate of our joy and suffering, thousands of confident religions, ideologies, and economic doctrines, every hunter and forager, every hero and coward, every creator and destroyer of civilization, every king and peasant, every young couple in love, every mother and father, hopeful child, inventor and explorer, every teacher of morals, every corrupt politician, every superstar, every supreme leader, every saint and sinner in the history of our species lived there -- on a mote of dust suspended in a sunbeam.
+     --Carl Sagan, 1994"
+TXT_PBD_SHORT,Pale Blue Dot\n\nEarth as seen by Voyager 1 from a distance of 6.4 billion kilometers
+TXT_PBD_HTML5_BOOT,Pale Blue Dot\n\nEarth as seen by Voyager 1 from a distance of 6.4 billion kilometers
+TXT_PLANETARIUM_HELP,"[b]Use your mouse to get around...[/b]
+[indent]Mouse-wheel - Move closer or further from target object.
+(Left-)button drag - Move around the target object.
+Shift-(left-)button drag - Pitch/yaw the camera.
+Alt-(left-)button drag - Roll the camera.
+Cntr or right button drag - A mix of above two (near edge for roll).
+Click or use navigator in lower-left corner to visit another object.[/indent]
+
+[b]Here are few hotkeys to get you started (Cntr-H to see all)[/b]
+[indent]Shift-arrows, P, Shift-P, M, Shift-M - Change target body selection.
+Arrows, Page Up, Page down - Move the camera.
+Home, Delete, End - Change the camera view position.
+\""+\"", \""-\"", Backspace or \""[\"", \""]\"", \""\\"" - Speed, slow or reverse time.[/indent]
+
+[b]Asteroids[/b]
+[indent]The simulator displays about 60,000 asteroids. Use checkboxes in
+lower-right corner to show. These are not (yet!) individually selectable.[/indent]
+
+Comments and questions are welcome at [url]I, Voyager Forum[/url]!
+
+Please consider a small subscription donation to help I, Voyager become
+a nonprofit entity. For details and to help, visit [url]GitHub Sponsors[/url]."
+TXT_PWA_UPDATE_AVAILABLE,\n   A Planetarium update is available!   \n\n   Press 'Update' to download and run the new version.   \n   Press 'Continue' to continue using the old version.   \n

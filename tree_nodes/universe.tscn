@@ -1,3 +1,6 @@
-[gd_scene format=3 uid="uid://c40euvt25wjcg"]
+[gd_scene load_steps=2 format=3 uid="uid://dyca8o73ks7n4"]
+
+[ext_resource type="Script" path="res://addons/ivoyager_core/tree_nodes/universe.gd" id="1"]
 
 [node name="Universe" type="Node3D"]
+script = ExtResource("1")

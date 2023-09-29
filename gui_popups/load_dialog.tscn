@@ -1,0 +1,12 @@
+[gd_scene load_steps=2 format=3 uid="uid://8vqmd07h6kmk"]
+
+[ext_resource type="Script" path="res://addons/ivoyager_core/gui_popups/load_dialog.gd" id="1"]
+
+[node name="LoadDialog" type="FileDialog"]
+process_mode = 3
+title = "Open a File"
+size = Vector2i(800, 600)
+ok_button_text = "Open"
+file_mode = 0
+access = 2
+script = ExtResource("1")

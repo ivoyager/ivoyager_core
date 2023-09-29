@@ -1,0 +1,14 @@
+[remap]
+
+importer="ivoyager.table_importer"
+type="IVTableResource"
+uid="uid://csx6rpp3en52o"
+path="res://.godot/imported/asset_adjustments.tsv-c9030fc86a5d8c4549a3c4d9294f9f62.tres"
+
+[deps]
+
+source_file="res://addons/ivoyager_core/data/solar_system/asset_adjustments.tsv"
+dest_files=["res://.godot/imported/asset_adjustments.tsv-c9030fc86a5d8c4549a3c4d9294f9f62.tres"]
+
+[params]
+

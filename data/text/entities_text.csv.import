@@ -1,0 +1,17 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://c0pshpmj7yq65"
+
+[deps]
+
+files=["res://addons/ivoyager_core/data/text/entities_text.en.translation"]
+
+source_file="res://addons/ivoyager_core/data/text/entities_text.csv"
+dest_files=["res://addons/ivoyager_core/data/text/entities_text.en.translation"]
+
+[params]
+
+compress=false
+delimiter=0
