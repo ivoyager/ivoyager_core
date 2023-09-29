@@ -248,7 +248,6 @@ var procedural_objects := {
 
 # ***************************** PRIVATE VARS **********************************
 
-var _project_extensions: Array[Object] = [] # we keep reference so they don't self-free
 var _program: Dictionary = IVGlobal.program
 var _procedural_classes: Dictionary = IVGlobal.procedural_classes
 
@@ -258,7 +257,7 @@ var _procedural_classes: Dictionary = IVGlobal.procedural_classes
 
 func _enter_tree() -> void:
 	
-	config_utils
+#	config_utils
 	
 #	config changes
 	pass

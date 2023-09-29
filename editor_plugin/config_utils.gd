@@ -57,7 +57,6 @@ static func get_config_with_override(config_path: String, override_config_path: 
 	var override_config := get_config(override_config_path)
 	if !override_config:
 		return config
-	var conflict_texts := ""
 	for section in override_config.get_sections():
 		if section_prefix and !section.begins_with(section_prefix):
 			continue
