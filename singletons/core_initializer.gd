@@ -26,7 +26,6 @@ extends Node
 #
 # DON'T modify values here after program start!
 
-var init_delay := 5 # frames
 
 # This node builds the program (not the solar system!) and makes program
 # nodes, references, and class scripts availible in IVGlobal dictionaries. All
@@ -72,46 +71,50 @@ var init_delay := 5 # frames
 signal init_step_finished() # for internal use only
 
 const files := preload("../static/files.gd")
+const config_utils := preload("../editor_plugin/config_utils.gd")
 
 
 # *************** PROJECT VARS - MODIFY THESE TO EXTEND !!!! ******************
 
-var allow_project_build := true # blockable by another autoload singleton
 
-# init_sequence can be modified (even after started) by singleton or by an
-# extension instantiated at the first step of this sequence.
+var allow_project_build := true
+var init_delay := 5 # frames
+
+
+# init_sequence can be modified even after started (eg, by a preinitializer).
 var init_sequence: Array[Array] = [
 	# [object, method, wait_for_signal]
 #	[self, "_init_extensions", false],
+	[self, "_instantiate_preinitializers", false],
+	[self, "_instantiate_initializers", false],
 	[self, "_set_simulator_root", false],
 	[self, "_set_simulator_top_gui", false],
-	[self, "_instantiate_initializers", false],
 	[self, "_instantiate_and_index_program_objects", false],
 	[self, "_init_program_objects", true],
 	[self, "_add_program_nodes", true],
 	[self, "_finish", false]
 ]
 
-# All nodes instatiated here are added to 'universe' or 'top_gui'. Extension
-# can set either or both of these, or let ProjectBuilder assign default nodes
-# from the core ivoyager submodule (or for universe, by tree search).
-# Whatever is assigned to these properties will be accessible from
-# IVGlobal.program.Universe and IVGlobal.program.TopGUI (irrespective of node
-# names).
+# All nodes instatiated here are added to 'universe' or 'top_gui'. Use
+# ivoyager_override.cfg or a preinitializer script to set either or both of
+# these. Otherwise, IVCoreInitializer will assign default nodes from
+# ivoyager_core (or for universe, by tree search for 'Universe').
+# Whatever is assigned will be accessible from IVGlobal.program["Universe"] and
+# IVGlobal.program["TopGUI"], irrespective of node names.
 
 var universe: Node3D
 var top_gui: Control
-var add_top_gui_to_universe := true # happens in add_program_nodes()
+var universe_path: String # assign here if using ivoyager_override.cfg
+var top_gui_path: String # assign here if using ivoyager_override.cfg
+var add_top_gui_to_universe := true # if true, happens in add_program_nodes()
 
 # Replace classes in dictionaries below with a subclass of the original unless
 # comment indicates otherwise. E.g., "Node3D ok": replace with a class that
 # extends Node3D. In some cases, elements can be erased for unneeded systems.
-# For example, our Planetarium erases the save/load system and associated GUI:
-# https://github.com/ivoyager/planetarium/blob/master/planetarium/planetarium.gd
 #
 # Key formatting '_ClassName_' below is meant to be a reminder that the keyed
 # item at runtime might be a project-specific subclass (or in some cases
-# replacement) for the original class. For objects instanced by IVProjectBuilder,
+# replacement) for the original class. For objects instanced by IVCoreInitializer,
 # edge underscores are removed to form keys in the IVGlobal.program dictionary
 # and the 'name' property in the case of nodes.
 #
@@ -120,10 +123,18 @@ var add_top_gui_to_universe := true # happens in add_program_nodes()
 #   - A path to a GDScript object (*.gd)
 #   - A path to a scene (*.tscn, *.scn)
 
+var preinitializers := {
+	# RefCounted classes. IVCoreInitializer instances these first. External
+	# projects can add script paths here using 'res://ivoyager_override.cfg'.
+	# A reference is kept in dictionary 'IVGlobal.program' (erase it if you
+	# want to de-reference your preinitializer so it will free itself).
+}
+
+
 var initializers := {
-	# RefCounted classes. IVProjectBuilder instances these first. Everything
-	# must happen in the _init() call. They are de-referenced so free
-	# themselves after init.
+	# RefCounted classes. IVCoreInitializer instances these after
+	# 'preinitializers'. These classes typically erase themselves from
+	# dictionary 'IVGlobal.program' after init, thereby freeing themselves.
 	_LogInitializer_ = IVLogInitializer,
 	_AssetInitializer_ = IVAssetInitializer,
 	_SharedResourceInitializer_ = IVSharedResourceInitializer,
@@ -133,7 +144,7 @@ var initializers := {
 }
 
 var program_refcounteds := {
-	# RefCounted classes. IVProjectBuilder instances one of each and adds to
+	# RefCounted classes. IVCoreInitializer instances one of each and adds to
 	# dictionary IVGlobal.program. No save/load persistence.
 	
 	# need first!
@@ -168,7 +179,7 @@ var program_refcounteds := {
 }
 
 var program_nodes := {
-	# IVProjectBuilder instances one of each and adds as child to Universe
+	# IVCoreInitializer instances one of each and adds as child to Universe
 	# (before/"below" TopGUI) and to dictionary IVGlobal.program.
 	# Use PERSIST_MODE = PERSIST_PROPERTIES_ONLY if there is data to persist.
 	_Scheduler_ = IVScheduler,
@@ -190,7 +201,7 @@ var program_nodes := {
 }
 
 var gui_nodes := {
-	# IVProjectBuilder instances one of each and adds as child to TopGUI (or
+	# IVCoreInitializer instances one of each and adds as child to TopGUI (or
 	# substitute Control set in 'top_gui') and to dictionary IVGlobal.program.
 	# Order determines visual 'on top' and input event handling: last added
 	# is on top and 1st handled. TopGUI children can be reordered after
@@ -210,7 +221,7 @@ var gui_nodes := {
 }
 
 var procedural_objects := {
-	# Nodes and references NOT instantiated by IVProjectBuilder. These class
+	# Nodes and references NOT instantiated by IVCoreInitializer. These class
 	# scripts plus all above can be accessed from IVGlobal.procedural_classes (keys
 	# have underscores). 
 	# tree_nodes
@@ -246,6 +257,9 @@ var _procedural_classes: Dictionary = IVGlobal.procedural_classes
 
 
 func _enter_tree() -> void:
+	
+	config_utils
+	
 #	config changes
 	pass
 
@@ -312,45 +326,22 @@ func build_project(override := false) -> void:
 
 # ************************ 'init_sequence' FUNCTIONS **************************
 
-#func _init_extensions() -> void:
-#	# Instantiates objects or scenes from files matching "res://<name>/<name>.gd"
-#	# (where <name> != "ivoyager" and does not start with ".") and then calls
-#	# their _extension_init() function.
-#	var dir := DirAccess.open("res://")
-#	dir.list_dir_begin() # TODOConverter3To4 fill missing arguments https://github.com/godotengine/godot/pull/40547
-#	while true:
-#		var dir_name := dir.get_next()
-#		if !dir_name:
-#			break
-#		if !dir.current_is_dir() or dir_name == "ivoyager" or dir_name.begins_with("."):
-#			continue
-#		var path := "res://" + dir_name + "/" + dir_name + ".gd"
-#		if !files.exists(path):
-#			continue
-#		var extension_script: GDScript = load(path)
-#		if (
-#				not "EXTENSION_NAME" in extension_script
-#				or not "EXTENSION_VERSION" in extension_script
-#				or not "EXTENSION_BUILD" in extension_script
-#				or not "EXTENSION_STATE" in extension_script
-#				or not "EXTENSION_YMD" in extension_script
-#		):
-#			print("WARNING! Missing required const members in extension file " + path)
-#			continue
-#		var extension: Object = extension_script.new()
-#		_project_extensions.append(extension)
-#		IVGlobal.extensions.append([
-#			extension.get("EXTENSION_NAME"),
-#			extension.get("EXTENSION_VERSION"),
-#			extension.get("EXTENSION_BUILD"),
-#			extension.get("EXTENSION_STATE"),
-#			extension.get("EXTENSION_YMD"),
-#		])
-#	for extension in _project_extensions:
-#		if extension.has_method("_extension_init"):
-#			@warning_ignore("unsafe_method_access")
-#			extension._extension_init()
-#	IVGlobal.extentions_inited.emit()
+func _instantiate_preinitializers() -> void:
+	for key in preinitializers:
+		if !preinitializers[key]:
+			continue
+		var preinitializer: RefCounted = files.make_object_or_scene(preinitializers[key])
+		_program[key] = preinitializer
+#	IVGlobal.initializers_inited.emit()
+
+
+func _instantiate_initializers() -> void:
+	for key in initializers:
+		if !initializers[key]:
+			continue
+		var initializer: RefCounted = files.make_object_or_scene(initializers[key])
+		_program[key] = initializer
+	IVGlobal.initializers_inited.emit()
 
 
 func _set_simulator_root() -> void:
@@ -382,15 +373,6 @@ func _set_simulator_top_gui() -> void:
 	# never by node name. The actual node name doesn't matter.
 	if !top_gui:
 		top_gui = files.make_object_or_scene(IVTopGUI)
-
-
-func _instantiate_initializers() -> void:
-	for key in initializers:
-		if !initializers[key]:
-			continue
-		var _initializer: RefCounted = files.make_object_or_scene(initializers[key])
-		# initializer will free itself after _init() call
-	IVGlobal.initializers_inited.emit()
 
 
 func _instantiate_and_index_program_objects() -> void:
