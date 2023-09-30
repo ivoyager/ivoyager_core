@@ -256,11 +256,9 @@ var _procedural_classes: Dictionary = IVGlobal.procedural_classes
 
 
 func _enter_tree() -> void:
-	
-#	config_utils
-	
-#	config changes
-	pass
+	var config := config_utils.get_config_with_override("res://addons/ivoyager_core/core.cfg",
+			"res://ivoyager_override.cfg", "core_initializer")
+	config_utils.init_from_config(self, config, "core_initializer")
 
 
 func _ready() -> void:

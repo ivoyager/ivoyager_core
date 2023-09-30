@@ -65,57 +65,26 @@ static func get_config_with_override(config_path: String, override_config_path: 
 	return config
 
 
-#static func init_from_config(object: Object, cfg_path: String, section_prefix := "") -> void:
-#	var cfg := ConfigFile.new()
-#	var err := cfg.load(cfg_path)
-#	if err != OK:
-#		print("ERROR: Failed to load ", cfg_path)
-#		return
-#
-#	var section := section_prefix + "overrides"
-#	if cfg.has_section(section):
-#		for property in cfg.get_section_keys(section):
-#			if not property in object:
-#				print("WARNING: Property '%s' in %s [%s] is not in %s; cannot modify!"
-#						% [property, cfg_path, section, object])
-#				continue
-#			var value: Variant = cfg.get_value(section, property)
-#			object.set(property, value)
-#
-#	section = section_prefix + "array_erases"
-#	if cfg.has_section(section):
-#		for property in cfg.get_section_keys(section):
-#			if not property in object:
-#				print("WARNING: Property '%s' in %s [%s] is not in %s; cannot modify!"
-#						% [property, cfg_path, section, object])
-#				continue
-#			var array: Array = object.get(property)
-#			var erases: Array = cfg.get_value(section, property)
-#			for value in erases:
-#				array.erase(value)
-#
-#	section = section_prefix + "array_appends"
-#	if cfg.has_section(section):
-#		for property in cfg.get_section_keys(section):
-#			if not property in object:
-#				print("WARNING: Property '%s' in %s [%s] is not in %s; cannot modify!"
-#						% [property, cfg_path, section, object])
-#				continue
-#			var array: Array = object.get(property)
-#			var append: Array = cfg.get_value(section, property)
-#			array.append_array(append)
-#
-#	section = section_prefix + "dictionary_merge_overwrite_erase_nulls"
-#	if cfg.has_section(section):
-#		for property in cfg.get_section_keys(section):
-#			if not property in object:
-#				print("WARNING: Property '%s' in %s [%s] is not in %s; cannot modify!"
-#						% [property, cfg_path, section, object])
-#				continue
-#			var dict: Dictionary = object.get(property)
-#			var merge_erase: Dictionary = cfg.get_value(section, property)
-#			dict.merge(merge_erase, true)
-#			for key in merge_erase:
-#				if merge_erase[key] == null:
-#					dict.erase(key)
+static func init_from_config(object: Object, config: ConfigFile, section: String) -> void:
+	if !config.has_section(section):
+		return
+	for key in config.get_section_keys(section):
+		var value: Variant = config.get_value(section, key)
+		var slash_pos := key.find("/")
+		if slash_pos == -1: # not a dictionary
+			if not key in object:
+				push_warning("WARNING: '%s' not in '%s'; check config file" % [key, object])
+				continue
+			object.set(key, value)
+		else: # dictionary w/ key
+			var dict_name := key.left(slash_pos)
+			var dict_key := key.substr(slash_pos + 1)
+			if not dict_name in object:
+				push_warning("WARNING: '%s' not in '%s'; check config file" % [key, object])
+				continue
+			var dict: Dictionary = object.get(dict_name)
+			if value == null:
+				dict.erase(dict_key)
+			else:
+				dict[dict_key] = value
 

@@ -244,6 +244,7 @@ var debug_log_path := "user://logs/debug.log" # modify or set "" to disable
 # *****************************************************************************
 
 # read-only!
+var ivoyager_version := "v0.0.17-fixme" # FIXME: set from plugin.cfg
 var is_html5: bool = OS.has_feature('JavaScript')
 var wiki: String # IVWikiInitializer sets; "wiki" (internal), "en.wikipedia", etc.
 var debug_log: FileAccess # IVLogInitializer sets if debug build and debug_log_path
