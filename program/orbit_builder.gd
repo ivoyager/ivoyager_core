@@ -29,8 +29,8 @@ const MIN_E_FOR_APSIDAL_PRECESSION := 0.0001
 const MIN_I_FOR_NODAL_PRECESSION := deg_to_rad(0.1)
 const DAY := IVUnits.DAY
 
-var _dynamic_orbits: bool = IVGlobal.dynamic_orbits
-var _ecliptic_rotation: Basis = IVGlobal.ecliptic_rotation
+var _dynamic_orbits: bool = IVCoreSettings.dynamic_orbits
+var _ecliptic_rotation: Basis = IVCoreSettings.ecliptic_rotation
 var _Orbit_: Script
 var _d := {
 	&"a" : NAN,

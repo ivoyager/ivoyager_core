@@ -20,7 +20,7 @@
 class_name IVTableInitializer
 extends RefCounted
 
-# Postprocess tables specified in IVGlobal using Table Reader plugin.
+# Postprocess tables specified in IVCoreSettings using Table Reader plugin.
 # Table data will be ready to use after 'data_tables_imported' signal, which
 # will happen while 'initializers' are added in ProjectBuilder.
 
@@ -28,10 +28,10 @@ extends RefCounted
 func _init() -> void:
 	
 	IVTableData.postprocess_tables(
-			IVGlobal.postprocess_tables,
-			IVGlobal.table_project_enums,
-			IVGlobal.enable_wiki,
-			IVGlobal.enable_precisions
+			IVCoreSettings.postprocess_tables,
+			IVCoreSettings.table_project_enums,
+			IVCoreSettings.enable_wiki,
+			IVCoreSettings.enable_precisions
 	)
 	
 	# signal done

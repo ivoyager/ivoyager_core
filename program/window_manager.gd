@@ -27,7 +27,7 @@ extends Node
 var add_menu_button := false
 var button_priority := 1001
 
-var _allow_fullscreen_toggle: bool = IVGlobal.allow_fullscreen_toggle
+var _allow_fullscreen_toggle: bool = IVCoreSettings.allow_fullscreen_toggle
 var _is_fullscreen := false
 var _test_countdown := 0
 

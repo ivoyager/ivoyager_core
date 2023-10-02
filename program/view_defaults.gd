@@ -180,7 +180,7 @@ func _top() -> void:
 # selection, camera, and more...
 
 func _home() -> void:
-	# Body, longitude & latitude from IVGlobal 'home_' settings. Ground tracking.
+	# Body, longitude & latitude from IVCoreSettings 'home_' settings. Ground tracking.
 	# Planets, moons & spacecraft visible.
 	var view: IVView = _View_.new()
 	view.flags = (
@@ -188,13 +188,13 @@ func _home() -> void:
 			| IVView.HUDS_VISIBILITY
 			| IVView.IS_NOW
 	)
-	view.selection_name = IVGlobal.home_name
+	view.selection_name = IVCoreSettings.home_name
 	view.camera_flags = (
 			CameraFlags.UP_LOCKED
 			| CameraFlags.TRACK_GROUND
 	)
 	# See IVCamera 'perspective distance'; METER below is really body radii
-	view.view_position = Vector3(IVGlobal.home_longitude, IVGlobal.home_latitude, 3.0 * METER)
+	view.view_position = Vector3(IVCoreSettings.home_longitude, IVCoreSettings.home_latitude, 3.0 * METER)
 	view.view_rotations = Vector3.ZERO
 	view.orbit_visible_flags = (
 			# Must be from visibility_groups.tsv subset!

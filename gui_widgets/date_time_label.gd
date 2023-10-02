@@ -22,12 +22,12 @@ extends Label
 
 # GUI widget. Requires IVTimekeeper and IVStateManager.
 
-var show_pause := !IVGlobal.disable_pause
+var show_pause := !IVCoreSettings.disable_pause
 var date_format := "%02d/%02d/%02d"
 var clock_hms_format := "  %02d:%02d:%02d" # to incl UT, "  %02d:%02d:%02d UT"
 var clock_hm_format := "  %02d:%02d" # to incl UT, "  %02d:%02d UT"
-var forward_color: Color = IVGlobal.colors[&"normal"]
-var reverse_color: Color = IVGlobal.colors[&"danger"]
+var forward_color: Color = IVCoreSettings.colors[&"normal"]
+var reverse_color: Color = IVCoreSettings.colors[&"danger"]
 
 var _date: Array[int] = IVGlobal.date
 var _clock: Array[int] = IVGlobal.clock

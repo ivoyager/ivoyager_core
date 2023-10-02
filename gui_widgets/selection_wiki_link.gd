@@ -27,7 +27,7 @@ extends RichTextLabel
 #
 # Note: RichTextLabel seems unable to set its own size. You have to set this
 # node's rect_min_size for it to show (as of Godot 3.2.1).
-# Note 2: Set IVGlobal.enable_wiki = true
+# Note 2: Set IVCoreSettings.enable_wiki = true
 
 var use_selection_as_text := true # otherwise, "Wikipedia"
 var fallback_text := &"LABEL_WIKIPEDIA"

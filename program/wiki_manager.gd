@@ -22,7 +22,7 @@ extends RefCounted
 
 # FIXME: Many loose ends after shift to Table Importer plugin...
 
-# For internal wiki, set IVGlobal.enable_wiki and IVGlobal.use_internal_wiki. You
+# For internal wiki, set IVCoreSettings.enable_wiki and IVCoreSettings.use_internal_wiki. You
 # can then either 1) extend this class and override _open_internal_wiki(), or
 # 2) hook up directly to IVGlobal signal "open_wiki_requested". If the latter,
 # you can safely erase this class from IVProjectBuilder.prog_refs.
@@ -33,10 +33,10 @@ var _wiki_url: String
 
 
 func _project_init() -> void:
-	if !IVGlobal.enable_wiki:
+	if !IVCoreSettings.enable_wiki:
 		return
 	IVGlobal.open_wiki_requested.connect(_open_wiki)
-	if !IVGlobal.use_internal_wiki:
+	if !IVCoreSettings.use_internal_wiki:
 		_wiki_url = "https://" + _wiki + ".org/wiki/"
 
 

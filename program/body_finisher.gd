@@ -47,7 +47,7 @@ var _BodyOrbit_: Script
 var _Rings_: Script
 
 var _model_manager: IVModelManager
-var _bodies_2d_search := IVGlobal.bodies_2d_search
+var _bodies_2d_search := IVCoreSettings.bodies_2d_search
 var _fallback_body_2d: Texture2D
 
 var _io_manager: IVIOManager
@@ -133,7 +133,7 @@ func _load_textures_on_io_thread(body: IVBody, file_prefix: String, is_star: boo
 		texture_slice_2d = files.find_and_load_resource(_bodies_2d_search, slice_name)
 	var rings_images: Array[Image]
 	if rings_file_prefix:
-		var rings_search: Array = IVGlobal.rings_search
+		var rings_search: Array = IVCoreSettings.rings_search
 		var backscatter: Texture2D = files.find_and_load_resource(rings_search,
 				rings_file_prefix + ".backscatter")
 		var forwardscatter: Texture2D = files.find_and_load_resource(rings_search,

@@ -41,12 +41,12 @@ func _ready() -> void:
 	_timekeeper.speed_changed.connect(_update_buttons)
 	_minus.pressed.connect(_increment_speed.bind(-1))
 	_plus.pressed.connect(_increment_speed.bind(1))
-	if !IVGlobal.disable_pause:
+	if !IVCoreSettings.disable_pause:
 		_pause.pressed.connect(_change_paused)
 	else:
 		_pause.queue_free()
 		_pause = null
-	if IVGlobal.allow_time_reversal:
+	if IVCoreSettings.allow_time_reversal:
 		_reverse.pressed.connect(_change_reversed)
 	else:
 		_reverse.queue_free()
@@ -55,14 +55,14 @@ func _ready() -> void:
 
 
 func remove_pause_button() -> void:
-	# not nessessary to call if IVGlobal.disable_pause
+	# not nessessary to call if IVCoreSettings.disable_pause
 	if _pause:
 		_pause.queue_free()
 		_pause = null
 
 
 func remove_reverse_button() -> void:
-	# not nessessary to call if !IVGlobal.allow_time_reversal
+	# not nessessary to call if !IVCoreSettings.allow_time_reversal
 	if _reverse:
 		_reverse.queue_free()
 		_reverse = null

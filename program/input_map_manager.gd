@@ -23,7 +23,7 @@ extends IVCacheManager
 # We define InputMap actions here to decouple version control for ivoyager and
 # extensions/addons (i.e., get them out of project.godot), and to allow player
 # modification via IVHotkeysPopup. Non-default actions are persisted in
-# <IVGlobal.cache_dir>/<cache_file_name>.
+# <IVCoreSettings.cache_dir>/<cache_file_name>.
 #
 # This node and IVHotkeysPopup are unaware of actions defined in project.godot.
 

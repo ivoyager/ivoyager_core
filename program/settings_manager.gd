@@ -20,7 +20,7 @@
 class_name IVSettingsManager
 extends IVCacheManager
 
-# Settings are persisted on disk at <IVGlobal.cache_dir>/<cache_file_name>.
+# Settings are persisted on disk at <IVCoreSettings.cache_dir>/<cache_file_name>.
 #
 # TODO: We could have some settings cached in a user ProjectSettings override
 # for restart engine settings (screen size, rendering, etc.).

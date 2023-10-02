@@ -1,4 +1,4 @@
-# config_utils.gd
+# plugin_utils.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -23,7 +23,7 @@ extends Object
 # Static utility class for working with config files.
 
 
-static func print_plugin_with_version(plugin_config_path: String, append := "") -> void:
+static func print_name_and_version(plugin_config_path: String, append := "") -> void:
 	var plugin_cfg := ConfigFile.new()
 	var err := plugin_cfg.load(plugin_config_path)
 	if err != OK:

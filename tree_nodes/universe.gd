@@ -42,7 +42,7 @@ extends Node3D
 # nested containers or other 'persist objects'. For details on save/load
 # persistence, see ivoyager/program/save_builder.gd.
 #
-# if IVGlobal.pause_only_stops_time == true, then PAUSE_MODE_PROCESS is
+# if IVCoreSettings.pause_only_stops_time == true, then PAUSE_MODE_PROCESS is
 # set here and TopGUI so IVCamera can still move, visuals work (some are
 # responsve to camera) and user can interact with the world. In this mode, only
 # IVTimekeeper pauses to stop time.

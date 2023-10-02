@@ -203,9 +203,9 @@ func _get_model_basis(file_prefix: String, m_radius := NAN, e_radius := NAN) -> 
 func _preregister_files() -> void:
 	# Do this work once at project init, since file tree won't change.
 	assert(!DPRINT or IVDebug.dprint("ModelManager searching for model & texture files..."))
-	var models_search := IVGlobal.models_search
-	var maps_search := IVGlobal.maps_search
-	for table in IVGlobal.body_tables:
+	var models_search := IVCoreSettings.models_search
+	var maps_search := IVCoreSettings.maps_search
+	for table in IVCoreSettings.body_tables:
 		var n_rows := IVTableData.get_n_rows(table)
 		var row := 0
 		while row < n_rows:

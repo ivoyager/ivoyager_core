@@ -50,7 +50,7 @@ func _project_init():
 
 
 func _on_state_manager_inited() -> void:
-	if IVGlobal.skip_splash_screen:
+	if IVCoreSettings.skip_splash_screen:
 		build_system_tree()
 
 
@@ -61,7 +61,7 @@ func build_system_tree() -> void:
 	state_manager.require_stop(state_manager, IVEnums.NetworkStopSync.BUILD_SYSTEM, true)
 	IVGlobal.about_to_build_system_tree.emit()
 	_signal_when_system_is_ready(true)
-	for table_name in IVGlobal.body_tables:
+	for table_name in IVCoreSettings.body_tables:
 		_add_bodies(table_name)
 	if add_small_bodies_groups:
 		_sbg_builder.build_sbgs()
@@ -130,6 +130,6 @@ func _add_bodies(table_name: String) -> void:
 func _add_camera() -> void:
 	var _Camera_: GDScript = IVGlobal.procedural_classes._Camera_
 	var camera: Camera3D = _Camera_.new()
-	var start_body: IVBody = IVGlobal.bodies[IVGlobal.home_name]
+	var start_body: IVBody = IVGlobal.bodies[IVCoreSettings.home_name]
 	start_body.add_child(camera)
 

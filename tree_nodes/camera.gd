@@ -131,7 +131,7 @@ var disabled_flags := 0 # IVEnums.CameraDisabledFlags
 var _universe: Node3D = IVGlobal.program.Universe
 var _settings: Dictionary = IVGlobal.settings
 var _world_targeting: Array = IVGlobal.world_targeting
-var _max_dist: float = IVGlobal.max_camera_distance
+var _max_dist: float = IVCoreSettings.max_camera_distance
 
 # motions / rotations
 var _motion_accumulator := Vector3.ZERO

@@ -46,7 +46,7 @@ var current_target: Object = null
 
 # private
 var _world_targeting: Array = IVGlobal.world_targeting
-var _pause_only_stops_time = IVGlobal.pause_only_stops_time
+var _pause_only_stops_time = IVCoreSettings.pause_only_stops_time
 var _drag_start := Vector2.ZERO
 var _drag_segment_start := Vector2.ZERO
 var _has_mouse := true

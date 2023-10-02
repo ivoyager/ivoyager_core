@@ -22,7 +22,6 @@ extends Object
 
 # We keep enums here that are broadly needed by the program.
 #
-# You can extend this class and assign your extended class to IVGlobal.enums.
 # This is used by program systems that need to interpret enums without specific
 # knowledge of their context. E.g.:
 #  - IVTableImporter for interpretting enum names in external *.tsv files

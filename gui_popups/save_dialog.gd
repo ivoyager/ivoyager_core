@@ -36,9 +36,10 @@ var _blocking_windows: Array[Window] = IVGlobal.blocking_windows
 
 
 func _project_init() -> void:
-	if !IVGlobal.enable_save_load:
+	if !IVCoreSettings.enable_save_load:
 		return
-	add_filter("*." + IVGlobal.save_file_extension + ";" + IVGlobal.save_file_extension_name)
+	add_filter("*." + IVCoreSettings.save_file_extension + ";"
+			+ IVCoreSettings.save_file_extension_name)
 
 
 func _ready():
@@ -65,7 +66,7 @@ func _open() -> void:
 	IVGlobal.sim_stop_required.emit(self)
 	popup_centered()
 	access = ACCESS_FILESYSTEM
-	var save_dir := files.get_save_dir_path(IVGlobal.is_modded, _settings[&"save_dir"])
+	var save_dir := files.get_save_dir_path(IVCoreSettings.is_modded, _settings[&"save_dir"])
 	var date_string: String = (_timekeeper.get_current_date_for_file()
 			if _settings[&"append_date_to_save"] else "")
 	current_path = files.get_save_path(save_dir, _settings[&"save_base_name"], date_string, false)

@@ -27,7 +27,7 @@ const ECLIPTIC_Z := Vector3(0.0, 0.0, 1.0)
 const G := IVUnits.GRAVITATIONAL_CONSTANT
 const BodyFlags := IVEnums.BodyFlags
 
-var enable_precisions := IVGlobal.enable_precisions
+var enable_precisions := IVCoreSettings.enable_precisions
 
 var characteristics_fields: Array[StringName] = [ # only added if exists
 	&"symbol",

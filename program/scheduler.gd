@@ -40,7 +40,7 @@ func _ready() -> void:
 	process_mode = PROCESS_MODE_ALWAYS
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
 	_timekeeper.time_altered.connect(_on_time_altered)
-	if IVGlobal.allow_time_reversal:
+	if IVCoreSettings.allow_time_reversal:
 		_timekeeper.speed_changed.connect(_update_for_time_reversal)
 
 
@@ -135,7 +135,7 @@ func _remove_active_interval_signal(signal_name: StringName) -> void:
 
 
 func _update_for_time_reversal() -> void:
-	# Connected only if IVGlobal.allow_time_reversal.
+	# Connected only if IVCoreSettings.allow_time_reversal.
 	if _is_reversed == _timekeeper.is_reversed:
 		return
 	_is_reversed = !_is_reversed

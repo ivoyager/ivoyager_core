@@ -109,7 +109,7 @@ var sleep := false
 # private
 var _times: Array[float] = IVGlobal.times
 #var _state: Dictionary = IVGlobal.state
-var _ecliptic_rotation: Basis = IVGlobal.ecliptic_rotation
+var _ecliptic_rotation: Basis = IVCoreSettings.ecliptic_rotation
 var _min_hud_dist: float
 
 var _world_targeting: Array = IVGlobal.world_targeting
@@ -260,7 +260,7 @@ func _on_process(_delta: float) -> void: # subclass can override
 # public functions
 
 func get_float_precision(path: String) -> int:
-	# Available only if IVGlobal.enable_precisions == true. Gets the
+	# Available only if IVCoreSettings.enable_precisions == true. Gets the
 	# precision (significant digits) of a real value as it was entered in the
 	# table *.tsv file. Used by Planetarium.
 	if !characteristics.has("real_precisions"):

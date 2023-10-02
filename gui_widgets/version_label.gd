@@ -22,7 +22,7 @@ extends Label
 
 # GUI widget.
 #
-# If IVGlobal.project_name == "", will show ivoyager_core version.
+# If IVCoreSettings.project_name == "", will show ivoyager_core version.
 
 
 var use_name := false
@@ -36,9 +36,9 @@ func _ready() -> void:
 func set_label() -> void:
 	# Call directly if properties changed after added to tree.
 	var sep := "\n" if multiline else " "
-	var is_project := IVGlobal.project_name != ""
+	var is_project := IVCoreSettings.project_name != ""
 	text = ""
 	if use_name:
-		text += (IVGlobal.project_name if is_project else "I, Voyager") + sep
-	text += IVGlobal.project_version if is_project else IVGlobal.ivoyager_version
+		text += (IVCoreSettings.project_name if is_project else "I, Voyager") + sep
+	text += IVCoreSettings.project_version if is_project else IVGlobal.ivoyager_version
 

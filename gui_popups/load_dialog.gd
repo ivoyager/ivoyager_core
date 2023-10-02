@@ -34,10 +34,11 @@ var _main_menu_manager: IVMainMenuManager
 
 
 func _project_init():
-	if !IVGlobal.enable_save_load:
+	if !IVCoreSettings.enable_save_load:
 		return
 	_main_menu_manager = IVGlobal.program[&"MainMenuManager"]
-	add_filter("*." + IVGlobal.save_file_extension + ";" + IVGlobal.save_file_extension_name)
+	add_filter("*." + IVCoreSettings.save_file_extension + ";"
+			+ IVCoreSettings.save_file_extension_name)
 	IVGlobal.system_tree_ready.connect(_on_system_tree_ready)
 	IVGlobal.load_dialog_requested.connect(_open)
 	IVGlobal.game_save_finished.connect(_update_quick_load_button)
@@ -69,7 +70,8 @@ func _open() -> void:
 	IVGlobal.sim_stop_required.emit(self)
 	popup_centered()
 	access = ACCESS_FILESYSTEM
-	var save_dir := files.get_save_dir_path(IVGlobal.is_modded, IVGlobal.settings[&"save_dir"])
+	var save_dir := files.get_save_dir_path(IVCoreSettings.is_modded,
+			IVGlobal.settings[&"save_dir"])
 	current_dir = save_dir
 	if _state.last_save_path:
 		current_path = _state.last_save_path

@@ -20,17 +20,17 @@
 class_name IVSharedResourceInitializer
 extends RefCounted
 
-# Adds resources to IVGlobal.shared_resources. Add more by adding to
+# Adds resources to IVCoreSettings.shared_resources. Add more by adding to
 # 'constructor_callables' on 'project_objects_instantiated' signal.
 
 
 var constructor_callables := {
 	&"sphere_mesh" : _make_sphere_mesh,
-	&"circle_mesh" : _make_circle_mesh.bind(IVGlobal.vertecies_per_orbit),
-	&"circle_mesh_low_res" : _make_circle_mesh.bind(IVGlobal.vertecies_per_orbit_low_res),
+	&"circle_mesh" : _make_circle_mesh.bind(IVCoreSettings.vertecies_per_orbit),
+	&"circle_mesh_low_res" : _make_circle_mesh.bind(IVCoreSettings.vertecies_per_orbit_low_res),
 }
 
-var _shared_resources: Dictionary = IVGlobal.shared_resources
+var _shared_resources: Dictionary = IVCoreSettings.shared_resources
 
 
 func _init() -> void:

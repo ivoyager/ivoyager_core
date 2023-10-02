@@ -29,7 +29,7 @@ const PERSIST_PROPERTIES := [
 	&"_gamesave_views",
 ]
 
-var file_path := IVGlobal.cache_dir.path_join("views.ivbinary")
+var file_path := IVCoreSettings.cache_dir.path_join("views.ivbinary")
 
 var _gamesave_views := {}
 var _cached_views := {}
@@ -42,7 +42,7 @@ var _missing_or_bad_cache_file := true
 func _project_init() -> void:
 	_View_ = IVGlobal.procedural_classes[&"_View_"]
 	_io_manager = IVGlobal.program[&"IOManager"]
-	files.make_dir_if_doesnt_exist(IVGlobal.cache_dir)
+	files.make_dir_if_doesnt_exist(IVCoreSettings.cache_dir)
 	_read_cache()
 	if _missing_or_bad_cache_file:
 		_write_cache()

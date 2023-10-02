@@ -64,14 +64,13 @@ extends Node
 # by setting 'top_gui' here (but see comments in tree_nodes/top_gui.gd).
 #
 # For a game that needs a splash screen at startup, add the splash screen to
-# 'gui_nodes' here and set IVGlobal.skip_splash_screen = false (for example,
+# 'gui_nodes' here and set IVCoreSettings.skip_splash_screen = false (for example,
 # see https://github.com/ivoyager/project_template).
 
 
 signal init_step_finished() # for internal use only
 
 const files := preload("../static/files.gd")
-const config_utils := preload("../editor_plugin/config_utils.gd")
 
 
 # *************** PROJECT VARS - MODIFY THESE TO EXTEND !!!! ******************
@@ -256,9 +255,11 @@ var _procedural_classes: Dictionary = IVGlobal.procedural_classes
 
 
 func _enter_tree() -> void:
-	var config := config_utils.get_config_with_override("res://addons/ivoyager_core/core.cfg",
+	const plugin_utils := preload("../editor_plugin/plugin_utils.gd")
+	var config: ConfigFile = plugin_utils.get_config_with_override(
+			"res://addons/ivoyager_core/core.cfg",
 			"res://ivoyager_override.cfg", "core_initializer")
-	config_utils.init_from_config(self, config, "core_initializer")
+	plugin_utils.init_from_config(self, config, "core_initializer")
 
 
 func _ready() -> void:
@@ -266,7 +267,7 @@ func _ready() -> void:
 	while init_countdown > 0:
 		await get_tree().process_frame
 		init_countdown -= 1
-	build_project.call_deferred() # after all other singletons _ready()
+	build_project() # after all other singletons _ready()
 
 
 # **************************** PUBLIC FUNCTIONS *******************************
@@ -329,7 +330,7 @@ func _instantiate_preinitializers() -> void:
 			continue
 		var preinitializer: RefCounted = files.make_object_or_scene(preinitializers[key])
 		_program[key] = preinitializer
-#	IVGlobal.initializers_inited.emit()
+	IVGlobal.preinitializers_inited.emit()
 
 
 func _instantiate_initializers() -> void:
@@ -374,6 +375,7 @@ func _set_simulator_top_gui() -> void:
 
 func _instantiate_and_index_program_objects() -> void:
 	_program.Global = IVGlobal
+	_program.CoreSettings = IVCoreSettings
 	_program.Universe = universe
 	_program.TopGUI = top_gui
 	for dict in [program_refcounteds, program_nodes, gui_nodes]:

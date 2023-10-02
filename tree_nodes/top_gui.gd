@@ -49,7 +49,7 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	if IVGlobal.pause_only_stops_time:
+	if IVCoreSettings.pause_only_stops_time:
 		process_mode = PROCESS_MODE_ALWAYS
 
 

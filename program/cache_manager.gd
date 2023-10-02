@@ -49,7 +49,7 @@ func _on_init() -> void: # subclass can override
 
 func _project_init() -> void:
 	_io_manager = IVGlobal.program["IOManager"]
-	var cache_dir: String = IVGlobal.cache_dir
+	var cache_dir: String = IVCoreSettings.cache_dir
 	_file_path = cache_dir.path_join(cache_file_name)
 	# TEST34
 	if !DirAccess.dir_exists_absolute(cache_dir):

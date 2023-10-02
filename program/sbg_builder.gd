@@ -30,7 +30,7 @@ const BINARY_FILE_MAGNITUDES := ["11.0", "11.5", "12.0", "12.5", "13.0", "13.5",
 		"15.0", "15.5", "16.0", "16.5", "17.0", "17.5", "18.0", "18.5", "99.9"]
 
 
-var _sbg_mag_cutoff_override: float = IVGlobal.sbg_mag_cutoff_override
+var _sbg_mag_cutoff_override: float = IVCoreSettings.sbg_mag_cutoff_override
 var _SmallBodiesGroup_: Script
 var _binary_dir: String
 
