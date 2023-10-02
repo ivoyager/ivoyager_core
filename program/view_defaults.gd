@@ -40,7 +40,7 @@ var views := {}
 var _View_: GDScript
 
 
-func _project_init() -> void:
+func _ivcore_init() -> void:
 	IVGlobal.about_to_start_simulator.connect(_on_about_to_start_simulator)
 	_View_ = IVGlobal.procedural_classes[&"_View_"]
 	

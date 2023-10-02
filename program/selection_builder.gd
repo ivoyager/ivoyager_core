@@ -32,7 +32,7 @@ var above_bodies_selection_name := "" # "SYSTEM_SOLAR_SYSTEM"
 var _Selection_: Script
 
 
-func _project_init() -> void:
+func _ivcore_init() -> void:
 	_Selection_ = IVGlobal.procedural_classes[&"_Selection_"]
 
 

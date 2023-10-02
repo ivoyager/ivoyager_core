@@ -39,7 +39,7 @@ var _missing_or_bad_cache_file := true
 
 
 
-func _project_init() -> void:
+func _ivcore_init() -> void:
 	_View_ = IVGlobal.procedural_classes[&"_View_"]
 	_io_manager = IVGlobal.program[&"IOManager"]
 	files.make_dir_if_doesnt_exist(IVCoreSettings.cache_dir)

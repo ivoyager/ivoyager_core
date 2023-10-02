@@ -26,7 +26,7 @@ extends RefCounted
 var fallback_starmap := &"starmap_8k" # IVCoreSettings.asset_paths index; must exist
 
 
-func _project_init() -> void:
+func _ivcore_init() -> void:
 	IVGlobal.project_objects_instantiated.connect(_check_starmap_availability)
 	IVGlobal.project_inited.connect(add_world_environment)
 

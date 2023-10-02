@@ -48,7 +48,7 @@ var _cull_models := []
 var _cull_size: int
 
 
-func _project_init() -> void:
+func _ivcore_init() -> void:
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
 	IVGlobal.about_to_stop_before_quit.connect(_clear)
 	_SpheroidModel_ = IVGlobal.procedural_classes[&"_SpheroidModel_"]

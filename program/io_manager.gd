@@ -58,7 +58,7 @@ var _null_lambda := func(): return
 # *****************************************************************************
 # Init & app exit
 
-func _project_init() -> void:
+func _ivcore_init() -> void:
 	_state_manager = IVGlobal.program[&"StateManager"]
 	if !_use_threads:
 		return

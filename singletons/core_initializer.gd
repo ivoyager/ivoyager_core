@@ -286,21 +286,21 @@ func reindex_top_gui_child(node_name: StringName, new_index: int) -> void:
 
 
 func move_universe_child_to_sibling(node_name: StringName, sibling_name: StringName,
-		is_before: bool) -> void:
+		before_sibling: bool) -> void:
 	# Call at 'project_nodes_added' signal.
 	var node: Node = _program[node_name]
 	var sibling: Node = _program[sibling_name]
 	var sibling_index := sibling.get_index()
-	universe.move_child(node, sibling_index if is_before else sibling_index + 1)
+	universe.move_child(node, sibling_index if before_sibling else sibling_index + 1)
 
 
 func move_top_gui_child_to_sibling(node_name: StringName, sibling_name: StringName,
-		is_before: bool) -> void:
+		before_sibling: bool) -> void:
 	# Call at 'project_nodes_added' signal.
 	var node: Node = _program[node_name]
 	var sibling: Node = _program[sibling_name]
 	var sibling_index := sibling.get_index()
-	top_gui.move_child(node, sibling_index if is_before else sibling_index + 1)
+	top_gui.move_child(node, sibling_index if before_sibling else sibling_index + 1)
 
 
 func build_project(override := false) -> void:
@@ -343,16 +343,22 @@ func _instantiate_initializers() -> void:
 
 
 func _set_simulator_root() -> void:
-	# Sim root node 'universe' is assigned in one of three ways:
-	# 1. An extension assigns property 'universe' in this object.
-	# 2. This method finds a tree node named 'Universe'. (In the project
-	#    template, Universe is already present as the main scene.)
-	# 3. IVUniverse (tree_nodes/universe.gd) is instantiated. In this case,
-	#    some other code will need to add it to the tree.
+	# Simulator root node 'universe' is assigned in one of three ways:
+	# 1. External project assigns property 'universe' or 'universe_path' via
+	#    preinitializer script or res://ivoyager_override.cfg.
+	# 2. This method finds an existing tree node named 'Universe'.
+	# 3. This method intantiates IVUniverse (tree_nodes/universe.gd).
 	#
-	# Note: ivoyager code always gets this node via IVGlobal.program.Universe,
+	# Note: We don't add Universe to the scene tree here. That must be done
+	# elsewhere if it isn't already in the tree.
+	# 
+	# Note2: ivoyager_core always gets this node via IVGlobal.program.Universe,
 	# never by node name. The actual node name doesn't matter.
 	if universe:
+		return
+	if universe_path:
+		universe = files.make_object_or_scene(universe_path)
+		assert(universe)
 		return
 	var scenetree_root := get_tree().get_root()
 	universe = scenetree_root.find_child("Universe", true, false)
@@ -363,14 +369,25 @@ func _set_simulator_root() -> void:
 
 
 func _set_simulator_top_gui() -> void:
-	# 'top_gui' is either assigned by an extension or assigned here with an
-	# instatiation of the default IVTopGUI. It is added to Universe in
-	# add_program_nodes() if add_top_gui_to_universe == true.
+	# 'top_gui' is assigned in one of two ways:
+	# 1. External project assigns property 'top_gui' or 'top_gui_path' via
+	#    preinitializer script or res://ivoyager_override.cfg.
+	# 2. This method intantiates IVTopGUI (tree_nodes/top_gui.gd).
 	#
-	# Note: ivoyager code always gets this node via IVGlobal.program.TopGUI,
+	# Method add_program_nodes() will add TopGUI to Universe if
+	# add_top_gui_to_universe == true. Otherwise, external project must add it
+	# somewhere if it isn't already in the tree.
+	#
+	# Note: ivoyager_core always gets this node via IVGlobal.program.TopGUI,
 	# never by node name. The actual node name doesn't matter.
-	if !top_gui:
-		top_gui = files.make_object_or_scene(IVTopGUI)
+	if top_gui:
+		return
+	if top_gui_path:
+		top_gui = files.make_object_or_scene(top_gui_path)
+		assert(top_gui)
+		return
+	top_gui = files.make_object_or_scene(IVTopGUI)
+	top_gui.name = "TopGUI"
 
 
 func _instantiate_and_index_program_objects() -> void:
@@ -407,15 +424,15 @@ func _init_program_objects() -> void:
 #		if !_program.has(object_key): # might have removed itself already
 #			continue
 #		var object: Object = _program[object_key]
-#		if object.has_method("_project_init"):
+#		if object.has_method("_ivcore_init"):
 #			@warning_ignore("unsafe_method_access")
-#			object._project_init()
-	if universe.has_method("_project_init"):
+#			object._ivcore_init()
+	if universe.has_method("_ivcore_init"):
 		@warning_ignore("unsafe_method_access")
-		universe._project_init()
-	if top_gui.has_method("_project_init"):
+		universe._ivcore_init()
+	if top_gui.has_method("_ivcore_init"):
 		@warning_ignore("unsafe_method_access")
-		top_gui._project_init()
+		top_gui._ivcore_init()
 	for dict in [program_refcounteds, program_nodes, gui_nodes]:
 		for key in dict:
 			var key_str: String = key
@@ -423,9 +440,9 @@ func _init_program_objects() -> void:
 				continue
 			var object_key: String = key_str.rstrip("_").lstrip("_")
 			var object: Object = _program[object_key]
-			if object.has_method("_project_init"):
+			if object.has_method("_ivcore_init"):
 				@warning_ignore("unsafe_method_access")
-				object._project_init()
+				object._ivcore_init()
 	IVGlobal.project_inited.emit()
 	await get_tree().process_frame
 	init_step_finished.emit()

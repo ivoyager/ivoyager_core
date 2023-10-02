@@ -146,7 +146,7 @@ var _prev_whole_solar_day := NAN
 # *****************************************************************************
 # virtual functions, inits & destructors
 
-func _project_init() -> void:
+func _ivcore_init() -> void:
 	IVGlobal.about_to_start_simulator.connect(_on_about_to_start_simulator)
 	IVGlobal.about_to_free_procedural_nodes.connect(_set_init_state)
 	IVGlobal.game_load_finished.connect(_set_ready_state)

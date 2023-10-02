@@ -92,7 +92,7 @@ var _signal_when_threads_finished := false
 # *****************************************************************************
 # virtual functions
 
-func _project_init() -> void:
+func _ivcore_init() -> void:
 	_state.is_inited = false
 	_state.is_splash_screen = false
 	_state.is_system_built = false

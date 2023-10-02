@@ -33,7 +33,7 @@ var _blocking_windows: Array[Window] = IVGlobal.blocking_windows
 var _main_menu_manager: IVMainMenuManager
 
 
-func _project_init():
+func _ivcore_init():
 	if !IVCoreSettings.enable_save_load:
 		return
 	_main_menu_manager = IVGlobal.program[&"MainMenuManager"]

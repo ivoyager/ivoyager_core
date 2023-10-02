@@ -123,8 +123,8 @@ func _on_init():
 	layout = [column1, column2, column3]
 
 
-func _project_init() -> void:
-	super._project_init()
+func _ivcore_init() -> void:
+	super._ivcore_init()
 	IVGlobal.hotkeys_requested.connect(open)
 	if IVCoreSettings.disable_pause:
 		remove_item(&"toggle_pause")

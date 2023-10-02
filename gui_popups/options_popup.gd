@@ -83,8 +83,8 @@ func _on_init():
 	layout = [column1, column2]
 
 
-func _project_init() -> void:
-	super._project_init()
+func _ivcore_init() -> void:
+	super._ivcore_init()
 	IVGlobal.options_requested.connect(open)
 	IVGlobal.setting_changed.connect(_settings_listener)
 	if !IVCoreSettings.enable_save_load:

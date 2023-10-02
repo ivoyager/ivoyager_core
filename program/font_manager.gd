@@ -38,7 +38,7 @@ var _settings: Dictionary = IVGlobal.settings
 var _primary_font: FontFile
 
 
-func _project_init() -> void:
+func _ivcore_init() -> void:
 	IVGlobal.setting_changed.connect(_settings_listener)
 	_primary_font = IVGlobal.assets[&"primary_font"]
 	for key in fixed_sizes:

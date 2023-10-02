@@ -58,7 +58,7 @@ var _finished_count: int
 var _system_build_start_msec := 0
 
 
-func _project_init() -> void:
+func _ivcore_init() -> void:
 	IVGlobal.get_tree().node_added.connect(_on_node_added)
 	_model_manager = IVGlobal.program[&"ModelManager"]
 	_io_manager = IVGlobal.program[&"IOManager"]

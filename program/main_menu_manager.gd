@@ -28,7 +28,7 @@ enum {ACTIVE, DISABLED, HIDDEN} # button_state
 
 # project var
 var button_inits: Array[Array] = [
-	# External project can modify this array at _project_init() or use API
+	# External project can modify this array at _ivcore_init() or use API
 	# below. "target" here must be a key in IVGlobal.program. Core buttons here
 	# may be excluded depending on IVCoreSettings project settings.
 	# [text, priority, is_splash, is_running, target_name, method, args]
@@ -49,7 +49,7 @@ var button_inits: Array[Array] = [
 var button_infos: Array[Array] = []
 
 
-func _project_init() -> void:
+func _ivcore_init() -> void:
 	IVGlobal.project_inited.connect(_init_buttons)
 	IVGlobal.about_to_quit.connect(_clear_for_quit)
 

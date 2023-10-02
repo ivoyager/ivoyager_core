@@ -35,7 +35,7 @@ var _blocking_windows: Array[Window] = IVGlobal.blocking_windows
 @onready var _timekeeper: IVTimekeeper = IVGlobal.program[&"Timekeeper"]
 
 
-func _project_init() -> void:
+func _ivcore_init() -> void:
 	if !IVCoreSettings.enable_save_load:
 		return
 	add_filter("*." + IVCoreSettings.save_file_extension + ";"

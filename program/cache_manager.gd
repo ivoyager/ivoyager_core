@@ -47,7 +47,7 @@ func _on_init() -> void: # subclass can override
 	pass
 
 
-func _project_init() -> void:
+func _ivcore_init() -> void:
 	_io_manager = IVGlobal.program["IOManager"]
 	var cache_dir: String = IVCoreSettings.cache_dir
 	_file_path = cache_dir.path_join(cache_file_name)
@@ -170,7 +170,7 @@ func _write_cache() -> void:
 
 
 func _read_cache() -> void:
-	# This happens on _project_init() only. We want this on the Main thread so
+	# This happens on _ivcore_init() only. We want this on the Main thread so
 	# it blocks until completed.
 	var file := FileAccess.open(_file_path, FileAccess.READ)
 	if !file:

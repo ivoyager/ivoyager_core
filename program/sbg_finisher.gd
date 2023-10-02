@@ -37,7 +37,7 @@ var _finished_count := 0
 var _sb_count := 0
 
 
-func _project_init() -> void:
+func _ivcore_init() -> void:
 	IVGlobal.get_tree().node_added.connect(_on_node_added)
 	_SBGPoints_ = IVGlobal.procedural_classes[&"_SBGPoints_"]
 	_SBGOrbits_ = IVGlobal.procedural_classes[&"_SBGOrbits_"]

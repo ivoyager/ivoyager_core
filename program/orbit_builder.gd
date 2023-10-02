@@ -60,7 +60,7 @@ var _d := {
 }
 
 
-func _project_init() -> void:
+func _ivcore_init() -> void:
 	_Orbit_ = IVGlobal.procedural_classes._Orbit_
 
 

@@ -35,7 +35,7 @@ var _SmallBodiesGroup_: Script
 var _binary_dir: String
 
 
-func _project_init() -> void:
+func _ivcore_init() -> void:
 	_SmallBodiesGroup_ = IVGlobal.procedural_classes[&"_SmallBodiesGroup_"]
 
 

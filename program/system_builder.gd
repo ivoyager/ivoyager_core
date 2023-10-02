@@ -39,7 +39,7 @@ var _is_built_or_loaded := false
 var _is_ready := false
 
 
-func _project_init():
+func _ivcore_init():
 	IVGlobal.state_manager_inited.connect(_on_state_manager_inited, CONNECT_ONE_SHOT)
 	IVGlobal.game_load_started.connect(_signal_when_system_is_ready.bind(false))
 	IVGlobal.system_tree_built_or_loaded.connect(_on_system_tree_built_or_loaded)
