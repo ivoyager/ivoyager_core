@@ -40,7 +40,7 @@ func _enter_tree() -> void:
 		_disable_self()
 		return
 	const plugin_utils := preload("plugin_utils.gd")
-	plugin_utils.print_name_and_version("res://addons/ivoyager_core/plugin.cfg",
+	plugin_utils.print_plugin_name_and_version("res://addons/ivoyager_core/plugin.cfg",
 			" - https://ivoyager.dev")
 	_config = plugin_utils.get_config_with_override("res://addons/ivoyager_core/core.cfg",
 			"res://ivoyager_override.cfg", "core_")

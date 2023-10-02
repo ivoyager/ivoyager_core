@@ -20,10 +20,9 @@
 @tool
 extends Object
 
-# Static utility class for working with config files.
 
 
-static func print_name_and_version(plugin_config_path: String, append := "") -> void:
+static func print_plugin_name_and_version(plugin_config_path: String, append := "") -> void:
 	var plugin_cfg := ConfigFile.new()
 	var err := plugin_cfg.load(plugin_config_path)
 	if err != OK:
@@ -34,13 +33,17 @@ static func print_name_and_version(plugin_config_path: String, append := "") -> 
 	print("%s (plugin) %s%s" % [name, version, append])
 
 
+# Below 3 methods copied from ivoyager_core/static/files.gd. We don't like to
+# copy code, but make an exception here for EditorPlugin access.
+
+
 static func config_exists(config_path: String) -> bool:
 	var config := ConfigFile.new()
 	return config.load(config_path) == OK
 
 
 static func get_config(config_path: String) -> ConfigFile:
-	# Returns null if read failure.
+	# Returns null if doesn't exist.
 	var config := ConfigFile.new()
 	var err := config.load(config_path)
 	if err == OK:
@@ -63,28 +66,4 @@ static func get_config_with_override(config_path: String, override_config_path: 
 		for property in override_config.get_section_keys(section):
 			config.set_value(section, property, override_config.get_value(section, property))
 	return config
-
-
-static func init_from_config(object: Object, config: ConfigFile, section: String) -> void:
-	if !config.has_section(section):
-		return
-	for key in config.get_section_keys(section):
-		var value: Variant = config.get_value(section, key)
-		var slash_pos := key.find("/")
-		if slash_pos == -1: # not a dictionary
-			if not key in object:
-				push_warning("WARNING: '%s' not in '%s'; check config file" % [key, object])
-				continue
-			object.set(key, value)
-		else: # dictionary w/ key
-			var dict_name := key.left(slash_pos)
-			var dict_key := key.substr(slash_pos + 1)
-			if not dict_name in object:
-				push_warning("WARNING: '%s' not in '%s'; check config file" % [key, object])
-				continue
-			var dict: Dictionary = object.get(dict_name)
-			if value == null:
-				dict.erase(dict_key)
-			else:
-				dict[dict_key] = value
 

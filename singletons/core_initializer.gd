@@ -231,11 +231,9 @@ var _procedural_classes: Dictionary = IVGlobal.procedural_classes
 
 
 func _enter_tree() -> void:
-	const plugin_utils := preload("../editor_plugin/plugin_utils.gd")
-	var config: ConfigFile = plugin_utils.get_config_with_override(
-			"res://addons/ivoyager_core/core.cfg",
+	var config: ConfigFile = files.get_config_with_override("res://addons/ivoyager_core/core.cfg",
 			"res://ivoyager_override.cfg", "core_initializer")
-	plugin_utils.init_from_config(self, config, "core_initializer")
+	files.init_from_config(self, config, "core_initializer")
 
 
 func _ready() -> void:
