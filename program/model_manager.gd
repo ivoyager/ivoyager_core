@@ -36,8 +36,9 @@ var max_lazy_models := 40
 var model_too_far_radius_multiplier := 3e3
 var map_search_suffixes: Array[String] = [".albedo", ".emission"]
 
+var SpheroidModel: Script
+
 var _times: Array[float] = IVGlobal.times
-var _SpheroidModel_: Script
 var _io_manager: IVIOManager
 var _fallback_albedo_map: Texture2D
 var _map_paths := {}
@@ -51,7 +52,7 @@ var _cull_size: int
 func _ivcore_init() -> void:
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
 	IVGlobal.about_to_stop_before_quit.connect(_clear)
-	_SpheroidModel_ = IVGlobal.procedural_classes[&"_SpheroidModel_"]
+	SpheroidModel = IVGlobal.procedural_classes[&"SpheroidModel"]
 	_io_manager = IVGlobal.program[&"IOManager"]
 	_fallback_albedo_map = IVGlobal.assets[&"fallback_albedo_map"]
 	_cull_size = int(max_lazy_models * CULL_FRACTION)
@@ -129,7 +130,7 @@ func _get_model_on_io_thread(body: IVBody, file_prefix: String, model_type: int,
 	if !albedo_map and !emission_map:
 		albedo_map = _fallback_albedo_map
 	@warning_ignore("unsafe_method_access") # Possible replacement class
-	model = _SpheroidModel_.new(model_type, model_basis, albedo_map, emission_map)
+	model = SpheroidModel.new(model_type, model_basis, albedo_map, emission_map)
 	_finish_model.call_deferred(body, model, lazy_init)
 
 

@@ -29,52 +29,67 @@ extends Object
 # const files := preload("res://addons/ivoyager_core/static/files.gd")
 
 
-static func make_object_or_scene(script_or_path: Variant) -> Object:
-	# 'script_or_path' can be a GDScript object or path to a script ("*.gd") or
-	# path to a scene ("*.tscn," "*.scn").
-	var arg_type := typeof(script_or_path)
-	var script: GDScript
-	var scene_path: String
+static func get_script_or_packedscene(path: String) -> Resource:
+	if !path:
+		assert(false, "Requires path")
+		return null
+	if path.ends_with(".tscn") or path.ends_with(".scn"):
+		var packedscene: PackedScene = load(path)
+		assert(packedscene, "Failed to load PackedScene at '%s'" % path)
+		return packedscene
+	var script: Script = load(path)
+	assert(script, "Failed to load Script at '%s'" % path)
+	return script
+
+
+static func make_object_or_scene(arg: Variant) -> Object:
+	# Returns intantiated Object or root node of instantiated scene.
+	# 'arg' can be a Script, PackedScene, or String that is a path to a
+	# PackedScene (*.tscn, *.scn) or Script resource.
+	# If Script has const SCENE_OVERRIDE or SCENE, then that is used as path
+	# to intantiate a scene. 
+	var arg_type := typeof(arg)
+	var packedscene: PackedScene
+	var script: Script
 	if arg_type == TYPE_OBJECT:
-		assert(script_or_path is GDScript, "Unknown object class")
-		script = script_or_path
-	else:
-		assert(arg_type == TYPE_STRING or arg_type == TYPE_STRING_NAME, "Unexpected argument type")
-		var path := script_or_path as String
-		if path.ends_with(".gd"):
-			script = load(path)
-			assert(script, "Failed to load GDScript at '%s'" % path)
+		if arg is Script:
+			script = arg
+		elif arg is PackedScene:
+			packedscene = arg
 		else:
-			assert(path.ends_with(".tscn") or path.ends_with(".scn"),
-					"Unknown script or scene at '%s'" % path)
-			scene_path = path
-	if !scene_path:
+			assert(false, "Unknown object class %s" % arg)
+			return null
+	else:
+		assert(arg is String)
+		var script_or_packedscene := get_script_or_packedscene(arg)
+		if !script_or_packedscene:
+			assert(false, "Could not load '%s' as Script or PackedScene"
+					% arg)
+			return null
+		if script_or_packedscene is Script:
+			script = script_or_packedscene
+		else:
+			packedscene = script_or_packedscene
+	
+	if script:
+		var scene_path: String
 		if &"SCENE_OVERRIDE" in script:
 			scene_path = script.get("SCENE_OVERRIDE")
 		elif &"SCENE" in script:
 			scene_path = script.get("SCENE")
-	if !scene_path:
-		return script.new()
-	# It's a scene! Return the root node.
-	var pkd_scene: PackedScene = load(scene_path)
-	assert(pkd_scene, "Failed to load scene at '%s'" % scene_path)
-	var root_node: Node = pkd_scene.instantiate()
-	if root_node.get_script() != script: # root_node.script may be parent class
+		if scene_path:
+			packedscene = load(scene_path)
+			if !packedscene:
+				assert(false, "Failed to load scene at '%s'" % scene_path)
+				return null
+		else:
+			@warning_ignore("unsafe_method_access")
+			return script.new()
+	
+	var root_node: Node = packedscene.instantiate()
+	if root_node.get_script() != script: # root_node.script may be parent class!
 		root_node.set_script(script)
 	return root_node
-
-
-static func get_procedural_class(script_or_path: Variant) -> GDScript:
-	var arg_type := typeof(script_or_path)
-	if arg_type == TYPE_OBJECT:
-		assert(script_or_path is GDScript, "Unknown object class")
-		return script_or_path
-	assert(arg_type == TYPE_STRING or arg_type == TYPE_STRING_NAME, "Unexpected argument type")
-	var path := script_or_path as String
-	assert(path.ends_with(".gd"), "Unknown GDScript at '%s'" % path)
-	var script: GDScript = load(path)
-	assert(script, "Failed to load GDScript at '%s'" % path)
-	return script
 
 
 static func get_save_dir_path(is_modded: bool, override_dir: String = "") -> String:

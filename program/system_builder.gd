@@ -128,8 +128,9 @@ func _add_bodies(table_name: String) -> void:
 
 
 func _add_camera() -> void:
-	var _Camera_: GDScript = IVGlobal.procedural_classes._Camera_
-	var camera: Camera3D = _Camera_.new()
+	var Camera: Script = IVGlobal.procedural_classes[&"Camera"]
+	@warning_ignore("unsafe_method_access")
+	var camera: Camera3D = Camera.new()
 	var start_body: IVBody = IVGlobal.bodies[IVCoreSettings.home_name]
 	start_body.add_child(camera)
 

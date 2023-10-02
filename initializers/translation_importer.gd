@@ -34,6 +34,8 @@ extends RefCounted
 func _init():
 	_load_translations()
 	IVGlobal.translations_imported.emit()
+	
+	IVGlobal.program.erase(&"TranslationImporter")
 
 
 func _load_translations() -> void:

@@ -104,8 +104,9 @@ var flag_fields := {
 	BodyFlags.SHOW_IN_NAV_PANEL : &"show_in_nav_panel",
 }
 
-# private
-var _Body_: Script
+
+var Body: Script
+
 var _orbit_builder: IVOrbitBuilder
 var _composition_builder: IVCompositionBuilder
 var _table_name: StringName
@@ -114,7 +115,7 @@ var _real_precisions := {}
 
 
 func _ivcore_init() -> void:
-	_Body_ = IVGlobal.procedural_classes[&"_Body_"]
+	Body = IVGlobal.procedural_classes[&"Body"]
 	_orbit_builder = IVGlobal.program[&"OrbitBuilder"]
 	_composition_builder = IVGlobal.program.get(&"CompositionBuilder")
 
@@ -122,8 +123,8 @@ func _ivcore_init() -> void:
 func build_from_table(table_name: String, row: int, parent: IVBody) -> IVBody: # Main thread!
 	_table_name = table_name
 	_row = row
-	@warning_ignore("unsafe_method_access") # possible replacement class
-	var body: IVBody = _Body_.new()
+	@warning_ignore("unsafe_method_access")
+	var body: IVBody = Body.new()
 	body.name = IVTableData.get_db_entity_name(table_name, row)
 	_set_flags_from_table(body, parent)
 	_set_orbit_from_table(body, parent)

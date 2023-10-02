@@ -376,9 +376,9 @@ func _on_system_tree_ready(_is_new_game: bool) -> void:
 	_to_spatial = parent
 	_from_spatial = parent
 	if !selection: # new game
-		var _SelectionManager_: Script = IVGlobal.procedural_classes._SelectionManager_
-		@warning_ignore("unsafe_method_access") # project subclass may override static func
-		selection = _SelectionManager_.get_or_make_selection(parent.name)
+		var SelectionManager: Script = IVGlobal.procedural_classes[&"SelectionManager"]
+		@warning_ignore("unsafe_method_access")
+		selection = SelectionManager.get_or_make_selection(parent.name)
 		assert(selection)
 		perspective_radius = selection.get_perspective_radius()
 	_from_selection = selection

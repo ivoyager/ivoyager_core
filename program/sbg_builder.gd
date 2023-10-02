@@ -30,13 +30,14 @@ const BINARY_FILE_MAGNITUDES := ["11.0", "11.5", "12.0", "12.5", "13.0", "13.5",
 		"15.0", "15.5", "16.0", "16.5", "17.0", "17.5", "18.0", "18.5", "99.9"]
 
 
+var SmallBodiesGroup: Script
+
 var _sbg_mag_cutoff_override: float = IVCoreSettings.sbg_mag_cutoff_override
-var _SmallBodiesGroup_: Script
 var _binary_dir: String
 
 
 func _ivcore_init() -> void:
-	_SmallBodiesGroup_ = IVGlobal.procedural_classes[&"_SmallBodiesGroup_"]
+	SmallBodiesGroup = IVGlobal.procedural_classes[&"SmallBodiesGroup"]
 
 
 func build_sbgs() -> void:
@@ -72,7 +73,7 @@ func build_sbg(row: int) -> void:
 	
 	# init
 	@warning_ignore("unsafe_method_access") # possible replacement class
-	var sbg: IVSmallBodiesGroup = _SmallBodiesGroup_.new()
+	var sbg: IVSmallBodiesGroup = SmallBodiesGroup.new()
 	sbg.init(name, sbg_alias, sbg_class, lp_integer, secondary)
 	
 	# binaries import

@@ -35,4 +35,6 @@ func _init() -> void:
 			IVGlobal.wiki = locale + ".wikipedia"
 		else:
 			IVGlobal.wiki = "en.wikipedia"
+	
+	IVGlobal.program.erase(&"WikiInitializer")
 

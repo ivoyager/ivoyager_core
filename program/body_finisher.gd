@@ -37,14 +37,12 @@ var max_hud_dist_orbit_radius_multiplier := 100.0
 var min_hud_dist_radius_multiplier := 500.0
 var min_hud_dist_star_multiplier := 20.0 # combines w/ above
 
- # read-only! 
+ # read-only!
+var BodyLabel: Script
+var BodyOrbit: Script
+var Rings: Script
 var progress := 0 # TODO: Re-implement the progress bar
 
-# private
-#var _ModelController_: Script
-var _BodyLabel_: Script
-var _BodyOrbit_: Script
-var _Rings_: Script
 
 var _model_manager: IVModelManager
 var _bodies_2d_search := IVCoreSettings.bodies_2d_search
@@ -62,9 +60,9 @@ func _ivcore_init() -> void:
 	IVGlobal.get_tree().node_added.connect(_on_node_added)
 	_model_manager = IVGlobal.program[&"ModelManager"]
 	_io_manager = IVGlobal.program[&"IOManager"]
-	_BodyLabel_ = IVGlobal.procedural_classes[&"_BodyLabel_"]
-	_BodyOrbit_ = IVGlobal.procedural_classes[&"_BodyOrbit_"]
-	_Rings_ = IVGlobal.procedural_classes[&"_Rings_"]
+	BodyLabel = IVGlobal.procedural_classes[&"BodyLabel"]
+	BodyOrbit = IVGlobal.procedural_classes[&"BodyOrbit"]
+	Rings = IVGlobal.procedural_classes[&"Rings"]
 	_fallback_body_2d = IVGlobal.assets[&"fallback_body_2d"]
 
 
@@ -110,10 +108,10 @@ func _build_unpersisted(body: IVBody) -> void: # Main thread
 	
 	if body.orbit:
 		@warning_ignore("unsafe_method_access") # possible replacement class
-		var body_orbit: Node3D = _BodyOrbit_.new(body)
+		var body_orbit: Node3D = BodyOrbit.new(body)
 		body.get_parent().add_child(body_orbit)
 	@warning_ignore("unsafe_method_access") # possible replacement class
-	var body_label: Node3D = _BodyLabel_.new(body)
+	var body_label: Node3D = BodyLabel.new(body)
 	body.add_child(body_label)
 	var file_prefix := body.get_file_prefix()
 	var is_star := bool(body.flags & BodyFlags.IS_STAR)
@@ -155,7 +153,7 @@ func _finish_on_main_thread(body: IVBody, texture_2d: Texture2D, texture_slice_2
 	if rings_images:
 		var sunlight_source := body.get_parent_node_3d() # assumes no moon rings!
 		@warning_ignore("unsafe_method_access") # possible replacement class
-		var rings: Node3D = _Rings_.new(body, sunlight_source, rings_images)
+		var rings: Node3D = Rings.new(body, sunlight_source, rings_images)
 		body.add_child_to_model_space(rings)
 	_finished_count += 1
 	if _is_building_system:

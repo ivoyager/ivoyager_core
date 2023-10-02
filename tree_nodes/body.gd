@@ -495,9 +495,9 @@ func set_model_parameters(reference_basis: Basis, max_dist: float) -> void:
 
 func add_child_to_model_space(spatial: Node3D) -> void:
 	if !model_space:
-		var _ModelSpace_: Script = IVGlobal.procedural_classes._ModelSpace_
+		var ModelSpace: Script = IVGlobal.procedural_classes[&"ModelSpace"]
 		@warning_ignore("unsafe_method_access") # Replacement class possible
-		model_space = _ModelSpace_.new()
+		model_space = ModelSpace.new()
 		add_child(model_space)
 	model_space.add_child(spatial)
 
@@ -674,9 +674,9 @@ func _add_rotating_space() -> void:
 	var mass_ratio := m1 / m2
 	var characteristic_length := orbit.get_semimajor_axis()
 	var characteristic_time := orbit.get_orbit_period()
-	var _RotatingSpace_: Script = IVGlobal.procedural_classes._RotatingSpace_
+	var RotatingSpace: Script = IVGlobal.procedural_classes[&"RotatingSpace"]
 	@warning_ignore("unsafe_method_access") # possible replacement class
-	rotating_space = _RotatingSpace_.new()
+	rotating_space = RotatingSpace.new()
 	rotating_space.init(mass_ratio, characteristic_length, characteristic_time)
 	var translation_ := orbit.get_position()
 	var orbit_dist := translation_.length()

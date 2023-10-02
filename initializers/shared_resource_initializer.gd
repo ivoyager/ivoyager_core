@@ -36,6 +36,7 @@ var _shared_resources: Dictionary = IVCoreSettings.shared_resources
 func _init() -> void:
 	_load_resource_paths()
 	_make_shared_resources()
+	IVGlobal.program.erase(&"SharedResourceInitializer")
 
 
 func _load_resource_paths() -> void:
