@@ -63,14 +63,14 @@ static func init_from_config(object: Object, config: ConfigFile, section: String
 		var dot_pos := key.find(".")
 		if slash_pos == -1 and dot_pos == -1: # not a dictionary or array
 			if not key in object:
-				push_warning("WARNING: '%s' not in '%s'; check config file" % [key, object])
+				push_warning("'%s' not in '%s'; check config file" % [key, object])
 				continue
 			object.set(key, value)
 		elif slash_pos >= 0: # dictionary w/ key
 			var dict_name := key.left(slash_pos)
 			var dict_key := key.substr(slash_pos + 1)
 			if not dict_name in object:
-				push_warning("WARNING: '%s' not in '%s'; check config file" % [dict_name, object])
+				push_warning("'%s' not in '%s'; check config file" % [dict_name, object])
 				continue
 			var dict: Dictionary = object.get(dict_name)
 			if value == null:
@@ -81,10 +81,10 @@ static func init_from_config(object: Object, config: ConfigFile, section: String
 			var array_name := key.left(dot_pos)
 			var array_cmd := key.substr(dot_pos + 1)
 			if not array_name in object:
-				push_warning("WARNING: '%s' not in '%s'; check config file" % [array_name, object])
+				push_warning("'%s' not in '%s'; check config file" % [array_name, object])
 				continue
 			if not value is Array:
-				push_warning("WARNING: Expected array after '%s'=" % key)
+				push_warning("Expected array after '%s'=" % key)
 				continue
 			var array: Array = object.get(array_name)
 			var mod_array: Array = value
@@ -95,10 +95,10 @@ static func init_from_config(object: Object, config: ConfigFile, section: String
 				for item in mod_array:
 					array.erase(item)
 			else:
-				push_warning("WARNING: '%s'. must be followed by 'append' or 'erase'" % key)
+				push_warning("'%s'. must be followed by 'append' or 'erase'" % key)
 				continue
 		else:
-			push_warning("WARNING: Bad config key '%s'" % key)
+			push_warning("Bad config key '%s'" % key)
 			continue
 
 

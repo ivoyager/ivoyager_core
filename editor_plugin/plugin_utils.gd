@@ -26,7 +26,7 @@ static func print_plugin_name_and_version(plugin_config_path: String, append := 
 	var plugin_cfg := ConfigFile.new()
 	var err := plugin_cfg.load(plugin_config_path)
 	if err != OK:
-		print("ERROR: Failed to load config '%s'" % plugin_config_path)
+		assert(false, "Failed to load config '%s'" % plugin_config_path)
 		return
 	var name: String = plugin_cfg.get_value("plugin", "name")
 	var version: String = plugin_cfg.get_value("plugin", "version")

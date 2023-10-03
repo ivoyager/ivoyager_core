@@ -76,7 +76,7 @@ func _create_override_config() -> void:
 	print(
 		"\nCreating 'ivoyager_override.cfg' in your project directory. Modify this file to change\n"
 		+ "autoload singletons, shader globals, base settings defined in singletons/core_settings.gd\n"
-		+ "or base classes defined in singletons/core_initializer.\n"
+		+ "or base classes defined in singletons/core_initializer.gd.\n"
 	)
 	var dir = DirAccess.open("res://addons/ivoyager_core/")
 	var err := dir.copy("res://addons/ivoyager_core/override_template.cfg",
