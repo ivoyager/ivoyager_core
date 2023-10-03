@@ -42,7 +42,7 @@ var _missing_or_bad_cache_file := true
 func _ivcore_init() -> void:
 	View = IVGlobal.procedural_classes[&"View"]
 	_io_manager = IVGlobal.program[&"IOManager"]
-	files.make_dir_if_doesnt_exist(IVCoreSettings.cache_dir)
+	DirAccess.make_dir_recursive_absolute(IVCoreSettings.cache_dir)
 	_read_cache()
 	if _missing_or_bad_cache_file:
 		_write_cache()

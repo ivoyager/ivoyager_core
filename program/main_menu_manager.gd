@@ -39,7 +39,6 @@ var button_inits: Array[Array] = [
 	[&"BUTTON_QUICK_LOAD", 700, false, true, &"SaveManager", &"quick_load"],
 	[&"BUTTON_OPTIONS", 600, true, true, &"OptionsPopup", &"open"],
 	[&"BUTTON_HOTKEYS", 500, true, true, &"HotkeysPopup", &"open"],
-	[&"BUTTON_CREDITS", 400, true, true, &"CreditsPopup", &"open"],
 	[&"BUTTON_EXIT", 300, false, true, &"StateManager", &"exit"],
 	[&"BUTTON_QUIT", 200, true, true, &"StateManager", &"quit"],
 	[&"BUTTON_RESUME", 100, false, true, &"MainMenuPopup", &"close"],

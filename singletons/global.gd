@@ -116,8 +116,7 @@ var debug_log: FileAccess # IVLogInitializer sets if debug build and debug_log_p
 
 
 func _enter_tree() -> void:
-	const plugin_utils := preload("../editor_plugin/plugin_utils.gd")
-	var plugin_config := plugin_utils.get_config("res://addons/ivoyager_core/plugin.cfg")
+	var plugin_config := IVFiles.get_config("res://addons/ivoyager_core/plugin.cfg")
 	assert(plugin_config, "Could not load plugin.cfg")
 	ivoyager_version = plugin_config.get_value("plugin", "version")
 

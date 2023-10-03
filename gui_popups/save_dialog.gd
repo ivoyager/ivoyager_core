@@ -69,7 +69,8 @@ func _open() -> void:
 	var save_dir := files.get_save_dir_path(IVCoreSettings.is_modded, _settings[&"save_dir"])
 	var date_string: String = (_timekeeper.get_current_date_for_file()
 			if _settings[&"append_date_to_save"] else "")
-	current_path = files.get_save_path(save_dir, _settings[&"save_base_name"], date_string, false)
+	current_path = files.get_save_path(save_dir, _settings[&"save_base_name"],
+			IVCoreSettings.save_file_extension, date_string, false)
 	deselect_all()
 
 
@@ -80,7 +81,7 @@ func _close() -> void:
 
 func _save_file(path: String) -> void:
 	var cache_settings := false
-	var save_base_name := files.get_base_file_name(current_file)
+	var save_base_name := files.get_base_file_name(current_file, IVCoreSettings.save_file_extension)
 	if save_base_name != _settings[&"save_base_name"]:
 		_settings_manager.change_current(&"save_base_name", save_base_name, true)
 		cache_settings = true

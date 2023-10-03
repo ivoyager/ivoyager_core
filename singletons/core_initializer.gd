@@ -22,10 +22,11 @@ extends Node
 # This node is added as singleton 'IVCoreInitializer'.
 #
 # Modify properties or dictionary classes using res://ivoyager_override.cfg.
-# Alternatively, you can use an initializer script.
+# Alternatively, you can add a 'preinitializer' script using above and make
+# further changes to ivoyager_core via script.
 #
-# For an example initializer script, see Planetarium:
-# https://github.com/ivoyager/planetarium/blob/master/planetarium/initializer.gd.
+# For an example preinitializer script, see Planetarium:
+# https://github.com/ivoyager/planetarium/blob/master/planetarium/preinitializer.gd.
 # (Note: The Planetarium uses res://ivoyager_override.cfg to add above to
 # 'preinitializers' here.)
 #
@@ -41,8 +42,6 @@ extends Node
 
 signal init_step_finished() # for internal use only
 
-const files := preload("../static/files.gd")
-
 
 # *************** PROJECT VARS - MODIFY THESE TO EXTEND !!!! ******************
 
@@ -56,6 +55,7 @@ var init_sequence: Array[Array] = [
 	# [object, method, wait_for_signal]
 #	[self, "_init_extensions", false],
 	[self, "_instantiate_preinitializers", false],
+	[self, "_do_presets", false],
 	[self, "_instantiate_initializers", false],
 	[self, "_set_simulator_universe", false],
 	[self, "_set_simulator_top_gui", false],
@@ -65,12 +65,17 @@ var init_sequence: Array[Array] = [
 	[self, "_finish", false]
 ]
 
+# Presets safely remove whole systems. (Note: We can add more of these if users
+# want to develop and test them.)
+
+var remove_save_load_system := false
+
 # All nodes instatiated here are added to 'universe' or 'top_gui'. Use
 # ivoyager_override.cfg or a preinitializer script to set either or both of
 # these. Otherwise, IVCoreInitializer will assign default nodes from
 # ivoyager_core (or for universe, by tree search for 'Universe').
-# Whatever is assigned will be accessible from IVGlobal.program["Universe"] and
-# IVGlobal.program["TopGUI"], irrespective of node names.
+# Whatever is assigned will be accessible from IVGlobal.program[&"Universe"]
+# and IVGlobal.program[&"TopGUI"], irrespective of node names.
 
 var universe: Node3D
 var top_gui: Control
@@ -99,7 +104,6 @@ var preinitializers := {
 	# A reference is kept in dictionary 'IVGlobal.program' (erase it if you
 	# want to de-reference your preinitializer so it will free itself).
 }
-
 
 var initializers := {
 	# RefCounted classes. IVCoreInitializer instances these after
@@ -231,9 +235,9 @@ var _procedural_classes: Dictionary = IVGlobal.procedural_classes
 
 
 func _enter_tree() -> void:
-	var config: ConfigFile = files.get_config_with_override("res://addons/ivoyager_core/core.cfg",
+	var config: ConfigFile = IVFiles.get_config_with_override("res://addons/ivoyager_core/core.cfg",
 			"res://ivoyager_override.cfg", "core_initializer")
-	files.init_from_config(self, config, "core_initializer")
+	IVFiles.init_from_config(self, config, "core_initializer")
 
 
 func _ready() -> void:
@@ -304,9 +308,18 @@ func _instantiate_preinitializers() -> void:
 			continue
 		var key_name := StringName(key)
 		assert(!_program.has(key_name))
-		var preinitializer: RefCounted = files.make_object_or_scene(preinitializers[key])
+		var preinitializer: RefCounted = IVFiles.make_object_or_scene(preinitializers[key])
 		_program[key_name] = preinitializer
 	IVGlobal.preinitializers_inited.emit()
+
+
+func _do_presets() -> void:
+	if remove_save_load_system:
+		IVCoreSettings.enable_save_load = false
+		program_refcounteds.erase("SaveBuilder")
+		program_nodes.erase("SaveManager")
+		gui_nodes.erase("SaveDialog")
+		gui_nodes.erase("LoadDialog")
 
 
 func _instantiate_initializers() -> void:
@@ -315,7 +328,7 @@ func _instantiate_initializers() -> void:
 			continue
 		var key_name := StringName(key)
 		assert(!_program.has(key_name))
-		var initializer: RefCounted = files.make_object_or_scene(initializers[key])
+		var initializer: RefCounted = IVFiles.make_object_or_scene(initializers[key])
 		_program[key_name] = initializer
 	IVGlobal.initializers_inited.emit()
 
@@ -335,14 +348,14 @@ func _set_simulator_universe() -> void:
 	if universe:
 		return
 	if universe_path:
-		universe = files.make_object_or_scene(universe_path)
+		universe = IVFiles.make_object_or_scene(universe_path)
 		assert(universe)
 		return
 	var scenetree_root := get_tree().get_root()
 	universe = scenetree_root.find_child(&"Universe", true, false)
 	if universe:
 		return
-	universe = files.make_object_or_scene(IVUniverse)
+	universe = IVFiles.make_object_or_scene(IVUniverse)
 	universe.name = &"Universe"
 
 
@@ -361,10 +374,10 @@ func _set_simulator_top_gui() -> void:
 	if top_gui:
 		return
 	if top_gui_path:
-		top_gui = files.make_object_or_scene(top_gui_path)
+		top_gui = IVFiles.make_object_or_scene(top_gui_path)
 		assert(top_gui)
 		return
-	top_gui = files.make_object_or_scene(IVTopGUI)
+	top_gui = IVFiles.make_object_or_scene(IVTopGUI)
 	top_gui.name = &"TopGUI"
 
 
@@ -380,7 +393,7 @@ func _instantiate_and_index_program_objects() -> void:
 				continue
 			var key_name := StringName(key)
 			assert(!_program.has(key_name))
-			var object: Object = files.make_object_or_scene(dict[key_name])
+			var object: Object = IVFiles.make_object_or_scene(dict[key_name])
 			_program[key_name] = object
 			if object is Node:
 				@warning_ignore("unsafe_property_access")
@@ -394,7 +407,7 @@ func _instantiate_and_index_program_objects() -> void:
 			_procedural_classes[key_name] = procedural_objects[key]
 		else:
 			var path: String = procedural_objects[key]
-			_procedural_classes[key_name] = files.get_script_or_packedscene(path)
+			_procedural_classes[key_name] = IVFiles.get_script_or_packedscene(path)
 	IVGlobal.project_objects_instantiated.emit()
 
 

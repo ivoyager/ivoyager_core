@@ -22,7 +22,6 @@ extends Object
 
 
 
-
 static func config_exists(config_path: String) -> bool:
 	var config := ConfigFile.new()
 	return config.load(config_path) == OK
@@ -181,13 +180,13 @@ static func get_save_dir_path(is_modded: bool, override_dir: String = "") -> Str
 	if save_dir == "":
 		save_dir = OS.get_user_data_dir() + "/saves"
 		save_dir += "/modded_saves" if is_modded else "/unmodded_saves"
-		make_dir_if_doesnt_exist(save_dir)
+		DirAccess.make_dir_recursive_absolute(save_dir)
 	return save_dir
 
 
-static func get_base_file_name(file_name : String) -> String:
+static func get_base_file_name(file_name: String, save_file_extension: String) -> String:
 	# Strips file type and date extensions
-	file_name = file_name.replace("." + IVCoreSettings.save_file_extension, "")
+	file_name = file_name.replace("." + save_file_extension, "")
 	var regex := RegEx.new()
 	regex.compile("\\.\\d+-\\d\\d-\\d\\d") # "(\.\d+-\d\d-\d\d)"
 	var search_result := regex.search(file_name)
@@ -197,50 +196,17 @@ static func get_base_file_name(file_name : String) -> String:
 	return file_name
 
 
-static func get_save_path(save_dir: String, base_name: String, date_string := "",
-		append_file_extension := false) -> String:
+static func get_save_path(save_dir: String, base_name: String, save_file_extension: String,
+		date_string := "", append_file_extension := false) -> String:
 	var path := save_dir.path_join(base_name)
 	if date_string:
 		path += "." + date_string
 	if append_file_extension:
-		path += "." + IVCoreSettings.save_file_extension
+		path += "." + save_file_extension
 	return path
 
 
-static func exists(file_path: String) -> bool:
-	# TEST34: If works, remove this func and use directly.
-	return ResourceLoader.exists(file_path)
-#	var file := File.new()
-#	if file_path.ends_with(".gd"):
-#		# Godot exported has ".gd" changed to ".gdc"
-#		return file.file_exists(file_path) or file.file_exists(file_path + "c")
-#	return file.file_exists(file_path)
-
-
-static func is_valid_dir(dir_path: String) -> bool:
-	# TEST34: If works, remove this func and use directly.
-	return DirAccess.dir_exists_absolute(dir_path)
-#	if dir_path == "":
-#		return false
-#	var dir := DirAccess.new()
-#	return dir.open(dir_path) == OK
-
-
-static func make_dir_if_doesnt_exist(dir_path: String) -> void:
-	# TEST34: Do we need exists test? If not, remove this func and use directly.
-	if DirAccess.dir_exists_absolute(dir_path):
-		return
-	DirAccess.make_dir_recursive_absolute(dir_path)
-#	var dir := DirAccess.new()
-#	if !dir.dir_exists(dir_path):
-#		if recursive:
-#			dir.make_dir_recursive(dir_path)
-#		else:
-#			dir.make_dir(dir_path)
-
-
 static func make_or_clear_dir(dir_path: String) -> void:
-	# TEST34
 	if !DirAccess.dir_exists_absolute(dir_path):
 		DirAccess.make_dir_recursive_absolute(dir_path)
 		return
@@ -253,17 +219,6 @@ static func make_or_clear_dir(dir_path: String) -> void:
 		if !dir.current_is_dir():
 			dir.remove(file_name)
 		file_name = dir.get_next()
-#	var dir := DirAccess.new()
-#	if dir.dir_exists(dir_path):
-#		assert(dir.open(dir_path) == OK)
-#		dir.list_dir_begin() # TODOConverter3To4 fill missing arguments https://github.com/godotengine/godot/pull/40547
-#		var file_name := dir.get_next()
-#		while file_name:
-#			if !dir.current_is_dir():
-#				dir.remove(file_name)
-#			file_name = dir.get_next()
-#	else:
-#		dir.make_dir(dir_path)
 
 
 # loading assets & data files
@@ -294,9 +249,6 @@ static func find_resource_file(dir_paths: Array[String], prefix: String,
 	# find file with .import extension (this is the ONLY file in an exported
 	# project!), but ".import" must be removed from end to load it.
 	# Search is case-insensitive.
-	
-	# TEST34: Do *.import files still exist in the file system?
-	
 	var prefix_dot := prefix + "."
 	var match_size := prefix_dot.length()
 	var dir: DirAccess
@@ -321,29 +273,6 @@ static func find_resource_file(dir_paths: Array[String], prefix: String,
 						return subdir_result
 			file_name = dir.get_next()
 	return ""
-
-
-#	var prefix_dot := prefix + "."
-#	var match_size := prefix_dot.length()
-#	var dir := DirAccess.new()
-#	for dir_path in dir_paths:
-#		if dir.open(dir_path) != OK:
-#			continue
-#		dir.list_dir_begin() # TODOConverter3To4 fill missing arguments https://github.com/godotengine/godot/pull/40547
-#		var file_name := dir.get_next()
-#		while file_name:
-#			if !dir.current_is_dir():
-#				if file_name.get_extension() == "import":
-#					if file_name.substr(0, match_size).matchn(prefix_dot):
-#						return dir_path.plus_file(file_name).get_basename()
-#			elif search_prefix_subdirectories:
-#				if file_name.matchn(prefix):
-#					var subdir_path: String = dir_path + "/" + file_name
-#					var subdir_result := find_resource_file([subdir_path], prefix, false)
-#					if subdir_result:
-#						return subdir_result
-#			file_name = dir.get_next()
-#	return ""
 
 
 static func find_and_load_resource(dir_paths: Array[String], prefix: String,

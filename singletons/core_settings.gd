@@ -30,7 +30,6 @@ extends Node
 # project vars - extensions modify via _extension_init(); see IVProjectBuilder
 var project_name := ""
 var project_version := "" # external project can set for gamesave debuging
-var verbose := false # prints state broadcast signals and whatever else we add
 var is_modded := false # this is aspirational
 var enable_save_load := true
 var save_file_extension := "IVoyagerSave"
@@ -155,8 +154,7 @@ var debug_log_path := "user://logs/debug.log" # modify or set "" to disable
 
 
 func _enter_tree() -> void:
-	const files := preload("../static/files.gd")
-	var config: ConfigFile = files.get_config_with_override("res://addons/ivoyager_core/core.cfg",
+	var config: ConfigFile = IVFiles.get_config_with_override("res://addons/ivoyager_core/core.cfg",
 			"res://ivoyager_override.cfg", "core_settings")
-	files.init_from_config(self, config, "core_settings")
+	IVFiles.init_from_config(self, config, "core_settings")
 

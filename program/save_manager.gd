@@ -99,7 +99,8 @@ func quick_save() -> bool:
 		return false
 	if _state.network_state == IS_CLIENT:
 		return false
-	if !_has_been_saved or !_settings.save_base_name or !files.is_valid_dir(_settings.save_dir):
+	if (!_has_been_saved or !_settings.save_base_name
+			or !DirAccess.dir_exists_absolute(_settings.save_dir)):
 		IVGlobal.save_dialog_requested.emit()
 		return false
 	IVGlobal.close_main_menu_requested.emit()
@@ -107,7 +108,7 @@ func quick_save() -> bool:
 	if _settings.append_date_to_save:
 		date_string = _timekeeper.get_current_date_for_file()
 	var path := files.get_save_path(_settings.save_dir, _settings.save_base_name,
-			date_string, true)
+			IVCoreSettings.save_file_extension, date_string, true)
 	save_game(path)
 	return true
 

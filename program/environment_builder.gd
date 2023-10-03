@@ -67,7 +67,7 @@ func _get_environment() -> Environment: # I/O thread!
 			starmap_file = asset_paths.starmap_8k
 		IVEnums.StarmapSize.STARMAP_16K:
 			starmap_file = asset_paths.starmap_16k
-	if !IVFiles.exists(starmap_file):
+	if !ResourceLoader.exists(starmap_file):
 		starmap_file = asset_paths[fallback_starmap]
 	var starmap: Texture2D = load(starmap_file)
 	var sky_material := PanoramaSkyMaterial.new()
