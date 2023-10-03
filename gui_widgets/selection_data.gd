@@ -53,9 +53,9 @@ const BodyFlags := IVEnums.BodyFlags
 const NULL_ARRAY := []
 
 # project vars
-var enable_wiki_labels: bool = IVGlobal.enable_wiki # can override to false if needed
-var enable_wiki_values: bool = IVGlobal.enable_wiki # can override to false if needed
-var enable_precisions := IVGlobal.enable_precisions
+var enable_wiki_labels: bool = IVCoreSettings.enable_wiki # can override to false if needed
+var enable_wiki_values: bool = IVCoreSettings.enable_wiki # can override to false if needed
+var enable_precisions := IVCoreSettings.enable_precisions
 var labels_stretch_ratio := 0.6
 var values_stretch_ratio := 0.4
 var interval := 0.0 # seconds; set 0.0 for no periodic updates

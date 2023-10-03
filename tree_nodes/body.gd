@@ -109,7 +109,7 @@ var sleep := false
 # private
 var _times: Array[float] = IVGlobal.times
 #var _state: Dictionary = IVGlobal.state
-var _ecliptic_rotation: Basis = IVGlobal.ecliptic_rotation
+var _ecliptic_rotation: Basis = IVCoreSettings.ecliptic_rotation
 var _min_hud_dist: float
 
 var _world_targeting: Array = IVGlobal.world_targeting
@@ -260,7 +260,7 @@ func _on_process(_delta: float) -> void: # subclass can override
 # public functions
 
 func get_float_precision(path: String) -> int:
-	# Available only if IVGlobal.enable_precisions == true. Gets the
+	# Available only if IVCoreSettings.enable_precisions == true. Gets the
 	# precision (significant digits) of a real value as it was entered in the
 	# table *.tsv file. Used by Planetarium.
 	if !characteristics.has("real_precisions"):
@@ -495,9 +495,9 @@ func set_model_parameters(reference_basis: Basis, max_dist: float) -> void:
 
 func add_child_to_model_space(spatial: Node3D) -> void:
 	if !model_space:
-		var _ModelSpace_: Script = IVGlobal.procedural_classes._ModelSpace_
+		var ModelSpace: Script = IVGlobal.procedural_classes[&"ModelSpace"]
 		@warning_ignore("unsafe_method_access") # Replacement class possible
-		model_space = _ModelSpace_.new()
+		model_space = ModelSpace.new()
 		add_child(model_space)
 	model_space.add_child(spatial)
 
@@ -674,9 +674,9 @@ func _add_rotating_space() -> void:
 	var mass_ratio := m1 / m2
 	var characteristic_length := orbit.get_semimajor_axis()
 	var characteristic_time := orbit.get_orbit_period()
-	var _RotatingSpace_: Script = IVGlobal.procedural_classes._RotatingSpace_
+	var RotatingSpace: Script = IVGlobal.procedural_classes[&"RotatingSpace"]
 	@warning_ignore("unsafe_method_access") # possible replacement class
-	rotating_space = _RotatingSpace_.new()
+	rotating_space = RotatingSpace.new()
 	rotating_space.init(mass_ratio, characteristic_length, characteristic_time)
 	var translation_ := orbit.get_position()
 	var orbit_dist := translation_.length()

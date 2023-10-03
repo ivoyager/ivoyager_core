@@ -28,18 +28,18 @@ extends RefCounted
 var above_bodies_selection_name := "" # "SYSTEM_SOLAR_SYSTEM"
 
 
-# private
-var _Selection_: Script
+# read-only
+var Selection: Script
 
 
-func _project_init() -> void:
-	_Selection_ = IVGlobal.procedural_classes[&"_Selection_"]
+func _ivcore_init() -> void:
+	Selection = IVGlobal.procedural_classes[&"Selection"]
 
 
 func build_body_selection(body: IVBody) -> IVSelection:
 	var parent_body := body.get_parent() as IVBody
-	@warning_ignore("unsafe_method_access") # possible replacement class
-	var selection: IVSelection = _Selection_.new()
+	@warning_ignore("unsafe_method_access")
+	var selection: IVSelection = Selection.new()
 	selection.is_body = true
 	selection.spatial = body
 	selection.body = body

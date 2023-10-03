@@ -46,14 +46,14 @@ var current_target: Object = null
 
 # private
 var _world_targeting: Array = IVGlobal.world_targeting
-var _pause_only_stops_time = IVGlobal.pause_only_stops_time
+var _pause_only_stops_time = IVCoreSettings.pause_only_stops_time
 var _drag_start := Vector2.ZERO
 var _drag_segment_start := Vector2.ZERO
 var _has_mouse := true
 var _suppress_mouse_control := true # blocks signals EXCEPT 'mouse_target_changed'
 
 
-func _project_init() -> void:
+func _ivcore_init() -> void:
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
 	# see 'IVGlobal.world_targeting' comments above
 	_world_targeting.resize(8)

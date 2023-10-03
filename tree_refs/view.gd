@@ -236,7 +236,7 @@ func _save_time_state() -> void:
 
 
 func _set_time_state() -> void:
-	# Note: IVTimekeeper ignores set functions that are disallowed in IVGlobal
+	# Note: IVTimekeeper ignores set functions that are disallowed in IVCoreSettings
 	# project settings. In most game applications, only speed is set.
 	if flags & TIME_STATE:
 		_timekeeper.set_time(time)

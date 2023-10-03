@@ -22,16 +22,11 @@ extends Label
 
 # GUI widget.
 #
-# Formats as 'Planetarium 0.0.14a-dev 20230223' with options below.
-# If project == false or IVGlobal.project_name == "", will give ivoyager version.
+# If IVCoreSettings.project_name == "", will show ivoyager_core version.
 
 
-var use_project := true # otherwise, displays ivoyager version
-var multiline := true # splits format at spaces
-var add_name := false
-var version_prefix := "v"
-var add_ymd := false
-var add_ymd_if_dev := true
+var use_name := false
+var multiline := true # <project_name>\n<version> or use space
 
 
 func _ready() -> void:
@@ -41,16 +36,9 @@ func _ready() -> void:
 func set_label() -> void:
 	# Call directly if properties changed after added to tree.
 	var sep := "\n" if multiline else " "
-	var is_project := use_project and IVGlobal.project_name
+	var is_project := IVCoreSettings.project_name != ""
 	text = ""
-	if add_name:
-		text += (IVGlobal.project_name if is_project else "I, Voyager") + sep
-	text += version_prefix
-	text += IVGlobal.project_version if is_project else IVGlobal.IVOYAGER_VERSION
-	text += IVGlobal.project_build if is_project else IVGlobal.IVOYAGER_BUILD
-	var state := IVGlobal.project_state if is_project else IVGlobal.IVOYAGER_STATE
-	if state:
-		text += "-" + state
-	if add_ymd or (add_ymd_if_dev and state == "dev"):
-		text += sep + str(IVGlobal.project_ymd if is_project else IVGlobal.IVOYAGER_YMD)
+	if use_name:
+		text += (IVCoreSettings.project_name if is_project else "I, Voyager") + sep
+	text += IVCoreSettings.project_version if is_project else IVGlobal.ivoyager_version
 

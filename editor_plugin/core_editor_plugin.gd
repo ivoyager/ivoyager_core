@@ -21,19 +21,12 @@
 extends EditorPlugin
 
 # This file adds autoloads and shader globals for ivoyager_core. You can change
-# autoloads or shader globals by editing override config in your project
-# directory:
-#
-#   'res://ivoyager_override.cfg'
-#
-# See config file 'res://addons/ivoyager_core/core.cfg' for base values and
-# replacement comments.
+# these by editing res://ivoyager_override.cfg in your project directory. See
+# res://addons/ivoyager_core/core.cfg for base values and comments.
 #
 # If you modify autoloads or shader globals, you'll need to disable and re-
 # enable the plugin (or quit and restart the editor) for your changes to have
 # effect.
-
-const config_utils := preload("config_utils.gd")
 
 var _config: ConfigFile # with overrides
 
@@ -43,13 +36,17 @@ var _shader_globals := {}
 
 func _enter_tree() -> void:
 	await get_tree().process_frame # load after ivoyager_table_importer
-	config_utils.print_plugin_with_version("res://addons/ivoyager_core/plugin.cfg",
+	if !_is_enable_ok():
+		_disable_self()
+		return
+	const plugin_utils := preload("plugin_utils.gd")
+	plugin_utils.print_plugin_name_and_version("res://addons/ivoyager_core/plugin.cfg",
 			" - https://ivoyager.dev")
-	_config = config_utils.get_config_with_override("res://addons/ivoyager_core/core.cfg",
+	_config = plugin_utils.get_config_with_override("res://addons/ivoyager_core/core.cfg",
 			"res://ivoyager_override.cfg", "core_")
 	if !_config:
 		return
-	if !config_utils.config_exists("res://ivoyager_override.cfg"):
+	if !plugin_utils.config_exists("res://ivoyager_override.cfg"):
 		_create_override_config()
 	_add_autoloads()
 	_add_shader_globals()
@@ -62,11 +59,24 @@ func _exit_tree() -> void:
 	_remove_shader_globals()
 
 
+func _is_enable_ok() -> bool:
+	if !get_editor_interface().is_plugin_enabled("ivoyager_table_importer"):
+		push_warning("Cannot enable 'ivoyager_core' without 'ivoyager_table_reader'")
+		return false
+	return true
+
+
+func _disable_self() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	get_editor_interface().set_plugin_enabled("ivoyager_core", false)
+
+
 func _create_override_config() -> void:
 	print(
 		"\nCreating 'ivoyager_override.cfg' in your project directory. Modify this file to change\n"
 		+ "autoload singletons, shader globals, base settings defined in singletons/core_settings.gd\n"
-		+ "or base classes defined in singletons/core_initializer.\n"
+		+ "or base classes defined in singletons/core_initializer.gd.\n"
 	)
 	var dir = DirAccess.open("res://addons/ivoyager_core/")
 	var err := dir.copy("res://addons/ivoyager_core/override_template.cfg",

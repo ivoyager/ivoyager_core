@@ -58,7 +58,7 @@ var default_orbits_colors := {}
 
 
 
-func _project_init() -> void:
+func _ivcore_init() -> void:
 	IVGlobal.simulator_exited.connect(_set_current_to_default)
 	IVGlobal.update_gui_requested.connect(_signal_all_changed)
 	for row in IVTableData.get_n_rows(&"small_bodies_groups"):

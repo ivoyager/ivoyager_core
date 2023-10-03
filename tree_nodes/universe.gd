@@ -22,30 +22,31 @@ extends Node3D
 
 # *****************************************************************************
 #
-#             Developers! The place to start is:
-#                ivoyager/singletons/project_builder.gd
-#                ivoyager/singletons/global.gd
+#          Developers! Look in these files to get started:
+#             res://addons/ivoyager_core/singletons/core_initializer.gd
+#             res://addons/ivoyager_core/singletons/core_settings.gd
+#             res://ivoyager_override.cfg
 #
 # *****************************************************************************
 #
 # 'Universe' is the main scene and simulator root node in our Planetarium and
-# Project Template extension projects (https://github.com/ivoyager). To change
-# this, see notes in ivoyager/singletons/project_builder.gd.
+# Project Template projects (https://github.com/ivoyager). To change this, see
+# notes in ivoyager_core/singletons/core_initializer.gd.
 #
 # We use origin shifting to prevent 'imprecision shakes' caused by vast scale
 # differences, e.g, when viewing a small body at 1e9 km from the sun. To do
-# so, the camera adjusts the translation of this node (or substitute root node)
-# every frame.
+# so, the IVCamera adjusts the translation of this node (or substitute root
+# node) every frame.
 #
 # 'persist' dictionary is not used by ivoyager code but is available for
 # game save persistence in extension projects. It can hold Godot built-ins,
 # nested containers or other 'persist objects'. For details on save/load
-# persistence, see ivoyager/program/save_builder.gd.
+# persistence, see ivoyager_core/program/save_builder.gd.
 #
-# if IVGlobal.pause_only_stops_time == true, then PAUSE_MODE_PROCESS is
-# set here and TopGUI so IVCamera can still move, visuals work (some are
-# responsve to camera) and user can interact with the world. In this mode, only
-# IVTimekeeper pauses to stop time.
+# if IVCoreSettings.pause_only_stops_time == true, then PAUSE_MODE_PROCESS is
+# set in this node and TopGUI so IVCamera can still move, visuals work (some
+# are responsve to camera) and user can interact with the world. In this mode,
+# only IVTimekeeper pauses to stop time. (This is set by IVStateManager.)
 
 const PERSIST_MODE := IVEnums.PERSIST_PROPERTIES_ONLY # don't free on load
 const PERSIST_PROPERTIES := [&"persist"]

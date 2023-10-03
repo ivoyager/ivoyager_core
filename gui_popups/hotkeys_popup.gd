@@ -123,20 +123,20 @@ func _on_init():
 	layout = [column1, column2, column3]
 
 
-func _project_init() -> void:
-	super._project_init()
+func _ivcore_init() -> void:
+	super._ivcore_init()
 	IVGlobal.hotkeys_requested.connect(open)
-	if IVGlobal.disable_pause:
+	if IVCoreSettings.disable_pause:
 		remove_item(&"toggle_pause")
-	if !IVGlobal.allow_time_reversal:
+	if !IVCoreSettings.allow_time_reversal:
 		remove_item(&"reverse_time")
-	if !IVGlobal.enable_save_load:
+	if !IVCoreSettings.enable_save_load:
 		remove_item(&"load_game")
 		remove_item(&"quick_load")
 		remove_item(&"save_as")
 		remove_item(&"quick_save")
 		remove_item(&"save_quit")
-	if IVGlobal.disable_quit:
+	if IVCoreSettings.disable_quit:
 		remove_item(&"quit")
 
 

@@ -23,10 +23,10 @@ extends RefCounted
 # It takes a while to load the environment depending on starmap size and
 # system. On my low-end laptop, 8k is much more than twice as fast as 16k.
 
-var fallback_starmap := &"starmap_8k" # IVGlobal.asset_paths index; must exist
+var fallback_starmap := &"starmap_8k" # IVCoreSettings.asset_paths index; must exist
 
 
-func _project_init() -> void:
+func _ivcore_init() -> void:
 	IVGlobal.project_objects_instantiated.connect(_check_starmap_availability)
 	IVGlobal.project_inited.connect(add_world_environment)
 
@@ -60,14 +60,14 @@ func _finish(world_environment: WorldEnvironment, start_time: int) -> void: # Ma
 func _get_environment() -> Environment: # I/O thread!
 	# TODO: Read env settings from data table!
 	var settings: Dictionary = IVGlobal.settings
-	var asset_paths: Dictionary = IVGlobal.asset_paths
+	var asset_paths: Dictionary = IVCoreSettings.asset_paths
 	var starmap_file: String
 	match settings.starmap:
 		IVEnums.StarmapSize.STARMAP_8K:
 			starmap_file = asset_paths.starmap_8k
 		IVEnums.StarmapSize.STARMAP_16K:
 			starmap_file = asset_paths.starmap_16k
-	if !IVFiles.exists(starmap_file):
+	if !ResourceLoader.exists(starmap_file):
 		starmap_file = asset_paths[fallback_starmap]
 	var starmap: Texture2D = load(starmap_file)
 	var sky_material := PanoramaSkyMaterial.new()

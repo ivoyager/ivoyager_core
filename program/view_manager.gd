@@ -29,20 +29,20 @@ const PERSIST_PROPERTIES := [
 	&"_gamesave_views",
 ]
 
-var file_path := IVGlobal.cache_dir.path_join("views.ivbinary")
+var View: Script
+var file_path := IVCoreSettings.cache_dir.path_join("views.ivbinary")
 
 var _gamesave_views := {}
 var _cached_views := {}
-var _View_: Script
 var _io_manager: IVIOManager
 var _missing_or_bad_cache_file := true
 
 
 
-func _project_init() -> void:
-	_View_ = IVGlobal.procedural_classes[&"_View_"]
+func _ivcore_init() -> void:
+	View = IVGlobal.procedural_classes[&"View"]
 	_io_manager = IVGlobal.program[&"IOManager"]
-	files.make_dir_if_doesnt_exist(IVGlobal.cache_dir)
+	DirAccess.make_dir_recursive_absolute(IVCoreSettings.cache_dir)
 	_read_cache()
 	if _missing_or_bad_cache_file:
 		_write_cache()
@@ -58,7 +58,7 @@ func save_view(view_name: StringName, group_name: StringName, is_cached: bool, f
 		view.reset()
 	else:
 		@warning_ignore("unsafe_method_access") # possible replacement class
-		view = _View_.new()
+		view = View.new()
 	view.save_state(flags)
 	if is_cached:
 		_cached_views[key] = view
@@ -144,7 +144,7 @@ func _read_cache() -> void:
 	for key in dict:
 		var data: Array = dict[key]
 		@warning_ignore("unsafe_method_access") # possible replacement class
-		var view: IVView = _View_.new()
+		var view: IVView = View.new()
 		if !view.set_data_from_cache(data): # may be prior version
 			bad_cache_data = true
 			continue

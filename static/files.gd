@@ -21,60 +21,147 @@ class_name IVFiles
 extends Object
 
 
-# TODO34: Lot of migration work...
+
+static func config_exists(config_path: String) -> bool:
+	var config := ConfigFile.new()
+	return config.load(config_path) == OK
 
 
-# Usage note: issue #37529 prevents localization of global class_name to const.
-# For now, use:
-# const files := preload("res://addons/ivoyager_core/static/files.gd")
+static func get_config(config_path: String) -> ConfigFile:
+	# Returns null if doesn't exist.
+	var config := ConfigFile.new()
+	var err := config.load(config_path)
+	if err == OK:
+		return config
+	return null
 
 
-static func make_object_or_scene(script_or_path: Variant) -> Object:
-	# 'script_or_path' can be a GDScript object or path to a script ("*.gd") or
-	# path to a scene ("*.tscn," "*.scn").
-	var arg_type := typeof(script_or_path)
-	var script: GDScript
-	var scene_path: String
-	if arg_type == TYPE_OBJECT:
-		assert(script_or_path is GDScript, "Unknown object class")
-		script = script_or_path
-	else:
-		assert(arg_type == TYPE_STRING or arg_type == TYPE_STRING_NAME, "Unexpected argument type")
-		var path := script_or_path as String
-		if path.ends_with(".gd"):
-			script = load(path)
-			assert(script, "Failed to load GDScript at '%s'" % path)
+static func get_config_with_override(config_path: String, override_config_path: String,
+		section_prefix := "") -> ConfigFile:
+	var config := get_config(config_path)
+	if !config:
+		assert(false, "Failed to load config '%s'" % config_path)
+		return null
+	var override_config := get_config(override_config_path)
+	if !override_config:
+		return config
+	for section in override_config.get_sections():
+		if section_prefix and !section.begins_with(section_prefix):
+			continue
+		for property in override_config.get_section_keys(section):
+			config.set_value(section, property, override_config.get_value(section, property))
+	return config
+
+
+static func init_from_config(object: Object, config: ConfigFile, section: String) -> void:
+	if !config.has_section(section):
+		return
+	for key in config.get_section_keys(section):
+		var value: Variant = config.get_value(section, key)
+		var slash_pos := key.find("/")
+		var dot_pos := key.find(".")
+		if slash_pos == -1 and dot_pos == -1: # not a dictionary or array
+			if not key in object:
+				push_warning("'%s' not in '%s'; check config file" % [key, object])
+				continue
+			object.set(key, value)
+		elif slash_pos >= 0: # dictionary w/ key
+			var dict_name := key.left(slash_pos)
+			var dict_key := key.substr(slash_pos + 1)
+			if not dict_name in object:
+				push_warning("'%s' not in '%s'; check config file" % [dict_name, object])
+				continue
+			var dict: Dictionary = object.get(dict_name)
+			if value == null:
+				dict.erase(dict_key)
+			else:
+				dict[dict_key] = value
+		elif dot_pos >= 0: # array w/ appends or erases
+			var array_name := key.left(dot_pos)
+			var array_cmd := key.substr(dot_pos + 1)
+			if not array_name in object:
+				push_warning("'%s' not in '%s'; check config file" % [array_name, object])
+				continue
+			if not value is Array:
+				push_warning("Expected array after '%s'=" % key)
+				continue
+			var array: Array = object.get(array_name)
+			var mod_array: Array = value
+			if array_cmd == "append":
+				for item in mod_array:
+					array.append(item)
+			elif array_cmd == "erase":
+				for item in mod_array:
+					array.erase(item)
+			else:
+				push_warning("'%s'. must be followed by 'append' or 'erase'" % key)
+				continue
 		else:
-			assert(path.ends_with(".tscn") or path.ends_with(".scn"),
-					"Unknown script or scene at '%s'" % path)
-			scene_path = path
-	if !scene_path:
+			push_warning("Bad config key '%s'" % key)
+			continue
+
+
+static func get_script_or_packedscene(path: String) -> Resource:
+	if !path:
+		assert(false, "Requires path")
+		return null
+	if path.ends_with(".tscn") or path.ends_with(".scn"):
+		var packedscene: PackedScene = load(path)
+		assert(packedscene, "Failed to load PackedScene at '%s'" % path)
+		return packedscene
+	var script: Script = load(path)
+	assert(script, "Failed to load Script at '%s'" % path)
+	return script
+
+
+static func make_object_or_scene(arg: Variant) -> Object:
+	# Returns intantiated Object or root node of instantiated scene.
+	# 'arg' can be a Script, PackedScene, or String that is a path to a
+	# PackedScene (*.tscn, *.scn) or Script resource.
+	# If Script has const SCENE_OVERRIDE or SCENE, then that is used as path
+	# to intantiate a scene. 
+	var arg_type := typeof(arg)
+	var packedscene: PackedScene
+	var script: Script
+	if arg_type == TYPE_OBJECT:
+		if arg is Script:
+			script = arg
+		elif arg is PackedScene:
+			packedscene = arg
+		else:
+			assert(false, "Unknown object class %s" % arg)
+			return null
+	else:
+		assert(arg is String)
+		var script_or_packedscene := get_script_or_packedscene(arg)
+		if !script_or_packedscene:
+			assert(false, "Could not load '%s' as Script or PackedScene"
+					% arg)
+			return null
+		if script_or_packedscene is Script:
+			script = script_or_packedscene
+		else:
+			packedscene = script_or_packedscene
+	
+	if script:
+		var scene_path: String
 		if &"SCENE_OVERRIDE" in script:
 			scene_path = script.get("SCENE_OVERRIDE")
 		elif &"SCENE" in script:
 			scene_path = script.get("SCENE")
-	if !scene_path:
-		return script.new()
-	# It's a scene! Return the root node.
-	var pkd_scene: PackedScene = load(scene_path)
-	assert(pkd_scene, "Failed to load scene at '%s'" % scene_path)
-	var root_node: Node = pkd_scene.instantiate()
-	if root_node.get_script() != script: # root_node.script may be parent class
+		if scene_path:
+			packedscene = load(scene_path)
+			if !packedscene:
+				assert(false, "Failed to load scene at '%s'" % scene_path)
+				return null
+		else:
+			@warning_ignore("unsafe_method_access")
+			return script.new()
+	
+	var root_node: Node = packedscene.instantiate()
+	if root_node.get_script() != script: # root_node.script may be parent class!
 		root_node.set_script(script)
 	return root_node
-
-
-static func get_procedural_class(script_or_path: Variant) -> GDScript:
-	var arg_type := typeof(script_or_path)
-	if arg_type == TYPE_OBJECT:
-		assert(script_or_path is GDScript, "Unknown object class")
-		return script_or_path
-	assert(arg_type == TYPE_STRING or arg_type == TYPE_STRING_NAME, "Unexpected argument type")
-	var path := script_or_path as String
-	assert(path.ends_with(".gd"), "Unknown GDScript at '%s'" % path)
-	var script: GDScript = load(path)
-	assert(script, "Failed to load GDScript at '%s'" % path)
-	return script
 
 
 static func get_save_dir_path(is_modded: bool, override_dir: String = "") -> String:
@@ -93,13 +180,13 @@ static func get_save_dir_path(is_modded: bool, override_dir: String = "") -> Str
 	if save_dir == "":
 		save_dir = OS.get_user_data_dir() + "/saves"
 		save_dir += "/modded_saves" if is_modded else "/unmodded_saves"
-		make_dir_if_doesnt_exist(save_dir)
+		DirAccess.make_dir_recursive_absolute(save_dir)
 	return save_dir
 
 
-static func get_base_file_name(file_name : String) -> String:
+static func get_base_file_name(file_name: String, save_file_extension: String) -> String:
 	# Strips file type and date extensions
-	file_name = file_name.replace("." + IVGlobal.save_file_extension, "")
+	file_name = file_name.replace("." + save_file_extension, "")
 	var regex := RegEx.new()
 	regex.compile("\\.\\d+-\\d\\d-\\d\\d") # "(\.\d+-\d\d-\d\d)"
 	var search_result := regex.search(file_name)
@@ -109,50 +196,17 @@ static func get_base_file_name(file_name : String) -> String:
 	return file_name
 
 
-static func get_save_path(save_dir: String, base_name: String, date_string := "",
-		append_file_extension := false) -> String:
+static func get_save_path(save_dir: String, base_name: String, save_file_extension: String,
+		date_string := "", append_file_extension := false) -> String:
 	var path := save_dir.path_join(base_name)
 	if date_string:
 		path += "." + date_string
 	if append_file_extension:
-		path += "." + IVGlobal.save_file_extension
+		path += "." + save_file_extension
 	return path
 
 
-static func exists(file_path: String) -> bool:
-	# TEST34: If works, remove this func and use directly.
-	return ResourceLoader.exists(file_path)
-#	var file := File.new()
-#	if file_path.ends_with(".gd"):
-#		# Godot exported has ".gd" changed to ".gdc"
-#		return file.file_exists(file_path) or file.file_exists(file_path + "c")
-#	return file.file_exists(file_path)
-
-
-static func is_valid_dir(dir_path: String) -> bool:
-	# TEST34: If works, remove this func and use directly.
-	return DirAccess.dir_exists_absolute(dir_path)
-#	if dir_path == "":
-#		return false
-#	var dir := DirAccess.new()
-#	return dir.open(dir_path) == OK
-
-
-static func make_dir_if_doesnt_exist(dir_path: String) -> void:
-	# TEST34: Do we need exists test? If not, remove this func and use directly.
-	if DirAccess.dir_exists_absolute(dir_path):
-		return
-	DirAccess.make_dir_recursive_absolute(dir_path)
-#	var dir := DirAccess.new()
-#	if !dir.dir_exists(dir_path):
-#		if recursive:
-#			dir.make_dir_recursive(dir_path)
-#		else:
-#			dir.make_dir(dir_path)
-
-
 static func make_or_clear_dir(dir_path: String) -> void:
-	# TEST34
 	if !DirAccess.dir_exists_absolute(dir_path):
 		DirAccess.make_dir_recursive_absolute(dir_path)
 		return
@@ -165,17 +219,6 @@ static func make_or_clear_dir(dir_path: String) -> void:
 		if !dir.current_is_dir():
 			dir.remove(file_name)
 		file_name = dir.get_next()
-#	var dir := DirAccess.new()
-#	if dir.dir_exists(dir_path):
-#		assert(dir.open(dir_path) == OK)
-#		dir.list_dir_begin() # TODOConverter3To4 fill missing arguments https://github.com/godotengine/godot/pull/40547
-#		var file_name := dir.get_next()
-#		while file_name:
-#			if !dir.current_is_dir():
-#				dir.remove(file_name)
-#			file_name = dir.get_next()
-#	else:
-#		dir.make_dir(dir_path)
 
 
 # loading assets & data files
@@ -206,9 +249,6 @@ static func find_resource_file(dir_paths: Array[String], prefix: String,
 	# find file with .import extension (this is the ONLY file in an exported
 	# project!), but ".import" must be removed from end to load it.
 	# Search is case-insensitive.
-	
-	# TEST34: Do *.import files still exist in the file system?
-	
 	var prefix_dot := prefix + "."
 	var match_size := prefix_dot.length()
 	var dir: DirAccess
@@ -233,29 +273,6 @@ static func find_resource_file(dir_paths: Array[String], prefix: String,
 						return subdir_result
 			file_name = dir.get_next()
 	return ""
-
-
-#	var prefix_dot := prefix + "."
-#	var match_size := prefix_dot.length()
-#	var dir := DirAccess.new()
-#	for dir_path in dir_paths:
-#		if dir.open(dir_path) != OK:
-#			continue
-#		dir.list_dir_begin() # TODOConverter3To4 fill missing arguments https://github.com/godotengine/godot/pull/40547
-#		var file_name := dir.get_next()
-#		while file_name:
-#			if !dir.current_is_dir():
-#				if file_name.get_extension() == "import":
-#					if file_name.substr(0, match_size).matchn(prefix_dot):
-#						return dir_path.plus_file(file_name).get_basename()
-#			elif search_prefix_subdirectories:
-#				if file_name.matchn(prefix):
-#					var subdir_path: String = dir_path + "/" + file_name
-#					var subdir_result := find_resource_file([subdir_path], prefix, false)
-#					if subdir_result:
-#						return subdir_result
-#			file_name = dir.get_next()
-#	return ""
 
 
 static func find_and_load_resource(dir_paths: Array[String], prefix: String,

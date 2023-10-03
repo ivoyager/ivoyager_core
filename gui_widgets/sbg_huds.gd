@@ -31,7 +31,7 @@ extends GridContainer
 const NULL_COLOR := Color.BLACK
 
 
-var enable_wiki: bool = IVGlobal.enable_wiki
+var enable_wiki: bool = IVCoreSettings.enable_wiki
 
 var has_headers := true
 var column_master: Control # if set, column widths follow master children

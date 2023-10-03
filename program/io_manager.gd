@@ -35,14 +35,14 @@ extends RefCounted
 #
 # All work is processed in the order added using the callback() method.
 #
-# If IVGlobal.use_threads == false, callback() will still work but the
+# If IVCoreSettings.use_threads == false, callback() will still work but the
 # callback will happen immediately on the main thread w/out queuing.
 
 signal finished() # emitted when all I/O jobs completed
 
 const DPRINT := false
 
-var _use_threads: bool = IVGlobal.use_threads
+var _use_threads: bool = IVCoreSettings.use_threads
 var _state_manager: IVStateManager
 var _thread: Thread
 var _mutex: Mutex
@@ -58,7 +58,7 @@ var _null_lambda := func(): return
 # *****************************************************************************
 # Init & app exit
 
-func _project_init() -> void:
+func _ivcore_init() -> void:
 	_state_manager = IVGlobal.program[&"StateManager"]
 	if !_use_threads:
 		return
@@ -84,7 +84,7 @@ func _block_quit_until_finished() -> void:
 
 
 func callback(io_method: Callable) -> void:
-	# 'io_method' will be called on I/O thread if IVGlobal.use_threads == true.
+	# 'io_method' will be called on I/O thread if IVCoreSettings.use_threads == true.
 	# IVIOManager will emit 'finished' signal on main thread after all current
 	# callbacks have been processed.
 	_job_count += 1

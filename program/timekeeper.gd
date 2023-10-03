@@ -130,9 +130,9 @@ var clock: Array[int] = IVGlobal.clock # UT1 [0] hour [1] minute [2] second (int
 
 # private
 #var _state: Dictionary = IVGlobal.state
-var _allow_time_setting := IVGlobal.allow_time_setting
-var _allow_time_reversal := IVGlobal.allow_time_reversal
-#var _disable_pause: bool = IVGlobal.disable_pause
+var _allow_time_setting := IVCoreSettings.allow_time_setting
+var _allow_time_reversal := IVCoreSettings.allow_time_reversal
+#var _disable_pause: bool = IVCoreSettings.disable_pause
 var _network_state := NO_NETWORK
 var _is_sync := false
 #var _sync_engine_time := -INF
@@ -146,7 +146,7 @@ var _prev_whole_solar_day := NAN
 # *****************************************************************************
 # virtual functions, inits & destructors
 
-func _project_init() -> void:
+func _ivcore_init() -> void:
 	IVGlobal.about_to_start_simulator.connect(_on_about_to_start_simulator)
 	IVGlobal.about_to_free_procedural_nodes.connect(_set_init_state)
 	IVGlobal.game_load_finished.connect(_set_ready_state)
@@ -477,7 +477,7 @@ func _set_init_state() -> void:
 	if start_real_world_time:
 		time = get_time_from_operating_system()
 	else:
-		time = IVGlobal.start_time
+		time = IVCoreSettings.start_time
 	engine_time = 0.0
 	times[0] = time
 	times[1] = engine_time

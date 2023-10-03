@@ -48,7 +48,7 @@ func _on_init():
 	pass
 
 
-func _project_init() -> void:
+func _ivcore_init() -> void:
 	pass
 
 

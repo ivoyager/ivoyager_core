@@ -29,9 +29,10 @@ const MIN_E_FOR_APSIDAL_PRECESSION := 0.0001
 const MIN_I_FOR_NODAL_PRECESSION := deg_to_rad(0.1)
 const DAY := IVUnits.DAY
 
-var _dynamic_orbits: bool = IVGlobal.dynamic_orbits
-var _ecliptic_rotation: Basis = IVGlobal.ecliptic_rotation
-var _Orbit_: Script
+var Orbit: Script
+
+var _dynamic_orbits: bool = IVCoreSettings.dynamic_orbits
+var _ecliptic_rotation: Basis = IVCoreSettings.ecliptic_rotation
 var _d := {
 	&"a" : NAN,
 	&"e" : NAN,
@@ -60,8 +61,8 @@ var _d := {
 }
 
 
-func _project_init() -> void:
-	_Orbit_ = IVGlobal.procedural_classes._Orbit_
+func _ivcore_init() -> void:
+	Orbit = IVGlobal.procedural_classes[&"Orbit"]
 
 
 func make_orbit_from_data(table_name: String, table_row: int, parent: IVBody) -> IVOrbit:
@@ -127,7 +128,7 @@ func make_orbit_from_data(table_name: String, table_row: int, parent: IVBody) ->
 	
 	var elements := Array([a, e, i, Om, w, M0, n], TYPE_FLOAT, &"", null)
 	@warning_ignore("unsafe_method_access") # Possible replacement class
-	var orbit: IVOrbit = _Orbit_.new()
+	var orbit: IVOrbit = Orbit.new()
 	orbit.elements_at_epoch = elements
 	
 	if _dynamic_orbits:

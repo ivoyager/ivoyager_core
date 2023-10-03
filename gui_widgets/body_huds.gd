@@ -35,7 +35,7 @@ const NULL_COLOR := Color.BLACK
 const BodyFlags: Dictionary = IVEnums.BodyFlags
 
 
-var enable_wiki: bool = IVGlobal.enable_wiki
+var enable_wiki: bool = IVCoreSettings.enable_wiki
 
 var has_headers := true
 var column_master: Control # if set, column widths follow master children

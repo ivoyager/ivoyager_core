@@ -23,7 +23,7 @@ extends RefCounted
 # We report key duplicates and process text under the following conditions:
 #
 #   1. Translation is not added by editor (i.e., not in project.godot).
-#   2. Translation path is added to IVGlobal.translations.
+#   2. Translation path is added to IVCoreSettings.translations.
 #   3. Translation are reimported with compress OFF (compress=false in *.import file).
 #
 # Processing modifications:
@@ -34,12 +34,14 @@ extends RefCounted
 func _init():
 	_load_translations()
 	IVGlobal.translations_imported.emit()
+	
+	IVGlobal.program.erase(&"TranslationImporter")
 
 
 func _load_translations() -> void:
 	var load_dict := {}
 	var duplications := []
-	for tr_path in IVGlobal.translations:
+	for tr_path in IVCoreSettings.translations:
 		var translation: Translation = load(tr_path)
 		if translation is OptimizedTranslation:
 			# Note: PHashTranslation doesn't work in add_translation in export

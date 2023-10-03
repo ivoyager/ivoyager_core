@@ -49,7 +49,7 @@ func _ready() -> void:
 	visibility_changed.connect(_on_visibility_changed)
 	($"%SaveButton" as Button).pressed.connect(_on_save)
 	_line_edit.text_submitted.connect(_on_save)
-	if !IVGlobal.allow_time_setting:
+	if !IVCoreSettings.allow_time_setting:
 		_time_ckbx.text = &"CKBX_GAME_SPEED" # this is the only 'time' element that can be modified
 
 
@@ -77,7 +77,7 @@ func init(default_view_name_ := &"LABEL_CUSTOM1", set_name_ := &"", is_cached_ :
 	_visibilities_ckbx.visible = bool(show_flags & IVView.HUDS_VISIBILITY)
 	_colors_ckbx.visible = bool(show_flags & IVView.HUDS_COLOR)
 	_time_ckbx.visible = bool(show_flags & IVView.TIME_STATE)
-	_now_ckbx.visible = bool(show_flags & IVView.IS_NOW) and IVGlobal.allow_time_setting
+	_now_ckbx.visible = bool(show_flags & IVView.IS_NOW) and IVCoreSettings.allow_time_setting
 	
 	if _time_ckbx.visible and _now_ckbx.visible:
 		_time_ckbx.toggled.connect(_unset_exclusive.bind(_now_ckbx))
@@ -90,7 +90,7 @@ func init(default_view_name_ := &"LABEL_CUSTOM1", set_name_ := &"", is_cached_ :
 	_colors_ckbx.set_pressed_no_signal(bool(show_flags & init_flags & IVView.HUDS_COLOR))
 	_time_ckbx.set_pressed_no_signal(bool(show_flags & init_flags & IVView.TIME_STATE))
 	_now_ckbx.set_pressed_no_signal(bool(show_flags & init_flags & IVView.IS_NOW)
-			and IVGlobal.allow_time_setting)
+			and IVCoreSettings.allow_time_setting)
 
 
 func _unset_exclusive(is_pressed: bool, exclusive_button: CheckBox) -> void:

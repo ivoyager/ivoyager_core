@@ -29,7 +29,7 @@ var stop_sim := true
 var _allow_close := false
 
 
-func _project_init():
+func _ivcore_init():
 	IVGlobal.open_main_menu_requested.connect(open)
 	IVGlobal.close_main_menu_requested.connect(close)
 	IVGlobal.close_all_admin_popups_requested.connect(close)

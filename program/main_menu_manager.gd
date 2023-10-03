@@ -28,9 +28,9 @@ enum {ACTIVE, DISABLED, HIDDEN} # button_state
 
 # project var
 var button_inits: Array[Array] = [
-	# External project can modify this array at _project_init() or use API
+	# External project can modify this array at _ivcore_init() or use API
 	# below. "target" here must be a key in IVGlobal.program. Core buttons here
-	# may be excluded depending on IVGlobal project settings.
+	# may be excluded depending on IVCoreSettings project settings.
 	# [text, priority, is_splash, is_running, target_name, method, args]
 	[&"BUTTON_START", 1100, true, false, &"SystemBuilder", &"build_system_tree"],
 	[&"BUTTON_SAVE_AS", 1000, false, true, &"SaveManager", &"save_game"],
@@ -39,7 +39,6 @@ var button_inits: Array[Array] = [
 	[&"BUTTON_QUICK_LOAD", 700, false, true, &"SaveManager", &"quick_load"],
 	[&"BUTTON_OPTIONS", 600, true, true, &"OptionsPopup", &"open"],
 	[&"BUTTON_HOTKEYS", 500, true, true, &"HotkeysPopup", &"open"],
-	[&"BUTTON_CREDITS", 400, true, true, &"CreditsPopup", &"open"],
 	[&"BUTTON_EXIT", 300, false, true, &"StateManager", &"exit"],
 	[&"BUTTON_QUIT", 200, true, true, &"StateManager", &"quit"],
 	[&"BUTTON_RESUME", 100, false, true, &"MainMenuPopup", &"close"],
@@ -49,7 +48,7 @@ var button_inits: Array[Array] = [
 var button_infos: Array[Array] = []
 
 
-func _project_init() -> void:
+func _ivcore_init() -> void:
 	IVGlobal.project_inited.connect(_init_buttons)
 	IVGlobal.about_to_quit.connect(_clear_for_quit)
 
@@ -63,13 +62,13 @@ func _init_buttons() -> void:
 		var skip := false
 		match text:
 			&"BUTTON_START":
-				skip = IVGlobal.skip_splash_screen
+				skip = IVCoreSettings.skip_splash_screen
 			&"BUTTON_SAVE_AS", &"BUTTON_QUICK_SAVE", &"BUTTON_LOAD_FILE", &"BUTTON_QUICK_LOAD":
-				skip = !IVGlobal.enable_save_load
+				skip = !IVCoreSettings.enable_save_load
 			&"BUTTON_EXIT":
-				skip = IVGlobal.disable_exit or IVGlobal.skip_splash_screen
+				skip = IVCoreSettings.disable_exit or IVCoreSettings.skip_splash_screen
 			&"BUTTON_QUIT":
-				skip = IVGlobal.disable_quit
+				skip = IVCoreSettings.disable_quit
 		if skip:
 			continue
 		var priority: int = init_info[1]

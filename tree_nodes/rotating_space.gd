@@ -36,7 +36,7 @@ const PERSIST_PROPERTIES := [
 	&"characteristic_length",
 	&"characteristic_time",
 	&"lagrange_point_vectors",
-	&"_LagrangePoints",
+	&"_lagrange_points",
 ]
 
 # lagrange parameters
@@ -46,7 +46,7 @@ var characteristic_time: float
 var lagrange_point_vectors: Array[Vector3] = [] # in rotating frame; index = lp_integer - 1
 
 # private - use API to get LagrangePoint instances
-var _LagrangePoints := [] # index = lp_integer - 1
+var _lagrange_points := [] # index = lp_integer - 1
 
 
 
@@ -77,14 +77,15 @@ func get_lagrange_point_global_space(lp_integer: int) -> Vector3:
 
 
 func get_lagrange_point_node3d(lp_integer: int) -> IVLagrangePoint:
-	if !_LagrangePoints:
-		_LagrangePoints.resize(5)
-	if !_LagrangePoints[lp_integer]:
-		var _LagrangePoint_: GDScript = IVGlobal.procedural_classes._LagrangePoint_
-		var lagrange_point: IVLagrangePoint = _LagrangePoint_.new()
+	if !_lagrange_points:
+		_lagrange_points.resize(5)
+	if !_lagrange_points[lp_integer]:
+		var LagrangePoint: Script = IVGlobal.procedural_classes[&"LagrangePoint"]
+		@warning_ignore("unsafe_method_access")
+		var lagrange_point: IVLagrangePoint = LagrangePoint.new()
 		lagrange_point.init(lp_integer)
 		lagrange_point.position = lagrange_point_vectors[lp_integer - 1]
-		_LagrangePoints[lp_integer] = lagrange_point
+		_lagrange_points[lp_integer] = lagrange_point
 		add_child(lagrange_point)
-	return _LagrangePoints[lp_integer]
+	return _lagrange_points[lp_integer]
 

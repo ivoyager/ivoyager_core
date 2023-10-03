@@ -36,7 +36,7 @@ extends Node
 #   last_save_path: String - this node & IVSaveManager
 #   network_state: IVEnums.NetworkState - if exists, NetworkLobby also writes
 #
-# if IVGlobal.pause_only_stops_time == true, then PAUSE_MODE_PROCESS is
+# if IVCoreSettings.pause_only_stops_time == true, then PAUSE_MODE_PROCESS is
 # set in Universe and TopGUI so IVCamera can still move, visuals work (some are
 # responsve to camera) and user can interact with the world. In this mode, only
 # IVTimekeeper pauses to stop time.
@@ -92,7 +92,7 @@ var _signal_when_threads_finished := false
 # *****************************************************************************
 # virtual functions
 
-func _project_init() -> void:
+func _ivcore_init() -> void:
 	_state.is_inited = false
 	_state.is_splash_screen = false
 	_state.is_system_built = false
@@ -106,7 +106,7 @@ func _project_init() -> void:
 	_state.network_state = NO_NETWORK
 	
 	var universe: Node3D = IVGlobal.program.Universe
-	if IVGlobal.pause_only_stops_time:
+	if IVCoreSettings.pause_only_stops_time:
 		universe.process_mode = PROCESS_MODE_ALWAYS
 	else:
 		universe.process_mode = PROCESS_MODE_INHERIT
@@ -179,7 +179,7 @@ func change_pause(is_toggle := true, is_pause := true) -> void:
 	# Only allowed if running and not otherwise prohibited.
 	if _state.network_state == IS_CLIENT:
 		return
-	if !_state.is_running or IVGlobal.disable_pause:
+	if !_state.is_running or IVCoreSettings.disable_pause:
 		return
 	is_user_paused = !_tree.paused if is_toggle else is_pause
 	_tree.paused = is_user_paused
@@ -195,12 +195,12 @@ func require_stop(who: Object, network_sync_type := -1, bypass_checks := false) 
 	# via add_blocking_thread() should then be removed as they finish).
 	# In many cases, you should yield to "threads_finished" after calling this.
 	if !bypass_checks:
-		if !IVGlobal.popops_can_stop_sim and who is Popup:
+		if !IVCoreSettings.popops_can_stop_sim and who is Popup:
 			return false
 		if _state.network_state == IS_CLIENT:
 			return false
 		elif _state.network_state == IS_SERVER:
-			if IVGlobal.limit_stops_in_multiplayer:
+			if IVCoreSettings.limit_stops_in_multiplayer:
 				return false
 	if _state.network_state == IS_SERVER:
 		if network_sync_type != NetworkStopSync.DONT_SYNC:
@@ -226,13 +226,13 @@ func allow_run(who: Object) -> void:
 
 func exit(force_exit := false, following_server := false) -> void:
 	# force_exit == true means we've confirmed and finished other preliminaries
-	if !_state.is_system_ready or IVGlobal.disable_exit:
+	if !_state.is_system_ready or IVCoreSettings.disable_exit:
 		return
 	if !force_exit:
 		if _state.network_state == IS_CLIENT:
 			IVGlobal.confirmation_requested.emit("Disconnect from multiplayer game?", exit.bind(true))
 			return
-		elif IVGlobal.enable_save_load: # single player or network server
+		elif IVCoreSettings.enable_save_load: # single player or network server
 			IVGlobal.confirmation_requested.emit(&"LABEL_EXIT_WITHOUT_SAVING", exit.bind(true))
 			return
 	if _state.network_state == IS_CLIENT:
@@ -258,13 +258,13 @@ func exit(force_exit := false, following_server := false) -> void:
 
 
 func quit(force_quit := false) -> void:
-	if !(_state.is_splash_screen or _state.is_system_ready) or IVGlobal.disable_quit:
+	if !(_state.is_splash_screen or _state.is_system_ready) or IVCoreSettings.disable_quit:
 		return
 	if !force_quit:
 		if _state.network_state == IS_CLIENT:
 			IVGlobal.confirmation_requested.emit("Disconnect from multiplayer game?", exit.bind(true))
 			return
-		elif IVGlobal.enable_save_load and !_state.is_splash_screen:
+		elif IVCoreSettings.enable_save_load and !_state.is_splash_screen:
 			IVGlobal.confirmation_requested.emit(&"LABEL_QUIT_WITHOUT_SAVING", quit.bind(true))
 			return
 	if _state.network_state == IS_CLIENT:

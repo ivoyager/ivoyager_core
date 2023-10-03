@@ -20,19 +20,16 @@
 class_name IVLogInitializer
 extends RefCounted
 
-# Inits a debug file specified in IVGlobal when in debug mode.
+# Inits a debug file specified in IVCoreSettings when in debug mode.
 
 func _init() -> void:
-	if !OS.is_debug_build() or !IVGlobal.debug_log_path:
+	if !OS.is_debug_build() or !IVCoreSettings.debug_log_path:
 		return
 	# TEST34
-	var debug_log := FileAccess.open(IVGlobal.debug_log_path, FileAccess.WRITE)
+	var debug_log := FileAccess.open(IVCoreSettings.debug_log_path, FileAccess.WRITE)
 	if !debug_log:
-		print("ERROR! Could not open debug log at ", IVGlobal.debug_log_path)
+		print("ERROR! Could not open debug log at ", IVCoreSettings.debug_log_path)
 		return
 	IVGlobal.debug_log = debug_log
-	
-#	var debug_log := File.new()
-#	if debug_log.open(IVGlobal.debug_log_path, File.WRITE) == OK:
-#		IVGlobal.debug_log = debug_log
+	IVGlobal.program.erase(&"LogInitializer")
 

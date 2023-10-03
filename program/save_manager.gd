@@ -20,7 +20,7 @@
 class_name IVSaveManager
 extends Node
 
-# To remove save/load functionality, set IVGlobal.enable_save_load = false. You
+# To remove save/load functionality, set IVCoreSettings.enable_save_load = false. You
 # can then (optionally) delete these from IVProjectBuilder:
 #
 #   - _SaveManager_
@@ -38,19 +38,15 @@ const DPRINT := false
 
 const PERSIST_MODE := IVEnums.PERSIST_PROPERTIES_ONLY
 const PERSIST_PROPERTIES := [
-#	&"project_version",
-#	&"project_ymd",
-#	&"ivoyager_version",
-#	&"ivoyager_ymd",
+	&"project_version",
+	&"ivoyager_version",
 	&"is_modded"
 ]
 	
 # persisted - values will be replaced by file values on game load!
-#var project_version: String = IVGlobal.project_version
-#var project_ymd: int = IVGlobal.project_ymd
-#var ivoyager_version: String = IVGlobal.IVOYAGER_VERSION
-#var ivoyager_ymd: int = IVGlobal.IVOYAGER_YMD
-var is_modded: bool = IVGlobal.is_modded
+var project_version: String = IVCoreSettings.project_version
+var ivoyager_version: String = IVGlobal.ivoyager_version
+var is_modded: bool = IVCoreSettings.is_modded
 
 # private
 var _state: Dictionary = IVGlobal.state
@@ -103,7 +99,8 @@ func quick_save() -> bool:
 		return false
 	if _state.network_state == IS_CLIENT:
 		return false
-	if !_has_been_saved or !_settings.save_base_name or !files.is_valid_dir(_settings.save_dir):
+	if (!_has_been_saved or !_settings.save_base_name
+			or !DirAccess.dir_exists_absolute(_settings.save_dir)):
 		IVGlobal.save_dialog_requested.emit()
 		return false
 	IVGlobal.close_main_menu_requested.emit()
@@ -111,7 +108,7 @@ func quick_save() -> bool:
 	if _settings.append_date_to_save:
 		date_string = _timekeeper.get_current_date_for_file()
 	var path := files.get_save_path(_settings.save_dir, _settings.save_base_name,
-			date_string, true)
+			IVCoreSettings.save_file_extension, date_string, true)
 	save_game(path)
 	return true
 
@@ -205,16 +202,13 @@ func _on_load_requested(path: String, is_quick_load := false) -> void:
 
 
 func _test_version() -> void:
-	pass
-#	if project_version != IVGlobal.project_version \
-#			or project_ymd != IVGlobal.project_ymd \
-#			or ivoyager_version != IVGlobal.IVOYAGER_VERSION \
-#			or ivoyager_ymd != IVGlobal.IVOYAGER_YMD:
-#		print("WARNING! Loaded game was created with different program version...")
-#		prints(" ivoayger running: ", IVGlobal.IVOYAGER_VERSION, IVGlobal.IVOYAGER_YMD)
-#		prints(" ivoyager loaded:  ", ivoyager_version, ivoyager_ymd)
-#		prints(" project running:  ", IVGlobal.project_version, IVGlobal.project_ymd)
-#		prints(" project loaded:   ", project_version, project_ymd)
+	if (project_version != IVCoreSettings.project_version
+			or ivoyager_version != IVGlobal.ivoyager_version):
+		print("WARNING! Loaded game was created with different program version...")
+		prints(" ivoayger running: ", IVGlobal.ivoyager_version)
+		prints(" ivoyager loaded:  ", ivoyager_version)
+		prints(" project running:  ", IVCoreSettings.project_version)
+		prints(" project loaded:   ", project_version)
 
 
 # *****************************************************************************

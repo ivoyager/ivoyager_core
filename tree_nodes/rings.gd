@@ -69,7 +69,7 @@ func _ready() -> void:
 	
 	
 	mesh = PlaneMesh.new() # default 2x2
-	_rings_material.shader = IVGlobal.shared_resources[&"rings_shader"]
+	_rings_material.shader = IVCoreSettings.shared_resources[&"rings_shader"]
 	_rings_material.set_shader_parameter(&"textures", _rings_textures)
 	_rings_material.set_shader_parameter(&"texture_width", float(_texture_width))
 	_rings_material.set_shader_parameter(&"texture_start", texture_start)
