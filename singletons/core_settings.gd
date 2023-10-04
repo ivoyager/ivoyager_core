@@ -22,12 +22,11 @@ extends Node
 # This node is added as singleton 'IVCoreSettings'.
 #
 # Modify properties or dictionary classes using res://ivoyager_override.cfg.
-# Alternatively, you can use an initializer script.
+# Alternatively, you can modify values here using an initializer script. (See
+# comments in core_initializer.gd.)
 #
 # With very few exceptions, these should not be modified after program start!
 
-
-# project vars - extensions modify via _extension_init(); see IVProjectBuilder
 var project_name := ""
 var project_version := "" # external project can set for gamesave debuging
 var is_modded := false # this is aspirational
