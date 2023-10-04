@@ -22,13 +22,12 @@ extends Node
 # This node is added as singleton 'IVCoreInitializer'.
 #
 # Modify properties or dictionary classes using res://ivoyager_override.cfg.
-# Alternatively, you can add a 'preinitializer' script using above and make
-# further changes to ivoyager_core via script.
+# Alternatively, you can modify values here using an initializer script. (Note,
+# your initializer must be added somehow. You can either add it using
+# res://ivoyager_override.cfg or make it an autoload.)
 #
-# For an example preinitializer script, see Planetarium:
+# For an example initializer script, see Planetarium:
 # https://github.com/ivoyager/planetarium/blob/master/planetarium/preinitializer.gd.
-# (Note: The Planetarium uses res://ivoyager_override.cfg to add above to
-# 'preinitializers' here.)
 #
 # DON'T modify values here after program start!
 #
@@ -83,20 +82,17 @@ var universe_path: String # assign here if using ivoyager_override.cfg
 var top_gui_path: String # assign here if using ivoyager_override.cfg
 var add_top_gui_to_universe := true # if true, happens in add_program_nodes()
 
-# Replace classes in dictionaries below with a subclass of the original unless
-# comment indicates otherwise. E.g., "Node3D ok": replace with a class that
-# extends Node3D. In some cases, elements can be erased for unneeded systems.
+# You can replace any class below with a subclass of the original. In some
+# cases, you can replace with a base Godot class (e.g., Node3D) or erase
+# unneeded systems, but you will have to investigate dependencies.
 #
-# Key formatting '_ClassName_' below is meant to be a reminder that the keyed
-# item at runtime might be a project-specific subclass (or in some cases
-# replacement) for the original class. For objects instanced by IVCoreInitializer,
-# edge underscores are removed to form keys in the IVGlobal.program dictionary
-# and the 'name' property in the case of nodes.
+# Dictionary values below can be any one of three things:
+#   - A GDScript class_name global.
+#   - A path to a Script resource (*.gd for now).
+#   - Where applicable, a path to a scene (*.tscn, *.scn).
 #
-# All dictionary values below can be any one of three things:
-#   - A GDScript class_name global
-#   - A path to a GDScript object (*.gd)
-#   - A path to a scene (*.tscn, *.scn)
+# (We want to support GDExtension classes in the future. Please tell us if you
+# want to help with that!)
 
 var preinitializers := {
 	# RefCounted classes. IVCoreInitializer instances these first. External

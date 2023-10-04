@@ -4,8 +4,8 @@ This Godot Editor plugin runs a solar system simulation.
 
 [Homepage](https://www.ivoyager.dev)  
 [Forum](https://www.ivoyager.dev/forum)  
-[Issues](https://github.com/ivoyager/ivoyager_core/issues)
-[Changelog](https://github.com/ivoyager/ivoyager_core/blob/master/CHANGELOG.md)
+[Issues](https://github.com/ivoyager/ivoyager_core/issues)  
+[Changelog](https://github.com/ivoyager/ivoyager_core/blob/master/CHANGELOG.md)  
 
 ### Requirements
 
@@ -16,6 +16,8 @@ See [changelog](https://github.com/ivoyager/ivoyager_core/blob/master/CHANGELOG.
 
 ### Installation
 
+Find more detailed instructions at our [Developers Page](https://www.ivoyager.dev/developers/).
+
 If you are building a new game or app, we recomend using [Project Template](https://github.com/ivoyager/project_template) as your starting point. See also [Planetarium](https://github.com/ivoyager/planetarium) for a working project using this plugin. 
 
 Instructions below are for adding the plugin to an existing project.
@@ -23,9 +25,9 @@ Instructions below are for adding the plugin to an existing project.
 The plugin directory `ivoyager_core` should be added _directly to your addons directory_. You can do this one of two ways:
 
 1. Download and extract the plugin, then add it (in its entirety) to your addons directory, creating an 'addons' directory in your project if needed.
-2. Add as a git submodule. From your project directory, use git command:  
-    `git submodule add https://github.com/ivoyager/ivoyager_core addons/ivoyager_core`  
-    This method will allow you to version-control the plugin from within your project rather than moving directories manually. You'll be able to checkout any plugin commit or submit pull requests back to us. This does require some learning to use git submodules. (We use [GitKraken](https://www.gitkraken.com/) to make this easier!)
+2. (Recommended) Add as a git submodule. From your project directory, use git command:  
+	`git submodule add https://github.com/ivoyager/ivoyager_core addons/ivoyager_core`  
+	This method will allow you to version-control the plugin from within your project rather than moving directories manually. You'll be able to pull updates, checkout any commit, or submit pull requests back to us. This does require some learning to use git submodules. (We use [GitKraken](https://www.gitkraken.com/) to make this easier!)
 
 Then enable 'I, Voyager - Core' from Godot Editor menu: Project / Project Settings / Plugins. ('I, Voyager - Table Importer' should be enabled first!)
 
