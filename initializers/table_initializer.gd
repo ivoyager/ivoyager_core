@@ -27,6 +27,13 @@ extends RefCounted
 
 func _init() -> void:
 	
+	# add compound units so Table Importer doesn't have to parse
+	IVUnits.unit_multipliers[&"m^3/s^2"] =  IVUnits.METER ** 3 / IVUnits.SECOND ** 2
+	IVUnits.unit_multipliers[&"km^3/s^2"] = IVUnits.KM ** 3 / IVUnits.SECOND ** 2
+	IVUnits.unit_multipliers[&"m^3/(kg s^2)"] = IVUnits.METER ** 3 / (IVUnits.KG * IVUnits.SECOND ** 2)
+	IVUnits.unit_multipliers[&"km^3/(kg s^2)"] = IVUnits.KM ** 3 / (IVUnits.KG * IVUnits.SECOND ** 2)
+	IVUnits.unit_multipliers[&"deg/Cy^2"] = IVUnits.DEG / IVUnits.CENTURY ** 2
+	
 	IVTableData.postprocess_tables(
 			IVCoreSettings.postprocess_tables,
 			IVCoreSettings.table_project_enums,
