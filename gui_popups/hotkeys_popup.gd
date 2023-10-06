@@ -30,7 +30,7 @@ var _hotkey_dialog: IVHotkeyDialog
 @onready var _input_map_manager: IVInputMapManager = IVGlobal.program[&"InputMapManager"]
 
 
-func _on_init():
+func _init():
 	# Edit layout directly or use IVCachedItemsPopup functions at project init.
 	
 	var column1: Array[Dictionary] = [ # each dict is a subpanel
@@ -124,7 +124,6 @@ func _on_init():
 
 
 func _ivcore_init() -> void:
-	super._ivcore_init()
 	IVGlobal.hotkeys_requested.connect(open)
 	if IVCoreSettings.disable_pause:
 		remove_item(&"toggle_pause")
@@ -140,8 +139,8 @@ func _ivcore_init() -> void:
 		remove_item(&"quit")
 
 
-func _on_ready():
-	super._on_ready()
+func _ready():
+	super._ready()
 	_header_label.text = &"LABEL_HOTKEYS"
 	_hotkey_dialog = IVFiles.make_object_or_scene(IVHotkeyDialog)
 	_hotkey_dialog.hotkey_confirmed.connect(_on_hotkey_confirmed)

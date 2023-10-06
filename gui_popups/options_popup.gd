@@ -41,7 +41,7 @@ var _settings: Dictionary = IVGlobal.settings
 @onready var _settings_manager: IVSettingsManager = IVGlobal.program[&"SettingsManager"]
 
 
-func _on_init():
+func _init():
 	# Edit layout directly or use parent class functions at project init.
 	
 	var column1: Array[Dictionary] = [ # each dict is a subpanel
@@ -84,15 +84,14 @@ func _on_init():
 
 
 func _ivcore_init() -> void:
-	super._ivcore_init()
 	IVGlobal.options_requested.connect(open)
 	IVGlobal.setting_changed.connect(_settings_listener)
 	if !IVCoreSettings.enable_save_load:
 		remove_subpanel(&"LABEL_SAVE_LOAD")
 
 
-func _on_ready() -> void:
-	super._on_ready()
+func _ready() -> void:
+	super._ready()
 	_header_label.text = &"LABEL_OPTIONS"
 
 
