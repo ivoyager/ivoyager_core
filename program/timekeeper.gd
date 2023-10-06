@@ -171,10 +171,6 @@ func _ivcore_init() -> void:
 
 
 func _ready() -> void:
-	_on_ready()
-
-
-func _on_ready() -> void: # subclass can override
 	process_mode = PROCESS_MODE_PAUSABLE
 	_set_ready_state()
 	set_process(false) # changes with "run_state_changed" signal
@@ -182,10 +178,6 @@ func _on_ready() -> void: # subclass can override
 
 
 func _process(delta: float) -> void:
-	_on_process(delta)
-
-
-func _on_process(delta: float) -> void: # subclass can override
 	if !_is_sync:
 		engine_time += delta
 	times[1] = engine_time
@@ -214,10 +206,6 @@ func _on_process(delta: float) -> void: # subclass can override
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	_on_unhandled_key_input(event)
-
-
-func _on_unhandled_key_input(event: InputEvent) -> void:
 	if !event.is_action_type() or !event.is_pressed():
 		return
 	if event.is_action_pressed(&"incr_speed"):
@@ -232,10 +220,6 @@ func _on_unhandled_key_input(event: InputEvent) -> void:
 
 
 func _notification(what: int) -> void:
-	_on_notification(what)
-
-
-func _on_notification(what: int) -> void:
 	if what == NOTIFICATION_PAUSED:
 		IVGlobal.pause_changed.emit(true)
 	elif what == NOTIFICATION_UNPAUSED:

@@ -116,21 +116,11 @@ var _world_targeting: Array = IVGlobal.world_targeting
 #@onready var _tree := get_tree()
 
 
-# virtual & overridable virtual-replacement functions
-
 func _init() -> void:
-	_on_init()
-
-
-func _on_init() -> void:
 	hide()
 
 
 func _enter_tree() -> void:
-	_on_enter_tree()
-
-
-func _on_enter_tree() -> void:
 	m_radius = characteristics.m_radius # required
 	orbit = components.get("orbit") # no orbit for the top body (e.g., the Sun)
 	if orbit:
@@ -139,10 +129,6 @@ func _on_enter_tree() -> void:
 
 
 func _ready() -> void:
-	_on_ready()
-
-
-func _on_ready() -> void:
 	process_mode = PROCESS_MODE_ALWAYS # time will stop, but allow pointy finger on mouseover
 	IVGlobal.system_tree_built_or_loaded.connect(_on_system_tree_built_or_loaded, CONNECT_ONE_SHOT)
 	IVGlobal.about_to_free_procedural_nodes.connect(_prepare_to_free, CONNECT_ONE_SHOT)
@@ -157,10 +143,6 @@ func _on_ready() -> void:
 
 
 func _exit_tree() -> void:
-	_on_exit_tree()
-
-
-func _on_exit_tree() -> void:
 	IVGlobal.bodies.erase(name)
 	if flags & BodyFlags.IS_TOP:
 		IVGlobal.top_bodies.erase(self)
@@ -190,10 +172,6 @@ func _prepare_to_free() -> void:
 
 
 func _process(delta: float) -> void:
-	_on_process(delta)
-
-
-func _on_process(_delta: float) -> void: # subclass can override
 	# _process() is disabled while in sleep mode (sleep == true). When in sleep
 	# mode, API assumes that any properties updated here are stale and must be
 	# calculated in-function.

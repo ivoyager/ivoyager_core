@@ -113,10 +113,6 @@ func _ivcore_init() -> void:
 
 
 func _ready() -> void:
-	_on_ready()
-
-
-func _on_ready() -> void:
 	process_mode = PROCESS_MODE_ALWAYS
 	IVGlobal.project_builder_finished.connect(_on_project_builder_finished, CONNECT_ONE_SHOT)
 	IVGlobal.about_to_build_system_tree.connect(_on_about_to_build_system_tree)
@@ -133,10 +129,6 @@ func _on_ready() -> void:
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	_on_unhandled_key_input(event)
-
-
-func _on_unhandled_key_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"toggle_pause"):
 		change_pause()
 	elif event.is_action_pressed(&"quit"):

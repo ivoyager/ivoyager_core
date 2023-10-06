@@ -39,14 +39,6 @@ var _missing_or_bad_cache_file := true
 
 # *****************************************************************************
 
-func _init() -> void:
-	_on_init()
-
-
-func _on_init() -> void: # subclass can override
-	pass
-
-
 func _ivcore_init() -> void:
 	_io_manager = IVGlobal.program["IOManager"]
 	var cache_dir: String = IVCoreSettings.cache_dir

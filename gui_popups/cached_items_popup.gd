@@ -38,25 +38,8 @@ var _restore_defaults: Button
 var _allow_close := false
 
 
-# virtual & overridable virtual functions
 
-func _init():
-	_on_init()
-
-
-func _on_init():
-	pass
-
-
-func _ivcore_init() -> void:
-	pass
-
-
-func _ready():
-	_on_ready()
-
-
-func _on_ready() -> void:
+func _ready() -> void:
 	IVGlobal.close_all_admin_popups_requested.connect(hide)
 	close_requested.connect(_on_close_requested)
 	popup_hide.connect(_on_popup_hide)
@@ -75,10 +58,6 @@ func _on_ready() -> void:
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	_on_unhandled_key_input(event)
-
-
-func _on_unhandled_key_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"ui_cancel"):
 		set_input_as_handled()
 		_on_cancel()
