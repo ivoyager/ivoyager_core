@@ -139,7 +139,7 @@ static func get_selection_manager(control: Control) -> IVSelectionManager:
 	return null
 
 
-static func get_or_make_selection(selection_name: String) -> IVSelection:
+static func get_or_make_selection(selection_name: StringName) -> IVSelection:
 	# I, Voyager supports IVBody selection only! Override for others.
 	var selection_: IVSelection = IVGlobal.selections.get(selection_name)
 	if selection_:
@@ -150,7 +150,7 @@ static func get_or_make_selection(selection_name: String) -> IVSelection:
 	return null
 
 
-static func make_selection_for_body(body_name: String) -> IVSelection:
+static func make_selection_for_body(body_name: StringName) -> IVSelection:
 	assert(!IVGlobal.selections.has(body_name))
 	var body: IVBody = IVGlobal.bodies[body_name] # must exist
 	var selection_builder: IVSelectionBuilder = IVGlobal.program.SelectionBuilder
@@ -196,7 +196,7 @@ func select_body(body: IVBody, suppress_camera_move := false) -> void:
 		select(selection_, suppress_camera_move)
 
 
-func select_by_name(selection_name: String, suppress_camera_move := false) -> void:
+func select_by_name(selection_name: StringName, suppress_camera_move := false) -> void:
 	var selection_ := IVSelectionManager.get_or_make_selection(selection_name)
 	if selection_:
 		select(selection_, suppress_camera_move)
