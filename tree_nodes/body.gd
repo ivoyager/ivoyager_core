@@ -171,7 +171,7 @@ func _prepare_to_free() -> void:
 	IVGlobal.disconnect("setting_changed", Callable(self, "_settings_listener"))
 
 
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
 	# _process() is disabled while in sleep mode (sleep == true). When in sleep
 	# mode, API assumes that any properties updated here are stale and must be
 	# calculated in-function.
