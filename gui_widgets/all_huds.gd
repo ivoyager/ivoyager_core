@@ -27,7 +27,7 @@ extends VBoxContainer
 const BodyFlags: Dictionary = IVEnums.BodyFlags
 
 var default_view_name := &"LABEL_CUSTOM1" # will increment if taken
-var set_name := &"AH"
+var collection_name := &"AH"
 var is_cached := true
 var view_flags := IVView.ALL_HUDS
 var reserved_view_names: Array[StringName] = [
@@ -46,7 +46,7 @@ func _enter_tree() -> void:
 func _ready() -> void:
 	var view_save_button: IVViewSaveButton = $"%ViewSaveButton"
 	view_save_button.tooltip_text = &"HINT_SAVE_VISIBILITIES_AND_COLORS"
-	($ViewSaveFlow as IVViewSaveFlow).init(view_save_button, default_view_name, set_name,
+	($ViewSaveFlow as IVViewSaveFlow).init(view_save_button, default_view_name, collection_name,
 			is_cached, view_flags, view_flags, reserved_view_names)
 
 

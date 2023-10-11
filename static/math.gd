@@ -152,15 +152,15 @@ static func get_z_rotation_matrix(th: float) -> Basis:
 static func get_euler_rotation_matrix(Om: float, i: float, w: float) -> Basis:
 	# WIP - I started this and didn't finish. Never tested.
 	# Om, i, w are Euler angles alpha, beta, gamma (intrinsic rotations)
-	var x1 = cos(Om) * cos(w) - sin(Om) * cos(i) * sin(w)
-	var x2 = sin(Om) * cos(w) + cos(w) * cos(i) * sin(w)
-	var x3 = sin(i) * sin(w)
-	var y1 = -cos(Om) * sin(w) - sin(Om) * cos(i) * cos(w)
-	var y2 = -sin(Om) * sin(w) + cos(Om) * cos(i) * cos(w)
-	var y3 = sin(i) * cos(w)
-	var z1 = sin(i) * sin(Om)
-	var z2 = -sin(i) * cos(Om)
-	var z3 = cos(i)
+	var x1 := cos(Om) * cos(w) - sin(Om) * cos(i) * sin(w)
+	var x2 := sin(Om) * cos(w) + cos(w) * cos(i) * sin(w)
+	var x3 := sin(i) * sin(w)
+	var y1 := -cos(Om) * sin(w) - sin(Om) * cos(i) * cos(w)
+	var y2 := -sin(Om) * sin(w) + cos(Om) * cos(i) * cos(w)
+	var y3 := sin(i) * cos(w)
+	var z1 := sin(i) * sin(Om)
+	var z2 := -sin(i) * cos(Om)
+	var z3 := cos(i)
 	return Basis(
 		Vector3(x1, x2, x3),
 		Vector3(y1, y2, y3),

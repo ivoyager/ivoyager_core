@@ -133,10 +133,10 @@ static func make_object_or_scene(arg: Variant) -> Object:
 			return null
 	else:
 		assert(arg is String)
-		var script_or_packedscene := get_script_or_packedscene(arg)
+		var path: String = arg
+		var script_or_packedscene := get_script_or_packedscene(path)
 		if !script_or_packedscene:
-			assert(false, "Could not load '%s' as Script or PackedScene"
-					% arg)
+			assert(false, "Could not load '%s' as Script or PackedScene" % path)
 			return null
 		if script_or_packedscene is Script:
 			script = script_or_packedscene

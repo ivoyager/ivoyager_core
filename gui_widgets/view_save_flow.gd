@@ -33,7 +33,7 @@ extends HFlowContainer
 
 
 var default_view_name := &"LABEL_CUSTOM1" # will increment if taken
-var set_name := &""
+var collection_name := &""
 var is_cached := true
 var show_flags := IVView.ALL
 
@@ -44,17 +44,17 @@ func _ready() -> void:
 
 
 func init(view_save_button: IVViewSaveButton, default_view_name_ := &"LABEL_CUSTOM1",
-		set_name_ := &"", is_cached_ := true,
+		collection_name_ := &"", is_cached_ := true,
 		show_flags_ := IVView.ALL, init_flags := IVView.ALL,
 		reserved_names: Array[StringName] = []) -> void:
 	# Call from containing scene.
 	# This method calls IVViewSaveButton.init() which calls IVViewSaver.init().
-	# Make 'set_name_' unique to not share views with other GUI instances. 
+	# Make 'collection_name_' unique to not share views with other GUI instances. 
 	default_view_name = default_view_name_
-	set_name = set_name_
+	collection_name = collection_name_
 	is_cached = is_cached_
 	show_flags = show_flags_
-	view_save_button.init(default_view_name, set_name, is_cached, show_flags, init_flags,
+	view_save_button.init(default_view_name, collection_name, is_cached, show_flags, init_flags,
 			reserved_names)
 	view_save_button.view_saved.connect(_on_view_saved)
 	if IVGlobal.state.is_started_or_about_to_start:
@@ -68,7 +68,7 @@ func _clear() -> void:
 
 
 func _build_view_buttons(_dummy := false) -> void:
-	var view_names := _view_manager.get_view_names_in_group(set_name, is_cached)
+	var view_names := _view_manager.get_view_names_in_group(collection_name, is_cached)
 	for view_name in view_names:
 		_build_view_button(view_name)
 
@@ -85,11 +85,11 @@ func _on_view_saved(view_name: String) -> void:
 	
 
 func _on_button_pressed(button: RemovableViewButton) -> void:
-	_view_manager.set_view(button.text, set_name, is_cached)
+	_view_manager.set_view(button.text, collection_name, is_cached)
 
 
 func _on_button_right_clicked(button: RemovableViewButton) -> void:
-	_view_manager.remove_view(button.text, set_name, is_cached)
+	_view_manager.remove_view(button.text, collection_name, is_cached)
 	button.queue_free()
 
 

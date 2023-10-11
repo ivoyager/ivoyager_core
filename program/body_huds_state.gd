@@ -36,7 +36,7 @@ const NULL_COLOR := Color.BLACK
 const BodyFlags: Dictionary = IVEnums.BodyFlags
 
 const PERSIST_MODE := IVEnums.PERSIST_PROPERTIES_ONLY
-const PERSIST_PROPERTIES := [
+const PERSIST_PROPERTIES: Array[StringName] = [
 	&"name_visible_flags",
 	&"symbol_visible_flags",
 	&"orbit_visible_flags",
@@ -78,6 +78,7 @@ func _ivcore_init() -> void:
 			default_symbol_visible_flags |= body_flag
 		if orbit_visible:
 			default_orbit_visible_flags |= body_flag
+		@warning_ignore("unsafe_call_argument") # Godot 4.2.dev6 bad warning
 		default_orbit_colors[body_flag] = Color(orbit_color_str)
 	
 	_set_current_to_default()

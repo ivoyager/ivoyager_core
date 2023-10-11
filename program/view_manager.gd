@@ -25,11 +25,11 @@ extends Node
 const files := preload("res://addons/ivoyager_core/static/files.gd")
 
 const PERSIST_MODE := IVEnums.PERSIST_PROPERTIES_ONLY
-const PERSIST_PROPERTIES := [
+const PERSIST_PROPERTIES: Array[StringName] = [
 	&"_gamesave_views",
 ]
 
-var View: Script
+var ViewScript: Script
 var file_path := IVCoreSettings.cache_dir.path_join("views.ivbinary")
 
 var _gamesave_views := {}
@@ -40,7 +40,7 @@ var _missing_or_bad_cache_file := true
 
 
 func _ivcore_init() -> void:
-	View = IVGlobal.procedural_classes[&"View"]
+	ViewScript = IVGlobal.procedural_classes[&"View"]
 	_io_manager = IVGlobal.program[&"IOManager"]
 	DirAccess.make_dir_recursive_absolute(IVCoreSettings.cache_dir)
 	_read_cache()
@@ -50,15 +50,15 @@ func _ivcore_init() -> void:
 
 # public
 
-func save_view(view_name: StringName, group_name: StringName, is_cached: bool, flags: int,
+func save_view(view_name: StringName, collection_name: StringName, is_cached: bool, flags: int,
 		allow_threaded_cache_write := true) -> void:
-	var key := view_name + "." + group_name
-	var view := get_view_object(view_name, group_name, is_cached)
+	var key := view_name + "." + collection_name
+	var view := get_view_object(view_name, collection_name, is_cached)
 	if view:
 		view.reset()
 	else:
 		@warning_ignore("unsafe_method_access") # possible replacement class
-		view = View.new()
+		view = ViewScript.new()
 	view.save_state(flags)
 	if is_cached:
 		_cached_views[key] = view
@@ -67,9 +67,9 @@ func save_view(view_name: StringName, group_name: StringName, is_cached: bool, f
 		_gamesave_views[key] = view
 
 
-func set_view(view_name: StringName, group_name: StringName, is_cached: bool,
+func set_view(view_name: StringName, collection_name: StringName, is_cached: bool,
 		is_camera_instant_move := false) -> void:
-	var key := view_name + "." + group_name
+	var key := view_name + "." + collection_name
 	var view: IVView
 	if is_cached:
 		view = _cached_views.get(key)
@@ -80,9 +80,9 @@ func set_view(view_name: StringName, group_name: StringName, is_cached: bool,
 	view.set_state(is_camera_instant_move)
 
 
-func save_view_object(view: IVView, view_name: StringName, group_name: StringName, is_cached: bool,
+func save_view_object(view: IVView, view_name: StringName, collection_name: StringName, is_cached: bool,
 		allow_threaded_cache_write := true) -> void:
-	var key := view_name + "." + group_name
+	var key := view_name + "." + collection_name
 	if is_cached:
 		_cached_views[key] = view
 		_write_cache(allow_threaded_cache_write)
@@ -90,22 +90,22 @@ func save_view_object(view: IVView, view_name: StringName, group_name: StringNam
 		_gamesave_views[key] = view
 
 
-func get_view_object(view_name: StringName, group_name: StringName, is_cached: bool) -> IVView:
-	var key := view_name + "." + group_name
+func get_view_object(view_name: StringName, collection_name: StringName, is_cached: bool) -> IVView:
+	var key := view_name + "." + collection_name
 	if is_cached:
 		return _cached_views.get(key)
 	return _gamesave_views.get(key)
 
 
-func has_view(view_name: StringName, group_name: StringName, is_cached: bool) -> bool:
-	var key := view_name + "." + group_name
+func has_view(view_name: StringName, collection_name: StringName, is_cached: bool) -> bool:
+	var key := view_name + "." + collection_name
 	if is_cached:
 		return _cached_views.has(key)
 	return _gamesave_views.has(key)
 
 
-func remove_view(view_name: StringName, group_name: StringName, is_cached: bool) -> void:
-	var key := view_name + "." + group_name
+func remove_view(view_name: StringName, collection_name: StringName, is_cached: bool) -> void:
+	var key := view_name + "." + collection_name
 	if is_cached:
 		_cached_views.erase(key)
 		_write_cache()
@@ -113,9 +113,9 @@ func remove_view(view_name: StringName, group_name: StringName, is_cached: bool)
 		_gamesave_views.erase(key)
 	
 
-func get_view_names_in_group(group_name: StringName, is_cached: bool) -> Array[StringName]:
+func get_view_names_in_group(collection_name: StringName, is_cached: bool) -> Array[StringName]:
 	var group: Array[StringName] = []
-	var suffix := "." + group_name
+	var suffix := "." + collection_name
 	var dict := _cached_views if is_cached else _gamesave_views
 	for key in dict:
 		@warning_ignore("unsafe_cast")
@@ -144,7 +144,7 @@ func _read_cache() -> void:
 	for key in dict:
 		var data: Array = dict[key]
 		@warning_ignore("unsafe_method_access") # possible replacement class
-		var view: IVView = View.new()
+		var view: IVView = ViewScript.new()
 		if !view.set_data_from_cache(data): # may be prior version
 			bad_cache_data = true
 			continue

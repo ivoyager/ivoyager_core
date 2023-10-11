@@ -274,7 +274,7 @@ func _ivcore_init() -> void:
 
 
 func _init_actions() -> void:
-	for action in current:
+	for action: StringName in current:
 		var scancodes := get_scancodes_w_mods_for_action(action)
 		for scancode_w_mods in scancodes:
 #			assert(!actions_by_scancode_w_mods.has(scancode_w_mods))
@@ -328,7 +328,7 @@ func get_event_dicts(action: StringName, event_class: StringName) -> Array:
 func remove_event_dict_by_index(action: StringName, event_class: StringName, index: int,
 		suppress_caching := false) -> void:
 	# index is for event dicts of specified event_class (not array index!)
-	var scancodes_w_mods: Array
+	var scancodes_w_mods: Array[int]
 	if event_class == &"InputEventKey":
 		scancodes_w_mods = get_scancodes_w_mods_for_action(action)
 	var events_array: Array = current[action]
@@ -373,10 +373,10 @@ func remove_event_dict_by_match(action: StringName, event_class: StringName, sca
 		cache_now()
 
 
-func get_scancodes_w_mods_for_action(action: StringName) -> Array:
-	var scancodes := []
+func get_scancodes_w_mods_for_action(action: StringName) -> Array[int]:
+	var scancodes: Array[int] = []
 	var events_array: Array = current[action]
-	for event_dict in events_array:
+	for event_dict: Dictionary in events_array:
 		if event_dict.event_class == &"InputEventKey":
 			var keycode := get_scancode_w_mods_for_event_dict(event_dict)
 			scancodes.append(keycode)
@@ -441,7 +441,7 @@ func _set_input_map(action: StringName) -> void:
 	for event_dict in events_array:
 		@warning_ignore("unsafe_method_access")
 		var event: InputEvent = event_classes[event_dict.event_class].new()
-		for key in event_dict:
+		for key: StringName in event_dict:
 			if key != &"event_class":
 				event.set(key, event_dict[key])
 		InputMap.action_add_event(action, event)

@@ -25,8 +25,8 @@ extends RefCounted
 signal system_build_finished()
 
 
-var SBGPoints: Script
-var SBGOrbits: Script
+var SBGPointsScript: Script
+var SBGOrbitsScript: Script
 
 var _io_manager: IVIOManager
 
@@ -39,8 +39,8 @@ var _sb_count := 0
 
 func _ivcore_init() -> void:
 	IVGlobal.get_tree().node_added.connect(_on_node_added)
-	SBGPoints = IVGlobal.procedural_classes[&"SBGPoints"]
-	SBGOrbits = IVGlobal.procedural_classes[&"SBGOrbits"]
+	SBGPointsScript = IVGlobal.procedural_classes[&"SBGPoints"]
+	SBGOrbitsScript = IVGlobal.procedural_classes[&"SBGOrbits"]
 	_io_manager = IVGlobal.program[&"IOManager"]
 
 
@@ -65,7 +65,7 @@ func _on_node_added(node: Node) -> void:
 
 func _init_hud_points(sbg: IVSmallBodiesGroup) -> void:
 	@warning_ignore("unsafe_method_access")
-	var sbg_points: IVSBGPoints = SBGPoints.new(sbg)
+	var sbg_points: IVSBGPoints = SBGPointsScript.new(sbg)
 	var primary_body: IVBody = sbg.get_parent()
 	primary_body.add_child(sbg_points)
 	_finished_count += 1
@@ -76,7 +76,7 @@ func _init_hud_points(sbg: IVSmallBodiesGroup) -> void:
 
 func _init_hud_orbits(sbg: IVSmallBodiesGroup) -> void:
 	@warning_ignore("unsafe_method_access")
-	var sbg_orbits: IVSBGOrbits = SBGOrbits.new(sbg)
+	var sbg_orbits: IVSBGOrbits = SBGOrbitsScript.new(sbg)
 	var primary_body: IVBody = sbg.get_parent()
 	primary_body.add_child(sbg_orbits)
 	_finished_count += 1

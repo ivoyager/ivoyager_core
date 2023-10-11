@@ -34,7 +34,7 @@ const utils := preload("res://addons/ivoyager_core/static/utils.gd")
 const VPRINT = false # print verbose asteroid summary on load
 
 const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL
-const PERSIST_PROPERTIES := [
+const PERSIST_PROPERTIES: Array[StringName] = [
 	&"name",
 	&"sbg_alias",
 	&"sbg_class",
@@ -102,14 +102,19 @@ func init(name_: StringName, sbg_alias_: StringName, sbg_class_: int,
 
 func read_binary(binary: FileAccess) -> void:
 	var binary_data: Array = binary.get_var()
-	names.append_array(binary_data[0])
+	var names_append: PackedStringArray = binary_data[0]
+	var e_i_Om_w_append: PackedFloat32Array = binary_data[1]
+	var a_M0_n_append: PackedFloat32Array = binary_data[2]
+	var s_g_mag_de_append: PackedFloat32Array = binary_data[3]
 	
-	e_i_Om_w.append_array(binary_data[1])
-	a_M0_n.append_array(binary_data[2])
-	s_g_mag_de.append_array(binary_data[3])
+	names.append_array(names_append)
+	e_i_Om_w.append_array(e_i_Om_w_append)
+	a_M0_n.append_array(a_M0_n_append)
+	s_g_mag_de.append_array(s_g_mag_de_append)
 	
 	if lp_integer != -1:
-		da_D_f_th0.append_array(binary_data[4])
+		var da_D_f_th0_append: PackedFloat32Array = binary_data[4]
+		da_D_f_th0.append_array(da_D_f_th0_append)
 
 
 func finish_binary_import() -> void:

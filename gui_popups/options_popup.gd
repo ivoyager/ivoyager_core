@@ -30,10 +30,10 @@ var setting_enums := {
 	starmap = IVEnums.StarmapSize,
 }
 var format_overrides := {
-	camera_transfer_time = {&"max_value" : 10.0},
-	viewport_names_size = {&"min_value" : 4.0, &"max_value" : 50.0},
-	viewport_symbols_size = {&"min_value" : 4.0, &"max_value" : 50.0},
-	point_size = {&"min_value" : 3, &"max_value" : 20},
+	&"camera_transfer_time" : {&"max_value" : 10.0},
+	&"viewport_names_size" : {&"min_value" : 4.0, &"max_value" : 50.0},
+	&"viewport_symbols_size" : {&"min_value" : 4.0, &"max_value" : 50.0},
+	&"point_size" : {&"min_value" : 3, &"max_value" : 20},
 }
 
 var _settings: Dictionary = IVGlobal.settings
@@ -125,7 +125,7 @@ func _build_item(setting: StringName, setting_label_str: StringName) -> HBoxCont
 				var keys: Array = setting_enum.keys()
 				var option_button := OptionButton.new()
 				setting_hbox.add_child(option_button)
-				for key in keys:
+				for key: String in keys:
 					option_button.add_item(key)
 				_set_overrides(option_button, setting)
 				option_button.selected = value
@@ -171,7 +171,7 @@ func _build_item(setting: StringName, setting_label_str: StringName) -> HBoxCont
 func _set_overrides(control: Control, setting: StringName) -> void:
 	if format_overrides.has(setting):
 		var overrides: Dictionary = format_overrides[setting]
-		for override in overrides:
+		for override: StringName in overrides:
 			control.set(override, overrides[override])
 
 
@@ -191,10 +191,11 @@ func _cancel_changes() -> void:
 	hide()
 
 
-func _on_change(value, setting: StringName, default_button: Button, convert_to_int := false
-		) -> void:
+func _on_change(value: Variant, setting: StringName, default_button: Button,
+		convert_to_int := false) -> void:
 	if convert_to_int:
-		value = int(value)
+		var float_value: float = value
+		value = int(float_value)
 	assert(!DPRINT or IVDebug.dprint("Set " + setting + " = " + str(value)))
 	_settings_manager.change_current(setting, value, true)
 	default_button.disabled = _settings_manager.is_default(setting)

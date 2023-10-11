@@ -35,7 +35,7 @@ extends Control
 # proper GUI widget appearance.
 
 const PERSIST_MODE := IVEnums.PERSIST_PROPERTIES_ONLY # don't free on load
-const PERSIST_PROPERTIES := [&"selection_manager"]
+const PERSIST_PROPERTIES: Array[StringName] = [&"selection_manager"]
 
 var selection_manager: IVSelectionManager
 
@@ -60,8 +60,8 @@ func _on_project_builder_finished() -> void:
 
 func _on_system_tree_built_or_loaded(is_new_game: bool) -> void:
 	if is_new_game:
-		var SelectionManager: Script = IVGlobal.procedural_classes[&"SelectionManager"]
+		var SelectionManagerScript: Script = IVGlobal.procedural_classes[&"SelectionManager"]
 		@warning_ignore("unsafe_method_access")
-		selection_manager = SelectionManager.new()
+		selection_manager = SelectionManagerScript.new()
 		add_child(selection_manager)
 

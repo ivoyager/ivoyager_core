@@ -66,7 +66,7 @@ const UPDATE_TOLERANCE := 0.0002
 const UPDATE_LIMITER := IVUnits.HOUR # up to -10% to avoid schedular clumping
 
 const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL
-const PERSIST_PROPERTIES := [
+const PERSIST_PROPERTIES: Array[StringName] = [
 	&"reference_normal",
 	&"elements_at_epoch",
 	&"element_rates",
@@ -450,7 +450,7 @@ static func get_elements_from_vectors(R: Vector3, V: Vector3, mu: float, time: f
 	else:
 		Om = 0.0
 		if e > 0.000001:
-			var e_vec = ((v_sq - mu / r) * R - R.dot(V) * V) / mu
+			var e_vec := ((v_sq - mu / r) * R - R.dot(V) * V) / mu
 			w = atan2(e_vec.y, e_vec.x)
 			if R.cross(V).z < 0:
 				w = TAU - w

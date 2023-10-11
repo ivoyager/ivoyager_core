@@ -39,7 +39,7 @@ const ECLIPTIC_Z := Vector3(0.0, 0.0, 1.0)
 const VECTOR2_ZERO := Vector2.ZERO
 
 const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL
-const PERSIST_PROPERTIES := [
+const PERSIST_PROPERTIES: Array[StringName] = [
 	&"name",
 	&"gui_name",
 	&"is_body",
@@ -63,8 +63,8 @@ var texture_slice_2d: Texture2D # stars only
 
 
 func _init() -> void:
-	IVGlobal.connect("system_tree_ready", Callable(self, "_init_after_system").bind(), CONNECT_ONE_SHOT)
-	IVGlobal.connect("about_to_free_procedural_nodes", Callable(self, "_clear"))
+	IVGlobal.system_tree_ready.connect(_init_after_system, CONNECT_ONE_SHOT)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
 
 
 func _init_after_system(_dummy: bool) -> void:
@@ -75,8 +75,8 @@ func _init_after_system(_dummy: bool) -> void:
 
 
 func _clear() -> void:
-	if IVGlobal.is_connected("system_tree_ready", Callable(self, "_init_after_system")):
-		IVGlobal.disconnect("system_tree_ready", Callable(self, "_init_after_system"))
+	if IVGlobal.system_tree_ready.is_connected(_init_after_system):
+		IVGlobal.system_tree_ready.disconnect(_init_after_system)
 	spatial = null
 	body = null
 

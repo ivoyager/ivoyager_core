@@ -166,9 +166,10 @@ func _build_content() -> void:
 			subpanel_vbox.add_child(header_label)
 			header_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			header_label.text = subpanel_dict.header
-			for item in subpanel_dict:
-				if item != "header":
-					var setting_hbox := _build_item(item, subpanel_dict[item])
+			for item: StringName in subpanel_dict:
+				if item != &"header":
+					var label_name: StringName = subpanel_dict[item]
+					var setting_hbox := _build_item(item, label_name)
 					subpanel_vbox.add_child(setting_hbox)
 	_on_content_built()
 

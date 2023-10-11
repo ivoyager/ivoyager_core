@@ -49,7 +49,7 @@ extends Node3D
 # only IVTimekeeper pauses to stop time. (This is set by IVStateManager.)
 
 const PERSIST_MODE := IVEnums.PERSIST_PROPERTIES_ONLY # don't free on load
-const PERSIST_PROPERTIES := [&"persist"]
+const PERSIST_PROPERTIES: Array[StringName] = [&"persist"]
 
 var persist := {}
 

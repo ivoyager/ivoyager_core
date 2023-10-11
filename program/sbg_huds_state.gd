@@ -33,7 +33,7 @@ const utils := preload("res://addons/ivoyager_core/static/utils.gd")
 const NULL_COLOR := Color.BLACK
 
 const PERSIST_MODE := IVEnums.PERSIST_PROPERTIES_ONLY
-const PERSIST_PROPERTIES := [
+const PERSIST_PROPERTIES: Array[StringName] = [
 	&"points_visibilities",
 	&"orbits_visibilities",
 	&"points_colors",
@@ -67,7 +67,9 @@ func _ivcore_init() -> void:
 		var sbg_alias := IVTableData.get_db_string_name(&"small_bodies_groups", &"sbg_alias", row)
 		var points_color_str := IVTableData.get_db_string(&"small_bodies_groups", &"points_color", row)
 		var orbits_color_str := IVTableData.get_db_string(&"small_bodies_groups", &"orbits_color", row)
+		@warning_ignore("unsafe_call_argument") # Godot 4.2.dev6 bad warning
 		default_points_colors[sbg_alias] = Color(points_color_str)
+		@warning_ignore("unsafe_call_argument") # Godot 4.2.dev6 bad warning
 		default_orbits_colors[sbg_alias] = Color(orbits_color_str)
 	_set_current_to_default()
 

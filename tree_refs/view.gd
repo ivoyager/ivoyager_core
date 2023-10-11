@@ -47,7 +47,7 @@ enum { # flags
 const NULL_VECTOR3 := Vector3(-INF, -INF, -INF)
 
 const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL
-const PERSIST_PROPERTIES := [
+const PERSIST_PROPERTIES: Array[StringName] = [
 	&"flags",
 	
 	&"selection_name",

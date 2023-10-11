@@ -80,7 +80,7 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	var cursor_type = CURSOR_ARROW
+	var cursor_type := CURSOR_ARROW
 	if _drag_start:
 		cursor_type = CURSOR_MOVE
 	elif _world_targeting[4]: # there is a target object under the mouse!

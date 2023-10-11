@@ -28,7 +28,7 @@ signal view_saved(view_name)
 
 
 var default_view_name := &"LABEL_CUSTOM1" # will increment if taken
-var set_name := &""
+var collection_name := &""
 var is_cached := true
 var show_flags := IVView.ALL
 var reserved_names: Array[StringName] = []
@@ -53,13 +53,13 @@ func _ready() -> void:
 		_time_ckbx.text = &"CKBX_GAME_SPEED" # this is the only 'time' element that can be modified
 
 
-func init(default_view_name_ := &"LABEL_CUSTOM1", set_name_ := &"", is_cached_ := true,
+func init(default_view_name_ := &"LABEL_CUSTOM1", collection_name_ := &"", is_cached_ := true,
 		show_flags_ := IVView.ALL, init_flags := IVView.ALL, reserved_names_: Array[StringName] = []
 		) -> void:
 	# Called by IVViewSaveButton in standard setup.
-	# Make 'set_name_' unique to not share views with other GUI instances. 
+	# Make 'collection_name_' unique to not share views with other GUI instances. 
 	default_view_name = default_view_name_
-	set_name = set_name_
+	collection_name = collection_name_
 	is_cached = is_cached_
 	show_flags = show_flags_
 	reserved_names = reserved_names_
@@ -109,7 +109,7 @@ func _on_visibility_changed():
 func _on_save(_dummy := "") -> void:
 	_increment_name_as_needed()
 	var flags := _get_view_flags()
-	_view_manager.save_view(_line_edit.text, set_name, is_cached, flags)
+	_view_manager.save_view(_line_edit.text, collection_name, is_cached, flags)
 	view_saved.emit(_line_edit.text)
 
 
@@ -117,7 +117,7 @@ func _increment_name_as_needed() -> void:
 	if !_line_edit.text:
 		_line_edit.text = "1"
 	var text := _line_edit.text
-	if !_view_manager.has_view(text, set_name, is_cached) and !reserved_names.has(text):
+	if !_view_manager.has_view(text, collection_name, is_cached) and !reserved_names.has(text):
 		return
 	if !text[-1].is_valid_int():
 		_line_edit.text += "2"

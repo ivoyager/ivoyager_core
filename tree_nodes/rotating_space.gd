@@ -31,7 +31,7 @@ extends Node3D
 
 
 const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL # free & rebuild on load
-const PERSIST_PROPERTIES := [
+const PERSIST_PROPERTIES: Array[StringName] = [
 	&"mass_ratio",
 	&"characteristic_length",
 	&"characteristic_time",
@@ -80,9 +80,9 @@ func get_lagrange_point_node3d(lp_integer: int) -> IVLagrangePoint:
 	if !_lagrange_points:
 		_lagrange_points.resize(5)
 	if !_lagrange_points[lp_integer]:
-		var LagrangePoint: Script = IVGlobal.procedural_classes[&"LagrangePoint"]
+		var LagrangePointScript: Script = IVGlobal.procedural_classes[&"LagrangePoint"]
 		@warning_ignore("unsafe_method_access")
-		var lagrange_point: IVLagrangePoint = LagrangePoint.new()
+		var lagrange_point: IVLagrangePoint = LagrangePointScript.new()
 		lagrange_point.init(lp_integer)
 		lagrange_point.position = lagrange_point_vectors[lp_integer - 1]
 		_lagrange_points[lp_integer] = lagrange_point

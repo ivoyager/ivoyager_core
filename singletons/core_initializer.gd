@@ -299,13 +299,12 @@ func build_project(override := false) -> void:
 # ************************ 'init_sequence' FUNCTIONS **************************
 
 func _instantiate_preinitializers() -> void:
-	for key in preinitializers:
+	for key: StringName in preinitializers:
 		if !preinitializers[key]:
 			continue
-		var key_name := StringName(key)
-		assert(!_program.has(key_name))
+		assert(!_program.has(key))
 		var preinitializer: RefCounted = IVFiles.make_object_or_scene(preinitializers[key])
-		_program[key_name] = preinitializer
+		_program[key] = preinitializer
 	IVGlobal.preinitializers_inited.emit()
 
 
@@ -319,13 +318,12 @@ func _do_presets() -> void:
 
 
 func _instantiate_initializers() -> void:
-	for key in initializers:
+	for key: StringName in initializers:
 		if !initializers[key]:
 			continue
-		var key_name := StringName(key)
-		assert(!_program.has(key_name))
+		assert(!_program.has(key))
 		var initializer: RefCounted = IVFiles.make_object_or_scene(initializers[key])
-		_program[key_name] = initializer
+		_program[key] = initializer
 	IVGlobal.initializers_inited.emit()
 
 
@@ -383,27 +381,25 @@ func _instantiate_and_index_program_objects() -> void:
 	_program[&"Universe"] = universe
 	_program[&"TopGUI"] = top_gui
 	# Don't add CoreInitializer: it should never be accessed after init!
-	for dict in [program_refcounteds, program_nodes, gui_nodes]:
-		for key in dict:
+	for dict: Dictionary in [program_refcounteds, program_nodes, gui_nodes]:
+		for key: StringName in dict:
 			if !dict[key]:
 				continue
-			var key_name := StringName(key)
-			assert(!_program.has(key_name))
-			var object: Object = IVFiles.make_object_or_scene(dict[key_name])
-			_program[key_name] = object
+			assert(!_program.has(key))
+			var object: Object = IVFiles.make_object_or_scene(dict[key])
+			_program[key] = object
 			if object is Node:
 				@warning_ignore("unsafe_property_access")
-				object.name = key_name
-	for key in procedural_objects:
+				object.name = key
+	for key: StringName in procedural_objects:
 		if !procedural_objects[key]:
 			continue
-		var key_name := StringName(key)
-		assert(!_procedural_classes.has(key_name))
+		assert(!_procedural_classes.has(key))
 		if procedural_objects[key] is Resource:
-			_procedural_classes[key_name] = procedural_objects[key]
+			_procedural_classes[key] = procedural_objects[key]
 		else:
 			var path: String = procedural_objects[key]
-			_procedural_classes[key_name] = IVFiles.get_script_or_packedscene(path)
+			_procedural_classes[key] = IVFiles.get_script_or_packedscene(path)
 	IVGlobal.project_objects_instantiated.emit()
 
 
@@ -414,12 +410,11 @@ func _init_program_objects() -> void:
 	if top_gui.has_method(&"_ivcore_init"):
 		@warning_ignore("unsafe_method_access")
 		top_gui._ivcore_init()
-	for dict in [preinitializers, initializers, program_refcounteds, program_nodes, gui_nodes]:
-		for key in dict:
+	for dict: Dictionary in [preinitializers, initializers, program_refcounteds, program_nodes, gui_nodes]:
+		for key: StringName in dict:
 			if !dict[key]:
 				continue
-			var key_name := StringName(key)
-			var object: Object = _program.get(key_name)
+			var object: Object = _program.get(key)
 			if object and object.has_method(&"_ivcore_init"):
 				@warning_ignore("unsafe_method_access")
 				object._ivcore_init()
@@ -431,19 +426,17 @@ func _init_program_objects() -> void:
 func _add_program_nodes() -> void:
 	# TopGUI added after program_nodes, so gui_nodes will recieve input first
 	# and then program_nodes.
-	for key in program_nodes:
+	for key: StringName in program_nodes:
 		if !program_nodes[key]:
 			continue
-		var key_name := StringName(key)
-		var node: Node = _program[key_name]
+		var node: Node = _program[key]
 		universe.add_child(node)
 	if add_top_gui_to_universe:
 		universe.add_child(top_gui)
-	for key in gui_nodes:
+	for key: StringName in gui_nodes:
 		if !gui_nodes[key]:
 			continue
-		var key_name := StringName(key)
-		var node: Node = _program[key_name]
+		var node: Node = _program[key]
 		top_gui.add_child(node)
 	IVGlobal.project_nodes_added.emit()
 	await get_tree().process_frame
