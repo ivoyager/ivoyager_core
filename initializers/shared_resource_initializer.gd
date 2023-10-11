@@ -46,9 +46,10 @@ func _load_resource_paths() -> void:
 		if type == TYPE_OBJECT:
 			assert(path_or_resource is Resource, "Non-Resource object in shared_resources")
 			continue
-		assert(type == TYPE_STRING or type == TYPE_STRING_NAME, "Unknown type in shared_resources")
-		var resource: Resource = load(path_or_resource)
-		assert(resource, "Failed to load resource at " + path_or_resource)
+		assert(type == TYPE_STRING, "Unknown type in shared_resources")
+		var path: String = path_or_resource
+		var resource: Resource = load(path)
+		assert(resource, "Failed to load resource at " + path)
 		_shared_resources[key] = resource
 
 

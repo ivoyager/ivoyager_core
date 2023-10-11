@@ -29,17 +29,17 @@ var above_bodies_selection_name := "" # "SYSTEM_SOLAR_SYSTEM"
 
 
 # read-only
-var Selection: Script
+var SelectionScript: Script
 
 
 func _ivcore_init() -> void:
-	Selection = IVGlobal.procedural_classes[&"Selection"]
+	SelectionScript = IVGlobal.procedural_classes[&"Selection"]
 
 
 func build_body_selection(body: IVBody) -> IVSelection:
 	var parent_body := body.get_parent() as IVBody
 	@warning_ignore("unsafe_method_access")
-	var selection: IVSelection = Selection.new()
+	var selection: IVSelection = SelectionScript.new()
 	selection.is_body = true
 	selection.spatial = body
 	selection.body = body

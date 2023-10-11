@@ -540,12 +540,13 @@ func _get_row_info(section: int, data_index: int, prespace: String) -> Array:
 	var format_callable: Callable = line_content[3]
 	var value_type := typeof(value)
 	if value_type == TYPE_FLOAT:
-		if is_nan(value):
+		var float_value: float = value
+		if is_nan(float_value):
 			return NULL_ARRAY
 		var internal_precision := -1
 		if enable_precisions:
 			internal_precision = _selection.get_float_precision(path) # -1 if path fails
-		value_txt = format_callable.call(value, internal_precision)
+		value_txt = format_callable.call(float_value, internal_precision)
 	elif value_type == TYPE_INT:
 		if value == -1:
 			return NULL_ARRAY
@@ -571,7 +572,8 @@ func _get_row_info(section: int, data_index: int, prespace: String) -> Array:
 		value_txt = value_postprocessor.call(value_txt, value)
 		
 	# label substitution
-	var label_key := substitute_label(line_content[0], _body)
+	var label_key: StringName = line_content[0]
+	label_key = substitute_label(label_key, _body)
 	var label_txt := tr(label_key)
 	
 	# wiki links

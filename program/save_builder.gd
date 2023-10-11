@@ -40,8 +40,8 @@ extends RefCounted
 # submodle). 
 #
 # Lists of properties to persists must be named in constant arrays:
-#    const PERSIST_PROPERTIES := [] # properties to persist
-#    const PERSIST_PROPERTIES2 := []
+#    const PERSIST_PROPERTIES: Array[StringName] # properties to persist
+#    const PERSIST_PROPERTIES2: Array[StringName]
 #    etc...
 #    (These list names can be modified in project settings below. The extra
 #    numbered lists are needed for subclasses where a list name is taken by a
@@ -99,18 +99,18 @@ var debug_print_tree := false
 # project settings
 var progress_multiplier := 95 # so prog bar doesn't sit for a while at 100%
 
-var properties_arrays := [
+var properties_arrays: Array[StringName] = [
 	&"PERSIST_PROPERTIES",
 	&"PERSIST_PROPERTIES2",
 ]
 
 # gamesave contents
-# (As of Godot 4.1.1, FileAccess.store_var() & get_var() don't save array types!)
+# FileAccess.store_var() & get_var() doesn't save or recover array type as of Godot 4.2.dev6
 var _gs_n_objects := 1
-var _gs_serialized_nodes := []
-var _gs_serialized_references := []
-var _gs_script_paths := []
-var _gs_dict_keys := []
+var _gs_serialized_nodes := [] # can't type as of Godot 4.2.dev6!
+var _gs_serialized_references := [] # can't type as of Godot 4.2.dev6!
+var _gs_script_paths := [] # can't type as of Godot 4.2.dev6!
+var _gs_dict_keys := [] # can't type as of Godot 4.2.dev6!
 
 # save processing
 var _save_root: Node
@@ -308,8 +308,9 @@ func _serialize_tree(node: Node) -> void:
 # Procedural load
 
 func _load_scripts() -> void:
-	for script_path in _gs_script_paths:
-		_scripts.append(load(script_path)) # indexed by script_id
+	for script_path: String in _gs_script_paths:
+		var script: Script = load(script_path)
+		_scripts.append(script) # indexed by script_id
 
 
 func _locate_or_instantiate_objects(save_root: Node) -> void:
@@ -329,6 +330,7 @@ func _locate_or_instantiate_objects(save_root: Node) -> void:
 		else: # this is a procedural node
 			var script: Script = _scripts[script_id]
 			node = files.make_object_or_scene(script)
+			@warning_ignore("unsafe_call_argument")
 			assert(!DPRINT or IVDebug.dprint(object_id, node, script_id, _gs_script_paths[script_id]))
 		assert(node)
 		_objects[object_id] = node
@@ -340,19 +342,20 @@ func _locate_or_instantiate_objects(save_root: Node) -> void:
 		var ref: RefCounted = script.new()
 		assert(ref)
 		_objects[object_id] = ref
+		@warning_ignore("unsafe_call_argument")
 		assert(!DPRINT or IVDebug.dprint(object_id, ref, script_id, _gs_script_paths[script_id]))
 
 
 func _deserialize_all_object_data() -> void:
 	assert(!DPRINT or IVDebug.dprint("* Deserializing Objects for Load *"))
-	for serialized_node in _gs_serialized_nodes:
+	for serialized_node: Array in _gs_serialized_nodes:
 		_deserialize_object_data(serialized_node, true)
-	for serialized_reference in _gs_serialized_references:
+	for serialized_reference: Array in _gs_serialized_references:
 		_deserialize_object_data(serialized_reference, false)
 
 
 func _build_procedural_tree() -> void:
-	for serialized_node in _gs_serialized_nodes:
+	for serialized_node: Array in _gs_serialized_nodes:
 		var object_id: int = serialized_node[0]
 		var node: Node = _objects[object_id]
 		if is_procedural_persist(node):
@@ -370,7 +373,9 @@ func _serialize_node(node: Node):
 	var script_id := -1
 	var is_procedural := is_procedural_persist(node)
 	if is_procedural:
-		script_id = _get_script_id(node.get_script())
+		var script: Script = node.get_script()
+		script_id = _get_script_id(script)
+		@warning_ignore("unsafe_call_argument")
 		assert(!DPRINT or IVDebug.dprint(object_id, node, script_id, _gs_script_paths[script_id]))
 	else:
 		assert(!DPRINT or IVDebug.dprint(object_id, node, node.name))
@@ -394,7 +399,9 @@ func _register_and_serialize_reference(ref: RefCounted) -> int:
 	_object_ids[ref] = object_id
 	var serialized_reference := []
 	serialized_reference.append(object_id) # index 0
-	var script_id := _get_script_id(ref.get_script())
+	var script: Script = ref.get_script()
+	var script_id := _get_script_id(script)
+	@warning_ignore("unsafe_call_argument")
 	assert(!DPRINT or IVDebug.dprint(object_id, ref, script_id, _gs_script_paths[script_id]))
 	serialized_reference.append(script_id) # index 1
 	_serialize_object_data(ref, serialized_reference)
@@ -418,7 +425,7 @@ func _serialize_object_data(object: Object, serialized_object: Array) -> void:
 	# serialized_object already has 3 elements (if Node) or 2 (if Reference).
 	# We now append the size of each persist array followed by data.
 	for properties_array in properties_arrays:
-		var properties: Array
+		var properties: Array[StringName]
 		var n_properties: int
 		if properties_array in object:
 			properties = object.get(properties_array)
@@ -469,11 +476,14 @@ func _get_encoded_array(array: Array) -> Array:
 		var item = array[index] # untyped
 		var type := typeof(item)
 		if type == TYPE_OBJECT:
-			encoded_array[index] = _get_encoded_object(item)
+			var item_object: Object = item
+			encoded_array[index] = _get_encoded_object(item_object)
 		elif type == TYPE_ARRAY:
-			encoded_array[index] = _get_encoded_array(item)
+			var item_array: Array = item
+			encoded_array[index] = _get_encoded_array(item_array)
 		elif type == TYPE_DICTIONARY:
-			encoded_array[index] = _get_encoded_dict(item)
+			var item_dict: Dictionary = item
+			encoded_array[index] = _get_encoded_dict(item_dict)
 		else: # built-in type
 			encoded_array[index] = item
 		index += 1
@@ -487,7 +497,7 @@ func _get_encoded_array(array: Array) -> Array:
 		encoded_array.append(array.get_typed_builtin()) # last element
 	else:
 		encoded_array.append(-1) # last element
-
+	
 	return encoded_array
 
 
@@ -498,7 +508,8 @@ func _get_encoded_dict(dict: Dictionary) -> Dictionary:
 	var encoded_dict := {}
 	for key in dict:
 		if typeof(key) == TYPE_STRING:
-			key = StringName(key)
+			var key_str: String = key
+			key = StringName(key_str)
 		var key_id: int = _key_ids.get(key, -1)
 		if key_id == -1:
 			key_id = _key_ids.size()
@@ -507,18 +518,21 @@ func _get_encoded_dict(dict: Dictionary) -> Dictionary:
 		var item = dict[key] # untyped
 		var type := typeof(item)
 		if type == TYPE_OBJECT:
-			encoded_dict[key_id] = _get_encoded_object(item)
+			var item_object: Object = item
+			encoded_dict[key_id] = _get_encoded_object(item_object)
 		elif type == TYPE_ARRAY:
-			encoded_dict[key_id] = _get_encoded_array(item)
+			var item_array: Array = item
+			encoded_dict[key_id] = _get_encoded_array(item_array)
 		elif type == TYPE_DICTIONARY:
-			encoded_dict[key_id] = _get_encoded_dict(item)
+			var item_dict: Dictionary = item
+			encoded_dict[key_id] = _get_encoded_dict(item_dict)
 		else: # built-in type
 			encoded_dict[key_id] = item
 	return encoded_dict
 
 
 func _get_decoded_array(encoded_array: Array): # return array may or may not be content-typed
-	var array = []
+	var array := []
 	
 	# pop array type from the encoded array
 	var typed_builtin: int = encoded_array.pop_back()
@@ -537,10 +551,10 @@ func _get_decoded_array(encoded_array: Array): # return array may or may not be 
 		var item = encoded_array[index] # untyped
 		var type := typeof(item)
 		if type == TYPE_ARRAY:
-			array[index] = _get_decoded_array(item)
+			var item_array: Array = item
+			array[index] = _get_decoded_array(item_array)
 		elif type == TYPE_DICTIONARY:
-			@warning_ignore("unsafe_cast")
-			var item_dict := item as Dictionary
+			var item_dict: Dictionary = item
 			if item_dict.has("r"):
 				var object := _get_decoded_object(item_dict)
 				array[index] = object
@@ -560,7 +574,8 @@ func _get_decoded_dict(encoded_dict: Dictionary) -> Dictionary:
 		var item = encoded_dict[key_id] # untyped
 		var type := typeof(item)
 		if type == TYPE_ARRAY:
-			dict[key] = _get_decoded_array(item)
+			var item_array: Array = item
+			dict[key] = _get_decoded_array(item_array)
 		elif type == TYPE_DICTIONARY:
 			@warning_ignore("unsafe_cast")
 			var item_dict := item as Dictionary
@@ -587,7 +602,8 @@ func _get_encoded_object(object: Object) -> Dictionary:
 	var object_id: int = _object_ids.get(object, -1)
 	if object_id == -1:
 		assert(object is RefCounted, "Nodes are already registered")
-		object_id = _register_and_serialize_reference(object)
+		var refcounted: RefCounted = object
+		object_id = _register_and_serialize_reference(refcounted)
 	if is_weak_ref:
 		return {r = -object_id} # negative object_id for WeakRef
 	return {r = object_id} # positive object_id for non-WeakRef
@@ -597,8 +613,10 @@ func _get_decoded_object(encoded_object: Dictionary) -> Object:
 	var object_id: int = encoded_object.r
 	if object_id == 0:
 		return WeakRef.new() # weak ref to dead object
+	var object: Object
 	if object_id < 0: # weak ref
-		var object: Object = _objects[-object_id]
+		object = _objects[-object_id]
 		return weakref(object)
-	var object: Object = _objects[object_id]
+	object = _objects[object_id]
 	return object
+

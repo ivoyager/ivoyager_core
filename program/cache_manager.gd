@@ -64,7 +64,7 @@ func _ivcore_init() -> void:
 
 # *****************************************************************************
 
-func change_current(key: StringName, value, suppress_caching := false) -> void:
+func change_current(key: StringName, value: Variant, suppress_caching := false) -> void:
 	# If suppress_caching = true, then be sure to call cache_now() later.
 	_about_to_change_current(key)
 	var type := typeof(value)
@@ -118,7 +118,7 @@ func restore_default(key: StringName, suppress_caching := false) -> void:
 
 
 func restore_all_defaults(suppress_caching := false) -> void:
-	for key in defaults:
+	for key: StringName in defaults:
 		restore_default(key, true)
 	if !suppress_caching:
 		cache_now()
@@ -126,7 +126,7 @@ func restore_all_defaults(suppress_caching := false) -> void:
 
 func is_cache_current() -> bool:
 	var cached_values := get_cached_values()
-	for key in defaults:
+	for key: StringName in defaults:
 		if !is_cached(key, cached_values):
 			return false
 	return true
@@ -134,7 +134,7 @@ func is_cache_current() -> bool:
 
 func restore_from_cache() -> void:
 	var cached_values := get_cached_values()
-	for key in defaults:
+	for key: StringName in defaults:
 		if !is_cached(key, cached_values):
 			var cached_value = get_cached_value(key, cached_values)
 			change_current(key, cached_value, true)

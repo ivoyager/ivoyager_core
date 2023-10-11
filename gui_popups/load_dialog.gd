@@ -70,8 +70,8 @@ func _open() -> void:
 	IVGlobal.sim_stop_required.emit(self)
 	popup_centered()
 	access = ACCESS_FILESYSTEM
-	var save_dir := files.get_save_dir_path(IVCoreSettings.is_modded,
-			IVGlobal.settings[&"save_dir"])
+	var settings_save_dir: String = IVGlobal.settings[&"save_dir"]
+	var save_dir := files.get_save_dir_path(IVCoreSettings.is_modded, settings_save_dir)
 	current_dir = save_dir
 	if _state.last_save_path:
 		current_path = _state.last_save_path

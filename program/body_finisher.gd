@@ -38,9 +38,9 @@ var min_hud_dist_radius_multiplier := 500.0
 var min_hud_dist_star_multiplier := 20.0 # combines w/ above
 
  # read-only!
-var BodyLabel: Script
-var BodyOrbit: Script
-var Rings: Script
+var BodyLabelScript: Script
+var BodyOrbitScript: Script
+var RingsScript: Script
 var progress := 0 # TODO: Re-implement the progress bar
 
 
@@ -60,9 +60,9 @@ func _ivcore_init() -> void:
 	IVGlobal.get_tree().node_added.connect(_on_node_added)
 	_model_manager = IVGlobal.program[&"ModelManager"]
 	_io_manager = IVGlobal.program[&"IOManager"]
-	BodyLabel = IVGlobal.procedural_classes[&"BodyLabel"]
-	BodyOrbit = IVGlobal.procedural_classes[&"BodyOrbit"]
-	Rings = IVGlobal.procedural_classes[&"Rings"]
+	BodyLabelScript = IVGlobal.procedural_classes[&"BodyLabel"]
+	BodyOrbitScript = IVGlobal.procedural_classes[&"BodyOrbit"]
+	RingsScript = IVGlobal.procedural_classes[&"Rings"]
 	_fallback_body_2d = IVGlobal.assets[&"fallback_body_2d"]
 
 
@@ -108,10 +108,10 @@ func _build_unpersisted(body: IVBody) -> void: # Main thread
 	
 	if body.orbit:
 		@warning_ignore("unsafe_method_access") # possible replacement class
-		var body_orbit: Node3D = BodyOrbit.new(body)
+		var body_orbit: Node3D = BodyOrbitScript.new(body)
 		body.get_parent().add_child(body_orbit)
 	@warning_ignore("unsafe_method_access") # possible replacement class
-	var body_label: Node3D = BodyLabel.new(body)
+	var body_label: Node3D = BodyLabelScript.new(body)
 	body.add_child(body_label)
 	var file_prefix := body.get_file_prefix()
 	var is_star := bool(body.flags & BodyFlags.IS_STAR)
@@ -127,7 +127,7 @@ func _load_textures_on_io_thread(body: IVBody, file_prefix: String, is_star: boo
 		texture_2d = _fallback_body_2d
 	var texture_slice_2d: Texture2D
 	if is_star:
-		var slice_name = file_prefix + "_slice"
+		var slice_name := file_prefix + "_slice"
 		texture_slice_2d = files.find_and_load_resource(_bodies_2d_search, slice_name)
 	var rings_images: Array[Image]
 	if rings_file_prefix:
@@ -153,7 +153,7 @@ func _finish_on_main_thread(body: IVBody, texture_2d: Texture2D, texture_slice_2
 	if rings_images:
 		var sunlight_source := body.get_parent_node_3d() # assumes no moon rings!
 		@warning_ignore("unsafe_method_access") # possible replacement class
-		var rings: Node3D = Rings.new(body, sunlight_source, rings_images)
+		var rings: Node3D = RingsScript.new(body, sunlight_source, rings_images)
 		body.add_child_to_model_space(rings)
 	_finished_count += 1
 	if _is_building_system:

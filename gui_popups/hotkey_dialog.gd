@@ -156,9 +156,8 @@ func _scancode_is_available(scancode_w_mods: int) -> bool:
 		return true
 	var scancode_action: StringName = actions_by_scancode_w_mods[scancode_w_mods]
 	# prohibit only if it is in layout (user can overwrite hidden actions)
-	for column_array in _layout:
-		for item in column_array:
-			var dict: Dictionary = item
+	for column_array: Array in _layout:
+		for dict: Dictionary in column_array:
 			if dict.has(scancode_action):
 				return false
 	return true
@@ -169,13 +168,12 @@ func _get_scancode_action_text(scancode_w_mods: int) -> StringName:
 	if !actions_by_scancode_w_mods.has(scancode_w_mods):
 		return "unknown"
 	var scancode_action: StringName = actions_by_scancode_w_mods[scancode_w_mods]
-	for column_array in _layout:
-		for item in column_array:
-			var dict: Dictionary = item
+	for column_array: Array in _layout:
+		for dict: Dictionary in column_array:
 			if dict.has(scancode_action):
-				var header := tr(dict.header)
-				var item_name := tr(dict[scancode_action])
-				return header + " / " + item_name
+				var header: StringName = dict.header
+				var item: StringName = dict[scancode_action]
+				return tr(header) + " / " + tr(item)
 	return "unknown"
 
 

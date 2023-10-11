@@ -40,7 +40,6 @@ const STAR_SLICE_MULTIPLIER := 0.05 # what fraction of star is in image "slice"?
 const INIT_WIDTH := 560.0
 
 # project vars
-var grab_focus := true # if no GUI has focus, grabs currently selected on ui_ actions
 var size_exponent := 0.4 # smaller values reduce differences in object sizes
 var min_button_width_proportion := 0.05 # as proportion of total (roughly)
 var min_body_size_ratio := 0.008929 # proportion of widget width, rounded

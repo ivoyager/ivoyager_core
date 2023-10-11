@@ -71,7 +71,7 @@ const NetworkStopSync = IVEnums.NetworkStopSync
 const DPRINT := false
 
 const PERSIST_MODE := IVEnums.PERSIST_PROPERTIES_ONLY
-const PERSIST_PROPERTIES := [&"is_user_paused"]
+const PERSIST_PROPERTIES: Array[StringName] = [&"is_user_paused"]
 
 # persisted - read-only!
 var is_user_paused := false # ignores pause from sim stop
@@ -242,7 +242,8 @@ func exit(force_exit := false, following_server := false) -> void:
 	IVGlobal.about_to_exit.emit()
 	IVGlobal.about_to_free_procedural_nodes.emit()
 	await _tree.process_frame
-	IVUtils.free_procedural_nodes(IVGlobal.program.Universe)
+	var universe: Node3D = IVGlobal.program.Universe
+	IVUtils.free_procedural_nodes(universe)
 	IVGlobal.close_all_admin_popups_requested.emit()
 	await _tree.process_frame
 	_state.is_splash_screen = true
@@ -266,6 +267,10 @@ func quit(force_quit := false) -> void:
 	require_stop(self, NetworkStopSync.QUIT, true)
 	await threads_finished
 	IVGlobal.about_to_quit.emit()
+	IVGlobal.about_to_free_procedural_nodes.emit()
+	await _tree.process_frame
+	var universe: Node3D = IVGlobal.program.Universe
+	IVUtils.free_procedural_nodes(universe)
 	assert(IVDebug.dprint_orphan_nodes())
 	print("Quitting...")
 	_tree.quit()

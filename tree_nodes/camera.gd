@@ -76,7 +76,7 @@ const MIN_DIST_RADII_METERS := 1.5 * METER # really target radii; see 'perspecti
 # As of Godot 4.1.1, still breaks above 1e6. 
 
 const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL
-const PERSIST_PROPERTIES := [
+const PERSIST_PROPERTIES: Array[StringName] = [
 	&"name",
 	&"flags",
 	&"is_camera_lock",
@@ -346,7 +346,7 @@ func set_up_lock(is_locked: bool) -> void:
 
 
 func increment_focal_length(increment: int) -> void:
-	var new_fl_index = focal_length_index + increment
+	var new_fl_index := focal_length_index + increment
 	if new_fl_index < 0:
 		new_fl_index = 0
 	elif new_fl_index >= focal_lengths.size():
@@ -376,9 +376,9 @@ func _on_system_tree_ready(_is_new_game: bool) -> void:
 	_to_spatial = parent
 	_from_spatial = parent
 	if !selection: # new game
-		var SelectionManager: Script = IVGlobal.procedural_classes[&"SelectionManager"]
+		var SelectionManagerScript: Script = IVGlobal.procedural_classes[&"SelectionManager"]
 		@warning_ignore("unsafe_method_access")
-		selection = SelectionManager.get_or_make_selection(parent.name)
+		selection = SelectionManagerScript.get_or_make_selection(parent.name)
 		assert(selection)
 		perspective_radius = selection.get_perspective_radius()
 	_from_selection = selection
@@ -478,8 +478,8 @@ func _interpolate_path(from_transform: Transform3D, to_transform: Transform3D, p
 	var from_global_quat := Quaternion(from_global_basis)
 	var to_global_quat := Quaternion(to_global_basis)
 	var global_quat := from_global_quat.slerp(to_global_quat, progress)
-	var global_basis := Basis(global_quat)
-	var basis_ := parent.global_transform.basis.inverse() * global_basis
+	var global_basis_ := Basis(global_quat)
+	var basis_ := parent.global_transform.basis.inverse() * global_basis_
 	
 	# set the working transform
 	_transform = Transform3D(basis_, translation_)
@@ -701,7 +701,7 @@ func _signal_range_latitude_longitude(is_refresh := false) -> void:
 	var is_ecliptic := dist > gui_ecliptic_coordinates_dist
 	var lat_long: Vector2
 	if is_ecliptic:
-		var ecliptic_translation = global_position - _universe.position
+		var ecliptic_translation := global_position - _universe.position
 		lat_long = math.get_latitude_longitude(ecliptic_translation)
 	else:
 		lat_long = selection.get_latitude_longitude(gui_translation)

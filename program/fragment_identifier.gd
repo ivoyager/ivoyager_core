@@ -43,7 +43,7 @@ enum { # fragment_type
 	FRAGMENT_SBG_ORBIT,
 }
 
-const CALIBRATION := [0.25, 0.375, 0.5, 0.625, 0.75] # >=1.0 will break shader logic!
+const CALIBRATION: Array[float] = [0.25, 0.375, 0.5, 0.625, 0.75] # >=1.0 will break shader logic!
 const COLOR_HALF_STEP := Color(0.015625, 0.015625, 0.015625, 0.0)
 const NULL_MOUSE_COORD := Vector2(-100.0, -100.0)
 
@@ -73,17 +73,17 @@ var _has_drawn := false
 var _n_cycle_steps := _n_calibration_steps + 3
 var _cycle_step := -1
 # per pixel arrays
-var _pxl_x_offsets := []
-var _pxl_y_offsets := []
-var _cycle_steps := []
+var _pxl_x_offsets: Array[int] = []
+var _pxl_y_offsets: Array[int] = []
+var _cycle_steps: Array[int] = []
 var _calibration_colors: Array[Array] = [] # array of calibration color arrays
 var _value_colors: Array[Array] = [] # array of value color arrays
-var _current_ids := [] # -1 or valid id
+var _current_ids: Array[int] = [] # -1 or valid id
 # common buffers
-var _calibration_r := []
-var _calibration_g := []
-var _calibration_b := []
-var _adj_values := []
+var _calibration_r: Array[float] = []
+var _calibration_g: Array[float] = []
+var _calibration_b: Array[float] = []
+var _adj_values: Array[float] = []
 
 @onready var _root_texture: ViewportTexture = get_tree().root.get_texture()
 @onready var _picker_texture: ViewportTexture = get_texture()
@@ -171,25 +171,25 @@ static func encode_color_channels(id: int) -> Array:
 	return [r1, g1, b1, r2, g2, b2, r3, g3, b3]
 
 
-static func decode_color_channels(array: Array) -> int:
+static func decode_color_channels(array: Array[float]) -> int:
 	# Reverses encode_color_channels(id).
-	var id := int(round((array[8] - 0.25) * 32.0))
+	var id := roundi((array[8] - 0.25) * 32.0)
 	id <<= 4
-	id |= int(round((array[7] - 0.25) * 32.0))
+	id |= roundi((array[7] - 0.25) * 32.0)
 	id <<= 4
-	id |= int(round((array[6] - 0.25) * 32.0))
+	id |= roundi((array[6] - 0.25) * 32.0)
 	id <<= 4
-	id |= int(round((array[5] - 0.25) * 32.0))
+	id |= roundi((array[5] - 0.25) * 32.0)
 	id <<= 4
-	id |= int(round((array[4] - 0.25) * 32.0))
+	id |= roundi((array[4] - 0.25) * 32.0)
 	id <<= 4
-	id |= int(round((array[3] - 0.25) * 32.0))
+	id |= roundi((array[3] - 0.25) * 32.0)
 	id <<= 4
-	id |= int(round((array[2] - 0.25) * 32.0))
+	id |= roundi((array[2] - 0.25) * 32.0)
 	id <<= 4
-	id |= int(round((array[1] - 0.25) * 32.0))
+	id |= roundi((array[1] - 0.25) * 32.0)
 	id <<= 4
-	id |= int(round((array[0] - 0.25) * 32.0))
+	id |= roundi((array[0] - 0.25) * 32.0)
 	return id
 
 
@@ -229,10 +229,10 @@ func _init_rects_and_arrays() -> void:
 	_src_rect = _picker_rect # will follow mouse
 	_src_offset = Vector2.ONE * fragment_range
 	var pxl_center_offsets := range(-fragment_range, fragment_range + 1, 3)
-	var pxl_center_xy_offsets := []
+	var pxl_center_xy_offsets: Array[Array] = []
 	for x in pxl_center_offsets:
 		for y in pxl_center_offsets:
-			pxl_center_xy_offsets.append([x, y])
+			pxl_center_xy_offsets.append([x, y] as Array[int])
 	pxl_center_xy_offsets.sort_custom(_sort_pxl_offsets) # prioritize center
 	_n_pxls = pxl_center_xy_offsets.size()
 	_pxl_x_offsets.resize(_n_pxls)
@@ -302,8 +302,9 @@ func _on_frame_post_draw() -> void:
 	if current_id == -1:
 		return
 	
+	var mouse_position: Vector2 = _world_targeting[0]
 	if (_drop_frame_counter > drop_id_frames or
-			_drop_mouse_coord.distance_to(_world_targeting[0]) > drop_id_mouse_movement):
+			_drop_mouse_coord.distance_to(mouse_position) > drop_id_mouse_movement):
 		current_id = -1
 		_world_targeting[6] = -1
 		fragment_changed.emit(-1)
@@ -438,7 +439,7 @@ func _debug_residuals(print_all := false) -> float:
 	var max_resid := 0.0
 	for i in 9:
 		var value: float = (_adj_values[i] - 0.25) * 32.0
-		var resid := absf(value - round(value))
+		var resid := absf(value - roundf(value))
 		if max_resid < resid:
 			max_resid = resid
 	return max_resid

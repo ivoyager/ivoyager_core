@@ -40,7 +40,7 @@ func _ivcore_init() -> void:
 
 
 func _on_about_to_start_simulator(_is_new_game: bool) -> void:
-	for body in IVGlobal.top_bodies:
+	for body: IVBody in IVGlobal.top_bodies:
 		_change_satellite_sleep_recursive(body, true)
 
 

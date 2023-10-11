@@ -67,30 +67,3 @@ static func _on_verbose_signal(arg, arg2 = null, arg3 = null, arg4 = null,
 	var debug_text: String = args.pop_back()
 	prints(debug_text, args)
 
-
-static func no_nans(thing) -> bool:
-	# returns false for unsupported typeof(thing)
-	var indexes := []
-	match typeof(thing):
-		TYPE_ARRAY:
-			@warning_ignore("unsafe_method_access")
-			indexes = range(thing.size())
-		TYPE_DICTIONARY:
-			@warning_ignore("unsafe_method_access")
-			indexes = thing.keys()
-		TYPE_VECTOR3:
-			indexes = range(3)
-		TYPE_BASIS:
-			if !no_nans(thing.x) or !no_nans(thing.y) or !no_nans(thing.z):
-				return false
-		TYPE_TRANSFORM3D:
-			if !no_nans(thing.basis) or !no_nans(thing.origin):
-				return false
-		_:
-			return false
-	if indexes:
-		for index in indexes:
-			if is_nan(thing[index]):
-				return false
-	return true
-

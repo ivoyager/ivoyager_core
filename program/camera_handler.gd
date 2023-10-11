@@ -265,7 +265,8 @@ func _on_mouse_target_clicked(target: Object, _button_mask: int, _key_modifier_m
 	if !_camera:
 		return
 	@warning_ignore("unsafe_property_access") # any mouse target must have 'name'
-	var selection := _selection_manager.get_or_make_selection(target.name)
+	var target_name: StringName = target.name
+	var selection := _selection_manager.get_or_make_selection(target_name)
 	if !selection:
 		return
 	if _camera.is_camera_lock: # move via selection

@@ -66,10 +66,12 @@ func _open() -> void:
 	IVGlobal.sim_stop_required.emit(self)
 	popup_centered()
 	access = ACCESS_FILESYSTEM
-	var save_dir := files.get_save_dir_path(IVCoreSettings.is_modded, _settings[&"save_dir"])
+	var settings_save_dir: String = _settings[&"save_dir"]
+	var save_dir := files.get_save_dir_path(IVCoreSettings.is_modded, settings_save_dir)
 	var date_string: String = (_timekeeper.get_current_date_for_file()
 			if _settings[&"append_date_to_save"] else "")
-	current_path = files.get_save_path(save_dir, _settings[&"save_base_name"],
+	var save_base_name: String = _settings[&"save_base_name"]
+	current_path = files.get_save_path(save_dir, save_base_name,
 			IVCoreSettings.save_file_extension, date_string, false)
 	deselect_all()
 

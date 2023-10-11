@@ -66,7 +66,7 @@ const IS_SERVER = IVEnums.NetworkState.IS_SERVER
 const MIN_SYSTEM_M_RADIUS_MULTIPLIER := 15.0
 
 const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL # free & rebuild on load
-const PERSIST_PROPERTIES := [
+const PERSIST_PROPERTIES: Array[StringName] = [
 	&"name",
 	&"flags",
 	&"characteristics",
@@ -167,8 +167,7 @@ func _on_system_tree_built_or_loaded(is_new_game: bool) -> void:
 
 
 func _prepare_to_free() -> void:
-	set_process(false)
-	IVGlobal.disconnect("setting_changed", Callable(self, "_settings_listener"))
+	satellites.clear()
 
 
 func _process(_delta: float) -> void:
@@ -184,7 +183,8 @@ func _process(_delta: float) -> void:
 	var is_in_mouse_click_radius := false
 	if !camera.is_position_behind(global_position):
 		var pos2d := camera.unproject_position(global_position)
-		var mouse_dist := pos2d.distance_to(_world_targeting[0])
+		var mouse_position: Vector2 = _world_targeting[0]
+		var mouse_dist := pos2d.distance_to(mouse_position)
 		var click_radius := min_click_radius
 		var divisor: float = _world_targeting[3] * camera_dist # fov * dist
 		if divisor > 0.0:
@@ -473,9 +473,9 @@ func set_model_parameters(reference_basis: Basis, max_dist: float) -> void:
 
 func add_child_to_model_space(spatial: Node3D) -> void:
 	if !model_space:
-		var ModelSpace: Script = IVGlobal.procedural_classes[&"ModelSpace"]
-		@warning_ignore("unsafe_method_access") # Replacement class possible
-		model_space = ModelSpace.new()
+		var ModelSpaceScript: Script = IVGlobal.procedural_classes[&"ModelSpace"]
+		@warning_ignore("unsafe_method_access")
+		model_space = ModelSpaceScript.new()
 		add_child(model_space)
 	model_space.add_child(spatial)
 
@@ -652,9 +652,9 @@ func _add_rotating_space() -> void:
 	var mass_ratio := m1 / m2
 	var characteristic_length := orbit.get_semimajor_axis()
 	var characteristic_time := orbit.get_orbit_period()
-	var RotatingSpace: Script = IVGlobal.procedural_classes[&"RotatingSpace"]
+	var RotatingSpaceScript: Script = IVGlobal.procedural_classes[&"RotatingSpace"]
 	@warning_ignore("unsafe_method_access") # possible replacement class
-	rotating_space = RotatingSpace.new()
+	rotating_space = RotatingSpaceScript.new()
 	rotating_space.init(mass_ratio, characteristic_length, characteristic_time)
 	var translation_ := orbit.get_position()
 	var orbit_dist := translation_.length()

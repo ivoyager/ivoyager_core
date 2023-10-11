@@ -29,7 +29,7 @@ const MIN_E_FOR_APSIDAL_PRECESSION := 0.0001
 const MIN_I_FOR_NODAL_PRECESSION := deg_to_rad(0.1)
 const DAY := IVUnits.DAY
 
-var Orbit: Script
+var OrbitScript: Script
 
 var _dynamic_orbits: bool = IVCoreSettings.dynamic_orbits
 var _ecliptic_rotation: Basis = IVCoreSettings.ecliptic_rotation
@@ -62,7 +62,7 @@ var _d := {
 
 
 func _ivcore_init() -> void:
-	Orbit = IVGlobal.procedural_classes[&"Orbit"]
+	OrbitScript = IVGlobal.procedural_classes[&"Orbit"]
 
 
 func make_orbit_from_data(table_name: String, table_row: int, parent: IVBody) -> IVOrbit:
@@ -98,37 +98,42 @@ func make_orbit_from_data(table_name: String, table_row: int, parent: IVBody) ->
 	IVTableData.db_build_dictionary_from_keys(_d, table_name, table_row)
 
 	# convert to standardized orbital elements [a, e, i, Om, w, M0, n]
-	var a : float = _d.a
-	var e : float = _d.e
-	var i : float = _d.i
-	var Om : float = _d.Om
-	var w : float = _d.w
-	var M0 : float = _d.M0
-	var n : float = _d.n
+	var a: float = _d.a
+	var e: float = _d.e
+	var i: float = _d.i
+	var Om: float = _d.Om
+	var w: float = _d.w
+	var M0: float = _d.M0
+	var n: float = _d.n
 	
 	if is_nan(w):
-		assert(!is_nan(_d.w_hat))
-		w = _d.w_hat - Om
+		var w_hat: float = _d.w_hat
+		assert(!is_nan(w_hat))
+		w = w_hat - Om
 	if is_nan(n):
-		if !is_nan(_d.L_rate):
-			n = _d.L_rate
+		var L_rate: float = _d.L_rate
+		if !is_nan(L_rate):
+			n = L_rate
 		else:
 			n = sqrt(mu / (a * a * a))
 	if is_nan(M0):
-		if !is_nan(_d.L0):
-			M0 = _d.L0 - w - Om
-		elif !is_nan(_d.T0):
-			M0 = -n * _d.T0
+		var L0: float = _d.L0
+		var T0: float = _d.T0
+		if !is_nan(L0):
+			M0 = L0 - w - Om
+		elif !is_nan(T0):
+			M0 = -n * T0
 		else:
 			assert(false, "Elements must include M0, L0 or T0")
-	if !is_nan(_d.epoch_jd):
-		var epoch_offset: float = (2451545.0 - _d.epoch_jd) * DAY # J2000
+	var epoch_jd: float = _d.epoch_jd
+	if !is_nan(epoch_jd):
+		var epoch_offset: float = (2451545.0 - epoch_jd) * DAY # J2000
 		M0 += n * epoch_offset
 		M0 = wrapf(M0, 0.0, TAU)
 	
 	var elements := Array([a, e, i, Om, w, M0, n], TYPE_FLOAT, &"", null)
 	@warning_ignore("unsafe_method_access") # Possible replacement class
-	var orbit: IVOrbit = Orbit.new()
+	var orbit: IVOrbit = OrbitScript.new()
 	orbit.elements_at_epoch = elements
 	
 	if _dynamic_orbits:
@@ -147,6 +152,9 @@ func make_orbit_from_data(table_name: String, table_row: int, parent: IVBody) ->
 		var Om_rate: float = _d.Om_rate
 		var w_rate: float = _d.w_rate
 		
+		var Pw: float = _d.Pw
+		var Pnode: float = _d.Pnode
+		
 		if !is_nan(a_rate): # is planet w/ rates
 			assert(!is_nan(e_rate) and !is_nan(i_rate) and !is_nan(Om_rate) and !is_nan(w_rate))
 			element_rates = Array([a_rate, e_rate, i_rate, Om_rate, w_rate], TYPE_FLOAT, &"", null)
@@ -160,25 +168,25 @@ func make_orbit_from_data(table_name: String, table_row: int, parent: IVBody) ->
 				assert(!is_nan(M_adj_c) and !is_nan(M_adj_s) and !is_nan(M_adj_f))
 				m_modifiers = Array([M_adj_b, M_adj_c, M_adj_s, M_adj_f], TYPE_FLOAT, &"", null)
 				
-		elif !is_nan(_d.Pw): # moon format
-			assert(!is_nan(_d.Pnode)) # both or neither
-			# Pw, Pnode don'_d tell us the direction of precession! However, I
+		elif !is_nan(Pw): # moon format
+			assert(!is_nan(Pnode)) # both or neither
+			# Pw, Pnode don't tell us the direction of precession! However, I
 			# believe that it is always the case that Pw is in the direction of
 			# orbit and Pnode is in the opposite direction.
 			# Some values are tiny leading to div/0 or excessive updating. These
 			# correspond to near-circular and/or non-inclined orbits (where Om & w
 			# are technically undefined and updates are irrelevant).
 			if i < MIN_I_FOR_NODAL_PRECESSION:
-				_d.Pnode = 0.0
+				Pnode = 0.0
 			if e < MIN_E_FOR_APSIDAL_PRECESSION:
-				_d.Pw = 0.0
+				Pw = 0.0
 			var orbit_sign := signf(PIdiv2 - i) # prograde +1.0; retrograde -1.0
 			Om_rate = 0.0
 			w_rate = 0.0
-			if _d.Pnode != 0.0:
-				Om_rate = -orbit_sign * TAU / _d.Pnode # opposite to orbit!
-			if _d.Pw != 0.0:
-				w_rate = orbit_sign * TAU / _d.Pw
+			if Pnode != 0.0:
+				Om_rate = -orbit_sign * TAU / Pnode # opposite to orbit!
+			if Pw != 0.0:
+				w_rate = orbit_sign * TAU / Pw
 			if Om_rate or w_rate:
 				element_rates = Array([0.0, 0.0, 0.0, Om_rate, w_rate], TYPE_FLOAT, &"", null)
 		

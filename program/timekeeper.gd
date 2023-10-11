@@ -69,7 +69,7 @@ const IS_SERVER := IVEnums.NetworkState.IS_SERVER
 const IS_CLIENT := IVEnums.NetworkState.IS_CLIENT
 
 const PERSIST_MODE := IVEnums.PERSIST_PROPERTIES_ONLY
-const PERSIST_PROPERTIES := [
+const PERSIST_PROPERTIES: Array[StringName] = [
 	&"time",
 	&"solar_day",
 	&"speed_index",
@@ -359,7 +359,7 @@ func get_jdn_for_solar_day(solar_day_: float) -> int:
 	var solar_day_noon := floorf(solar_day_) + 0.5
 	var sim_time := get_time_from_solar_day(solar_day_noon)
 	var j2000day := sim_time / DAY
-	return int(floor(j2000day)) + J2000_JDN
+	return floori(j2000day) + J2000_JDN
 
 
 func get_time_from_operating_system() -> float:

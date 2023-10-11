@@ -26,18 +26,18 @@ const utils := preload("res://addons/ivoyager_core/static/utils.gd")
 
 const DPRINT = false
 const BINARY_EXTENSION := "ivbinary"
-const BINARY_FILE_MAGNITUDES := ["11.0", "11.5", "12.0", "12.5", "13.0", "13.5", "14.0", "14.5",
-		"15.0", "15.5", "16.0", "16.5", "17.0", "17.5", "18.0", "18.5", "99.9"]
+const BINARY_FILE_MAGNITUDES: Array[String] = ["11.0", "11.5", "12.0", "12.5", "13.0", "13.5",
+		"14.0", "14.5", "15.0", "15.5", "16.0", "16.5", "17.0", "17.5", "18.0", "18.5", "99.9"]
 
 
-var SmallBodiesGroup: Script
+var SmallBodiesGroupScript: Script
 
 var _sbg_mag_cutoff_override: float = IVCoreSettings.sbg_mag_cutoff_override
 var _binary_dir: String
 
 
 func _ivcore_init() -> void:
-	SmallBodiesGroup = IVGlobal.procedural_classes[&"SmallBodiesGroup"]
+	SmallBodiesGroupScript = IVGlobal.procedural_classes[&"SmallBodiesGroup"]
 
 
 func build_sbgs() -> void:
@@ -72,13 +72,13 @@ func build_sbg(row: int) -> void:
 		assert(secondary, "Secondary body missing for Lagrange point SmallBodiesGroup")
 	
 	# init
-	@warning_ignore("unsafe_method_access") # possible replacement class
-	var sbg: IVSmallBodiesGroup = SmallBodiesGroup.new()
+	@warning_ignore("unsafe_method_access")
+	var sbg: IVSmallBodiesGroup = SmallBodiesGroupScript.new()
 	sbg.init(name, sbg_alias, sbg_class, lp_integer, secondary)
 	
 	# binaries import
 	for mag_str in BINARY_FILE_MAGNITUDES:
-		if float(mag_str) > mag_cutoff:
+		if mag_str.to_float() > mag_cutoff:
 			break
 		_load_group_binary(sbg, mag_str)
 	sbg.finish_binary_import()

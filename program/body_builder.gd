@@ -105,7 +105,7 @@ var flag_fields := {
 }
 
 
-var Body: Script
+var BodyScript: Script
 
 var _orbit_builder: IVOrbitBuilder
 var _composition_builder: IVCompositionBuilder
@@ -115,7 +115,7 @@ var _real_precisions := {}
 
 
 func _ivcore_init() -> void:
-	Body = IVGlobal.procedural_classes[&"Body"]
+	BodyScript = IVGlobal.procedural_classes[&"Body"]
 	_orbit_builder = IVGlobal.program[&"OrbitBuilder"]
 	_composition_builder = IVGlobal.program.get(&"CompositionBuilder")
 
@@ -124,7 +124,7 @@ func build_from_table(table_name: String, row: int, parent: IVBody) -> IVBody: #
 	_table_name = table_name
 	_row = row
 	@warning_ignore("unsafe_method_access")
-	var body: IVBody = Body.new()
+	var body: IVBody = BodyScript.new()
 	body.name = IVTableData.get_db_entity_name(table_name, row)
 	_set_flags_from_table(body, parent)
 	_set_orbit_from_table(body, parent)
@@ -179,6 +179,7 @@ func _set_characteristics_from_table(body: IVBody) -> void:
 	var characteristics := body.characteristics
 	IVTableData.db_build_dictionary(characteristics, characteristics_fields, _table_name, _row)
 	assert(characteristics.has(&"m_radius"))
+	var m_radius: float = characteristics[&"m_radius"]
 	if enable_precisions:
 		var precisions := IVTableData.get_db_float_precisions(characteristics_fields, _table_name, _row)
 		var n_fields := characteristics_fields.size()
@@ -204,7 +205,7 @@ func _set_characteristics_from_table(body: IVBody) -> void:
 		# estimator. Instead use mean_density if we have it; otherwise, assign INF
 		# for unknown mass.
 		if characteristics.has(&"mean_density"):
-			characteristics[&"mass"] = (PI * 4.0 / 3.0) * characteristics[&"mean_density"] * pow(characteristics[&"m_radius"], 3.0)
+			characteristics[&"mass"] = (PI * 4.0 / 3.0) * characteristics[&"mean_density"] * m_radius ** 3
 			if enable_precisions:
 				var precision := IVTableData.get_db_least_float_precision(_table_name, [&"m_radius", &"mean_density"], _row)
 				_real_precisions[&"body/characteristics/mass"] = precision
@@ -226,12 +227,13 @@ func _set_characteristics_from_table(body: IVBody) -> void:
 			# if precision > 1.
 			var precision := IVTableData.get_db_least_float_precision(_table_name, [&"GM", &"m_radius"], _row)
 			if precision > 1:
+				var GM: float = characteristics[&"GM"]
 				if !characteristics.has(&"esc_vel"):
-					characteristics[&"esc_vel"] = sqrt(2.0 * characteristics[&"GM"] / characteristics[&"m_radius"])
+					characteristics[&"esc_vel"] = sqrt(2.0 * GM / m_radius)
 					if enable_precisions:
 						_real_precisions[&"body/characteristics/esc_vel"] = precision
 				if !characteristics.has(&"surface_gravity"):
-					characteristics[&"surface_gravity"] = characteristics[&"GM"] / pow(characteristics[&"m_radius"], 2.0)
+					characteristics[&"surface_gravity"] = GM / m_radius ** 2
 					if enable_precisions:
 						_real_precisions[&"body/characteristics/surface_gravity"] = precision
 		
@@ -240,14 +242,15 @@ func _set_characteristics_from_table(body: IVBody) -> void:
 			# if precision > 1.
 			var precision := IVTableData.get_db_least_float_precision(_table_name, [&"mass", &"m_radius"], _row)
 			if precision > 1:
+				var mass: float = characteristics[&"mass"]
 				if precision > 6:
 					precision = 6 # limited by G
 				if !characteristics.has(&"esc_vel"):
-					characteristics[&"esc_vel"] = sqrt(2.0 * G * characteristics[&"mass"] / characteristics[&"m_radius"])
+					characteristics[&"esc_vel"] = sqrt(2.0 * G * mass / m_radius)
 					if enable_precisions:
 						_real_precisions[&"body/characteristics/esc_vel"] = precision
 				if !characteristics.has(&"surface_gravity"):
-					characteristics[&"surface_gravity"] = G * characteristics[&"mass"] / pow(characteristics[&"m_radius"], 2.0)
+					characteristics[&"surface_gravity"] = G * mass / m_radius ** 2
 					if enable_precisions:
 						_real_precisions[&"body/characteristics/surface_gravity"] = precision
 

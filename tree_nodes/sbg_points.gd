@@ -50,6 +50,7 @@ var _fragment_identifier: IVFragmentIdentifier = IVGlobal.program.get(&"Fragment
 var _sbg_huds_state: IVSBGHUDsState = IVGlobal.program[&"SBGHUDsState"]
 var _group: IVSmallBodiesGroup
 var _color: Color
+var _point_size: int = IVGlobal.settings.point_size
 var _vec3ids := PackedVector3Array() # point ids for FragmentIdentifier
 
 # Lagrange point
@@ -122,11 +123,11 @@ func _draw_points() -> void:
 		arrays[Mesh.ARRAY_CUSTOM2] = _group.s_g_mag_de
 		points_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_POINTS, arrays, [], {}, L4L5_ARRAY_FLAGS)
 	
-	var half_aabb = _group.max_apoapsis * Vector3.ONE
+	var half_aabb := Vector3.ONE * _group.max_apoapsis
 	points_mesh.custom_aabb = AABB(-half_aabb, 2.0 * half_aabb)
 	mesh = points_mesh
 	var shader_material: ShaderMaterial = material_override
-	shader_material.set_shader_parameter(&"point_size", float(IVGlobal.settings.point_size))
+	shader_material.set_shader_parameter(&"point_size", float(_point_size))
 	if _lp_integer >= 4: # trojans
 		shader_material.set_shader_parameter(&"lp_integer", _lp_integer)
 		var characteristic_length := _secondary_orbit.get_semimajor_axis()
@@ -150,7 +151,8 @@ func _set_color() -> void:
 
 func _settings_listener(setting: StringName, value: Variant) -> void:
 	if setting == &"point_size":
+		_point_size = value
 		var shader_material: ShaderMaterial = material_override
 		# setting value is int; shader parameter is float
-		shader_material.set_shader_parameter(&"point_size", float(value))
+		shader_material.set_shader_parameter(&"point_size", float(_point_size))
 

@@ -37,7 +37,7 @@ const NetworkStopSync = IVEnums.NetworkStopSync
 const DPRINT := false
 
 const PERSIST_MODE := IVEnums.PERSIST_PROPERTIES_ONLY
-const PERSIST_PROPERTIES := [
+const PERSIST_PROPERTIES: Array[StringName] = [
 	&"project_version",
 	&"ivoyager_version",
 	&"is_modded"
@@ -99,15 +99,16 @@ func quick_save() -> bool:
 		return false
 	if _state.network_state == IS_CLIENT:
 		return false
-	if (!_has_been_saved or !_settings.save_base_name
-			or !DirAccess.dir_exists_absolute(_settings.save_dir)):
+	var save_dir: String = _settings[&"save_dir"]
+	var save_base_name: String = _settings[&"save_base_name"]
+	if !_has_been_saved or !save_base_name or !DirAccess.dir_exists_absolute(save_dir):
 		IVGlobal.save_dialog_requested.emit()
 		return false
 	IVGlobal.close_main_menu_requested.emit()
 	var date_string := ""
-	if _settings.append_date_to_save:
+	if _settings[&"append_date_to_save"]:
 		date_string = _timekeeper.get_current_date_for_file()
-	var path := files.get_save_path(_settings.save_dir, _settings.save_base_name,
+	var path := files.get_save_path(save_dir, save_base_name,
 			IVCoreSettings.save_file_extension, date_string, true)
 	save_game(path)
 	return true
@@ -140,9 +141,10 @@ func quick_load() -> void:
 		return
 	if _state.network_state == IS_CLIENT:
 		return
-	if _state.last_save_path:
+	var last_save_path: String = _state[&"last_save_path"]
+	if last_save_path:
 		IVGlobal.close_main_menu_requested.emit()
-		load_game(_state.last_save_path)
+		load_game(last_save_path)
 	else:
 		IVGlobal.load_dialog_requested.emit()
 
