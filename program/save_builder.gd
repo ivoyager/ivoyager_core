@@ -129,7 +129,7 @@ var _log := ""
 
 
 static func clone_persist_properties(origin: Object, clone: Object) -> void:
-	# Utility function. Not used in game save but uses same persist properties.
+	# Not used by IVSaveBuilder but uses same persist properties.
 	for properties_array in properties_arrays:
 		if not properties_array in origin:
 			continue
@@ -144,6 +144,38 @@ static func clone_persist_properties(origin: Object, clone: Object) -> void:
 				var origin_dict: Dictionary = value
 				value = origin_dict.duplicate(true)
 			clone.set(property, value)
+
+
+static func get_persist_properties(origin: Object) -> Array:
+	# Not used by IVSaveBuilder but uses same persist properties.
+	var array := []
+	for properties_array in properties_arrays:
+		if not properties_array in origin:
+			continue
+		var properties: Array[StringName] = origin.get(properties_array)
+		for property in properties:
+			var value: Variant = origin.get(property)
+			var type := typeof(value)
+			if type == TYPE_ARRAY:
+				var origin_array: Array = value
+				value = origin_array.duplicate(true)
+			elif type == TYPE_DICTIONARY:
+				var origin_dict: Dictionary = value
+				value = origin_dict.duplicate(true)
+			array.append(value)
+	return array
+
+
+static func set_persist_properties(clone: Object, array: Array) -> void:
+	# Set properties in 'clone' using 'array' from get_persist_properties().
+	# Note: 'array' is consumed.
+	array.reverse()
+	for properties_array in properties_arrays:
+		if not properties_array in clone:
+			continue
+		var properties: Array[StringName] = clone.get(properties_array)
+		for property in properties:
+			clone.set(property, array.pop_back())
 
 
 static func get_persist_mode(object: Object) -> int:
