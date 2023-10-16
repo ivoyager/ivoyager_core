@@ -168,14 +168,14 @@ static func get_persist_properties(origin: Object) -> Array:
 
 static func set_persist_properties(clone: Object, array: Array) -> void:
 	# Set properties in 'clone' using 'array' from get_persist_properties().
-	# Note: 'array' is consumed.
-	array.reverse()
+	var i := 0
 	for properties_array in properties_arrays:
 		if not properties_array in clone:
 			continue
 		var properties: Array[StringName] = clone.get(properties_array)
 		for property in properties:
-			clone.set(property, array.pop_back())
+			clone.set(property, array[i])
+			i += 1
 
 
 static func get_persist_mode(object: Object) -> int:
