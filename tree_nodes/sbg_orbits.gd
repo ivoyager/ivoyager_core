@@ -27,8 +27,9 @@ const math := preload("res://addons/ivoyager_core/static/math.gd")
 
 const FRAGMENT_SBG_ORBIT := IVFragmentIdentifier.FRAGMENT_SBG_ORBIT
 
-var _fragment_identifier: IVFragmentIdentifier = IVGlobal.program.get(&"FragmentIdentifier")
-var _sbg_huds_state: IVSBGHUDsState = IVGlobal.program.SBGHUDsState
+static var _fragment_identifier: IVFragmentIdentifier # optional
+static var _sbg_huds_state: IVSBGHUDsState
+static var _is_class_instanced := false
 
 var _group: IVSmallBodiesGroup
 var _color: Color
@@ -37,6 +38,10 @@ var _vec3ids := PackedVector3Array() # orbit ids for FragmentIdentifier
 
 
 func _init(group: IVSmallBodiesGroup) -> void:
+	if !_is_class_instanced:
+		_is_class_instanced = true
+		_fragment_identifier = IVGlobal.program.get(&"FragmentIdentifier")
+		_sbg_huds_state = IVGlobal.program.SBGHUDsState
 	_group = group
 	# fragment ids
 	if _fragment_identifier:

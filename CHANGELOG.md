@@ -10,12 +10,13 @@ See cloning and downloading instructions [here](https://www.ivoyager.dev/develop
 
 ## [v0.0.18] - Not Released
 
-Under development using Godot 4.2.dev6 (backward breaking changes!)
+Under development using Godot 4.2.beta1 (backward breaking changes!)
 
 Requires non-Git-tracked **ivoyager_assets-0.0.17**; find in ivoyager_core [releases](https://github.com/ivoyager/ivoyager_core/releases).    
 Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_table_importer) v0.0.6
 
 ### Changed
+* Use static vars for localized class items.
 * For loop typing and error fixes for Godot 4.2.
 * Removed functions '_on_init', '_on_ready', '_on_process', etc. These were needed in Godot 3.x because virtual functions could not be overridden by subclasses. This is no longer the case.
 * Removed number & unit names from translation (now added in ivoyager_table_importer).

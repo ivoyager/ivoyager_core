@@ -20,7 +20,8 @@
 class_name IVMouseTargetLabel
 extends Label
 
-# Uses IVWorldController and (if present) IVFragmentIdentifier.
+# Uses IVWorldController and (if present) IVFragmentIdentifier. The single
+# instance of this node is added by IVCoreInitializer.
 
 var offset := Vector2(0.0, -7.0) # offset to not interfere w/ FragmentIdentifier
 

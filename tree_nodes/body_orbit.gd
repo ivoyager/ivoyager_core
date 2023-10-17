@@ -27,9 +27,10 @@ const math := preload("res://addons/ivoyager_core/static/math.gd")
 
 const FRAGMENT_BODY_ORBIT := IVFragmentIdentifier.FRAGMENT_BODY_ORBIT
 
-var _fragment_identifier: IVFragmentIdentifier = IVGlobal.program.get(&"FragmentIdentifier") # opt
-var _body_huds_state: IVBodyHUDsState = IVGlobal.program.BodyHUDsState
-var _times: Array[float] = IVGlobal.times
+static var _times: Array[float] = IVGlobal.times
+static var _fragment_identifier: IVFragmentIdentifier # optional
+static var _body_huds_state: IVBodyHUDsState
+static var _is_class_instanced := false
 
 var _body: IVBody
 var _orbit: IVOrbit
@@ -44,6 +45,10 @@ var _needs_transform := true
 
 
 func _init(body: IVBody) -> void:
+	if !_is_class_instanced:
+		_is_class_instanced = true
+		_fragment_identifier = IVGlobal.program.get(&"FragmentIdentifier")
+		_body_huds_state = IVGlobal.program.BodyHUDsState
 	_body = body
 	_orbit = body.orbit
 	_body_flags = body.flags

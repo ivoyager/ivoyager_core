@@ -49,7 +49,7 @@ var min_sizes := [
 var max_default_screen_proportions := Vector2(0.45, 0.45) # can override above
 
 # private
-var _settings: Dictionary = IVGlobal.settings
+static var _settings: Dictionary = IVGlobal.settings
 var _margin_drag_x := 0.0
 var _margin_drag_y := 0.0
 var _drag_point := Vector2.ZERO

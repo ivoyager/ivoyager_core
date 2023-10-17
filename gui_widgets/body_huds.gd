@@ -35,7 +35,6 @@ const NULL_COLOR := Color.BLACK
 const BodyFlags: Dictionary = IVEnums.BodyFlags
 
 
-var enable_wiki: bool = IVCoreSettings.enable_wiki
 
 var has_headers := true
 var column_master: Control # if set, column widths follow master children
@@ -56,16 +55,26 @@ var disable_orbits_rows: Array[int] = [] # e.g., no orbit for Sun
 var headers: Array[StringName] = [&"LABEL_NAMES_SLASH_SYMBOLS_SHORT", &"LABEL_ORBITS"]
 var header_hints: Array[StringName] = [&"HINT_NAMES_SYMBOLS_CKBXS", &"HINT_ORBITS_CKBX_COLOR"]
 
+static var _wiki_titles: Dictionary = IVTableData.wiki_lookup
+static var _enable_wiki: bool
+static var _body_huds_state: IVBodyHUDsState
+static var _is_class_instanced := false
 
-var _wiki_titles: Dictionary = IVTableData.wiki_lookup
 var _all_flags := 0 # generated from all rows
 var _names_ckbxs: Array[CheckBox] = []
 var _symbols_ckbxs: Array[CheckBox] = []
 var _orbits_ckbxs: Array[CheckBox] = []
 var _orbits_color_pkrs: Array[ColorPickerButton] = []
 
-@onready var _body_huds_state: IVBodyHUDsState = IVGlobal.program[&"BodyHUDsState"]
 @onready var _n_rows := rows.size()
+
+
+
+func _init() -> void:
+	if !_is_class_instanced:
+		_is_class_instanced = true
+		_enable_wiki = IVCoreSettings.enable_wiki
+		_body_huds_state = IVGlobal.program[&"BodyHUDsState"]
 
 
 func _ready() -> void:
@@ -102,7 +111,7 @@ func _ready() -> void:
 		# row label
 		var row_name: StringName = rows[i][0]
 		var is_indent: bool = rows[i][2]
-		if enable_wiki and _wiki_titles.has(row_name):
+		if _enable_wiki and _wiki_titles.has(row_name):
 			var rtlabel := RichTextLabel.new()
 			rtlabel.meta_clicked.connect(_on_meta_clicked.bind(row_name))
 			rtlabel.bbcode_enabled = true

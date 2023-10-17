@@ -83,11 +83,20 @@ var m_modifiers: Array[float] = [] # [b, c, s, f]; planets Jupiter to Pluto only
 var current_elements: Array[float] = utils.init_array(7, 0.0, TYPE_FLOAT)
 
 # private
-var _times: Array[float] = IVGlobal.times
-var _scheduler: IVScheduler = IVGlobal.program[&"Scheduler"]
+static var _times: Array[float] = IVGlobal.times
+static var _scheduler: IVScheduler
+static var _is_class_instanced := false
+
 var _update_interval := 0.0
 var _begin_current := INF
 var _end_current := -INF
+
+
+
+func _init() -> void:
+	if !_is_class_instanced:
+		_is_class_instanced = true
+		_scheduler = IVGlobal.program[&"Scheduler"]
 
 
 # TODO:

@@ -31,11 +31,6 @@ signal system_build_finished()
 const files := preload("res://addons/ivoyager_core/static/files.gd")
 const BodyFlags := IVEnums.BodyFlags
 
-# project vars
-var min_click_radius := 20.0
-var max_hud_dist_orbit_radius_multiplier := 100.0
-var min_hud_dist_radius_multiplier := 500.0
-var min_hud_dist_star_multiplier := 20.0 # combines w/ above
 
  # read-only!
 var BodyLabelScript: Script
@@ -88,11 +83,6 @@ func _build_unpersisted(body: IVBody) -> void: # Main thread
 	# This is after IVBody._enter_tree(), but before IVBody._ready()
 	# Don't defer this call; children need their parent to have this done already.
 	body.reset_orientation_and_rotation() # here so children can obtain positive pole
-	
-	body.min_click_radius = min_click_radius
-	body.max_hud_dist_orbit_radius_multiplier = max_hud_dist_orbit_radius_multiplier
-	body.min_hud_dist_radius_multiplier = min_hud_dist_radius_multiplier
-	body.min_hud_dist_star_multiplier = min_hud_dist_star_multiplier
 	
 	if body.get_model_type() != -1:
 		var lazy_init: bool = body.flags & BodyFlags.IS_MOON  \

@@ -45,7 +45,7 @@ var min_sizes: Array[Vector2] = [
 var max_default_screen_proportions := Vector2(0.45, 0.45) # can override above
 
 # private
-var _settings: Dictionary = IVGlobal.settings
+@onready var _settings: Dictionary = IVGlobal.settings
 
 @onready var _viewport := get_viewport()
 @onready var _parent: Control = get_parent()

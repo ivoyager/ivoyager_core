@@ -74,13 +74,17 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"satellites",
 ]
 
+# class settings
+static var min_click_radius := 20.0
+static var max_hud_dist_orbit_radius_multiplier := 100.0
+static var min_hud_dist_radius_multiplier := 500.0
+static var min_hud_dist_star_multiplier := 20.0 # combines w/ above
 
 # persisted
 var flags := 0 # see IVEnums.BodyFlags
 var characteristics := {} # non-object values
 var components := {} # objects (persisted only)
 var satellites: Array[IVBody] = []
-
 
 # public - read-only!
 var huds_visible := false # too far / too close toggle
@@ -98,25 +102,25 @@ var orbit: IVOrbit # persisted in components
 
 var texture_2d: Texture2D
 var texture_slice_2d: Texture2D # GUI navigator graphic for sun only
-var min_click_radius: float
-var max_hud_dist_orbit_radius_multiplier: float
-var min_hud_dist_radius_multiplier: float
-var min_hud_dist_star_multiplier: float
+
 var max_model_dist := 0.0
+var min_hud_dist: float
 var sleep := false
 
-
 # private
-var _times: Array[float] = IVGlobal.times
-#var _state: Dictionary = IVGlobal.state
-var _ecliptic_rotation: Basis = IVCoreSettings.ecliptic_rotation
-var _min_hud_dist: float
+static var _is_class_instanced := false
 
-var _world_targeting: Array = IVGlobal.world_targeting
-#@onready var _tree := get_tree()
+# localizations
+static var _times: Array[float] = IVGlobal.times
+static var _world_targeting: Array = IVGlobal.world_targeting
+static var _ecliptic_rotation: Basis
+
 
 
 func _init() -> void:
+	if !_is_class_instanced:
+		_is_class_instanced = true
+		_ecliptic_rotation = IVCoreSettings.ecliptic_rotation
 	hide()
 
 
@@ -218,7 +222,7 @@ func _process(_delta: float) -> void:
 		model_space.transform.basis = basis_at_epoch.rotated(rotation_vector, rotation_angle)
 	
 	# check HUD and model visibility
-	var hud_dist_ok := _min_hud_dist < camera_dist # not too close to camera
+	var hud_dist_ok := min_hud_dist < camera_dist # not too close to camera
 	if hud_dist_ok and orbit:
 		var orbit_radius := position.length()
 		# is body too close to its parent for camera distance?
@@ -690,11 +694,11 @@ func _on_time_altered(_previous_time: float) -> void:
 
 func _set_min_hud_dist() -> void:
 	if IVGlobal.settings.get(&"hide_hud_when_close", false):
-		_min_hud_dist = m_radius * min_hud_dist_radius_multiplier
+		min_hud_dist = m_radius * min_hud_dist_radius_multiplier
 		if flags & IS_STAR:
-			_min_hud_dist *= min_hud_dist_star_multiplier # just the label
+			min_hud_dist *= min_hud_dist_star_multiplier # just the label
 	else:
-		_min_hud_dist = 0.0
+		min_hud_dist = 0.0
 
 
 func _settings_listener(setting: StringName, _value: Variant) -> void:
