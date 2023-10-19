@@ -10,9 +10,9 @@ See cloning and downloading instructions [here](https://www.ivoyager.dev/develop
 
 ## [v0.0.18] - Not Released
 
-Under development using Godot 4.2.beta1 (backward breaking changes!)
+Under development using Godot 4.2.beta1. _Has backward breaking changes!_
 
-Requires non-Git-tracked **ivoyager_assets-0.0.17**; find in ivoyager_core [releases](https://github.com/ivoyager/ivoyager_core/releases).    
+Requires non-Git-tracked, non-release **ivoyager_assets-0.0.18.dev.20231019**; find [here](https://github.com/ivoyager/non_release_assets/releases/tag/2023-10-19).    
 Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_table_importer) v0.0.6
 
 ### Changed
