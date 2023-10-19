@@ -59,7 +59,7 @@ func _ivcore_init() -> void:
 			current[key] = default
 	_read_cache()
 	if _missing_or_bad_cache_file:
-		_write_cache()
+		_write_cache.call_deferred()
 
 
 # *****************************************************************************
@@ -87,12 +87,7 @@ func is_default(key: StringName) -> bool:
 
 
 func is_all_defaults() -> bool:
-	# TEST34
 	return current == defaults
-#	for key in defaults:
-#		if current[key] != defaults[key]:
-#			return false
-#	return true
 
 
 func get_cached_value(key: StringName, cached_values: Dictionary): # unknown type
