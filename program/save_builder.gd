@@ -99,7 +99,7 @@ var debug_print_tree := false
 # project settings
 var progress_multiplier := 95 # so prog bar doesn't sit for a while at 100%
 
-var properties_arrays: Array[StringName] = [
+static var properties_arrays: Array[StringName] = [
 	&"PERSIST_PROPERTIES",
 	&"PERSIST_PROPERTIES2",
 ]
@@ -128,34 +128,79 @@ var _log_count_by_class := {}
 var _log := ""
 
 
+static func clone_persist_properties(origin: Object, clone: Object) -> void:
+	# Not used by IVSaveBuilder but uses same persist properties.
+	for properties_array in properties_arrays:
+		if not properties_array in origin:
+			continue
+		var properties: Array[StringName] = origin.get(properties_array)
+		for property in properties:
+			var value: Variant = origin.get(property)
+			var type := typeof(value)
+			if type == TYPE_ARRAY:
+				var origin_array: Array = value
+				value = origin_array.duplicate(true)
+			elif type == TYPE_DICTIONARY:
+				var origin_dict: Dictionary = value
+				value = origin_dict.duplicate(true)
+			clone.set(property, value)
+
+
+static func get_persist_properties(origin: Object) -> Array:
+	# Not used by IVSaveBuilder but uses same persist properties.
+	var array := []
+	for properties_array in properties_arrays:
+		if not properties_array in origin:
+			continue
+		var properties: Array[StringName] = origin.get(properties_array)
+		for property in properties:
+			var value: Variant = origin.get(property)
+			var type := typeof(value)
+			if type == TYPE_ARRAY:
+				var origin_array: Array = value
+				value = origin_array.duplicate(true)
+			elif type == TYPE_DICTIONARY:
+				var origin_dict: Dictionary = value
+				value = origin_dict.duplicate(true)
+			array.append(value)
+	return array
+
+
+static func set_persist_properties(clone: Object, array: Array) -> void:
+	# Set properties in 'clone' using 'array' from get_persist_properties().
+	var i := 0
+	for properties_array in properties_arrays:
+		if not properties_array in clone:
+			continue
+		var properties: Array[StringName] = clone.get(properties_array)
+		for property in properties:
+			clone.set(property, array[i])
+			i += 1
+
+
 static func get_persist_mode(object: Object) -> int:
 	if &"persist_mode_override" in object:
-		@warning_ignore("unsafe_property_access")
-		return object.persist_mode_override
-	if not &"PERSIST_MODE" in object:
-		return NO_PERSIST
-	@warning_ignore("unsafe_property_access")
-	return object.PERSIST_MODE
+		return object.get(&"persist_mode_override")
+	if &"PERSIST_MODE" in object:
+		return object.get(&"PERSIST_MODE")
+	return NO_PERSIST
 
 
 static func is_persist_object(object: Object) -> bool:
 	if &"persist_mode_override" in object:
-		@warning_ignore("unsafe_property_access")
-		return object.persist_mode_override != NO_PERSIST
-	if not &"PERSIST_MODE" in object:
-		return false
-	@warning_ignore("unsafe_property_access")
-	return object.PERSIST_MODE != NO_PERSIST
+		return object.get(&"persist_mode_override") != NO_PERSIST
+	if &"PERSIST_MODE" in object:
+		return object.get(&"PERSIST_MODE") != NO_PERSIST
+	return false
 
 
 static func is_procedural_persist(object: Object) -> bool:
 	if &"persist_mode_override" in object:
-		@warning_ignore("unsafe_property_access")
-		return object.persist_mode_override == PERSIST_PROCEDURAL
-	if not &"PERSIST_MODE" in object:
-		return false
-	@warning_ignore("unsafe_property_access")
-	return object.PERSIST_MODE == PERSIST_PROCEDURAL
+		return object.get(&"persist_mode_override") == PERSIST_PROCEDURAL
+	if &"PERSIST_MODE" in object:
+		return object.get(&"PERSIST_MODE") == PERSIST_PROCEDURAL
+	return false
+	
 
 
 func generate_gamesave(save_root: Node) -> Array:
@@ -393,7 +438,7 @@ func _serialize_node(node: Node):
 
 
 func _register_and_serialize_reference(ref: RefCounted) -> int:
-	assert(is_procedural_persist(ref)) # must be true for References
+	assert(is_procedural_persist(ref)) # must be true for RefCounted
 	var object_id := _gs_n_objects
 	_gs_n_objects += 1
 	_object_ids[ref] = object_id
@@ -455,16 +500,33 @@ func _deserialize_object_data(serialized_object: Array, is_node: bool) -> void:
 	for properties_array in properties_arrays:
 		var n_properties: int = serialized_object[index]
 		index += 1
-		if n_properties > 0:
-			var array: Array = serialized_object[index]
-			index += 1
-			var decoded_array = _get_decoded_array(array) # may or may not have content-type
-			var properties: Array = object.get(properties_array)
-			var property_index := 0
-			while property_index < n_properties:
-				var property: String = properties[property_index]
+		if n_properties == 0:
+			continue
+		var serialized_array: Array = serialized_object[index]
+		index += 1
+		var decoded_array = _get_decoded_array(serialized_array) # may or may not be content-typed
+		var properties: Array = object.get(properties_array)
+		var property_index := 0
+		while property_index < n_properties:
+			var property: String = properties[property_index]
+			# fill existing arrays & dicts in place; everything else is set
+			var type := typeof(decoded_array[property_index])
+			if type == TYPE_ARRAY:
+				var saved_array: Array = decoded_array[property_index]
+				var object_array: Array = object.get(property)
+				var size := saved_array.size()
+				object_array.resize(size)
+				for i in size:
+					object_array[i] = saved_array[i]
+			elif type == TYPE_DICTIONARY:
+				var saved_dict: Dictionary = decoded_array[property_index]
+				var object_dict: Dictionary = object.get(property)
+				object_dict.clear()
+				for key in saved_dict:
+					object_dict[key] = saved_dict[key]
+			else:
 				object.set(property, decoded_array[property_index])
-				property_index += 1
+			property_index += 1
 
 
 func _get_encoded_array(array: Array) -> Array:

@@ -31,7 +31,7 @@ var reverse_color: Color = IVCoreSettings.colors[&"danger"]
 
 var _date: Array[int] = IVGlobal.date
 var _clock: Array[int] = IVGlobal.clock
-#var _is_paused := false
+
 var _show_clock := false
 var _show_seconds := false
 var _is_reversed := false

@@ -92,13 +92,22 @@ var is_reversed := false
 
 
 # private
-var _camera_handler: IVCameraHandler = IVGlobal.program.CameraHandler
-var _body_huds_state: IVBodyHUDsState = IVGlobal.program.BodyHUDsState
-var _sbg_huds_state: IVSBGHUDsState = IVGlobal.program.SBGHUDsState
-var _timekeeper: IVTimekeeper = IVGlobal.program.Timekeeper
+static var _version_hash := PERSIST_PROPERTIES.hash() + 2 # test for cache is 'bad'
+static var _camera_handler: IVCameraHandler
+static var _body_huds_state: IVBodyHUDsState
+static var _sbg_huds_state: IVSBGHUDsState
+static var _timekeeper: IVTimekeeper
+static var _is_class_instanced := false
 
-# cache is 'bad' if _version_hash doesn't match
-var _version_hash := PERSIST_PROPERTIES.hash() + 2
+
+
+func _init() -> void:
+	if !_is_class_instanced:
+		_is_class_instanced = true
+		_camera_handler = IVGlobal.program[&"CameraHandler"]
+		_body_huds_state = IVGlobal.program[&"BodyHUDsState"]
+		_sbg_huds_state = IVGlobal.program[&"SBGHUDsState"]
+		_timekeeper = IVGlobal.program[&"Timekeeper"]
 
 
 # public API

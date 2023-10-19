@@ -62,6 +62,7 @@ var texture_2d: Texture2D
 var texture_slice_2d: Texture2D # stars only
 
 
+
 func _init() -> void:
 	IVGlobal.system_tree_ready.connect(_init_after_system, CONNECT_ONE_SHOT)
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear)

@@ -65,7 +65,6 @@ func _on_global_huds_changed() -> void:
 
 func _on_body_huds_changed(is_visible_: bool) -> void:
 	_body_huds_visible = is_visible_
-	# ISSUE34?: 'is_visible' generates shadow error
 	_set_visual_state()
 
 

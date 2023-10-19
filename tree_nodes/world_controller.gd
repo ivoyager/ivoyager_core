@@ -32,7 +32,7 @@ extends Control
 #  [6] current_fragment_id: int (a shader target; IVFragmentIdentifier sets)
 #  [7] current_cursor_type: int (this object sets)
 #
-# TODO: Recode using Godot's built-in mouse drag functionality.
+#  The single instance of this node is added by IVCoreInitializer.
 
 
 signal mouse_target_changed(target)

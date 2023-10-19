@@ -46,8 +46,10 @@ const L4L5_ARRAY_FLAGS = (
 )
 
 
-var _fragment_identifier: IVFragmentIdentifier = IVGlobal.program.get(&"FragmentIdentifier")
-var _sbg_huds_state: IVSBGHUDsState = IVGlobal.program[&"SBGHUDsState"]
+static var _fragment_identifier: IVFragmentIdentifier # optional
+static var _sbg_huds_state: IVSBGHUDsState
+static var _is_class_instanced := false
+
 var _group: IVSmallBodiesGroup
 var _color: Color
 var _point_size: int = IVGlobal.settings.point_size
@@ -60,6 +62,10 @@ var _secondary_orbit: IVOrbit
 
 
 func _init(group: IVSmallBodiesGroup) -> void:
+	if !_is_class_instanced:
+		_is_class_instanced = true
+		_fragment_identifier = IVGlobal.program.get(&"FragmentIdentifier")
+		_sbg_huds_state = IVGlobal.program[&"SBGHUDsState"]
 	_group = group
 	_lp_integer = _group.lp_integer
 	var shader_material := ShaderMaterial.new()

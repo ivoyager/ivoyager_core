@@ -20,8 +20,8 @@
 class_name IVSpheroidModel
 extends MeshInstance3D
 
-# A generic spheroid model that uses a shared sphere mesh. IVModelBuilder will
-# scale instances for appropriate oblateness.
+# A generic spheroid model that uses a shared sphere mesh. IVModelBuilder
+# scales instances for appropriate oblateness.
 #
 # If is_dynamic_star, the model will grow with great distances to stay visible
 # and appropriately prominent relative to the star field. The grow settings are
@@ -40,8 +40,10 @@ const DYNAMIC_STAR_GROW_FACTOR := 0.5
 
 var is_dynamic_star := false
 
-var _world_targeting: Array = IVGlobal.world_targeting
+static var _world_targeting: Array = IVGlobal.world_targeting
+
 var _reference_basis: Basis
+
 
 
 func _init(model_type: int, reference_basis: Basis, albedo_map: Texture2D,

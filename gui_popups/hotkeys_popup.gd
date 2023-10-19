@@ -194,9 +194,6 @@ func _cancel_changes() -> void:
 
 func _on_hotkey_confirmed(action: StringName, index: int, keycode: int,
 		control: bool, alt: bool, shift: bool, meta: bool) -> void:
-	
-	print("_on_hotkey_confirmed")
-	
 	if keycode == -1:
 		_input_map_manager.remove_event_dict_by_index(action, &"InputEventKey", index, true)
 	else:
