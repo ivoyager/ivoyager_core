@@ -52,7 +52,7 @@ static func get_config(config_path: String) -> ConfigFile:
 
 
 static func get_config_with_override(config_path: String, override_config_path: String,
-		section_prefix := "") -> ConfigFile:
+		override_config_path2 := "") -> ConfigFile:
 	var config := get_config(config_path)
 	if !config:
 		assert(false, "Failed to load config '%s'" % config_path)
@@ -61,8 +61,14 @@ static func get_config_with_override(config_path: String, override_config_path: 
 	if !override_config:
 		return config
 	for section in override_config.get_sections():
-		if section_prefix and !section.begins_with(section_prefix):
-			continue
+		for property in override_config.get_section_keys(section):
+			config.set_value(section, property, override_config.get_value(section, property))
+	if !override_config_path2:
+		return config
+	override_config = get_config(override_config_path2)
+	if !override_config:
+		return config
+	for section in override_config.get_sections():
 		for property in override_config.get_section_keys(section):
 			config.set_value(section, property, override_config.get_value(section, property))
 	return config
