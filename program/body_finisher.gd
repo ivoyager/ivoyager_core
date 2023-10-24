@@ -82,7 +82,7 @@ func _on_node_added(node: Node) -> void:
 func _build_unpersisted(body: IVBody) -> void: # Main thread
 	# This is after IVBody._enter_tree(), but before IVBody._ready()
 	# Don't defer this call; children need their parent to have this done already.
-	body.reset_orientation_and_rotation() # here so children can obtain positive pole
+	body.recalculate_spatials() # here so children can obtain positive pole
 	
 	if body.get_model_type() != -1:
 		var lazy_init: bool = body.flags & BodyFlags.IS_MOON  \

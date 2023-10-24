@@ -93,7 +93,7 @@ func make_orbit_from_data(table_name: String, table_row: int, parent: IVBody) ->
 	# Or better, dynamically fit to either 1800-2050AD or 3000BC-3000AD range.
 	# Alternatively, we could build orbit from an Ephemerides object.
 	
-	var mu := parent.get_std_gravitational_parameter()
+	var mu := parent.get_standard_gravitational_parameter()
 	assert(mu)
 	IVTableData.db_build_dictionary_from_keys(_d, table_name, table_row)
 
