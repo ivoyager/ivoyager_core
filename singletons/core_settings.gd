@@ -154,6 +154,6 @@ var debug_log_path := "user://logs/debug.log" # modify or set "" to disable
 
 func _enter_tree() -> void:
 	var config: ConfigFile = IVFiles.get_config_with_override("res://addons/ivoyager_core/core.cfg",
-			"res://ivoyager_override.cfg", "core_settings")
+			"res://ivoyager_override.cfg", "res://ivoyager_override2.cfg")
 	IVFiles.init_from_config(self, config, "core_settings")
 

@@ -69,8 +69,13 @@ const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL # free & rebuild on load
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"name",
 	&"flags",
+	&"m_radius",
+	&"rotation_period",
+	&"right_ascension",
+	&"declination",
 	&"characteristics",
 	&"components",
+	&"orbit",
 	&"satellites",
 ]
 
@@ -82,35 +87,35 @@ static var min_hud_dist_star_multiplier := 20.0 # combines w/ above
 
 # persisted
 var flags := 0 # see IVEnums.BodyFlags
+var m_radius := 0.0 # required; optional e_radius & p_radius in characteristics
+var rotation_period := 0.0 # possibly derived (if tidally locked)
+var right_ascension := 0.0 # possibly derived (if axis locked)
+var declination := 0.0 # possibly derived (if axis locked)
 var characteristics := {} # non-object values
 var components := {} # objects (persisted only)
+var orbit: IVOrbit
 var satellites: Array[IVBody] = []
 
-# public - read-only!
-var huds_visible := false # too far / too close toggle
-var model_visible := false
-var model_space: Node3D # rotation only, not scaled (lazy init)
-var rotating_space: IVRotatingSpace # rotates & translates for L-points (lazy init)
+# read-only calculated spatials; change by setting right_ascension, declination, etc.
 var rotation_vector := ECLIPTIC_Z # synonymous with 'north'
 var rotation_rate := 0.0
 var rotation_at_epoch := 0.0
 var basis_at_epoch := IDENTITY_BASIS
-var model_reference_basis := IDENTITY_BASIS
 
-var m_radius := NAN # persisted in characteristics
-var orbit: IVOrbit # persisted in components
-
+# read-only!
+var huds_visible := false # too far / too close toggle
+var model_visible := false
+var model_space: Node3D # rotation only, not scaled (lazy init)
+var rotating_space: IVRotatingSpace # rotates & translates for L-points (lazy init)
 var texture_2d: Texture2D
 var texture_slice_2d: Texture2D # GUI navigator graphic for sun only
-
+var model_reference_basis := IDENTITY_BASIS
 var max_model_dist := 0.0
 var min_hud_dist: float
 var sleep := false
 
 # private
 static var _is_class_instanced := false
-
-# localizations
 static var _times: Array[float] = IVGlobal.times
 static var _world_targeting: Array = IVGlobal.world_targeting
 static var _ecliptic_rotation: Basis
@@ -125,8 +130,6 @@ func _init() -> void:
 
 
 func _enter_tree() -> void:
-	m_radius = characteristics.m_radius # required
-	orbit = components.get("orbit") # no orbit for the top body (e.g., the Sun)
 	if orbit:
 		orbit.reset_elements_and_interval_update()
 		orbit.changed.connect(_on_orbit_changed)
@@ -155,13 +158,13 @@ func _exit_tree() -> void:
 func _on_system_tree_built_or_loaded(is_new_game: bool) -> void:
 	if !is_new_game:
 		return
-	var system_radius := m_radius * MIN_SYSTEM_M_RADIUS_MULTIPLIER
-	for satellite in satellites:
-		@warning_ignore("unsafe_method_access") # FIXME34: Can we self-type these now?
-		var a: float = satellite.get_orbit_semi_major_axis()
-		if system_radius < a:
-			system_radius = a
-	characteristics.system_radius = system_radius
+	if !characteristics.get(&"system_radius"):
+		var system_radius := m_radius * MIN_SYSTEM_M_RADIUS_MULTIPLIER
+		for satellite in satellites:
+			var a: float = satellite.get_orbit_semi_major_axis()
+			if system_radius < a:
+				system_radius = a
+		characteristics[&"system_radius"] = system_radius
 	# non-table flags
 	var hill_sphere := get_hill_sphere()
 	if hill_sphere < m_radius:
@@ -239,103 +242,220 @@ func _process(_delta: float) -> void:
 
 
 
-# public functions
+# public API
 
 func get_float_precision(path: String) -> int:
 	# Available only if IVCoreSettings.enable_precisions == true. Gets the
 	# precision (significant digits) of a real value as it was entered in the
 	# table *.tsv file. Used by Planetarium.
-	if !characteristics.has("real_precisions"):
+	if !characteristics.has(&"real_precisions"):
 		return -1
-	var real_precisions: Dictionary = characteristics.real_precisions
+	var real_precisions: Dictionary = characteristics[&"real_precisions"]
 	return real_precisions.get(path, -1)
 
 
-func get_hud_name() -> String:
-	return characteristics.get("hud_name", name)
+func get_characteristic(characteristic_name: StringName) -> Variant:
+	match characteristic_name:
+		&"m_radius":
+			return m_radius
+		&"rotation_period":
+			return rotation_period
+		&"right_ascension":
+			return right_ascension
+		&"declination":
+			return declination
+	return characteristics.get(characteristic_name)
 
 
-func get_symbol() -> String:
-	return characteristics.get("symbol", "\u25CC") # default is dashed circle
-
-
-func get_body_class() -> int: # body_classes.tsv
-	return characteristics.get("body_class", -1)
-
-
-func get_model_type() -> int: # models.tsv
-	return characteristics.get("model_type", -1)
-
-
-func has_omni_light() -> bool:
-	return characteristics.get("omni_light_type", -1) != -1
-
-
-func get_omni_light_type() -> int:
-	return characteristics.get("omni_light_type", -1)
-
-
-func get_file_prefix() -> String:
-	return characteristics.get("file_prefix", "")
-
-
-func has_rings() -> bool:
-	return characteristics.has("rings_radius")
-
-
-func get_rings_file_prefix() -> String:
-	return characteristics.get("rings_file_prefix", "")
-
-
-func get_rings_inner_radius() -> float:
-	return characteristics.get("rings_inner_radius", 0.0)
-
-
-func get_rings_outer_radius() -> float:
-	return characteristics.get("rings_outer_radius", 0.0)
-
-
-func get_mass() -> float:
-	return characteristics.get("mass", 0.0)
-
-
-func get_std_gravitational_parameter() -> float:
-	return characteristics.get("GM", 0.0)
+func set_characteristic(characteristic_name: StringName, value: Variant,
+		supress_recalculation := false) -> void:
+	# Set supress_recalculation == true only if you are doing many changes and
+	# will call recalculate_spatials() manually.
+	match characteristic_name:
+		&"m_radius":
+			m_radius = value
+			return
+		&"rotation_period":
+			var float_value: float = value
+			set_rotation_period(float_value, supress_recalculation)
+			return
+		&"right_ascension":
+			var float_value: float = value
+			set_right_ascension(float_value, supress_recalculation)
+			return
+		&"declination":
+			var float_value: float = value
+			set_declination(float_value, supress_recalculation)
+			return
+	characteristics[characteristic_name] = value
 
 
 func get_mean_radius() -> float:
 	return m_radius
 
 
+func set_mean_radius(value: float) -> void:
+	m_radius = value
+
+
+func get_rotation_period() -> float:
+	return rotation_period
+
+
+func set_rotation_period(value: float, supress_recalculation := false) -> void:
+	rotation_period = value
+	if !supress_recalculation:
+		recalculate_spatials()
+
+
+func get_right_ascension() -> float:
+	return right_ascension
+
+
+func set_right_ascension(value: float, supress_recalculation := false) -> void:
+	right_ascension = value
+	if !supress_recalculation:
+		recalculate_spatials()
+
+
+func get_declination() -> float:
+	return declination
+
+
+func set_declination(value: float, supress_recalculation := false) -> void:
+	declination = value
+	if !supress_recalculation:
+		recalculate_spatials()
+
+
+func get_hud_name() -> String:
+	return characteristics.get(&"hud_name", name)
+
+
+func set_hud_name(value: String) -> void:
+	if value != name:
+		characteristics[&"hud_name"] = value
+
+
+func get_symbol() -> String:
+	return characteristics.get(&"symbol", "\u25CC") # default is dashed circle
+
+
+func set_symbol(value: String) -> void:
+	if value != "\u25CC":
+		characteristics[&"symbol"] = value
+
+
+func get_body_class() -> int: # body_classes.tsv
+	return characteristics.get(&"body_class", -1)
+
+
+func set_body_class(value: int) -> void:
+	characteristics[&"body_class"] = value
+
+
+func get_mass() -> float:
+	return characteristics.get(&"mass", 0.0)
+
+
+func set_mass(value: float) -> void:
+	characteristics[&"mass"] = value
+
+
+func get_standard_gravitational_parameter() -> float:
+	return characteristics.get(&"GM", 0.0)
+
+
+func set_standard_gravitational_parameter(value: float) -> void:
+	characteristics[&"GM"] = value
+
+
 func get_system_radius() -> float:
-	# Defines radius for a top view.
-	return characteristics.system_radius
+	# From data table or set to outermost satellite semi-major axis.
+	return characteristics.get(&"system_radius", 0.0)
+
+
+func set_system_radius(value: float) -> void:
+	characteristics[&"system_radius"] = value
 
 
 func get_perspective_radius() -> float:
-	# For camera perspective distancing.
-	var perspective_radius: float = characteristics.get("perspective_radius", 0.0)
+	# For camera perspective distancing. Same as m_radius unless something
+	# different is needed.
+	var perspective_radius: float = characteristics.get(&"perspective_radius", 0.0)
 	if perspective_radius:
 		return perspective_radius
 	return m_radius
 
 
+func set_perspective_radius(value: float) -> void:
+	assert(value > 0.0)
+	if value != get_perspective_radius():
+		characteristics[&"perspective_radius"] = value
+
+
 func get_equatorial_radius() -> float:
-	var e_radius: float = characteristics.get("e_radius", 0.0)
+	var e_radius: float = characteristics.get(&"e_radius", 0.0)
 	if e_radius:
 		return e_radius
 	return m_radius
 
 
+func set_equatorial_radius(value: float) -> void:
+	# Will also modify p_radius so that:
+	# m_radius = (p_radius + 2.0 * e_radius) / 3.0.
+	if value != get_equatorial_radius():
+		characteristics[&"e_radius"] = value
+		characteristics[&"p_radius"] = 3.0 * m_radius - 2.0 * value
+
+
 func get_polar_radius() -> float:
-	var p_radius: float = characteristics.get("p_radius", 0.0)
+	var p_radius: float = characteristics.get(&"p_radius", 0.0)
 	if p_radius:
 		return p_radius
 	return m_radius
 
 
-func get_rotation_period() -> float:
-	return characteristics.get("rotation_period", 0.0)
+func set_polar_radius(value: float) -> void:
+	# Will also modify e_radius so that:
+	# m_radius = (p_radius + 2.0 * e_radius) / 3.0.
+	if value != get_polar_radius():
+		characteristics[&"p_radius"] = value
+		characteristics[&"e_radius"] = (3.0 * m_radius - value) / 2.0
+
+
+# get onlys below; set is invalid or may need some work to do
+
+func get_model_type() -> int: # models.tsv
+	return characteristics.get(&"model_type", -1)
+
+
+func has_omni_light() -> bool:
+	return characteristics.get(&"omni_light_type", -1) != -1
+
+
+func get_omni_light_type() -> int:
+	return characteristics.get(&"omni_light_type", -1)
+
+
+func get_file_prefix() -> String:
+	return characteristics.get(&"file_prefix", "")
+
+
+func has_rings() -> bool:
+	return characteristics.has(&"rings_radius")
+
+
+func get_rings_file_prefix() -> String:
+	return characteristics.get(&"rings_file_prefix", "")
+
+
+func get_rings_inner_radius() -> float:
+	return characteristics.get(&"rings_inner_radius", 0.0)
+
+
+func get_rings_outer_radius() -> float:
+	return characteristics.get(&"rings_outer_radius", 0.0)
 
 
 func get_latitude_longitude(at_translation: Vector3, time := NAN) -> Vector2:
@@ -408,8 +528,8 @@ func get_orbit_inclination_to_equator(time := NAN) -> float:
 	if !orbit or flags & IS_TOP:
 		return NAN
 	var orbit_normal := orbit.get_normal(time)
-	@warning_ignore("unsafe_method_access") # TODO34: Self-type ok now?
-	var positive_pole: Vector3 = get_parent().get_positive_pole(time)
+	var parent: IVBody = get_parent_node_3d()
+	var positive_pole: Vector3 = parent.get_positive_pole(time)
 	return orbit_normal.angle_to(positive_pole)
 
 
@@ -460,8 +580,8 @@ func get_hill_sphere(eccentricity := 0.0) -> float:
 		return INF
 	var a := get_orbit_semi_major_axis()
 	var mass := get_mass()
-	@warning_ignore("unsafe_method_access") # TODO34: Self-type ok now?
-	var parent_mass: float = get_parent_node_3d().get_mass()
+	var parent: IVBody = get_parent_node_3d()
+	var parent_mass: float = parent.get_mass()
 	if !a or !mass or !parent_mass:
 		return 0.0
 	return a * (1.0 - eccentricity) * pow(mass / (3.0 * parent_mass), 0.33333333)
@@ -470,7 +590,6 @@ func get_hill_sphere(eccentricity := 0.0) -> float:
 # ivoyager mechanics below
 
 func set_model_parameters(reference_basis: Basis, max_dist: float) -> void:
-	# TODO: Keep in ModelManager (should maintain its own lazy init data).
 	model_reference_basis = reference_basis
 	max_model_dist = max_dist
 
@@ -491,20 +610,13 @@ func remove_child_from_model_space(spatial: Node3D) -> void:
 		model_space = null
 
 
-func set_orbit(orbit_: IVOrbit) -> void: # null ok
-	if orbit_:
-		components.orbit = orbit_
-	else:
-		components.erase("orbit")
-	if !is_inside_tree():
-		return
-	if orbit:
-		orbit.disconnect_interval_update()
-		orbit.changed.disconnect(_on_orbit_changed)
+func set_orbit(orbit_: IVOrbit) -> void:
+	assert(orbit_)
 	orbit = orbit_
-	if orbit_:
-		orbit_.reset_elements_and_interval_update()
-		orbit_.changed.connect(_on_orbit_changed)
+	if !is_inside_tree():
+		return # do below on _enter_tree()
+	orbit_.reset_elements_and_interval_update()
+	orbit_.changed.connect(_on_orbit_changed)
 
 
 func set_sleep(sleep_: bool) -> void: # called by IVSleepManager
@@ -563,7 +675,7 @@ func get_fragment_text(_data: Array) -> String:
 	return tr(name) + " (" + tr("LABEL_ORBIT").to_lower() + ")"
 
 
-func reset_orientation_and_rotation() -> void:
+func recalculate_spatials() -> void:
 	# Sets 'rotation_rate', 'rotation_vector' and 'rotation_at_epoch' and
 	# (possibly) associated values in 'characteristics'. For planets, these are
 	# fixed values determined by table-loaded 'characteristics.RA', '.dec' and
@@ -585,27 +697,23 @@ func reset_orientation_and_rotation() -> void:
 	var new_rotation_rate: float
 	if flags & IS_TIDALLY_LOCKED:
 		new_rotation_rate = orbit.get_mean_motion()
-		characteristics.rotation_period = TAU / new_rotation_rate
+		rotation_period = TAU / new_rotation_rate
 	else:
-		var rotation_period: float = characteristics.rotation_period
 		new_rotation_rate = TAU / rotation_period
 	# rotation_vector
 	var new_rotation_vector: Vector3
 	if flags & IS_AXIS_LOCKED:
 		new_rotation_vector = orbit.get_normal()
 		var ra_dec := math.get_spherical2(new_rotation_vector)
-		characteristics.right_ascension = ra_dec[0]
-		characteristics.declination = ra_dec[1]
+		right_ascension = ra_dec[0]
+		declination = ra_dec[1]
 	elif flags & TUMBLES_CHAOTICALLY:
 		# TODO: something sensible for Hyperion
-		characteristics.right_ascension = 0.0
-		characteristics.declination = 0.0
 		new_rotation_vector = _ecliptic_rotation * math.convert_spherical2(0.0, 0.0)
 	else:
-		var ra: float = characteristics.right_ascension
-		var dec: float = characteristics.declination
-		new_rotation_vector = _ecliptic_rotation * math.convert_spherical2(ra, dec)
-	var new_rotation_at_epoch: float = characteristics.get("longitude_at_epoch", 0.0)
+		new_rotation_vector = _ecliptic_rotation * math.convert_spherical2(
+				right_ascension, declination)
+	var new_rotation_at_epoch: float = characteristics.get(&"longitude_at_epoch", 0.0)
 	
 	if orbit:
 		if flags & IS_TIDALLY_LOCKED:
@@ -657,7 +765,7 @@ func _add_rotating_space() -> void:
 	var characteristic_length := orbit.get_semimajor_axis()
 	var characteristic_time := orbit.get_orbit_period()
 	var RotatingSpaceScript: Script = IVGlobal.procedural_classes[&"RotatingSpace"]
-	@warning_ignore("unsafe_method_access") # possible replacement class
+	@warning_ignore("unsafe_method_access")
 	rotating_space = RotatingSpaceScript.new()
 	rotating_space.init(mass_ratio, characteristic_length, characteristic_time)
 	var translation_ := orbit.get_position()
@@ -671,7 +779,7 @@ func _add_rotating_space() -> void:
 
 func _on_orbit_changed(_is_scheduled: bool) -> void:
 	if flags & IS_TIDALLY_LOCKED or flags & IS_AXIS_LOCKED:
-		reset_orientation_and_rotation()
+		recalculate_spatials()
 #	if !is_scheduled and _state.network_state == IS_SERVER: # sync clients
 #		# scheduled changes happen on client so don't need sync
 #		rpc("_orbit_sync", orbit.reference_normal, orbit.elements_at_epoch, orbit.element_rates,
@@ -689,7 +797,7 @@ func _on_orbit_changed(_is_scheduled: bool) -> void:
 func _on_time_altered(_previous_time: float) -> void:
 	if orbit:
 		orbit.reset_elements_and_interval_update()
-	reset_orientation_and_rotation()
+	recalculate_spatials()
 
 
 func _set_min_hud_dist() -> void:

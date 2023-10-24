@@ -43,7 +43,7 @@ func _enter_tree() -> void:
 	plugin_utils.print_plugin_name_and_version("res://addons/ivoyager_core/plugin.cfg",
 			" - https://ivoyager.dev")
 	_config = plugin_utils.get_config_with_override("res://addons/ivoyager_core/core.cfg",
-			"res://ivoyager_override.cfg", "core_")
+			"res://ivoyager_override.cfg", "res://ivoyager_override2.cfg")
 	if !_config:
 		return
 	if !plugin_utils.config_exists("res://ivoyager_override.cfg"):

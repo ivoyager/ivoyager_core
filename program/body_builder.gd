@@ -29,7 +29,8 @@ const BodyFlags := IVEnums.BodyFlags
 
 var enable_precisions := IVCoreSettings.enable_precisions
 
-var characteristics_fields: Array[StringName] = [ # only added if exists
+var characteristics_fields: Array[StringName] = [
+	# Added to characteristics only if exists in table.
 	&"symbol",
 	&"hud_name",
 	&"body_class",
@@ -53,6 +54,8 @@ var characteristics_fields: Array[StringName] = [ # only added if exists
 	&"esc_vel",
 	&"m_radius",
 	&"e_radius",
+	&"system_radius",
+	&"perspective_radius",
 	&"right_ascension",
 	&"declination",
 	&"longitude_at_epoch",
@@ -84,6 +87,13 @@ var characteristics_fields: Array[StringName] = [ # only added if exists
 	&"color_b_v",
 	&"metallicity",
 	&"age",
+]
+
+var move_from_characteristics_to_property: Array[StringName] = [
+	&"m_radius",
+	&"rotation_period",
+	&"right_ascension",
+	&"declination",
 ]
 
 var flag_fields := {
@@ -178,8 +188,16 @@ func _set_orbit_from_table(body: IVBody, parent: IVBody) -> void:
 func _set_characteristics_from_table(body: IVBody) -> void:
 	var characteristics := body.characteristics
 	IVTableData.db_build_dictionary(characteristics, characteristics_fields, _table_name, _row)
-	assert(characteristics.has(&"m_radius"))
-	var m_radius: float = characteristics[&"m_radius"]
+	assert(characteristics.has(&"m_radius"), "Table must supply 'm_radius'")
+	
+	for property in move_from_characteristics_to_property:
+		if characteristics.has(property):
+			body.set(property, characteristics[property])
+			characteristics.erase(property)
+	
+	var m_radius: float = body.m_radius
+	#body.m_radius = m_radius
+	#characteristics.erase(&"m_radius")
 	if enable_precisions:
 		var precisions := IVTableData.get_db_float_precisions(characteristics_fields, _table_name, _row)
 		var n_fields := characteristics_fields.size()
@@ -193,7 +211,7 @@ func _set_characteristics_from_table(body: IVBody) -> void:
 			i += 1
 	# Assign missing characteristics where we can
 	if characteristics.has(&"e_radius"):
-		characteristics[&"p_radius"] = 3.0 * characteristics[&"m_radius"] - 2.0 * characteristics[&"e_radius"]
+		characteristics[&"p_radius"] = 3.0 * m_radius - 2.0 * characteristics[&"e_radius"]
 		if enable_precisions:
 			var precision := IVTableData.get_db_least_float_precision(_table_name, [&"m_radius", &"e_radius"], _row)
 			_real_precisions[&"body/characteristics/p_radius"] = precision

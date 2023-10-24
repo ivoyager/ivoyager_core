@@ -160,7 +160,7 @@ var section_content: Array[Array] = [
 			as_float],
 		[&"LABEL_AGE", "body/characteristics/age", NULL_ARRAY,
 			fixed_unit.bind(&"yr")],
-		[&"LABEL_ROTATION_PERIOD", "body/characteristics/rotation_period", NULL_ARRAY,
+		[&"LABEL_ROTATION_PERIOD", "body/rotation_period", NULL_ARRAY,
 			fixed_unit.bind(&"d", true, 5)],
 		[&"LABEL_AXIAL_TILT_TO_ORBIT", "body/get_axial_tilt_to_orbit", NULL_ARRAY,
 			fixed_unit.bind(&"deg", true, 4)],
@@ -203,7 +203,7 @@ var body_flags_test := { # show criteria
 }
 
 var value_postprocessors := {
-	"body/characteristics/rotation_period" : mod_rotation_period,
+	"body/rotation_period" : mod_rotation_period,
 	"body/get_axial_tilt_to_orbit" : mod_axial_tilt_to_orbit,
 	"body/get_axial_tilt_to_ecliptic" : mod_axial_tilt_to_ecliptic,
 	"body/characteristics/n_kn_dwf_planets" : mod_n_kn_dwf_planets,
@@ -452,6 +452,8 @@ func _start_timer_coroutine() -> void:
 
 
 func _update_selection(_dummy := false) -> void:
+	if !_state.is_running:
+		return
 	_selection = _selection_manager.selection
 	if !_selection:
 		return
