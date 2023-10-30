@@ -28,7 +28,7 @@ extends IVCacheManager
 const BodyFlags: Dictionary = IVEnums.BodyFlags
 
 
-func _init():
+func _init() -> void:
 	# project vars - modify on signal 'IVGlobal.project_objects_instantiated'
 	cache_file_name = "settings.ivbinary"
 	cache_file_version = 1

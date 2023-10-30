@@ -40,7 +40,7 @@ var _has_mouse := false
 @onready var _texture_rect: TextureRect = $TextureRect
 
 
-func _ready():
+func _ready() -> void:
 	IVGlobal.about_to_start_simulator.connect(_build)
 	IVGlobal.update_gui_requested.connect(_update_selection)
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear)

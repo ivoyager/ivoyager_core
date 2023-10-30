@@ -41,7 +41,7 @@ var _settings: Dictionary = IVGlobal.settings
 @onready var _settings_manager: IVSettingsManager = IVGlobal.program[&"SettingsManager"]
 
 
-func _init():
+func _init() -> void:
 	# Edit layout directly or use parent class functions at project init.
 	
 	var column1: Array[Dictionary] = [ # each dict is a subpanel
@@ -105,8 +105,8 @@ func _build_item(setting: StringName, setting_label_str: StringName) -> HBoxCont
 	default_button.text = "!"
 	default_button.disabled = _settings_manager.is_default(setting)
 	default_button.pressed.connect(_restore_default.bind(setting))
-	var value = _settings[setting]
-	var default_value = _settings_manager.defaults[setting]
+	var value: Variant = _settings[setting]
+	var default_value: Variant = _settings_manager.defaults[setting]
 	var type := typeof(default_value)
 	match type:
 		TYPE_BOOL:

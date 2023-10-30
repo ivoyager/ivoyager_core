@@ -94,10 +94,10 @@ static func init_from_config(object: Object, config: ConfigFile, section: String
 			var array: Array = object.get(array_name)
 			var mod_array: Array = value
 			if array_cmd == "append":
-				for item in mod_array:
+				for item: Variant in mod_array:
 					array.append(item)
 			elif array_cmd == "erase":
-				for item in mod_array:
+				for item: Variant in mod_array:
 					array.erase(item)
 			else:
 				push_warning("'%s'. must be followed by 'append' or 'erase'" % key)

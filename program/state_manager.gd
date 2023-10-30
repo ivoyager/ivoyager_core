@@ -59,8 +59,8 @@ extends Node
 signal run_threads_allowed() # ok to start threads that affect gamestate
 signal run_threads_must_stop() # finish threads that affect gamestate
 signal threads_finished() # all blocking threads removed
-signal client_is_dropping_out(is_exit)
-signal server_about_to_stop(network_sync_type) # IVEnums.NetworkStopSync; server only
+signal client_is_dropping_out(is_exit: bool)
+signal server_about_to_stop(network_sync_type: int) # IVEnums.NetworkStopSync; server only
 signal server_about_to_run() # server only
 
 const NO_NETWORK = IVEnums.NetworkState.NO_NETWORK

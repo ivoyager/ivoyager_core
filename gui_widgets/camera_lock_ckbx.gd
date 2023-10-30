@@ -25,7 +25,7 @@ extends CheckBox
 var _camera: IVCamera
 
 
-func _ready():
+func _ready() -> void:
 	IVGlobal.camera_ready.connect(_connect_camera)
 	_connect_camera(get_viewport().get_camera_3d() as IVCamera) # null ok
 

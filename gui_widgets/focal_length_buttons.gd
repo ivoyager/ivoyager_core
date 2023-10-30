@@ -28,7 +28,7 @@ var _camera: IVCamera
 @onready var _fl_incr: Button = $Plus
 
 
-func _ready():
+func _ready() -> void:
 	IVGlobal.camera_ready.connect(_connect_camera)
 	_fl_decr.pressed.connect(_increment_focal_length.bind(-1))
 	_fl_incr.pressed.connect(_increment_focal_length.bind(1))

@@ -31,7 +31,7 @@ extends RefCounted
 #   1. Interpret unicode escape "\uHHHH" (patches Godot issue #38716)
 
 
-func _init():
+func _init() -> void:
 	_load_translations()
 	IVGlobal.translations_imported.emit()
 	
@@ -40,7 +40,7 @@ func _init():
 
 func _load_translations() -> void:
 	var load_dict := {}
-	var duplications := []
+	var duplications: Array[Array] = []
 	for tr_path in IVCoreSettings.translations:
 		var translation: Translation = load(tr_path)
 		if translation is OptimizedTranslation:
@@ -65,7 +65,7 @@ func _load_translations() -> void:
 
 
 func _process_translation(translation: Translation, load_dict: Dictionary,
-		duplications: Array) -> void:
+		duplications: Array[Array]) -> void:
 	for txt_key in translation.get_message_list():
 		# Duplicate test.
 		if load_dict.has(txt_key):

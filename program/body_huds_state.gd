@@ -84,7 +84,7 @@ func _ivcore_init() -> void:
 	_set_current_to_default()
 
 
-func _unhandled_key_input(event: InputEvent):
+func _unhandled_key_input(event: InputEvent) -> void:
 	# Only Body HUDs, for now...
 	if event.is_action_pressed(&"toggle_orbits"):
 		set_all_orbits_visibility(bool(orbit_visible_flags != all_flags))
@@ -320,24 +320,24 @@ func set_orbit_color(body_flags: int, color: Color) -> void:
 func get_non_default_orbit_colors() -> Dictionary:
 	# key-values equal to default are skipped
 	var dict := {}
-	for key in orbit_colors:
-		if orbit_colors[key] != default_orbit_colors[key]:
-			dict[key] = orbit_colors[key]
+	for flag: int in orbit_colors:
+		if orbit_colors[flag] != default_orbit_colors[flag]:
+			dict[flag] = orbit_colors[flag]
 	return dict
 
 
 func set_all_orbit_colors(dict: Dictionary) -> void:
 	# missing key-values are set to default
 	var is_change := false
-	for key in orbit_colors:
-		if dict.has(key):
-			if orbit_colors[key] != dict[key]:
+	for flag: int in orbit_colors:
+		if dict.has(flag):
+			if orbit_colors[flag] != dict[flag]:
 				is_change = true
-				orbit_colors[key] = dict[key]
+				orbit_colors[flag] = dict[flag]
 		else:
-			if orbit_colors[key] != default_orbit_colors[key]:
+			if orbit_colors[flag] != default_orbit_colors[flag]:
 				is_change = true
-				orbit_colors[key] = default_orbit_colors[key]
+				orbit_colors[flag] = default_orbit_colors[flag]
 	if is_change:
 		color_changed.emit()
 

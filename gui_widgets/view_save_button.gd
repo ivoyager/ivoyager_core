@@ -25,7 +25,7 @@ extends Button
 #
 # Can be placed inside an IVViewSaveFlow.
 
-signal view_saved(view_name)
+signal view_saved(view_name: StringName)
 
 var _view_save_popup: IVViewSavePopup
 var _view_saver: IVViewSaver
@@ -63,7 +63,7 @@ func _on_view_saved(view_name: String) -> void:
 	view_saved.emit(view_name)
 
 
-func _on_toggled(toggle_pressed) -> void:
+func _on_toggled(toggle_pressed: bool) -> void:
 	if !_view_save_popup:
 		return
 	if toggle_pressed:

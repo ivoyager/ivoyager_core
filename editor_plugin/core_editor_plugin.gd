@@ -78,7 +78,7 @@ func _create_override_config() -> void:
 		+ "autoload singletons, shader globals, base settings defined in singletons/core_settings.gd\n"
 		+ "or base classes defined in singletons/core_initializer.gd.\n"
 	)
-	var dir = DirAccess.open("res://addons/ivoyager_core/")
+	var dir := DirAccess.open("res://addons/ivoyager_core/")
 	var err := dir.copy("res://addons/ivoyager_core/override_template.cfg",
 			"res://ivoyager_override.cfg")
 	if err != OK:
@@ -92,14 +92,14 @@ func _add_autoloads() -> void:
 			assert(typeof(value) == TYPE_STRING,
 					"'%s' must specify a path as String" % autoload_name)
 			_autoloads[autoload_name] = value
-	for autoload_name in _autoloads:
+	for autoload_name: String in _autoloads:
 #		await get_tree().process_frame
 		var path: String = _autoloads[autoload_name]
 		add_autoload_singleton(autoload_name, path)
 
 
 func _remove_autoloads() -> void:
-	for autoload_name in _autoloads:
+	for autoload_name: String in _autoloads:
 		remove_autoload_singleton(autoload_name)
 	_autoloads.clear()
 
@@ -111,7 +111,7 @@ func _add_shader_globals() -> void:
 			assert(typeof(value) == TYPE_DICTIONARY,
 				"'%s' must specify a Dictionary" % global_name)
 			_shader_globals[global_name] = value
-	for global_name in _shader_globals:
+	for global_name: String in _shader_globals:
 		var dict: Dictionary = _shader_globals[global_name]
 		ProjectSettings.set_setting("shader_globals/" + global_name, dict)
 		# These don't show up in editor menu immediately, but are in project.godot
@@ -120,7 +120,7 @@ func _add_shader_globals() -> void:
 
 
 func _remove_shader_globals() -> void:
-	for global_name in _shader_globals:
+	for global_name: String in _shader_globals:
 		ProjectSettings.set_setting("shader_globals/" + global_name, null)
 	ProjectSettings.save() # Does this do anything...???
 	_shader_globals.clear()

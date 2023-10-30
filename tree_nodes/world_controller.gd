@@ -35,10 +35,10 @@ extends Control
 #  The single instance of this node is added by IVCoreInitializer.
 
 
-signal mouse_target_changed(target)
-signal mouse_target_clicked(target, button_mask, key_modifier_mask)
-signal mouse_dragged(drag_vector, button_mask, key_modifier_mask)
-signal mouse_wheel_turned(is_up)
+signal mouse_target_changed(target: Object)
+signal mouse_target_clicked(target: Object, button_mask: int, key_modifier_mask: int)
+signal mouse_dragged(drag_vector: Vector2, button_mask: int, key_modifier_mask: int)
+signal mouse_wheel_turned(is_up: bool)
 
 
 # read-only!
@@ -46,7 +46,7 @@ var current_target: Object = null
 
 # private
 var _world_targeting: Array = IVGlobal.world_targeting
-var _pause_only_stops_time = IVCoreSettings.pause_only_stops_time
+var _pause_only_stops_time: bool = IVCoreSettings.pause_only_stops_time
 var _drag_start := Vector2.ZERO
 var _drag_segment_start := Vector2.ZERO
 var _has_mouse := true

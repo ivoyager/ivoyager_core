@@ -25,8 +25,8 @@ extends Node
 # search up their ancestor tree and obtain from the first Control node with
 # non-null member 'selection_manager'.
 
-signal selection_changed(suppress_camera_move)
-signal selection_reselected(suppress_camera_move)
+signal selection_changed(suppress_camera_move: bool)
+signal selection_reselected(suppress_camera_move: bool)
 
 enum {
 	# not all of these are implemented yet...

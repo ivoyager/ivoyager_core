@@ -47,7 +47,7 @@ func _init(body: IVBody, image_size: float, selection_manager: IVSelectionManage
 	mouse_exited.connect(_on_mouse_exited)
 
 
-func _ready():
+func _ready() -> void:
 	IVGlobal.update_gui_requested.connect(_update_selection)
 	_selection_manager.selection_changed.connect(_update_selection)
 	_selection_manager.selection_reselected.connect(_update_selection)

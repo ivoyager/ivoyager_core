@@ -42,8 +42,8 @@ extends Node3D
 # anytime it changes in a 'non-schedualed' way (e.g., impulse from a rocket
 # engine).
 
-signal huds_visibility_changed(is_visible)
-signal model_visibility_changed(is_visible)
+signal huds_visibility_changed(is_visible: bool)
+signal model_visibility_changed(is_visible: bool)
 
 
 const math := preload("res://addons/ivoyager_core/static/math.gd") # =IVMath when issue #37529 fixed

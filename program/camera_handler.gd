@@ -77,7 +77,7 @@ var _rotate_pressed := Vector3.ZERO
 @onready var _key_roll_rate: float = _settings[&"camera_key_roll_rate"] * key_roll_adj
 
 
-func _ready():
+func _ready() -> void:
 	IVGlobal.system_tree_ready.connect(_on_system_tree_ready)
 	IVGlobal.about_to_free_procedural_nodes.connect(_restore_init_state)
 	IVGlobal.camera_ready.connect(_connect_camera)

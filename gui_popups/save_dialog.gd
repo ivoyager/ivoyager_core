@@ -42,7 +42,7 @@ func _ivcore_init() -> void:
 			+ IVCoreSettings.save_file_extension_name)
 
 
-func _ready():
+func _ready() -> void:
 	IVGlobal.save_dialog_requested.connect(_open)
 	IVGlobal.close_all_admin_popups_requested.connect(_close)
 	file_selected.connect(_save_file)

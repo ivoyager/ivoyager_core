@@ -24,7 +24,7 @@ extends VBoxContainer
 # IVViewSavePopup and works in conjunction with IVViewSaveFlow (which shows
 # the resultant saved view buttons).
 
-signal view_saved(view_name)
+signal view_saved(view_name: StringName)
 
 
 var default_view_name := &"LABEL_CUSTOM1" # will increment if taken
@@ -98,7 +98,7 @@ func _unset_exclusive(is_pressed: bool, exclusive_button: CheckBox) -> void:
 		exclusive_button.button_pressed = false
 
 
-func _on_visibility_changed():
+func _on_visibility_changed() -> void:
 	if is_visible_in_tree():
 		_increment_name_as_needed()
 		_line_edit.select_all()

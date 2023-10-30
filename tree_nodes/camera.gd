@@ -36,14 +36,14 @@ extends Camera3D
 # they appear to be. In the transition distance they are intermediate.
 # This system *may* break for objects smaller than meters (not tested yet).
 
-signal move_started(to_spatial, is_camera_lock) # to_spatial is not parent yet
-signal parent_changed(spatial)
-signal range_changed(camera_range)
-signal latitude_longitude_changed(lat_long, is_ecliptic, selection)
-signal focal_length_changed(focal_length)
-signal camera_lock_changed(is_camera_lock)
-signal up_lock_changed(flags, disabled_flags)
-signal tracking_changed(flags, disabled_flags)
+signal move_started(to_spatial: Node3D, is_camera_lock: bool) # to_spatial is not parent yet
+signal parent_changed(spatial: Node3D)
+signal range_changed(camera_range: float)
+signal latitude_longitude_changed(lat_long: Vector2, is_ecliptic: bool, selection: IVSelection)
+signal focal_length_changed(focal_length: float)
+signal camera_lock_changed(is_camera_lock: bool)
+signal up_lock_changed(flags: int, disabled_flags: int)
+signal tracking_changed(flags: int, disabled_flags: int)
 
 
 const math := preload("res://addons/ivoyager_core/static/math.gd")
@@ -288,7 +288,7 @@ func move_to(to_selection: IVSelection, to_flags := 0, to_view_position := NULL_
 	# if track change w/out specified longitude, go to current longitude in new reference frame
 	if is_track_change and to_view_position.x == -INF:
 		var current_basis := _get_reference_basis(selection, flags)
-		var current_view_position = math.get_rotated_spherical3(position, current_basis)
+		var current_view_position := math.get_rotated_spherical3(position, current_basis)
 		to_view_position.x = current_view_position.x
 	
 	# set position & rotaion
@@ -355,7 +355,7 @@ func increment_focal_length(increment: int) -> void:
 		set_focal_length_index(new_fl_index, false)
 
 
-func set_focal_length_index(new_fl_index, _suppress_move := false) -> void:
+func set_focal_length_index(new_fl_index: int, _suppress_move := false) -> void:
 	focal_length_index = new_fl_index
 	focal_length = focal_lengths[focal_length_index]
 	fov = math.get_fov_from_focal_length(focal_length)
@@ -530,7 +530,7 @@ func _process_motion(delta: float) -> void:
 		# view_rotations.
 		var spin_dampener := cos(view_position.y)
 		move_now.x *= spin_dampener
-		var latitude = view_position.y + move_now.y
+		var latitude := view_position.y + move_now.y
 		if latitude > POLE_LIMITER:
 			move_now.y = POLE_LIMITER - view_position.y
 		elif latitude < -POLE_LIMITER:
@@ -596,7 +596,7 @@ func _process_rotation(delta: float) -> void:
 	# apply rotation to a view basis, then to _transform
 	var view_basis := Basis.from_euler(view_rotations) # TEST34: default order ok?
 	if is_up_locked: # use a pole limiter for pitch, don't roll
-		var pitch = view_rotations.x + rotate_now.x
+		var pitch := view_rotations.x + rotate_now.x
 		if pitch > POLE_LIMITER:
 			rotate_now.x = POLE_LIMITER - view_rotations.x
 		elif pitch < -POLE_LIMITER:

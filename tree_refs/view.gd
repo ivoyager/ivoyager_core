@@ -163,7 +163,7 @@ func set_data_from_cache(data: Variant) -> bool:
 	var data_array: Array = data
 	if !data_array:
 		return false
-	var version_hash = data_array[-1] # untyped for safety
+	var version_hash: Variant = data_array[-1] # untyped for safety
 	if typeof(version_hash) != TYPE_INT:
 		return false
 	if version_hash != _version_hash:

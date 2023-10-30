@@ -124,7 +124,7 @@ func add_item(item: StringName, setting_label_str: StringName, header: StringNam
 				# Dictionaries are ordered but there is no insert!
 				var new_subpanel_dict := {}
 				var index := 0
-				for key in subpanel_dict:
+				for key: StringName in subpanel_dict:
 					new_subpanel_dict[key] = subpanel_dict[key] # 1st is header
 					if index == at_index:
 						new_subpanel_dict[item] = setting_label_str
@@ -157,7 +157,7 @@ func _build_content() -> void:
 	for column_array in layout:
 		var column_vbox := VBoxContainer.new()
 		_content_container.add_child(column_vbox)
-		for subpanel_dict in column_array:
+		for subpanel_dict: Dictionary in column_array:
 			var subpanel_container := PanelContainer.new()
 			column_vbox.add_child(subpanel_container)
 			var subpanel_vbox := VBoxContainer.new()

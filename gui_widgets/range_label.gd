@@ -29,7 +29,7 @@ var qformat := IVQFormat # TODO: Change to const when Godot allows
 var _camera: IVCamera
 
 
-func _ready():
+func _ready() -> void:
 	IVGlobal.camera_ready.connect(_connect_camera)
 	_connect_camera(get_viewport().get_camera_3d() as IVCamera) # null ok
 

@@ -40,7 +40,7 @@ func _init() -> void:
 
 
 func _load_resource_paths() -> void:
-	for key in _shared_resources:
+	for key: StringName in _shared_resources:
 		var path_or_resource: Variant = _shared_resources[key]
 		var type := typeof(path_or_resource)
 		if type == TYPE_OBJECT:
@@ -54,7 +54,7 @@ func _load_resource_paths() -> void:
 
 
 func _make_shared_resources() -> void:
-	for key in constructor_callables:
+	for key: StringName in constructor_callables:
 		var constructor: Callable = constructor_callables[key]
 		_shared_resources[key] = constructor.call()
 

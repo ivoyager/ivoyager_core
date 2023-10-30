@@ -23,7 +23,8 @@ const SCENE := "res://addons/ivoyager_core/gui_popups/hotkey_dialog.tscn"
 
 # Used by IVHotkeysPopup.
 
-signal hotkey_confirmed(action, keycode, control, alt, shift, meta)
+signal hotkey_confirmed(action: StringName, index: int, keycode: int,
+		control: bool, alt: bool, shift: bool, meta: bool)
 
 var _in_use_color: Color = IVCoreSettings.colors.danger
 var _ok_color: Color = IVCoreSettings.colors.normal
@@ -39,7 +40,7 @@ var _layout: Array
 @onready var _input_map_manager: IVInputMapManager = IVGlobal.program[&"InputMapManager"]
 
 
-func _ready():
+func _ready() -> void:
 	confirmed.connect(_on_confirmed)
 	_key_delete.pressed.connect(_on_key_delete)
 	focus_exited.connect(_keep_focus)
@@ -111,7 +112,7 @@ func open(action: StringName, index: int, action_label_str: StringName, key_as_t
 	_keep_focus()
 
 
-func _on_key_delete():
+func _on_key_delete() -> void:
 	_dialog_label.text = &"LABEL_PRESS_A_KEY_TO_ADD"
 	_key_label.text = ""
 	_key_delete.hide()
