@@ -38,7 +38,7 @@ func _ready() -> void:
 	pressed.connect(_set_real_world)
 
 
-func _update_ckbx(_dummy = false) -> void:
+func _update_ckbx(_dummy: Variant = false) -> void:
 	button_pressed = _timekeeper.is_now
 
 
