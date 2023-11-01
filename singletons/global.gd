@@ -109,7 +109,6 @@ var blocking_windows: Array[Window] = [] # add Windows that want & test for excl
 
 # read-only!
 var ivoyager_version: String
-var is_html5: bool = OS.has_feature('JavaScript')
 var wiki: String # IVWikiInitializer sets; "wiki" (internal), "en.wiki", etc.
 var debug_log: FileAccess # IVLogInitializer sets if debug build and debug_log_path
 
