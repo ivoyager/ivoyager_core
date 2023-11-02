@@ -621,12 +621,23 @@ func _get_view_transform(view_position_: Vector3, view_rotations_: Vector3,
 	view_position_.z = clamp(_convert_perspective_dist(view_position_.z, perspective_radius_),
 			MIN_DIST_RADII_METERS, _max_dist)
 	var view_translation := math.convert_rotated_spherical3(view_position_, reference_basis)
-	
-	# FIXME: Below line breaks when METER is set to low values (e.g., ~1e-9)
-	# due to Godot thinking origin == target.
+	if !view_translation: # never observed
+		view_translation = Vector3(KM, KM, KM)
+	var translation_multiplier := 1.0
+	if view_translation.is_zero_approx():
+		# This happens when METER <= 1e-6 when at a Juno-sized object, and
+		# causes looking_at() to throw an error. The multiplier fix allows us
+		# to set METER to extremely low values (eg, 1e-13) without any view
+		# issues. (I believe that is_zero_approx() and the looking_at() error
+		# happen at Vector3 values that are way bigger than epsilon. Otherwise,
+		# this hack fix wouldn't work so well.)
+		# TODO: Recode w/out looking_at()
+		translation_multiplier = 1.0 / view_translation.length()
+		view_translation *= translation_multiplier
 	var view_transform := Transform3D(IDENTITY_BASIS, view_translation).looking_at(
 			-view_translation, reference_basis.z)
-	view_transform.basis *= Basis.from_euler(view_rotations_) # TEST34: default order ok?
+	view_transform.basis *= Basis.from_euler(view_rotations_)
+	view_transform.origin /= translation_multiplier
 	return view_transform
 
 
