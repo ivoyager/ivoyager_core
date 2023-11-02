@@ -109,6 +109,9 @@ var blocking_windows: Array[Window] = [] # add Windows that want & test for excl
 
 # read-only!
 var ivoyager_version: String
+var assets_version: String
+var assets_asteroid_binaries_scale := 1.0
+
 var wiki: String # IVWikiInitializer sets; "wiki" (internal), "en.wiki", etc.
 var debug_log: FileAccess # IVLogInitializer sets if debug build and debug_log_path
 
