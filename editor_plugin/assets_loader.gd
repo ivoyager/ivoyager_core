@@ -20,8 +20,8 @@
 @tool
 extends HTTPRequest
 
-const TEMP_DOWNLOAD_ZIP := "user://ivoyager_assets.zip"
 const ASSETS_DIR := "res://addons/ivoyager_assets"
+const TEMP_DOWNLOAD_ZIP := "user://ivoyager_assets.zip"
 const ZIP_PATH_PREPEND := "res://addons/"
 
 
@@ -65,6 +65,7 @@ func _on_request_completed(result: int, response_code: int, _headers: PackedStri
 		push_error("Could not download ivoyager_assets; result = %s, response_code = %s"
 				% [result, response_code])
 		queue_free()
+		return
 	_replace_assets.call_deferred()
 
 
