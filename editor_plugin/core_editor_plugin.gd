@@ -27,6 +27,11 @@ extends EditorPlugin
 # If you modify autoloads or shader globals, you'll need to disable and re-
 # enable the plugin (or quit and restart the editor) for your changes to have
 # effect.
+#
+# The editor plugin also checks ivoyager_assets presence and version and offers
+# to download and add or replace existing assets if appropriate.
+
+const plugin_utils := preload("plugin_utils.gd")
 
 var _config: ConfigFile # with overrides
 
@@ -39,7 +44,6 @@ func _enter_tree() -> void:
 	if !_is_enable_ok():
 		_disable_self()
 		return
-	const plugin_utils := preload("plugin_utils.gd")
 	plugin_utils.print_plugin_name_and_version("res://addons/ivoyager_core/plugin.cfg",
 			" - https://ivoyager.dev")
 	_config = plugin_utils.get_config_with_override("res://addons/ivoyager_core/core.cfg",
@@ -50,6 +54,7 @@ func _enter_tree() -> void:
 		_create_override_config()
 	_add_autoloads()
 	_add_shader_globals()
+	_handle_assets_update.call_deferred()
 
 
 func _exit_tree() -> void:
@@ -61,7 +66,7 @@ func _exit_tree() -> void:
 
 func _is_enable_ok() -> bool:
 	if !get_editor_interface().is_plugin_enabled("ivoyager_table_importer"):
-		push_warning("Cannot enable 'ivoyager_core' without 'ivoyager_table_reader'")
+		push_warning("Add and enable 'ivoyager_table_reader' before 'ivoyager_core'!")
 		return false
 	return true
 
@@ -124,4 +129,79 @@ func _remove_shader_globals() -> void:
 		ProjectSettings.set_setting("shader_globals/" + global_name, null)
 	ProjectSettings.save() # Does this do anything...???
 	_shader_globals.clear()
+
+
+func _handle_assets_update() -> void:
+	var expected_version: String = _config.get_value("ivoyager_assets", "version")
+	var present_version := ""
+	var assets_config := plugin_utils.get_config("res://addons/ivoyager_assets/assets.cfg")
+	
+	if assets_config:
+		if assets_config.has_section("ivoyager_assets"):
+			present_version = assets_config.get_value("ivoyager_assets", "version")
+			
+		# TODO: remove below after assets.cfg section rename
+		if assets_config.has_section("assets"):
+			present_version = assets_config.get_value("assets", "version")
+		
+		if present_version == expected_version:
+			return # We're good!
+	
+	var message := ""
+	if !present_version:
+		message = (
+			"""
+			Plugin 'ivoyager_core' requires assets to run!
+			
+			Press 'Download' to download and add directory addons/ivoyager_assets (%s).
+			Watch for feedback in the output terminal.
+			
+			Press 'Cancel' to manage assets manually. See https://ivoyager.dev/developers.
+			"""
+		) % expected_version
+	else:
+		message = (
+			"""
+			'ivoyager_assets' version %s does not match expected %s!
+			
+			Press 'Download' to download %s and replace existing addons/ivoyager_assets.
+			Watch for feedback in the output terminal.
+			
+			Press 'Cancel' to manage assets manually. See https://ivoyager.dev/developers.
+			"""
+		) % [present_version, expected_version, expected_version]
+	
+	# Don't popup exclusive window until the plugins window is closed (if it is open).
+	var last_exclusive_window := get_last_exclusive_window()
+	if last_exclusive_window == get_window(): # ie, there is no exclusive popup window now
+		_popup_download_confirmation(message)
+	else:
+		last_exclusive_window.visibility_changed.connect(_popup_download_confirmation.bind(message),
+				CONNECT_ONE_SHOT)
+
+
+func _popup_download_confirmation(message: String) -> void:
+	
+	# Delay so plugins window can close.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	
+	# Create and destroy one-shot confirmation dialog.
+	var confirm_dialog := ConfirmationDialog.new()
+	confirm_dialog.confirmed.connect(_init_assets_loader)
+	confirm_dialog.confirmed.connect(confirm_dialog.queue_free)
+	confirm_dialog.canceled.connect(confirm_dialog.queue_free)
+	confirm_dialog.dialog_text = message
+	confirm_dialog.ok_button_text = "Download"
+	var editor_gui := EditorInterface.get_base_control()
+	editor_gui.add_child(confirm_dialog)
+	confirm_dialog.popup_centered()
+
+
+func _init_assets_loader() -> void:
+	var version: String = _config.get_value("ivoyager_assets", "version")
+	var path: String = _config.get_value("ivoyager_assets", "download")
+	var size_mib: float = _config.get_value("ivoyager_assets", "download_size_mib")
+	var assets_loader := preload("assets_loader.gd").new(path, version, size_mib)
+	add_child(assets_loader)
 
