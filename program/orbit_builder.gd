@@ -214,7 +214,7 @@ func make_orbit_from_data(table_name: String, table_row: int, parent: IVBody) ->
 
 
 func _reset_table_dict() -> void:
-	for field in _d:
+	for field: StringName in _d:
 		if field != &"ref_plane":
 			_d[field] = NAN
 	_d.ref_plane = &""

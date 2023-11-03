@@ -54,7 +54,7 @@ var _is_built := false
 @onready var _mouse_only_gui_nav: bool = false # IVGlobal.settings.mouse_only_gui_nav
 
 
-func _ready():
+func _ready() -> void:
 	IVGlobal.about_to_start_simulator.connect(_build)
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
 	resized.connect(_resize)
@@ -164,8 +164,7 @@ func _resize() -> void:
 	var widget_width := size.x
 	var column_separation := int(widget_width * column_separation_ratio + 0.5)
 	set(&"theme_override_constants/separation", column_separation)
-	for key in _resize_multipliers:
-		var control: Control = key
+	for control: Control in _resize_multipliers:
 		var multipliers: Vector2 = _resize_multipliers[control]
 		control.custom_minimum_size = multipliers * widget_width
 

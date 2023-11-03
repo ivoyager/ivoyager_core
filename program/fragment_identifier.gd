@@ -35,7 +35,7 @@ extends SubViewport
 # possible using Godot's gdshader language. In any case, this system works
 # surprisingly well even if it seems a little hacky...
 
-signal fragment_changed(id) # -1 on target loss; get data from 'fragment_data'
+signal fragment_changed(id: int) # -1 on target loss; get data from 'fragment_data'
 
 enum { # fragment_type
 	FRAGMENT_BODY_ORBIT,
@@ -230,8 +230,8 @@ func _init_rects_and_arrays() -> void:
 	_src_offset = Vector2.ONE * fragment_range
 	var pxl_center_offsets := range(-fragment_range, fragment_range + 1, 3)
 	var pxl_center_xy_offsets: Array[Array] = []
-	for x in pxl_center_offsets:
-		for y in pxl_center_offsets:
+	for x: int in pxl_center_offsets:
+		for y: int in pxl_center_offsets:
 			pxl_center_xy_offsets.append([x, y] as Array[int])
 	pxl_center_xy_offsets.sort_custom(_sort_pxl_offsets) # prioritize center
 	_n_pxls = pxl_center_xy_offsets.size()
@@ -314,7 +314,7 @@ func _on_frame_post_draw() -> void:
 	_drop_frame_counter += 1
 
 
-func _process_pixel(pxl: int):
+func _process_pixel(pxl: int) -> void:
 	# We're looking for a point shader (e.g., asteroid) signalling its id.
 	# Signals start with a monotonic calibration series, followed by 3 colors
 	# that encode id. If a valid id is read at cycle end, it is registered in

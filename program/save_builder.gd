@@ -278,17 +278,17 @@ func debug_log(save_root: Node) -> String:
 		_log_nodes(save_root)
 		if last_log_count_by_class:
 			_log += "Class counts difference from last count:\n"
-			for class_ in _log_count_by_class:
+			for class_: String in _log_count_by_class:
 				if last_log_count_by_class.has(class_):
 					_log += "%s %s\n" % [class_, _log_count_by_class[class_] - last_log_count_by_class[class_]]
 				else:
 					_log += "%s %s\n" % [class_, _log_count_by_class[class_]]
-			for class_ in last_log_count_by_class:
+			for class_: String in last_log_count_by_class:
 				if !_log_count_by_class.has(class_):
 					_log += "%s %s\n" % [class_, -last_log_count_by_class[class_]]
 		else:
 			_log += "Class counts:\n"
-			for class_ in _log_count_by_class:
+			for class_: String in _log_count_by_class:
 				_log += "%s %s\n" % [class_, _log_count_by_class[class_]]
 	var return_log := _log
 	_log = ""
@@ -317,7 +317,7 @@ func _log_nodes(node: Node) -> void:
 
 # *****************************************************************************
 
-func _reset():
+func _reset() -> void:
 	_gs_n_objects = 1
 	_gs_serialized_nodes = []
 	_gs_serialized_references = []
@@ -364,7 +364,7 @@ func _locate_or_instantiate_objects(save_root: Node) -> void:
 	assert(!DPRINT or IVDebug.dprint("* Registering(/Instancing) Objects for Load *"))
 	_objects.resize(_gs_n_objects)
 	_objects[1] = save_root
-	for serialized_node in _gs_serialized_nodes:
+	for serialized_node: Array in _gs_serialized_nodes:
 		var object_id: int = serialized_node[0]
 		var script_id: int = serialized_node[1]
 		var node: Node
@@ -379,7 +379,7 @@ func _locate_or_instantiate_objects(save_root: Node) -> void:
 			assert(!DPRINT or IVDebug.dprint(object_id, node, script_id, _gs_script_paths[script_id]))
 		assert(node)
 		_objects[object_id] = node
-	for serialized_reference in _gs_serialized_references:
+	for serialized_reference: Array in _gs_serialized_references:
 		var object_id: int = serialized_reference[0]
 		var script_id: int = serialized_reference[1]
 		var script: Script = _scripts[script_id]
@@ -411,7 +411,7 @@ func _build_procedural_tree() -> void:
 
 # Serialize/deserialize functions
 
-func _serialize_node(node: Node):
+func _serialize_node(node: Node) -> void:
 	var serialized_node := []
 	var object_id: int = _object_ids[node]
 	serialized_node.append(object_id) # index 0
@@ -504,7 +504,7 @@ func _deserialize_object_data(serialized_object: Array, is_node: bool) -> void:
 			continue
 		var serialized_array: Array = serialized_object[index]
 		index += 1
-		var decoded_array = _get_decoded_array(serialized_array) # may or may not be content-typed
+		var decoded_array := _get_decoded_array(serialized_array) # may or may not be content-typed
 		var properties: Array = object.get(properties_array)
 		var property_index := 0
 		while property_index < n_properties:
@@ -522,7 +522,7 @@ func _deserialize_object_data(serialized_object: Array, is_node: bool) -> void:
 				var saved_dict: Dictionary = decoded_array[property_index]
 				var object_dict: Dictionary = object.get(property)
 				object_dict.clear()
-				for key in saved_dict:
+				for key: Variant in saved_dict:
 					object_dict[key] = saved_dict[key]
 			else:
 				object.set(property, decoded_array[property_index])
@@ -535,7 +535,7 @@ func _get_encoded_array(array: Array) -> Array:
 	encoded_array.resize(n_items)
 	var index := 0
 	while index < n_items:
-		var item = array[index] # untyped
+		var item: Variant = array[index]
 		var type := typeof(item)
 		if type == TYPE_OBJECT:
 			var item_object: Object = item
@@ -568,7 +568,7 @@ func _get_encoded_dict(dict: Dictionary) -> Dictionary:
 	# packing the gamesave with many redundant key strings.
 	# All keys of type String are converted to StringName!
 	var encoded_dict := {}
-	for key in dict:
+	for key: Variant in dict:
 		if typeof(key) == TYPE_STRING:
 			var key_str: String = key
 			key = StringName(key_str)
@@ -577,7 +577,7 @@ func _get_encoded_dict(dict: Dictionary) -> Dictionary:
 			key_id = _key_ids.size()
 			_key_ids[key] = key_id
 			_gs_dict_keys.append(key)
-		var item = dict[key] # untyped
+		var item: Variant = dict[key]
 		var type := typeof(item)
 		if type == TYPE_OBJECT:
 			var item_object: Object = item
@@ -593,7 +593,7 @@ func _get_encoded_dict(dict: Dictionary) -> Dictionary:
 	return encoded_dict
 
 
-func _get_decoded_array(encoded_array: Array): # return array may or may not be content-typed
+func _get_decoded_array(encoded_array: Array) -> Array: # may or may not be content-typed
 	var array := []
 	
 	# pop array type from the encoded array
@@ -610,7 +610,7 @@ func _get_decoded_array(encoded_array: Array): # return array may or may not be 
 	array.resize(n_items)
 	var index := 0
 	while index < n_items:
-		var item = encoded_array[index] # untyped
+		var item: Variant = encoded_array[index]
 		var type := typeof(item)
 		if type == TYPE_ARRAY:
 			var item_array: Array = item
@@ -629,11 +629,10 @@ func _get_decoded_array(encoded_array: Array): # return array may or may not be 
 
 
 func _get_decoded_dict(encoded_dict: Dictionary) -> Dictionary:
-	# encoded_dict keys are all integers
 	var dict := {}
-	for key_id in encoded_dict:
-		var key = _gs_dict_keys[key_id] # untyped (any String was converted to StringName)
-		var item = encoded_dict[key_id] # untyped
+	for key_id: int in encoded_dict:
+		var key: Variant = _gs_dict_keys[key_id] # untyped (any String was converted to StringName)
+		var item: Variant = encoded_dict[key_id] # untyped
 		var type := typeof(item)
 		if type == TYPE_ARRAY:
 			var item_array: Array = item

@@ -33,7 +33,7 @@ func _ready() -> void:
 	_huds_popup.visibility_changed.connect(_on_visibility_changed)
 
 
-func _on_toggled(toggle_pressed) -> void:
+func _on_toggled(toggle_pressed: bool) -> void:
 	if !_huds_popup:
 		return
 	if toggle_pressed:

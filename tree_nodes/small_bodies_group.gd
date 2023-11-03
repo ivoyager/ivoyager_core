@@ -118,12 +118,14 @@ func read_binary(binary: FileAccess) -> void:
 
 
 func finish_binary_import() -> void:
-	# set max apoapsis and do verbose tally
+	# set scale, max apoapsis and do verbose tally
 	var size := names.size()
 	assert(size)
+	const scale_multiplier := IVUnits.METER
 	var index := 0
 	if lp_integer == -1:
 		while index < size:
+			a_M0_n[index * 3] *= scale_multiplier # a only
 			var a: float = a_M0_n[index * 3]
 			var e: float = e_i_Om_w[index * 4]
 			var apoapsis := a * (1.0 + e)
@@ -133,6 +135,8 @@ func finish_binary_import() -> void:
 	else:
 		var characteristic_length := secondary_body.orbit.get_semimajor_axis()
 		while index < size:
+			a_M0_n[index * 3] *= scale_multiplier # a only
+			da_D_f_th0[index * 4] *= scale_multiplier # da only
 			var da: float = da_D_f_th0[index * 4]
 			var e: float = e_i_Om_w[index * 4]
 			var apoapsis := (characteristic_length + da) * (1.0 + e)

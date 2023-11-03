@@ -24,9 +24,9 @@ extends RefCounted
 
 # project vars - modify on signal project_objects_instantiated
 var fixed_sizes := {
-	two_pt = 2, # hack to allow small button height (e.g., in SystemNavigator)
-	medium = 22,
-	large = 28,
+	&"two_pt" : 2, # hack to allow small button height (e.g., in SystemNavigator)
+	&"medium" : 22,
+	&"large" : 28,
 }
 var gui_main_sizes: Array[int] = [12, 16, 20] # GUI_SMALL, GUI_MEDIUM, GUI_LARGE
 var gui_medium_sizes: Array[int] = [15, 20, 25]
@@ -41,7 +41,7 @@ var _primary_font: FontFile
 func _ivcore_init() -> void:
 	IVGlobal.setting_changed.connect(_settings_listener)
 	_primary_font = IVGlobal.assets[&"primary_font"]
-	for key in fixed_sizes:
+	for key: StringName in fixed_sizes:
 		_fonts[key] = _primary_font.duplicate()
 		_fonts[key].fixed_size = fixed_sizes[key]
 	_fonts[&"gui_main"] = _primary_font.duplicate()

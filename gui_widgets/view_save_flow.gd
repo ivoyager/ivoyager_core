@@ -68,19 +68,19 @@ func _clear() -> void:
 
 
 func _build_view_buttons(_dummy := false) -> void:
-	var view_names := _view_manager.get_view_names_in_group(collection_name, is_cached)
+	var view_names := _view_manager.get_names_in_collection(collection_name, is_cached)
 	for view_name in view_names:
 		_build_view_button(view_name)
 
 
-func _build_view_button(view_name: String) -> void:
+func _build_view_button(view_name: StringName) -> void:
 	var button := RemovableViewButton.new(view_name)
 	button.pressed.connect(_on_button_pressed.bind(button))
 	button.right_clicked.connect(_on_button_right_clicked.bind(button))
 	add_child(button)
 
 
-func _on_view_saved(view_name: String) -> void:
+func _on_view_saved(view_name: StringName) -> void:
 	_build_view_button(view_name)
 	
 
@@ -98,7 +98,7 @@ class RemovableViewButton extends Button:
 	
 	signal right_clicked()
 	
-	func _init(view_name: String) -> void:
+	func _init(view_name: StringName) -> void:
 		text = view_name
 	
 	func _gui_input(event: InputEvent) -> void:

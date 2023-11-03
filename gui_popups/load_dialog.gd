@@ -33,7 +33,7 @@ var _blocking_windows: Array[Window] = IVGlobal.blocking_windows
 var _main_menu_manager: IVMainMenuManager
 
 
-func _ivcore_init():
+func _ivcore_init() -> void:
 	if !IVCoreSettings.enable_save_load:
 		return
 	_main_menu_manager = IVGlobal.program[&"MainMenuManager"]
@@ -47,7 +47,7 @@ func _ivcore_init():
 	canceled.connect(_on_canceled)
 
 
-func _ready():
+func _ready() -> void:
 	process_mode = PROCESS_MODE_ALWAYS
 	theme = IVGlobal.themes.main
 	_blocking_windows.append(self)

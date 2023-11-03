@@ -46,11 +46,8 @@ func _ivcore_init() -> void:
 	# TEST34
 	if !DirAccess.dir_exists_absolute(cache_dir):
 		DirAccess.make_dir_recursive_absolute(cache_dir)
-#	var dir = DirAccess.new()
-#	if dir.open(cache_dir) != OK:
-#		dir.make_dir(cache_dir)
-	for key in defaults:
-		var default = defaults[key] # unknown type
+	for key: StringName in defaults:
+		var default: Variant = defaults[key]
 		var type := typeof(default)
 		if type == TYPE_DICTIONARY or type == TYPE_ARRAY:
 			@warning_ignore("unsafe_method_access")
@@ -90,7 +87,7 @@ func is_all_defaults() -> bool:
 	return current == defaults
 
 
-func get_cached_value(key: StringName, cached_values: Dictionary): # unknown type
+func get_cached_value(key: StringName, cached_values: Dictionary) -> Variant: # unknown type
 	# If cache doesn't have it, we treat default as cached
 	if cached_values.has(key):
 		return cached_values[key]
@@ -131,7 +128,7 @@ func restore_from_cache() -> void:
 	var cached_values := get_cached_values()
 	for key: StringName in defaults:
 		if !is_cached(key, cached_values):
-			var cached_value = get_cached_value(key, cached_values)
+			var cached_value: Variant = get_cached_value(key, cached_values)
 			change_current(key, cached_value, true)
 
 
@@ -149,10 +146,10 @@ func _on_change_current(_item_name: StringName) -> void:
 
 func _write_cache() -> void:
 	_cached.clear()
-	for key in defaults:
+	for key: StringName in defaults:
 		if current[key] != defaults[key]: # cache only non-default values
 			_cached[key] = current[key]
-	_cached["__version__"] = cache_file_version
+	_cached[&"__version__"] = cache_file_version
 	_io_manager.store_var_to_file(_cached.duplicate(true), _file_path)
 
 
@@ -163,7 +160,7 @@ func _read_cache() -> void:
 	if !file:
 		prints("Creating new cache file", _file_path)
 		return
-	var file_var = file.get_var() # untyped for safety
+	var file_var: Variant = file.get_var() # untyped for safety
 	# test for version and type consistency (no longer used items are ok)
 	if typeof(file_var) != TYPE_DICTIONARY:
 		prints("Overwriting obsolete cache file", _file_path)
@@ -172,14 +169,14 @@ func _read_cache() -> void:
 	if file_dict.get("__version__", -1) != cache_file_version:
 		prints("Overwriting obsolete cache file", _file_path)
 		return
-	for key in file_dict:
+	for key: StringName in file_dict:
 		if current.has(key):
 			if typeof(current[key]) != typeof(file_dict[key]):
 				prints("Overwriting obsolete cache file:", _file_path)
 				return
 	# file cache ok
 	_cached = file_dict
-	for key in _cached:
+	for key: StringName in _cached:
 		if current.has(key): # possibly old verson obsoleted key
 			current[key] = _cached[key]
 	_missing_or_bad_cache_file = false

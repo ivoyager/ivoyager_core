@@ -319,7 +319,7 @@ func get_event_array_index(action: StringName, event_class: StringName, index: i
 func get_event_dicts(action: StringName, event_class: StringName) -> Array:
 	var result := []
 	var events_array: Array = current[action]
-	for event_dict in events_array:
+	for event_dict: Dictionary in events_array:
 		if event_dict.event_class == event_class:
 			result.append(event_dict)
 	return result
@@ -438,7 +438,7 @@ func _set_input_map(action: StringName) -> void:
 	else:
 		InputMap.add_action(action)
 	var events_array: Array = current[action]
-	for event_dict in events_array:
+	for event_dict: Dictionary in events_array:
 		@warning_ignore("unsafe_method_access")
 		var event: InputEvent = event_classes[event_dict.event_class].new()
 		for key: StringName in event_dict:

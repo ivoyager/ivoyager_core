@@ -55,14 +55,14 @@ func _modify_asset_paths() -> void:
 			array[index] = new_path
 			index += 1
 	for dict in _asset_path_dicts:
-		for asset_name in dict:
+		for asset_name: StringName in dict:
 			var old_path: String = dict[asset_name]
 			var new_path := old_path.replace("ivoyager_assets", _asset_replacement_dir)
 			dict[asset_name] = new_path
 
 
 func _load_assets() -> void:
-	for asset_name in _asset_paths_for_load:
+	for asset_name: StringName in _asset_paths_for_load:
 		var path: String = _asset_paths_for_load[asset_name]
 		_assets[asset_name] = load(path)
 

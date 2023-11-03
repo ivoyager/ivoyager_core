@@ -52,7 +52,7 @@ var _process_stack: Array[Callable] = []
 var _is_work := false
 var _stop_thread := false
 var _job_count := 0
-var _null_lambda := func(): return
+var _null_lambda := func() -> void: return
 
 
 # *****************************************************************************

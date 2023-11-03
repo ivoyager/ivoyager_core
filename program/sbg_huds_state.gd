@@ -77,9 +77,9 @@ func _ivcore_init() -> void:
 # visibility
 
 func hide_all() -> void:
-	for key in points_visibilities:
+	for key: StringName in points_visibilities:
 		points_visibilities[key] = false
-	for key in orbits_visibilities:
+	for key: StringName in orbits_visibilities:
 		orbits_visibilities[key] = false
 	points_visibility_changed.emit()
 	orbits_visibility_changed.emit()
@@ -119,7 +119,7 @@ func change_orbits_visibility(group: StringName, is_show: bool) -> void:
 
 func get_visible_points_groups() -> Array[StringName]:
 	var array: Array[StringName] = []
-	for key in points_visibilities:
+	for key: StringName in points_visibilities:
 		if points_visibilities[key]:
 			array.append(key)
 	return array
@@ -127,7 +127,7 @@ func get_visible_points_groups() -> Array[StringName]:
 
 func get_visible_orbits_groups() -> Array[StringName]:
 	var array: Array[StringName] = []
-	for key in orbits_visibilities:
+	for key: StringName in orbits_visibilities:
 		if orbits_visibilities[key]:
 			array.append(key)
 	return array
@@ -236,7 +236,7 @@ func set_orbits_color(group: StringName, color: Color) -> void:
 func get_non_default_points_colors() -> Dictionary:
 	# key-values equal to default are skipped
 	var dict := {}
-	for key in points_colors:
+	for key: StringName in points_colors:
 		if points_colors[key] != default_points_colors[key]:
 			dict[key] = points_colors[key]
 	return dict
@@ -245,7 +245,7 @@ func get_non_default_points_colors() -> Dictionary:
 func get_non_default_orbits_colors() -> Dictionary:
 	# key-values equal to default are skipped
 	var dict := {}
-	for key in orbits_colors:
+	for key: StringName in orbits_colors:
 		if orbits_colors[key] != default_orbits_colors[key]:
 			dict[key] = orbits_colors[key]
 	return dict
@@ -254,7 +254,7 @@ func get_non_default_orbits_colors() -> Dictionary:
 func set_all_points_colors(dict: Dictionary) -> void:
 	# missing key-values are set to default
 	var is_change := false
-	for key in points_colors:
+	for key: StringName in points_colors:
 		if dict.has(key):
 			if points_colors[key] != dict[key]:
 				is_change = true
@@ -270,7 +270,7 @@ func set_all_points_colors(dict: Dictionary) -> void:
 func set_all_orbits_colors(dict: Dictionary) -> void:
 	# missing key-values are set to default
 	var is_change := false
-	for key in orbits_colors:
+	for key: StringName in orbits_colors:
 		if dict.has(key):
 			if orbits_colors[key] != dict[key]:
 				is_change = true

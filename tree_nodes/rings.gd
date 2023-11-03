@@ -87,7 +87,7 @@ func _process(_delta: float) -> void:
 	var is_sun_above := to_local(sun_position).y > 0.0
 	var is_camera_above := to_local(_camera.global_position).y > 0.0
 	var litside_sign := 1.0 if is_sun_above == is_camera_above else -1.0
-	var shader_frame_data = Vector4(sun_position.x, sun_position.y, sun_position.z, litside_sign)
+	var shader_frame_data := Vector4(sun_position.x, sun_position.y, sun_position.z, litside_sign)
 	if _shader_frame_data != shader_frame_data:
 		_shader_frame_data = shader_frame_data
 		_rings_material.set_shader_parameter(&"frame_data", shader_frame_data)

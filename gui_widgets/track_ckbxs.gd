@@ -31,7 +31,7 @@ var _camera: IVCamera
 @onready var _ecliptic_checkbox: CheckBox = $Ecliptic
 
 
-func _ready():
+func _ready() -> void:
 	IVGlobal.camera_ready.connect(_connect_camera)
 	_connect_camera(get_viewport().get_camera_3d() as IVCamera)
 	var button_group := ButtonGroup.new()

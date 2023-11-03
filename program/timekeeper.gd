@@ -49,7 +49,7 @@ extends Node
 
 signal speed_changed()
 signal date_changed() # normal day rollover
-signal time_altered(previous_time) # someone manipulated time!
+signal time_altered(previous_time: float) # someone manipulated time!
 
 
 enum { # date_format; first three are alwyas Year, Month, Day

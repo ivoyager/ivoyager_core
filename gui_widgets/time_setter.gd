@@ -24,7 +24,7 @@ extends HBoxContainer
 #
 # For usage in a setter popup, see IVTimeSetPopup.
 
-signal time_set(is_close)
+signal time_set(is_close: bool)
 
 
 @onready var _year: SpinBox = $Year

@@ -25,7 +25,8 @@ extends Object
 #     assert(!DPRINT or IVDebug.dprint("something"))
 
 
-static func dprint(arg, arg2 = "", arg3 = "", arg4 = "") -> bool:
+static func dprint(arg: Variant, arg2: Variant = "", arg3: Variant = "", arg4: Variant = ""
+		) -> bool:
 	# For >4 items, just use an array.
 	prints(arg, arg2, arg3, arg4)
 	return true
@@ -36,7 +37,7 @@ static func dprint_orphan_nodes() -> bool:
 	return true
 
 
-static func dlog(arg) -> bool:
+static func dlog(arg: Variant) -> bool:
 	var file := IVGlobal.debug_log
 	if !file:
 		return true
@@ -58,8 +59,9 @@ static func signal_verbosely_all(object: Object, prefix: String) -> void:
 		signal_verbosely(object, signal_name, prefix)
 
 
-static func _on_verbose_signal(arg, arg2 = null, arg3 = null, arg4 = null,
-		arg5 = null, arg6 = null, arg7 = null, arg8 = null, arg9 = null) -> void:
+static func _on_verbose_signal(arg: Variant, arg2: Variant = null, arg3: Variant = null,
+		arg4: Variant = null, arg5: Variant = null, arg6: Variant = null, arg7: Variant = null,
+		arg8: Variant = null, arg9: Variant = null) -> void:
 	# Expects signal_name as last bound argument.
 	var args := [arg, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9]
 	while args[-1] == null:

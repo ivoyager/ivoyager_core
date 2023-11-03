@@ -33,7 +33,7 @@ func _ready() -> void:
 	_time_set_popup.visibility_changed.connect(_on_visibility_changed)
 
 
-func _on_toggled(toggle_pressed) -> void:
+func _on_toggled(toggle_pressed: bool) -> void:
 	if toggle_pressed:
 		_time_set_popup.popup()
 		await get_tree().process_frame # popup may not know its correct size yet

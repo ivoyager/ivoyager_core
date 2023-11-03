@@ -36,13 +36,13 @@ signal project_builder_finished() # IVProjectBuilder; 1 frame after above
 signal state_manager_inited()
 signal world_environment_added() # on Main after I/O thread finishes (slow!)
 signal about_to_build_system_tree()
-signal system_tree_built_or_loaded(is_new_game) # still some I/O tasks to do!
-signal system_tree_ready(is_new_game) # I/O thread has finished!
-signal about_to_start_simulator(is_new_game) # delayed 1 frame after above
+signal system_tree_built_or_loaded(is_new_game: bool) # still some I/O tasks to do!
+signal system_tree_ready(is_new_game: bool) # I/O thread has finished!
+signal about_to_start_simulator(is_new_game: bool) # delayed 1 frame after above
 signal update_gui_requested() # send signals with GUI info now!
 signal simulator_started()
-signal pause_changed(is_paused)
-signal user_pause_changed(is_paused) # ignores pause from sim stop
+signal pause_changed(is_paused: bool)
+signal user_pause_changed(is_paused: bool) # ignores pause from sim stop
 signal about_to_free_procedural_nodes() # on exit and game load
 signal about_to_stop_before_quit()
 signal about_to_quit()
@@ -52,31 +52,32 @@ signal game_save_started()
 signal game_save_finished()
 signal game_load_started()
 signal game_load_finished()
-signal run_state_changed(is_running) # is_system_built and !SceneTree.paused
-signal network_state_changed(network_state) # IVEnums.NetworkState
+signal run_state_changed(is_running: bool) # is_system_built and !SceneTree.paused
+signal network_state_changed(network_state: bool) # IVEnums.NetworkState
 
 # other broadcasts
-signal setting_changed(setting, value)
-signal camera_ready(camera)
+signal setting_changed(setting: StringName, value: Variant)
+signal camera_ready(camera: Camera3D)
 
 # requests for state change
-signal sim_stop_required(who, network_sync_type, bypass_checks) # see IVStateManager
-signal sim_run_allowed(who) # all objects requiring stop must allow!
-signal change_pause_requested(is_toggle, is_pause) # 2nd arg ignored if is_toggle
-signal quit_requested(force_quit) # force_quit bypasses dialog
-signal exit_requested(force_exit) # force_exit bypasses dialog
-signal save_requested(path, is_quick_save) # ["", false] will trigger dialog
-signal load_requested(path, is_quick_load) # ["", false] will trigger dialog
+signal sim_stop_required(who: Object, network_sync_type: int, bypass_checks: bool) # IVStateManager
+signal sim_run_allowed(who: Object) # all objects requiring stop must allow!
+signal change_pause_requested(is_toggle: bool, is_pause: bool) # 2nd arg ignored if is_toggle
+signal quit_requested(force_quit: bool) # force_quit bypasses dialog
+signal exit_requested(force_exit: bool) # force_exit bypasses dialog
+signal save_requested(path: String, is_quick_save: bool) # ["", false] will trigger dialog
+signal load_requested(path: String, is_quick_load: bool) # ["", false] will trigger dialog
 signal save_quit_requested()
 
 # requests for camera action
-signal move_camera_requested(selection, camera_flags, view_position, view_rotations,
-		is_instant_move) # 1st arg can be null; all others optional
+signal move_camera_requested(selection: Object, camera_flags: int, view_position: Vector3,
+		view_rotations: Vector3, is_instant_move: bool) # 1st arg can be null; all others optional
 
 # requests for GUI
 signal open_main_menu_requested()
 signal close_main_menu_requested()
-signal confirmation_requested(text, confirm_action, stop_sim, title_txt, ok_txt, cancel_txt)
+signal confirmation_requested(text: StringName, confirm_action: Callable, stop_sim: bool,
+		title_txt: StringName, ok_txt: StringName, cancel_txt: StringName)
 signal options_requested()
 signal hotkeys_requested()
 signal credits_requested()
@@ -84,10 +85,8 @@ signal help_requested() # hooked up in Planetarium
 signal save_dialog_requested()
 signal load_dialog_requested()
 signal close_all_admin_popups_requested() # main menu, options, etc.
-signal rich_text_popup_requested(header_text, text)
-signal open_wiki_requested(wiki_title)
-signal show_hide_gui_requested(is_toggle, is_show) # 2nd arg ignored if is_toggle
-
+signal open_wiki_requested(wiki_title: String)
+signal show_hide_gui_requested(is_toggle: bool, is_show: bool) # 2nd arg ignored if is_toggle
 
 
 # containers - write authority indicated; safe to localize container reference
@@ -109,7 +108,8 @@ var blocking_windows: Array[Window] = [] # add Windows that want & test for excl
 
 # read-only!
 var ivoyager_version: String
-var is_html5: bool = OS.has_feature('JavaScript')
+var assets_version: String
+
 var wiki: String # IVWikiInitializer sets; "wiki" (internal), "en.wiki", etc.
 var debug_log: FileAccess # IVLogInitializer sets if debug build and debug_log_path
 
@@ -119,4 +119,7 @@ func _enter_tree() -> void:
 	var plugin_config := IVFiles.get_config("res://addons/ivoyager_core/plugin.cfg")
 	assert(plugin_config, "Could not load plugin.cfg")
 	ivoyager_version = plugin_config.get_value("plugin", "version")
+	var assets_config := IVFiles.get_config("res://addons/ivoyager_assets/assets.cfg")
+	if assets_config and assets_config.has_section("ivoyager_assets"):
+		assets_version = assets_config.get_value("ivoyager_assets", "version")
 

@@ -57,7 +57,7 @@ func save_view(view_name: StringName, collection_name: StringName, is_cached: bo
 	if view:
 		view.reset()
 	else:
-		@warning_ignore("unsafe_method_access") # possible replacement class
+		@warning_ignore("unsafe_method_access")
 		view = ViewScript.new()
 	view.save_state(flags)
 	if is_cached:
@@ -113,15 +113,13 @@ func remove_view(view_name: StringName, collection_name: StringName, is_cached: 
 		_gamesave_views.erase(key)
 	
 
-func get_view_names_in_group(collection_name: StringName, is_cached: bool) -> Array[StringName]:
+func get_names_in_collection(collection_name: StringName, is_cached: bool) -> Array[StringName]:
 	var group: Array[StringName] = []
 	var suffix := "." + collection_name
 	var dict := _cached_views if is_cached else _gamesave_views
-	for key in dict:
-		@warning_ignore("unsafe_cast")
-		var key_str := key as StringName
-		if key_str.ends_with(suffix):
-			group.append(key_str.trim_suffix(suffix))
+	for key: StringName in dict:
+		if key.ends_with(suffix):
+			group.append(key.trim_suffix(suffix))
 	return group
 
 
@@ -133,7 +131,7 @@ func _read_cache() -> void:
 	if !file:
 		prints("Creating new cache file", file_path)
 		return
-	var file_var = file.get_var() # untyped for safety
+	var file_var: Variant = file.get_var() # untyped for safety
 	file.close()
 	if typeof(file_var) != TYPE_DICTIONARY:
 		prints("Overwriting obsolete cache file", file_path)
@@ -141,7 +139,7 @@ func _read_cache() -> void:
 	@warning_ignore("unsafe_cast")
 	var dict := file_var as Dictionary
 	var bad_cache_data := false
-	for key in dict:
+	for key: StringName in dict:
 		var data: Array = dict[key]
 		@warning_ignore("unsafe_method_access") # possible replacement class
 		var view: IVView = ViewScript.new()
@@ -157,7 +155,7 @@ func _write_cache(allow_threaded_cache_write := true) -> void:
 	# Unless this is app exit, no one is waiting for this and we can do the
 	# file write on i/o thread. At app exit, we want the main thread to wait.
 	var dict := {}
-	for key in _cached_views:
+	for key: StringName in _cached_views:
 		var view: IVView = _cached_views[key]
 		var data := view.get_data_for_cache()
 		dict[key] = data
