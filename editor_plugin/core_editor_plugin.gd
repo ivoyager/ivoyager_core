@@ -79,9 +79,11 @@ func _disable_self() -> void:
 
 func _create_override_config() -> void:
 	print(
-		"\nCreating 'ivoyager_override.cfg' in your project directory. Modify this file to change\n"
-		+ "autoload singletons, shader globals, base settings defined in singletons/core_settings.gd\n"
-		+ "or base classes defined in singletons/core_initializer.gd.\n"
+		"""
+		Creating 'ivoyager_override.cfg' in your project directory. Modify this file to change
+		autoload singletons, shader globals, base settings defined in singletons/core_settings.gd
+		or base classes defined in singletons/core_initializer.gd.
+		"""
 	)
 	var dir := DirAccess.open("res://addons/ivoyager_core/")
 	var err := dir.copy("res://addons/ivoyager_core/override_template.cfg",
@@ -132,6 +134,10 @@ func _remove_shader_globals() -> void:
 
 
 func _handle_assets_update() -> void:
+	var disable_asset_loader: bool = _config.get_value("ivoyager_assets", "disable_asset_loader")
+	if disable_asset_loader:
+		return
+	
 	var expected_version: String = _config.get_value("ivoyager_assets", "version")
 	var present_version := ""
 	var assets_config := plugin_utils.get_config("res://addons/ivoyager_assets/assets.cfg")
@@ -154,7 +160,6 @@ func _handle_assets_update() -> void:
 			Plugin 'ivoyager_core' requires assets to run!
 			
 			Press 'Download' to download and add directory addons/ivoyager_assets (%s).
-			Watch for feedback in the output terminal.
 			
 			Press 'Cancel' to manage assets manually. See https://ivoyager.dev/developers.
 			"""
@@ -165,19 +170,18 @@ func _handle_assets_update() -> void:
 			'ivoyager_assets' version %s does not match expected %s!
 			
 			Press 'Download' to download %s and replace existing addons/ivoyager_assets.
-			Watch for feedback in the output terminal.
 			
 			Press 'Cancel' to manage assets manually. See https://ivoyager.dev/developers.
 			"""
 		) % [present_version, expected_version, expected_version]
 	
-	# Don't popup exclusive window until the plugins window is closed (if it is open).
+	# Don't popup exclusive window while the plugins window is open.
 	var last_exclusive_window := get_last_exclusive_window()
 	if last_exclusive_window == get_window(): # ie, there is no exclusive popup window now
 		_popup_download_confirmation(message)
 	else:
-		last_exclusive_window.visibility_changed.connect(_popup_download_confirmation.bind(message),
-				CONNECT_ONE_SHOT)
+		last_exclusive_window.visibility_changed.connect(
+				_popup_download_confirmation.bind(message), CONNECT_ONE_SHOT)
 
 
 func _popup_download_confirmation(message: String) -> void:

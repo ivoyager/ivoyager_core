@@ -80,6 +80,7 @@ func _replace_assets() -> void:
 		OS.move_to_trash(ProjectSettings.globalize_path(ASSETS_DIR))
 	
 	print("Uncompressing new ivoyager_assets...")
+	await get_tree().process_frame
 	var count := 0
 	for zip_path in zip_reader.get_files():
 		if zip_path.get_extension() == "": # is directory
@@ -99,7 +100,7 @@ func _replace_assets() -> void:
 		count += 1
 	zip_reader.close()
 	print("Added %s files to %s" % [count, ASSETS_DIR])
-	
+	await get_tree().process_frame
 	print("Removing temporary download file ", TEMP_DOWNLOAD_ZIP)
 	DirAccess.remove_absolute(TEMP_DOWNLOAD_ZIP)
 	queue_free()
