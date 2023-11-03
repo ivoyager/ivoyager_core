@@ -2,8 +2,6 @@
 
 This file documents changes to [ivoyager_core](https://github.com/ivoyager/ivoyager_core).
 
-Assets are not Git-tracked and must be downloaded from official releases [here](https://github.com/ivoyager/ivoyager_core/releases) or development (non-release) assets [here](https://github.com/ivoyager/non_release_assets/releases).
-
 File format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 See cloning and downloading instructions [here](https://www.ivoyager.dev/developers/).
@@ -12,11 +10,13 @@ See cloning and downloading instructions [here](https://www.ivoyager.dev/develop
 
 Under development using Godot 4.2.beta4. _Has backward breaking changes!_
 
-Requires non-Git-tracked, non-release **ivoyager_assets-0.0.18.dev.20231019**; find [here](https://github.com/ivoyager/non_release_assets/releases/tag/2023-10-19).    
-Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_table_importer) v0.0.6
+Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_table_importer) v0.0.7.dev (use current _master_ branch).
+
+Requires non-release **ivoyager_assets-0.0.18.dev.20231019**. **_NEW! The plugin will update this for you! Just press 'Download' at the dialog prompt._** (Alternatively, download [here](https://github.com/ivoyager/non_release_assets/releases/tag/2023-10-19).)
+
 
 ### Added
-* The editor plugin checks presence and version of ivoyager_assets, and offers to download/add/replace as appropriate.
+* Assets download & version management! The editor plugin checks presence and version of ivoyager_assets, and offers to download and add (or replace) as appropriate.
 
 ### Changed
 * Use static vars for localized class items.
@@ -44,4 +44,4 @@ Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_tab
 ##
 I, Voyager projects v0.0.16 and earlier used a different core submodule [ivoyager](https://github.com/ivoyager/ivoyager) (now depreciated); see previous changelog [here](https://github.com/ivoyager/ivoyager/blob/master/CHANGELOG.md).
 
-[v0.0.18]: https://github.com/ivoyager/ivoyager/compare/v0.0.17...HEAD
+[v0.0.18]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.17...HEAD
