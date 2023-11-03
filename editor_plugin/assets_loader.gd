@@ -22,6 +22,7 @@ extends HTTPRequest
 
 const TEMP_DOWNLOAD_ZIP := "user://ivoyager_assets.zip"
 const ASSETS_DIR := "res://addons/ivoyager_assets"
+const ZIP_PATH_PREPEND := "res://addons/"
 
 
 var _path: String
@@ -87,7 +88,7 @@ func _replace_assets() -> void:
 			continue
 		assert(zip_path.begins_with("ivoyager_assets/"))
 		var file_data := zip_reader.read_file(zip_path)
-		var file_path := "res://addons/" + zip_path
+		var file_path := ZIP_PATH_PREPEND + zip_path
 		var dir_path := file_path.get_base_dir()
 		if !DirAccess.dir_exists_absolute(dir_path):
 			DirAccess.make_dir_recursive_absolute(dir_path)

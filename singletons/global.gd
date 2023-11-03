@@ -89,7 +89,6 @@ signal open_wiki_requested(wiki_title: String)
 signal show_hide_gui_requested(is_toggle: bool, is_show: bool) # 2nd arg ignored if is_toggle
 
 
-
 # containers - write authority indicated; safe to localize container reference
 var state := {} # IVStateManager & IVSaveManager; is_inited, is_running, etc.
 var times: Array[float] = [] # IVTimekeeper [time (s, J2000), engine_time (s), solar_day (d)]
@@ -110,7 +109,6 @@ var blocking_windows: Array[Window] = [] # add Windows that want & test for excl
 # read-only!
 var ivoyager_version: String
 var assets_version: String
-var assets_asteroid_binaries_scale := 1.0
 
 var wiki: String # IVWikiInitializer sets; "wiki" (internal), "en.wiki", etc.
 var debug_log: FileAccess # IVLogInitializer sets if debug build and debug_log_path
@@ -121,4 +119,7 @@ func _enter_tree() -> void:
 	var plugin_config := IVFiles.get_config("res://addons/ivoyager_core/plugin.cfg")
 	assert(plugin_config, "Could not load plugin.cfg")
 	ivoyager_version = plugin_config.get_value("plugin", "version")
+	var assets_config := IVFiles.get_config("res://addons/ivoyager_assets/assets.cfg")
+	if assets_config and assets_config.has_section("ivoyager_assets"):
+		assets_version = assets_config.get_value("ivoyager_assets", "version")
 
