@@ -19,6 +19,7 @@ Requires non-release **ivoyager_assets-0.0.18.dev.20231019**. **_NEW! The plugin
 * Assets download & version management! The editor plugin checks presence and version of ivoyager_assets, and offers to download and add (or replace) as appropriate.
 
 ### Changed
+* Improved IVSaveBuilder dictionary handling: String versus StringName keys correctly persisted and keys can be persist objects.
 * Use static vars for localized class items.
 * For loop typing and error fixes for Godot 4.2.
 * Removed functions '_on_init', '_on_ready', '_on_process', etc. These were needed in Godot 3.x because virtual functions could not be overridden by subclasses. This is no longer the case.
