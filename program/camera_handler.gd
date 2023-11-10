@@ -20,8 +20,9 @@
 class_name IVCameraHandler
 extends Node
 
-# Handles input for IVCamera movements and click selection. Remove or replace
-# this class if you have a different camera.
+## Handles input for [IVCamera] movements and click selection.
+##
+## Remove or replace this class if you have a different camera.
 
 enum {
 	DRAG_MOVE,

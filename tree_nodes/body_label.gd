@@ -20,7 +20,7 @@
 extends Label3D
 class_name IVBodyLabel
 
-# Visual text name or symbol for a IVBody.
+## Visual text name or symbol of an [IVBody] instance.
 
 var _body_huds_state: IVBodyHUDsState = IVGlobal.program.BodyHUDsState
 var _body: IVBody

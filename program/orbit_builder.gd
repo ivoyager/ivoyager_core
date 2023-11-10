@@ -20,6 +20,7 @@
 class_name IVOrbitBuilder
 extends RefCounted
 
+## Builds [IVOrbit] instances from data tables.
 
 const math := preload("res://addons/ivoyager_core/static/math.gd") # =IVMath when issue #37529 fixed
 

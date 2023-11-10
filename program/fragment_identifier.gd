@@ -20,20 +20,23 @@
 class_name IVFragmentIdentifier
 extends SubViewport
 
-# Remove from ProjectBuilder.gui_nodes if not used.
-#
-# Decodes id from a shader fragment (e.g., an orbit line or asteroid point)
-# that is displayed on the root viewport. We capture a tiny square around the
-# mouse so the texture.get_data() read from GPU is as cheap as possible.
-#
-# Shader fragments broadcast every 3rd pixel in a grid pattern bounded by
-# fragment_range. This works well for orbit lines and points with
-# point_size >= 3.
-#
-# This system wouldn't be needed if we sent id from GPU shaders to CPU. We
-# could do that using custom compute shaders. However, I don't think it is yet
-# possible using Godot's gdshader language. In any case, this system works
-# surprisingly well even if it seems a little hacky...
+## Decodes unique id from on-screen shader fragment (e.g., an orbit line or
+## asteroid point) at the mouse position.
+##
+## We capture a tiny square around the mouse so the texture.get_image() read
+## from GPU is as cheap as possible.[br][br]
+##
+## Shader fragments broadcast every 3rd pixel in a grid pattern bounded by
+## fragment_range. This works well for orbit lines and points with
+## point_size >= 3.[br][br]
+##
+## This system wouldn't be needed if we sent id from GPU shaders to CPU. We
+## could do that using custom compute shaders. However, I don't think it is yet
+## possible using Godot's gdshader language. In any case, this system works
+## surprisingly well even if it seems a little hacky...[br][br]
+##
+## This class can be safely removed from IVCoreInitializer.program_nodes if not
+## wanted.
 
 signal fragment_changed(id: int) # -1 on target loss; get data from 'fragment_data'
 

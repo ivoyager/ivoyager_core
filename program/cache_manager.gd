@@ -20,9 +20,9 @@
 class_name IVCacheManager
 extends RefCounted
 
-
-# Abstract base class for managing user cached items. Subclasses include
-# IVSettingsManager & IVInputMapManager.
+## Abstract base class for managing user cached items.
+##
+## Subclasses include [IVSettingsManager] and [IVInputMapManager].
 
 # project vars - set in subclass _init(); project can modify at init
 var cache_file_name := "generic_item.ivbinary" # change in subclass

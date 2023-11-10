@@ -20,27 +20,29 @@
 class_name IVBody
 extends Node3D
 
-# Base class for objects that orbit or are orbited. The system tree under
-# Universe is composed of IVBody instances from top to bottom. Other kinds of
-# nodes (HUDs, camera, etc.) are added to this node or its 'model_space' or
-# 'rotating_space', depending on what is needed.
-#
-# IVBody nodes are NEVER scaled or rotated. Hence, distances and directions
-# (e.g., ecliptic "up") are always consistent at any level of the tree.
-#
-# See also IVSmallBodiesGroup for handling large sets of orbiting bodies
-# without individual instantiation (e.g., asteroids).
-#
-# Node name is table row name: "PLANET_EARTH", "MOON_EUROPA", etc.
-#
-# TODO: (Ongoing) Make this node "drag-and_drop" as much as possible.
-#
-# TODO: Barycenters! They orbit and are orbited. Will make Pluto system
-# (especially) more accurate.
-#
-# TODO4.0: Implement network sync! This will mainly involve synching IVOrbit
-# anytime it changes in a 'non-schedualed' way (e.g., impulse from a rocket
-# engine).
+## Base class for objects that orbit or are orbited, including stars, planets,
+## moons, visited asteroids, and spacecrafts.
+##
+## IVBody nodes are NEVER scaled or rotated. Hence, local and global distances
+## and directions are always consistent at any level of the solar system tree.
+## For rotation, component nodes can be added to the body's [IVModelSpace] or
+## [IVRotatingSpace]. The former rotates with the body (for its model and rings)
+## and the later with its orbit (for Lagrange points).[br][br]
+## 
+## Node name is always the data table row name: 'PLANET_EARTH', 'MOON_EUROPA',
+## etc.[br][br]
+##
+## See also IVSmallBodiesGroup for handling 1000s or 10000s of orbiting bodies
+## without individual instantiation (e.g., asteroids).[br][br]
+##
+## TODO: (Ongoing) Make this node more 'drag-and_drop'.[br][br]
+##
+## TODO: Barycenters! They orbit and are orbited. These will make Pluto system
+## (especially) more accurate.[br][br]
+##
+## TODO: Implement network sync! This will mainly involve synching IVOrbit
+## anytime it changes in a 'non-schedualed' way (e.g., impulse from a rocket
+## engine).
 
 signal huds_visibility_changed(is_visible: bool)
 signal model_visibility_changed(is_visible: bool)
@@ -465,32 +467,33 @@ func get_latitude_longitude(at_translation: Vector3, time := NAN) -> Vector2:
 	var longitude: float = wrapf(spherical[0], -PI, PI)
 	return Vector2(latitude, longitude)
 
-
+## Returns this body's north in ecliptic coordinates. This is messy because
+## IAU defines 'north' only for true planets and their satellites (defined
+## as the pole pointing above invariable plane). Other bodies technically
+## don't have 'north' and are supposed to use 'positive pole', which has a
+## precise definition. See 
+## https://en.wikipedia.org/wiki/Poles_of_astronomical_bodies.[br][br]
+##
+## However, it is common usage to assign 'north' to Pluto and Charon's positive
+## poles, which is reversed from above if Pluto were a planet (which it is
+## not, of course). Also, we want a north for all bodies for camera
+## orientation. We attempt to sort this out as follows:[br][br]
+##
+##  * Star - Same as true planet.[br]
+##  * True planets and their satellites - Use pole pointing in positive z-
+##    axis direction in ecliptic (our sim reference coordinates). This is
+##    per IAU except the use of ecliptic rather than invarient plane; the
+##    difference is ~1 degree and will affect very few if any objects.[br]
+##  * Other star-orbiting bodies - Use positive pole, following Pluto.[br]
+##  * All others (e.g., satellites of dwarf planets) - Use pole in same
+##    hemisphere as parent positive pole.[br][br]
+##
+## Note that rotation_vector (and rotation_rate) will be flipped if needed
+## during system build (following above rules) so that rotation_vector is
+## always 'north'.[br][br]
+##
+## TODO: North precession; this will require 'time' arg.
 func get_north_pole(_time := NAN) -> Vector3:
-	# Returns this body's north in ecliptic coordinates. This is messy because
-	# IAU defines "north" only for true planets and their satellites (defined
-	# as the pole pointing above invariable plane). Other bodies technically
-	# don't have "north" and are supposed to use "positive pole".
-	#    https://en.wikipedia.org/wiki/Poles_of_astronomical_bodies
-	# However, we want a "north" for all bodies for camera orientation. Also,
-	# it is common usage to assign "north" to Pluto and Charon's positive
-	# poles, which is reversed from above if Pluto were a planet (which it is
-	# not, of course). We attempt to sort this out as follows:
-	#
-	#  * Star - Same as true planet.
-	#  * True planets and their satellites - Use pole pointing in positive z-
-	#    axis direction in ecliptic (our sim reference coordinates). This is
-	#    per IAU except the use of ecliptic rather than invarient plane; the
-	#    difference is ~ 1 degree and will affect very few if any objects.
-	#  * Other star-orbiting bodies - Use positive pole, following Pluto.
-	#  * All others (e.g., satellites of dwarf planets) - Use pole in same
-	#    hemisphere as parent positive pole.
-	#
-	# Note that rotation_vector (and rotation_rate) will be flipped if needed
-	# during system build (following above rules) so that rotation_vector is
-	# always "north".
-	#
-	# TODO: North precession; will require time.
 	return rotation_vector
 
 

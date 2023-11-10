@@ -20,32 +20,32 @@
 class_name IVTimekeeper
 extends Node
 
-# Maintains "time" and provides Gregorian calendar & clock elements and related
-# conversion functions.
-#
-# For definitions of Julian Day and Julian Day Number (jdn: int), see:
-# https://en.wikipedia.org/wiki/Julian_day.
-#
-# "time" here always refers to sim time, which runs in seconds (assuming
-# SIBaseUnits.SECOND = 1.0) from J2000 epoch, which was at 2000-01-01 12:00.
-# "j2000days" is just time / IVUnits.DAY. We avoid using Julian Day for
-# float calculations due to precision loss.
-#
-# In priciple, "UT", "UT1", etc., are all approximations (in some way) of solar
-# day, which is not equal to a Julian Day and (in the real world) varies. For
-# now, we are using ut = j2000days + 0.5. But UT conversion functions are non-
-# static in case we hook up to sim solar day in the future.
-#
-# For calendar calculations see:
-# https://en.wikipedia.org/wiki/Julian_day
-# https://en.wikipedia.org/wiki/Epoch_(astronomy)#Julian_years_and_J2000
-#
-# Note: pause and 'user pause' are maintained by IVStateManager.
-#
-# FIXME: there is some old rpc (remote player call) code here that is not
-# currently maintained. This will be fixed and maintained again with Godot 4.0.
-#
-# Requires shader global 'time'.
+## Maintains simulator time and provides Gregorian calendar & clock elements
+## and time conversion functions.
+##
+## For definitions of Julian Day and Julian Day Number, see:[br]
+## https://en.wikipedia.org/wiki/Julian_day.[br][br]
+##
+## [code]time[/code] here always refers to sim time, which runs in seconds (assuming
+## IVUnits.SECOND = 1.0) from J2000 epoch, which was at 2000-01-01 12:00.
+## "j2000days" is just time / IVUnits.DAY. We avoid using Julian Day for
+## float calculations due to precision loss.[br][br]
+##
+## In priciple, "UT", "UT1", etc., are all approximations (in some way) of solar
+## day, which is not equal to a Julian Day and (in the real world) varies. For
+## now, we are using ut = j2000days + 0.5. But UT conversion functions are non-
+## static in case we hook up to sim solar day in the future.[br][br]
+##
+## For calendar calculations see:[br]
+## https://en.wikipedia.org/wiki/Julian_day[br]
+## https://en.wikipedia.org/wiki/Epoch_(astronomy)#Julian_years_and_J2000[br]
+##
+## Note: pause and 'user pause' are maintained by IVStateManager.[br][br]
+##
+## FIXME: there is some old rpc (remote player call) code here that is not
+## currently maintained. This will be fixed and maintained again with Godot 4.x.[br][br]
+##
+## Requires shader global 'iv_time'.
 
 signal speed_changed()
 signal date_changed() # normal day rollover
@@ -117,6 +117,9 @@ var speed_index: int
 var is_reversed := false
 
 # public - read only!
+var times: Array[float] = IVGlobal.times # [0] time (s, J2000) [1] engine_time [2] UT1 (floats)
+var date: Array[int] = IVGlobal.date # Gregorian (ints); see DATE_FORMAT_ enums
+var clock: Array[int] = IVGlobal.clock # UT1 [0] hour [1] minute [2] second (ints)
 var is_now := false
 var engine_time: float # accumulated delta
 var speed_multiplier: float # negative if is_reversed
@@ -124,9 +127,6 @@ var show_clock := false
 var show_seconds := false
 var speed_name: StringName
 var speed_symbol: StringName
-var times: Array[float] = IVGlobal.times # [0] time (s, J2000) [1] engine_time [2] UT1 (floats)
-var date: Array[int] = IVGlobal.date # Gregorian (ints); see DATE_FORMAT_ enums
-var clock: Array[int] = IVGlobal.clock # UT1 [0] hour [1] minute [2] second (ints)
 
 # private
 #var _state: Dictionary = IVGlobal.state

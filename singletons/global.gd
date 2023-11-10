@@ -19,10 +19,10 @@
 # *****************************************************************************
 extends Node
 
-# This node is added as singleton 'IVGlobal'.
-#
-# Container arrays and dictionaries are never replaced, so it is safe to keep a
-# local reference in class files.
+## Added as singleton 'IVGlobal'.
+##
+## Container arrays and dictionaries are never replaced, so it is safe to keep
+## a local reference in class files.
 
 # simulator state broadcasts
 signal translations_imported() # IVTranslationImporter; useful for boot screen

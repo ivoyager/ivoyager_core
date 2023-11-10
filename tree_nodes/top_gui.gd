@@ -20,6 +20,8 @@
 class_name IVTopGUI
 extends Control
 
+## Default top GUI node.
+
 # An extension can replace the top GUI in IVProjectBuilder 
 # (singletons/project_builder.gd) but see comments below:
 # 

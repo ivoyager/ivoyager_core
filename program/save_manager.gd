@@ -20,13 +20,11 @@
 class_name IVSaveManager
 extends Node
 
-# To remove save/load functionality, set IVCoreSettings.enable_save_load = false. You
-# can then (optionally) delete these from IVProjectBuilder:
-#
-#   - _SaveManager_
-#   - _SaveBuilder_
-#   - _SaveDialog_
-#   - _LoadDialog_
+## Manages game saving and loading.
+##
+## This program class can be safely removed in IVCoreInitializer
+## (["addons/ivoyager_core/singletons/core_initializer.gd"]) together with
+## other save/load classes.
 
 const files := preload("res://addons/ivoyager_core/static/files.gd")
 const NO_NETWORK = IVEnums.NetworkState.NO_NETWORK

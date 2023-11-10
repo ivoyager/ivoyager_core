@@ -20,16 +20,15 @@
 class_name IVUtils
 extends Object
 
-# Miscellaneous utility static functions. There are no references to 'ivoyager'
-# classes here.
-# Usage note: issue #37529 prevents localization of global class_name to const.
-# For now, use:
-# const utils := preload("res://addons/ivoyager_core/static/utils.gd")
+## Miscellaneous utility static functions.
 
 
 # Tree utilities
 
 static func free_procedural_nodes(node: Node) -> void:
+	# TODO: Move to SaveBuilder.
+	# TODO: We should null all procedural object vars everywhere so we don't
+	# need destructor functions.
 	if node.get(&"PERSIST_MODE") == IVEnums.PERSIST_PROCEDURAL:
 		node.queue_free() # children will also be freed!
 		return

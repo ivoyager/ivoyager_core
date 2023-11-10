@@ -20,9 +20,12 @@
 class_name IVModelSpace
 extends Node3D
 
-# Maintained by IVBody instance only when needed. Child nodes include the
-# Body's model and (for Saturn) rings. This reference frame is useful because
-# the actual model Node3D is scaled and rotated.
+## A reference frame for an [IVBody] instance's physical rotation. 
+##
+## Child nodes include the body's model (imported or generic [IVSpheroidModel])
+## and, for Saturn, its [IVRings].[br][br]
+##
+## This node is optional and maintained by [IVBody] only if needed. 
 
-const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL # free & rebuild on load
+const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL ## Free & rebuild on load.
 

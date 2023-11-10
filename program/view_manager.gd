@@ -20,7 +20,7 @@
 class_name IVViewManager
 extends Node
 
-# Manages IVView instances that are persisted via gamesave or cache.
+## Manages [IVView] instances that are persisted via gamesave or cache.
 
 const files := preload("res://addons/ivoyager_core/static/files.gd")
 

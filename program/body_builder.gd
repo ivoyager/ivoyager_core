@@ -20,7 +20,7 @@
 class_name IVBodyBuilder
 extends RefCounted
 
-# Builds IVBody from data tables.
+## Builds [IVBody] instances from data tables.
 
 
 const ECLIPTIC_Z := Vector3(0.0, 0.0, 1.0)

@@ -20,7 +20,7 @@
 class_name IVSBGBuilder
 extends RefCounted
 
-# Builds SmallBodiesGroup instances from small_bodies_groups.tsv & binary data.
+## Builds [IVSmallBodiesGroup] instances from table & binary data.
 
 const utils := preload("res://addons/ivoyager_core/static/utils.gd")
 

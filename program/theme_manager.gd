@@ -20,8 +20,8 @@
 class_name IVThemeManager
 extends RefCounted
 
-# Maintains IVGlobal.themes dictionary. All controls are expected to set their
-# own theme from this dictionary.
+## Maintains [code]themes[/code] dictionary in IVGlobal
+## (["addons/ivoyager_core/singletons/global.gd"]).
 
 # project vars
 var global_font := &"gui_main" # these are defined in IVFontManager
