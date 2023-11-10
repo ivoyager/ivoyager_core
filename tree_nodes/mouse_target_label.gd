@@ -20,6 +20,8 @@
 class_name IVMouseTargetLabel
 extends Label
 
+## A label that identifies screen items at the mouse position.
+
 # Uses IVWorldController and (if present) IVFragmentIdentifier. The single
 # instance of this node is added by IVCoreInitializer.
 

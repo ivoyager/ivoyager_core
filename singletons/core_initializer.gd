@@ -19,24 +19,24 @@
 # *****************************************************************************
 extends Node
 
-# This node is added as singleton 'IVCoreInitializer'.
-#
-# Modify properties or dictionary classes using res://ivoyager_override.cfg.
-# Alternatively, you can modify values here using an initializer script. (Note,
-# your initializer must be added somehow. You can either add it using
-# res://ivoyager_override.cfg or make it an autoload.)
-#
-# For an example initializer script, see Planetarium:
-# https://github.com/ivoyager/planetarium/blob/master/planetarium/preinitializer.gd.
-#
-# DON'T modify values here after program start!
-#
-# By itself, ivoyager_core will run but it lacks a GUI (the default IVTopGUI
-# has no child GUIs). You can either build on the existing IVTopGUI or provide
-# your own by setting 'top_gui' or 'top_gui_path' here.
-#
-# For a game that needs a splash screen at startup, add the splash screen to
-# 'gui_nodes' here and set IVCoreSettings.skip_splash_screen = false.
+## Added as singleton 'IVCoreInitializer'.
+##
+## Modify properties or dictionary classes using res://ivoyager_override.cfg.
+## Alternatively, you can modify values here using an initializer script. (Note,
+## your initializer must be added somehow. You can either add it using
+## res://ivoyager_override.cfg or make it an autoload.)[br][br]
+##
+## For an example initializer script, see Planetarium:
+## https://github.com/ivoyager/planetarium/blob/master/planetarium/preinitializer.gd.[br][br]
+##
+## DON'T modify values here after program start![br][br]
+##
+## By itself, ivoyager_core will run but it lacks a GUI (the default IVTopGUI
+## has no child GUIs). You can either build on the existing IVTopGUI or provide
+## your own by setting 'top_gui' or 'top_gui_path' here.[br][br]
+##
+## For a game that needs a splash screen at startup, add the splash screen to
+## 'gui_nodes' here and set IVCoreSettings.skip_splash_screen = false.[br][br]
 
 
 signal init_step_finished() # for internal use only

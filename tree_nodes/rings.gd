@@ -20,7 +20,9 @@
 class_name IVRings
 extends MeshInstance3D
 
-# Visual planetary rings that uses rings.gdshader. Not persisted so added by
+## Visual planetary rings of an [IVBody] instance.
+
+# that uses rings.gdshader. Not persisted so added by
 # BodyFinisher.
 
 const END_PADDING := 0.05 # must be same as ivbinary_maker that generated images

@@ -20,12 +20,14 @@
 class_name IVWikiManager
 extends RefCounted
 
-# FIXME: Many loose ends after shift to Table Importer plugin...
-
-# For internal wiki, set IVCoreSettings.enable_wiki and IVCoreSettings.use_internal_wiki. You
-# can then either 1) extend this class and override _open_internal_wiki(), or
-# 2) hook up directly to IVGlobal signal "open_wiki_requested". If the latter,
-# you can safely erase this class from IVProjectBuilder.prog_refs.
+## Manages response to [code]open_wiki_requested[/code] signal from IVGlobal.
+##
+## FIXME: Many loose ends after shift to Table Importer plugin...
+##
+## For internal wiki, set IVCoreSettings.enable_wiki and IVCoreSettings.use_internal_wiki. You
+## can then either 1) extend this class and override _open_internal_wiki(), or
+## 2) hook up directly to IVGlobal signal "open_wiki_requested". If the latter,
+## you can safely erase this class from IVProjectBuilder.prog_refs.
 
 #var _wiki_titles: Dictionary = IVTableData.wiki_lookup
 var _wiki: String = IVGlobal.wiki # "wiki" (internal), "en.wikipedia", etc.

@@ -20,9 +20,11 @@
 class_name IVScheduler
 extends Node
 
-# Creates interval signals using simulation time. Max signal frequency will be
-# once per frame if interval is very small and/or game speed is very fast.
-# There is no save/load persistence! Interval connections must be remade.
+## Creates interval signals using simulation time.
+##
+## Maximum signal frequency will be once per frame if interval is very small
+## and/or simulation speed is very fast. There is no save/load persistence,
+## so all interval connections must be remade on game load.
 
 var _times: Array[float] = IVGlobal.times
 var _ordered_signal_infos := [] # array "top" is always the next signal

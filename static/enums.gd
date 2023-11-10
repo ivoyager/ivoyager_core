@@ -20,12 +20,8 @@
 class_name IVEnums
 extends Object
 
-# We keep enums here that are broadly needed by the program.
-#
-# This is used by program systems that need to interpret enums without specific
-# knowledge of their context. E.g.:
-#  - IVTableImporter for interpretting enum names in external *.tsv files
-#  - GUI widget selection_data.gd for object info display 
+## Global context enums.
+
 
 enum { # duplicated in IVSaveBuilder
 	NO_PERSIST,

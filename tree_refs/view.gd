@@ -20,10 +20,12 @@
 class_name IVView
 extends RefCounted
 
-# Optionally keeps state related to camera, HUDs, and/or time. The object can
-# be persisted via gamesave or cache.
-
-# TODO: Hotkey bindings!
+## A representation of a solar system view, optionally including camera
+## state, HUDs state, and/or time state.
+##
+## This class is designed to be persisted via gamesave or cache.
+##
+## TODO: Hotkey bindings!
 
 enum { # flags
 	CAMERA_SELECTION = 1,

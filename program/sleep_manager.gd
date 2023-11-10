@@ -20,12 +20,15 @@
 class_name IVSleepManager
 extends RefCounted
 
-# This manager is optional. If present, it will reduce process load by putting
-# to sleep IVBody instances that we don't need to process. For now, we're mainly
-# concerned with planet satellites (e.g., the 150+ moons of Jupiter and Saturn).
-# TODO: Probably as an option, we'll also want to manage sleep for asteroids,
-# which could represent many 1000s of IVBody instances depending on extension
-# project.
+## Optional manager that reduces process load by selectively putting to sleep
+## [IVBody] instances that we don't need to process.
+##
+## For now, we're mainly concerned with planet satellites: in particular, the
+## 150+ moons of Jupiter and Saturn.[br][br]
+##
+## TODO: Provide API so developers can selectively sleep other [IVBody]
+## instances. E.g., a game might have 1000s of instantiated asteroids or
+## spacecrafts that can be put to sleep under certain conditions.
 
 const IS_STAR_ORBITING := IVEnums.BodyFlags.IS_STAR_ORBITING
 

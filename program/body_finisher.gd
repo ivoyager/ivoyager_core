@@ -20,10 +20,11 @@
 class_name IVBodyFinisher
 extends RefCounted
 
-# Decorates Body (and its parent) with Body-associated unpersisted elements,
-# such as HUD elements, rings, omni light, etc. Everything here happens
-# whether we are building a new system or loading from gamesave file.
-
+## Finishes construction of [IVBody] instances when they are added to the tree.
+##
+## Adds body-associated unpersisted elements such as HUD elements, rings, omni
+## light, etc. Everything here happens whether we are building a new system or
+## loading from gamesave file.
 
 signal system_build_finished()
 

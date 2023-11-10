@@ -20,8 +20,17 @@
 class_name IVSystemBuilder
 extends RefCounted
 
-# Builds the star system(s) from data tables & binaries. Also coordinates
-# 'finishers' signalling to signal 'system_ready' if this is a game load.
+## Builds the star system(s) from data tables & binaries (new game only) and
+## emits IVGlobal signal [code]system_ready[/code] when all (possibly off-thread)
+## system tree work is done (new and loaded game).
+##
+## For new game, this class uses [IVBodyBuilder] and [IVSBGBuilder] to build
+## [IVBody] and [IVSmallBodiesGroup] instances, respectively, and adds them to
+## the scene tree.[br][br]
+##
+## For new and loaded game, this class hooks up to [code]system_build_finished[/code]
+## signals in [IVBodyFinisher] and [IVSBGFinisher] to detect completion (these
+## may be doing off-thread work) and emit IVGlobal signal [code]system_ready[/code].
 
 # project vars
 var add_small_bodies_groups := true

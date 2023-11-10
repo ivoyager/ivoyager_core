@@ -20,6 +20,11 @@
 class_name IVOrbit
 extends RefCounted
 
+## Maintains positional state of an [IVBody] instance in Keplerian orbital
+## elements and element change rates. Provides functions for converting to and
+## from Cartesian coordinates and for applying change (e.g., thrust) in either
+## coordinate system.
+
 # Orbit info is kept in standardized arrays of fixed size. reference_normal is
 # normal to the reference plane (ecliptic, equatorial or specified Laplace
 # plane; many moons use the latter two); the "orbit normal" precesses around

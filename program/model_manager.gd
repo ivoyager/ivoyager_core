@@ -20,11 +20,14 @@
 class_name IVModelManager
 extends RefCounted
 
-# We have a lazy_init option and culling system to keep model number low at any
-# given time. We cull based on staleness of last visibility change. Use it for
-# minor moons, visited asteroids, spacecraft, etc. Set project var
-# 'max_lazy_models' to something larger than the max number of lazy models
-# likely to be visible at a give time.
+## Manages generic and custom models for [IVBody] instances using dynamic file
+## loading and lazy init.
+##
+## We have a 'lazy_init' option and culling system to keep model number low at any
+## given time. We cull based on staleness of last visibility change. Use it for
+## minor moons, visited asteroids, spacecraft, etc. Set project var
+## 'max_lazy_models' to something larger than the max number of lazy models
+## likely to be visible at a give time.
 
 const files := preload("res://addons/ivoyager_core/static/files.gd")
 

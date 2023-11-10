@@ -20,22 +20,13 @@
 class_name IVMath
 extends Object
 
-# Call directly using IVMath, or better, localize in your class header area.
-# Issue #37529 prevents localization of global class_name to const. Use:
-# const math := preload("res://addons/ivoyager_core/static/math.gd")
-#
-# WIP -
-# Spherical coordinates are ALWAYS either:
-#   right_ascension, declination, distance (= longitude, latitude, distance)
-#   right_ascension, declination (= longitude, latitude)
-# Elsewhere in code these might be ecliptic2, equatorial2, geographic2, etc.
+## Math-related static functions.
 
 const IDENTITY_BASIS := Basis.IDENTITY
 const Z_VECTOR := Vector3(0.0, 0.0, 1.0)
 const VECTOR2_ZERO := Vector2.ZERO
 const VECTOR3_ZERO := Vector3.ZERO
 const LOG_OF_10 := log(10.0)
-
 
 
 static func get_rotation_vector(basis: Basis) -> Vector3:

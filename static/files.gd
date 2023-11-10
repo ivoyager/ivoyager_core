@@ -20,6 +20,7 @@
 class_name IVFiles
 extends Object
 
+## File-related static functions.
 
 
 static func config_exists(config_path: String) -> bool:
@@ -120,12 +121,14 @@ static func get_script_or_packedscene(path: String) -> Resource:
 	return script
 
 
+## Returns an instantiated Object or the root Node of an instantiated scene.[br][br]
+##
+## [code]arg[/code] can be a Script, PackedScene, or String. If it is a String,
+## it must be a valid path to a Script or PackedScene file resource.[br][br]
+##
+## If Script has const [code]SCENE[/code] or [code]SCENE_OVERRIDE[/code], then
+## that constant value is used as path to intantiate a scene. 
 static func make_object_or_scene(arg: Variant) -> Object:
-	# Returns intantiated Object or root node of instantiated scene.
-	# 'arg' can be a Script, PackedScene, or String that is a path to a
-	# PackedScene (*.tscn, *.scn) or Script resource.
-	# If Script has const SCENE_OVERRIDE or SCENE, then that is used as path
-	# to intantiate a scene. 
 	var arg_type := typeof(arg)
 	var packedscene: PackedScene
 	var script: Script

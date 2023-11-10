@@ -20,64 +20,57 @@
 class_name IVSaveBuilder
 extends RefCounted
 
-# IVSaveBuilder can persist specified data (which may include nested objects)
-# and rebuild procedurally generated node trees and references on load. It can
-# persist built-in types and four kinds of objects:
-#    1. Non-procedural Nodes
-#    2. Procedural Nodes (including base nodes of scenes)
-#    3. Procedural References
-#    4. WeakRef to any of above
-#
-# A "persist" node or reference is identified by the presence of:
-#    const PERSIST_MODE := IVEnums.PERSIST_PROPERTIES_ONLY
-#    or...
-#    const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL
-#    or member 'persist_mode_override' with either of the above two values.
-#
-# Enum values NO_PERSIST, PERSIST_PROPERTIES_ONLY and PERSIST_PROCEDURAL are
-# duplicated here and in IVEnums (ivoyager/static/enums.gd) so we can use this
-# file elsewhere and/or remove it from core 'ivoyager' (it may become a
-# submodle). 
-#
-# Lists of properties to persists must be named in constant arrays:
-#    const PERSIST_PROPERTIES: Array[StringName] # properties to persist
-#    const PERSIST_PROPERTIES2: Array[StringName]
-#    etc...
-#    (These list names can be modified in project settings below. The extra
-#    numbered lists are needed for subclasses where a list name is taken by a
-#    parent class.)
-#
-# To reconstruct a scene, the base node's gdscript must have one of:
-#    const SCENE := "<path to .tscn file>"
-#    const SCENE_OVERRIDE := "" # as above; override may be useful in subclass
-#
-# Additional rules for persist objects:
-#    1. Nodes must be in the tree.
-#    2. All ancester nodes up to 'save_root' must also be persist nodes.
-#       'save_root' may or may not be a scene root.
-#    3. Nodes that are PERSIST_PROPERTIES_ONLY cannot have any ancestors that
-#       are PERSIST_PROCEDURAL.
-#    4. Non-procedural nodes must have stable names (path cannot change).
-#    5. Inner classes can't be persist objects.
-#    6. References are always PERSIST_MODE = PERSIST_PROCEDURAL.
-#    7. Virtual method _init() cannot have any required args.
-#
-# Warnings:
-#    1. A single array or dict persisted in two places will become two on load.
-#    2. Be careful not to have both pesist and non-persist references to the
-#       same object. The old (pre-load) object will still be there in the non-
-#       persist reference after load.
-#
-# Godot 4.x changes:
-#    1. Any dict keys that are type String will be converted on save (and then
-#       loaded) as StringName. This was necessary (and *should* be ok) because
-#       the two are interchangable for dictionary indexing and the '=='
-#       operation.
-#    2. Array-typing is supported.
-#
-# TODO 4.0: Godot proposal #874 will add Array.id() and Dictionary.id().
-# This will allow us to handle multiple references to the same arrays and 
-# dicts as we do now for objects. (This will remove warning #1 above.)
+## Generates a compact data structure for game save from properties specified
+## in object constants. Sets properties and rebuilds procedural scene tree on
+## game load.
+##
+## IVSaveBuilder can persist Godot built-in types, including dictionaries and
+## arrays (typed or untyped) at any level of nesting, and four kinds of objects:[br][br]
+##    
+##    1. 'Non-procedural' Node (may have persist data but is not freed)[br]
+##    2. 'Procedural' Node (freed and rebuilt on game load)[br]
+##    3. 'Procedural' RefCounted (freed and rebuilt on game load)[br]
+##    4. WeakRef to any of above[br][br]
+##
+## A Node or RefCounted is identified as a 'persist' object by the presence of
+## any of the following:[br][br]
+##
+##    [code]const PERSIST_MODE := IVEnums.PERSIST_PROPERTIES_ONLY[/code][br]
+##    [code]const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL[/code][br]
+##    [code]var persist_mode_override := [/code] <either of above two values>[br][br]
+##
+## Lists of properties to persists must be named in constant arrays:[br][br]
+##    [code]const PERSIST_PROPERTIES: Array[StringName][/code][br]
+##    [code]const PERSIST_PROPERTIES2: Array[StringName][/code][br]
+##    (These list names can be modified in static member [code]properties_arrays[/code].
+##    The extra numbered lists can be used in subclasses to add persist properties.)[br][br]
+##
+## To reconstruct a scene, the base node's gdscript must have one of:[br][br]
+##
+##    [code]const SCENE := "<path to .tscn file>"[/code][br]
+##    [code]const SCENE_OVERRIDE := "<as above; override may be useful in subclass>"[/code][br][br]
+##
+## Additional rules for persist objects:[br][br]
+##    1. Nodes must be in the tree.[br]
+##    2. All ancester nodes up to and including [code]save_root[/code] must also be persist
+##       nodes.[br]
+##    3. Non-procedural Nodes (i.e., [code]PERSIST_PROPERTIES_ONLY[/code]) cannot
+##       have any ancestors that are [code]PERSIST_PROCEDURAL[/code].[br]
+##    4. Non-procedural Nodes must have stable node path.[br]
+##    5. Inner classes can't be persist objects.[br]
+##    6. A persisted RefCounted can only be [code]PERSIST_PROCEDURAL[/code].[br]
+##    7. Persist objects cannot have required args in their [code]_init()[/code]
+##       method.[br][br]
+##
+## Warnings:[br][br]
+##    1. Godot does not allow us to index arrays and dictionaries by reference rather
+##       than content (see proposal #874 to fix this). Therefore, a single array
+##       or dictionary persisted in two places (i.e., listed in [code]PERSIST_PROPERTIES[/code]
+##       in two files) will become two separate arrays or dictionaries on load.[br]
+##    2. Be sure to free existing procedural nodes before calling [code]build_tree()[/code].
+##       It's advised to wait a few frames after freeing to make sure nodes are
+##       really gone and not responding to signals.[br][br]
+
 
 const files := preload("res://addons/ivoyager_core/static/files.gd")
 

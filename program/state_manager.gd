@@ -20,41 +20,46 @@
 class_name IVStateManager
 extends Node
 
-# Maintains high-level simulator state and writes IVGlobal.state; only this
-# node writes IVGlobal.state except where noted.
-#
-# IVGlobal.state keys:
-#   is_inited: bool
-#   is_splash_screen: bool - this node & IVSaveManager
-#   is_system_built: bool - this node & IVSaveManager
-#   is_system_ready: bool
-#	is_started_or_about_to_start: bool
-#   is_running: bool - _run/_stop_simulator(); not the same as pause!
-#   is_quitting: bool
-#   is_game_loading: bool - this node & IVSaveManager (true while loading)
-#   is_loaded_game: bool - this node & IVSaveManager (stays true after load)
-#   last_save_path: String - this node & IVSaveManager
-#   network_state: IVEnums.NetworkState - if exists, NetworkLobby also writes
-#
-# if IVCoreSettings.pause_only_stops_time == true, then PAUSE_MODE_PROCESS is
-# set in Universe and TopGUI so IVCamera can still move, visuals work (some are
-# responsve to camera) and user can interact with the world. In this mode, only
-# IVTimekeeper pauses to stop time.
-#
-# There is no NetworkLobby in base I, Voyager. It's is a very application-
-# specific manager that you'll have to code yourself, but see:
-# https://docs.godotengine.org/en/stable/tutorials/networking/high_level_multiplayer.html
-# Be sure to set IVGlobal.state.network_state and emit IVGlobal signal
-# "network_state_changed".
-#
-# IMPORTANT! Non-main threads should coordinate with signals and functions here
-# for thread-safety. We wait for all threads to finish before proceding to save,
-# load, exit, quit, etc.
-#
-# Multithreading note: Godot's SceneTree and almost all I, Voyager public
-# functions run in the main thread. Use call_defered() to invoke any function
-# from another thread unless the function is guaranteed to be thread-safe. Most
-# functions are NOT thread-safe!
+## Maintains high-level simulator state.
+##
+## General simulator state signals are emitted by IVGlobal, with more specific
+## emitted by this class. Much of simulator state can be queried via dictionary
+## [code]state[/code] in IVGlobal. This class defines certain expected keys
+## in [code]state[/code] and (together with [IVSaveManager] and possibly an
+## external NetworkLobby) manages these [code]state[/code] values.[br][br]
+##
+## IVGlobal [code]state[/code] keys inited here:[br][br]
+##   [code]is_inited: bool[/code]
+##   [code]is_splash_screen: bool[/code] - this node & IVSaveManager[br]
+##   [code]is_system_built: bool[/code] - this node & IVSaveManager[br]
+##   [code]is_system_ready: bool[/code][br]
+##   [code]is_started_or_about_to_start: bool[/code][br]
+##   [code]is_running: bool[/code] - _run/_stop_simulator(); not the same as pause![br]
+##   [code]is_quitting: bool[/code][br]
+##   [code]is_game_loading: bool[/code] - this node & IVSaveManager (true while loading)[br]
+##   [code]is_loaded_game: bool[/code] - this node & IVSaveManager (stays true after load)[br]
+##   [code]last_save_path: String[/code] - this node & IVSaveManager[br]
+##   [code]network_state: IVEnums.NetworkState[/code] - if exists, NetworkLobby also writes[br][br]
+##
+## If IVCoreSettings.pause_only_stops_time == true, then PAUSE_MODE_PROCESS is
+## set in Universe and TopGUI so IVCamera can still move, visuals work (some are
+## responsve to camera) and user can interact with the world. In this mode, only
+## IVTimekeeper pauses to stop time.[br][br]
+##
+## There is no NetworkLobby in base I, Voyager. It's is a very application-
+## specific manager that you'll have to code yourself, but see:
+## https://docs.godotengine.org/en/stable/tutorials/networking/high_level_multiplayer.html
+## Be sure to set IVGlobal.state.network_state and emit IVGlobal signal
+## "network_state_changed".[br][br]
+##
+## IMPORTANT! Non-main threads should coordinate with signals and functions here
+## for thread-safety. We wait for all threads to finish before proceding to save,
+## load, exit, quit, etc.[br][br]
+##
+## Multithreading note: Godot's SceneTree and almost all I, Voyager public
+## functions run in the main thread. Use call_defered() to invoke any function
+## from another thread unless the function is guaranteed to be thread-safe. Most
+## functions are NOT thread-safe![br][br]
 
 signal run_threads_allowed() # ok to start threads that affect gamestate
 signal run_threads_must_stop() # finish threads that affect gamestate
