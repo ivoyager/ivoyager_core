@@ -171,7 +171,7 @@ func load_game(path := "", network_gamesave := []) -> void:
 	IVGlobal.about_to_free_procedural_nodes.emit()
 	IVGlobal.game_load_started.emit()
 	await get_tree().process_frame
-	IVUtils.free_procedural_nodes(_universe)
+	IVSaveBuilder.free_all_procedural_objects(_universe)
 	# Give freeing procedural nodes time so they won't respond to game signals.
 	await get_tree().process_frame
 	await get_tree().process_frame

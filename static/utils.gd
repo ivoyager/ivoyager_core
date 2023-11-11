@@ -25,19 +25,6 @@ extends Object
 
 # Tree utilities
 
-static func free_procedural_nodes(node: Node) -> void:
-	# TODO: Move to SaveBuilder.
-	# TODO: We should null all procedural object vars everywhere so we don't
-	# need destructor functions.
-	if node.get(&"PERSIST_MODE") == IVEnums.PERSIST_PROCEDURAL:
-		node.queue_free() # children will also be freed!
-		return
-	for child in node.get_children():
-		if &"PERSIST_MODE" in child:
-			if child.get(&"PERSIST_MODE") != IVEnums.NO_PERSIST:
-				free_procedural_nodes(child)
-
-
 static func get_ancestor_spatial(spatial1: Node3D, spatial2: Node3D) -> Node3D:
 	# Returns parent spatial or common spatial ancestor. Assumes no non-Spatial
 	# nodes in the ancestor tree.

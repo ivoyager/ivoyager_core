@@ -8,7 +8,7 @@ See cloning and downloading instructions [here](https://www.ivoyager.dev/develop
 
 ## [v0.0.18] - Not Released
 
-Under development using Godot 4.2.beta4. _Has backward breaking changes!_
+Under development using Godot 4.2.beta5. _Has backward breaking changes!_
 
 Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_table_importer) v0.0.7.dev (use current _master_ branch).
 
@@ -17,12 +17,16 @@ Requires non-release **ivoyager_assets-0.0.18.dev.20231019**. **_NEW! The plugin
 
 ### Added
 * Assets download & version management! The editor plugin checks presence and version of ivoyager_assets, and offers to download and add (or replace) as appropriate.
+* Class documentation using Godot ## tags.
 
 ### Changed
-* Improved IVSaveBuilder dictionary handling: String versus StringName keys correctly persisted and keys can be persist objects.
+* Improved IVSaveBuilder Dictionary handling: a) Persist objects can be keys. b) String versus StringName types are correctly distinguished and persisted as keys.
+* [Possibly breaking] Optimized IVSaveBuilder with new rules for Objects in containers: Objects can be in object member Arrays (which must be Object-typed) or object member Dictionaries (as keys or values), but cannot be in nested Arrays or Dictionaries inside of Arrays or Dictionaries. (Pure "data" containers can still be nested at any level.)
+* IVSaveBuilder: Improved debug asserts at game save. Throws errors on rule violations that could lead to load problems.
+* [API breaking] Removed `IVUtils.free_procedural_nodes()`. Replaced usage with `IVSaveBuilder.free_all_procedural_objects()`. The new function nulls all references to procedural objects (so frees RefCounted instances having circular references) and then frees the Nodes.
 * Use static vars for localized class items.
 * For loop typing and error fixes for Godot 4.2.
-* Removed functions '_on_init', '_on_ready', '_on_process', etc. These were needed in Godot 3.x because virtual functions could not be overridden by subclasses. This is no longer the case.
+* Removed functions `_on_init()`, `_on_ready()`, `_on_process()`, etc. These were needed in Godot 3.x because virtual functions could not be overridden by subclasses. This is no longer the case.
 * Removed number & unit names from translation (now added in ivoyager_table_importer).
 
 ## v0.0.17 - 2023-10-03

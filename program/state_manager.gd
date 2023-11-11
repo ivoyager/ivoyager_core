@@ -248,7 +248,7 @@ func exit(force_exit := false, following_server := false) -> void:
 	IVGlobal.about_to_free_procedural_nodes.emit()
 	await _tree.process_frame
 	var universe: Node3D = IVGlobal.program.Universe
-	IVUtils.free_procedural_nodes(universe)
+	IVSaveBuilder.free_all_procedural_objects(universe)
 	IVGlobal.close_all_admin_popups_requested.emit()
 	await _tree.process_frame
 	_state.is_splash_screen = true
@@ -275,7 +275,7 @@ func quit(force_quit := false) -> void:
 	IVGlobal.about_to_free_procedural_nodes.emit()
 	await _tree.process_frame
 	var universe: Node3D = IVGlobal.program.Universe
-	IVUtils.free_procedural_nodes(universe)
+	IVSaveBuilder.free_all_procedural_objects(universe)
 	assert(IVDebug.dprint_orphan_nodes())
 	print("Quitting...")
 	_tree.quit()
