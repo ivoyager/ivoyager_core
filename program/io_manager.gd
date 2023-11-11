@@ -20,23 +20,21 @@
 class_name IVIOManager
 extends RefCounted
 
-# Manages a separate thread for I/O operations including resource loading.
-# Per Godot docs (3.x), loading a resource from multiple threads can crash.
-# Thus, you should not mix use of IVIOManager with resource loading on the main
-# thread*.
-#
-# The 'io_method' supplied in callback() is handy for doing I/O-adjacent work
-# such as processing resources or assembling parts of scene trees. However, all
-# interaction with the current scene tree MUST happen on the main thread*. To
-# do so, use call_deferred() at the end of your io_method.
-#
-# [* Godot 4.x edit: above statements may or may not be true anymore. Our code
-# still does all scene tree changes on the main thread.] 
-#
-# All work is processed in the order added using the callback() method.
-#
-# If IVCoreSettings.use_threads == false, callback() will still work but the
-# callback will happen immediately on the main thread w/out queuing.
+## Manages a separate thread for I/O operations including file read/write and
+## resource loading.
+##
+## The 'io_method' supplied in [code]callback()[/code] can do resource loading
+## or I/O-adjacent work such as processing resources or assembling parts of
+## scene trees. However, interaction with the current scene tree should happen
+## on the main thread. (This was true in Godot 3.x. I'm not sure about 4.x.) To
+## do so, use [code]call_deferred()[/code] at the end of your io_method.[br][br]
+##
+## All work is processed in the order added using the [code]callback()[/code] method.[br][br]
+##
+## If [code]use_threads == false[/code] in IVCoreSettings
+## (["addons/ivoyager_core/singletons/core_settings.gd"]), [code]callback()[/code]
+## will still work but the callback will happen immediately on the main thread
+## without queuing.
 
 signal finished() # emitted when all I/O jobs completed
 

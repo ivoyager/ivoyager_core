@@ -20,21 +20,26 @@
 class_name IVCamera
 extends Camera3D
 
-# This camera works with the IVSelection object, which is a wrapper that can
-# potentially hold anything (in ivoyager, IVBody [and TODO: IVLagrangePoint)].
-# IVCamera recieves most of its control input from IVCameraHandler.
-#
-# Replacing this class should be possible but may be challenging. Very many
-# GUI widgets are built to use it.
-#
-# The camera uses a 'perspective distance' when moving from body to body at
-# close range. The distance is adjusted for body 'perspective_raduis' (usually
-# the same as m_radius) so that it appears the same size in the view. At far
-# distances there is no adjustment. (There is a transition between the two.)
-# Hence, distance vars with name '_radii_meters' that are on the order of
-# meters are adjusted to 'target radii'. Distance vars in units AU are what
-# they appear to be. In the transition distance they are intermediate.
-# This system *may* break for objects smaller than meters (not tested yet).
+## I, Voyager's default camera.
+##
+## This camera uses [IVSelection], a wrapper for potential target objects, and
+## [IVView], which contains camera position (and other view state). IVCamera
+## recieves most of its control input from [IVCameraHandler].[br][br]
+##
+## This class can be replaced together with [IVCameraHandler] and a few specific
+## GUI widgets that depend on IVCamera.[br][br]
+##
+## This camera uses a 'perspective distance' when moving from body to body at
+## close range. This distance is adjusted for body 'perspective_radius' (usually
+## the same as 'm_radius') so that it appears the same size in the view. At far
+## distances there is no adjustment. (There is a transition between the two.)
+## Hence, distance vars with name '_radii_meters' that are on the order of
+## meters are adjusted to 'target radii'. Distance vars in units AU are what
+## they appear to be. In the transition distance they are intermediate.
+## This system *may* break for objects smaller than meters (not tested yet).
+##
+## TODO: Reverse dependency with IVView. We want camera replaceability without
+## replacing IVView and its dependencies.
 
 signal move_started(to_spatial: Node3D, is_camera_lock: bool) # to_spatial is not parent yet
 signal parent_changed(spatial: Node3D)
@@ -261,7 +266,7 @@ func move_to(to_selection: IVSelection, to_flags := 0, to_view_position := NULL_
 	_from_view_rotations = view_rotations
 	_from_spatial = parent
 	
-	_trasfer_spatial = utils.get_ancestor_spatial(_from_spatial, _to_spatial)
+	_trasfer_spatial = utils.get_common_node3d(_from_spatial, _to_spatial)
 	
 	# change booleans
 	var is_up_change: bool = ((to_up_flags and to_up_flags != flags & ANY_UP_FLAGS)

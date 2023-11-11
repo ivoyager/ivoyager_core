@@ -20,6 +20,9 @@
 class_name IVComposition
 extends RefCounted
 
+## Base class representing the composition of something, e.g., a planet's
+## atmosphere or a star's photosphere.
+
 # This object is designed for simple display. It could be extended to do more.
 # For I, Voyager, we keep amounts as strings to preserve significant digits.
 

@@ -20,7 +20,9 @@
 class_name IVBodyOrbit
 extends MeshInstance3D
 
-# Visual orbit for a Body instance. If FragmentIdentifier exists, then a shader
+## Visual orbit of an [IVBody] instance.
+##
+#If FragmentIdentifier exists, then a shader
 # is used to allow screen identification of the orbit loop.
 
 const math := preload("res://addons/ivoyager_core/static/math.gd")

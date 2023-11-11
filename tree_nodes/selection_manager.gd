@@ -20,10 +20,13 @@
 class_name IVSelectionManager
 extends Node
 
-# Has currently selected item and keeps selection history. In many applications
-# you only need one SelectionManager, but any number are possible. GUI widgets
-# search up their ancestor tree and obtain from the first Control node with
-# non-null member 'selection_manager'.
+## Has currently selected item (using [IVSelection] wrapper class) and keeps
+## selection history. 
+##
+## An application may have one or more instances of this class, which are
+## each associated with an individual [Control]. GUI widgets can call static
+## function `get_selection_manager()` to obtain the first instance of this
+## class searching up their ancestor tree.
 
 signal selection_changed(suppress_camera_move: bool)
 signal selection_reselected(suppress_camera_move: bool)

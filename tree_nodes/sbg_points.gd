@@ -20,7 +20,9 @@
 class_name IVSBGPoints
 extends MeshInstance3D
 
-# Visual points for a SmallBodiesGroup instance. Uses one of the 'points'
+## Visual points of a [IVSmallBodiesGroup] instance.
+
+# Uses one of the 'points'
 # shaders ('points.x.x.gdshader', where x.x represents a shader variant).
 # Point shaders maintain vertex positions using their own orbital math.
 #

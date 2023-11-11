@@ -20,9 +20,11 @@
 class_name IVDebug
 extends Object
 
-# Print & log functions return true so they can be wrapped in assert(). E.g.,
-#     assert(IVDebug.dlog("something"))
-#     assert(!DPRINT or IVDebug.dprint("something"))
+## Provides debug static functions.
+##
+## Print & log functions return true so they can be wrapped in assert(). E.g.,[br]
+##     [code]assert(IVDebug.dlog("debug print"))[/code][br]
+##     [code]assert(!DPRINT or IVDebug.dprint("debug print"))[/code]
 
 
 static func dprint(arg: Variant, arg2: Variant = "", arg3: Variant = "", arg4: Variant = ""

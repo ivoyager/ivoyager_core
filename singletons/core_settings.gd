@@ -19,13 +19,13 @@
 # *****************************************************************************
 extends Node
 
-# This node is added as singleton 'IVCoreSettings'.
-#
-# Modify properties or dictionary classes using res://ivoyager_override.cfg.
-# Alternatively, you can modify values here using an initializer script. (See
-# comments in core_initializer.gd.)
-#
-# With very few exceptions, these should not be modified after program start!
+## Added as singleton 'IVCoreSettings'.
+##
+## Modify properties or dictionary classes using res://ivoyager_override.cfg.
+## Alternatively, you can modify values here using an initializer script. (See
+## comments in core_initializer.gd.) [br][br]
+##
+## With very few exceptions, these should not be modified after program start!
 
 var project_name := ""
 var project_version := "" # external project can set for gamesave debuging

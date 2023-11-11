@@ -20,12 +20,11 @@
 class_name IVSelection
 extends RefCounted
 
-# Wrapper for whatever you want selected, which could be anything or just a
-# text string. We wrap selection so all API expects the same type.
-# SelectionManager maintains selection history.
-#
-# For core ivoyager we only select Body instances and provide view info for
-# camera and some data access for GUI.
+## Wrapper class for anything that can be selected.
+##
+## [IVSelectionManager] keeps an instance of this class as current selection
+## and maintains selection history. In `ivoyager_core` we only select [IVBody]
+## instances, but this class could be extended to wrap anything.
 
 
 const math := preload("res://addons/ivoyager_core/static/math.gd") # =IVMath when issue #37529 fixed

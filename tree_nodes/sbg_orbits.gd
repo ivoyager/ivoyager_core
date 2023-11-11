@@ -20,7 +20,9 @@
 class_name IVSBGOrbits
 extends MultiMeshInstance3D
 
-# Visual orbits for a SmallBodiesGroup instance. If FragmentIdentifier exists,
+## Visual orbits of a [IVSmallBodiesGroup] instance.
+
+# If FragmentIdentifier exists,
 # then a shader is used to allow screen identification of the orbit lines.
 
 const math := preload("res://addons/ivoyager_core/static/math.gd")

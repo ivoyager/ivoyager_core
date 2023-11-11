@@ -20,13 +20,11 @@
 class_name IVSaveManager
 extends Node
 
-# To remove save/load functionality, set IVCoreSettings.enable_save_load = false. You
-# can then (optionally) delete these from IVProjectBuilder:
-#
-#   - _SaveManager_
-#   - _SaveBuilder_
-#   - _SaveDialog_
-#   - _LoadDialog_
+## Manages game saving and loading.
+##
+## This program class can be safely removed in IVCoreInitializer
+## (["addons/ivoyager_core/singletons/core_initializer.gd"]) together with
+## other save/load classes.
 
 const files := preload("res://addons/ivoyager_core/static/files.gd")
 const NO_NETWORK = IVEnums.NetworkState.NO_NETWORK
@@ -173,7 +171,7 @@ func load_game(path := "", network_gamesave := []) -> void:
 	IVGlobal.about_to_free_procedural_nodes.emit()
 	IVGlobal.game_load_started.emit()
 	await get_tree().process_frame
-	IVUtils.free_procedural_nodes(_universe)
+	IVSaveBuilder.free_all_procedural_objects(_universe)
 	# Give freeing procedural nodes time so they won't respond to game signals.
 	await get_tree().process_frame
 	await get_tree().process_frame

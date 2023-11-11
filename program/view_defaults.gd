@@ -20,8 +20,12 @@
 class_name IVViewDefaults
 extends RefCounted
 
-# Generates 'default' IVView instances that we might want to use. Also moves
-# the camera home at game start, unless move_home_at_start = false.
+## Generates default [IVView] instances that we might want to use.
+##
+## Moves the camera home at game start, unless move_home_at_start = false.
+##
+## TODO: Reverse dependency between IVView and IVCamera, so camera is more
+## removable.
 
 
 const CameraFlags := IVEnums.CameraFlags

@@ -20,6 +20,10 @@
 class_name IVSmallBodiesGroup
 extends Node
 
+## Base class to represent a group of orbiting objects that are not
+## individually instantiated. Can represent many 10000s of small bodies such
+## as asteroids.
+
 # Keeps compact data for large numbers of small bodies that we don't want to
 # instantiate as a full set, e.g., 10000s of asteroids.
 #

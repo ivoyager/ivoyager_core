@@ -20,40 +20,26 @@
 class_name IVUtils
 extends Object
 
-# Miscellaneous utility static functions. There are no references to 'ivoyager'
-# classes here.
-# Usage note: issue #37529 prevents localization of global class_name to const.
-# For now, use:
-# const utils := preload("res://addons/ivoyager_core/static/utils.gd")
+## Miscellaneous utility static functions.
 
 
 # Tree utilities
 
-static func free_procedural_nodes(node: Node) -> void:
-	if node.get(&"PERSIST_MODE") == IVEnums.PERSIST_PROCEDURAL:
-		node.queue_free() # children will also be freed!
-		return
-	for child in node.get_children():
-		if &"PERSIST_MODE" in child:
-			if child.get(&"PERSIST_MODE") != IVEnums.NO_PERSIST:
-				free_procedural_nodes(child)
-
-
-static func get_ancestor_spatial(spatial1: Node3D, spatial2: Node3D) -> Node3D:
-	# Returns parent spatial or common spatial ancestor. Assumes no non-Spatial
-	# nodes in the ancestor tree.
-	while spatial1:
-		var loop_spatial2 := spatial2
+## Returns common ancestor Node3D, or parent if one arg is parent of the
+## other. Assumes ancestor tree consists of only Node3D instances.
+static func get_common_node3d(node1: Node3D, node2: Node3D) -> Node3D:
+	while node1:
+		var loop_spatial2 := node2
 		while loop_spatial2:
-			if spatial1 == loop_spatial2:
+			if node1 == loop_spatial2:
 				return loop_spatial2
 			loop_spatial2 = loop_spatial2.get_parent_node_3d()
-		spatial1 = spatial1.get_parent_node_3d()
+		node1 = node1.get_parent_node_3d()
 	return null
 
-
+## Searches 'item/item/item/...' path starting from target, where 'item' can
+## be object properties or dictionary keys.
 static func get_deep(target: Variant, path: String) -> Variant:
-	# searches property/element path starting from target
 	if !path:
 		return target
 	var path_stack := Array(path.split("/", false))
@@ -66,7 +52,8 @@ static func get_deep(target: Variant, path: String) -> Variant:
 			return null
 	return target
 
-
+## Searches 'item/item/item/...' path starting from target, where 'item' can
+## be object properties, dictionary keys, or method names.
 static func get_path_result(target: Variant, path: String, args := []) -> Variant:
 	# as above but path could include methods
 	if !path:
@@ -92,9 +79,10 @@ static func get_path_result(target: Variant, path: String, args := []) -> Varian
 
 # Arrays
 
+## Init array of given size, fill content, and type. Will throw error if
+## [code]fill[/code] is incorrect type (leave null to not fill).
 static func init_array(size: int, fill: Variant = null, type := -1, class_name_ := &"",
 		script: Variant = null) -> Array:
-	# Will cause error if fill is wrong type; leave null to not fill.
 	var array: Array
 	if type == -1:
 		array = []
@@ -134,8 +122,8 @@ static func linear2srgb(x: float) -> float:
 
 # Number strings
 
-static func binary_str(flags: int) -> String:
-	# returns 64 bit string
+## Returns 64 bit string formatted '00000000_00000000_00000000_...'.
+static func get_64_bit_string(flags: int) -> String:
 	var result := ""
 	var index := 0
 	while index < 64:
@@ -147,64 +135,12 @@ static func binary_str(flags: int) -> String:
 	return result
 
 
-static func get_float_str_precision(real_str: String) -> int:
-	# See table FLOAT format rules in solar_system/planets.tsv.
-	# IVTableImporter has stripped leading "_" and converted "E" to "e".
-	# We ignore leading zeroes before the decimal place.
-	# We count trailing zeroes IF there is a decimal place.
-	if real_str == "?":
-		return -1
-	if real_str.begins_with("~"):
-		return 0
-	var length := real_str.length()
-	var n_digits := 0
-	var started := false
-	var n_unsig_zeros := 0
-	var deduct_zeroes := true
-	var i := 0
-	while i < length:
-		var chr: String = real_str[i]
-		if chr == ".":
-			started = true
-			deduct_zeroes = false
-		elif chr == "e":
-			break
-		elif chr == "0":
-			if started:
-				n_digits += 1
-				if deduct_zeroes:
-					n_unsig_zeros += 1
-		elif chr != "-":
-			assert(chr.is_valid_int(), "Unknown FLOAT character: " + chr)
-			started = true
-			n_digits += 1
-			n_unsig_zeros = 0
-		i += 1
-	if deduct_zeroes:
-		n_digits -= n_unsig_zeros
-	return n_digits
-
-
-# Misc
-
-# DEPRECIATE
-static func get_visual_radius_compensated_dist(from_dist: float, from_radius: float,
-		to_radius: float, exponent := 0.9) -> float:
-	# Use to get distance that is visually compensated (but not fully) for
-	# target size:
-	#  exponent = 0.0, no compensation (result = old_dist)
-	#  exponent = 1.0; full compensation so target appears same size
-	return from_dist * pow(to_radius / from_radius, exponent)
-
-
-
-
 # Patches
 
+## Patch method to handle "\u", which is not handled by Godot's [code]c_unescape()[/code].
+## See Godot issue #38716. Large unicodes are not supported by Godot, so we
+## can't do anything with "\U".
 static func c_unescape_patch(text: String) -> String:
-	# Use as patch until c_unescape() is fixed (Godot issue #38716).
-	# Implement escapes as needed here. It appears that large unicodes are not
-	# supported (?), so we can't do anything with "\U".
 	var u_esc := text.find("\\u")
 	while u_esc != -1:
 		var esc_str := text.substr(u_esc, 6)

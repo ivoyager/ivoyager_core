@@ -20,8 +20,9 @@
 class_name IVSBGHUDsState
 extends Node
 
-# Maintains visibility and color state for SmallBodiesGroup HUDs. HUD Nodes
-# must connect and set visibility and color on changed signals.
+## Maintains visibility and color state for [IVSmallBodiesGroup] HUDs.
+##
+## HUD Nodes must connect and set visibility and color on changed signals.
 
 signal points_visibility_changed()
 signal orbits_visibility_changed()

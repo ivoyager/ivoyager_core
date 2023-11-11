@@ -20,6 +20,7 @@
 class_name IVCompositionBuilder
 extends RefCounted
 
+## Builds [IVComposition] instances from data tables.
 
 var CompositionScript: Script
 

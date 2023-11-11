@@ -20,8 +20,10 @@
 class_name IVWorldController
 extends Control
 
-# Receives mouse events in the 3D world area, sets cursor shape and interprets
-# mouse drags, clicks and wheel turn.
+## Receives mouse events in the 3D world area, sets cursor shape and interprets
+## mouse drags, clicks and wheel turn.
+
+# TODO: Below should really be a dictionary...
 # Inits IVGlobal.world_targeting, which has elements:
 #  [0] mouse_position: Vector2 (this object sets)
 #  [1] veiwport_height: float (this object sets)

@@ -20,7 +20,10 @@
 class_name IVSBGFinisher
 extends RefCounted
 
-# Adds SBGPoints and SBGOrbits for SmallBodiesGroup instances.
+## Finishes construction of [IVSmallBodiesGroup] instances when they are added
+## to the tree.
+##
+## Adds visual (non-persisted) elements [IVSBGPoints] and [IVSBGOrbits]. 
 
 signal system_build_finished()
 

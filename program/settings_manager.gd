@@ -20,10 +20,12 @@
 class_name IVSettingsManager
 extends IVCacheManager
 
-# Settings are persisted on disk at <IVCoreSettings.cache_dir>/<cache_file_name>.
-#
-# TODO: We could have some settings cached in a user ProjectSettings override
-# for restart engine settings (screen size, rendering, etc.).
+## Defines and manages user settings.
+##
+## Non-default settings are persisted in a cache file.[br][br]
+##
+## Many (but not necessarily all) user settings are settable in [IVOptionsPopup].
+
 
 const BodyFlags: Dictionary = IVEnums.BodyFlags
 

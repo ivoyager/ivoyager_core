@@ -20,7 +20,8 @@
 class_name IVFontManager
 extends RefCounted
 
-# Maintains IVGlobal.fonts.
+## Maintains [code]fonts[/code] dictionary in IVGlobal
+## (["addons/ivoyager_core/singletons/global.gd"]).
 
 # project vars - modify on signal project_objects_instantiated
 var fixed_sizes := {

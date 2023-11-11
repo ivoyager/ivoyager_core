@@ -20,6 +20,8 @@
 class_name IVRotatingSpace
 extends Node3D
 
+## A reference frame for an [IVBody] instance's orbital rotation.
+
 # Created and maintained by IVBody instance only when needed. This is the
 # rotating reference frame in which Lagrange points are embeded. In
 # RotatingSpace, the primary body (P1) is maintained at constant position

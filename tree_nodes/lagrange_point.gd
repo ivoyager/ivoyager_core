@@ -20,6 +20,8 @@
 class_name IVLagrangePoint
 extends Node3D
 
+## A Lagrange Point of an [IVBody] instance.
+
 # Passive Node3D that exists in the RotatingSpace of a Body. Use Body API to
 # obtain (Body uses lazy init).
 
