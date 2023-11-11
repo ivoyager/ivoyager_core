@@ -266,7 +266,7 @@ func move_to(to_selection: IVSelection, to_flags := 0, to_view_position := NULL_
 	_from_view_rotations = view_rotations
 	_from_spatial = parent
 	
-	_trasfer_spatial = utils.get_ancestor_spatial(_from_spatial, _to_spatial)
+	_trasfer_spatial = utils.get_common_node3d(_from_spatial, _to_spatial)
 	
 	# change booleans
 	var is_up_change: bool = ((to_up_flags and to_up_flags != flags & ANY_UP_FLAGS)
