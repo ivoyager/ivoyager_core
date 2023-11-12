@@ -37,6 +37,7 @@ func _on_toggled(toggle_pressed: bool) -> void:
 	if toggle_pressed:
 		_time_set_popup.popup()
 		await get_tree().process_frame # popup may not know its correct size yet
+		_time_set_popup.size = Vector2i(0, 0)
 		var popup_position := global_position - Vector2(_time_set_popup.size)
 		popup_position.x += size.x / 2.0
 		if popup_position.x < 0.0:

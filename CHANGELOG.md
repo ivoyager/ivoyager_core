@@ -20,6 +20,7 @@ Requires non-release **ivoyager_assets-0.0.18.dev.20231019**. **_NEW! The plugin
 * Class documentation using Godot ## tags.
 
 ### Changed
+* Unlocked the time setter widget so year can be set outside of 3000 BC to 3000 AD. The widget now displays a text warning telling user that planet positions are valid in that range. (Widget used in Planetarium.)
 * Improved IVSaveBuilder Dictionary handling: a) Persist objects can be keys. b) String versus StringName types are correctly distinguished and persisted as keys.
 * [Possibly breaking] Optimized IVSaveBuilder with new rules for Objects in containers: Objects can be in object member Arrays (which must be Object-typed) or object member Dictionaries (as keys or values), but cannot be in nested Arrays or Dictionaries inside of Arrays or Dictionaries. (Pure "data" containers can still be nested at any level.)
 * IVSaveBuilder: Improved debug asserts at game save. Throws errors on rule violations that could lead to load problems.
@@ -28,6 +29,9 @@ Requires non-release **ivoyager_assets-0.0.18.dev.20231019**. **_NEW! The plugin
 * For loop typing and error fixes for Godot 4.2.
 * Removed functions `_on_init()`, `_on_ready()`, `_on_process()`, etc. These were needed in Godot 3.x because virtual functions could not be overridden by subclasses. This is no longer the case.
 * Removed number & unit names from translation (now added in ivoyager_table_importer).
+
+### Fixed
+* [Migration regression] Fixed array type error causing crash in `IVTimekeeper.is_valid_gregorian_date()`.
 
 ## v0.0.17 - 2023-10-03
 

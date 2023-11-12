@@ -18,28 +18,29 @@
 # limitations under the License.
 # *****************************************************************************
 class_name IVTimeSetter
-extends HBoxContainer
+extends VBoxContainer
 
-# GUI widget. Requires IVTimekeeper.
-#
-# For usage in a setter popup, see IVTimeSetPopup.
+## GUI widget allowing user to set time.
+##
+## Requires IVTimekeeper. For usage in a setter popup with a button, see
+## [IVTimeSetPopup] and [IVTimeSetButton].
 
 signal time_set(is_close: bool)
 
-
-@onready var _year: SpinBox = $Year
-@onready var _month: SpinBox = $Month
-@onready var _day: SpinBox = $Day
-@onready var _hour: SpinBox = $Hour
-@onready var _minute: SpinBox = $Minute
-@onready var _second: SpinBox = $Second
+@onready var _year: SpinBox = $SetterHBox/Year
+@onready var _month: SpinBox = $SetterHBox/Month
+@onready var _day: SpinBox = $SetterHBox/Day
+@onready var _hour: SpinBox = $SetterHBox/Hour
+@onready var _minute: SpinBox = $SetterHBox/Minute
+@onready var _second: SpinBox = $SetterHBox/Second
 
 @onready var _timekeeper: IVTimekeeper = IVGlobal.program[&"Timekeeper"]
 
 
 func _ready() -> void:
-	($Set as Button).pressed.connect(_on_set.bind(false))
-	($SetAndClose as Button).pressed.connect(_on_set.bind(true))
+	($SetterHBox/Set as Button).pressed.connect(_on_set.bind(false))
+	($SetterHBox/SetAndClose as Button).pressed.connect(_on_set.bind(true))
+	($ValidRangeLabel as RichTextLabel).meta_clicked.connect(_on_meta_clicked)
 	_year.value_changed.connect(_on_date_changed)
 	_month.value_changed.connect(_on_date_changed)
 	_day.value_changed.connect(_on_date_changed)
@@ -77,4 +78,9 @@ func _on_date_changed(_value: float) -> void:
 	var month := int(_month.value)
 	if !_timekeeper.is_valid_gregorian_date(year, month, day):
 		_day.value = day - 1
+
+
+func _on_meta_clicked(meta: Variant) -> void:
+	var url: String = meta
+	OS.shell_open(url)
 

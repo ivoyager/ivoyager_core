@@ -367,7 +367,7 @@ func get_elements(time := NAN) -> Array[float]:
 
 
 static func get_position_from_elements(elements: Array[float], time: float) -> Vector3:
-	# Derived from https://ssd.jpl.nasa.gov/txt/aprx_pos_planets.pdf. However,
+	# Derived from https://ssd.jpl.nasa.gov/planets/approx_pos.html. However,
 	# we use M modifiers (b, c, s, f) to modify M0 in our dynamic orbital
 	# elements (see _set_elements function) rather than modifying M here.
 	# Thus, position is strictly a function of time and orbital elements.

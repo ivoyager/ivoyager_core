@@ -35,3 +35,4 @@ Comments and questions are welcome at [url]I, Voyager Forum[/url]!
 Please consider a small subscription donation to help I, Voyager become
 a nonprofit entity. For details and to help, visit [url]GitHub Sponsors[/url]."
 TXT_PWA_UPDATE_AVAILABLE,\n   A Planetarium update is available!   \n\n   Press 'Update' to download and run the new version.   \n   Press 'Continue' to continue using the old version.   \n
+TXT_VALID_3000BC_3000AD,"The simulation uses Keplerian elements and rates for planets [url='https://ssd.jpl.nasa.gov/planets/approx_pos.html']valid from 3000 BC to 3000 AD[/url]. Planet positions will not be accurate outside of this range. There is also an [url='https://github.com/ivoyager/ivoyager_core/issues/6']open issue[/url] to fix orbits of the Hilda asteroids, which visibly lose their 3:2 resonance with Jupiter over several centuries from J2000."
