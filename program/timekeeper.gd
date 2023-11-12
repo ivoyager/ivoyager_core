@@ -252,7 +252,7 @@ static func is_valid_gregorian_date(Y: int, M: int, D: int) -> bool:
 		return true
 	# day 30 & 31 may or may not be valid
 	var jdn := gregorian2jdn(Y, M, D)
-	var test_date := [0, 0, 0]
+	var test_date: Array[int] = [0, 0, 0]
 	set_gregorian_date_array(jdn, test_date)
 	return test_date == [Y, M, D]
 
