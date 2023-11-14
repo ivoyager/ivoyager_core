@@ -22,12 +22,13 @@ extends Node
 ## Added as singleton 'IVCoreInitializer'.
 ##
 ## Modify properties or dictionary classes using res://ivoyager_override.cfg.
-## Alternatively, you can modify values here using an initializer script. (Note,
-## your initializer must be added somehow. You can either add it using
-## res://ivoyager_override.cfg or make it an autoload.)[br][br]
+## Alternatively, you can modify values here using a preinitializer script.
+## (To add your preinitializer, either add it using res://ivoyager_override.cfg
+## or make it an autoload.)[br][br]
 ##
-## For an example initializer script, see Planetarium:
-## https://github.com/ivoyager/planetarium/blob/master/planetarium/preinitializer.gd.[br][br]
+## For an example preinitializer script, see Planetarium: [url]
+## https://github.com/ivoyager/planetarium/blob/master/planetarium/preinitializer.gd
+## [/url].[br][br]
 ##
 ## DON'T modify values here after program start![br][br]
 ##
@@ -53,21 +54,16 @@ var init_delay := 5 # frames
 var init_sequence: Array[Array] = [
 	# [object, method, wait_for_signal]
 #	[self, "_init_extensions", false],
-	[self, "_instantiate_preinitializers", false],
-	[self, "_do_presets", false],
-	[self, "_instantiate_initializers", false],
-	[self, "_set_simulator_universe", false],
-	[self, "_set_simulator_top_gui", false],
-	[self, "_instantiate_and_index_program_objects", false],
-	[self, "_init_program_objects", true],
-	[self, "_add_program_nodes", true],
-	[self, "_finish", false]
+	[self, &"_instantiate_preinitializers", false],
+	[self, &"_do_presets_and_plugin_mods", false],
+	[self, &"_instantiate_initializers", false],
+	[self, &"_set_simulator_universe", false],
+	[self, &"_set_simulator_top_gui", false],
+	[self, &"_instantiate_and_index_program_objects", false],
+	[self, &"_init_program_objects", true],
+	[self, &"_add_program_nodes", true],
+	[self, &"_finish", false]
 ]
-
-# Presets safely remove whole systems. (Note: We can add more of these if users
-# want to develop and test them.)
-
-var remove_save_load_system := false
 
 # All nodes instatiated here are added to 'universe' or 'top_gui'. Use
 # ivoyager_override.cfg or a preinitializer script to set either or both of
@@ -169,6 +165,7 @@ var program_nodes := {
 	BodyHUDsState = IVBodyHUDsState,
 	InputHandler = IVInputHandler,
 	StateManager = IVStateManager,
+	SaveManager = IVSaveManager, # auto removed if plugin missing or disabled
 }
 
 var gui_nodes := {
@@ -184,6 +181,8 @@ var gui_nodes := {
 	GameGUI = null, # assign here if convenient (above MouseTargetLabel, below SplashScreen)
 	SplashScreen = null, # assign here if convenient (below popups)
 	MainMenuPopup = IVMainMenuPopup, # safe to replace or remove
+	LoadDialog = IVLoadDialog, # auto removed if plugin missing or disabled
+	SaveDialog = IVSaveDialog, # auto removed if plugin missing or disabled
 	OptionsPopup = IVOptionsPopup, # safe to replace or remove
 	HotkeysPopup = IVHotkeysPopup, # safe to replace or remove
 	Confirmation = IVConfirmation, # safe to replace or remove
@@ -304,13 +303,12 @@ func _instantiate_preinitializers() -> void:
 	IVGlobal.preinitializers_inited.emit()
 
 
-func _do_presets() -> void:
-	if remove_save_load_system:
-		IVCoreSettings.enable_save_load = false
-		program_refcounteds.erase("SaveBuilder")
-		program_nodes.erase("SaveManager")
-		gui_nodes.erase("SaveDialog")
-		gui_nodes.erase("LoadDialog")
+func _do_presets_and_plugin_mods() -> void:
+	# TODO: We might add class presets here
+	if !IVGlobal.tree_saver_enabled:
+		program_nodes.erase(&"SaveManager")
+		gui_nodes.erase(&"SaveDialog")
+		gui_nodes.erase(&"LoadDialog")
 
 
 func _instantiate_initializers() -> void:

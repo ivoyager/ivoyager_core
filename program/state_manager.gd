@@ -232,7 +232,7 @@ func exit(force_exit := false, following_server := false) -> void:
 		if _state.network_state == IS_CLIENT:
 			IVGlobal.confirmation_requested.emit("Disconnect from multiplayer game?", exit.bind(true))
 			return
-		elif IVCoreSettings.enable_save_load: # single player or network server
+		elif IVGlobal.tree_saver_enabled: # single player or network server
 			IVGlobal.confirmation_requested.emit(&"LABEL_EXIT_WITHOUT_SAVING", exit.bind(true))
 			return
 	if _state.network_state == IS_CLIENT:
@@ -264,7 +264,7 @@ func quit(force_quit := false) -> void:
 		if _state.network_state == IS_CLIENT:
 			IVGlobal.confirmation_requested.emit("Disconnect from multiplayer game?", exit.bind(true))
 			return
-		elif IVCoreSettings.enable_save_load and !_state.is_splash_screen:
+		elif IVGlobal.tree_saver_enabled and !_state.is_splash_screen:
 			IVGlobal.confirmation_requested.emit(&"LABEL_QUIT_WITHOUT_SAVING", quit.bind(true))
 			return
 	if _state.network_state == IS_CLIENT:

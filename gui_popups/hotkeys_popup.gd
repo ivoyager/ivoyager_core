@@ -129,7 +129,7 @@ func _ivcore_init() -> void:
 		remove_item(&"toggle_pause")
 	if !IVCoreSettings.allow_time_reversal:
 		remove_item(&"reverse_time")
-	if !IVCoreSettings.enable_save_load:
+	if !IVGlobal.tree_saver_enabled:
 		remove_item(&"load_game")
 		remove_item(&"quick_load")
 		remove_item(&"save_as")

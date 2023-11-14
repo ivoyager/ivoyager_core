@@ -30,13 +30,12 @@ var add_quick_load_button := true
 
 var _state: Dictionary = IVGlobal.state
 var _blocking_windows: Array[Window] = IVGlobal.blocking_windows
-var _main_menu_manager: IVMainMenuManager
+@onready var _main_menu_manager: IVMainMenuManager = IVGlobal.program[&"MainMenuManager"]
 
 
-func _ivcore_init() -> void:
-	if !IVCoreSettings.enable_save_load:
+func _ready() -> void:
+	if !IVGlobal.tree_saver_enabled:
 		return
-	_main_menu_manager = IVGlobal.program[&"MainMenuManager"]
 	add_filter("*." + IVCoreSettings.save_file_extension + ";"
 			+ IVCoreSettings.save_file_extension_name)
 	IVGlobal.system_tree_ready.connect(_on_system_tree_ready)
@@ -45,9 +44,6 @@ func _ivcore_init() -> void:
 	IVGlobal.close_all_admin_popups_requested.connect(_close)
 	file_selected.connect(_load_file)
 	canceled.connect(_on_canceled)
-
-
-func _ready() -> void:
 	process_mode = PROCESS_MODE_ALWAYS
 	theme = IVGlobal.themes.main
 	_blocking_windows.append(self)
