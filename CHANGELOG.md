@@ -30,6 +30,9 @@ Requires non-release **ivoyager_assets-0.0.18.dev.20231019**. **_NEW! The plugin
 * Removed functions `_on_init()`, `_on_ready()`, `_on_process()`, etc. These were needed in Godot 3.x because virtual functions could not be overridden by subclasses. This is no longer the case.
 * Removed number & unit names from translation (now added in ivoyager_table_importer).
 
+### Removed
+* IVSaveBuilder class. Save/load functionality has been removed from core and is now added by the [Tree Saver](https://github.com/ivoyager/ivoyager_tree_saver) plugin.
+
 ### Fixed
 * [Migration regression] Fixed array type error causing crash in `IVTimekeeper.is_valid_gregorian_date()`.
 

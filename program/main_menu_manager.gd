@@ -65,7 +65,7 @@ func _init_buttons() -> void:
 			&"BUTTON_START":
 				skip = IVCoreSettings.skip_splash_screen
 			&"BUTTON_SAVE_AS", &"BUTTON_QUICK_SAVE", &"BUTTON_LOAD_FILE", &"BUTTON_QUICK_LOAD":
-				skip = !IVCoreSettings.enable_save_load
+				skip = !IVGlobal.tree_saver_enabled
 			&"BUTTON_EXIT":
 				skip = IVCoreSettings.disable_exit or IVCoreSettings.skip_splash_screen
 			&"BUTTON_QUIT":

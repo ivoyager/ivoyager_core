@@ -30,7 +30,6 @@ extends Node
 var project_name := ""
 var project_version := "" # external project can set for gamesave debuging
 var is_modded := false # this is aspirational
-var enable_save_load := true
 var save_file_extension := "IVoyagerSave"
 var save_file_extension_name := "I Voyager Save"
 var use_threads := true # false helps for debugging

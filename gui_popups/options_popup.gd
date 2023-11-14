@@ -86,7 +86,7 @@ func _init() -> void:
 func _ivcore_init() -> void:
 	IVGlobal.options_requested.connect(open)
 	IVGlobal.setting_changed.connect(_settings_listener)
-	if !IVCoreSettings.enable_save_load:
+	if !IVGlobal.tree_saver_enabled:
 		remove_subpanel(&"LABEL_SAVE_LOAD")
 
 

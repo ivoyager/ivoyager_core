@@ -20,20 +20,24 @@
 class_name IVEnums
 extends Object
 
-## Global context enums.
+## Global context enums and enum constants.
 
-
-enum { # duplicated in IVSaveBuilder
-	NO_PERSIST,
-	PERSIST_PROPERTIES_ONLY,
-	PERSIST_PROCEDURAL,
+## Duplicated from Tree Saver plugin so we can have these in our classes
+## without the plugin.
+enum PersistMode {
+	NO_PERSIST, ## Non-persist object.
+	PERSIST_PROPERTIES_ONLY, ## Object will not be freed (Node only; must have stable NodePath).
+	PERSIST_PROCEDURAL, ## Object will be freed and rebuilt on game load (Node or RefCounted).
 }
+const NO_PERSIST := PersistMode.NO_PERSIST
+const PERSIST_PROPERTIES_ONLY := PersistMode.PERSIST_PROPERTIES_ONLY
+const PERSIST_PROCEDURAL := PersistMode.PERSIST_PROCEDURAL
+
 
 enum SBGClass {
 	SBG_CLASS_ASTEROIDS,
 	SBG_CLASS_ARTIFICIAL_SATELLITES, # TODO: Roadmap
 }
-
 
 enum GUISize {
 	GUI_SMALL,

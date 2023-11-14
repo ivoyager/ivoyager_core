@@ -35,14 +35,11 @@ var _blocking_windows: Array[Window] = IVGlobal.blocking_windows
 @onready var _timekeeper: IVTimekeeper = IVGlobal.program[&"Timekeeper"]
 
 
-func _ivcore_init() -> void:
-	if !IVCoreSettings.enable_save_load:
+func _ready() -> void:
+	if !IVGlobal.tree_saver_enabled:
 		return
 	add_filter("*." + IVCoreSettings.save_file_extension + ";"
 			+ IVCoreSettings.save_file_extension_name)
-
-
-func _ready() -> void:
 	IVGlobal.save_dialog_requested.connect(_open)
 	IVGlobal.close_all_admin_popups_requested.connect(_close)
 	file_selected.connect(_save_file)

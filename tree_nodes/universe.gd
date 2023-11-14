@@ -49,13 +49,14 @@ extends Node3D
 ## responsve to camera) and user can interact with the world, and only
 ## [IVTimekeeper] pauses to stop time.
 
-const PERSIST_MODE := IVEnums.PERSIST_PROPERTIES_ONLY ## Don't free on load. See [IVSaveBuilder].
+const PERSIST_MODE := IVEnums.PERSIST_PROPERTIES_ONLY ## Don't free on load.
 const PERSIST_PROPERTIES: Array[StringName] = [&"persist"]
 
 
-## This dictionary is not used by ivoyager_core but is available for
-## game save persistence by external projects. It can hold Godot built-ins,
-## nested containers or other 'persist objects'. For details on save/load
-## persistence, see [IVSaveBuilder].
+## This dictionary is not used by ivoyager_core but is available for game save
+## persistence by external projects if ivoyager_tree_saver plugin is also
+## present. It can hold Godot built-ins, nested containers or other 'persist 
+## objects'. For details on save/load persistence, see
+## [url]https://github.com/ivoyager/ivoyager_tree_saver[/url].
 var persist := {}
 
