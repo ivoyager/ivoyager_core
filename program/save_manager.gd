@@ -20,11 +20,16 @@
 class_name IVSaveManager
 extends Node
 
-## Manages game saving and loading.
+## Manages game saving and loading. (Not added in base configuration.)
 ##
-## This program class can be safely removed in IVCoreInitializer
-## (["addons/ivoyager_core/singletons/core_initializer.gd"]) together with
-## other save/load classes.
+## This class requires the [url=https://github.com/ivoyager/ivoyager_tree_saver]
+## Tree Saver plugin[/url]. It is not in base IVCoreInitializer. To add the
+## save/load system to your project, add and enable the Tree Saver plugin. Then
+## add these three classes to IVCoreInitializer:[br][br]
+##
+## IVSaveManager (this node)
+## IVSaveDialog (or add your own save dialog)
+## IVLoadDialog (or add your own load dialog)
 
 const files := preload("res://addons/ivoyager_core/static/files.gd")
 const NO_NETWORK = IVEnums.NetworkState.NO_NETWORK
@@ -50,15 +55,24 @@ var is_modded: bool = IVCoreSettings.is_modded
 var _state: Dictionary = IVGlobal.state
 var _settings: Dictionary = IVGlobal.settings
 var _has_been_saved := false
+var _tree_saver: RefCounted
+var _save_utils: Script
 
 @onready var _io_manager: IVIOManager = IVGlobal.program[&"IOManager"]
 @onready var _state_manager: IVStateManager = IVGlobal.program[&"StateManager"]
 @onready var _timekeeper: IVTimekeeper = IVGlobal.program[&"Timekeeper"]
-@onready var _save_builder: IVSaveBuilder = IVGlobal.program[&"SaveBuilder"]
 @onready var _universe: Node3D = IVGlobal.program[&"Universe"]
 
 
 func _ready() -> void:
+	# Uses ivoyager_tree_saver classes. We duck type here so the editor
+	# won't throw compile error if the plugin is missing.
+	if !IVGlobal.tree_saver_enabled:
+		assert(false, "'I, Voyager - Tree Saver' plugin is not enabled")
+		return
+	@warning_ignore("unsafe_method_access")
+	_tree_saver = load("res://addons/ivoyager_tree_saver/tree_saver.gd").new()
+	_save_utils = load("res://addons/ivoyager_tree_saver/save_utils.gd")
 	process_mode = PROCESS_MODE_ALWAYS
 	IVGlobal.save_requested.connect(_on_save_requested)
 	IVGlobal.load_requested.connect(_on_load_requested)
@@ -126,8 +140,10 @@ func save_game(path := "") -> void:
 	await _state_manager.threads_finished
 	IVGlobal.game_save_started.emit()
 	assert(IVDebug.dlog("Tree status before save..."))
-	assert(IVDebug.dlog(_save_builder.debug_log(_universe)))
-	var gamesave := _save_builder.generate_gamesave(_universe)
+	# FIXME: New log system
+	#assert(IVDebug.dlog(_save_utils.debug_log(_universe)))
+	@warning_ignore("unsafe_method_access")
+	var gamesave: Array = _tree_saver.get_gamesave(_universe)
 	_io_manager.store_var_to_file(gamesave, path, _save_callback)
 	IVGlobal.game_save_finished.emit()
 	_has_been_saved = true
@@ -171,7 +187,8 @@ func load_game(path := "", network_gamesave := []) -> void:
 	IVGlobal.about_to_free_procedural_nodes.emit()
 	IVGlobal.game_load_started.emit()
 	await get_tree().process_frame
-	IVSaveBuilder.free_all_procedural_objects(_universe)
+	@warning_ignore("unsafe_method_access")
+	_save_utils.free_all_procedural_objects(_universe)
 	# Give freeing procedural nodes time so they won't respond to game signals.
 	await get_tree().process_frame
 	await get_tree().process_frame
@@ -223,7 +240,8 @@ func _load_callback(gamesave: Array, err: int) -> void:
 	if err != OK:
 		print("ERROR on Load; error code = ", err)
 		return # TODO: Exit and give user feedback
-	_save_builder.build_tree(_universe, gamesave)
+	@warning_ignore("unsafe_method_access")
+	_tree_saver.build_tree_from_gamesave(gamesave, _universe)
 	_test_version()
 	IVGlobal.game_load_finished.emit()
 	_state.is_system_built = true
@@ -235,5 +253,6 @@ func _simulator_started_after_load() -> void:
 	print("Nodes in tree after load & sim started: ", get_tree().get_node_count())
 	print("If differant than pre-save, set debug in save_builder.gd and check debug.log")
 	assert(IVDebug.dlog("Tree status after load & simulator started..."))
-	assert(IVDebug.dlog(_save_builder.debug_log(_universe)))
+	# FIXME: Save loging
+	#assert(IVDebug.dlog(_save_utils.debug_log(_universe)))
 

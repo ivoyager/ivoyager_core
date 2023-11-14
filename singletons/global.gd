@@ -109,7 +109,8 @@ var blocking_windows: Array[Window] = [] # add Windows that want & test for excl
 # read-only!
 var ivoyager_version: String
 var assets_version: String
-
+var enabled_plugins: PackedStringArray = ProjectSettings.get_setting("editor_plugins/enabled")
+var tree_saver_enabled := enabled_plugins.has("res://addons/ivoyager_tree_saver/plugin.cfg")
 var wiki: String # IVWikiInitializer sets; "wiki" (internal), "en.wiki", etc.
 var debug_log: FileAccess # IVLogInitializer sets if debug build and debug_log_path
 

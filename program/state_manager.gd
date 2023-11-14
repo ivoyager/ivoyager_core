@@ -78,6 +78,9 @@ const DPRINT := false
 const PERSIST_MODE := IVEnums.PERSIST_PROPERTIES_ONLY
 const PERSIST_PROPERTIES: Array[StringName] = [&"is_user_paused"]
 
+# project setting
+var use_tree_saver_deconstruction_if_present := true
+
 # persisted - read-only!
 var is_user_paused := false # ignores pause from sim stop
 
@@ -247,8 +250,7 @@ func exit(force_exit := false, following_server := false) -> void:
 	IVGlobal.about_to_exit.emit()
 	IVGlobal.about_to_free_procedural_nodes.emit()
 	await _tree.process_frame
-	var universe: Node3D = IVGlobal.program.Universe
-	IVSaveBuilder.free_all_procedural_objects(universe)
+	_deconstruct_system_tree()
 	IVGlobal.close_all_admin_popups_requested.emit()
 	await _tree.process_frame
 	_state.is_splash_screen = true
@@ -274,8 +276,7 @@ func quit(force_quit := false) -> void:
 	IVGlobal.about_to_quit.emit()
 	IVGlobal.about_to_free_procedural_nodes.emit()
 	await _tree.process_frame
-	var universe: Node3D = IVGlobal.program.Universe
-	IVSaveBuilder.free_all_procedural_objects(universe)
+	_deconstruct_system_tree()
 	assert(IVDebug.dprint_orphan_nodes())
 	print("Quitting...")
 	_tree.quit()
@@ -319,6 +320,16 @@ func _on_system_tree_ready(is_new_game: bool) -> void:
 
 func _on_simulator_exited() -> void:
 	is_user_paused = false
+
+
+func _deconstruct_system_tree() -> void:
+	var universe: Node3D = IVGlobal.program.Universe
+	if use_tree_saver_deconstruction_if_present and IVGlobal.tree_saver_enabled:
+		var save_utils: Script = load("res://addons/ivoyager_tree_saver/save_utils.gd")
+		@warning_ignore("unsafe_method_access")
+		save_utils.free_all_procedural_objects(universe)
+	else:
+		IVUtils.free_procedural_nodes_recursive(universe)
 
 
 func _stop_simulator() -> void:

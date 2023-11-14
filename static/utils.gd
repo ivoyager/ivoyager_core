@@ -25,6 +25,20 @@ extends Object
 
 # Tree utilities
 
+## Frees all 'procedural' Nodes at or below [code]root_node[/code]. Note: The
+## 'I, Voyager - Tree Saver' plugin has a better deconstructor method
+## [code]free_all_procedural_objects()[/code] if that is enabled. This one will
+## work if there are no circular references to procedural RefCounted
+## instances.
+static func free_procedural_nodes_recursive(root_node: Node) -> void:
+	if root_node.get(&"PERSIST_MODE") == IVEnums.PERSIST_PROCEDURAL:
+		root_node.queue_free() # children will also be freed!
+		return
+	for child in root_node.get_children():
+		if &"PERSIST_MODE" in child:
+			free_procedural_nodes_recursive(child)
+
+
 ## Returns common ancestor Node3D, or parent if one arg is parent of the
 ## other. Assumes ancestor tree consists of only Node3D instances.
 static func get_common_node3d(node1: Node3D, node2: Node3D) -> Node3D:
