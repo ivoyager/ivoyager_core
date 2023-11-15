@@ -327,7 +327,7 @@ func _deconstruct_system_tree() -> void:
 	if use_tree_saver_deconstruction_if_present and IVGlobal.tree_saver_enabled:
 		var save_utils: Script = load("res://addons/ivoyager_tree_saver/save_utils.gd")
 		@warning_ignore("unsafe_method_access")
-		save_utils.free_all_procedural_objects(universe)
+		save_utils.free_procedural_objects_recursive(universe)
 	else:
 		IVUtils.free_procedural_nodes_recursive(universe)
 
