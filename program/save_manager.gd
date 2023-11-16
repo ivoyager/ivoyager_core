@@ -188,7 +188,7 @@ func load_game(path := "", network_gamesave := []) -> void:
 	IVGlobal.game_load_started.emit()
 	await get_tree().process_frame
 	@warning_ignore("unsafe_method_access")
-	_save_utils.free_all_procedural_objects(_universe)
+	_save_utils.free_procedural_objects_recursive(_universe)
 	# Give freeing procedural nodes time so they won't respond to game signals.
 	await get_tree().process_frame
 	await get_tree().process_frame
@@ -241,7 +241,7 @@ func _load_callback(gamesave: Array, err: int) -> void:
 		print("ERROR on Load; error code = ", err)
 		return # TODO: Exit and give user feedback
 	@warning_ignore("unsafe_method_access")
-	_tree_saver.build_tree_from_gamesave(gamesave, _universe)
+	_tree_saver.build_attached_tree(gamesave, _universe)
 	_test_version()
 	IVGlobal.game_load_finished.emit()
 	_state.is_system_built = true

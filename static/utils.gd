@@ -27,7 +27,7 @@ extends Object
 
 ## Frees all 'procedural' Nodes at or below [code]root_node[/code]. Note: The
 ## 'I, Voyager - Tree Saver' plugin has a better deconstructor method
-## [code]free_all_procedural_objects()[/code] if that is enabled. This one will
+## [code]free_procedural_objects_recursive()[/code] if that is enabled. This one will
 ## work if there are no circular references to procedural RefCounted
 ## instances.
 static func free_procedural_nodes_recursive(root_node: Node) -> void:
