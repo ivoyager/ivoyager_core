@@ -12,7 +12,7 @@ Under development using Godot 4.2.beta5. _Has backward breaking changes!_
 
 Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_table_importer) v0.0.7.dev (use current _master_ branch).
 
-Requires non-release **ivoyager_assets-0.0.18.dev.20231019**. **_NEW! The plugin will update this for you! Just press 'Download' at the dialog prompt._** (Alternatively, download [here](https://github.com/ivoyager/non_release_assets/releases/tag/2023-10-19).)
+Requires non-release **ivoyager_assets-0.0.18.dev.20240129**. **_NEW! The plugin will update this for you! Just press 'Download' at the dialog prompt._** (Alternatively, download [here](https://github.com/ivoyager/non_release_assets/releases/tag/2024-01-29).)
 
 
 ### Added
@@ -20,6 +20,8 @@ Requires non-release **ivoyager_assets-0.0.18.dev.20231019**. **_NEW! The plugin
 * Class documentation using Godot ## tags.
 
 ### Changed
+* [ivoyager_assets] Major Neptune color adjustment (and minor Uranus) to match newly published true color estimations.
+* [ivoyager_assets] New Titan images to show true atmospheric view rather than radar image.
 * Unlocked the time setter widget so year can be set outside of 3000 BC to 3000 AD. The widget now displays a text warning telling user that planet positions are valid in that range. (Widget used in Planetarium.)
 * Improved IVSaveBuilder Dictionary handling: a) Persist objects can be keys. b) String versus StringName types are correctly distinguished and persisted as keys.
 * [Possibly breaking] Optimized IVSaveBuilder with new rules for Objects in containers: Objects can be in object member Arrays (which must be Object-typed) or object member Dictionaries (as keys or values), but cannot be in nested Arrays or Dictionaries inside of Arrays or Dictionaries. (Pure "data" containers can still be nested at any level.)
