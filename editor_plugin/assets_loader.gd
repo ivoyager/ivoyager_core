@@ -40,7 +40,8 @@ func _init(path: String, version: String, size_mib: float) -> void:
 
 
 func _ready() -> void:
-	print("Attempting to download ivoyager_assets %s from:\n%s" % [_version, _path])
+	print("Attempting to download ivoyager_assets %s from...\n%s" % [_version, _path])
+	print("...to temporary file %s..." % TEMP_DOWNLOAD_ZIP)
 	request_completed.connect(_on_request_completed)
 	var error := request(_path)
 	if error != HTTPRequest.RESULT_SUCCESS:
@@ -78,7 +79,7 @@ func _replace_assets() -> void:
 		return
 	
 	if DirAccess.dir_exists_absolute(ASSETS_DIR):
-		print("Moving old ivoyager_assets to trash")
+		print("Moving old ivoyager_assets to trash...")
 		OS.move_to_trash(ProjectSettings.globalize_path(ASSETS_DIR))
 	
 	print("Uncompressing new ivoyager_assets...")
@@ -105,5 +106,15 @@ func _replace_assets() -> void:
 	await get_tree().process_frame
 	print("Removing temporary download file ", TEMP_DOWNLOAD_ZIP)
 	DirAccess.remove_absolute(TEMP_DOWNLOAD_ZIP)
+	print("""
+
+*******************************************************************************
+New or updated assets have been added at 'res://addons/ivoyager_assets'!
+Note: It's sometimes necessesary to restart the Editor to trigger (re)import of
+all assets. We recommend doing so even if you saw (re)import of some assets.
+*******************************************************************************
+
+""")
+	
 	queue_free()
 
