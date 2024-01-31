@@ -119,7 +119,6 @@ var program_refcounteds := {
 	SettingsManager = IVSettingsManager, # 1st so IVGlobal.settings are valid
 	
 	# builders (generators, often from table or binary data)
-	EnvironmentBuilder = IVEnvironmentBuilder,
 	SystemBuilder = IVSystemBuilder,
 	BodyBuilder = IVBodyBuilder,
 	SBGBuilder = IVSBGBuilder,
@@ -153,6 +152,7 @@ var program_nodes := {
 	Scheduler = IVScheduler,
 	ViewManager = IVViewManager,
 	FragmentIdentifier = IVFragmentIdentifier, # safe to remove
+	WorldEnvironment = IVWorldEnvironment, # safe to remove
 	
 	# Nodes below are ordered for input handling (last is first). We mainly
 	# need to intercept cntr-something actions (quit, full-screen, etc.) before

@@ -4,8 +4,7 @@ For table construction rules, see [ivoyager_table_importer/README.md](https://gi
 
 WARNING! Do not use Excel for .tsv file editing! Excel will "interpret" and modify cell values. For example, the Sun's GM = "1.32712440018e20" will be be changed to "1.33E+20" in the display bar AND THE SAVED FILE VALUE! You can prevent this by prefixing with either single-quote (') or underscore (_). However, we don't want to have to prefix all REALs (or use other labor-intensive work-arounds) just to use Excel.
 
-Remarkably, the only .csv/.tsv file editor that I could find that doesn't do this (and is currently being maintained for Windows 10) is Ron's Editor: https://www.ronsplace.eu/Products/RonsEditor/Information. It's free for files with up to 1000 rows ($40 for "pro" unlimited). It works well for me and I recommend it.
-
+For a .csv/.tsv file editor that does not interpret and mangle data, we highly recommend [Rons Data Edit](https://www.ronsplace.eu/Products/RonsDataEdit/Download). It's free for files with up to 2500 rows with advertising banner or pay $35 for "pro" unlimited.
 
 *******************************************************************************
 ## Specific Table Comments
