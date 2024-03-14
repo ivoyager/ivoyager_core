@@ -21,9 +21,12 @@ class_name IVRings
 extends MeshInstance3D
 
 ## Visual planetary rings of an [IVBody] instance.
-
-# that uses rings.gdshader. Not persisted so added by
-# BodyFinisher.
+##
+## This node uses rings.gdshader and hooks up to signal IVBody.model_visibility_changed
+## so that it is only visible and only processes when the IVBody's model is
+## visible.
+##
+## Not persisted so added by BodyFinisher.
 
 const END_PADDING := 0.05 # must be same as ivbinary_maker that generated images
 const RENDER_MARGIN := 0.01 # render outside of image data for smoothing
@@ -51,6 +54,9 @@ func _init(body: IVBody, sunlight_source: Node3D, rings_images: Array[Image]) ->
 func _ready() -> void:
 	IVGlobal.camera_ready.connect(_set_camera)
 	_set_camera(get_viewport().get_camera_3d())
+	
+	_body.model_visibility_changed.connect(_on_model_visibility_changed)
+	_on_model_visibility_changed(_body.model_visible)
 	
 	# distances in sim scale
 	var outer_radius: float = _body.get_rings_outer_radius()
@@ -97,4 +103,9 @@ func _process(_delta: float) -> void:
 
 func _set_camera(camera: Camera3D) -> void:
 	_camera = camera
+
+
+func _on_model_visibility_changed(is_model_visible: bool) -> void:
+	visible = is_model_visible
+	set_process(is_model_visible)
 

@@ -8,7 +8,7 @@ See cloning and downloading instructions [here](https://www.ivoyager.dev/develop
 
 ## [v0.0.18] - Not Released
 
-Under development using Godot 4.2.beta5. _Has backward breaking changes!_
+Under development using Godot 4.2.1. _Has backward breaking changes!_
 
 Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_table_importer) v0.0.7.dev (use current _master_ branch).
 
@@ -17,7 +17,8 @@ Requires non-release **ivoyager_assets-0.0.18.dev.20240129**. **_NEW! The plugin
 
 ### Added
 * Assets download & version management! The editor plugin checks presence and version of ivoyager_assets, and offers to download and add (or replace) as appropriate.
-* Class documentation using Godot ## tags.
+* Class documentation using Godot ## tags (work-in-progress).
+* IVWorldEnvironment scene with default Environment and CameraAttributes. Project can specify data tables to override properties in Environment and CameraAttributes.
 
 ### Changed
 * [ivoyager_assets] Major Neptune color adjustment (and minor Uranus) to match newly published true color estimations.
