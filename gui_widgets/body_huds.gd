@@ -52,7 +52,7 @@ var rows: Array[Array] = [
 
 var disable_orbits_rows: Array[int] = [] # e.g., no orbit for Sun
 
-var headers: Array[StringName] = [&"LABEL_NAMES_SLASH_SYMBOLS_SHORT", &"LABEL_ORBITS"]
+var headers: Array[StringName] = [&"LABEL_NAMES_SLASH_SYMBOLS", &"LABEL_ORBITS"]
 var header_hints: Array[StringName] = [&"HINT_NAMES_SYMBOLS_CKBXS", &"HINT_ORBITS_CKBX_COLOR"]
 
 static var _wiki_titles: Dictionary = IVTableData.wiki_lookup
