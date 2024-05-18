@@ -22,6 +22,8 @@ extends RefCounted
 
 ## Builds [IVSmallBodiesGroup] instances from table & binary data.
 
+# TODO: Rename IVTableSBGBuilder (w/ other "XBuilder" -> "TableXBuilder" renames)
+
 const utils := preload("res://addons/ivoyager_core/static/utils.gd")
 
 const DPRINT = false

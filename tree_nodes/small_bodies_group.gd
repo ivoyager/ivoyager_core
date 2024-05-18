@@ -20,18 +20,14 @@
 class_name IVSmallBodiesGroup
 extends Node
 
-## Base class to represent a group of orbiting objects that are not
-## individually instantiated. Can represent many 10000s of small bodies such
-## as asteroids.
-
-# Keeps compact data for large numbers of small bodies that we don't want to
-# instantiate as a full set, e.g., 10000s of asteroids.
-#
-# Packed arrays are used as source data in a form that is ready-to-use to
-# constitute ArrayMesh in IVSBGPoints. Packed arrays are also very fast to
-# read/write in the game save file.
-#
-# 'de' not implemented (amplitude of e libration in secular resonence).
+## Base class to represent a large number of orbiting small bodies that are not
+## individually instantiated.
+##
+## Data is added and maintained in packed arrays in a form that is ready-to-use
+## to constitute ArrayMesh in IVSBGPoints. Packed arrays are also very fast to
+## read/write in the game save file.
+##
+## 'de' not implemented (amplitude of e libration in secular resonence).
 
 const utils := preload("res://addons/ivoyager_core/static/utils.gd")
 
@@ -60,16 +56,68 @@ var secondary_body: IVBody # e.g., Jupiter for Trojans; usually null
 var lp_integer := -1 # -1, 4 & 5 are currently supported
 var max_apoapsis := 0.0
 
-# binary import data
+# packed data
 var names := PackedStringArray()
 var e_i_Om_w := PackedFloat32Array() # fixed & precessing (except e in sec res)
 var a_M0_n := PackedFloat32Array() # librating in l-point objects
 var s_g_mag_de := PackedFloat32Array() # orbit precessions, magnitude, & e amplitude (sec res only)
 var da_D_f_th0 := PackedFloat32Array() # Trojans only
 
+static var _null_pf32_array := PackedFloat32Array()
 
 # *****************************************************************************
 # public API
+
+func init(name_: StringName, sbg_alias_: StringName, sbg_class_: int,
+		lp_integer_ := -1, secondary_body_: IVBody = null) -> void:
+	# Last 2 args only if these are Lagrange point objects.
+	name = name_
+	sbg_alias = sbg_alias_
+	sbg_class = sbg_class_
+	lp_integer = lp_integer_
+	secondary_body = secondary_body_
+
+
+func append_data(names_append: PackedStringArray, e_i_Om_w_append: PackedFloat32Array,
+		a_M0_n_append: PackedFloat32Array, s_g_mag_de_append: PackedFloat32Array,
+		da_D_f_th0_append := _null_pf32_array) -> void:
+	var n_bodies := names_append.size()
+	assert(e_i_Om_w_append.size() == n_bodies * 4)
+	assert(a_M0_n_append.size() == n_bodies * 3)
+	assert(s_g_mag_de_append.size() == n_bodies * 4)
+	assert(da_D_f_th0_append.size() == (0 if lp_integer == -1 else n_bodies * 4))
+	
+	names.append_array(names_append)
+	e_i_Om_w.append_array(e_i_Om_w_append)
+	a_M0_n.append_array(a_M0_n_append)
+	s_g_mag_de.append_array(s_g_mag_de_append)
+	if lp_integer != -1:
+		da_D_f_th0.append_array(da_D_f_th0_append)
+
+
+func reset_max_apoapsis() -> void:
+	# For now, this must be called before adding to tree.
+	# TODO: Do on _entered_tree. Add signal so HUDs can then update. 
+	var i := 0
+	var size := names.size()
+	if lp_integer == -1:
+		while i < size:
+			var a := a_M0_n[i * 3]
+			var e := e_i_Om_w[i * 4]
+			var apoapsis := a * (1.0 + e)
+			if max_apoapsis < apoapsis:
+				max_apoapsis = apoapsis
+			i += 1
+	else:
+		var characteristic_length := secondary_body.get_orbit_semi_major_axis()
+		while i < size:
+			var da: float = da_D_f_th0[i * 4]
+			var e: float = e_i_Om_w[i * 4]
+			var apoapsis := (characteristic_length + da) * (1.0 + e)
+			if max_apoapsis < apoapsis:
+				max_apoapsis = apoapsis
+			i += 1
+
 
 func get_number() -> int:
 	return names.size()
@@ -91,20 +139,11 @@ func get_orbit_elements(index: int) -> Array[float]:
 	], TYPE_FLOAT, &"", null)
 
 
-# *****************************************************************************
-# ivoyager internal methods
-
-func init(name_: StringName, sbg_alias_: StringName, sbg_class_: int,
-		lp_integer_ := -1, secondary_body_: IVBody = null) -> void:
-	# Last 2 args only if these are Lagrange point objects.
-	name = name_
-	sbg_alias = sbg_alias_
-	sbg_class = sbg_class_
-	lp_integer = lp_integer_
-	secondary_body = secondary_body_
-
+# FIXME: Move next two functionality to new IVBinaryAsteroidsBuilder, using
+# new API above.
 
 func read_binary(binary: FileAccess) -> void:
+	# for table init
 	var binary_data: Array = binary.get_var()
 	var names_append: PackedStringArray = binary_data[0]
 	var e_i_Om_w_append: PackedFloat32Array = binary_data[1]
@@ -123,6 +162,9 @@ func read_binary(binary: FileAccess) -> void:
 
 func finish_binary_import() -> void:
 	# set scale, max apoapsis and do verbose tally
+	
+	# FIXME: Do scaling before append (in IVBinaryAsteroidsBuilder)
+	
 	var size := names.size()
 	assert(size)
 	const scale_multiplier := IVUnits.METER
