@@ -1,4 +1,4 @@
-# sbg_builder.gd
+# table_sbg_builder.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -17,49 +17,50 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVSBGBuilder
+class_name IVTableSBGBuilder
 extends RefCounted
 
-## Builds [IVSmallBodiesGroup] instances from table & binary data.
-
-# TODO: Rename IVTableSBGBuilder (w/ other "XBuilder" -> "TableXBuilder" renames)
-
-const utils := preload("res://addons/ivoyager_core/static/utils.gd")
-
-const DPRINT = false
-const BINARY_EXTENSION := "ivbinary"
-const BINARY_FILE_MAGNITUDES: Array[String] = ["11.0", "11.5", "12.0", "12.5", "13.0", "13.5",
-		"14.0", "14.5", "15.0", "15.5", "16.0", "16.5", "17.0", "17.5", "18.0", "18.5", "99.9"]
+## Builds [IVSmallBodiesGroup] instances from table data.
+##
+## This class may supply SBG to a BinaryXxxxBuilder to set binary data.
+##
+## For now, we only have asteroids as binaries. But there may be more in the
+## future (e.g., artificial satellites) and they likely will have different
+## binary formats.
 
 
-var SmallBodiesGroupScript: Script
-
-var _sbg_mag_cutoff_override: float = IVCoreSettings.sbg_mag_cutoff_override
-var _binary_dir: String
+var _binary_asteroids_builder: IVBinaryAsteroidsBuilder
+var _small_bodies_group_script: Script
 
 
 func _ivcore_init() -> void:
-	SmallBodiesGroupScript = IVGlobal.procedural_classes[&"SmallBodiesGroup"]
+	_binary_asteroids_builder = IVGlobal.program[&"BinaryAsteroidsBuilder"]
+	_small_bodies_group_script = IVGlobal.procedural_classes[&"SmallBodiesGroup"]
 
 
-func build_sbgs() -> void:
-	var n_groups := IVTableData.get_n_rows(&"small_bodies_groups")
-	for row in n_groups:
-		build_sbg(row)
-
-
-func build_sbg(row: int) -> void:
+func build_from_table(row: int) -> void:
 	if IVTableData.get_db_bool(&"small_bodies_groups", &"skip", row):
 		return
 	
-	# get table data (default colors are read by SBGHUDsState)
+	# get required table data for any SBG
 	var name := IVTableData.get_db_entity_name(&"small_bodies_groups", row)
 	var sbg_alias := IVTableData.get_db_string_name(&"small_bodies_groups", &"sbg_alias", row)
 	var sbg_class := IVTableData.get_db_int(&"small_bodies_groups", &"sbg_class", row)
-	_binary_dir = IVTableData.get_db_string(&"small_bodies_groups", &"binary_dir", row)
+	
+	match sbg_class:
+		IVEnums.SBGClass.SBG_CLASS_ASTEROIDS:
+			build_asteroids_sbg(row, name, sbg_alias, sbg_class)
+		_:
+			assert(false, "No implimentation for sbg_class %s" % sbg_class)
+
+
+func build_asteroids_sbg(row: int, name: StringName, sbg_alias: StringName, sbg_class: int) -> void:
+	
+	var binary_dir := IVTableData.get_db_string(&"small_bodies_groups", &"binary_dir", row)
 	var mag_cutoff := 100.0
-	if _sbg_mag_cutoff_override != INF:
-		mag_cutoff = _sbg_mag_cutoff_override
+	var sbg_mag_cutoff_override: float = IVCoreSettings.sbg_mag_cutoff_override
+	if sbg_mag_cutoff_override != INF:
+		mag_cutoff = sbg_mag_cutoff_override
 	else:
 		mag_cutoff = IVTableData.get_db_float(&"small_bodies_groups", &"mag_cutoff", row)
 	var primary_name := IVTableData.get_db_string_name(&"small_bodies_groups", &"primary", row)
@@ -75,27 +76,12 @@ func build_sbg(row: int) -> void:
 	
 	# init
 	@warning_ignore("unsafe_method_access")
-	var sbg: IVSmallBodiesGroup = SmallBodiesGroupScript.new()
+	var sbg: IVSmallBodiesGroup = _small_bodies_group_script.new()
 	sbg.init(name, sbg_alias, sbg_class, lp_integer, secondary)
 	
-	# binaries import
-	for mag_str in BINARY_FILE_MAGNITUDES:
-		if mag_str.to_float() > mag_cutoff:
-			break
-		_load_group_binary(sbg, mag_str)
-	sbg.finish_binary_import()
+	_binary_asteroids_builder.build_sbg_from_binaries(sbg, mag_cutoff, binary_dir)
 	
-	# add to tree (SBGFinisher will add points and orbits HUDs)
+
 	primary.add_child(sbg)
 
-
-func _load_group_binary(sbg: IVSmallBodiesGroup, mag_str: String) -> void:
-	var binary_name: String = sbg.sbg_alias + "." + mag_str + "." + BINARY_EXTENSION
-	var path: String = _binary_dir.path_join(binary_name)
-	var binary := FileAccess.open(path, FileAccess.READ)
-	if !binary: # skip quietly if file doesn't exist
-		return
-	assert(!DPRINT or IVDebug.dprint("Reading binary %s" % path))
-	sbg.read_binary(binary)
-	binary.close()
 

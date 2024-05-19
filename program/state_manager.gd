@@ -93,6 +93,7 @@ var _state: Dictionary = IVGlobal.state
 var _settings: Dictionary = IVGlobal.settings
 var _nodes_requiring_stop := []
 var _signal_when_threads_finished := false
+var _tree_add_counter := 0
 
 @onready var _tree: SceneTree = get_tree()
 
@@ -103,6 +104,7 @@ var _signal_when_threads_finished := false
 func _ivcore_init() -> void:
 	_state.is_inited = false
 	_state.is_splash_screen = false
+	_state.is_building_tree = false # new or loading game
 	_state.is_system_built = false
 	_state.is_system_ready = false
 	_state.is_started_or_about_to_start = false
@@ -125,6 +127,8 @@ func _ready() -> void:
 	IVGlobal.project_builder_finished.connect(_on_project_builder_finished, CONNECT_ONE_SHOT)
 	IVGlobal.about_to_build_system_tree.connect(_on_about_to_build_system_tree)
 	IVGlobal.system_tree_built_or_loaded.connect(_on_system_tree_built_or_loaded)
+	IVGlobal.add_system_tree_item_started.connect(_increment_tree_add_counter)
+	IVGlobal.add_system_tree_item_finished.connect(_decrement_tree_add_counter)
 	IVGlobal.system_tree_ready.connect(_on_system_tree_ready)
 	IVGlobal.simulator_exited.connect(_on_simulator_exited)
 	IVGlobal.change_pause_requested.connect(change_pause)
@@ -148,6 +152,14 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 # *****************************************************************************
 # public functions
+
+func build_system_tree_from_tables() -> void:
+	require_stop(self, IVEnums.NetworkStopSync.BUILD_SYSTEM, true)
+	IVGlobal.about_to_build_system_tree.emit()
+	var table_system_builder: IVTableSystemBuilder = IVGlobal.program[&"TableSystemBuilder"]
+	table_system_builder.build_system_tree()
+	IVGlobal.system_tree_built_or_loaded.emit(true)
+
 
 func add_blocking_thread(thread: Thread) -> void:
 	# Add before thread.start() if you want certain functions (e.g., save/load)
@@ -290,18 +302,32 @@ func _on_project_builder_finished() -> void:
 	_state.is_inited = true
 	_state.is_splash_screen = true
 	IVGlobal.state_manager_inited.emit()
+	if IVCoreSettings.skip_splash_screen:
+		build_system_tree_from_tables()
 
 
 func _on_about_to_build_system_tree() -> void:
 	_state.is_splash_screen = false
+	_state.is_building_tree = true
 
 
 func _on_system_tree_built_or_loaded(_is_new_game: bool) -> void:
 	_state.is_system_built = true
-	_state.is_game_loading = false
+
+
+func _increment_tree_add_counter(_item: Node) -> void:
+	_tree_add_counter += 1
+
+
+func _decrement_tree_add_counter(_item: Node) -> void:
+	_tree_add_counter -= 1
+	if _tree_add_counter == 0 and _state.is_building_tree:
+		IVGlobal.system_tree_ready.emit(!_state.is_game_loading)
 
 
 func _on_system_tree_ready(is_new_game: bool) -> void:
+	_state.is_building_tree = false
+	_state.is_game_loading = false
 	_state.is_system_ready = true
 	print("System tree ready...")
 	await _tree.process_frame

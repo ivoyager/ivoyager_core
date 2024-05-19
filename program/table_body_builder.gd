@@ -1,4 +1,4 @@
-# body_builder.gd
+# table_body_builder.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -17,7 +17,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVBodyBuilder
+class_name IVTableBodyBuilder
 extends RefCounted
 
 ## Builds [IVBody] instances from data tables.
@@ -117,7 +117,7 @@ var flag_fields := {
 
 var BodyScript: Script
 
-var _orbit_builder: IVOrbitBuilder
+var _orbit_builder: IVTableOrbitBuilder
 var _composition_builder: IVCompositionBuilder
 var _table_name: StringName
 var _row: int
@@ -126,7 +126,7 @@ var _real_precisions := {}
 
 func _ivcore_init() -> void:
 	BodyScript = IVGlobal.procedural_classes[&"Body"]
-	_orbit_builder = IVGlobal.program[&"OrbitBuilder"]
+	_orbit_builder = IVGlobal.program[&"TableOrbitBuilder"]
 	_composition_builder = IVGlobal.program.get(&"CompositionBuilder")
 
 

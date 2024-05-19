@@ -29,9 +29,6 @@ extends Node
 ##
 ## 'de' not implemented (amplitude of e libration in secular resonence).
 
-const utils := preload("res://addons/ivoyager_core/static/utils.gd")
-
-const VPRINT = false # print verbose asteroid summary on load
 
 const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL
 const PERSIST_PROPERTIES: Array[StringName] = [
@@ -65,6 +62,16 @@ var da_D_f_th0 := PackedFloat32Array() # Trojans only
 
 static var _null_pf32_array := PackedFloat32Array()
 
+
+func _enter_tree() -> void:
+	IVGlobal.add_system_tree_item_started.emit(self)
+	reset_max_apoapsis()
+
+
+func _ready() -> void:
+	_finish_tree_add.call_deferred()
+
+
 # *****************************************************************************
 # public API
 
@@ -96,8 +103,8 @@ func append_data(names_append: PackedStringArray, e_i_Om_w_append: PackedFloat32
 
 
 func reset_max_apoapsis() -> void:
-	# For now, this must be called before adding to tree.
-	# TODO: Do on _entered_tree. Add signal so HUDs can then update. 
+	# FIXME: Only effective at tree add right now. Need signal to update HUDs
+	# if changed later. 
 	var i := 0
 	var size := names.size()
 	if lp_integer == -1:
@@ -117,6 +124,11 @@ func reset_max_apoapsis() -> void:
 			if max_apoapsis < apoapsis:
 				max_apoapsis = apoapsis
 			i += 1
+
+
+func vprint_load(what: String) -> bool:
+	print("%s %s %s loaded from binaries" % [names.size(), sbg_alias, what])
+	return true
 
 
 func get_number() -> int:
@@ -139,62 +151,6 @@ func get_orbit_elements(index: int) -> Array[float]:
 	], TYPE_FLOAT, &"", null)
 
 
-# FIXME: Move next two functionality to new IVBinaryAsteroidsBuilder, using
-# new API above.
-
-func read_binary(binary: FileAccess) -> void:
-	# for table init
-	var binary_data: Array = binary.get_var()
-	var names_append: PackedStringArray = binary_data[0]
-	var e_i_Om_w_append: PackedFloat32Array = binary_data[1]
-	var a_M0_n_append: PackedFloat32Array = binary_data[2]
-	var s_g_mag_de_append: PackedFloat32Array = binary_data[3]
-	
-	names.append_array(names_append)
-	e_i_Om_w.append_array(e_i_Om_w_append)
-	a_M0_n.append_array(a_M0_n_append)
-	s_g_mag_de.append_array(s_g_mag_de_append)
-	
-	if lp_integer != -1:
-		var da_D_f_th0_append: PackedFloat32Array = binary_data[4]
-		da_D_f_th0.append_array(da_D_f_th0_append)
-
-
-func finish_binary_import() -> void:
-	# set scale, max apoapsis and do verbose tally
-	
-	# FIXME: Do scaling before append (in IVBinaryAsteroidsBuilder)
-	
-	var size := names.size()
-	assert(size)
-	const scale_multiplier := IVUnits.METER
-	var index := 0
-	if lp_integer == -1:
-		while index < size:
-			a_M0_n[index * 3] *= scale_multiplier # a only
-			var a: float = a_M0_n[index * 3]
-			var e: float = e_i_Om_w[index * 4]
-			var apoapsis := a * (1.0 + e)
-			if max_apoapsis < apoapsis:
-				max_apoapsis = apoapsis
-			index += 1
-	else:
-		var characteristic_length := secondary_body.orbit.get_semimajor_axis()
-		while index < size:
-			a_M0_n[index * 3] *= scale_multiplier # a only
-			da_D_f_th0[index * 4] *= scale_multiplier # da only
-			var da: float = da_D_f_th0[index * 4]
-			var e: float = e_i_Om_w[index * 4]
-			var apoapsis := (characteristic_length + da) * (1.0 + e)
-			if max_apoapsis < apoapsis:
-				max_apoapsis = apoapsis
-			index += 1
-	
-	# feedback
-	assert(!VPRINT or IVDebug.dprint("%s %s asteroids loaded from binaries"
-			% [names.size(), sbg_alias]))
-
-
 func get_fragment_data(fragment_type: int, index: int) -> Array:
 	return [get_instance_id(), fragment_type, index]
 
@@ -206,4 +162,21 @@ func get_fragment_text(data: Array) -> String:
 	if fragment_type == IVFragmentIdentifier.FRAGMENT_SBG_ORBIT:
 		text += " (" + tr("LABEL_ORBIT").to_lower() + ")"
 	return text
+
+
+# *****************************************************************************
+# private
+
+func _finish_tree_add() -> void:
+	# Add non-persisted HUD elements.
+	var parent: Node3D = get_parent()
+	var sbg_points_script: Script = IVGlobal.procedural_classes[&"SBGPoints"]
+	@warning_ignore("unsafe_method_access")
+	var sbg_points: Node3D = sbg_points_script.new(self) # can this be done on thread?
+	parent.add_child(sbg_points)
+	var sbg_orbits_script: Script = IVGlobal.procedural_classes[&"SBGOrbits"]
+	@warning_ignore("unsafe_method_access")
+	var sbg_orbits: Node3D = sbg_orbits_script.new(self) # can this be done on thread?
+	parent.add_child(sbg_orbits)
+	IVGlobal.add_system_tree_item_finished.emit(self)
 

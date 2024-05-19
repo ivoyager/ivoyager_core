@@ -196,6 +196,9 @@ func load_game(path := "", network_gamesave := []) -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	await get_tree().process_frame
+	
+	IVGlobal.about_to_build_system_tree.emit()
+	
 	if !network_gamesave:
 		_io_manager.get_var_from_file(path, _load_callback)
 	else:
