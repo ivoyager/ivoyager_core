@@ -111,7 +111,7 @@ var table_project_enums := [
 
 var wikipedia_locales: Array[String] = ["en"] # add locales present in data tables
 
-var body_tables: Array[String] = ["stars", "planets", "asteroids", "moons", "spacecrafts"] # ordered!
+var body_tables: Array[String] = ["stars", "planets", "asteroids", "moons", "spacecrafts"]
 
 # We search for assets based on "file_prefix" and sometimes other name elements
 # like "albedo". To build a model, IVModelManager first looks for an existing
