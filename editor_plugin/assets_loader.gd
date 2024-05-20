@@ -40,8 +40,8 @@ func _init(path: String, version: String, size_mib: float) -> void:
 
 
 func _ready() -> void:
-	print("Attempting to download ivoyager_assets %s from...\n%s" % [_version, _path])
-	print("...to temporary file %s..." % TEMP_DOWNLOAD_ZIP)
+	print("Downloading ivoyager_assets %s from\n%s" % [_version, _path])
+	print("to temporary file %s..." % TEMP_DOWNLOAD_ZIP)
 	request_completed.connect(_on_request_completed)
 	var error := request(_path)
 	if error != HTTPRequest.RESULT_SUCCESS:
@@ -111,7 +111,7 @@ func _replace_assets() -> void:
 *******************************************************************************
 New or updated assets have been added at 'res://addons/ivoyager_assets'!
 Note: It's sometimes necessesary to restart the Editor to trigger (re)import of
-all assets. We recommend doing so even if you saw (re)import of some assets.
+all assets. We recommend doing so even if you saw import of some assets.
 *******************************************************************************
 
 """)
