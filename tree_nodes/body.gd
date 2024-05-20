@@ -132,6 +132,7 @@ func _init() -> void:
 
 
 func _enter_tree() -> void:
+	IVGlobal.add_system_tree_item_started.emit(self)
 	if orbit:
 		orbit.reset_elements_and_interval_update()
 		orbit.changed.connect(_on_orbit_changed)
@@ -148,7 +149,9 @@ func _ready() -> void:
 	IVGlobal.bodies[name] = self
 	if flags & BodyFlags.IS_TOP:
 		IVGlobal.top_bodies.append(self)
+	recalculate_spatials()
 	_set_min_hud_dist()
+	_finish_tree_add.call_deferred()
 
 
 func _exit_tree() -> void:
@@ -243,7 +246,7 @@ func _process(_delta: float) -> void:
 	show()
 
 
-
+# *****************************************************************************
 # public API
 
 func get_float_precision(path: String) -> int:
@@ -751,7 +754,86 @@ func recalculate_spatials() -> void:
 	basis_at_epoch = basis_.rotated(rotation_vector, rotation_at_epoch)
 
 
-# private functions
+# *****************************************************************************
+# private
+
+func _finish_tree_add() -> void:
+	# Add non-persisted HUD elements.
+	if get_model_type() != -1:
+		var model_manager: IVModelManager = IVGlobal.program[&"ModelManager"]
+		var lazy_init: bool = flags & IS_MOON and not flags & BodyFlags.IS_NAVIGATOR_MOON
+		model_manager.add_model(self, lazy_init)
+	if has_omni_light():
+		var omni_light_type := get_omni_light_type()
+		var omni_light := OmniLight3D.new()
+		# set properties entirely from table
+		IVTableData.db_build_object_all_fields(omni_light, &"omni_lights", omni_light_type)
+		add_child(omni_light)
+		omni_light.light_bake_mode = Light3D.BAKE_DISABLED
+	
+	if orbit:
+		var body_orbit_script: Script = IVGlobal.procedural_classes[&"BodyOrbit"]
+		if body_orbit_script:
+			@warning_ignore("unsafe_method_access")
+			# Script must have _init() that accepts arg below.
+			var body_orbit: Node3D = body_orbit_script.new(self)
+			get_parent().add_child(body_orbit)
+	
+	var body_label_script: Script = IVGlobal.procedural_classes[&"BodyLabel"]
+	if body_label_script:
+		@warning_ignore("unsafe_method_access")
+		# Script must have _init() that accepts arg below.
+		var body_label: Node3D = body_label_script.new(self)
+		add_child(body_label)
+	var file_prefix := get_file_prefix()
+	var is_star := bool(flags & BodyFlags.IS_STAR)
+	var rings_file_prefix := get_rings_file_prefix()
+	var io_manager: IVIOManager = IVGlobal.program[&"IOManager"]
+	io_manager.callback(_finish_tree_add_io.bind(file_prefix, is_star, rings_file_prefix))
+
+
+func _finish_tree_add_io(file_prefix: String, is_star: bool, rings_file_prefix: String
+		) -> void:
+	# on i/o thread if threads enabled
+	const files := preload("res://addons/ivoyager_core/static/files.gd")
+	var bodies_2d_search := IVCoreSettings.bodies_2d_search
+	texture_2d = files.find_and_load_resource(bodies_2d_search, file_prefix)
+	if !texture_2d:
+		texture_2d = IVGlobal.assets[&"fallback_body_2d"]
+	if is_star:
+		var slice_name := file_prefix + "_slice"
+		texture_slice_2d = files.find_and_load_resource(bodies_2d_search, slice_name)
+	
+	var rings_images: Array[Image]
+	if rings_file_prefix:
+		var rings_search := IVCoreSettings.rings_search
+		var backscatter: Texture2D = files.find_and_load_resource(rings_search,
+				rings_file_prefix + ".backscatter")
+		var forwardscatter: Texture2D = files.find_and_load_resource(rings_search,
+				rings_file_prefix + ".forwardscatter")
+		var unlitside: Texture2D = files.find_and_load_resource(rings_search,
+				rings_file_prefix + ".unlitside")
+		if !backscatter or !forwardscatter or !unlitside:
+			print("WARNING! Could not find all 3 rings textures for prefix ", rings_file_prefix)
+		else:
+			rings_images = [backscatter.get_image(), forwardscatter.get_image(), unlitside.get_image()]
+	
+	_finish_tree_add_after_io.call_deferred(rings_images)
+
+
+func _finish_tree_add_after_io(rings_images: Array[Image]) -> void:
+	# on main thread
+	if rings_images:
+		var sunlight_source := get_parent_node_3d() # assumes no moon rings!
+		var rings_script: Script = IVGlobal.procedural_classes[&"Rings"]
+		if rings_script:
+			@warning_ignore("unsafe_method_access")
+			# Script must have _init() that accepts args below.
+			var rings: Node3D = rings_script.new(self, sunlight_source, rings_images)
+			add_child_to_model_space(rings)
+	
+	IVGlobal.add_system_tree_item_finished.emit(self)
+
 
 func _add_rotating_space() -> void:
 	# bail out if we don't have requried parameters
