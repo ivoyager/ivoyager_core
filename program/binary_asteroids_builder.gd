@@ -30,16 +30,16 @@ const BINARY_FILE_MAGNITUDES: Array[String] = ["11.0", "11.5", "12.0", "12.5", "
 
 
 
-func build_sbg_from_binaries(sbg: IVSmallBodiesGroup, mag_cutoff: float, binary_dir: String
+func build_sbg_from_binaries(sbg: IVSmallBodiesGroup, binary_dir: String, mag_cutoff: float
 		) -> void:
 	for mag_str in BINARY_FILE_MAGNITUDES:
 		if mag_str.to_float() > mag_cutoff:
 			break
-		_load_asteroids_group_binary(sbg, mag_str, binary_dir)
+		_load_asteroids_group_binary(sbg, binary_dir, mag_str)
 	assert(!VPRINT or sbg.vprint_load("asteroids"))
 
 
-func _load_asteroids_group_binary(sbg: IVSmallBodiesGroup, mag_str: String, binary_dir: String
+func _load_asteroids_group_binary(sbg: IVSmallBodiesGroup, binary_dir: String, mag_str: String
 		) -> void:
 	var lp_integer := sbg.lp_integer
 	var binary_name: String = sbg.sbg_alias + "." + mag_str + "." + BINARY_EXTENSION
@@ -50,6 +50,7 @@ func _load_asteroids_group_binary(sbg: IVSmallBodiesGroup, mag_str: String, bina
 	assert(!DPRINT or IVDebug.dprint("Reading binary %s" % path))
 
 	var binary_data: Array = binary.get_var()
+	binary.close()
 	var names: PackedStringArray = binary_data[0]
 	var e_i_Om_w: PackedFloat32Array = binary_data[1]
 	var a_M0_n: PackedFloat32Array = binary_data[2]
@@ -71,6 +72,4 @@ func _load_asteroids_group_binary(sbg: IVSmallBodiesGroup, mag_str: String, bina
 			index += 1
 	
 	sbg.append_data(names, e_i_Om_w, a_M0_n, s_g_mag_de, da_D_f_th0)
-	binary.close()
-
 

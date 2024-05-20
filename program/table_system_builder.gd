@@ -39,29 +39,37 @@ var add_camera := true
 # private
 var _body_builder: IVTableBodyBuilder
 var _sbg_builder: IVTableSBGBuilder
+var _body_script: Script
+var _small_bodies_group_script: Script
+var _camera_script: Script
 
-
-func _ivcore_init() -> void:
-	_body_builder = IVGlobal.program[&"TableBodyBuilder"]
-	_sbg_builder = IVGlobal.program[&"TableSBGBuilder"]
 
 
 func build_system_tree() -> void:
+	_body_builder = IVGlobal.program[&"TableBodyBuilder"]
+	_body_script = IVGlobal.procedural_classes[&"Body"]
 	_add_bodies()
 	if add_small_bodies_groups:
+		_sbg_builder = IVGlobal.program[&"TableSBGBuilder"]
+		_small_bodies_group_script = IVGlobal.procedural_classes[&"SmallBodiesGroup"]
 		_add_small_bodies_groups()
 	if add_camera:
+		_camera_script = IVGlobal.procedural_classes[&"Camera"]
 		_add_camera()
 
 
 func _add_bodies() -> void:
+	# TODO: Remove order dependence
+	
 	for table_name in IVCoreSettings.body_tables:
 		for row in IVTableData.get_n_rows(table_name):
 			var parent: IVBody
 			var parent_name := IVTableData.get_db_string_name(table_name, &"parent", row) # "" top
 			if parent_name:
 				parent = IVGlobal.bodies[parent_name]
-			var body := _body_builder.build_from_table(table_name, row, parent)
+			@warning_ignore("unsafe_method_access")
+			var body: IVBody = _body_script.new()
+			_body_builder.build_body_from_table(body, table_name, row, parent)
 			body.hide() # Bodies set their own visibility as needed
 			if parent:
 				parent.add_child(body)
@@ -73,13 +81,20 @@ func _add_bodies() -> void:
 
 func _add_small_bodies_groups() -> void:
 	for row in IVTableData.get_n_rows(&"small_bodies_groups"):
-		_sbg_builder.build_from_table(row)
+		if IVTableData.get_db_bool(&"small_bodies_groups", &"skip", row):
+			continue
+		@warning_ignore("unsafe_method_access")
+		var sbg: IVSmallBodiesGroup = _small_bodies_group_script.new()
+		_sbg_builder.build_sbg_from_table(sbg, &"small_bodies_groups", row)
+		var primary_name := IVTableData.get_db_string_name(&"small_bodies_groups", &"primary", row)
+		var primary: IVBody = IVGlobal.bodies.get(primary_name)
+		assert(primary, "Primary body missing for SmallBodiesGroup")
+		primary.add_child(sbg)
 
 
 func _add_camera() -> void:
-	var CameraScript: Script = IVGlobal.procedural_classes[&"Camera"]
 	@warning_ignore("unsafe_method_access")
-	var camera: Camera3D = CameraScript.new()
+	var camera: Camera3D = _camera_script.new()
 	var start_body: IVBody = IVGlobal.bodies[IVCoreSettings.home_name]
 	start_body.add_child(camera)
 

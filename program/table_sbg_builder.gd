@@ -30,58 +30,40 @@ extends RefCounted
 
 
 var _binary_asteroids_builder: IVBinaryAsteroidsBuilder
-var _small_bodies_group_script: Script
 
 
 func _ivcore_init() -> void:
 	_binary_asteroids_builder = IVGlobal.program[&"BinaryAsteroidsBuilder"]
-	_small_bodies_group_script = IVGlobal.procedural_classes[&"SmallBodiesGroup"]
 
 
-func build_from_table(row: int) -> void:
-	if IVTableData.get_db_bool(&"small_bodies_groups", &"skip", row):
-		return
-	
-	# get required table data for any SBG
-	var name := IVTableData.get_db_entity_name(&"small_bodies_groups", row)
-	var sbg_alias := IVTableData.get_db_string_name(&"small_bodies_groups", &"sbg_alias", row)
-	var sbg_class := IVTableData.get_db_int(&"small_bodies_groups", &"sbg_class", row)
+func build_sbg_from_table(sbg: IVSmallBodiesGroup, table_name: StringName, row: int) -> void:
+	var name := IVTableData.get_db_entity_name(table_name, row)
+	var sbg_alias := IVTableData.get_db_string_name(table_name, &"sbg_alias", row)
+	var sbg_class := IVTableData.get_db_int(table_name, &"sbg_class", row)
 	
 	match sbg_class:
 		IVEnums.SBGClass.SBG_CLASS_ASTEROIDS:
-			build_asteroids_sbg(row, name, sbg_alias, sbg_class)
+			build_asteroids_sbg(sbg, table_name, row, name, sbg_alias, sbg_class)
 		_:
 			assert(false, "No implimentation for sbg_class %s" % sbg_class)
 
 
-func build_asteroids_sbg(row: int, name: StringName, sbg_alias: StringName, sbg_class: int) -> void:
-	
-	var binary_dir := IVTableData.get_db_string(&"small_bodies_groups", &"binary_dir", row)
+func build_asteroids_sbg(sbg: IVSmallBodiesGroup, table_name: StringName, row: int,
+		name: StringName, sbg_alias: StringName, sbg_class: int) -> void:
+	var binary_dir := IVTableData.get_db_string(table_name, &"binary_dir", row)
 	var mag_cutoff := 100.0
 	var sbg_mag_cutoff_override: float = IVCoreSettings.sbg_mag_cutoff_override
 	if sbg_mag_cutoff_override != INF:
 		mag_cutoff = sbg_mag_cutoff_override
 	else:
-		mag_cutoff = IVTableData.get_db_float(&"small_bodies_groups", &"mag_cutoff", row)
-	var primary_name := IVTableData.get_db_string_name(&"small_bodies_groups", &"primary", row)
-	var primary: IVBody = IVGlobal.bodies.get(primary_name)
-	assert(primary, "Primary body missing for SmallBodiesGroup")
-	var lp_integer := IVTableData.get_db_int(&"small_bodies_groups", &"lp_integer", row)
+		mag_cutoff = IVTableData.get_db_float(table_name, &"mag_cutoff", row)
+	var lp_integer := IVTableData.get_db_int(table_name, &"lp_integer", row)
 	var secondary: IVBody
 	if lp_integer != -1:
 		assert(lp_integer == 4 or lp_integer == 5, "Only L4, L5 supported at this time!")
-		var secondary_name := IVTableData.get_db_string_name(&"small_bodies_groups", &"secondary", row)
+		var secondary_name := IVTableData.get_db_string_name(table_name, &"secondary", row)
 		secondary = IVGlobal.bodies.get(secondary_name)
 		assert(secondary, "Secondary body missing for Lagrange point SmallBodiesGroup")
-	
-	# init
-	@warning_ignore("unsafe_method_access")
-	var sbg: IVSmallBodiesGroup = _small_bodies_group_script.new()
 	sbg.init(name, sbg_alias, sbg_class, lp_integer, secondary)
-	
-	_binary_asteroids_builder.build_sbg_from_binaries(sbg, mag_cutoff, binary_dir)
-	
-
-	primary.add_child(sbg)
-
+	_binary_asteroids_builder.build_sbg_from_binaries(sbg, binary_dir, mag_cutoff)
 

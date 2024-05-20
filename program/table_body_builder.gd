@@ -115,7 +115,6 @@ var flag_fields := {
 }
 
 
-var BodyScript: Script
 
 var _orbit_builder: IVTableOrbitBuilder
 var _composition_builder: IVCompositionBuilder
@@ -125,16 +124,13 @@ var _real_precisions := {}
 
 
 func _ivcore_init() -> void:
-	BodyScript = IVGlobal.procedural_classes[&"Body"]
 	_orbit_builder = IVGlobal.program[&"TableOrbitBuilder"]
 	_composition_builder = IVGlobal.program.get(&"CompositionBuilder")
 
 
-func build_from_table(table_name: String, row: int, parent: IVBody) -> IVBody: # Main thread!
+func build_body_from_table(body: IVBody, table_name: String, row: int, parent: IVBody) -> void:
 	_table_name = table_name
 	_row = row
-	@warning_ignore("unsafe_method_access")
-	var body: IVBody = BodyScript.new()
 	body.name = IVTableData.get_db_entity_name(table_name, row)
 	_set_flags_from_table(body, parent)
 	_set_orbit_from_table(body, parent)
@@ -144,7 +140,6 @@ func build_from_table(table_name: String, row: int, parent: IVBody) -> IVBody: #
 	if enable_precisions:
 		body.characteristics[&"real_precisions"] = _real_precisions
 		_real_precisions = {} # reset for next body
-	return body
 
 
 func _set_flags_from_table(body: IVBody, parent: IVBody) -> void:
