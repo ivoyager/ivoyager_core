@@ -1,4 +1,4 @@
-# orbit_builder.gd
+# table_orbit_builder.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -17,7 +17,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVOrbitBuilder
+class_name IVTableOrbitBuilder
 extends RefCounted
 
 ## Builds [IVOrbit] instances from data tables.

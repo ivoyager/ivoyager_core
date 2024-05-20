@@ -119,16 +119,13 @@ var program_refcounteds := {
 	SettingsManager = IVSettingsManager, # 1st so IVGlobal.settings are valid
 	
 	# builders (generators, often from table or binary data)
-	SystemBuilder = IVSystemBuilder,
-	BodyBuilder = IVBodyBuilder,
-	SBGBuilder = IVSBGBuilder,
-	OrbitBuilder = IVOrbitBuilder,
+	TableSystemBuilder = IVTableSystemBuilder,
+	TableBodyBuilder = IVTableBodyBuilder,
+	TableOrbitBuilder = IVTableOrbitBuilder,
+	TableSBGBuilder = IVTableSBGBuilder,
+	BinaryAsteroidsBuilder = IVBinaryAsteroidsBuilder,
 	SelectionBuilder = IVSelectionBuilder,
 	CompositionBuilder = IVCompositionBuilder, # remove or subclass
-	
-	# finishers (modify something on entering tree)
-	BodyFinisher = IVBodyFinisher,
-	SBGFinisher = IVSBGFinisher,
 	
 	# managers
 	IOManager = IVIOManager,

@@ -35,9 +35,11 @@ signal project_nodes_added() # IVProjectBuilder; prog_nodes & gui_nodes added
 signal project_builder_finished() # IVProjectBuilder; 1 frame after above
 signal state_manager_inited()
 signal world_environment_added() # on Main after I/O thread finishes (slow!)
-signal about_to_build_system_tree()
-signal system_tree_built_or_loaded(is_new_game: bool) # still some I/O tasks to do!
-signal system_tree_ready(is_new_game: bool) # I/O thread has finished!
+signal about_to_build_system_tree() # new or loading game
+signal add_system_tree_item_started(item: Node) # new or loading game (Body or SmallBodiesGroup)
+signal add_system_tree_item_finished(item: Node) # after all I/O work has completed for item
+signal system_tree_built_or_loaded(is_new_game: bool) # still ongoing I/O tasks!
+signal system_tree_ready(is_new_game: bool) # I/O thread has finished
 signal about_to_start_simulator(is_new_game: bool) # delayed 1 frame after above
 signal update_gui_requested() # send signals with GUI info now!
 signal simulator_started()

@@ -159,11 +159,12 @@ func _handle_assets_update() -> void:
 			"""
 			Plugin 'ivoyager_core' requires assets to run!
 			
-			Press 'Download' to download and add directory addons/ivoyager_assets (%s). Note:
-			  * Check Output for download progress.
-			  * You may need to restart the Editor to trigger asset import after download.
+			Press 'Download' to download and add directory addons/ivoyager_assets (%s).
 			
 			Press 'Cancel' to manage assets manually. See https://ivoyager.dev/developers.
+			
+			Check download progress in the Output window. You may need to restart the Editor
+			to trigger asset import after download.
 			"""
 		) % expected_version
 	else:
@@ -171,11 +172,12 @@ func _handle_assets_update() -> void:
 			"""
 			'ivoyager_assets' version %s does not match expected %s!
 			
-			Press 'Download' to download %s and replace existing addons/ivoyager_assets. Note:
-			  * Check Output for download progress.
-			  * You may need to restart the Editor to trigger asset (re)import after download.
+			Press 'Download' to download %s and replace existing addons/ivoyager_assets.
 			
 			Press 'Cancel' to manage assets manually. See https://ivoyager.dev/developers.
+			
+			Check download progress in the Output window. You may need to restart the Editor
+			to trigger asset import after download.
 			"""
 		) % [present_version, expected_version, expected_version]
 	
