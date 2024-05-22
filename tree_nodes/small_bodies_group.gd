@@ -23,11 +23,25 @@ extends Node
 ## Base class to represent a large number of orbiting small bodies that are not
 ## individually instantiated.
 ##
-## Data is added and maintained in packed arrays in a form that is ready-to-use
-## to constitute ArrayMesh in IVSBGPoints. Packed arrays are also very fast to
-## read/write in the game save file.
+## Data is packed for use by visual classes IVSBGOrbits and IVSBGPoints, which
+## are added when this node is added to the tree on _ready() or upon calling
+## rebuild_visuals().
 ##
-## 'de' not implemented (amplitude of e libration in secular resonence).
+## Note that visual nodes must be discarded and rebuilt if any data changes
+## (due to visual node use of Godot's MultiMesh and ArrayMesh). This happens
+## automatically when calling append_data().
+##
+## If modifying packed array data directly, it is necessary to ensure correct
+## 'max_apoapsis' (call either reset_max_apoapsis() or update_max_apoapsis())
+## and then call rebuild_visuals().
+##
+## TODO: It's possible to modify MultiMesh if it's not a resize. We could build
+## signals and modify API to allow for that.
+##
+## 'de' is not currently implemented (amplitude of e libration in secular
+## resonence).
+
+signal adding_visuals() # existing visual nodes must free themselves
 
 
 const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL
@@ -45,7 +59,6 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"da_D_f_th0",
 ]
 
-# persisted
 
 var sbg_alias: StringName
 var sbg_class: int # IVEnums.SBGClass
@@ -53,7 +66,6 @@ var secondary_body: IVBody # e.g., Jupiter for Trojans; usually null
 var lp_integer := -1 # -1, 4 & 5 are currently supported
 var max_apoapsis := 0.0
 
-# packed data
 var names := PackedStringArray()
 var e_i_Om_w := PackedFloat32Array() # fixed & precessing (except e in sec res)
 var a_M0_n := PackedFloat32Array() # librating in l-point objects
@@ -65,11 +77,16 @@ static var _null_pf32_array := PackedFloat32Array()
 
 func _enter_tree() -> void:
 	IVGlobal.add_system_tree_item_started.emit(self)
-	reset_max_apoapsis()
 
 
 func _ready() -> void:
-	_finish_tree_add.call_deferred()
+	assert(!IVGlobal.small_bodies_groups.has(name))
+	IVGlobal.small_bodies_groups[name] = self
+	_build_visuals(true)
+
+
+func _exit_tree() -> void:
+	IVGlobal.small_bodies_groups.erase(name)
 
 
 # *****************************************************************************
@@ -85,6 +102,9 @@ func init(name_: StringName, sbg_alias_: StringName, sbg_class_: int,
 	secondary_body = secondary_body_
 
 
+## If possible, append all data before adding this node to the tree. If called
+## after tree add, existing visual nodes will be discarded and new ones will
+## be created.
 func append_data(names_append: PackedStringArray, e_i_Om_w_append: PackedFloat32Array,
 		a_M0_n_append: PackedFloat32Array, s_g_mag_de_append: PackedFloat32Array,
 		da_D_f_th0_append := _null_pf32_array) -> void:
@@ -94,36 +114,51 @@ func append_data(names_append: PackedStringArray, e_i_Om_w_append: PackedFloat32
 	assert(s_g_mag_de_append.size() == n_bodies * 4)
 	assert(da_D_f_th0_append.size() == (0 if lp_integer == -1 else n_bodies * 4))
 	
+	var previous_size := names.size()
 	names.append_array(names_append)
 	e_i_Om_w.append_array(e_i_Om_w_append)
 	a_M0_n.append_array(a_M0_n_append)
 	s_g_mag_de.append_array(s_g_mag_de_append)
 	if lp_integer != -1:
 		da_D_f_th0.append_array(da_D_f_th0_append)
+	
+	update_max_apoapsis(previous_size, previous_size + n_bodies)
+	_build_visuals()
+
+
+## Required for visual update if any data changes not via append_data(). Be
+## sure to call update_max_apoapsis() first if that might be needed.
+func rebuild_visuals() -> void:
+	_build_visuals()
 
 
 func reset_max_apoapsis() -> void:
-	# FIXME: Only effective at tree add right now. Need signal to update HUDs
-	# if changed later. 
-	var i := 0
-	var size := names.size()
+	update_max_apoapsis(0, names.size(), false)
+
+
+func update_max_apoapsis(start_index: int, stop_index: int, increase_only := true) -> void:
+	var range_max := 0.0
+	var i := start_index
 	if lp_integer == -1:
-		while i < size:
+		while i < stop_index:
 			var a := a_M0_n[i * 3]
 			var e := e_i_Om_w[i * 4]
 			var apoapsis := a * (1.0 + e)
-			if max_apoapsis < apoapsis:
-				max_apoapsis = apoapsis
+			if range_max < apoapsis:
+				range_max = apoapsis
 			i += 1
 	else:
 		var characteristic_length := secondary_body.get_orbit_semi_major_axis()
-		while i < size:
+		while i < stop_index:
 			var da: float = da_D_f_th0[i * 4]
 			var e: float = e_i_Om_w[i * 4]
 			var apoapsis := (characteristic_length + da) * (1.0 + e)
-			if max_apoapsis < apoapsis:
-				max_apoapsis = apoapsis
+			if range_max < apoapsis:
+				range_max = apoapsis
 			i += 1
+	
+	if !increase_only or max_apoapsis < range_max:
+		max_apoapsis = range_max
 
 
 func vprint_load(what: String) -> bool:
@@ -167,16 +202,25 @@ func get_fragment_text(data: Array) -> String:
 # *****************************************************************************
 # private
 
-func _finish_tree_add() -> void:
-	# Add non-persisted HUD elements.
-	var parent: Node3D = get_parent()
+
+func _build_visuals(is_system_tree_add := false) -> void:
+	# add non-persisted HUD elements
+	if !is_inside_tree():
+		return
+	adding_visuals.emit() # any pre-existing will queue_free
 	var sbg_points_script: Script = IVGlobal.procedural_classes[&"SBGPoints"]
 	@warning_ignore("unsafe_method_access")
-	var sbg_points: Node3D = sbg_points_script.new(self) # can this be done on thread?
-	parent.add_child(sbg_points)
+	var sbg_points: Node3D = sbg_points_script.new(self)
 	var sbg_orbits_script: Script = IVGlobal.procedural_classes[&"SBGOrbits"]
 	@warning_ignore("unsafe_method_access")
-	var sbg_orbits: Node3D = sbg_orbits_script.new(self) # can this be done on thread?
+	var sbg_orbits: Node3D = sbg_orbits_script.new(self)
+
+	var parent: Node3D = get_parent()
+	parent.add_child(sbg_points)
 	parent.add_child(sbg_orbits)
-	IVGlobal.add_system_tree_item_finished.emit(self)
+	if is_system_tree_add:
+		IVGlobal.add_system_tree_item_finished.emit(self)
+
+
+
 

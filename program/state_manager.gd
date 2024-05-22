@@ -93,7 +93,7 @@ var _state: Dictionary = IVGlobal.state
 var _settings: Dictionary = IVGlobal.settings
 var _nodes_requiring_stop := []
 var _signal_when_threads_finished := false
-var _tree_add_counter := 0
+var _tree_build_counter := 0
 
 @onready var _tree: SceneTree = get_tree()
 
@@ -127,8 +127,8 @@ func _ready() -> void:
 	IVGlobal.project_builder_finished.connect(_on_project_builder_finished, CONNECT_ONE_SHOT)
 	IVGlobal.about_to_build_system_tree.connect(_on_about_to_build_system_tree)
 	IVGlobal.system_tree_built_or_loaded.connect(_on_system_tree_built_or_loaded)
-	IVGlobal.add_system_tree_item_started.connect(_increment_tree_add_counter)
-	IVGlobal.add_system_tree_item_finished.connect(_decrement_tree_add_counter)
+	IVGlobal.add_system_tree_item_started.connect(_increment_tree_build_counter)
+	IVGlobal.add_system_tree_item_finished.connect(_decrement_tree_build_counter)
 	IVGlobal.system_tree_ready.connect(_on_system_tree_ready)
 	IVGlobal.simulator_exited.connect(_on_simulator_exited)
 	IVGlobal.change_pause_requested.connect(change_pause)
@@ -315,13 +315,13 @@ func _on_system_tree_built_or_loaded(_is_new_game: bool) -> void:
 	_state.is_system_built = true
 
 
-func _increment_tree_add_counter(_item: Node) -> void:
-	_tree_add_counter += 1
+func _increment_tree_build_counter(_item: Node) -> void:
+	_tree_build_counter += 1
 
 
-func _decrement_tree_add_counter(_item: Node) -> void:
-	_tree_add_counter -= 1
-	if _tree_add_counter == 0 and _state.is_building_tree:
+func _decrement_tree_build_counter(_item: Node) -> void:
+	_tree_build_counter -= 1
+	if _tree_build_counter == 0 and _state.is_building_tree:
 		IVGlobal.system_tree_ready.emit(!_state.is_game_loading)
 
 
