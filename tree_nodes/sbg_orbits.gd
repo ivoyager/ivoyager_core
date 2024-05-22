@@ -33,7 +33,7 @@ static var _fragment_identifier: IVFragmentIdentifier # optional
 static var _sbg_huds_state: IVSBGHUDsState
 static var _is_class_instanced := false
 
-var _group: IVSmallBodiesGroup
+var _sbg_alias: StringName
 var _color: Color
 var _vec3ids := PackedVector3Array() # orbit ids for FragmentIdentifier
 
@@ -44,26 +44,28 @@ func _init(group: IVSmallBodiesGroup) -> void:
 		_is_class_instanced = true
 		_fragment_identifier = IVGlobal.program.get(&"FragmentIdentifier")
 		_sbg_huds_state = IVGlobal.program.SBGHUDsState
-	_group = group
+	_sbg_alias = group.sbg_alias
+	cast_shadow = SHADOW_CASTING_SETTING_OFF
+	process_mode = PROCESS_MODE_ALWAYS # FragmentIdentifier still processing
+	group.adding_visuals.connect(_hide_and_free, CONNECT_ONE_SHOT)
+	_sbg_huds_state.orbits_visibility_changed.connect(_set_visibility)
+	_sbg_huds_state.orbits_color_changed.connect(_set_color)
+	
+	var number := group.get_number()
+	
 	# fragment ids
+	var i := 0
 	if _fragment_identifier:
-		var n := group.get_number()
-		_vec3ids.resize(n)
-		var i := 0
-		while i < n:
+		_vec3ids.resize(number)
+		while i < number:
 			var data := group.get_fragment_data(FRAGMENT_SBG_ORBIT, i)
 			_vec3ids[i] = _fragment_identifier.get_new_id_as_vec3(data)
 			i += 1
-
-
-func _ready() -> void:
-	process_mode = PROCESS_MODE_ALWAYS # FragmentIdentifier still processing
-	_sbg_huds_state.orbits_visibility_changed.connect(_set_visibility)
-	_sbg_huds_state.orbits_color_changed.connect(_set_color)
+	
+	# MultiMesh construction
 	multimesh = MultiMesh.new()
 	multimesh.transform_format = MultiMesh.TRANSFORM_3D
 	multimesh.mesh = IVCoreSettings.shared_resources[&"circle_mesh_low_res"]
-	cast_shadow = SHADOW_CASTING_SETTING_OFF
 	if _fragment_identifier: # use self-identifying fragment shader
 		multimesh.use_custom_data = true
 		var shader_material := ShaderMaterial.new()
@@ -73,18 +75,14 @@ func _ready() -> void:
 		var standard_material := StandardMaterial3D.new()
 		standard_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		material_override = standard_material
-	_set_transforms_and_ids()
-	_set_visibility()
-	_set_color()
-
-
-func _set_transforms_and_ids() -> void:
-	var n := _group.get_number()
-	multimesh.instance_count = n
-	var i := 0
-	while i < n:
+	
+	multimesh.instance_count = number # must be set after above!
+	
+	# set transforms & id
+	i = 0
+	while i < number:
 		# currently assumes ecliptic reference
-		var elements := _group.get_orbit_elements(i)
+		var elements := group.get_orbit_elements(i)
 		var a: float = elements[0]
 		var e: float = elements[1]
 		var b: = sqrt(a * a * (1.0 - e * e)) # simi-minor axis
@@ -98,12 +96,22 @@ func _set_transforms_and_ids() -> void:
 		i += 1
 
 
+func _ready() -> void:
+	_set_visibility()
+	_set_color()
+
+
+func _hide_and_free() -> void:
+	hide()
+	queue_free()
+
+
 func _set_visibility() -> void:
-	visible = _sbg_huds_state.is_orbits_visible(_group.sbg_alias)
+	visible = _sbg_huds_state.is_orbits_visible(_sbg_alias)
 
 
 func _set_color() -> void:
-	var color := _sbg_huds_state.get_orbits_color(_group.sbg_alias)
+	var color := _sbg_huds_state.get_orbits_color(_sbg_alias)
 	if _color == color:
 		return
 	_color = color

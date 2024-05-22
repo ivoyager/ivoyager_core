@@ -103,6 +103,7 @@ var settings := {} # IVSettingsManager
 var themes := {} # IVThemeManager
 var fonts := {} # IVFontManager
 var bodies := {} # IVBody instances add/remove themselves; indexed by name
+var small_bodies_groups := {} # IVSmallBodiesGroup instances add/remove themselves; indexed by name
 var world_targeting := [] # IVWorldControl & others; optimized data for 3D world selection
 var top_bodies: Array[Node3D] = [] # IVBody instances add/remove themselves; just STAR_SUN for us
 var selections := {} # IVSelectionManager(s)
