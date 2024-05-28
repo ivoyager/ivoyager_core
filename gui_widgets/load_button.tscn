@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://dutosuhbt5g8l"]
+
+[ext_resource type="Script" path="res://addons/ivoyager_core/gui_widgets/load_button.gd" id="1_dgm51"]
+
+[node name="LoadButton" type="Button"]
+text = "BUTTON_LOAD"
+script = ExtResource("1_dgm51")

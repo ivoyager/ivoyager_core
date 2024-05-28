@@ -20,9 +20,12 @@
 class_name IVWindowManager
 extends Node
 
-## Handles Full Screen toggles. Optionally adds a menu button.
-##
-## TODO: This node should signal changes and NOT reference IVMainMenuManager.
+# DEPRECIATE: This functionality will be moved to IVWindowButton.
+#
+# Handles Full Screen toggles. Optionally adds a menu button.
+#
+# WIP: depreciating IVMainMenuManager. New IVWindowButton will call this class
+# directly.
 
 var add_menu_button := false
 var button_priority := 1001

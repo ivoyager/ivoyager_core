@@ -21,9 +21,12 @@ class_name IVSBGOrbits
 extends MultiMeshInstance3D
 
 ## Visual orbits of a [IVSmallBodiesGroup] instance.
-
-# If FragmentIdentifier exists,
-# then a shader is used to allow screen identification of the orbit lines.
+##
+## If FragmentIdentifier exists, then a shader is used to allow screen
+## identification of the orbit lines.
+##
+## Several subclass _init() overrides are provided to override above behavior,
+## supply a different shader, or change other aspects of the MultiMesh.
 
 const math := preload("res://addons/ivoyager_core/static/math.gd")
 
@@ -37,6 +40,12 @@ var _sbg_alias: StringName
 var _color: Color
 var _vec3ids := PackedVector3Array() # orbit ids for FragmentIdentifier
 
+# subclass _init() overrides
+var _shader_override: Shader
+var _bypass_fragment_identifier := false
+var _multimesh_use_custom_data := true # forced true if base shader used w/ fragment ids
+var _multimesh_use_colors := false # default is to set as a group
+var _suppress_set_custom_data := false
 
 
 func _init(group: IVSmallBodiesGroup) -> void:
@@ -55,7 +64,7 @@ func _init(group: IVSmallBodiesGroup) -> void:
 	
 	# fragment ids
 	var i := 0
-	if _fragment_identifier:
+	if _fragment_identifier and !_bypass_fragment_identifier:
 		_vec3ids.resize(number)
 		while i < number:
 			var data := group.get_fragment_data(FRAGMENT_SBG_ORBIT, i)
@@ -66,7 +75,14 @@ func _init(group: IVSmallBodiesGroup) -> void:
 	multimesh = MultiMesh.new()
 	multimesh.transform_format = MultiMesh.TRANSFORM_3D
 	multimesh.mesh = IVCoreSettings.shared_resources[&"circle_mesh_low_res"]
-	if _fragment_identifier: # use self-identifying fragment shader
+	multimesh.use_colors = _multimesh_use_colors
+	multimesh.use_custom_data = _multimesh_use_custom_data # may be forced true below
+	
+	if _shader_override:
+		var shader_material := ShaderMaterial.new()
+		shader_material.shader = _shader_override
+		material_override = shader_material
+	elif _fragment_identifier and !_bypass_fragment_identifier: # use self-identifying shader
 		multimesh.use_custom_data = true
 		var shader_material := ShaderMaterial.new()
 		shader_material.shader = IVCoreSettings.shared_resources[&"orbits_id_shader"]
@@ -74,11 +90,14 @@ func _init(group: IVSmallBodiesGroup) -> void:
 	else:
 		var standard_material := StandardMaterial3D.new()
 		standard_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		standard_material.vertex_color_use_as_albedo = _multimesh_use_custom_data
 		material_override = standard_material
 	
 	multimesh.instance_count = number # must be set after above!
 	
 	# set transforms & id
+	var is_set_custom_data := (_fragment_identifier and !_bypass_fragment_identifier
+			and !_suppress_set_custom_data)
 	i = 0
 	while i < number:
 		# currently assumes ecliptic reference
@@ -90,7 +109,7 @@ func _init(group: IVSmallBodiesGroup) -> void:
 		orbit_basis = math.get_rotation_matrix(elements) * orbit_basis
 		var orbit_transform := Transform3D(orbit_basis, -e * orbit_basis.x)
 		multimesh.set_instance_transform(i, orbit_transform)
-		if _fragment_identifier:
+		if is_set_custom_data:
 			var vec3id := _vec3ids[i]
 			multimesh.set_instance_custom_data(i, Color(vec3id.x, vec3id.y, vec3id.z, 0.0))
 		i += 1
@@ -111,11 +130,12 @@ func _set_visibility() -> void:
 
 
 func _set_color() -> void:
+	# subclass override if you don't want this for your shader_override
 	var color := _sbg_huds_state.get_orbits_color(_sbg_alias)
 	if _color == color:
 		return
 	_color = color
-	if _fragment_identifier:
+	if _shader_override or (_fragment_identifier and !_bypass_fragment_identifier):
 		var shader_material: ShaderMaterial = material_override
 		shader_material.set_shader_parameter(&"color", color)
 	else:

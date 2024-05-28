@@ -21,14 +21,18 @@ class_name IVSBGPoints
 extends MeshInstance3D
 
 ## Visual points of a [IVSmallBodiesGroup] instance.
+##
+## Uses one of the 'points'
+## shaders ('points.x.x.gdshader', where x.x represents a shader variant).
+## Point shaders maintain vertex positions using their own orbital math.
+##
+## Points shader variants:
+##    '.l4l5.' - for lagrange points L4 & L5.
+##    '.id.' - broadcasts identity for IVFragmentIdentifier.
+##
+## Several subclass _init() overrides are provided to bypass IVFragmentIdentifier
+## or to supply a different shader.
 
-# Uses one of the 'points'
-# shaders ('points.x.x.gdshader', where x.x represents a shader variant).
-# Point shaders maintain vertex positions using their own orbital math.
-#
-# Points shader variants:
-#    '.l4l5.' - for lagrange points L4 & L5.
-#    '.id.' - broadcasts identity for IVFragmentIdentifier.
 
 const FRAGMENT_SBG_POINT := IVFragmentIdentifier.FRAGMENT_SBG_POINT
 const PI_DIV_3 := PI / 3.0 # 60 degrees
@@ -61,6 +65,11 @@ var _vec3ids := PackedVector3Array() # point ids for FragmentIdentifier
 var _lp_integer := -1 # -1 or 1-5
 var _secondary_orbit: IVOrbit
 
+# subclass _init() overrides
+var _points_shader_override: Shader
+var _points_l4l5_shader_override: Shader
+var _bypass_fragment_identifier := false
+
 
 
 func _init(group: IVSmallBodiesGroup) -> void:
@@ -80,7 +89,7 @@ func _init(group: IVSmallBodiesGroup) -> void:
 	
 	# fragment ids
 	_vec3ids.resize(number) # needs resize whether we use ids or not
-	if _fragment_identifier:
+	if _fragment_identifier and !_bypass_fragment_identifier:
 		process_mode = PROCESS_MODE_ALWAYS # FragmentIdentifier always processing
 		var i := 0
 		while i < number:
@@ -91,10 +100,12 @@ func _init(group: IVSmallBodiesGroup) -> void:
 	# set shader
 	var shader_material := ShaderMaterial.new()
 	if _lp_integer == -1: # not trojans
-		shader_material.shader = IVCoreSettings.shared_resources[&"points_id_shader"]
+		shader_material.shader = (_points_shader_override if _points_shader_override
+				else IVCoreSettings.shared_resources[&"points_id_shader"])
 	elif _lp_integer >= 4: # trojans
 		_secondary_orbit = group.secondary_body.orbit
-		shader_material.shader = IVCoreSettings.shared_resources[&"points_l4l5_id_shader"]
+		shader_material.shader = (_points_l4l5_shader_override if _points_l4l5_shader_override
+				else IVCoreSettings.shared_resources[&"points_l4l5_id_shader"])
 	material_override = shader_material
 	
 	# ArrayMesh construction
