@@ -20,11 +20,11 @@
 class_name IVQuitButton
 extends Button
 
+## Botton that emits [signal IVGlobal.quit_requested].
 
-var force_quit := false
+@export var force_quit := false ## Force quit without warning diologs.
 
 
 func _pressed() -> void:
-	var state_manager: IVStateManager = IVGlobal.program[&"StateManager"]
-	state_manager.quit(force_quit)
+	IVGlobal.quit_requested.emit(force_quit)
 

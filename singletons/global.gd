@@ -62,6 +62,7 @@ signal setting_changed(setting: StringName, value: Variant)
 signal camera_ready(camera: Camera3D)
 
 # requests for state change
+signal start_requested()
 signal sim_stop_required(who: Object, network_sync_type: int, bypass_checks: bool) # IVStateManager
 signal sim_run_allowed(who: Object) # all objects requiring stop must allow!
 signal change_pause_requested(is_toggle: bool, is_pause: bool) # 2nd arg ignored if is_toggle
@@ -69,6 +70,7 @@ signal quit_requested(force_quit: bool) # force_quit bypasses dialog
 signal exit_requested(force_exit: bool) # force_exit bypasses dialog
 signal save_requested(path: String, is_quick_save: bool) # ["", false] will trigger dialog
 signal load_requested(path: String, is_quick_load: bool) # ["", false] will trigger dialog
+signal resume_requested() # user probably wants to close the main menu
 signal save_quit_requested()
 
 # requests for camera action

@@ -132,6 +132,7 @@ func _ready() -> void:
 	IVGlobal.system_tree_ready.connect(_on_system_tree_ready)
 	IVGlobal.simulator_exited.connect(_on_simulator_exited)
 	IVGlobal.change_pause_requested.connect(change_pause)
+	IVGlobal.start_requested.connect(build_system_tree_from_tables)
 	IVGlobal.sim_stop_required.connect(require_stop)
 	IVGlobal.sim_run_allowed.connect(allow_run)
 	IVGlobal.quit_requested.connect(quit)

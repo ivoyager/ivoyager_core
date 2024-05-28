@@ -1,4 +1,4 @@
-# exit_button.gd
+# start_button.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -17,14 +17,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVExitButton
+class_name IVStartButton
 extends Button
 
-## Botton that emits [signal IVGlobal.exit_requested].
 
-@export var force_exit := false ## Force exit without warning diologs.
+
+func _ready() -> void:
+	IVGlobal.simulator_exited.connect(_enable)
 
 
 func _pressed() -> void:
-	IVGlobal.exit_requested.emit(force_exit)
+	disabled = true
+	_start.call_deferred() # let button disable
+
+
+func _start() -> void:
+	IVGlobal.start_requested.emit()
+
+
+func _enable() -> void:
+	disabled = false
 

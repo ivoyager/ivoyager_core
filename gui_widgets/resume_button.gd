@@ -1,4 +1,4 @@
-# exit_button.gd
+# resume_button.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -17,14 +17,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVExitButton
+class_name IVResumeButton
 extends Button
 
-## Botton that emits [signal IVGlobal.exit_requested].
-
-@export var force_exit := false ## Force exit without warning diologs.
-
+## Botton that emits [signal IVGlobal.resume_requested].
 
 func _pressed() -> void:
-	IVGlobal.exit_requested.emit(force_exit)
+	IVGlobal.resume_requested.emit()
 

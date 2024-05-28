@@ -20,7 +20,7 @@
 class_name IVMainMenuManager
 extends RefCounted
 
-## Maintains button state for a main menu.
+# DEPRECIATE
 
 signal buttons_changed()
 signal button_state_changed()
