@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://bf1jfea7jqjjf"]
+
+[ext_resource type="Script" path="res://addons/ivoyager_core/gui_widgets/save_button.gd" id="1_2yx8o"]
+
+[node name="SaveButton" type="Button"]
+text = "BUTTON_SAVE"
+script = ExtResource("1_2yx8o")

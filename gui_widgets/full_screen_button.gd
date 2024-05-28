@@ -20,10 +20,15 @@
 class_name IVFullScreenButton
 extends Button
 
+## Button that handles full screen / minimize toggles.
+##
+## Note: You don't need to add IVFullScreenManager if this node is present.
+
+
 
 var full_screen_text := "BUTTON_FULL_SCREEN"
 var minimize_text := "BUTTON_MINIMIZE"
-var frames_to_test_screen_state := 0
+var frames_to_test_screen_state := 0 # may need value for HTML export
 
 var _is_fullscreen := false
 var _test_countdown := 0
@@ -52,8 +57,7 @@ func _change_fullscreen() -> void:
 	var window := get_window()
 	var is_fullscreen := ((window.mode == Window.MODE_EXCLUSIVE_FULLSCREEN)
 			or (window.mode == Window.MODE_FULLSCREEN))
-	window.mode = (Window.MODE_EXCLUSIVE_FULLSCREEN if !is_fullscreen
-			else Window.MODE_WINDOWED)
+	window.mode = Window.MODE_EXCLUSIVE_FULLSCREEN if !is_fullscreen else Window.MODE_WINDOWED
 
 
 func _update_buttons() -> void:
