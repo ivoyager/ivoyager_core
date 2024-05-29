@@ -17,6 +17,7 @@ Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_tab
 
 ### Changed
 * [API breaking] Improved builder class names with "source" and "what": "BinaryAsteroidsBuilder", "TableBodyBuilder", "TableOrbitBuilder", etc.
+* [Project breaking] Removed fake virtual function _ivcore_init().
 * [Project breaking] IVCoreInitializer no longer adds admin popups (save dialog, options popup, etc.). Projects can now add these in a more Godot-like manner by constructing a control scene tree.
 * Tables specified in IVCoreSettings.body_tables no longer need to be top-down ordered.
 
