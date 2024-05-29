@@ -21,5 +21,5 @@ class_name IVViewSavePopup
 extends PopupPanel
 const SCENE := "res://addons/ivoyager_core/gui_popups/view_save_popup.tscn"
 
-# Instanced by IVViewSaveButton. (Not added in IVCoreInitializer.)
+# Instanced by IVViewSaveButton.
 

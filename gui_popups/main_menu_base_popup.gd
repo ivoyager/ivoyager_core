@@ -19,6 +19,7 @@
 # *****************************************************************************
 class_name IVMainMenuBasePopup
 extends PopupPanel
+const SCENE := "res://addons/ivoyager_core/gui_popups/main_menu_base_popup.tscn"
 
 ## An empty Main Menu popup (base control only) that opens/closes on
 ## 'ui_cancel' action event and 'main menu' IVGlobal signals.
@@ -29,6 +30,8 @@ extends PopupPanel
 ## directory 'gui_widgets' including [IVFullScreenButton], [IVSaveButton],
 ## [IVLoadButton], [IVOptionsButton], [IVHotkeysButton], [IVExitButton],
 ## [IVQuitButton] and [IVResumeButton].
+##
+## For a main menu that is already populated, see [IVMainMenuPopup].
 
 @export var sim_started_only := true
 @export var use_theme_manager_setting := true

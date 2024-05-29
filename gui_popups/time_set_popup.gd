@@ -21,7 +21,7 @@ class_name IVTimeSetPopup
 extends PopupPanel
 const SCENE := "res://addons/ivoyager_core/gui_popups/time_set_popup.tscn"
 
-# Instanced by IVTimeSetButton. (Not added in IVCoreInitializer.)
+# Instanced by IVTimeSetButton.
 
 @onready var _time_setter: IVTimeSetter = $"%TimeSetter"
 

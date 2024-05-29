@@ -19,6 +19,7 @@
 # *****************************************************************************
 class_name IVHotkeysPopup
 extends PopupPanel
+const SCENE := "res://addons/ivoyager_core/gui_popups/hotkeys_popup.tscn"
 
 
 @export var stop_sim := true

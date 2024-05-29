@@ -24,16 +24,25 @@ const SCENE := "res://addons/ivoyager_core/gui_popups/main_menu_popup.tscn"
 ## Main Menu popup that opens/closes on 'ui_cancel' action event and IVGlobal 
 ## signals.
 ##
-## To use as a base class with different buttons:
-##  * Extend this class.
-##  * Add 'const SCENE_OVERRIDE := "<Your new class path>"
-##  * Build your new control with containers and buttons.
+## For a base main menu popup without content, use [IVMainMenuBasePopup].
 
 @export var sim_started_only := true
 @export var use_theme_manager_setting := true
 @export var center := true
 @export var stop_sim := true
+@export var require_explicit_close := true
 
+@export var include_full_screen_button := false
+@export var include_save_button := true
+@export var include_load_button := true
+@export var include_options_button := true
+@export var include_hotkeys_button := true
+@export var include_exit_button := true
+@export var include_quit_button := true
+@export var include_resume_button := true
+
+
+var _is_explicit_close := false
 
 
 func _ready() -> void:
@@ -44,6 +53,30 @@ func _ready() -> void:
 	popup_hide.connect(_on_popup_hide)
 	if use_theme_manager_setting:
 		theme = IVGlobal.themes.main_menu
+	
+	var menu_vbox: VBoxContainer = $MarginContainer/MenuVBox
+	if !include_full_screen_button:
+		menu_vbox.remove_child($MarginContainer/MenuVBox/FullScreenButton)
+	if !include_save_button:
+		menu_vbox.remove_child($MarginContainer/MenuVBox/SaveButton)
+	if !include_load_button:
+		menu_vbox.remove_child($MarginContainer/MenuVBox/LoadButton)
+	if !include_options_button:
+		menu_vbox.remove_child($MarginContainer/MenuVBox/OptionsButton)
+	if !include_hotkeys_button:
+		menu_vbox.remove_child($MarginContainer/MenuVBox/HotkeysButton)
+	if !include_exit_button:
+		menu_vbox.remove_child($MarginContainer/MenuVBox/ExitButton)
+	if !include_quit_button:
+		menu_vbox.remove_child($MarginContainer/MenuVBox/QuitButton)
+	if !include_resume_button:
+		menu_vbox.remove_child($MarginContainer/MenuVBox/ResumeButton)
+
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if event.is_action_pressed(&"ui_cancel"):
+		close()
+		set_input_as_handled()
 
 
 func open() -> void:
@@ -53,6 +86,7 @@ func open() -> void:
 		return
 	if stop_sim:
 		IVGlobal.sim_stop_required.emit(self)
+	_is_explicit_close = false
 	if center:
 		popup_centered()
 	else:
@@ -60,10 +94,15 @@ func open() -> void:
 
 
 func close() -> void:
+	_is_explicit_close = true
 	hide()
 
 
 func _on_popup_hide() -> void:
+	if require_explicit_close and !_is_explicit_close:
+		show.call_deferred()
+		return
+	_is_explicit_close = false
 	if stop_sim:
 		IVGlobal.sim_run_allowed.emit(self)
 
