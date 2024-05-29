@@ -37,16 +37,16 @@ enum {TL, T, TR, R, BR, B, BL, L}
 enum {UP, DOWN, LEFT, RIGHT}
 
 # project vars
-var avoid_overlap := true
-var screen_edge_snap := 100.0
-var panel_edge_snap := 40.0
-var min_sizes := [
+@export var avoid_overlap := true
+@export var screen_edge_snap := 100.0
+@export var panel_edge_snap := 40.0
+@export var min_sizes := [
 	# Use init_min_size() to set.
 	Vector2(435.0, 291.0), # GUI_SMALL
 	Vector2(575.0, 354.0), # GUI_MEDIUM
 	Vector2(712.0, 421.0), # GUI_LARGE
 ]
-var max_default_screen_proportions := Vector2(0.45, 0.45) # can override above
+@export var max_default_screen_proportions := Vector2(0.45, 0.45) # can override above
 
 # private
 static var _settings: Dictionary = IVGlobal.settings
