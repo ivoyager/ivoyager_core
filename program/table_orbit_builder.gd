@@ -30,7 +30,7 @@ const MIN_E_FOR_APSIDAL_PRECESSION := 0.0001
 const MIN_I_FOR_NODAL_PRECESSION := deg_to_rad(0.1)
 const DAY := IVUnits.DAY
 
-var OrbitScript: Script
+var _oribti_script: Script = IVGlobal.procedural_classes[&"Orbit"]
 
 var _dynamic_orbits: bool = IVCoreSettings.dynamic_orbits
 var _ecliptic_rotation: Basis = IVCoreSettings.ecliptic_rotation
@@ -61,9 +61,6 @@ var _d := {
 	&"ref_plane" : &"",
 }
 
-
-func _ivcore_init() -> void:
-	OrbitScript = IVGlobal.procedural_classes[&"Orbit"]
 
 
 func make_orbit_from_data(table_name: String, table_row: int, parent: IVBody) -> IVOrbit:
@@ -134,7 +131,7 @@ func make_orbit_from_data(table_name: String, table_row: int, parent: IVBody) ->
 	
 	var elements := Array([a, e, i, Om, w, M0, n], TYPE_FLOAT, &"", null)
 	@warning_ignore("unsafe_method_access") # Possible replacement class
-	var orbit: IVOrbit = OrbitScript.new()
+	var orbit: IVOrbit = _oribti_script.new()
 	orbit.elements_at_epoch = elements
 	
 	if _dynamic_orbits:

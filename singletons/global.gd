@@ -29,10 +29,10 @@ signal translations_imported() # IVTranslationImporter; useful for boot screen
 signal data_tables_imported() # IVTableImporter
 signal preinitializers_inited()
 signal initializers_inited()
-signal project_objects_instantiated() # IVProjectBuilder; IVGlobal.program populated
-signal project_inited() # IVProjectBuilder; after all _ivcore_init() calls
-signal project_nodes_added() # IVProjectBuilder; prog_nodes & gui_nodes added
-signal project_builder_finished() # IVProjectBuilder; 1 frame after above
+signal project_objects_instantiated() # IVCoreInitializer; IVGlobal.program populated
+signal project_inited() # IVCoreInitializer; after above
+signal project_nodes_added() # IVCoreInitializer; prog_nodes & gui_nodes added
+signal project_builder_finished() # IVCoreInitializer; 1 frame after above
 signal state_manager_inited()
 signal world_environment_added() # on Main after I/O thread finishes (slow!)
 signal about_to_build_system_tree() # new or loading game
@@ -62,6 +62,7 @@ signal setting_changed(setting: StringName, value: Variant)
 signal camera_ready(camera: Camera3D)
 
 # requests for state change
+signal start_requested()
 signal sim_stop_required(who: Object, network_sync_type: int, bypass_checks: bool) # IVStateManager
 signal sim_run_allowed(who: Object) # all objects requiring stop must allow!
 signal change_pause_requested(is_toggle: bool, is_pause: bool) # 2nd arg ignored if is_toggle
@@ -69,6 +70,7 @@ signal quit_requested(force_quit: bool) # force_quit bypasses dialog
 signal exit_requested(force_exit: bool) # force_exit bypasses dialog
 signal save_requested(path: String, is_quick_save: bool) # ["", false] will trigger dialog
 signal load_requested(path: String, is_quick_load: bool) # ["", false] will trigger dialog
+signal resume_requested() # user probably wants to close the main menu
 signal save_quit_requested()
 
 # requests for camera action
@@ -96,13 +98,14 @@ var state := {} # IVStateManager & IVSaveManager; is_inited, is_running, etc.
 var times: Array[float] = [] # IVTimekeeper [time (s, J2000), engine_time (s), solar_day (d)]
 var date: Array[int] = [] # IVTimekeeper; Gregorian [year, month, day]
 var clock: Array[int] = [] # IVTimekeeper; UT [hour, minute, second]
-var program := {} # IVProjectBuilder instantiated objects (base or override classes)
-var procedural_classes := {} # IVProjectBuilder defined script classes (base or override)
+var program := {} # IVCoreInitializer instantiated objects (base or override classes)
+var procedural_classes := {} # IVCoreInitializer defined script classes (base or override)
 var assets := {} # AssetsInitializer loads from dynamic paths specified below
 var settings := {} # IVSettingsManager
 var themes := {} # IVThemeManager
 var fonts := {} # IVFontManager
 var bodies := {} # IVBody instances add/remove themselves; indexed by name
+var small_bodies_groups := {} # IVSmallBodiesGroup instances add/remove themselves; indexed by name
 var world_targeting := [] # IVWorldControl & others; optimized data for 3D world selection
 var top_bodies: Array[Node3D] = [] # IVBody instances add/remove themselves; just STAR_SUN for us
 var selections := {} # IVSelectionManager(s)

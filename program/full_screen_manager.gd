@@ -1,4 +1,4 @@
-# time_set_popup.gd
+# full_screen_manager.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -17,25 +17,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVTimeSetPopup
-extends PopupPanel
-const SCENE := "res://addons/ivoyager_core/gui_popups/time_set_popup.tscn"
+class_name IVFullScreenManager
+extends Node
 
-# Instanced by IVTimeSetButton.
 
-@onready var _time_setter: IVTimeSetter = $"%TimeSetter"
+## Handles full screen / minimize toggles.
+##
+## This node is not added in IVCoreInitializer by default, and its function is
+## completely duplicated by IVFullScreenButton. Add this node only if you want
+## full screen toggle via hotkey but don't need the GUI button.
 
 
 func _ready() -> void:
-	about_to_popup.connect(_on_about_to_show)
-	_time_setter.time_set.connect(_on_time_set)
+	process_mode = PROCESS_MODE_ALWAYS
 
 
-func _on_about_to_show() -> void:
-	_time_setter.set_current()
+func _unhandled_key_input(event: InputEvent) -> void:
+	if event.is_action_pressed(&"toggle_fullscreen"):
+		_change_fullscreen()
+		get_viewport().set_input_as_handled()
 
 
-func _on_time_set(is_close: bool) -> void:
-	if is_close:
-		hide()
+func _change_fullscreen() -> void:
+	var window := get_window()
+	var is_fullscreen := ((window.mode == Window.MODE_EXCLUSIVE_FULLSCREEN)
+			or (window.mode == Window.MODE_FULLSCREEN))
+	window.mode = Window.MODE_EXCLUSIVE_FULLSCREEN if !is_fullscreen else Window.MODE_WINDOWED
+
 

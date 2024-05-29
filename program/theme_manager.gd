@@ -32,7 +32,11 @@ var _themes: Dictionary = IVGlobal.themes
 var _fonts: Dictionary = IVGlobal.fonts
 
 
-func _ivcore_init() -> void:
+func _init() -> void:
+	IVGlobal.project_objects_instantiated.connect(_on_project_objects_instantiated)
+
+
+func _on_project_objects_instantiated() -> void:
 	# Make themes available in IVGlobal dictionary
 	
 	var main := Theme.new()

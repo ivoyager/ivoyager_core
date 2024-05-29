@@ -154,7 +154,7 @@ static func get_or_make_selection(selection_name: StringName) -> IVSelection:
 static func make_selection_for_body(body_name: StringName) -> IVSelection:
 	assert(!IVGlobal.selections.has(body_name))
 	var body: IVBody = IVGlobal.bodies[body_name] # must exist
-	var selection_builder: IVSelectionBuilder = IVGlobal.program.SelectionBuilder
+	var selection_builder: IVSelectionBuilder = IVGlobal.program[&"SelectionBuilder"]
 	var selection_ := selection_builder.build_body_selection(body)
 	if selection_:
 		IVGlobal.selections[body_name] = selection_

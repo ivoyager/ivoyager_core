@@ -59,18 +59,20 @@ var default_orbits_colors := {}
 
 
 
-func _ivcore_init() -> void:
+func _init() -> void:
+	IVGlobal.project_objects_instantiated.connect(_on_project_objects_instantiated)
 	IVGlobal.simulator_exited.connect(_set_current_to_default)
 	IVGlobal.update_gui_requested.connect(_signal_all_changed)
+
+
+func _on_project_objects_instantiated() -> void:
 	for row in IVTableData.get_n_rows(&"small_bodies_groups"):
 		if IVTableData.get_db_bool(&"small_bodies_groups", &"skip", row):
 			continue
 		var sbg_alias := IVTableData.get_db_string_name(&"small_bodies_groups", &"sbg_alias", row)
 		var points_color_str := IVTableData.get_db_string(&"small_bodies_groups", &"points_color", row)
 		var orbits_color_str := IVTableData.get_db_string(&"small_bodies_groups", &"orbits_color", row)
-		@warning_ignore("unsafe_call_argument") # Godot 4.2.dev6 bad warning
 		default_points_colors[sbg_alias] = Color(points_color_str)
-		@warning_ignore("unsafe_call_argument") # Godot 4.2.dev6 bad warning
 		default_orbits_colors[sbg_alias] = Color(orbits_color_str)
 	_set_current_to_default()
 

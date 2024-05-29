@@ -1,4 +1,4 @@
-# time_set_popup.gd
+# load_button.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -17,25 +17,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVTimeSetPopup
-extends PopupPanel
-const SCENE := "res://addons/ivoyager_core/gui_popups/time_set_popup.tscn"
-
-# Instanced by IVTimeSetButton.
-
-@onready var _time_setter: IVTimeSetter = $"%TimeSetter"
+class_name IVLoadButton
+extends Button
 
 
-func _ready() -> void:
-	about_to_popup.connect(_on_about_to_show)
-	_time_setter.time_set.connect(_on_time_set)
 
-
-func _on_about_to_show() -> void:
-	_time_setter.set_current()
-
-
-func _on_time_set(is_close: bool) -> void:
-	if is_close:
-		hide()
+func _pressed() -> void:
+	IVGlobal.load_dialog_requested.emit()
 

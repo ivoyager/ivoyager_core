@@ -36,7 +36,7 @@ var _camera: Camera3D
 var _current_star_orbiter: IVBody
 
 
-func _ivcore_init() -> void:
+func _init() -> void:
 	IVGlobal.about_to_start_simulator.connect(_on_about_to_start_simulator)
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
 	IVGlobal.camera_ready.connect(_connect_camera)

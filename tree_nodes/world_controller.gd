@@ -55,7 +55,7 @@ var _has_mouse := true
 var _suppress_mouse_control := true # blocks signals EXCEPT 'mouse_target_changed'
 
 
-func _ivcore_init() -> void:
+func _init() -> void:
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
 	# see 'IVGlobal.world_targeting' comments above
 	_world_targeting.resize(8)

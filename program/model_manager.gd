@@ -39,7 +39,7 @@ var max_lazy_models := 40
 var model_too_far_radius_multiplier := 3e3
 var map_search_suffixes: Array[String] = [".albedo", ".emission"]
 
-var SpheroidModelScript: Script
+var _spheroid_model_script: Script = IVGlobal.procedural_classes[&"SpheroidModel"]
 
 var _times: Array[float] = IVGlobal.times
 var _io_manager: IVIOManager
@@ -52,10 +52,14 @@ var _cull_models: Array[Node3D] = []
 var _cull_size: int
 
 
-func _ivcore_init() -> void:
+
+func _init() -> void:
+	IVGlobal.project_objects_instantiated.connect(_on_project_objects_instantiated)
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
 	IVGlobal.about_to_stop_before_quit.connect(_clear)
-	SpheroidModelScript = IVGlobal.procedural_classes[&"SpheroidModel"]
+
+
+func _on_project_objects_instantiated() -> void:
 	_io_manager = IVGlobal.program[&"IOManager"]
 	_fallback_albedo_map = IVGlobal.assets[&"fallback_albedo_map"]
 	_cull_size = int(max_lazy_models * CULL_FRACTION)
@@ -133,7 +137,7 @@ func _get_model_on_io_thread(body: IVBody, file_prefix: String, model_type: int,
 	if !albedo_map and !emission_map:
 		albedo_map = _fallback_albedo_map
 	@warning_ignore("unsafe_method_access") # Possible replacement class
-	model = SpheroidModelScript.new(model_type, model_basis, albedo_map, emission_map)
+	model = _spheroid_model_script.new(model_type, model_basis, albedo_map, emission_map)
 	_finish_model.call_deferred(body, model, lazy_init)
 
 

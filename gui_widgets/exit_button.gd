@@ -1,4 +1,4 @@
-# time_set_popup.gd
+# exit_button.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -17,25 +17,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVTimeSetPopup
-extends PopupPanel
-const SCENE := "res://addons/ivoyager_core/gui_popups/time_set_popup.tscn"
+class_name IVExitButton
+extends Button
 
-# Instanced by IVTimeSetButton.
+## Botton that emits [signal IVGlobal.exit_requested].
 
-@onready var _time_setter: IVTimeSetter = $"%TimeSetter"
-
-
-func _ready() -> void:
-	about_to_popup.connect(_on_about_to_show)
-	_time_setter.time_set.connect(_on_time_set)
+@export var force_exit := false ## Force exit without warning diologs.
 
 
-func _on_about_to_show() -> void:
-	_time_setter.set_current()
-
-
-func _on_time_set(is_close: bool) -> void:
-	if is_close:
-		hide()
+func _pressed() -> void:
+	IVGlobal.exit_requested.emit(force_exit)
 

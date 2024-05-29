@@ -123,7 +123,12 @@ var _row: int
 var _real_precisions := {}
 
 
-func _ivcore_init() -> void:
+
+func _init() -> void:
+	IVGlobal.project_objects_instantiated.connect(_on_project_objects_instantiated)
+
+
+func _on_project_objects_instantiated() -> void:
 	_orbit_builder = IVGlobal.program[&"TableOrbitBuilder"]
 	_composition_builder = IVGlobal.program.get(&"CompositionBuilder")
 

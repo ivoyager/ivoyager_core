@@ -59,8 +59,9 @@ var init_sequence: Array[Array] = [
 	[self, &"_instantiate_initializers", false],
 	[self, &"_set_simulator_universe", false],
 	[self, &"_set_simulator_top_gui", false],
-	[self, &"_instantiate_and_index_program_objects", false],
-	[self, &"_init_program_objects", true],
+	[self, &"_index_core_nodes", false],
+	[self, &"_instantiate_and_index_program_objects", true],
+	[self, &"_signal_project_inited", true],
 	[self, &"_add_program_nodes", true],
 	[self, &"_finish", false]
 ]
@@ -132,7 +133,6 @@ var program_refcounteds := {
 	InputMapManager = IVInputMapManager,
 	FontManager = IVFontManager, # ok to replace
 	ThemeManager = IVThemeManager, # after IVFontManager; ok to replace
-	MainMenuManager = IVMainMenuManager,
 	SleepManager = IVSleepManager,
 	WikiManager = IVWikiManager,
 	ModelManager = IVModelManager,
@@ -149,7 +149,7 @@ var program_nodes := {
 	Scheduler = IVScheduler,
 	ViewManager = IVViewManager,
 	FragmentIdentifier = IVFragmentIdentifier, # safe to remove
-	WorldEnvironment = IVWorldEnvironment, # safe to remove
+	WorldEnvironment_ = IVWorldEnvironment, # safe to remove
 	
 	# Nodes below are ordered for input handling (last is first). We mainly
 	# need to intercept cntr-something actions (quit, full-screen, etc.) before
@@ -157,7 +157,6 @@ var program_nodes := {
 	# 'project_nodes_added' signal using API below.
 	CameraHandler = IVCameraHandler, # remove or replace if not using IVCamera
 	Timekeeper = IVTimekeeper,
-	WindowManager = IVWindowManager,
 	SBGHUDsState = IVSBGHUDsState, # (likely to have input in future)
 	BodyHUDsState = IVBodyHUDsState,
 	InputHandler = IVInputHandler,
@@ -175,15 +174,17 @@ var gui_nodes := {
 	# Path to scene or Node class ok.
 	WorldController = IVWorldController, # Control ok
 	MouseTargetLabel = IVMouseTargetLabel, # safe to replace or remove
-	GameGUI = null, # assign here if convenient (above MouseTargetLabel, below SplashScreen)
-	SplashScreen = null, # assign here if convenient (below popups)
-	MainMenuPopup = IVMainMenuPopup, # safe to replace or remove
-	LoadDialog = IVLoadDialog, # auto removed if plugin missing or disabled
-	SaveDialog = IVSaveDialog, # auto removed if plugin missing or disabled
-	OptionsPopup = IVOptionsPopup, # safe to replace or remove
-	HotkeysPopup = IVHotkeysPopup, # safe to replace or remove
-	Confirmation = IVConfirmation, # safe to replace or remove
-	MainProgBar = IVMainProgBar, # safe to replace or remove
+	GameGUI = null, # assign here if convenient (over MouseTargetLabel, under SplashScreen)
+	SplashScreen = null, # assign here if convenient (over InGameGUI)
+	AdminPopups = null, # assign here if convenient (over SplashScreen)
+	
+	#MainMenuPopup = IVMainMenuPopup, # safe to replace or remove
+	#LoadDialog = IVLoadDialog, # auto removed if plugin missing or disabled
+	#SaveDialog = IVSaveDialog, # auto removed if plugin missing or disabled
+	#OptionsPopup = IVOptionsPopup, # safe to replace or remove
+	#HotkeysPopup = IVHotkeysPopup, # safe to replace or remove
+	#Confirmation = IVConfirmation, # safe to replace or remove
+	#MainProgBar = IVMainProgBar, # safe to replace or remove
 }
 
 var procedural_objects := {
@@ -366,12 +367,27 @@ func _set_simulator_top_gui() -> void:
 	top_gui.name = &"TopGUI"
 
 
-func _instantiate_and_index_program_objects() -> void:
+func _index_core_nodes() -> void:
+	# These will be available at program object inits.
 	_program[&"Global"] = IVGlobal
 	_program[&"CoreSettings"] = IVCoreSettings
 	_program[&"Universe"] = universe
 	_program[&"TopGUI"] = top_gui
-	# Don't add CoreInitializer: it should never be accessed after init!
+
+
+func _instantiate_and_index_program_objects() -> void:
+	
+	# Procedural classes will be available at program object inits.
+	for key: StringName in procedural_objects:
+		if !procedural_objects[key]:
+			continue
+		assert(!_procedural_classes.has(key))
+		if procedural_objects[key] is Resource:
+			_procedural_classes[key] = procedural_objects[key]
+		else:
+			var path: String = procedural_objects[key]
+			_procedural_classes[key] = IVFiles.get_script_or_packedscene(path)
+	
 	for dict: Dictionary in [program_refcounteds, program_nodes, gui_nodes]:
 		for key: StringName in dict:
 			if !dict[key]:
@@ -382,33 +398,12 @@ func _instantiate_and_index_program_objects() -> void:
 			if object is Node:
 				@warning_ignore("unsafe_property_access")
 				object.name = key
-	for key: StringName in procedural_objects:
-		if !procedural_objects[key]:
-			continue
-		assert(!_procedural_classes.has(key))
-		if procedural_objects[key] is Resource:
-			_procedural_classes[key] = procedural_objects[key]
-		else:
-			var path: String = procedural_objects[key]
-			_procedural_classes[key] = IVFiles.get_script_or_packedscene(path)
 	IVGlobal.project_objects_instantiated.emit()
+	await get_tree().process_frame
+	init_step_finished.emit()
 
 
-func _init_program_objects() -> void:
-	if universe.has_method(&"_ivcore_init"):
-		@warning_ignore("unsafe_method_access")
-		universe._ivcore_init()
-	if top_gui.has_method(&"_ivcore_init"):
-		@warning_ignore("unsafe_method_access")
-		top_gui._ivcore_init()
-	for dict: Dictionary in [preinitializers, initializers, program_refcounteds, program_nodes, gui_nodes]:
-		for key: StringName in dict:
-			if !dict[key]:
-				continue
-			var object: Object = _program.get(key)
-			if object and object.has_method(&"_ivcore_init"):
-				@warning_ignore("unsafe_method_access")
-				object._ivcore_init()
+func _signal_project_inited() -> void:
 	IVGlobal.project_inited.emit()
 	await get_tree().process_frame
 	init_step_finished.emit()

@@ -1,4 +1,4 @@
-# main_menu_popup.gd
+# main_menu_base_popup.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -17,29 +17,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVMainMenuPopup
+class_name IVMainMenuBasePopup
 extends PopupPanel
-const SCENE := "res://addons/ivoyager_core/gui_popups/main_menu_popup.tscn"
+const SCENE := "res://addons/ivoyager_core/gui_popups/main_menu_base_popup.tscn"
 
-## Main Menu popup that opens/closes on 'ui_cancel' action event and IVGlobal 
-## signals.
+## An empty Main Menu popup (base control only) that opens/closes on
+## 'ui_cancel' action event and 'main menu' IVGlobal signals.
 ##
-## For a base main menu popup without content, use [IVMainMenuBasePopup].
+## This is only a base upon which you can build a main menu. To build a simple
+## menu, add child MarginContainer with child VBoxContainer, then add to that
+## your menu buttons. You can find many useful 'main menu' buttons in
+## directory 'gui_widgets' including [IVFullScreenButton], [IVSaveButton],
+## [IVLoadButton], [IVOptionsButton], [IVHotkeysButton], [IVExitButton],
+## [IVQuitButton] and [IVResumeButton].
+##
+## For a main menu that is already populated, see [IVMainMenuPopup].
 
 @export var sim_started_only := true
 @export var use_theme_manager_setting := true
 @export var center := true
 @export var stop_sim := true
 @export var require_explicit_close := true
-
-@export var include_full_screen_button := false
-@export var include_save_button := true
-@export var include_load_button := true
-@export var include_options_button := true
-@export var include_hotkeys_button := true
-@export var include_exit_button := true
-@export var include_quit_button := true
-@export var include_resume_button := true
 
 
 var _is_explicit_close := false
@@ -53,24 +51,6 @@ func _ready() -> void:
 	popup_hide.connect(_on_popup_hide)
 	if use_theme_manager_setting:
 		theme = IVGlobal.themes.main_menu
-	
-	var menu_vbox: VBoxContainer = $MarginContainer/MenuVBox
-	if !include_full_screen_button:
-		menu_vbox.remove_child($MarginContainer/MenuVBox/FullScreenButton)
-	if !include_save_button:
-		menu_vbox.remove_child($MarginContainer/MenuVBox/SaveButton)
-	if !include_load_button:
-		menu_vbox.remove_child($MarginContainer/MenuVBox/LoadButton)
-	if !include_options_button:
-		menu_vbox.remove_child($MarginContainer/MenuVBox/OptionsButton)
-	if !include_hotkeys_button:
-		menu_vbox.remove_child($MarginContainer/MenuVBox/HotkeysButton)
-	if !include_exit_button:
-		menu_vbox.remove_child($MarginContainer/MenuVBox/ExitButton)
-	if !include_quit_button:
-		menu_vbox.remove_child($MarginContainer/MenuVBox/QuitButton)
-	if !include_resume_button:
-		menu_vbox.remove_child($MarginContainer/MenuVBox/ResumeButton)
 
 
 func _unhandled_key_input(event: InputEvent) -> void:

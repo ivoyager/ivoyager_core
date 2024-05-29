@@ -1,12 +1,12 @@
-[gd_scene load_steps=2 format=3 uid="uid://bgy7irkvth4l1"]
+[gd_scene load_steps=2 format=3 uid="uid://do6i0el4c00jr"]
 
-[ext_resource type="Script" path="res://addons/ivoyager_core/gui_popups/cached_items_popup.gd" id="1"]
+[ext_resource type="Script" path="res://addons/ivoyager_core/gui_popups/options_popup.gd" id="1_yhrw4"]
 
-[node name="CachedItemsPopup" type="PopupPanel"]
+[node name="OptionsPopup" type="PopupPanel"]
 process_mode = 3
 size = Vector2i(426, 100)
 exclusive = true
-script = ExtResource("1")
+script = ExtResource("1_yhrw4")
 
 [node name="VBox" type="VBoxContainer" parent="."]
 offset_left = 4.0
@@ -14,20 +14,10 @@ offset_top = 4.0
 offset_right = 422.0
 offset_bottom = 96.0
 
-[node name="TopHBox" type="HBoxContainer" parent="VBox"]
-layout_mode = 2
-
-[node name="HeaderLeft" type="MarginContainer" parent="VBox/TopHBox"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="HeaderLabel" type="Label" parent="VBox/TopHBox"]
+[node name="OptionsLabel" type="Label" parent="VBox"]
 layout_mode = 2
 size_flags_horizontal = 4
-
-[node name="HeaderRight" type="MarginContainer" parent="VBox/TopHBox"]
-layout_mode = 2
-size_flags_horizontal = 3
+text = "LABEL_OPTIONS"
 
 [node name="Content" type="HBoxContainer" parent="VBox"]
 layout_mode = 2
