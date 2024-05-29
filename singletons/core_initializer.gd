@@ -59,8 +59,9 @@ var init_sequence: Array[Array] = [
 	[self, &"_instantiate_initializers", false],
 	[self, &"_set_simulator_universe", false],
 	[self, &"_set_simulator_top_gui", false],
-	[self, &"_instantiate_and_index_program_objects", false],
-	[self, &"_init_program_objects", true],
+	[self, &"_index_core_nodes", false],
+	[self, &"_instantiate_and_index_program_objects", true],
+	[self, &"_signal_project_inited", true],
 	[self, &"_add_program_nodes", true],
 	[self, &"_finish", false]
 ]
@@ -366,12 +367,27 @@ func _set_simulator_top_gui() -> void:
 	top_gui.name = &"TopGUI"
 
 
-func _instantiate_and_index_program_objects() -> void:
+func _index_core_nodes() -> void:
+	# These will be available at program object inits.
 	_program[&"Global"] = IVGlobal
 	_program[&"CoreSettings"] = IVCoreSettings
 	_program[&"Universe"] = universe
 	_program[&"TopGUI"] = top_gui
-	# Don't add CoreInitializer: it should never be accessed after init!
+
+
+func _instantiate_and_index_program_objects() -> void:
+	
+	# Procedural classes will be available at program object inits.
+	for key: StringName in procedural_objects:
+		if !procedural_objects[key]:
+			continue
+		assert(!_procedural_classes.has(key))
+		if procedural_objects[key] is Resource:
+			_procedural_classes[key] = procedural_objects[key]
+		else:
+			var path: String = procedural_objects[key]
+			_procedural_classes[key] = IVFiles.get_script_or_packedscene(path)
+	
 	for dict: Dictionary in [program_refcounteds, program_nodes, gui_nodes]:
 		for key: StringName in dict:
 			if !dict[key]:
@@ -382,33 +398,12 @@ func _instantiate_and_index_program_objects() -> void:
 			if object is Node:
 				@warning_ignore("unsafe_property_access")
 				object.name = key
-	for key: StringName in procedural_objects:
-		if !procedural_objects[key]:
-			continue
-		assert(!_procedural_classes.has(key))
-		if procedural_objects[key] is Resource:
-			_procedural_classes[key] = procedural_objects[key]
-		else:
-			var path: String = procedural_objects[key]
-			_procedural_classes[key] = IVFiles.get_script_or_packedscene(path)
 	IVGlobal.project_objects_instantiated.emit()
+	await get_tree().process_frame
+	init_step_finished.emit()
 
 
-func _init_program_objects() -> void:
-	if universe.has_method(&"_ivcore_init"):
-		@warning_ignore("unsafe_method_access")
-		universe._ivcore_init()
-	if top_gui.has_method(&"_ivcore_init"):
-		@warning_ignore("unsafe_method_access")
-		top_gui._ivcore_init()
-	for dict: Dictionary in [preinitializers, initializers, program_refcounteds, program_nodes, gui_nodes]:
-		for key: StringName in dict:
-			if !dict[key]:
-				continue
-			var object: Object = _program.get(key)
-			if object and object.has_method(&"_ivcore_init"):
-				@warning_ignore("unsafe_method_access")
-				object._ivcore_init()
+func _signal_project_inited() -> void:
 	IVGlobal.project_inited.emit()
 	await get_tree().process_frame
 	init_step_finished.emit()

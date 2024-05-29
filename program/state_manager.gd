@@ -101,29 +101,7 @@ var _tree_build_counter := 0
 # *****************************************************************************
 # virtual functions
 
-func _ivcore_init() -> void:
-	_state.is_inited = false
-	_state.is_splash_screen = false
-	_state.is_building_tree = false # new or loading game
-	_state.is_system_built = false
-	_state.is_system_ready = false
-	_state.is_started_or_about_to_start = false
-	_state.is_running = false # SceneTree.pause set in IVCoreInitializer
-	_state.is_quitting = false
-	_state.is_game_loading = false
-	_state.is_loaded_game = false
-	_state.last_save_path = ""
-	_state.network_state = NO_NETWORK
-	
-	var universe: Node3D = IVGlobal.program.Universe
-	if IVCoreSettings.pause_only_stops_time:
-		universe.process_mode = PROCESS_MODE_ALWAYS
-	else:
-		universe.process_mode = PROCESS_MODE_INHERIT
-
-
-func _ready() -> void:
-	process_mode = PROCESS_MODE_ALWAYS
+func _init() -> void:
 	IVGlobal.project_builder_finished.connect(_on_project_builder_finished, CONNECT_ONE_SHOT)
 	IVGlobal.about_to_build_system_tree.connect(_on_about_to_build_system_tree)
 	IVGlobal.system_tree_built_or_loaded.connect(_on_system_tree_built_or_loaded)
@@ -137,6 +115,29 @@ func _ready() -> void:
 	IVGlobal.sim_run_allowed.connect(allow_run)
 	IVGlobal.quit_requested.connect(quit)
 	IVGlobal.exit_requested.connect(exit)
+	
+	_state.is_inited = false
+	_state.is_splash_screen = false
+	_state.is_building_tree = false # new or loading game
+	_state.is_system_built = false
+	_state.is_system_ready = false
+	_state.is_started_or_about_to_start = false
+	_state.is_running = false # SceneTree.pause set in IVCoreInitializer
+	_state.is_quitting = false
+	_state.is_game_loading = false
+	_state.is_loaded_game = false
+	_state.last_save_path = ""
+	_state.network_state = NO_NETWORK
+	
+	var universe: Node3D = IVGlobal.program[&"Universe"]
+	if IVCoreSettings.pause_only_stops_time:
+		universe.process_mode = PROCESS_MODE_ALWAYS
+	else:
+		universe.process_mode = PROCESS_MODE_INHERIT
+
+
+func _ready() -> void:
+	process_mode = PROCESS_MODE_ALWAYS
 	_tree.paused = true
 	require_stop(self, -1, true)
 

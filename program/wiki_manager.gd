@@ -34,7 +34,7 @@ var _wiki: String = IVGlobal.wiki # "wiki" (internal), "en.wikipedia", etc.
 var _wiki_url: String 
 
 
-func _ivcore_init() -> void:
+func _init() -> void:
 	if !IVCoreSettings.enable_wiki:
 		return
 	IVGlobal.open_wiki_requested.connect(_open_wiki)

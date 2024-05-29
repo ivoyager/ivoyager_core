@@ -32,7 +32,12 @@ extends RefCounted
 var _binary_asteroids_builder: IVBinaryAsteroidsBuilder
 
 
-func _ivcore_init() -> void:
+
+func _init() -> void:
+	IVGlobal.project_objects_instantiated.connect(_on_project_objects_instantiated)
+
+
+func _on_project_objects_instantiated() -> void:
 	_binary_asteroids_builder = IVGlobal.program[&"BinaryAsteroidsBuilder"]
 
 

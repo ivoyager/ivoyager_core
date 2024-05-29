@@ -38,8 +38,11 @@ var _io_manager: IVIOManager
 var _missing_or_bad_cache_file := true
 
 
+func _init() -> void:
+	IVGlobal.project_objects_instantiated.connect(_on_project_objects_instantiated)
 
-func _ivcore_init() -> void:
+
+func _on_project_objects_instantiated() -> void:
 	ViewScript = IVGlobal.procedural_classes[&"View"]
 	_io_manager = IVGlobal.program[&"IOManager"]
 	DirAccess.make_dir_recursive_absolute(IVCoreSettings.cache_dir)

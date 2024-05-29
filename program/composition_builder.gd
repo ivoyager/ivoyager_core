@@ -22,14 +22,12 @@ extends RefCounted
 
 ## Builds [IVComposition] instances from data tables.
 
-var CompositionScript: Script
+var _composition_script: Script = IVGlobal.procedural_classes[&"Composition"]
 
-var _regex: RegEx
+var _regex := RegEx.new()
 
 
-func _ivcore_init() -> void:
-	CompositionScript = IVGlobal.procedural_classes[&"Composition"]
-	_regex = RegEx.new()
+func _init() -> void:
 	_regex.compile("(?:([~\\d\\.]+%|trace) )?(.+)")
 
 
@@ -52,7 +50,7 @@ func add_compositions_from_table(body: IVBody, table_name: StringName, row: int)
 func make_composition_from_string(string: String) -> IVComposition:
 	# "item 0.0%, item2 0.0%"
 	@warning_ignore("unsafe_method_access") # possible replacement class
-	var composition: IVComposition = CompositionScript.new()
+	var composition: IVComposition = _composition_script.new()
 	var list := string.split(", ")
 	var dict := {}
 	for item in list:

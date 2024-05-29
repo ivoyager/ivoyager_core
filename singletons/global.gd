@@ -30,7 +30,7 @@ signal data_tables_imported() # IVTableImporter
 signal preinitializers_inited()
 signal initializers_inited()
 signal project_objects_instantiated() # IVCoreInitializer; IVGlobal.program populated
-signal project_inited() # IVCoreInitializer; after all _ivcore_init() calls
+signal project_inited() # IVCoreInitializer; after above
 signal project_nodes_added() # IVCoreInitializer; prog_nodes & gui_nodes added
 signal project_builder_finished() # IVCoreInitializer; 1 frame after above
 signal state_manager_inited()

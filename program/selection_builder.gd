@@ -21,25 +21,18 @@ class_name IVSelectionBuilder
 extends RefCounted
 
 
-# DEPRECIATE: This can be done in init function.
-
-
 # project vars
 var above_bodies_selection_name := "" # "SYSTEM_SOLAR_SYSTEM"
 
+# private
+var _selection_script: Script = IVGlobal.procedural_classes[&"Selection"]
 
-# read-only
-var SelectionScript: Script
-
-
-func _ivcore_init() -> void:
-	SelectionScript = IVGlobal.procedural_classes[&"Selection"]
 
 
 func build_body_selection(body: IVBody) -> IVSelection:
 	var parent_body := body.get_parent() as IVBody
 	@warning_ignore("unsafe_method_access")
-	var selection: IVSelection = SelectionScript.new()
+	var selection: IVSelection = _selection_script.new()
 	selection.is_body = true
 	selection.spatial = body
 	selection.body = body
