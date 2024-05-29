@@ -25,12 +25,9 @@ const SCENE := "res://addons/ivoyager_core/gui_popups/load_dialog.tscn"
 
 const files := preload("res://addons/ivoyager_core/static/files.gd")
 
-# project var
-var add_quick_load_button := true
 
 var _state: Dictionary = IVGlobal.state
 var _blocking_windows: Array[Window] = IVGlobal.blocking_windows
-@onready var _main_menu_manager: IVMainMenuManager = IVGlobal.program[&"MainMenuManager"]
 
 
 func _ready() -> void:
@@ -38,9 +35,7 @@ func _ready() -> void:
 		return
 	add_filter("*." + IVCoreSettings.save_file_extension + ";"
 			+ IVCoreSettings.save_file_extension_name)
-	IVGlobal.system_tree_ready.connect(_on_system_tree_ready)
 	IVGlobal.load_dialog_requested.connect(_open)
-	IVGlobal.game_save_finished.connect(_update_quick_load_button)
 	IVGlobal.close_all_admin_popups_requested.connect(_close)
 	file_selected.connect(_load_file)
 	canceled.connect(_on_canceled)
@@ -48,9 +43,6 @@ func _ready() -> void:
 	theme = IVGlobal.themes.main
 	_blocking_windows.append(self)
 
-
-func _on_system_tree_ready(_is_new_game: bool) -> void:
-	_update_quick_load_button()
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -82,14 +74,6 @@ func _close() -> void:
 func _load_file(path: String) -> void:
 	IVGlobal.close_main_menu_requested.emit()
 	IVGlobal.load_requested.emit(path, false)
-
-
-func _update_quick_load_button() -> void:
-	if add_quick_load_button and _main_menu_manager:
-		var button_state := _main_menu_manager.DISABLED
-		if _state.last_save_path:
-			button_state = _main_menu_manager.ACTIVE
-		_main_menu_manager.change_button_state("BUTTON_QUICK_LOAD", button_state)
 
 
 func _on_canceled() -> void:

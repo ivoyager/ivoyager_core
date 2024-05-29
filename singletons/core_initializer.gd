@@ -132,7 +132,6 @@ var program_refcounteds := {
 	InputMapManager = IVInputMapManager,
 	FontManager = IVFontManager, # ok to replace
 	ThemeManager = IVThemeManager, # after IVFontManager; ok to replace
-	MainMenuManager = IVMainMenuManager,
 	SleepManager = IVSleepManager,
 	WikiManager = IVWikiManager,
 	ModelManager = IVModelManager,
@@ -149,7 +148,7 @@ var program_nodes := {
 	Scheduler = IVScheduler,
 	ViewManager = IVViewManager,
 	FragmentIdentifier = IVFragmentIdentifier, # safe to remove
-	WorldEnvironment = IVWorldEnvironment, # safe to remove
+	WorldEnvironment_ = IVWorldEnvironment, # safe to remove
 	
 	# Nodes below are ordered for input handling (last is first). We mainly
 	# need to intercept cntr-something actions (quit, full-screen, etc.) before
@@ -157,7 +156,6 @@ var program_nodes := {
 	# 'project_nodes_added' signal using API below.
 	CameraHandler = IVCameraHandler, # remove or replace if not using IVCamera
 	Timekeeper = IVTimekeeper,
-	WindowManager = IVWindowManager,
 	SBGHUDsState = IVSBGHUDsState, # (likely to have input in future)
 	BodyHUDsState = IVBodyHUDsState,
 	InputHandler = IVInputHandler,
@@ -175,15 +173,17 @@ var gui_nodes := {
 	# Path to scene or Node class ok.
 	WorldController = IVWorldController, # Control ok
 	MouseTargetLabel = IVMouseTargetLabel, # safe to replace or remove
-	GameGUI = null, # assign here if convenient (above MouseTargetLabel, below SplashScreen)
-	SplashScreen = null, # assign here if convenient (below popups)
+	GameGUI = null, # assign here if convenient (over MouseTargetLabel, under SplashScreen)
+	SplashScreen = null, # assign here if convenient (over InGameGUI)
+	AdminPopups = null, # assign here if convenient (over SplashScreen)
+	
 	#MainMenuPopup = IVMainMenuPopup, # safe to replace or remove
-	LoadDialog = IVLoadDialog, # auto removed if plugin missing or disabled
-	SaveDialog = IVSaveDialog, # auto removed if plugin missing or disabled
-	OptionsPopup = IVOptionsPopup, # safe to replace or remove
-	HotkeysPopup = IVHotkeysPopup, # safe to replace or remove
-	Confirmation = IVConfirmation, # safe to replace or remove
-	MainProgBar = IVMainProgBar, # safe to replace or remove
+	#LoadDialog = IVLoadDialog, # auto removed if plugin missing or disabled
+	#SaveDialog = IVSaveDialog, # auto removed if plugin missing or disabled
+	#OptionsPopup = IVOptionsPopup, # safe to replace or remove
+	#HotkeysPopup = IVHotkeysPopup, # safe to replace or remove
+	#Confirmation = IVConfirmation, # safe to replace or remove
+	#MainProgBar = IVMainProgBar, # safe to replace or remove
 }
 
 var procedural_objects := {

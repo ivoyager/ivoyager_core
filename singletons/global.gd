@@ -29,10 +29,10 @@ signal translations_imported() # IVTranslationImporter; useful for boot screen
 signal data_tables_imported() # IVTableImporter
 signal preinitializers_inited()
 signal initializers_inited()
-signal project_objects_instantiated() # IVProjectBuilder; IVGlobal.program populated
-signal project_inited() # IVProjectBuilder; after all _ivcore_init() calls
-signal project_nodes_added() # IVProjectBuilder; prog_nodes & gui_nodes added
-signal project_builder_finished() # IVProjectBuilder; 1 frame after above
+signal project_objects_instantiated() # IVCoreInitializer; IVGlobal.program populated
+signal project_inited() # IVCoreInitializer; after all _ivcore_init() calls
+signal project_nodes_added() # IVCoreInitializer; prog_nodes & gui_nodes added
+signal project_builder_finished() # IVCoreInitializer; 1 frame after above
 signal state_manager_inited()
 signal world_environment_added() # on Main after I/O thread finishes (slow!)
 signal about_to_build_system_tree() # new or loading game
@@ -98,8 +98,8 @@ var state := {} # IVStateManager & IVSaveManager; is_inited, is_running, etc.
 var times: Array[float] = [] # IVTimekeeper [time (s, J2000), engine_time (s), solar_day (d)]
 var date: Array[int] = [] # IVTimekeeper; Gregorian [year, month, day]
 var clock: Array[int] = [] # IVTimekeeper; UT [hour, minute, second]
-var program := {} # IVProjectBuilder instantiated objects (base or override classes)
-var procedural_classes := {} # IVProjectBuilder defined script classes (base or override)
+var program := {} # IVCoreInitializer instantiated objects (base or override classes)
+var procedural_classes := {} # IVCoreInitializer defined script classes (base or override)
 var assets := {} # AssetsInitializer loads from dynamic paths specified below
 var settings := {} # IVSettingsManager
 var themes := {} # IVThemeManager

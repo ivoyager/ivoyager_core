@@ -21,13 +21,13 @@ class_name IVMainMenuPopup
 extends PopupPanel
 const SCENE := "res://addons/ivoyager_core/gui_popups/main_menu_popup.tscn"
 
-## Empty popup that opens/closes on 'ui_cancel' action event and IVGlobal 
+## Main Menu popup that opens/closes on 'ui_cancel' action event and IVGlobal 
 ## signals.
 ##
-## This base popup is empty. To build a main menu, add a MarginContainer with
-## a child VBoxContainer. Then add to that menu buttons. You can find 'state'
-## buttons in gui_widgets for: Full Screen, Start, Load, Save, Options,
-## Hotkeys, Exit, Quit, Resume and possibly others.
+## To use as a base class with different buttons:
+##  * Extend this class.
+##  * Add 'const SCENE_OVERRIDE := "<Your new class path>"
+##  * Build your new control with containers and buttons.
 
 @export var sim_started_only := true
 @export var use_theme_manager_setting := true

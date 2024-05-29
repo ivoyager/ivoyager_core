@@ -22,7 +22,7 @@ extends ProgressBar
 const SCENE := "res://addons/ivoyager_core/gui_widgets/main_prog_bar.tscn"
 
 # TODO: Clarify usage: Is this a widget or a program object? (It's currently
-# added in IVProjectBuilder as a program object.)
+# added in IVCoreInitializer as a program object.)
 #
 # Target object must have property "progress" w/ integer value 0 - 100.
 #

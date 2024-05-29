@@ -108,7 +108,7 @@ func _ivcore_init() -> void:
 	_state.is_system_built = false
 	_state.is_system_ready = false
 	_state.is_started_or_about_to_start = false
-	_state.is_running = false # SceneTree.pause set in IVProjectBuilder
+	_state.is_running = false # SceneTree.pause set in IVCoreInitializer
 	_state.is_quitting = false
 	_state.is_game_loading = false
 	_state.is_loaded_game = false
