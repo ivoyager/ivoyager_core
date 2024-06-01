@@ -151,6 +151,10 @@ func _set_flags_from_table(body: IVBody, parent: IVBody) -> void:
 	# flags
 	var flags := IVTableData.db_get_flags(flag_fields, _table_name, _row)
 	# All below are constructed (non-table) flags.
+	# TODO: Below should be in IVBody to facilitate non-table construction, but
+	# we would need to fix subsequent usage and setting in this class.
+	
+	flags |= BodyFlags.EXISTS
 	if !parent:
 		flags |= BodyFlags.IS_TOP # will add self to IVGlobal.top_bodies
 		flags |= BodyFlags.IS_PRIMARY_STAR
