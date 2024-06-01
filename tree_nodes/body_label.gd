@@ -24,9 +24,6 @@ class_name IVBodyLabel
 
 var _body_huds_state: IVBodyHUDsState = IVGlobal.program.BodyHUDsState
 var _body: IVBody
-var _body_flags: int
-var _body_name: String
-var _body_symbol: String
 var _name_font: Font
 var _symbol_font: Font
 var _names_visible := false
@@ -36,9 +33,6 @@ var _body_huds_visible := false # too close / too far
 
 func _init(body: IVBody) -> void:
 	_body = body
-	_body_flags = body.flags
-	_body_name = body.get_hud_name()
-	_body_symbol = body.get_symbol()
 	_name_font = IVGlobal.fonts.hud_names
 	_symbol_font = IVGlobal.fonts.hud_symbols
 
@@ -58,8 +52,8 @@ func _ready() -> void:
 
 
 func _on_global_huds_changed() -> void:
-	_names_visible = _body_huds_state.is_name_visible(_body_flags)
-	_symbols_visible = !_names_visible and _body_huds_state.is_symbol_visible(_body_flags)
+	_names_visible = _body_huds_state.is_name_visible(_body.flags)
+	_symbols_visible = !_names_visible and _body_huds_state.is_symbol_visible(_body.flags)
 	_set_visual_state()
 
 
@@ -73,11 +67,11 @@ func _set_visual_state() -> void:
 		visible = false
 		return
 	if _names_visible:
-		text = _body_name
+		text = _body.get_hud_name()
 		font = _name_font
 		visible = true
 	elif _symbols_visible:
-		text = _body_symbol
+		text = _body.get_symbol()
 		font = _symbol_font
 		visible = true
 	else:
