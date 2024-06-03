@@ -30,6 +30,9 @@ extends EditorPlugin
 #
 # The editor plugin also checks ivoyager_assets presence and version and offers
 # to download and add or replace existing assets if appropriate.
+#
+# We don't remove shader globals on _exit_tree() because that causes errors
+# on startup if an external project shader uses these.
 
 const plugin_utils := preload("plugin_utils.gd")
 
@@ -61,7 +64,6 @@ func _exit_tree() -> void:
 	print("Removing I, Voyager - Core (plugin)")
 	_config = null
 	_remove_autoloads()
-	_remove_shader_globals()
 
 
 func _is_enable_ok() -> bool:
@@ -124,13 +126,6 @@ func _add_shader_globals() -> void:
 		# These don't show up in editor menu immediately, but are in project.godot
 		# and show up in editor menu after restart.
 	ProjectSettings.save() # Does this do anything...???
-
-
-func _remove_shader_globals() -> void:
-	for global_name: String in _shader_globals:
-		ProjectSettings.set_setting("shader_globals/" + global_name, null)
-	ProjectSettings.save() # Does this do anything...???
-	_shader_globals.clear()
 
 
 func _handle_assets_update() -> void:
