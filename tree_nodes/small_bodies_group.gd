@@ -41,6 +41,7 @@ extends Node
 ## 'de' is not currently implemented (amplitude of e libration in secular
 ## resonence).
 
+signal group_appended(previous_size: int, new_size: int)
 signal adding_visuals() # existing visual nodes must free themselves
 
 
@@ -72,7 +73,7 @@ var a_M0_n := PackedFloat32Array() # librating in l-point objects
 var s_g_mag_de := PackedFloat32Array() # orbit precessions, magnitude, & e amplitude (sec res only)
 var da_D_f_th0 := PackedFloat32Array() # Trojans only
 
-static var _null_pf32_array := PackedFloat32Array()
+static var null_pf32_array := PackedFloat32Array()
 
 
 func _enter_tree() -> void:
@@ -82,7 +83,8 @@ func _enter_tree() -> void:
 func _ready() -> void:
 	assert(!IVGlobal.small_bodies_groups.has(name))
 	IVGlobal.small_bodies_groups[name] = self
-	_build_visuals(true)
+	_build_visuals()
+	IVGlobal.add_system_tree_item_finished.emit(self)
 
 
 func _exit_tree() -> void:
@@ -107,7 +109,8 @@ func init(name_: StringName, sbg_alias_: StringName, sbg_class_: int,
 ## be created.
 func append_data(names_append: PackedStringArray, e_i_Om_w_append: PackedFloat32Array,
 		a_M0_n_append: PackedFloat32Array, s_g_mag_de_append: PackedFloat32Array,
-		da_D_f_th0_append := _null_pf32_array) -> void:
+		da_D_f_th0_append := null_pf32_array, suppress_max_apoapsis_update := false,
+		suppress_visuals_rebuild := false) -> void:
 	var n_bodies := names_append.size()
 	assert(e_i_Om_w_append.size() == n_bodies * 4)
 	assert(a_M0_n_append.size() == n_bodies * 3)
@@ -122,8 +125,12 @@ func append_data(names_append: PackedStringArray, e_i_Om_w_append: PackedFloat32
 	if lp_integer != -1:
 		da_D_f_th0.append_array(da_D_f_th0_append)
 	
-	update_max_apoapsis(previous_size, previous_size + n_bodies)
-	_build_visuals()
+	var new_size := previous_size + n_bodies
+	if !suppress_max_apoapsis_update:
+		update_max_apoapsis(previous_size, new_size)
+	if !suppress_visuals_rebuild:
+		_build_visuals()
+	group_appended.emit(previous_size, new_size)
 
 
 ## Required for visual update if any data changes not via append_data(). Be
@@ -203,7 +210,7 @@ func get_fragment_text(data: Array) -> String:
 # private
 
 
-func _build_visuals(is_system_tree_add := false) -> void:
+func _build_visuals() -> void:
 	# add non-persisted HUD elements
 	if !is_inside_tree():
 		return
@@ -218,8 +225,7 @@ func _build_visuals(is_system_tree_add := false) -> void:
 	var parent: Node3D = get_parent()
 	parent.add_child(sbg_points)
 	parent.add_child(sbg_orbits)
-	if is_system_tree_add:
-		IVGlobal.add_system_tree_item_finished.emit(self)
+
 
 
 
