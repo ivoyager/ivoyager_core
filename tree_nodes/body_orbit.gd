@@ -35,9 +35,6 @@ static var _body_huds_state: IVBodyHUDsState
 static var _is_class_instanced := false
 
 var _body: IVBody
-var _orbit: IVOrbit
-var _body_flags: int
-var _visibility_flag: int
 var _color: Color
 
 var _is_orbit_group_visible: bool
@@ -52,16 +49,11 @@ func _init(body: IVBody) -> void:
 		_fragment_identifier = IVGlobal.program.get(&"FragmentIdentifier")
 		_body_huds_state = IVGlobal.program.BodyHUDsState
 	_body = body
-	_orbit = body.orbit
-	_body_flags = body.flags
-	_visibility_flag = _body_flags & _body_huds_state.all_flags
-	assert(_visibility_flag and !(_visibility_flag & (_visibility_flag - 1)),
-			"_visibility_flag failed single bit test")
 
 
 func _ready() -> void:
 	process_mode = PROCESS_MODE_ALWAYS # FragmentIdentifier still processing
-	_orbit.changed.connect(_set_transform_from_orbit)
+	_body.orbit.changed.connect(_set_transform_from_orbit)
 	_body_huds_state.visibility_changed.connect(_on_global_huds_changed)
 	_body_huds_state.color_changed.connect(_set_color)
 	_body.huds_visibility_changed.connect(_on_body_huds_changed)
@@ -91,8 +83,8 @@ func _set_transform_from_orbit(_is_scheduled := false) -> void:
 		_needs_transform = true
 		return
 	_needs_transform = false
-	var reference_normal := _orbit.reference_normal
-	var elements := _orbit.get_elements(_times[0])
+	var reference_normal := _body.orbit.reference_normal
+	var elements := _body.orbit.get_elements(_times[0])
 	var a: float = elements[0]
 	var e: float = elements[1]
 	var b: = sqrt(a * a * (1.0 - e * e)) # simi-minor axis
@@ -104,7 +96,7 @@ func _set_transform_from_orbit(_is_scheduled := false) -> void:
 
 
 func _on_global_huds_changed() -> void:
-	_is_orbit_group_visible = _body_huds_state.is_orbit_visible(_body_flags)
+	_is_orbit_group_visible = _body_huds_state.is_orbit_visible(_body.flags)
 	_set_visual_state()
 
 
@@ -125,7 +117,7 @@ func _set_visual_state() -> void:
 
 
 func _set_color() -> void:
-	var color := _body_huds_state.get_orbit_color(_body_flags)
+	var color := _body_huds_state.get_orbit_color(_body.flags)
 	if _color == color:
 		return
 	_color = color

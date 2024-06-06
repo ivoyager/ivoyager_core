@@ -45,7 +45,10 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"ivoyager_version",
 	&"is_modded"
 ]
-	
+
+## Set higher if experiencing corrupt saves. You may have uncompleted processes running.
+var save_frames_delay := 5
+
 # persisted - values will be replaced by file values on game load!
 var project_version: String = IVCoreSettings.project_version
 var ivoyager_version: String = IVGlobal.ivoyager_version
@@ -142,6 +145,10 @@ func save_game(path := "") -> void:
 	assert(IVDebug.dlog("Tree status before save..."))
 	# FIXME: New log system
 	#assert(IVDebug.dlog(_save_utils.debug_log(_universe)))
+	
+	for i in save_frames_delay:
+		await get_tree().process_frame
+	
 	@warning_ignore("unsafe_method_access")
 	var gamesave: Array = _tree_saver.get_gamesave(_universe)
 	_io_manager.store_var_to_file(gamesave, path, _save_callback)
