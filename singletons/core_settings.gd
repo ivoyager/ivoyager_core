@@ -88,20 +88,21 @@ var shared_resources := {
 	# additional items are constructed & added by initializers/shared_initializer.gd
 }
 
-var postprocess_tables: Array[String] = [
-	"res://addons/ivoyager_core/data/solar_system/asset_adjustments.tsv",
-	"res://addons/ivoyager_core/data/solar_system/asteroids.tsv",
-	"res://addons/ivoyager_core/data/solar_system/body_classes.tsv",
-	"res://addons/ivoyager_core/data/solar_system/omni_lights.tsv",
-	"res://addons/ivoyager_core/data/solar_system/models.tsv",
-	"res://addons/ivoyager_core/data/solar_system/moons.tsv",
-	"res://addons/ivoyager_core/data/solar_system/planets.tsv",
-	"res://addons/ivoyager_core/data/solar_system/small_bodies_groups.tsv",
-	"res://addons/ivoyager_core/data/solar_system/spacecrafts.tsv",
-	"res://addons/ivoyager_core/data/solar_system/stars.tsv",
-	"res://addons/ivoyager_core/data/solar_system/visual_groups.tsv",
-	"res://addons/ivoyager_core/data/solar_system/wiki_extras.tsv"
-]
+var tables := {
+	# values sent to IVTableData.postprocess_tables()
+	asset_adjustments = "res://addons/ivoyager_core/data/solar_system/asset_adjustments.tsv",
+	asteroids = "res://addons/ivoyager_core/data/solar_system/asteroids.tsv",
+	body_classes = "res://addons/ivoyager_core/data/solar_system/body_classes.tsv",
+	omni_lights = "res://addons/ivoyager_core/data/solar_system/omni_lights.tsv",
+	models = "res://addons/ivoyager_core/data/solar_system/models.tsv",
+	moons = "res://addons/ivoyager_core/data/solar_system/moons.tsv",
+	planets = "res://addons/ivoyager_core/data/solar_system/planets.tsv",
+	small_bodies_groups = "res://addons/ivoyager_core/data/solar_system/small_bodies_groups.tsv",
+	spacecrafts = "res://addons/ivoyager_core/data/solar_system/spacecrafts.tsv",
+	stars = "res://addons/ivoyager_core/data/solar_system/stars.tsv",
+	visual_groups = "res://addons/ivoyager_core/data/solar_system/visual_groups.tsv",
+	wiki_extras = "res://addons/ivoyager_core/data/solar_system/wiki_extras.tsv",
+}
 
 var table_project_enums := [
 	IVEnums.SBGClass,

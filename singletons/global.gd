@@ -110,6 +110,7 @@ var world_targeting := [] # IVWorldControl & others; optimized data for 3D world
 var top_bodies: Array[Node3D] = [] # IVBody instances add/remove themselves; just STAR_SUN for us
 var selections := {} # IVSelectionManager(s)
 var blocking_windows: Array[Window] = [] # add Windows that want & test for exclusivity
+var project := {} # for project use; not used by I, Voyager
 
 # read-only!
 var ivoyager_version: String

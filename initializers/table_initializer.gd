@@ -34,8 +34,9 @@ func _init() -> void:
 	IVUnits.unit_multipliers[&"km^3/(kg s^2)"] = IVUnits.KM ** 3 / (IVUnits.KG * IVUnits.SECOND ** 2)
 	IVUnits.unit_multipliers[&"deg/Cy^2"] = IVUnits.DEG / IVUnits.CENTURY ** 2
 	
+	
 	IVTableData.postprocess_tables(
-			IVCoreSettings.postprocess_tables,
+			IVCoreSettings.tables.values(),
 			IVCoreSettings.table_project_enums,
 			IVCoreSettings.enable_wiki,
 			IVCoreSettings.enable_precisions

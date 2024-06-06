@@ -35,14 +35,12 @@ extends Node
 #
 # For draggable and user resizable windows, use ControlDynamic instead.
 
-# project vars
-var min_sizes: Array[Vector2] = [
-	# Use init_min_size() to set.
+@export var min_sizes: Array[Vector2] = [
 	Vector2(435.0, 291.0), # GUI_SMALL
 	Vector2(575.0, 354.0), # GUI_MEDIUM
 	Vector2(712.0, 421.0), # GUI_LARGE
 ]
-var max_default_screen_proportions := Vector2(0.45, 0.45) # can override above
+@export var max_default_screen_proportions := Vector2(0.45, 0.45) # can override above
 
 # private
 @onready var _settings: Dictionary = IVGlobal.settings
