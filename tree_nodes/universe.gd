@@ -59,4 +59,3 @@ const PERSIST_PROPERTIES: Array[StringName] = [&"persist"]
 ## objects'. For details on save/load persistence, see
 ## [url]https://github.com/ivoyager/ivoyager_tree_saver[/url].
 var persist := {}
-
