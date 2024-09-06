@@ -658,5 +658,3 @@ func _on_meta_clicked(meta: String) -> void:
 	var wiki_key: String = _meta_lookup[meta]
 	var wiki_title: String = _wiki_titles[wiki_key]
 	IVGlobal.open_wiki_requested.emit(wiki_title)
-
-

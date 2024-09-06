@@ -46,4 +46,3 @@ func _init() -> void:
 	IVGlobal.data_tables_imported.emit()
 	
 	IVGlobal.program.erase(&"TableInitializer")
-

@@ -146,4 +146,3 @@ func _get_view_flags() -> int:
 	if _now_ckbx.pressed:
 		flags |= IVView.IS_NOW
 	return flags
-

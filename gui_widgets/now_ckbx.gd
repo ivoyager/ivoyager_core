@@ -46,4 +46,3 @@ func _set_real_world() -> void:
 	if _state.network_state != IS_CLIENT:
 		_timekeeper.set_now_from_operating_system()
 		button_pressed = true
-

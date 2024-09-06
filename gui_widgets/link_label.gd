@@ -41,4 +41,3 @@ func set_hyperlink(link_text: String, link_url: String) -> void:
 func _on_meta_clicked(_meta: String) -> void:
 	prints("Opening external link:", _link_url)
 	OS.shell_open(_link_url)
-

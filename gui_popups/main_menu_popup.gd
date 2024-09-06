@@ -105,4 +105,3 @@ func _on_popup_hide() -> void:
 	_is_explicit_close = false
 	if stop_sim:
 		IVGlobal.sim_run_allowed.emit(self)
-

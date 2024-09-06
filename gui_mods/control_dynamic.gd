@@ -405,4 +405,3 @@ func _update_custom_size() -> void:
 func _settings_listener(setting: StringName, _value: Variant) -> void:
 	if setting == &"gui_size":
 		resize_and_position_to_anchor()
-

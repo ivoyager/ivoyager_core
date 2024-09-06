@@ -209,4 +209,3 @@ func _init_assets_loader() -> void:
 	var size_mib: float = _config.get_value("ivoyager_assets", "download_size_mib")
 	var assets_loader := preload("assets_loader.gd").new(path, version, size_mib)
 	add_child(assets_loader)
-

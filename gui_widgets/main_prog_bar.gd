@@ -62,4 +62,3 @@ func stop() -> void:
 	hide()
 	set_process(false)
 	_delay_count = 0
-

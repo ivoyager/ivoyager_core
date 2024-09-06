@@ -129,4 +129,3 @@ func _enter_tree() -> void:
 	var assets_config := IVFiles.get_config("res://addons/ivoyager_assets/assets.cfg")
 	if assets_config and assets_config.has_section("ivoyager_assets"):
 		assets_version = assets_config.get_value("ivoyager_assets", "version")
-

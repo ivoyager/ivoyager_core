@@ -222,4 +222,3 @@ func _bsearch_reverse(signal_info: Array, signal_time: float) -> bool:
 
 func _sort_reverse(a: Array, b: Array) -> bool:
 	return a[0] < b[0] # latest signal_time will be on "top"
-

@@ -82,5 +82,3 @@ func _screen_state_listener() -> void:
 		await get_tree().process_frame
 		_update_buttons()
 		_test_countdown -= 1
-
-

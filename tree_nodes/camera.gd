@@ -738,4 +738,3 @@ func _settings_listener(setting: StringName, value: Variant) -> void:
 	match setting:
 		&"camera_transfer_time":
 			_transfer_time = value
-

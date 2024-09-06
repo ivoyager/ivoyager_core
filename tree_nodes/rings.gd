@@ -26,17 +26,18 @@ extends MeshInstance3D
 ## so that it is only visible and only processes when the IVBody's model is
 ## visible.
 ##
-## Not persisted so added by BodyFinisher.
+## Not persisted. IVBody instance adds on _ready().
 
 const END_PADDING := 0.05 # must be same as ivbinary_maker that generated images
 const RENDER_MARGIN := 0.01 # render outside of image data for smoothing
+const LOD_LEVELS := 9 # must agree w/ assets, body.gd and rings.shader
 
 var _body: IVBody
 var _sunlight_source: Node3D # for phase-angle effects
 var _camera: Camera3D
 
 var _texture_width: int
-var _rings_textures := Texture2DArray.new() # backscatter, forwardscatter, unlitside
+var _texture_arrays: Array[Texture2DArray] # backscatter/forwardscatter/unlitside for each LOD
 var _rings_material := ShaderMaterial.new()
 
 var _shader_frame_data: Vector4
@@ -48,7 +49,11 @@ func _init(body: IVBody, sunlight_source: Node3D, rings_images: Array[Image]) ->
 	_body = body
 	_sunlight_source = sunlight_source
 	_texture_width = rings_images[0].get_width()
-	_rings_textures.create_from_images(rings_images)
+	for lod in LOD_LEVELS:
+		var lod_rings_images := rings_images.slice(lod * 3, lod * 3 + 3) as Array[Image]
+		var texture_array := Texture2DArray.new() # backscatter/forwardscatter/unlitside for LOD
+		texture_array.create_from_images(lod_rings_images)
+		_texture_arrays.append(texture_array)
 
 
 func _ready() -> void:
@@ -75,15 +80,14 @@ func _ready() -> void:
 	cast_shadow = SHADOW_CASTING_SETTING_DOUBLE_SIDED
 	gi_mode = GI_MODE_DISABLED
 	
-	
 	mesh = PlaneMesh.new() # default 2x2
 	_rings_material.shader = IVCoreSettings.shared_resources[&"rings_shader"]
-	_rings_material.set_shader_parameter(&"textures", _rings_textures)
 	_rings_material.set_shader_parameter(&"texture_width", float(_texture_width))
 	_rings_material.set_shader_parameter(&"texture_start", texture_start)
 	_rings_material.set_shader_parameter(&"inner_margin", inner_margin)
 	_rings_material.set_shader_parameter(&"outer_margin", outer_margin)
-	
+	for lod in LOD_LEVELS:
+		_rings_material.set_shader_parameter("textures%s" % lod, _texture_arrays[lod])
 	set_surface_override_material(0, _rings_material)
 	rotate_x(PI / 2.0)
 
@@ -108,4 +112,3 @@ func _set_camera(camera: Camera3D) -> void:
 func _on_model_visibility_changed(is_model_visible: bool) -> void:
 	visible = is_model_visible
 	set_process(is_model_visible)
-

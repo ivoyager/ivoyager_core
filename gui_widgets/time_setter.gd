@@ -83,4 +83,3 @@ func _on_date_changed(_value: float) -> void:
 func _on_meta_clicked(meta: Variant) -> void:
 	var url: String = meta
 	OS.shell_open(url)
-

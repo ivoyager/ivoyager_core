@@ -51,4 +51,3 @@ func _on_range_changed(new_range: float) -> void:
 
 func _on_camera_lock_changed(is_camera_lock: bool) -> void:
 	visible = is_camera_lock
-

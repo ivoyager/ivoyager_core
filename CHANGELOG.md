@@ -8,9 +8,11 @@ See cloning and downloading instructions [here](https://www.ivoyager.dev/develop
 
 ## [v0.0.19] - Not Released
 
-Under development using Godot 4.2.2.
+Under development using Godot 4.3.
 
 Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_table_importer) v0.0.7.
+
+Requires **ivoyager_assets-v0.0.19.dev.20240906**. (The editor plugin will download if you agree at the prompt.)
 
 ### Added
 * API support for adding IVSmallBodiesGroup data by code (not just tables/binaries).
@@ -20,6 +22,9 @@ Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_tab
 * [Project breaking] Removed fake virtual function _ivcore_init().
 * [Project breaking] IVCoreInitializer no longer adds admin popups (save dialog, options popup, etc.). Projects can now add these in a more Godot-like manner by constructing a control scene tree.
 * Tables specified in IVCoreSettings.body_tables no longer need to be top-down ordered.
+
+### Fixed
+* Our rings "1D" texture mipmaps are broken in Godot 4.3. This is fixed by explicit LOD coding using separate LOD textures. **Requires asset update!**
 
 
 ## [v0.0.18] - 2024-03-15

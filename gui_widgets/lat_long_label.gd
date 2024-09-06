@@ -69,4 +69,3 @@ func _on_latitude_longitude_changed(lat_long: Vector2, is_ecliptic: bool, select
 
 func _on_camera_lock_changed(is_camera_lock: bool) -> void:
 	visible = is_camera_lock
-

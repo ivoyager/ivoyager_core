@@ -296,4 +296,3 @@ static func apply_escape_characters(string: String) -> String:
 	string = string.replace("\\n", "\n")
 	string = string.replace("\\t", "\t")
 	return string
-

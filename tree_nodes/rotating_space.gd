@@ -90,4 +90,3 @@ func get_lagrange_point_node3d(lp_integer: int) -> IVLagrangePoint:
 		_lagrange_points[lp_integer] = lagrange_point
 		add_child(lagrange_point)
 	return _lagrange_points[lp_integer]
-

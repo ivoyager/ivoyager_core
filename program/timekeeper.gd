@@ -557,4 +557,3 @@ func _on_speed_changed() -> void:
 		return
 #	rpc("_speed_changed_sync", speed_index, is_reversed, show_clock,
 #			show_seconds, is_now)
-

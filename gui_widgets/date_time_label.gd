@@ -76,4 +76,3 @@ func _update_display() -> void:
 	if _is_reversed != _timekeeper.is_reversed:
 		_is_reversed = !_is_reversed
 		set(&"theme_override_colors/font_color", reverse_color if _is_reversed else forward_color)
-

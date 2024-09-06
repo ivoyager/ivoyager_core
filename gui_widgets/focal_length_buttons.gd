@@ -52,4 +52,3 @@ func _update_focal_length(focal_length: float) -> void:
 func _increment_focal_length(increment: int) -> void:
 	if _camera:
 		_camera.increment_focal_length(increment)
-

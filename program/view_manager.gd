@@ -175,4 +175,3 @@ func _write_cache_maybe_on_io_thread(dict: Dictionary) -> void:
 		return
 	file.store_var(dict)
 	file.close()
-

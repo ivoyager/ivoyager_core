@@ -391,4 +391,3 @@ func _add_history() -> void:
 
 func _clear_selections() -> void:
 	_selections.clear() # may be >1 SelectionManager clearing but that's ok
-

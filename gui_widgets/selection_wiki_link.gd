@@ -75,4 +75,3 @@ func _on_wiki_clicked(_meta: String) -> void:
 		return
 	var wiki_title: String = _wiki_titles[object_name]
 	IVGlobal.open_wiki_requested.emit(wiki_title)
-

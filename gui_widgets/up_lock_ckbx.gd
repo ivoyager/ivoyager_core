@@ -49,4 +49,3 @@ func _on_pressed() -> void:
 	if !_camera:
 		return
 	_camera.set_up_lock(button_pressed)
-

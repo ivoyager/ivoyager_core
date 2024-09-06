@@ -37,4 +37,3 @@ func _init() -> void:
 			IVGlobal.wiki = "en.wikipedia"
 	
 	IVGlobal.program.erase(&"WikiInitializer")
-

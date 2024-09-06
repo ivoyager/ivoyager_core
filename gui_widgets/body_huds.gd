@@ -288,4 +288,3 @@ func _settings_listener(setting: StringName, _value: Variant) -> void:
 	if setting == &"gui_size":
 		if !column_master:
 			_resize_columns_to_en_width(1)
-

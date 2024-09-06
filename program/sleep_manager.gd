@@ -90,4 +90,3 @@ func _change_satellite_sleep_recursive(body: IVBody, is_sleep: bool) -> void:
 	for satellite in body.satellites:
 		satellite.set_sleep(is_sleep)
 		_change_satellite_sleep_recursive(satellite, is_sleep)
-

@@ -27,4 +27,3 @@ extends Button
 
 func _pressed() -> void:
 	IVGlobal.quit_requested.emit(force_quit)
-

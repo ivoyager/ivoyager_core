@@ -303,4 +303,3 @@ func _asteroids() -> void:
 		visible_points_groups.append(sbg_alias)
 	
 	views[&"Asteroids"] = view
-

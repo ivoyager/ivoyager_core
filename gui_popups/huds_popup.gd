@@ -31,4 +31,3 @@ func _ready() -> void:
 func _reset_size() -> void:
 	# Needed when FlowContainer loses a row (as of Godot 3.5.2).
 	size = Vector2.ZERO
-

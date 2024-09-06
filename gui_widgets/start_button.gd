@@ -37,4 +37,3 @@ func _start() -> void:
 
 func _enable() -> void:
 	disabled = false
-

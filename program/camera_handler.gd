@@ -316,4 +316,3 @@ func _settings_listener(setting: StringName, value: Variant) -> void:
 			_key_pitch_yaw_rate = value * key_pitch_yaw_adj
 		&"camera_key_roll_rate":
 			_key_roll_rate = value * key_roll_adj
-

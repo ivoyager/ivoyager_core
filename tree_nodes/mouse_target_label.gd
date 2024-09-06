@@ -82,4 +82,3 @@ func _on_fragment_changed(id: int) -> void:
 	var target_object := instance_from_id(instance_id)
 	@warning_ignore("unsafe_method_access") # any valid target will have 'get_fragment_text()'
 	_fragment_text = target_object.get_fragment_text(data)
-

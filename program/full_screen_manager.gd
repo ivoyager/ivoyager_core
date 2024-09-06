@@ -43,5 +43,3 @@ func _change_fullscreen() -> void:
 	var is_fullscreen := ((window.mode == Window.MODE_EXCLUSIVE_FULLSCREEN)
 			or (window.mode == Window.MODE_FULLSCREEN))
 	window.mode = Window.MODE_EXCLUSIVE_FULLSCREEN if !is_fullscreen else Window.MODE_WINDOWED
-
-

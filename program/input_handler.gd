@@ -42,4 +42,3 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	else:
 		return # input not handled
 	get_viewport().set_input_as_handled()
-

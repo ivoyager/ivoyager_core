@@ -79,4 +79,3 @@ func _process_translation(translation: Translation, load_dict: Dictionary,
 		var new_text := IVUtils.c_unescape_patch(text)
 		if new_text != text:
 			translation.add_message(txt_key, new_text)
-

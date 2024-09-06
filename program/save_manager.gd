@@ -265,4 +265,3 @@ func _simulator_started_after_load() -> void:
 	assert(IVDebug.dlog("Tree status after load & simulator started..."))
 	# FIXME: Save loging
 	#assert(IVDebug.dlog(_save_utils.debug_log(_universe)))
-

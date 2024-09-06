@@ -62,4 +62,3 @@ func make_composition_from_string(string: String) -> IVComposition:
 			dict[component] = null
 	composition.components = dict
 	return composition
-

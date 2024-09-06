@@ -24,4 +24,3 @@ extends Button
 
 func _pressed() -> void:
 	IVGlobal.hotkeys_requested.emit()
-

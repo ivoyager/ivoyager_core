@@ -65,4 +65,3 @@ func _load_assets() -> void:
 	for asset_name: StringName in _asset_paths_for_load:
 		var path: String = _asset_paths_for_load[asset_name]
 		_assets[asset_name] = load(path)
-

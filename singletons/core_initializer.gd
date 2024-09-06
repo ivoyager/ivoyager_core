@@ -431,4 +431,3 @@ func _add_program_nodes() -> void:
 
 func _finish() -> void:
 	IVGlobal.project_builder_finished.emit()
-

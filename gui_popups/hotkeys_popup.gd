@@ -387,4 +387,3 @@ func _is_blocking_popup() -> bool:
 		if window.visible:
 			return true
 	return false
-

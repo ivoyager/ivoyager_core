@@ -183,4 +183,3 @@ func _on_mouse_entered() -> void:
 
 func _on_mouse_exited() -> void:
 	_has_mouse = false
-

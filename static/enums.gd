@@ -154,4 +154,3 @@ enum BodyFlags {
 #	Higher bits safe for extension project.
 #	Max bit shift is 1 << 63.
 }
-

@@ -58,4 +58,3 @@ func _update_buttons(_dummy := false) -> void:
 
 func _clear() -> void:
 	_selection_manager = null
-

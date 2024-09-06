@@ -182,4 +182,3 @@ func _keep_focus() -> void:
 	await get_tree().process_frame
 	if !has_focus():
 		grab_focus()
-

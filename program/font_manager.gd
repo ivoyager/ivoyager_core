@@ -71,4 +71,3 @@ func _settings_listener(setting: StringName, value: Variant) -> void:
 			_fonts[&"gui_main"].fixed_size = gui_main_sizes[value]
 			_fonts[&"gui_medium"].fixed_size = gui_medium_sizes[value]
 			_fonts[&"gui_large"].fixed_size = gui_large_sizes[value]
-

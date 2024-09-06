@@ -356,4 +356,3 @@ func _set_current_to_default() -> void:
 func _signal_all_changed() -> void:
 	visibility_changed.emit()
 	color_changed.emit()
-
