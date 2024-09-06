@@ -36,12 +36,12 @@ render_mode cull_disabled;
 // ALBEDO is set with color values >> 1.0. It's necessary to get proper
 // brightness given the 'thinness' (i.e., transparency) of our material with
 // black space as background.
-// 
+//
 // WARNING! For litside determination, FRONT_FACING is not reliable as of Godot
 // 4.2.2. It's sometimes wrong on my laptop (NVIDIA GeForce GTX 1650 Ti). For
 // this reason and to save shader computation, lit versus unlit side is
 // determined externally and set as uniform.
-// 
+//
 
 // set by rings.gd once
 uniform float texture_width;
@@ -75,7 +75,7 @@ vec4 sample_color(int texel, float texel_fraction, int index, int lod) {
 	// index: [0] backscatter, [1] forwardscatter, [2] unlitside.
 	// Mipmaps are broken as of Godot 4.3 for our "1D" textures, so we code
 	// LOD levels explicitely.
-	
+
 	switch (lod) {
 		case 0:
 			vec4 sample = texelFetch(textures0, ivec3(texel, 0, index), 0) * (1.0 - texel_fraction);
@@ -122,41 +122,41 @@ void fragment() {
 	float x = UV.x * 2.0 - 1.0;
 	float y = UV.y * 2.0 - 1.0;
 	float radius = sqrt(x * x + y * y);
-	
+
 	// dFdx() & dFdy() must be before the 'if' fork to avoid edge artifacts!
 	float texture_fraction = (radius - texture_start) / (1.0 - texture_start);
 	float texel_position = texture_fraction * texture_width;
 	float dfdx = dFdx(texel_position); // texels per horizontal screen pixel
 	float dfdy = dFdy(texel_position); // texels per vertical screen pixel
-	
+
 	if (radius < inner_margin || radius > outer_margin) {
 		// out of render area
 		discard;
-	
+
 	} else {
-	
+
 		// LOD for anti-aliasing
 		float dfdr = sqrt(dfdx * dfdx + dfdy * dfdy);
 		float lod_map = log2(dfdr * dfdr_multiplier);
 		lod_map = clamp(round(lod_map), 0.0, 8.0);
 		int lod = int(lod_map);
-		
+
 		// debug mipmaps
 		//lod = 4;
-		
+
 		// position in the LOD texture
 		texel_position /= float(1 << lod);
 		int texel = int(texel_position);
 		float texel_fraction = fract(texel_position);
-		
+
 		// phase effects (phase_mix = 1.0 corresponds to phase angle = 0.0)
 		vec3 sun_vector = (VIEW_MATRIX * vec4(frame_data.xyz, 1.0)).xyz;
 		float phase_mix = dot(normalize(sun_vector), VIEW) / 2.0 + 0.5;
 		phase_mix = pow(phase_mix, phase_exponent);
-		
+
 		vec4 color;
 		vec3 albedo;
-		
+
 		if (frame_data.w > 0.0) {
 			// lit side
 			vec4 backscatter = sample_color(texel, texel_fraction, 0, lod);
@@ -170,13 +170,13 @@ void fragment() {
 			albedo = color.rgb * unlitside_boost;
 			albedo *= (unlitside_phase_boost * phase_mix + 1.0);
 		}
-		
+
 		// debug lod mapping
 		//albedo = vec3(lod_map / 8.0, lod_map / 8.0, 1.0 - lod_map / 8.0);
-		
+
 		ALBEDO = albedo;
 		ALPHA = color.a;
-	
+
 	}
 }
 
