@@ -66,6 +66,7 @@ const TUMBLES_CHAOTICALLY := BodyFlags.TUMBLES_CHAOTICALLY
 const NEVER_SLEEP := BodyFlags.NEVER_SLEEP
 const IS_SERVER = IVEnums.NetworkState.IS_SERVER
 const MIN_SYSTEM_M_RADIUS_MULTIPLIER := 15.0
+const RINGS_LOD_LEVELS := 9 # must agree w/ assets, rings.gd and rings.shader
 
 const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL # free & rebuild on load
 const PERSIST_PROPERTIES: Array[StringName] = [
@@ -804,19 +805,27 @@ func _finish_tree_add_io(file_prefix: String, is_star: bool, rings_file_prefix: 
 		var slice_name := file_prefix + "_slice"
 		texture_slice_2d = files.find_and_load_resource(bodies_2d_search, slice_name)
 	
-	var rings_images: Array[Image]
+	var rings_images: Array[Image] # holds 3 images per LOD level
 	if rings_file_prefix:
 		var rings_search := IVCoreSettings.rings_search
-		var backscatter: Texture2D = files.find_and_load_resource(rings_search,
-				rings_file_prefix + ".backscatter")
-		var forwardscatter: Texture2D = files.find_and_load_resource(rings_search,
-				rings_file_prefix + ".forwardscatter")
-		var unlitside: Texture2D = files.find_and_load_resource(rings_search,
-				rings_file_prefix + ".unlitside")
-		if !backscatter or !forwardscatter or !unlitside:
-			print("WARNING! Could not find all 3 rings textures for prefix ", rings_file_prefix)
-		else:
-			rings_images = [backscatter.get_image(), forwardscatter.get_image(), unlitside.get_image()]
+		var load_failure := false
+		for lod in RINGS_LOD_LEVELS:
+			var backscatter: Texture2D = files.find_and_load_resource(rings_search,
+					rings_file_prefix + ".backscatter.%s" % lod)
+			var forwardscatter: Texture2D = files.find_and_load_resource(rings_search,
+					rings_file_prefix + ".forwardscatter.%s" % lod)
+			var unlitside: Texture2D = files.find_and_load_resource(rings_search,
+					rings_file_prefix + ".unlitside.%s" % lod)
+			if !backscatter or !forwardscatter or !unlitside:
+				print("WARNING! Could not find all ring textures for prefix ", rings_file_prefix)
+				load_failure = true
+				break
+			rings_images.append(backscatter.get_image())
+			rings_images.append(forwardscatter.get_image())
+			rings_images.append(unlitside.get_image())
+			#rings_images = [backscatter.get_image(), forwardscatter.get_image(), unlitside.get_image()]
+		if load_failure:
+			rings_images.clear()
 	
 	_finish_tree_add_after_io.call_deferred(rings_images)
 
@@ -827,8 +836,7 @@ func _finish_tree_add_after_io(rings_images: Array[Image]) -> void:
 		var sunlight_source := get_parent_node_3d() # assumes no moon rings!
 		var rings_script: Script = IVGlobal.procedural_classes[&"Rings"]
 		if rings_script:
-			@warning_ignore("unsafe_method_access")
-			# Script must have _init() that accepts args below.
+			@warning_ignore("unsafe_method_access") # Script must have _init() that accepts args.
 			var rings: Node3D = rings_script.new(self, sunlight_source, rings_images)
 			add_child_to_model_space(rings)
 	
@@ -897,4 +905,3 @@ func _set_min_hud_dist() -> void:
 func _settings_listener(setting: StringName, _value: Variant) -> void:
 	if setting == &"hide_hud_when_close":
 		_set_min_hud_dist()
-

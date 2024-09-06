@@ -28,11 +28,10 @@ render_mode cull_disabled;
 // on the lit side. Those are rendered (not real) so we still need ground truth
 // comparisons to Cassini images (lit and unlit sides).
 //
-// The png files must be imported as Texture2D with mipmaps/generate = true.
-// I guess our n x 2 texture gets shrunk to n/2 x 1, n/4 x 1, n/8 x 1,
-// n/16 x 1, n/32 x 1, and so on. We always texelFetch with y=0. The LOD level
-// can vary hugely across the rings when close at a steep angle, from 0 to 5+
-// in the same view.
+// The png files must be imported as Texture2D without compression and all
+// options off or disabled. Mipmaps are broken as of Godot 4.3 for our "1D"
+// textures, so we code LOD levels explicitely. (In 4.2.x and earlier, we had
+// n x 2 textures that were mipmapped to n/2 x 1, n/4 x 1, n/8 x 1, etc.)
 //
 // ALBEDO is set with color values >> 1.0. It's necessary to get proper
 // brightness given the 'thinness' (i.e., transparency) of our material with
@@ -45,17 +44,25 @@ render_mode cull_disabled;
 // 
 
 // set by rings.gd once
-uniform sampler2DArray textures : source_color; // backscatter, forwardscatter, unlitside
 uniform float texture_width;
 uniform float texture_start; // from center
 uniform float inner_margin; // from center, includes padding (> texture_start)
 uniform float outer_margin; // from center, includes padding (< 1.0)
+uniform sampler2DArray textures0 : source_color; // backscatter/forwardscatter/unlitside for LOD 0
+uniform sampler2DArray textures1 : source_color;
+uniform sampler2DArray textures2 : source_color;
+uniform sampler2DArray textures3 : source_color;
+uniform sampler2DArray textures4 : source_color;
+uniform sampler2DArray textures5 : source_color;
+uniform sampler2DArray textures6 : source_color;
+uniform sampler2DArray textures7 : source_color;
+uniform sampler2DArray textures8 : source_color;
 
 // set by rings.gd each frame if changed
 uniform vec4 frame_data; // xyz, sun_position; w, +1.0 if litside else -1.0
 
 // visual settings
-uniform float dfdr_multiplier = 0.3; // for LOD; smaller for more detail & more aliasing
+uniform float dfdr_multiplier = 1.0; // for LOD calculation; smaller for more detail & aliasing
 uniform float phase_exponent = 6.0; // larger narrows the low phase-angle effect
 uniform float forwardscatter_redshift = 1.05;
 uniform float unlitside_boost = 3.0; // general brightening
@@ -64,23 +71,49 @@ uniform float unlitside_phase_boost = 4.0;
 
 
 
-vec4 sample_color(int texel, float texel_fraction, int array_index, int lod) {
-	// Ring span is end-padded with fully transparent texels to avoid edge
-	// artifacts.
-	vec4 sample = texelFetch(textures, ivec3(texel, 0, array_index), lod);
-	texel += 1;
-	sample += texelFetch(textures, ivec3(texel, 0, array_index), lod);
-	texel += 1;
-	sample += texelFetch(textures, ivec3(texel, 0, array_index), lod);
-	texel += 1;
-	sample += texelFetch(textures, ivec3(texel, 0, array_index), lod) * texel_fraction;
-	texel -= 6;
-	sample += texelFetch(textures, ivec3(texel, 0, array_index), lod) * (1.0 - texel_fraction);
-	texel += 1;
-	sample += texelFetch(textures, ivec3(texel, 0, array_index), lod);
-	texel += 1;
-	sample += texelFetch(textures, ivec3(texel, 0, array_index), lod);
-	return sample / 6.0;
+vec4 sample_color(int texel, float texel_fraction, int index, int lod) {
+	// index: [0] backscatter, [1] forwardscatter, [2] unlitside.
+	// Mipmaps are broken as of Godot 4.3 for our "1D" textures, so we code
+	// LOD levels explicitely.
+	
+	switch (lod) {
+		case 0:
+			vec4 sample = texelFetch(textures0, ivec3(texel, 0, index), 0) * (1.0 - texel_fraction);
+			sample += texelFetch(textures0, ivec3(texel + 1, 0, index), 0) * texel_fraction;
+			return sample;
+		case 1:
+			vec4 sample = texelFetch(textures1, ivec3(texel, 0, index), 0) * (1.0 - texel_fraction);
+			sample += texelFetch(textures1, ivec3(texel + 1, 0, index), 0) * texel_fraction;
+			return sample;
+		case 2:
+			vec4 sample = texelFetch(textures2, ivec3(texel, 0, index), 0) * (1.0 - texel_fraction);
+			sample += texelFetch(textures2, ivec3(texel + 1, 0, index), 0) * texel_fraction;
+			return sample;
+		case 3:
+			vec4 sample = texelFetch(textures3, ivec3(texel, 0, index), 0) * (1.0 - texel_fraction);
+			sample += texelFetch(textures3, ivec3(texel + 1, 0, index), 0) * texel_fraction;
+			return sample;
+		case 4:
+			vec4 sample = texelFetch(textures4, ivec3(texel, 0, index), 0) * (1.0 - texel_fraction);
+			sample += texelFetch(textures4, ivec3(texel + 1, 0, index), 0) * texel_fraction;
+			return sample;
+		case 5:
+			vec4 sample = texelFetch(textures5, ivec3(texel, 0, index), 0) * (1.0 - texel_fraction);
+			sample += texelFetch(textures5, ivec3(texel + 1, 0, index), 0) * texel_fraction;
+			return sample;
+		case 6:
+			vec4 sample = texelFetch(textures6, ivec3(texel, 0, index), 0) * (1.0 - texel_fraction);
+			sample += texelFetch(textures6, ivec3(texel + 1, 0, index), 0) * texel_fraction;
+			return sample;
+		case 7:
+			vec4 sample = texelFetch(textures7, ivec3(texel, 0, index), 0) * (1.0 - texel_fraction);
+			sample += texelFetch(textures7, ivec3(texel + 1, 0, index), 0) * texel_fraction;
+			return sample;
+		case 8:
+			vec4 sample = texelFetch(textures8, ivec3(texel, 0, index), 0) * (1.0 - texel_fraction);
+			sample += texelFetch(textures8, ivec3(texel + 1, 0, index), 0) * texel_fraction;
+			return sample;
+	}
 }
 
 
@@ -107,6 +140,9 @@ void fragment() {
 		float lod_map = log2(dfdr * dfdr_multiplier);
 		lod_map = clamp(round(lod_map), 0.0, 8.0);
 		int lod = int(lod_map);
+		
+		// debug mipmaps
+		//lod = 4;
 		
 		// position in the LOD texture
 		texel_position /= float(1 << lod);
@@ -136,7 +172,7 @@ void fragment() {
 		}
 		
 		// debug lod mapping
-//		albedo = vec3(lod_map / 8.0, lod_map / 8.0, 1.0 - lod_map / 8.0);
+		//albedo = vec3(lod_map / 8.0, lod_map / 8.0, 1.0 - lod_map / 8.0);
 		
 		ALBEDO = albedo;
 		ALPHA = color.a;
