@@ -582,4 +582,3 @@ func _set_elements(time: float, elements: Array[float]) -> void:
 	elements[4] = w
 	elements[5] = M0
 	elements[6] = n
-

@@ -199,4 +199,3 @@ func _settings_resize() -> void:
 	_resize()
 	for child in get_children():
 		(child as Control).show()
-

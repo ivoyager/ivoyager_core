@@ -310,4 +310,3 @@ static func quadratic(x: float, coefficients: Array[float]) -> float:
 	var b: float = coefficients[1]
 	var c: float = coefficients[2]
 	return a * x * x + b * x + c
-

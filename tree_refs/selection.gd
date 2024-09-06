@@ -165,5 +165,3 @@ func get_radius_for_camera() -> float:
 	if !is_body:
 		return IVUnits.KM
 	return body.get_mean_radius()
-
-

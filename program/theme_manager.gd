@@ -52,4 +52,3 @@ func _on_project_objects_instantiated() -> void:
 	var splash_screen := Theme.new()
 	_themes[&"splash_screen"] = splash_screen
 	splash_screen.default_font = _fonts[splash_screen_font]
-

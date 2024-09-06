@@ -174,4 +174,3 @@ func _finish() -> void: # Main thread
 	if _job_count == 0:
 		assert(!DPRINT or IVDebug.dprint("I/O finished!"))
 		finished.emit()
-

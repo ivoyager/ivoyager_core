@@ -446,4 +446,3 @@ func _set_input_map(action: StringName) -> void:
 			if key != &"event_class":
 				event.set(key, event_dict[key])
 		InputMap.action_add_event(action, event)
-

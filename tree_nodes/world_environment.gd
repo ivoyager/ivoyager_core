@@ -73,5 +73,3 @@ func _add_starmap_as_environment_sky() -> void:
 	sky.sky_material = sky_material
 	environment.sky = sky
 	environment.background_mode = Environment.BG_SKY
-
-

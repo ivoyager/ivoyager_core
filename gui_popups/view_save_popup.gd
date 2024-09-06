@@ -22,4 +22,3 @@ extends PopupPanel
 const SCENE := "res://addons/ivoyager_core/gui_popups/view_save_popup.tscn"
 
 # Instanced by IVViewSaveButton.
-

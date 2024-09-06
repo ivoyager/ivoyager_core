@@ -72,4 +72,3 @@ func _load_asteroids_group_binary(sbg: IVSmallBodiesGroup, binary_dir: String, m
 			index += 1
 	
 	sbg.append_data(names, e_i_Om_w, a_M0_n, s_g_mag_de, da_D_f_th0)
-

@@ -76,4 +76,3 @@ func _set_visual_state() -> void:
 		visible = true
 	else:
 		visible = false
-

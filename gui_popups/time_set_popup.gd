@@ -38,4 +38,3 @@ func _on_about_to_show() -> void:
 func _on_time_set(is_close: bool) -> void:
 	if is_close:
 		hide()
-

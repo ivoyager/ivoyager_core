@@ -46,4 +46,3 @@ func _connect_camera(camera: IVCamera) -> void:
 
 func _on_camera_lock_changed(is_camera_lock: bool) -> void:
 	button_pressed = is_camera_lock
-

@@ -184,4 +184,3 @@ func _read_cache() -> void:
 		if current.has(key): # possibly old verson obsoleted key
 			current[key] = _cached[key]
 	_missing_or_bad_cache_file = false
-

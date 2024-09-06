@@ -71,4 +71,3 @@ func build_asteroids_sbg(sbg: IVSmallBodiesGroup, table_name: StringName, row: i
 		assert(secondary, "Secondary body missing for Lagrange point SmallBodiesGroup")
 	sbg.init(name, sbg_alias, sbg_class, lp_integer, secondary)
 	_binary_asteroids_builder.build_sbg_from_binaries(sbg, binary_dir, mag_cutoff)
-

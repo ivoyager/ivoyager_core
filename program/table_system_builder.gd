@@ -112,4 +112,3 @@ func _add_camera() -> void:
 	var camera: Camera3D = _camera_script.new()
 	var start_body: IVBody = _bodies[IVCoreSettings.home_name]
 	start_body.add_child(camera)
-

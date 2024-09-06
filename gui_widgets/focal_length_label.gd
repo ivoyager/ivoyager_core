@@ -40,4 +40,3 @@ func _connect_camera(camera: IVCamera) -> void:
 
 func _update_focal_length(focal_length: float) -> void:
 	text = "%2.f mm" % focal_length
-

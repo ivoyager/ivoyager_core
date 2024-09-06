@@ -32,4 +32,3 @@ func _init() -> void:
 		return
 	IVGlobal.debug_log = debug_log
 	IVGlobal.program.erase(&"LogInitializer")
-

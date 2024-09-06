@@ -28,4 +28,3 @@ extends Node3D
 ## This node is optional and maintained by [IVBody] only if needed. 
 
 const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL ## Free & rebuild on load.
-

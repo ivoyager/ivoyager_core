@@ -46,5 +46,3 @@ func build_body_selection(body: IVBody) -> IVSelection:
 	else:
 		selection.up_selection_name = above_bodies_selection_name
 	return selection
-
-

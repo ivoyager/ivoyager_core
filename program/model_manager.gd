@@ -230,4 +230,3 @@ func _preregister_files() -> void:
 					_map_paths[file_match] = path
 				assert(!DPRINT or IVDebug.dprint(path if path else "No texture matching " + file_match))
 			row += 1
-

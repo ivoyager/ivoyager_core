@@ -164,4 +164,3 @@ static func c_unescape_patch(text: String) -> String:
 		text = text.replace(esc_str, unicode_chr)
 		u_esc = text.find("\\u")
 	return text
-

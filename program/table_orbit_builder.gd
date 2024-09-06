@@ -216,4 +216,3 @@ func _reset_table_dict() -> void:
 		if field != &"ref_plane":
 			_d[field] = NAN
 	_d.ref_plane = &""
-

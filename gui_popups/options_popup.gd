@@ -389,4 +389,3 @@ func _settings_listener(setting: StringName, _value: Variant) -> void:
 		#child_controls_changed() # Godot ISSUE4.2.dev2: does not resize
 		size = Vector2i.ZERO # hack fix above
 		position = center - size / 2
-

@@ -65,4 +65,3 @@ func _update_tracking(flags: int, _disable_flags: int) -> void:
 	_ground_checkbox.set_pressed_no_signal(flags & Flags.TRACK_GROUND)
 	_orbit_checkbox.set_pressed_no_signal(flags & Flags.TRACK_ORBIT)
 	_ecliptic_checkbox.set_pressed_no_signal(flags & Flags.TRACK_ECLIPTIC)
-

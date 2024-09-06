@@ -70,4 +70,3 @@ static func _on_verbose_signal(arg: Variant, arg2: Variant = null, arg3: Variant
 		args.pop_back()
 	var debug_text: String = args.pop_back()
 	prints(debug_text, args)
-

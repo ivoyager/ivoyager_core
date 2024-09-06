@@ -105,4 +105,3 @@ class RemovableViewButton extends Button:
 		var mouse_button_event := event as InputEventMouseButton
 		if mouse_button_event and mouse_button_event.button_index == MOUSE_BUTTON_RIGHT:
 			right_clicked.emit()
-

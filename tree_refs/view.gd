@@ -255,4 +255,3 @@ func _set_time_state() -> void:
 		_timekeeper.set_time_reversed(is_reversed)
 	elif flags & IS_NOW:
 		_timekeeper.set_now_from_operating_system()
-

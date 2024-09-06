@@ -66,4 +66,3 @@ func _on_system_tree_built_or_loaded(is_new_game: bool) -> void:
 		@warning_ignore("unsafe_method_access")
 		selection_manager = SelectionManagerScript.new()
 		add_child(selection_manager)
-

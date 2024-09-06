@@ -24,4 +24,3 @@ extends Button
 
 func _pressed() -> void:
 	IVGlobal.load_dialog_requested.emit()
-

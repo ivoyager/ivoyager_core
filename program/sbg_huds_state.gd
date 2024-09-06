@@ -298,4 +298,3 @@ func _signal_all_changed() -> void:
 	orbits_visibility_changed.emit()
 	points_color_changed.emit()
 	orbits_color_changed.emit()
-

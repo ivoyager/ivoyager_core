@@ -112,4 +112,3 @@ func _on_child_entered_tree(control: Control) -> void:
 					[&"SBG_CENTAURS", [&"CE"] as Array[StringName], true],
 					[&"SBG_TRANS_NEPTUNE", [&"TN"] as Array[StringName], true],
 				]
-

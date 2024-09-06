@@ -97,4 +97,3 @@ func _change_paused() -> void:
 
 func _change_reversed() -> void:
 	_timekeeper.set_time_reversed(_reverse.button_pressed)
-

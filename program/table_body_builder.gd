@@ -275,4 +275,3 @@ func _set_characteristics_from_table(body: IVBody) -> void:
 					characteristics[&"surface_gravity"] = G * mass / m_radius ** 2
 					if enable_precisions:
 						_real_precisions[&"body/characteristics/surface_gravity"] = precision
-

@@ -156,4 +156,3 @@ func _enter_tree() -> void:
 	var config: ConfigFile = IVFiles.get_config_with_override("res://addons/ivoyager_core/core.cfg",
 			"res://ivoyager_override.cfg", "res://ivoyager_override2.cfg")
 	IVFiles.init_from_config(self, config, "core_settings")
-

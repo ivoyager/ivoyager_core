@@ -72,4 +72,3 @@ static func get_config_with_override(config_path: String, override_config_path: 
 		for property in override_config.get_section_keys(section):
 			config.set_value(section, property, override_config.get_value(section, property))
 	return config
-

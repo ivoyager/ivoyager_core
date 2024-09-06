@@ -225,8 +225,3 @@ func _build_visuals() -> void:
 	var parent: Node3D = get_parent()
 	parent.add_child(sbg_points)
 	parent.add_child(sbg_orbits)
-
-
-
-
-

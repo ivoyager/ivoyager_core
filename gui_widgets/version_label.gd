@@ -41,4 +41,3 @@ func set_label() -> void:
 	if use_name:
 		text += (IVCoreSettings.project_name if is_project else "I, Voyager") + sep
 	text += IVCoreSettings.project_version if is_project else IVGlobal.ivoyager_version
-

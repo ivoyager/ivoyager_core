@@ -89,4 +89,3 @@ func _make_circle_mesh(n_vertecies: int) -> ArrayMesh:
 	circle_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_LINE_STRIP, mesh_arrays, [], {},
 			ArrayMesh.ARRAY_FORMAT_VERTEX)
 	return circle_mesh
-

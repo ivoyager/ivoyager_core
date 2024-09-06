@@ -173,4 +173,3 @@ func _settings_listener(setting: StringName, value: Variant) -> void:
 		var shader_material: ShaderMaterial = material_override
 		# setting value is int; shader parameter is float
 		shader_material.set_shader_parameter(&"point_size", float(_point_size))
-

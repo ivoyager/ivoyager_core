@@ -81,4 +81,3 @@ func _init() -> void:
 
 func _on_change_current(setting: StringName) -> void:
 	IVGlobal.setting_changed.emit(setting, current[setting])
-

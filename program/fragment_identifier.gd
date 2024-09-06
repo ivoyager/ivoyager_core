@@ -446,4 +446,3 @@ func _debug_residuals(print_all := false) -> float:
 		if max_resid < resid:
 			max_resid = resid
 	return max_resid
-

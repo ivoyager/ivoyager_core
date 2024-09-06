@@ -117,4 +117,3 @@ all assets. We recommend doing so even if you saw import of some assets.
 """)
 	
 	queue_free()
-

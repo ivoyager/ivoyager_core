@@ -95,4 +95,3 @@ func _on_resized() -> void:
 	_button_size = button_size
 	for child in _hbox.get_children():
 		(child as IVNavigationButton).custom_minimum_size.x = button_size
-

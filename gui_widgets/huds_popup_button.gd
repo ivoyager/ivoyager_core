@@ -54,4 +54,3 @@ func _on_visibility_changed() -> void:
 	await get_tree().process_frame
 	if !_huds_popup.visible:
 		button_pressed = false
-
