@@ -146,8 +146,8 @@ enum BodyFlags {
 	USE_CARDINAL_DIRECTIONS = 1 << 27,
 	USE_PITCH_YAW = 1 << 28,
 	
-	EXISTS = 1 << 29, # always set by IVTableBodyBuilder; not used by ivoyager_core yet
-	REMOVED = 1 << 30, # not used by ivoyager_core yet
+	EXISTS = 1 << 29, # always set by IVTableBodyBuilder
+	DISABLE_MODEL_SPACE = 1 << 30,
 	
 #   Reserved to 1 << 45.
 #

@@ -34,6 +34,7 @@ const files := preload("res://addons/ivoyager_core/static/files.gd")
 const DPRINT := false
 const CULL_FRACTION := 0.3
 const METER := IVUnits.METER
+const DISABLE_MODEL_SPACE := IVEnums.BodyFlags.DISABLE_MODEL_SPACE
 
 var max_lazy_models := 40
 var model_too_far_radius_multiplier := 3e3
@@ -73,6 +74,8 @@ func _clear() -> void:
 
 
 func add_model(body: IVBody, lazy_init: bool) -> void: # Main thread
+	if body.flags & DISABLE_MODEL_SPACE:
+		return
 	var file_prefix := body.get_file_prefix()
 	var m_radius := body.get_mean_radius()
 	var e_radius := body.get_equatorial_radius()
@@ -93,6 +96,8 @@ func add_model(body: IVBody, lazy_init: bool) -> void: # Main thread
 
 
 func _add_lazy_model(is_visible: bool, body: IVBody) -> void: # Main thread
+	if body.flags & DISABLE_MODEL_SPACE:
+		return
 	assert(!DPRINT or IVDebug.dprint("ADD lazy model ", tr(body.name)))
 	assert(is_visible)
 	var file_prefix := body.get_file_prefix()
@@ -115,6 +120,8 @@ func _remove_lazy_model(model: Node3D) -> void: # Main thread
 
 func _get_model_on_io_thread(body: IVBody, file_prefix: String, model_type: int,
 		model_basis: Basis, lazy_init: bool) -> void: # I/O thread
+	if body.flags & DISABLE_MODEL_SPACE: # async possibility
+		return
 	var model: Node3D
 	var path: String = _model_paths.get(file_prefix, "")
 	if path:
@@ -142,6 +149,10 @@ func _get_model_on_io_thread(body: IVBody, file_prefix: String, model_type: int,
 
 
 func _finish_model(body: IVBody, model: Node3D, lazy_init: bool) -> void: # Main thread
+	if body.flags & DISABLE_MODEL_SPACE: # async possibility
+		model.queue_free()
+		return
+	
 	body.add_child_to_model_space(model)
 	model.visible = body.model_visible
 	body.model_visibility_changed.connect(model.set_visible)
