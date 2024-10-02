@@ -22,6 +22,9 @@ class_name IVBodyLabel
 
 ## Visual text name or symbol of an [IVBody] instance.
 
+var _color: Color
+var _use_orbit_color: bool
+
 var _body_huds_state: IVBodyHUDsState = IVGlobal.program.BodyHUDsState
 var _body: IVBody
 var _name_font: Font
@@ -31,8 +34,10 @@ var _symbols_visible := false
 var _body_huds_visible := false # too close / too far
 
 
-func _init(body: IVBody) -> void:
+func _init(body: IVBody, color := Color.WHITE, use_orbit_color := false) -> void:
 	_body = body
+	_color = color
+	_use_orbit_color = use_orbit_color
 	_name_font = IVGlobal.fonts.hud_names
 	_symbol_font = IVGlobal.fonts.hud_symbols
 
@@ -40,6 +45,10 @@ func _init(body: IVBody) -> void:
 func _ready() -> void:
 	_body_huds_state.visibility_changed.connect(_on_global_huds_changed)
 	_body.huds_visibility_changed.connect(_on_body_huds_changed)
+	if _use_orbit_color:
+		_body_huds_state.color_changed.connect(_set_color)
+	else:
+		modulate = _color
 	horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	billboard = StandardMaterial3D.BILLBOARD_ENABLED
@@ -76,3 +85,12 @@ func _set_visual_state() -> void:
 		visible = true
 	else:
 		visible = false
+
+
+func _set_color() -> void:
+	# only connected if _use_orbit_color == true at init
+	var color := _body_huds_state.get_orbit_color(_body.flags)
+	if _color == color:
+		return
+	_color = color
+	modulate = color

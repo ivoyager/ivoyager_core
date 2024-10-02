@@ -794,8 +794,9 @@ func _finish_tree_add() -> void:
 	var body_label_script: Script = IVGlobal.procedural_classes[&"BodyLabel"]
 	if body_label_script:
 		@warning_ignore("unsafe_method_access")
-		# Script must have _init() that accepts arg below.
-		var body_label: Node3D = body_label_script.new(self)
+		# Script must have _init() that accepts args below.
+		var body_label: Node3D = body_label_script.new(self, IVCoreSettings.body_labels_color,
+				IVCoreSettings.body_labels_use_orbit_color)
 		add_child(body_label)
 	var file_prefix := get_file_prefix()
 	var is_star := bool(flags & BodyFlags.IS_STAR)

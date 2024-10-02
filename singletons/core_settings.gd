@@ -59,6 +59,10 @@ var vertecies_per_orbit_low_res: int = 100 # for small bodies like asteroids
 var max_camera_distance: float = 5e3 * IVUnits.AU
 var obliquity_of_the_ecliptic: float = 23.439 * IVUnits.DEG
 var ecliptic_rotation := IVMath.get_x_rotation_matrix(obliquity_of_the_ecliptic)
+
+var body_labels_color := Color.WHITE
+var body_labels_use_orbit_color := false # true overrides above
+
 var cache_dir := "user://cache"
 
 # Theses could be modified after init, but you would have to rebuild the 'Home' View.
