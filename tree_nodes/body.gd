@@ -231,7 +231,7 @@ func _process(_delta: float) -> void:
 		model_space.transform.basis = basis_at_epoch.rotated(rotation_vector, rotation_angle)
 	
 	# check HUD and model visibility
-	var hud_dist_ok := min_hud_dist < camera_dist # not too close to camera
+	var hud_dist_ok := camera_dist > min_hud_dist or !model_space # not too close to camera
 	if hud_dist_ok and orbit:
 		var orbit_radius := position.length()
 		# is body too close to its parent for camera distance?
@@ -594,7 +594,7 @@ func get_hill_sphere(eccentricity := 0.0) -> float:
 	return a * (1.0 - eccentricity) * pow(mass / (3.0 * parent_mass), 0.33333333)
 
 
-# ivoyager mechanics below
+# special mechanics below
 
 func set_model_parameters(reference_basis: Basis, max_dist: float) -> void:
 	model_reference_basis = reference_basis
@@ -602,6 +602,7 @@ func set_model_parameters(reference_basis: Basis, max_dist: float) -> void:
 
 
 func add_child_to_model_space(spatial: Node3D) -> void:
+	assert(not flags & BodyFlags.DISABLE_MODEL_SPACE)
 	if !model_space:
 		var ModelSpaceScript: Script = IVGlobal.procedural_classes[&"ModelSpace"]
 		@warning_ignore("unsafe_method_access")
@@ -615,6 +616,16 @@ func remove_child_from_model_space(spatial: Node3D) -> void:
 	if model_space.get_child_count() == 0:
 		model_space.queue_free()
 		model_space = null
+
+
+func remove_and_disable_model_space() -> void:
+	# Removes model(s) but everything else remains (label & orbit HUDs, etc.).
+	# Unsets BodyFlags.EXISTS.
+	flags |= BodyFlags.DISABLE_MODEL_SPACE
+	flags &= ~BodyFlags.EXISTS
+	if model_space:
+		model_space.queue_free()
+	model_space = null
 
 
 func set_orbit(orbit_: IVOrbit) -> void:
@@ -783,8 +794,9 @@ func _finish_tree_add() -> void:
 	var body_label_script: Script = IVGlobal.procedural_classes[&"BodyLabel"]
 	if body_label_script:
 		@warning_ignore("unsafe_method_access")
-		# Script must have _init() that accepts arg below.
-		var body_label: Node3D = body_label_script.new(self)
+		# Script must have _init() that accepts args below.
+		var body_label: Node3D = body_label_script.new(self, IVCoreSettings.body_labels_color,
+				IVCoreSettings.body_labels_use_orbit_color)
 		add_child(body_label)
 	var file_prefix := get_file_prefix()
 	var is_star := bool(flags & BodyFlags.IS_STAR)
@@ -832,7 +844,7 @@ func _finish_tree_add_io(file_prefix: String, is_star: bool, rings_file_prefix: 
 
 func _finish_tree_add_after_io(rings_images: Array[Image]) -> void:
 	# on main thread
-	if rings_images:
+	if rings_images and not flags & BodyFlags.DISABLE_MODEL_SPACE:
 		var sunlight_source := get_parent_node_3d() # assumes no moon rings!
 		var rings_script: Script = IVGlobal.procedural_classes[&"Rings"]
 		if rings_script:

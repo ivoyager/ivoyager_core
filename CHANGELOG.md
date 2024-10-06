@@ -16,6 +16,7 @@ Requires **ivoyager_assets-v0.0.19.dev.20240906**. (The editor plugin will downl
 
 ### Added
 * API support for adding IVSmallBodiesGroup data by code (not just tables/binaries).
+* IVBody.remove_and_disable_model_space()
 
 ### Changed
 * [API breaking] Improved builder class names with "source" and "what": "BinaryAsteroidsBuilder", "TableBodyBuilder", "TableOrbitBuilder", etc.
