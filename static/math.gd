@@ -211,13 +211,14 @@ static func convert_rotated_spherical3(spherical3: Vector3, rotation := IDENTITY
 
 
 static func wrap_spherical3(spherical3: Vector3) -> Vector3:
+	const RIGHT_ANGLE := PI / 2.0
 	var ra: float = spherical3[0] # make this 0 to TAU
 	var dec: float = spherical3[1] # make this -PI/2 to PI/2
 	dec = wrapf(dec, -PI, PI)
-	if dec > (PI / 2.0): # pole traversal
+	if dec > RIGHT_ANGLE: # pole traversal
 		dec = PI - dec
 		ra += PI
-	elif dec < (-PI / 2.0): # pole traversal
+	elif dec < -RIGHT_ANGLE: # pole traversal
 		dec = PI + dec
 		ra += PI
 	ra = fposmod(ra, TAU)

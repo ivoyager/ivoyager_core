@@ -189,6 +189,7 @@ func _record_visibility_event(_is_visible: bool, model: Node3D) -> void: # Main 
 
 func _get_model_basis(file_prefix: String, m_radius := NAN, e_radius := NAN) -> Basis:
 	# radii used only for ellipsoid
+	const RIGHT_ANGLE := PI / 2.0
 	var basis := Basis()
 	var path: String = _model_paths.get(file_prefix, "")
 	if path: # has model file
@@ -214,8 +215,8 @@ func _get_model_basis(file_prefix: String, m_radius := NAN, e_radius := NAN) -> 
 						&"longitude_offset", asset_row)
 				if !is_nan(longitude_offset):
 					basis = basis.rotated(Vector3(0.0, 1.0, 0.0), -longitude_offset)
-	basis = basis.rotated(Vector3(0.0, 1.0, 0.0), -PI / 2.0) # adjust for centered prime meridian
-	basis = basis.rotated(Vector3(1.0, 0.0, 0.0), PI / 2.0) # z-up in astronomy!
+	basis = basis.rotated(Vector3(0.0, 1.0, 0.0), -RIGHT_ANGLE) # adjust for centered prime meridian
+	basis = basis.rotated(Vector3(1.0, 0.0, 0.0), RIGHT_ANGLE) # z-up in astronomy!
 	return basis
 
 

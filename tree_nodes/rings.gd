@@ -57,6 +57,7 @@ func _init(body: IVBody, sunlight_source: Node3D, rings_images: Array[Image]) ->
 
 
 func _ready() -> void:
+	const RIGHT_ANGLE := PI / 2.0
 	IVGlobal.camera_ready.connect(_set_camera)
 	_set_camera(get_viewport().get_camera_3d())
 	
@@ -89,7 +90,7 @@ func _ready() -> void:
 	for lod in LOD_LEVELS:
 		_rings_material.set_shader_parameter("textures%s" % lod, _texture_arrays[lod])
 	set_surface_override_material(0, _rings_material)
-	rotate_x(PI / 2.0)
+	rotate_x(RIGHT_ANGLE)
 
 
 func _process(_delta: float) -> void:

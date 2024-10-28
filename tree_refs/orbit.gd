@@ -63,7 +63,6 @@ const math := preload("res://addons/ivoyager_core/static/math.gd") # =IVMath whe
 const utils := preload("res://addons/ivoyager_core/static/utils.gd")
 
 const DPRINT := false
-const PIdiv2 := PI / 2.0
 const ECLIPTIC_UP := Vector3(0.0, 0.0, 1.0)
 const T_3000BCE := -50.0 * IVUnits.CENTURY # 3000 BCE
 const T_3000CE := 10.0 * IVUnits.CENTURY # 3000 CE
@@ -214,11 +213,12 @@ func get_periapsis(time := NAN) -> float:
 
 
 func is_retrograde(time := NAN) -> bool:
+	const RIGHT_ANGLE := PI / 2.0
 	var elements := current_elements
 	if !is_nan(time) and (time > _end_current or time < _begin_current):
 		elements = utils.init_array(7, 0.0, TYPE_FLOAT)
 		_set_elements(time, elements)
-	return elements[2] > PIdiv2 # inclination > 90 degrees
+	return elements[2] > RIGHT_ANGLE # inclination > 90 degrees
 
 
 func get_orbital_perioid(time := NAN) -> float:
@@ -247,6 +247,7 @@ func get_average_orbital_speed(time := NAN) -> float:
 
 
 func get_normal(time := NAN, flip_retrograde := false) -> Vector3:
+	const RIGHT_ANGLE := PI / 2.0
 	var elements := current_elements
 	if !is_nan(time) and (time > _end_current or time < _begin_current):
 		elements = utils.init_array(7, 0.0, TYPE_FLOAT)
@@ -254,9 +255,9 @@ func get_normal(time := NAN, flip_retrograde := false) -> Vector3:
 	# Orbit normal is defined by Om & i. This vector precesses around the
 	# reference_normal.
 	var relative_normal := math.convert_spherical2(
-			elements[3] + PIdiv2, elements[2] + PIdiv2) # Om, i
+			elements[3] + RIGHT_ANGLE, elements[2] + RIGHT_ANGLE) # Om, i
 	var orbit_normal: Vector3
-	if elements[2] > PIdiv2: # retrograde
+	if elements[2] > RIGHT_ANGLE: # retrograde
 		orbit_normal = math.rotate_vector_z(relative_normal, reference_normal)
 		if flip_retrograde:
 			orbit_normal *= -1.0
@@ -541,6 +542,7 @@ func _set_elements(time: float, elements: Array[float]) -> void:
 	# Based on https://ssd.jpl.nasa.gov/txt/aprx_pos_planets.pdf (time range
 	# 3000 BCE - 3000 CE) except we apply Jupiter to Pluto M modifiers to
 	# adjust M0 here rather than adjusting M in position calculation.
+	const RIGHT_ANGLE := PI / 2.0
 	if !element_rates: # no rates for this body or dynamic_orbits == false
 		var index := 0
 		while index < 7:
@@ -557,7 +559,7 @@ func _set_elements(time: float, elements: Array[float]) -> void:
 	var w: float = elements_at_epoch[4] + element_rates[4] * time
 	# adjust M0 for Om & w to give correct M at time
 	var M0: float
-	if elements_at_epoch[2] > PIdiv2:
+	if elements_at_epoch[2] > RIGHT_ANGLE:
 		M0 = elements_at_epoch[5] + (element_rates[3] + element_rates[4]) * time
 	else:
 		M0 = elements_at_epoch[5] - (element_rates[3] + element_rates[4]) * time
