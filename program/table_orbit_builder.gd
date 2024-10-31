@@ -25,7 +25,6 @@ extends RefCounted
 const math := preload("res://addons/ivoyager_core/static/math.gd") # =IVMath when issue #37529 fixed
 
 const DPRINT := false
-const PIdiv2 := PI / 2.0
 const MIN_E_FOR_APSIDAL_PRECESSION := 0.0001
 const MIN_I_FOR_NODAL_PRECESSION := deg_to_rad(0.1)
 const DAY := IVUnits.DAY
@@ -91,6 +90,7 @@ func make_orbit_from_data(table_name: String, table_row: int, parent: IVBody) ->
 	# Or better, dynamically fit to either 1800-2050AD or 3000BC-3000AD range.
 	# Alternatively, we could build orbit from an Ephemerides object.
 	
+	const RIGHT_ANGLE := PI / 2.0
 	var mu := parent.get_standard_gravitational_parameter()
 	assert(mu)
 	IVTableData.db_build_dictionary_from_keys(_d, table_name, table_row)
@@ -178,7 +178,7 @@ func make_orbit_from_data(table_name: String, table_row: int, parent: IVBody) ->
 				Pnode = 0.0
 			if e < MIN_E_FOR_APSIDAL_PRECESSION:
 				Pw = 0.0
-			var orbit_sign := signf(PIdiv2 - i) # prograde +1.0; retrograde -1.0
+			var orbit_sign := signf(RIGHT_ANGLE - i) # prograde +1.0; retrograde -1.0
 			Om_rate = 0.0
 			w_rate = 0.0
 			if Pnode != 0.0:
