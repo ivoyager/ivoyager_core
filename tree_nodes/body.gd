@@ -116,6 +116,9 @@ var model_reference_basis := IDENTITY_BASIS
 var max_model_dist := 0.0
 var min_hud_dist: float
 var sleep := false
+var shader_sun_index := -1
+
+static var sun_global_positions := Basis(Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0))
 
 # private
 static var _is_class_instanced := false
@@ -137,6 +140,8 @@ func _enter_tree() -> void:
 	if orbit:
 		orbit.reset_elements_and_interval_update()
 		orbit.changed.connect(_on_orbit_changed)
+	shader_sun_index = characteristics.get(&"shader_sun_index", -1)
+	assert(shader_sun_index >= -1 and shader_sun_index <= 2)
 
 
 func _ready() -> void:
@@ -244,6 +249,11 @@ func _process(_delta: float) -> void:
 		model_visible = !model_visible
 		model_visibility_changed.emit(model_visible)
 	
+	# sun position(s) for shader global
+	if shader_sun_index != -1 and sun_global_positions[shader_sun_index] != global_position:
+		sun_global_positions[shader_sun_index] = global_position
+		RenderingServer.global_shader_parameter_set(
+				&"iv_sun_global_positions", sun_global_positions)
 	show()
 
 
@@ -594,6 +604,13 @@ func get_hill_sphere(eccentricity := 0.0) -> float:
 	return a * (1.0 - eccentricity) * pow(mass / (3.0 * parent_mass), 0.33333333)
 
 
+func get_star() -> IVBody:
+	# will error if not star or no star above
+	var body := self
+	while !(body.flags & IS_STAR):
+		body = get_parent_node_3d()
+	return body
+
 # special mechanics below
 
 func set_model_parameters(reference_basis: Basis, max_dist: float) -> void:
@@ -845,11 +862,12 @@ func _finish_tree_add_io(file_prefix: String, is_star: bool, rings_file_prefix: 
 func _finish_tree_add_after_io(rings_images: Array[Image]) -> void:
 	# on main thread
 	if rings_images and not flags & BodyFlags.DISABLE_MODEL_SPACE:
-		var sunlight_source := get_parent_node_3d() # assumes no moon rings!
+		var star := get_star()
+		var use_shader_sun_index := star.shader_sun_index
 		var rings_script: Script = IVGlobal.procedural_classes[&"Rings"]
 		if rings_script:
 			@warning_ignore("unsafe_method_access") # Script must have _init() that accepts args.
-			var rings: Node3D = rings_script.new(self, sunlight_source, rings_images)
+			var rings: Node3D = rings_script.new(self, use_shader_sun_index, rings_images)
 			add_child_to_model_space(rings)
 	
 	IVGlobal.add_system_tree_item_finished.emit(self)

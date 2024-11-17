@@ -37,6 +37,7 @@ var characteristics_fields: Array[StringName] = [
 	&"model_type",
 	&"light_type",
 	&"omni_light_type",
+	&"shader_sun_index",
 	&"file_prefix",
 	&"rings_file_prefix",
 	&"rings_inner_radius",
