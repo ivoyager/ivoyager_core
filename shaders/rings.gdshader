@@ -48,6 +48,7 @@ uniform float texture_width;
 uniform float texture_start; // from center
 uniform float inner_margin; // from center, includes padding (> texture_start)
 uniform float outer_margin; // from center, includes padding (< 1.0)
+uniform int sun_index; // must be 0, 1 or 2
 uniform sampler2DArray textures0 : source_color; // backscatter/forwardscatter/unlitside for LOD 0
 uniform sampler2DArray textures1 : source_color;
 uniform sampler2DArray textures2 : source_color;
@@ -58,9 +59,6 @@ uniform sampler2DArray textures6 : source_color;
 uniform sampler2DArray textures7 : source_color;
 uniform sampler2DArray textures8 : source_color;
 
-// set by rings.gd each frame if changed
-uniform vec4 frame_data; // xyz, sun_position; w, +1.0 if litside else -1.0
-
 // visual settings
 uniform float dfdr_multiplier = 1.0; // for LOD calculation; smaller for more detail & aliasing
 uniform float phase_exponent = 6.0; // larger narrows the low phase-angle effect
@@ -69,6 +67,24 @@ uniform float unlitside_boost = 3.0; // general brightening
 uniform float litside_phase_boost = 6.0; // low phase-angle brightening
 uniform float unlitside_phase_boost = 4.0;
 
+// globals
+global uniform mat3 iv_sun_global_positions;
+
+// varyings
+varying vec3 sun_direction;
+varying flat float lit_side; // >0.0 for lit side
+
+
+void vertex() {
+	vec3 sun_position = iv_sun_global_positions[sun_index];
+	vec3 sun_vector = (VIEW_MATRIX * vec4(sun_position, 1.0)).xyz;
+	sun_direction = normalize(sun_vector);
+	
+	mat4 inverse_model_matrix = inverse(MODEL_MATRIX);
+	float sun_y = (inverse_model_matrix * vec4(sun_position, 1.0)).y;
+	float camera_y = (inverse_model_matrix * vec4(CAMERA_POSITION_WORLD, 1.0)).y;
+	lit_side = sun_y * camera_y; // positive if same sign
+}
 
 
 vec4 sample_color(int texel, float texel_fraction, int index, int lod) {
@@ -131,7 +147,13 @@ void fragment() {
 
 	if (radius < inner_margin || radius > outer_margin) {
 		// out of render area
-		discard;
+
+		// FIXME? Godot docs suggest that use of discard might break something
+		// related to shadows. Or maybe not. For now we're using ALPHA = 0.0.
+		// We can revisit use of discard after other shadow issues are resolved. 
+
+		//discard;
+		ALPHA = 0.0;
 
 	} else {
 
@@ -150,14 +172,13 @@ void fragment() {
 		float texel_fraction = fract(texel_position);
 
 		// phase effects (phase_mix = 1.0 corresponds to phase angle = 0.0)
-		vec3 sun_vector = (VIEW_MATRIX * vec4(frame_data.xyz, 1.0)).xyz;
-		float phase_mix = dot(normalize(sun_vector), VIEW) / 2.0 + 0.5;
+		float phase_mix = dot(sun_direction, VIEW) / 2.0 + 0.5;
 		phase_mix = pow(phase_mix, phase_exponent);
 
 		vec4 color;
 		vec3 albedo;
 
-		if (frame_data.w > 0.0) {
+		if (lit_side > 0.0) {
 			// lit side
 			vec4 backscatter = sample_color(texel, texel_fraction, 0, lod);
 			vec4 forwardscatter = sample_color(texel, texel_fraction, 1, lod);
@@ -179,4 +200,3 @@ void fragment() {
 
 	}
 }
-

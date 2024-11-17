@@ -23,8 +23,7 @@ extends MeshInstance3D
 ## Visual planetary rings of an [IVBody] instance.
 ##
 ## This node uses rings.gdshader and hooks up to signal IVBody.model_visibility_changed
-## so that it is only visible and only processes when the IVBody's model is
-## visible.
+## so that it is only visible when the IVBody's model is visible.
 ##
 ## Not persisted. IVBody instance adds on _ready().
 
@@ -33,21 +32,18 @@ const RENDER_MARGIN := 0.01 # render outside of image data for smoothing
 const LOD_LEVELS := 9 # must agree w/ assets, body.gd and rings.shader
 
 var _body: IVBody
-var _sunlight_source: Node3D # for phase-angle effects
-var _camera: Camera3D
+var _shader_sun_index: int
 
 var _texture_width: int
 var _texture_arrays: Array[Texture2DArray] # backscatter/forwardscatter/unlitside for each LOD
 var _rings_material := ShaderMaterial.new()
 
-var _shader_frame_data: Vector4
 
 
-
-func _init(body: IVBody, sunlight_source: Node3D, rings_images: Array[Image]) -> void:
+func _init(body: IVBody, shader_sun_index: int, rings_images: Array[Image]) -> void:
 	assert(rings_images[0] and rings_images[1] and rings_images[2])
 	_body = body
-	_sunlight_source = sunlight_source
+	_shader_sun_index = shader_sun_index
 	_texture_width = rings_images[0].get_width()
 	for lod in LOD_LEVELS:
 		var lod_rings_images := rings_images.slice(lod * 3, lod * 3 + 3) as Array[Image]
@@ -58,8 +54,6 @@ func _init(body: IVBody, sunlight_source: Node3D, rings_images: Array[Image]) ->
 
 func _ready() -> void:
 	const RIGHT_ANGLE := PI / 2.0
-	IVGlobal.camera_ready.connect(_set_camera)
-	_set_camera(get_viewport().get_camera_3d())
 	
 	_body.model_visibility_changed.connect(_on_model_visibility_changed)
 	_on_model_visibility_changed(_body.model_visible)
@@ -87,29 +81,12 @@ func _ready() -> void:
 	_rings_material.set_shader_parameter(&"texture_start", texture_start)
 	_rings_material.set_shader_parameter(&"inner_margin", inner_margin)
 	_rings_material.set_shader_parameter(&"outer_margin", outer_margin)
+	_rings_material.set_shader_parameter(&"sun_index", _shader_sun_index)
 	for lod in LOD_LEVELS:
 		_rings_material.set_shader_parameter("textures%s" % lod, _texture_arrays[lod])
 	set_surface_override_material(0, _rings_material)
 	rotate_x(RIGHT_ANGLE)
 
 
-func _process(_delta: float) -> void:
-	if !_camera:
-		return
-	var sun_position := _sunlight_source.global_position
-	var is_sun_above := to_local(sun_position).y > 0.0
-	var is_camera_above := to_local(_camera.global_position).y > 0.0
-	var litside_sign := 1.0 if is_sun_above == is_camera_above else -1.0
-	var shader_frame_data := Vector4(sun_position.x, sun_position.y, sun_position.z, litside_sign)
-	if _shader_frame_data != shader_frame_data:
-		_shader_frame_data = shader_frame_data
-		_rings_material.set_shader_parameter(&"frame_data", shader_frame_data)
-
-
-func _set_camera(camera: Camera3D) -> void:
-	_camera = camera
-
-
 func _on_model_visibility_changed(is_model_visible: bool) -> void:
 	visible = is_model_visible
-	set_process(is_model_visible)

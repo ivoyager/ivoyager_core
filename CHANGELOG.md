@@ -17,6 +17,7 @@ Requires **ivoyager_assets-v0.0.19.dev.20240906**. (The editor plugin will downl
 ### Added
 * API support for adding IVSmallBodiesGroup data by code (not just tables/binaries).
 * IVBody.remove_and_disable_model_space()
+* Shader global 'iv_sun_global_positions' that can track up to 3 suns for shader effects. Used for phase angle in Saturn's Rings.
 
 ### Changed
 * [API breaking] Improved builder class names with "source" and "what": "BinaryAsteroidsBuilder", "TableBodyBuilder", "TableOrbitBuilder", etc.
