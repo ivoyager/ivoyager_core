@@ -24,8 +24,7 @@ extends RefCounted
 ##
 ## Moves the camera home at game start, unless move_home_at_start = false.
 ##
-## TODO: Reverse dependency between IVView and IVCamera, so camera is more
-## removable.
+## TODO: Make these rows in table 'views.tsv'.
 
 
 const CameraFlags := IVEnums.CameraFlags

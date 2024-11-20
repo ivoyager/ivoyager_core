@@ -45,7 +45,8 @@ signal move_started(to_spatial: Node3D, is_camera_lock: bool) # to_spatial is no
 signal parent_changed(spatial: Node3D)
 signal range_changed(camera_range: float)
 signal latitude_longitude_changed(lat_long: Vector2, is_ecliptic: bool, selection: IVSelection)
-signal focal_length_changed(focal_length: float)
+
+signal field_of_view_changed(fov_: float, focal_length: float)
 signal camera_lock_changed(is_camera_lock: bool)
 signal up_lock_changed(flags: int, disabled_flags: int)
 signal tracking_changed(flags: int, disabled_flags: int)
@@ -83,14 +84,13 @@ const MIN_DIST_RADII_METERS := 1.5 * METER # really target radii; see 'perspecti
 const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"name",
+	&"fov",
 	&"flags",
 	&"is_camera_lock",
 	&"selection",
 	&"perspective_radius",
 	&"view_position",
 	&"view_rotations",
-	&"focal_length",
-	&"focal_length_index",
 	&"_transform",
 ]
 
@@ -105,8 +105,6 @@ var selection: IVSelection
 var perspective_radius := KM
 var view_position := Vector3(0.5, 2.5, 3.0) # spherical, relative to ref frame; r is 'perspective'
 var view_rotations := Vector3.ZERO # euler, relative to looking_at(-origin, 'up')
-var focal_length: float
-var focal_length_index: int # use init_focal_length_index below
 
 # private
 var _transform := Transform3D(Basis(), Vector3(0, 0, KM)) # working value
@@ -114,8 +112,6 @@ var _transform := Transform3D(Basis(), Vector3(0, 0, KM)) # working value
 # *****************************************************************************
 
 # public - project init vars
-var focal_lengths: Array[float] = [6.0, 15.0, 24.0, 35.0, 50.0] # ~fov 125.6, 75.8, 51.9, 36.9, 26.3
-var init_focal_length_index := 2
 var ease_exponent := 5.0 # DEPRECIATE: Make dynamic for distance / size
 var gui_ecliptic_coordinates_dist := 1e6 * KM
 var action_immediacy := 10.0 # how fast we use up the accumulators
@@ -175,9 +171,8 @@ func _ready() -> void:
 	IVGlobal.move_camera_requested.connect(move_to)
 	IVGlobal.setting_changed.connect(_settings_listener)
 	transform = _transform
-	focal_length_index = init_focal_length_index
-	focal_length = focal_lengths[focal_length_index]
-	fov = math.get_fov_from_focal_length(focal_length)
+	if !IVGlobal.state.is_loaded_game:
+		fov = IVCoreSettings.start_camera_fov
 	_world_targeting[2] = self
 	_world_targeting[3] = fov
 	IVGlobal.camera_ready.emit(self)
@@ -350,22 +345,25 @@ func set_up_lock(is_locked: bool) -> void:
 		up_lock_changed.emit(flags, disabled_flags)
 
 
-func increment_focal_length(increment: int) -> void:
-	var new_fl_index := focal_length_index + increment
-	if new_fl_index < 0:
-		new_fl_index = 0
-	elif new_fl_index >= focal_lengths.size():
-		new_fl_index = focal_lengths.size() - 1
-	if new_fl_index != focal_length_index:
-		set_focal_length_index(new_fl_index, false)
+func set_focal_length(focal_length: float) -> void:
+	var field_of_view := math.get_fov_from_focal_length(focal_length)
+	fov = field_of_view
+	field_of_view_changed.emit(field_of_view, focal_length)
 
 
-func set_focal_length_index(new_fl_index: int, _suppress_move := false) -> void:
-	focal_length_index = new_fl_index
-	focal_length = focal_lengths[focal_length_index]
-	fov = math.get_fov_from_focal_length(focal_length)
-	_world_targeting[3] = fov
-	focal_length_changed.emit(focal_length)
+func set_field_of_view(field_of_view: float) -> void:
+	fov = field_of_view
+	field_of_view_changed.emit(field_of_view, math.get_focal_length_from_fov(field_of_view))
+
+
+# DEPRECIATED
+func increment_focal_length(_increment: int) -> void:
+	pass
+
+
+# DEPRECIATED
+func set_focal_length_index(_new_fl_index: int, _suppress_move := false) -> void:
+	pass
 
 
 func change_camera_lock(new_lock: bool) -> void:
@@ -728,7 +726,7 @@ func _signal_range_latitude_longitude(is_refresh := false) -> void:
 
 func _send_gui_refresh() -> void:
 	parent_changed.emit(parent)
-	focal_length_changed.emit(focal_length)
+	field_of_view_changed.emit(fov, math.get_focal_length_from_fov(fov))
 	up_lock_changed.emit(flags, disabled_flags)
 	tracking_changed.emit(flags, disabled_flags)
 	_signal_range_latitude_longitude(true)
