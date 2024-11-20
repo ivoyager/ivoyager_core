@@ -24,6 +24,7 @@ Requires **ivoyager_assets-v0.0.19.dev.20240906**. (The editor plugin will downl
 * [Project breaking] Removed fake virtual function _ivcore_init().
 * [Project breaking] IVCoreInitializer no longer adds admin popups (save dialog, options popup, etc.). Projects can now add these in a more Godot-like manner by constructing a control scene tree.
 * Tables specified in IVCoreSettings.body_tables no longer need to be top-down ordered.
+* [API breaking] Changed IVCamera fov/focal-length API. Replaced widgets FocalLengthButtons and FocalLengthLabel with new and better better FocalLengthControl.
 
 ### Fixed
 * Our rings "1D" texture mipmaps are broken in Godot 4.3. This is fixed by explicit LOD coding using separate LOD textures. **Requires asset update!**

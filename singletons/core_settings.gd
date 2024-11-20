@@ -46,6 +46,7 @@ var enable_precisions := false
 var use_internal_wiki := false # FIXME: WikiManager doesn't do anything yet
 
 var start_time: float = 22.0 * IVUnits.YEAR # from J2000 epoch
+var start_camera_fov: float = IVMath.get_focal_length_from_fov(35.0)
 var allow_time_setting := false
 var allow_time_reversal := false
 var popops_can_stop_sim := true # false overrides stop_sim member in all popups
