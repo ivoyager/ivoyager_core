@@ -40,7 +40,7 @@ func _init(path: String, version: String, size_mib: float) -> void:
 
 
 func _ready() -> void:
-	print("Downloading ivoyager_assets %s from\n%s" % [_version, _path])
+	print("\nDownloading ivoyager_assets %s from\n%s" % [_version, _path])
 	print("to temporary file %s..." % TEMP_DOWNLOAD_ZIP)
 	request_completed.connect(_on_request_completed)
 	var error := request(_path)

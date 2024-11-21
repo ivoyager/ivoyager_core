@@ -34,7 +34,7 @@ extends EditorPlugin
 # We don't remove shader globals on _exit_tree() because that causes errors
 # on startup if an external project shader uses these.
 
-const plugin_utils := preload("plugin_utils.gd")
+const plugin_utils := preload("core_plugin_utils.gd")
 
 var _config: ConfigFile # with overrides
 

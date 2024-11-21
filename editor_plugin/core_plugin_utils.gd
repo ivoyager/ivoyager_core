@@ -1,4 +1,4 @@
-# plugin_utils.gd
+# core_plugin_utils.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -18,8 +18,12 @@
 # limitations under the License.
 # *****************************************************************************
 @tool
+class_name IVCorePluginUtils
 extends Object
 
+# Static plugin functions are copied and should be identical in all I, Voyager
+# plugins. The 'master' version is at:
+# https://github.com/ivoyager/ivoyager_core/blob/master/editor_plugin/core_plugin_utils.gd
 
 
 static func print_plugin_name_and_version(plugin_config_path: String, append := "") -> void:
@@ -31,10 +35,6 @@ static func print_plugin_name_and_version(plugin_config_path: String, append := 
 	var name: String = plugin_cfg.get_value("plugin", "name")
 	var version: String = plugin_cfg.get_value("plugin", "version")
 	print("%s (plugin) %s%s" % [name, version, append])
-
-
-# Below 3 methods copied from ivoyager_core/static/files.gd. We don't like to
-# copy code, but make an exception here for EditorPlugin access.
 
 
 static func config_exists(config_path: String) -> bool:
@@ -53,6 +53,8 @@ static func get_config(config_path: String) -> ConfigFile:
 
 static func get_config_with_override(config_path: String, override_config_path: String,
 		override_config_path2 := "") -> ConfigFile:
+	# Specify one or two override configs. The last one has the final say.
+	# There is no error if override(s) configs don't exist or fail to load.
 	var config := get_config(config_path)
 	if !config:
 		assert(false, "Failed to load config '%s'" % config_path)

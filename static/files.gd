@@ -23,43 +23,6 @@ extends Object
 ## File-related static functions.
 
 
-static func config_exists(config_path: String) -> bool:
-	var config := ConfigFile.new()
-	return config.load(config_path) == OK
-
-
-static func get_config(config_path: String) -> ConfigFile:
-	# Returns null if doesn't exist.
-	var config := ConfigFile.new()
-	var err := config.load(config_path)
-	if err == OK:
-		return config
-	return null
-
-
-static func get_config_with_override(config_path: String, override_config_path: String,
-		override_config_path2 := "") -> ConfigFile:
-	var config := get_config(config_path)
-	if !config:
-		assert(false, "Failed to load config '%s'" % config_path)
-		return null
-	var override_config := get_config(override_config_path)
-	if !override_config:
-		return config
-	for section in override_config.get_sections():
-		for property in override_config.get_section_keys(section):
-			config.set_value(section, property, override_config.get_value(section, property))
-	if !override_config_path2:
-		return config
-	override_config = get_config(override_config_path2)
-	if !override_config:
-		return config
-	for section in override_config.get_sections():
-		for property in override_config.get_section_keys(section):
-			config.set_value(section, property, override_config.get_value(section, property))
-	return config
-
-
 static func init_from_config(object: Object, config: ConfigFile, section: String) -> void:
 	if !config.has_section(section):
 		return
