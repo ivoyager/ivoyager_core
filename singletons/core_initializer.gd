@@ -308,6 +308,7 @@ func _do_presets_and_plugin_mods() -> void:
 
 
 func _instantiate_initializers() -> void:
+	IVGlobal.about_to_run_initializers.emit()
 	for key: StringName in initializers:
 		if !initializers[key]:
 			continue

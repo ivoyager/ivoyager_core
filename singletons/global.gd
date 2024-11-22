@@ -25,6 +25,7 @@ extends Node
 ## a local reference in class files.
 
 # simulator state broadcasts
+signal about_to_run_initializers() # IVCoreInitializer; after plugin preinitializers
 signal translations_imported() # IVTranslationImporter; useful for boot screen
 signal data_tables_imported() # IVTableImporter
 signal preinitializers_inited()
