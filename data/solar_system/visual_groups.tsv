@@ -1,5 +1,5 @@
 	body_flag	default_name_visible	default_symbol_visible	default_orbit_visible	default_orbit_color
-Type	INT	BOOL	BOOL	BOOL	STRING
+Type	INT	BOOL	BOOL	BOOL	COLOR
 Default					
 Unit					
 Prefix/VISUAL_GROUP_					
