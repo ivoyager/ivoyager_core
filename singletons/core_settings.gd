@@ -41,8 +41,6 @@ var disable_pause := false
 var disable_exit := false
 var disable_quit := false
 
-var enable_wiki := false
-var enable_precisions := false
 var use_internal_wiki := false # FIXME: WikiManager doesn't do anything yet
 
 var start_time: float = 22.0 * IVUnits.YEAR # from J2000 epoch
@@ -93,8 +91,13 @@ var shared_resources := {
 	# additional items are constructed & added by initializers/shared_initializer.gd
 }
 
+# *****************************************************************************
+# Settings that IVTableInitializer sends to the Table Importer plugin
+
+ 
+var enable_wiki := false
+var enable_precisions := false
 var tables := {
-	# values sent to IVTableData.postprocess_tables()
 	asset_adjustments = "res://addons/ivoyager_core/data/solar_system/asset_adjustments.tsv",
 	asteroids = "res://addons/ivoyager_core/data/solar_system/asteroids.tsv",
 	body_classes = "res://addons/ivoyager_core/data/solar_system/body_classes.tsv",
@@ -108,12 +111,16 @@ var tables := {
 	visual_groups = "res://addons/ivoyager_core/data/solar_system/visual_groups.tsv",
 	wiki_extras = "res://addons/ivoyager_core/data/solar_system/wiki_extras.tsv",
 }
-
 var table_project_enums := [
 	IVEnums.SBGClass,
 	IVEnums.Confidence,
 	IVEnums.BodyFlags,
 ]
+var merge_table_constants := {}
+var replacement_missing_values := {} # not recomended to use this
+
+
+# *****************************************************************************
 
 var wikipedia_locales: Array[String] = ["en"] # add locales present in data tables
 
