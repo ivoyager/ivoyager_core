@@ -165,4 +165,4 @@ var debug_log_path := "user://logs/debug.log" # modify or set "" to disable
 
 
 func _enter_tree() -> void:
-	IVFiles.init_from_config(self, IVGlobal.config, "core_settings")
+	IVFiles.init_from_config(self, IVGlobal.ivoyager_config, "core_settings")

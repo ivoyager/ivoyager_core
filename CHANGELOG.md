@@ -12,7 +12,7 @@ Under development using Godot 4.3.
 
 Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_table_importer) v0.0.7.
 
-Requires **ivoyager_assets-v0.0.19.dev.20240906**. (The editor plugin will download if you agree at the prompt.)
+Requires ivoyager_assets-v0.0.19.dev.20240911. The editor plugin will add or update assets if you agree at the prompt.
 
 ### Added
 * API support for adding IVSmallBodiesGroup data by code (not just tables/binaries).
@@ -20,6 +20,7 @@ Requires **ivoyager_assets-v0.0.19.dev.20240906**. (The editor plugin will downl
 * Shader global 'iv_sun_global_positions' that can track up to 3 suns for shader effects. Used for phase angle in Saturn's Rings.
 
 ### Changed
+* Improved the plugin's EditorPlugin, including waiting for required plugins to load first.
 * [API breaking] Improved builder class names with "source" and "what": "BinaryAsteroidsBuilder", "TableBodyBuilder", "TableOrbitBuilder", etc.
 * [Project breaking] Removed fake virtual function _ivcore_init().
 * [Project breaking] IVCoreInitializer no longer adds admin popups (save dialog, options popup, etc.). Projects can now add these in a more Godot-like manner by constructing a control scene tree.

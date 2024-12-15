@@ -106,14 +106,16 @@ func _replace_assets() -> void:
 	await get_tree().process_frame
 	print("Removing temporary download file ", TEMP_DOWNLOAD_ZIP)
 	DirAccess.remove_absolute(TEMP_DOWNLOAD_ZIP)
-	print("""
+	print(
+"""
 
 *******************************************************************************
-New or updated assets have been added at 'res://addons/ivoyager_assets'!
-Note: It's sometimes necessesary to restart the Editor to trigger (re)import of
-all assets. We recommend doing so even if you saw import of some assets.
+New or updated assets have been added at res://addons/ivoyager_assets.
+It's sometimes necessesary to restart the Editor to trigger (re)import of
+all assets.
 *******************************************************************************
 
-""")
+"""
+	)
 	
 	queue_free()

@@ -86,7 +86,7 @@ static func get_script_or_packedscene(path: String) -> Resource:
 
 ## Returns an instantiated Object or the root Node of an instantiated scene.[br][br]
 ##
-## [code]arg[/code] can be a Script, PackedScene, or String. If it is a String,
+## [param arg] can be a Script, PackedScene, or String. If it is a String,
 ## it must be a valid path to a Script or PackedScene file resource.[br][br]
 ##
 ## If Script has const [code]SCENE[/code] or [code]SCENE_OVERRIDE[/code], then
