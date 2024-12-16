@@ -224,9 +224,7 @@ var _procedural_classes: Dictionary = IVGlobal.procedural_classes
 
 
 func _enter_tree() -> void:
-	var config: ConfigFile = IVFiles.get_config_with_override("res://addons/ivoyager_core/core.cfg",
-			"res://ivoyager_override.cfg", "res://ivoyager_override2.cfg")
-	IVFiles.init_from_config(self, config, "core_initializer")
+	IVFiles.init_from_config(self, IVGlobal.ivoyager_config, "core_initializer")
 
 
 func _ready() -> void:
@@ -303,13 +301,14 @@ func _instantiate_preinitializers() -> void:
 
 func _do_presets_and_plugin_mods() -> void:
 	# TODO: We might add class presets here
-	if !IVGlobal.tree_saver_enabled:
+	if !IVPluginUtils.is_plugin_enabled("ivoyager_tree_saver"):
 		program_nodes.erase(&"SaveManager")
 		gui_nodes.erase(&"SaveDialog")
 		gui_nodes.erase(&"LoadDialog")
 
 
 func _instantiate_initializers() -> void:
+	IVGlobal.about_to_run_initializers.emit()
 	for key: StringName in initializers:
 		if !initializers[key]:
 			continue

@@ -73,7 +73,7 @@ func _on_project_objects_instantiated() -> void:
 		var name_visible := IVTableData.get_db_bool(&"visual_groups", &"default_name_visible", row)
 		var symbol_visible := IVTableData.get_db_bool(&"visual_groups", &"default_symbol_visible", row)
 		var orbit_visible := IVTableData.get_db_bool(&"visual_groups", &"default_orbit_visible", row)
-		var orbit_color_str := IVTableData.get_db_string(&"visual_groups", &"default_orbit_color", row)
+		var orbit_color := IVTableData.get_db_color(&"visual_groups", &"default_orbit_color", row)
 		
 		all_flags |= body_flag
 		if name_visible:
@@ -82,8 +82,7 @@ func _on_project_objects_instantiated() -> void:
 			default_symbol_visible_flags |= body_flag
 		if orbit_visible:
 			default_orbit_visible_flags |= body_flag
-		@warning_ignore("unsafe_call_argument") # Godot 4.2.dev6 bad warning
-		default_orbit_colors[body_flag] = Color(orbit_color_str)
+		default_orbit_colors[body_flag] = orbit_color
 	
 	_set_current_to_default()
 

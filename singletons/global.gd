@@ -25,6 +25,7 @@ extends Node
 ## a local reference in class files.
 
 # simulator state broadcasts
+signal about_to_run_initializers() # IVCoreInitializer; after plugin preinitializers
 signal translations_imported() # IVTranslationImporter; useful for boot screen
 signal data_tables_imported() # IVTableImporter
 signal preinitializers_inited()
@@ -115,17 +116,18 @@ var project := {} # for project use; not used by I, Voyager
 # read-only!
 var ivoyager_version: String
 var assets_version: String
-var enabled_plugins: PackedStringArray = ProjectSettings.get_setting("editor_plugins/enabled")
-var tree_saver_enabled := enabled_plugins.has("res://addons/ivoyager_tree_saver/plugin.cfg")
 var wiki: String # IVWikiInitializer sets; "wiki" (internal), "en.wiki", etc.
 var debug_log: FileAccess # IVLogInitializer sets if debug build and debug_log_path
+var ivoyager_config: ConfigFile = IVPluginUtils.get_config_with_override(
+		"res://addons/ivoyager_core/ivoyager_core.cfg",
+		"res://ivoyager_override.cfg", "res://ivoyager_override2.cfg")
 
 
 
 func _enter_tree() -> void:
-	var plugin_config := IVFiles.get_config("res://addons/ivoyager_core/plugin.cfg")
+	var plugin_config := IVPluginUtils.get_config("res://addons/ivoyager_core/plugin.cfg")
 	assert(plugin_config, "Could not load plugin.cfg")
 	ivoyager_version = plugin_config.get_value("plugin", "version")
-	var assets_config := IVFiles.get_config("res://addons/ivoyager_assets/assets.cfg")
+	var assets_config := IVPluginUtils.get_config("res://addons/ivoyager_assets/assets.cfg")
 	if assets_config and assets_config.has_section("ivoyager_assets"):
 		assets_version = assets_config.get_value("ivoyager_assets", "version")

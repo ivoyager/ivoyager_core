@@ -150,7 +150,7 @@ func _ready() -> void:
 		remove_item(&"toggle_pause")
 	if !IVCoreSettings.allow_time_reversal:
 		remove_item(&"reverse_time")
-	if !IVGlobal.tree_saver_enabled:
+	if !IVPluginUtils.is_plugin_enabled("ivoyager_tree_saver"):
 		remove_item(&"load_game")
 		remove_item(&"quick_load")
 		remove_item(&"save_as")

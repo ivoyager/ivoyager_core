@@ -70,7 +70,7 @@ var _save_utils: Script
 func _ready() -> void:
 	# Uses ivoyager_tree_saver classes. We duck type here so the editor
 	# won't throw compile error if the plugin is missing.
-	if !IVGlobal.tree_saver_enabled:
+	if !IVPluginUtils.is_plugin_enabled("ivoyager_tree_saver"):
 		assert(false, "'I, Voyager - Tree Saver' plugin is not enabled")
 		return
 	@warning_ignore("unsafe_method_access")

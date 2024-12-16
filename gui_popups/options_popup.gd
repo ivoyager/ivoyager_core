@@ -103,7 +103,7 @@ func _ready() -> void:
 	_confirm_changes.pressed.connect(_on_confirm_changes)
 	_blocking_windows.append(self)
 	
-	if !IVGlobal.tree_saver_enabled:
+	if !IVPluginUtils.is_plugin_enabled("ivoyager_tree_saver"):
 		remove_subpanel(&"LABEL_SAVE_LOAD")
 
 

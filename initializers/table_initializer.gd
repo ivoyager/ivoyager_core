@@ -20,26 +20,21 @@
 class_name IVTableInitializer
 extends RefCounted
 
-# Postprocess tables specified in IVCoreSettings using Table Reader plugin.
-# Table data will be ready to use after 'data_tables_imported' signal, which
-# will happen while 'initializers' are added in ProjectBuilder.
+## Initializes tables using the ivoyager_table_importer plugin.
+##
+## All parameters sent for table postprocessing can be modified in
+## [IVCoreSettings].
 
 
 func _init() -> void:
-	
-	# add compound units so Table Importer doesn't have to parse
-	IVUnits.unit_multipliers[&"m^3/s^2"] =  IVUnits.METER ** 3 / IVUnits.SECOND ** 2
-	IVUnits.unit_multipliers[&"km^3/s^2"] = IVUnits.KM ** 3 / IVUnits.SECOND ** 2
-	IVUnits.unit_multipliers[&"m^3/(kg s^2)"] = IVUnits.METER ** 3 / (IVUnits.KG * IVUnits.SECOND ** 2)
-	IVUnits.unit_multipliers[&"km^3/(kg s^2)"] = IVUnits.KM ** 3 / (IVUnits.KG * IVUnits.SECOND ** 2)
-	IVUnits.unit_multipliers[&"deg/Cy^2"] = IVUnits.DEG / IVUnits.CENTURY ** 2
-	
 	
 	IVTableData.postprocess_tables(
 			IVCoreSettings.tables.values(),
 			IVCoreSettings.table_project_enums,
 			IVCoreSettings.enable_wiki,
-			IVCoreSettings.enable_precisions
+			IVCoreSettings.enable_precisions,
+			IVCoreSettings.merge_table_constants,
+			IVCoreSettings.replacement_missing_values,
 	)
 	
 	# signal done

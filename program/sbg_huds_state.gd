@@ -70,10 +70,10 @@ func _on_project_objects_instantiated() -> void:
 		if IVTableData.get_db_bool(&"small_bodies_groups", &"skip", row):
 			continue
 		var sbg_alias := IVTableData.get_db_string_name(&"small_bodies_groups", &"sbg_alias", row)
-		var points_color_str := IVTableData.get_db_string(&"small_bodies_groups", &"points_color", row)
-		var orbits_color_str := IVTableData.get_db_string(&"small_bodies_groups", &"orbits_color", row)
-		default_points_colors[sbg_alias] = Color(points_color_str)
-		default_orbits_colors[sbg_alias] = Color(orbits_color_str)
+		var points_color := IVTableData.get_db_color(&"small_bodies_groups", &"points_color", row)
+		var orbits_color := IVTableData.get_db_color(&"small_bodies_groups", &"orbits_color", row)
+		default_points_colors[sbg_alias] = points_color
+		default_orbits_colors[sbg_alias] = orbits_color
 	_set_current_to_default()
 
 

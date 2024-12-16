@@ -22,76 +22,75 @@ extends EditorPlugin
 
 # This file adds autoloads and shader globals for ivoyager_core. You can change
 # these by editing res://ivoyager_override.cfg in your project directory. See
-# res://addons/ivoyager_core/core.cfg for base values and comments.
+# res://addons/ivoyager_core/ivoyager_core.cfg for base values and comments.
 #
 # If you modify autoloads or shader globals, you'll need to disable and re-
 # enable the plugin (or quit and restart the editor) for your changes to have
 # effect.
 #
 # The editor plugin also checks ivoyager_assets presence and version and offers
-# to download and add or replace existing assets if appropriate.
-#
-# We don't remove shader globals on _exit_tree() because that causes errors
-# on startup if an external project shader uses these.
+# to download current assets if appropriate.
 
-const plugin_utils := preload("plugin_utils.gd")
+const REQUIRED_PLUGINS: Array[String] = ["ivoyager_table_importer"]
 
 var _config: ConfigFile # with overrides
-
 var _autoloads := {}
 var _shader_globals := {}
 
 
 func _enter_tree() -> void:
-	await get_tree().process_frame # load after ivoyager_table_importer
-	if !_is_enable_ok():
-		_disable_self()
-		return
-	plugin_utils.print_plugin_name_and_version("res://addons/ivoyager_core/plugin.cfg",
-			" - https://ivoyager.dev")
-	_config = plugin_utils.get_config_with_override("res://addons/ivoyager_core/core.cfg",
-			"res://ivoyager_override.cfg", "res://ivoyager_override2.cfg")
-	if !_config:
-		return
-	if !plugin_utils.config_exists("res://ivoyager_override.cfg"):
-		_create_override_config()
+	
+	# Wait for required plugins...
+	await get_tree().process_frame
+	var wait_counter := 0
+	while !IVPluginUtils.is_plugins_enabled(REQUIRED_PLUGINS):
+		wait_counter += 1
+		if wait_counter == 10:
+			push_error("Enable required plugins before ivoyager_core: " + str(REQUIRED_PLUGINS))
+			push_error("After enabling plugins above, you MUST disable & re-enable ivoyager_core!")
+			return
+		await get_tree().process_frame
+	
+	IVPluginUtils.print_plugin_name_and_version("ivoyager_core", " - https://ivoyager.dev")
+	_process_ivoyager_cofig_files()
 	_add_autoloads()
 	_add_shader_globals()
-	_handle_assets_update.call_deferred()
+	_handle_assets_update()
 
 
 func _exit_tree() -> void:
+	# We don't remove shader globals here because it causes errors on startup
+	# when they are used by external projects.
 	print("Removing I, Voyager - Core (plugin)")
 	_config = null
 	_remove_autoloads()
 
 
-func _is_enable_ok() -> bool:
-	if !get_editor_interface().is_plugin_enabled("ivoyager_table_importer"):
-		push_warning("Add and enable 'ivoyager_table_reader' before 'ivoyager_core'!")
-		return false
-	return true
-
-
-func _disable_self() -> void:
-	await get_tree().process_frame
-	await get_tree().process_frame
-	get_editor_interface().set_plugin_enabled("ivoyager_core", false)
-
-
-func _create_override_config() -> void:
-	print(
-		"""
-		Creating 'ivoyager_override.cfg' in your project directory. Modify this file to change
-		autoload singletons, shader globals, base settings defined in singletons/core_settings.gd
-		or base classes defined in singletons/core_initializer.gd.
-		"""
-	)
+func _process_ivoyager_cofig_files() -> void:
+	_config = IVPluginUtils.get_ivoyager_config("res://addons/ivoyager_core/ivoyager_core.cfg")
+	if !_config:
+		push_error("Could not load config at res://addons/ivoyager_core/ivoyager_core.cfg")
+		return
+	
+	# init project ivoyager_override.cfg if it doesn't exist
+	if IVPluginUtils.config_exists("res://ivoyager_override.cfg"):
+		return
 	var dir := DirAccess.open("res://addons/ivoyager_core/")
 	var err := dir.copy("res://addons/ivoyager_core/override_template.cfg",
 			"res://ivoyager_override.cfg")
 	if err != OK:
-		print("ERROR: Failed to copy 'ivoyager_override.cfg' to the project directory!")
+		push_error("Failed to copy 'ivoyager_override.cfg' to the project directory")
+		return
+	print(
+"""
+
+*******************************************************************************
+Created config 'ivoyager_override.cfg' in your project directory. Modify this
+file to change the behavior of 'ivoyager_core' and other 'ivoyager_' plugins.
+*******************************************************************************
+
+"""
+	)
 
 
 func _add_autoloads() -> void:
@@ -133,52 +132,52 @@ func _handle_assets_update() -> void:
 	if disable_asset_loader:
 		return
 	
+	# Delay allows other Editor setup and is aesthetically pleasing...
+	for i in 20:
+		await get_tree().process_frame
+	
 	var expected_version: String = _config.get_value("ivoyager_assets", "version")
 	var present_version := ""
-	var assets_config := plugin_utils.get_config("res://addons/ivoyager_assets/assets.cfg")
+	var assets_config := IVPluginUtils.get_config("res://addons/ivoyager_assets/assets.cfg")
 	
 	if assets_config:
 		if assets_config.has_section("ivoyager_assets"):
 			present_version = assets_config.get_value("ivoyager_assets", "version")
-			
-		# TODO: remove below after assets.cfg section rename
-		if assets_config.has_section("assets"):
-			present_version = assets_config.get_value("assets", "version")
-		
 		if present_version == expected_version:
 			return # We're good!
 	
 	var message := ""
 	if !present_version:
 		message = (
-			"""
-			Plugin 'ivoyager_core' requires assets to run!
-			
-			Press 'Download' to download and add directory addons/ivoyager_assets (%s).
-			
-			Press 'Cancel' to manage assets manually. See https://ivoyager.dev/developers.
-			
-			Check download progress in the Output window. You may need to restart the Editor
-			to trigger asset import after download.
-			"""
+"""
+Plugin 'ivoyager_core' requires assets to run!
+
+Press 'Download' to download assets %s and install at addons/ivoyager_assets.
+
+Press 'Cancel' to manage assets manually. See https://ivoyager.dev/developers.
+
+Check download progress in the Output window. You may need to restart the Editor
+to trigger asset import after download.
+"""
 		) % expected_version
 	else:
 		message = (
-			"""
-			'ivoyager_assets' version %s does not match expected %s!
-			
-			Press 'Download' to download %s and replace existing addons/ivoyager_assets.
-			
-			Press 'Cancel' to manage assets manually. See https://ivoyager.dev/developers.
-			
-			Check download progress in the Output window. You may need to restart the Editor
-			to trigger asset import after download.
-			"""
+"""
+'ivoyager_assets' version %s does not match expected %s.
+
+Press 'Download' to download assets %s and replace existing addons/ivoyager_assets.
+
+Press 'Cancel' to manage assets manually. See https://ivoyager.dev/developers.
+
+Check download progress in the Output window. You may need to restart the Editor
+to trigger asset import after download.
+"""
 		) % [present_version, expected_version, expected_version]
 	
-	# Don't popup exclusive window while the plugins window is open.
+	# Don't popup download dialog while the plugins window or other exclusive
+	# window is open (e.g., progress bar if the Editor is working on someting).
 	var last_exclusive_window := get_last_exclusive_window()
-	if last_exclusive_window == get_window(): # ie, there is no exclusive popup window now
+	if last_exclusive_window == get_window(): # no exclusive popup window now
 		_popup_download_confirmation(message)
 	else:
 		last_exclusive_window.visibility_changed.connect(
@@ -186,12 +185,8 @@ func _handle_assets_update() -> void:
 
 
 func _popup_download_confirmation(message: String) -> void:
-	
-	# Delay so plugins window can close.
-	await get_tree().process_frame
-	await get_tree().process_frame
-	
 	# Create and destroy one-shot confirmation dialog.
+	await get_tree().process_frame
 	var confirm_dialog := ConfirmationDialog.new()
 	confirm_dialog.confirmed.connect(_init_assets_loader)
 	confirm_dialog.confirmed.connect(confirm_dialog.queue_free)
