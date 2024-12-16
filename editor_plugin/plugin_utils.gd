@@ -59,9 +59,9 @@ static func print_plugin_name_and_version(plugin: String, append := "") -> void:
 	if err != OK:
 		assert(false, "Failed to load config '%s'" % path)
 		return
-	var name: String = plugin_cfg.get_value("plugin", "name")
+	var plugin_name: String = plugin_cfg.get_value("plugin", "name")
 	var version: String = plugin_cfg.get_value("plugin", "version")
-	print("%s (plugin) %s%s" % [name, version, append])
+	print("%s (plugin) %s%s" % [plugin_name, version, append])
 
 
 ## WARNING: For this function to work in exported project, add "*.cfg" or specific cofig file to
