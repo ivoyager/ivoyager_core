@@ -111,8 +111,8 @@ func _replace_assets() -> void:
 
 *******************************************************************************
 New or updated assets have been added at res://addons/ivoyager_assets.
-It's sometimes necessesary to restart the Editor to trigger (re)import of
-all assets.
+It's sometimes necessesary restart the Editor to trigger (re)import of assets.
+Clicking off and then on the Editor window may also work.
 *******************************************************************************
 
 """

@@ -133,7 +133,7 @@ func _handle_assets_update() -> void:
 		return
 	
 	# Delay allows other Editor setup and is aesthetically pleasing...
-	for i in 10:
+	for i in 20:
 		await get_tree().process_frame
 	
 	var expected_version: String = _config.get_value("ivoyager_assets", "version")
@@ -174,9 +174,10 @@ to trigger asset import after download.
 """
 		) % [present_version, expected_version, expected_version]
 	
-	# Don't popup exclusive window while the plugins window is open.
+	# Don't popup download dialog while the plugins window or other exclusive
+	# window is open (e.g., progress bar if the Editor is working on someting).
 	var last_exclusive_window := get_last_exclusive_window()
-	if last_exclusive_window == get_window(): # ie, there is no exclusive popup window now
+	if last_exclusive_window == get_window(): # no exclusive popup window now
 		_popup_download_confirmation(message)
 	else:
 		last_exclusive_window.visibility_changed.connect(
@@ -184,12 +185,8 @@ to trigger asset import after download.
 
 
 func _popup_download_confirmation(message: String) -> void:
-	
-	# Delay so plugins window can close.
-	for i in 10:
-		await get_tree().process_frame
-	
 	# Create and destroy one-shot confirmation dialog.
+	await get_tree().process_frame
 	var confirm_dialog := ConfirmationDialog.new()
 	confirm_dialog.confirmed.connect(_init_assets_loader)
 	confirm_dialog.confirmed.connect(confirm_dialog.queue_free)
