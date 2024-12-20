@@ -79,7 +79,7 @@ void vertex() {
 	vec3 sun_position = iv_sun_global_positions[sun_index];
 	vec3 sun_vector = (VIEW_MATRIX * vec4(sun_position, 1.0)).xyz;
 	sun_direction = normalize(sun_vector);
-	
+
 	mat4 inverse_model_matrix = inverse(MODEL_MATRIX);
 	float sun_y = (inverse_model_matrix * vec4(sun_position, 1.0)).y;
 	float camera_y = (inverse_model_matrix * vec4(CAMERA_POSITION_WORLD, 1.0)).y;
@@ -150,7 +150,7 @@ void fragment() {
 
 		// FIXME? Godot docs suggest that use of discard might break something
 		// related to shadows. Or maybe not. For now we're using ALPHA = 0.0.
-		// We can revisit use of discard after other shadow issues are resolved. 
+		// We can revisit use of discard after other shadow issues are resolved.
 
 		//discard;
 		ALPHA = 0.0;

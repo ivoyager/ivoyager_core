@@ -30,23 +30,14 @@ extends Object
 
 
 ## Supply only the base name from the plugin path.
-## Assumes plugin.cfg path is "res://addons/<plugin>/plugin.cfg".
+## Assumes plugin.cfg path is "res://addons/<plugin>/plugin.cfg".[br][br]
+##
+## This is for runtime usage! EditorPlugin should use the EditorInterface
+## function of the same name instead.
 static func is_plugin_enabled(plugin: String) -> bool:
-	if EditorInterface.has_method(&"is_plugin_enabled"): # called from EditorPlugin!
-		return EditorInterface.is_plugin_enabled(plugin)
-	# called at runtime...
 	var path := "res://addons/" + plugin + "/plugin.cfg"
 	var plugin_paths: PackedStringArray = ProjectSettings.get_setting("editor_plugins/enabled")
 	return plugin_paths.has(path)
-
-
-## Supply only the base names from the plugin paths.
-## Assumes plugin.cfg paths are "res://addons/<plugin>/plugin.cfg".
-static func is_plugins_enabled(plugins: Array[String]) -> bool:
-	for plugin in plugins:
-		if !is_plugin_enabled(plugin):
-			return false
-	return true
 
 
 ## Assumes plugin.cfg path is "res://addons/<plugin>/plugin.cfg".[br][br]

@@ -43,7 +43,7 @@ func _enter_tree() -> void:
 	# Wait for required plugins...
 	await get_tree().process_frame
 	var wait_counter := 0
-	while !IVPluginUtils.is_plugins_enabled(REQUIRED_PLUGINS):
+	while !_is_required_plugins_enabled():
 		wait_counter += 1
 		if wait_counter == 10:
 			push_error("Enable required plugins before ivoyager_core: " + str(REQUIRED_PLUGINS))
@@ -64,6 +64,13 @@ func _exit_tree() -> void:
 	print("Removing I, Voyager - Core (plugin)")
 	_config = null
 	_remove_autoloads()
+
+
+func _is_required_plugins_enabled() -> bool:
+	for plugin in REQUIRED_PLUGINS:
+		if !EditorInterface.is_plugin_enabled(plugin):
+			return false
+	return true
 
 
 func _process_ivoyager_cofig_files() -> void:
