@@ -20,7 +20,7 @@
 class_name IVTableInitializer
 extends RefCounted
 
-## Initializes tables using the ivoyager_table_importer plugin.
+## Initializes tables using the ivoyager_tables plugin.
 ##
 ## All parameters sent for table postprocessing can be modified in
 ## [IVCoreSettings].
@@ -30,9 +30,10 @@ func _init() -> void:
 	
 	IVTableData.postprocess_tables(
 			IVCoreSettings.tables.values(),
-			IVCoreSettings.table_project_enums,
+			IVQConvert.convert_quantity,
 			IVCoreSettings.enable_wiki,
 			IVCoreSettings.enable_precisions,
+			IVCoreSettings.table_project_enums,
 			IVCoreSettings.merge_table_constants,
 			IVCoreSettings.replacement_missing_values,
 	)
