@@ -1,6 +1,6 @@
 [remap]
 
-importer="ivoyager.table_importer"
+importer="ivoyager.tables"
 type="IVTableResource"
 uid="uid://c6go5ar4lrtef"
 path="res://.godot/imported/omni_lights.tsv-90a914d660ecf9c3f4cf403f00c78f6f.tres"

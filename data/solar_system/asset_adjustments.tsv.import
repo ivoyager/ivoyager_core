@@ -1,6 +1,6 @@
 [remap]
 
-importer="ivoyager.table_importer"
+importer="ivoyager.tables"
 type="IVTableResource"
 uid="uid://csx6rpp3en52o"
 path="res://.godot/imported/asset_adjustments.tsv-c9030fc86a5d8c4549a3c4d9294f9f62.tres"
