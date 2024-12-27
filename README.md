@@ -9,7 +9,8 @@ This Godot Editor plugin runs a solar system simulation.
 
 ### Requirements
 
-* `ivoyager_table_importer` (plugin) - See [repository](https://github.com/ivoyager/ivoyager_table_importer) for installation instructions.
+* `ivoyager_tables` (plugin) - See [repository](https://github.com/ivoyager/ivoyager_tables) for installation instructions.
+* `ivoyager_units` (plugin) - See [repository](https://github.com/ivoyager/ivoyager_units) for installation instructions.
 * `ivoyager_assets` - **NEW!** As of v0.0.18, the editor plugin will manage assets download and version updates (assets are not Git-tracked). Just press 'Download' at the editor prompt.
 
 See [changelog](https://github.com/ivoyager/ivoyager_core/blob/master/CHANGELOG.md) for current version requirements.
@@ -22,11 +23,12 @@ If you are building a new game or app, we recomend using [Project Template](http
 
 Instructions below are for adding plugins to an existing project.
 
-The plugin directories `ivoyager_table_importer` and `ivoyager_core` should be added _directly to your addons directory_. You can do this one of two ways:
+The plugin directories `ivoyager_tables`, `ivoyager_units` and `ivoyager_core` should be added _directly to your addons directory_. You can do this one of two ways:
 
 1. Download and extract the plugins, then add (in their entirety) to your addons directory, creating an 'addons' directory in your project if needed.
 2. (Recommended) Add as a git submodules. From your project directory, use git commands:  
-	`git submodule add https://github.com/ivoyager/ivoyager_table_importer addons/ivoyager_table_importer`  
+	`git submodule add https://github.com/ivoyager/ivoyager_tables addons/ivoyager_tables` 
+	`git submodule add https://github.com/ivoyager/ivoyager_units addons/ivoyager_units`  
 	`git submodule add https://github.com/ivoyager/ivoyager_core addons/ivoyager_core`  
 	This method will allow you to version-control the plugins from within your project rather than moving directories manually. You'll be able to pull updates, checkout any commit, or submit pull requests back to us. This does require some learning to use git submodules. (We use [GitKraken](https://www.gitkraken.com/) to make this easier!)
 
