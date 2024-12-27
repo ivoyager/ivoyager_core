@@ -31,7 +31,7 @@ extends EditorPlugin
 # The editor plugin also checks ivoyager_assets presence and version and offers
 # to download current assets if appropriate.
 
-const REQUIRED_PLUGINS: Array[String] = ["ivoyager_table_importer"]
+const REQUIRED_PLUGINS: Array[String] = ["ivoyager_units", "ivoyager_tables"]
 
 var _config: ConfigFile # with overrides
 var _autoloads := {}
