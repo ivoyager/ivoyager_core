@@ -9,9 +9,9 @@ This Godot Editor plugin runs a solar system simulation.
 
 ### Requirements
 
-* `ivoyager_tables` (plugin) - See [repository](https://github.com/ivoyager/ivoyager_tables) for installation instructions.
-* `ivoyager_units` (plugin) - See [repository](https://github.com/ivoyager/ivoyager_units) for installation instructions.
-* `ivoyager_assets` - **NEW!** As of v0.0.18, the editor plugin will manage assets download and version updates (assets are not Git-tracked). Just press 'Download' at the editor prompt.
+* ivoyager_tables (plugin) - See [repository](https://github.com/ivoyager/ivoyager_tables) for installation instructions.
+* ivoyager_units (plugin) - See [repository](https://github.com/ivoyager/ivoyager_units) for installation instructions.
+* ivoyager_assets - **Note:** As of v0.0.18, the editor plugin will manage downloads and updates of the non-Git-tracked assets. Just press "Download" at the editor prompt.
 
 See [changelog](https://github.com/ivoyager/ivoyager_core/blob/master/CHANGELOG.md) for current version requirements.
 
@@ -27,12 +27,12 @@ The plugin directories `ivoyager_tables`, `ivoyager_units` and `ivoyager_core` s
 
 1. Download and extract the plugins, then add (in their entirety) to your addons directory, creating an 'addons' directory in your project if needed.
 2. (Recommended) Add as a git submodules. From your project directory, use git commands:  
-	`git submodule add https://github.com/ivoyager/ivoyager_tables addons/ivoyager_tables` 
+	`git submodule add https://github.com/ivoyager/ivoyager_tables addons/ivoyager_tables`  
 	`git submodule add https://github.com/ivoyager/ivoyager_units addons/ivoyager_units`  
 	`git submodule add https://github.com/ivoyager/ivoyager_core addons/ivoyager_core`  
 	This method will allow you to version-control the plugins from within your project rather than moving directories manually. You'll be able to pull updates, checkout any commit, or submit pull requests back to us. This does require some learning to use git submodules. (We use [GitKraken](https://www.gitkraken.com/) to make this easier!)
 
-Then enable 'I, Voyager - Table Importer' and 'I, Voyager - Core' (in that order) from Godot Editor menu: Project / Project Settings / Plugins. The editor plugin will prompt you to download assets (which are not Git-tracked).
+Then enable "I, Voyager - Tables", "I, Voyager - Units" and "I, Voyager - Core" (Core after the other two) from editor menu Project/Project Settings/Plugins. The editor plugin will prompt you to download the non-Git-tracked assets.
 
 ### What is I, Voyager?
 I, Voyager is
