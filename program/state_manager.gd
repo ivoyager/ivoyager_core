@@ -246,7 +246,7 @@ func exit(force_exit := false, following_server := false) -> void:
 		if _state.network_state == IS_CLIENT:
 			IVGlobal.confirmation_requested.emit("Disconnect from multiplayer game?", exit.bind(true))
 			return
-		elif IVPluginUtils.is_plugin_enabled("ivoyager_tree_saver"): # single player or network server
+		elif IVPluginUtils.is_plugin_enabled("ivoyager_save"): # single player or network server
 			IVGlobal.confirmation_requested.emit(&"LABEL_EXIT_WITHOUT_SAVING", exit.bind(true))
 			return
 	if _state.network_state == IS_CLIENT:
@@ -278,7 +278,7 @@ func quit(force_quit := false) -> void:
 		if _state.network_state == IS_CLIENT:
 			IVGlobal.confirmation_requested.emit("Disconnect from multiplayer game?", exit.bind(true))
 			return
-		elif IVPluginUtils.is_plugin_enabled("ivoyager_tree_saver") and !_state.is_splash_screen:
+		elif IVPluginUtils.is_plugin_enabled("ivoyager_save") and !_state.is_splash_screen:
 			IVGlobal.confirmation_requested.emit(&"LABEL_QUIT_WITHOUT_SAVING", quit.bind(true))
 			return
 	if _state.network_state == IS_CLIENT:
@@ -352,8 +352,8 @@ func _on_simulator_exited() -> void:
 
 func _deconstruct_system_tree() -> void:
 	var universe: Node3D = IVGlobal.program.Universe
-	if use_tree_saver_deconstruction_if_present and IVPluginUtils.is_plugin_enabled("ivoyager_tree_saver"):
-		var save_utils: Script = load("res://addons/ivoyager_tree_saver/save_utils.gd")
+	if use_tree_saver_deconstruction_if_present and IVPluginUtils.is_plugin_enabled("ivoyager_save"):
+		var save_utils: Script = load("res://addons/ivoyager_save/save_utils.gd")
 		@warning_ignore("unsafe_method_access")
 		save_utils.free_procedural_objects_recursive(universe)
 	else:

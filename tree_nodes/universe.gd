@@ -54,8 +54,8 @@ const PERSIST_PROPERTIES: Array[StringName] = [&"persist"]
 
 
 ## This dictionary is not used by ivoyager_core but is available for game save
-## persistence by external projects if ivoyager_tree_saver plugin is also
+## persistence by external projects if ivoyager_save plugin is also
 ## present. It can hold Godot built-ins, nested containers or other 'persist 
 ## objects'. For details on save/load persistence, see
-## [url]https://github.com/ivoyager/ivoyager_tree_saver[/url].
+## [url]https://github.com/ivoyager/ivoyager_save[/url].
 var persist := {}

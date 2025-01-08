@@ -22,7 +22,7 @@ extends Node
 
 ## Manages game saving and loading. (Not added in base configuration.)
 ##
-## This class requires the [url=https://github.com/ivoyager/ivoyager_tree_saver]
+## This class requires the [url=https://github.com/ivoyager/ivoyager_save]
 ## Tree Saver plugin[/url]. It is not in base IVCoreInitializer. To add the
 ## save/load system to your project, add and enable the Tree Saver plugin. Then
 ## add these three classes to IVCoreInitializer:[br][br]
@@ -68,14 +68,14 @@ var _save_utils: Script
 
 
 func _ready() -> void:
-	# Uses ivoyager_tree_saver classes. We duck type here so the editor
+	# Uses ivoyager_save classes. We duck type here so the editor
 	# won't throw compile error if the plugin is missing.
-	if !IVPluginUtils.is_plugin_enabled("ivoyager_tree_saver"):
+	if !IVPluginUtils.is_plugin_enabled("ivoyager_save"):
 		assert(false, "'I, Voyager - Tree Saver' plugin is not enabled")
 		return
 	@warning_ignore("unsafe_method_access")
-	_tree_saver = load("res://addons/ivoyager_tree_saver/tree_saver.gd").new()
-	_save_utils = load("res://addons/ivoyager_tree_saver/save_utils.gd")
+	_tree_saver = load("res://addons/ivoyager_save/tree_saver.gd").new()
+	_save_utils = load("res://addons/ivoyager_save/save_utils.gd")
 	process_mode = PROCESS_MODE_ALWAYS
 	IVGlobal.save_requested.connect(_on_save_requested)
 	IVGlobal.load_requested.connect(_on_load_requested)

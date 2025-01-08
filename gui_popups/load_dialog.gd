@@ -31,7 +31,7 @@ var _blocking_windows: Array[Window] = IVGlobal.blocking_windows
 
 
 func _ready() -> void:
-	if !IVPluginUtils.is_plugin_enabled("ivoyager_tree_saver"):
+	if !IVPluginUtils.is_plugin_enabled("ivoyager_save"):
 		return
 	add_filter("*." + IVCoreSettings.save_file_extension + ";"
 			+ IVCoreSettings.save_file_extension_name)

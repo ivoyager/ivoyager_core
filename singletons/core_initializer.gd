@@ -301,7 +301,7 @@ func _instantiate_preinitializers() -> void:
 
 func _do_presets_and_plugin_mods() -> void:
 	# TODO: We might add class presets here
-	if !IVPluginUtils.is_plugin_enabled("ivoyager_tree_saver"):
+	if !IVPluginUtils.is_plugin_enabled("ivoyager_save"):
 		program_nodes.erase(&"SaveManager")
 		gui_nodes.erase(&"SaveDialog")
 		gui_nodes.erase(&"LoadDialog")
