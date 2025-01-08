@@ -177,14 +177,6 @@ var gui_nodes := {
 	GameGUI = null, # assign here if convenient (over MouseTargetLabel, under SplashScreen)
 	SplashScreen = null, # assign here if convenient (over InGameGUI)
 	AdminPopups = null, # assign here if convenient (over SplashScreen)
-	
-	#MainMenuPopup = IVMainMenuPopup, # safe to replace or remove
-	#LoadDialog = IVLoadDialog, # auto removed if plugin missing or disabled
-	#SaveDialog = IVSaveDialog, # auto removed if plugin missing or disabled
-	#OptionsPopup = IVOptionsPopup, # safe to replace or remove
-	#HotkeysPopup = IVHotkeysPopup, # safe to replace or remove
-	#Confirmation = IVConfirmation, # safe to replace or remove
-	#MainProgBar = IVMainProgBar, # safe to replace or remove
 }
 
 var procedural_objects := {

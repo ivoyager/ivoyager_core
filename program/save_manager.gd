@@ -22,6 +22,9 @@ extends Node
 
 ## Manages game saving and loading. (Not added in base configuration.)
 ##
+## DEPRECIATED. This class will be replaced by a singleton in the new ivoyager_save
+## plugin.
+##
 ## This class requires the [url=https://github.com/ivoyager/ivoyager_save]
 ## Tree Saver plugin[/url]. It is not in base IVCoreInitializer. To add the
 ## save/load system to your project, add and enable the Tree Saver plugin. Then
