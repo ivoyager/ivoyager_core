@@ -32,7 +32,7 @@ const SCENE := "res://addons/ivoyager_core/gui_popups/hotkeys_popup.tscn"
 			&"toggle_fullscreen" : &"LABEL_TOGGLE_FULLSCREEN",
 			&"toggle_options" : &"LABEL_OPTIONS",
 			&"toggle_hotkeys" : &"LABEL_HOTKEYS",
-			&"load_game" : &"LABEL_LOAD_FILE",
+			&"load_file" : &"LABEL_LOAD_FILE",
 			&"quick_load" : &"LABEL_QUICK_LOAD",
 			&"save_as" : &"LABEL_SAVE_AS",
 			&"quick_save" : &"LABEL_QUICK_SAVE",
@@ -151,7 +151,7 @@ func _ready() -> void:
 	if !IVCoreSettings.allow_time_reversal:
 		remove_item(&"reverse_time")
 	if !IVPluginUtils.is_plugin_enabled("ivoyager_save"):
-		remove_item(&"load_game")
+		remove_item(&"load_file")
 		remove_item(&"quick_load")
 		remove_item(&"save_as")
 		remove_item(&"quick_save")

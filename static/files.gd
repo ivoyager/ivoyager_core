@@ -136,48 +136,6 @@ static func make_object_or_scene(arg: Variant) -> Object:
 	return root_node
 
 
-static func get_save_dir_path(is_modded: bool, override_dir: String = "") -> String:
-	var save_dir := override_dir
-	if save_dir:
-		if is_modded:
-			if !save_dir.ends_with("/modded_saves"):
-				save_dir = ""
-		else:
-			if !save_dir.ends_with("/unmodded_saves"):
-				save_dir = ""
-	if save_dir:
-		var dir := DirAccess.open(save_dir)
-		if !dir:
-			save_dir = ""
-	if save_dir == "":
-		save_dir = OS.get_user_data_dir() + "/saves"
-		save_dir += "/modded_saves" if is_modded else "/unmodded_saves"
-		DirAccess.make_dir_recursive_absolute(save_dir)
-	return save_dir
-
-
-static func get_base_file_name(file_name: String, save_file_extension: String) -> String:
-	# Strips file type and date extensions
-	file_name = file_name.replace("." + save_file_extension, "")
-	var regex := RegEx.new()
-	regex.compile("\\.\\d+-\\d\\d-\\d\\d") # "(\.\d+-\d\d-\d\d)"
-	var search_result := regex.search(file_name)
-	if search_result:
-		var date_extension := search_result.get_string()
-		file_name = file_name.replace(date_extension, "")
-	return file_name
-
-
-static func get_save_path(save_dir: String, base_name: String, save_file_extension: String,
-		date_string := "", append_file_extension := false) -> String:
-	var path := save_dir.path_join(base_name)
-	if date_string:
-		path += "." + date_string
-	if append_file_extension:
-		path += "." + save_file_extension
-	return path
-
-
 static func make_or_clear_dir(dir_path: String) -> void:
 	if !DirAccess.dir_exists_absolute(dir_path):
 		DirAccess.make_dir_recursive_absolute(dir_path)

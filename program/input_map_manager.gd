@@ -237,7 +237,7 @@ func _init() -> void:
 		&"toggle_hotkeys" : [
 			{&"event_class" : &"InputEventKey", &"keycode" : KEY_H, &"ctrl_pressed" : true}
 		],
-		&"load_game" : [
+		&"load_file" : [
 			{&"event_class" : &"InputEventKey", &"keycode" : KEY_L, &"ctrl_pressed" : true}
 		],
 		&"quick_load" : [

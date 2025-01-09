@@ -153,7 +153,7 @@ func _init() -> void:
 func _on_project_objects_instantiated() -> void:
 	IVGlobal.about_to_start_simulator.connect(_on_about_to_start_simulator)
 	IVGlobal.about_to_free_procedural_nodes.connect(_set_init_state)
-	IVGlobal.game_load_finished.connect(_set_ready_state)
+	IVGlobal.system_tree_ready.connect(_set_ready_state)
 	IVGlobal.simulator_exited.connect(_set_ready_state)
 	IVGlobal.network_state_changed.connect(_on_network_state_changed)
 	IVGlobal.run_state_changed.connect(_on_run_state_changed) # starts/stops
@@ -378,7 +378,6 @@ func get_time_from_operating_system() -> float:
 
 
 func get_current_date_for_file() -> String:
-	print()
 	return date_format_for_file % date.slice(0, 3)
 
 
@@ -473,7 +472,7 @@ func _set_init_state() -> void:
 	speed_index = start_speed
 
 
-func _set_ready_state() -> void:
+func _set_ready_state(_dummy := false) -> void:
 	_reset_time()
 	_reset_speed()
 

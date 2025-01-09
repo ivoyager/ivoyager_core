@@ -22,16 +22,16 @@ extends PopupPanel
 const SCENE := "res://addons/ivoyager_core/gui_popups/main_menu_base_popup.tscn"
 
 ## An empty Main Menu popup (base control only) that opens/closes on
-## 'ui_cancel' action event and 'main menu' IVGlobal signals.
+## "ui_cancel" action event and "main menu" IVGlobal signals.
 ##
-## This is only a base upon which you can build a main menu. To build a simple
+## This is a base popup upon which you can build a main menu. To build a simple
 ## menu, add child MarginContainer with child VBoxContainer, then add to that
-## your menu buttons. You can find many useful 'main menu' buttons in
-## directory 'gui_widgets' including [IVFullScreenButton], [IVSaveButton],
-## [IVLoadButton], [IVOptionsButton], [IVHotkeysButton], [IVExitButton],
-## [IVQuitButton] and [IVResumeButton].
-##
-## For a main menu that is already populated, see [IVMainMenuPopup].
+## your menu buttons. You can find many useful "main menu" buttons in
+## directory gui_widgets including [IVFullScreenButton], [IVOptionsButton],
+## [IVHotkeysButton], [IVExitButton], [IVQuitButton] and [IVResumeButton].
+## Plugin [url=https://github.com/ivoyager/ivoyager_save]I, Voyager - Save[/url]
+## has additional save/load related buttons.
+
 
 @export var sim_started_only := true
 @export var use_theme_manager_setting := true

@@ -22,14 +22,17 @@ extends Node3D
 
 ## A reference frame for an [IVBody] instance's orbital rotation.
 
-# Created and maintained by IVBody instance only when needed. This is the
-# rotating reference frame in which Lagrange points are embeded. In
-# RotatingSpace, the primary body (P1) is maintained at constant position
-# (-characteristic_length, 0, 0). The secondary body (P2) will be near the
-# origin, but ocillating along the x-axis in proportion to orbit eccentricity.
-#
-# Note: Lagrange point calculations assume "large" mass ratio (> ~25) and
-# "small" eccentricity. I'm not sure exactly what small eccentricity means.
+## WIP???? I think I was working on this and forgot about it. It doesn't seem
+## to be used for Trojan asteroids (yet). 
+##
+## Created and maintained by IVBody instance only when needed. This is the
+## rotating reference frame in which Lagrange points are embeded. In
+## RotatingSpace, the primary body (P1) is maintained at constant position
+## (-characteristic_length, 0, 0). The secondary body (P2) will be near the
+## origin, but ocillating along the x-axis in proportion to orbit eccentricity.
+##
+## Note: Lagrange point calculations assume "large" mass ratio (> ~25) and
+## "small" eccentricity. I'm not sure exactly what small eccentricity means.
 
 
 const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL # free & rebuild on load
