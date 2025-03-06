@@ -18,10 +18,10 @@
 # limitations under the License.
 # *****************************************************************************
 class_name IVSaveManager
-extends Node
+extends Timer
 
-## Interfaces with [url=https://github.com/ivoyager/ivoyager_save]I, Voyager - Save[/url]
-## plugin (if present) to manage saves and loads.
+## Interfaces with plugin [url=https://github.com/ivoyager/ivoyager_save]I, Voyager - Save[/url]
+## (if present) to manage saves and loads.
 ##
 ## This class does nothing if the Save plugin is not present or is disabled. 
 
@@ -40,11 +40,12 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"is_modded"
 ]
 
-
 # persisted - values will be replaced by file values on game load!
 var project_version: String = IVCoreSettings.project_version
 var ivoyager_version: String = IVGlobal.ivoyager_version
 var is_modded: bool = IVCoreSettings.is_modded
+
+var autosave_time_min := 0.1
 
 # private
 var _state: Dictionary = IVGlobal.state
@@ -66,6 +67,12 @@ func _ready() -> void:
 		#set_process_unhandled_key_input(false)
 		return
 	process_mode = PROCESS_MODE_ALWAYS
+	
+	timeout.connect(_on_timeout)
+	IVGlobal.simulator_started.connect(_start_autosave_timer)
+	
+	@warning_ignore("unsafe_property_access")
+	_save_singleton.name_generator = _name_generator
 	@warning_ignore("unsafe_property_access")
 	_save_singleton.suffix_generator = _suffix_generator
 	@warning_ignore("unsafe_property_access")
@@ -124,10 +131,28 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 
+func _start_autosave_timer() -> void:
+	start(autosave_time_min * 60)
+
+
+func _on_timeout() -> void:
+	
+	# FIXME: Not while sim stopped!
+	
+	
+	@warning_ignore("unsafe_method_access")
+	_save_singleton.autosave()
+	_start_autosave_timer()
+
+
 func _on_status_changed(is_saving: bool, is_loading: bool) -> void:
 	if !is_saving and !is_loading:
 		IVGlobal.close_main_menu_requested.emit()
 		_state_manager.allow_run(self)
+
+
+func _name_generator() -> String:
+	return _settings[&"save_base_name"]
 
 
 func _suffix_generator() -> String:

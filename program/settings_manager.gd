@@ -36,13 +36,10 @@ func _init() -> void:
 	cache_file_name = "settings.ivbinary"
 	cache_file_version = 1
 	defaults = {
-		# save/load
+		# save/load (only matters if Save pluin is enabled)
 		&"save_base_name" : "I Voyager",
 		&"append_date_to_save" : true,
 		&"pause_on_load" : false,
-	#	&"autosave" : false,
-	#	&"autosave_number" : 5,
-	#	&"autosave_minutes" : 30,
 	
 		# camera
 		&"camera_transfer_time" : 1.0,

@@ -72,7 +72,7 @@ const IS_SERVER = IVEnums.NetworkState.IS_SERVER
 const IS_CLIENT = IVEnums.NetworkState.IS_CLIENT
 const NetworkStopSync = IVEnums.NetworkStopSync
 
-const DPRINT := true
+const DPRINT := false
 
 const PERSIST_MODE := IVEnums.PERSIST_PROPERTIES_ONLY
 const PERSIST_PROPERTIES: Array[StringName] = [&"is_user_paused"]
