@@ -22,8 +22,11 @@ extends Node3D
 
 ## A Lagrange Point of an [IVBody] instance.
 
-# Passive Node3D that exists in the RotatingSpace of a Body. Use Body API to
-# obtain (Body uses lazy init).
+## WIP???? I think I was working on this and forgot about it. It doesn't seem
+## to be used for Trojan asteroids (yet).
+##
+## Passive Node3D that exists in the RotatingSpace of a Body. Use Body API to
+## obtain (Body uses lazy init).
 
 
 const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL # free & rebuild on load

@@ -77,6 +77,9 @@ func _on_fragment_changed(id: int) -> void:
 	if id == -1:
 		_fragment_text = ""
 		return
+	
+	# FIXME?: One time error observed during quit.
+	
 	var data: Array = _fragment_data[id]
 	var instance_id: int = data[0]
 	var target_object := instance_from_id(instance_id)

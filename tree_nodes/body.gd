@@ -80,6 +80,7 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"components",
 	&"orbit",
 	&"satellites",
+	&"rotating_space",
 ]
 
 # class settings
@@ -98,6 +99,7 @@ var characteristics := {} # non-object values
 var components := {} # objects (persisted only)
 var orbit: IVOrbit
 var satellites: Array[IVBody] = []
+var rotating_space: IVRotatingSpace # rotates & translates for L-points (lazy init)
 
 # read-only calculated spatials; change by setting right_ascension, declination, etc.
 var rotation_vector := ECLIPTIC_Z # synonymous with 'north'
@@ -108,8 +110,7 @@ var basis_at_epoch := IDENTITY_BASIS
 # read-only!
 var huds_visible := false # too far / too close toggle
 var model_visible := false
-var model_space: Node3D # rotation only, not scaled (lazy init)
-var rotating_space: IVRotatingSpace # rotates & translates for L-points (lazy init)
+var model_space: Node3D # rotation only, not scaled (lazy init), not persisted
 var texture_2d: Texture2D
 var texture_slice_2d: Texture2D # GUI navigator graphic for sun only
 var model_reference_basis := IDENTITY_BASIS

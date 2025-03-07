@@ -30,15 +30,14 @@ extends Node
 ##
 ## IVGlobal [code]state[/code] keys inited here:[br][br]
 ##   [code]is_inited: bool[/code]
-##   [code]is_splash_screen: bool[/code] - this node & IVSaveManager[br]
-##   [code]is_system_built: bool[/code] - this node & IVSaveManager[br]
+##   [code]is_splash_screen: bool[/code][br]
+##   [code]is_system_built: bool[/code][br]
 ##   [code]is_system_ready: bool[/code][br]
 ##   [code]is_started_or_about_to_start: bool[/code][br]
 ##   [code]is_running: bool[/code] - _run/_stop_simulator(); not the same as pause![br]
 ##   [code]is_quitting: bool[/code][br]
-##   [code]is_game_loading: bool[/code] - this node & IVSaveManager (true while loading)[br]
-##   [code]is_loaded_game: bool[/code] - this node & IVSaveManager (stays true after load)[br]
-##   [code]last_save_path: String[/code] - this node & IVSaveManager[br]
+##   [code]is_game_loading: bool[/code] - via method call[br]
+##   [code]is_loaded_game: bool[/code] - via method cal[br]
 ##   [code]network_state: IVEnums.NetworkState[/code] - if exists, NetworkLobby also writes[br][br]
 ##
 ## If IVCoreSettings.pause_only_stops_time == true, then PAUSE_MODE_PROCESS is
@@ -126,7 +125,6 @@ func _init() -> void:
 	_state.is_quitting = false
 	_state.is_game_loading = false
 	_state.is_loaded_game = false
-	_state.last_save_path = ""
 	_state.network_state = NO_NETWORK
 	
 	var universe: Node3D = IVGlobal.program[&"Universe"]
@@ -155,8 +153,25 @@ func _unhandled_key_input(event: InputEvent) -> void:
 # *****************************************************************************
 # public functions
 
+## IVSaveManager only.
+func set_game_loading() -> void:
+	_state.is_splash_screen = false
+	_state.is_system_built = false
+	_state.is_game_loading = true
+	_state.is_loaded_game = true
+	require_stop(self, IVEnums.NetworkStopSync.BUILD_SYSTEM, true)
+	IVGlobal.about_to_build_system_tree.emit()
+
+
+## IVSaveManager only.
+func set_game_loaded() -> void:
+	_state.is_game_loading = false
+	IVGlobal.system_tree_built_or_loaded.emit(false)
+
+
 func build_system_tree_from_tables() -> void:
 	require_stop(self, IVEnums.NetworkStopSync.BUILD_SYSTEM, true)
+	_state.is_loaded_game = false
 	IVGlobal.about_to_build_system_tree.emit()
 	var table_system_builder: IVTableSystemBuilder = IVGlobal.program[&"TableSystemBuilder"]
 	table_system_builder.build_system_tree()
@@ -246,7 +261,7 @@ func exit(force_exit := false, following_server := false) -> void:
 		if _state.network_state == IS_CLIENT:
 			IVGlobal.confirmation_requested.emit("Disconnect from multiplayer game?", exit.bind(true))
 			return
-		elif IVPluginUtils.is_plugin_enabled("ivoyager_tree_saver"): # single player or network server
+		elif IVPluginUtils.is_plugin_enabled("ivoyager_save"): # single player or network server
 			IVGlobal.confirmation_requested.emit(&"LABEL_EXIT_WITHOUT_SAVING", exit.bind(true))
 			return
 	if _state.network_state == IS_CLIENT:
@@ -258,7 +273,6 @@ func exit(force_exit := false, following_server := false) -> void:
 	_state.is_running = false
 	_tree.paused = true
 	_state.is_loaded_game = false
-	_state.last_save_path = ""
 	require_stop(self, NetworkStopSync.EXIT, true)
 	await self.threads_finished
 	IVGlobal.about_to_exit.emit()
@@ -278,7 +292,7 @@ func quit(force_quit := false) -> void:
 		if _state.network_state == IS_CLIENT:
 			IVGlobal.confirmation_requested.emit("Disconnect from multiplayer game?", exit.bind(true))
 			return
-		elif IVPluginUtils.is_plugin_enabled("ivoyager_tree_saver") and !_state.is_splash_screen:
+		elif IVPluginUtils.is_plugin_enabled("ivoyager_save") and !_state.is_splash_screen:
 			IVGlobal.confirmation_requested.emit(&"LABEL_QUIT_WITHOUT_SAVING", quit.bind(true))
 			return
 	if _state.network_state == IS_CLIENT:
@@ -324,7 +338,7 @@ func _increment_tree_build_counter(_item: Node) -> void:
 func _decrement_tree_build_counter(_item: Node) -> void:
 	_tree_build_counter -= 1
 	if _tree_build_counter == 0 and _state.is_building_tree:
-		IVGlobal.system_tree_ready.emit(!_state.is_game_loading)
+		IVGlobal.system_tree_ready.emit(!_state.is_loaded_game)
 
 
 func _on_system_tree_ready(is_new_game: bool) -> void:
@@ -352,8 +366,8 @@ func _on_simulator_exited() -> void:
 
 func _deconstruct_system_tree() -> void:
 	var universe: Node3D = IVGlobal.program.Universe
-	if use_tree_saver_deconstruction_if_present and IVPluginUtils.is_plugin_enabled("ivoyager_tree_saver"):
-		var save_utils: Script = load("res://addons/ivoyager_tree_saver/save_utils.gd")
+	if use_tree_saver_deconstruction_if_present and IVPluginUtils.is_plugin_enabled("ivoyager_save"):
+		var save_utils: Script = load("res://addons/ivoyager_save/save_utils.gd")
 		@warning_ignore("unsafe_method_access")
 		save_utils.free_procedural_objects_recursive(universe)
 	else:

@@ -237,16 +237,16 @@ func _init() -> void:
 		&"toggle_hotkeys" : [
 			{&"event_class" : &"InputEventKey", &"keycode" : KEY_H, &"ctrl_pressed" : true}
 		],
-		&"load_game" : [
+		&"load_file" : [
 			{&"event_class" : &"InputEventKey", &"keycode" : KEY_L, &"ctrl_pressed" : true}
 		],
-		&"quick_load" : [
+		&"quickload" : [
 			{&"event_class" : &"InputEventKey", &"keycode" : KEY_L, &"alt_pressed" : true}
 		],
 		&"save_as" : [
 			{&"event_class" : &"InputEventKey", &"keycode" : KEY_S, &"ctrl_pressed" : true}
 		],
-		&"quick_save" : [
+		&"quicksave" : [
 			{&"event_class" : &"InputEventKey", &"keycode" : KEY_S, &"alt_pressed" : true}
 		],
 		&"quit" : [

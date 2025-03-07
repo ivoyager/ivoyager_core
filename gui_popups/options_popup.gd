@@ -34,6 +34,7 @@ const DPRINT := true
 			&"save_base_name" : &"LABEL_BASE_NAME",
 			&"append_date_to_save" : &"LABEL_APPEND_DATE",
 			&"pause_on_load" : &"LABEL_PAUSE_ON_LOAD",
+			&"autosave_time_min" : &"LABEL_AUTOSAVE_TIME_MIN",
 		},
 		{
 			&"header" : &"LABEL_CAMERA",
@@ -103,7 +104,7 @@ func _ready() -> void:
 	_confirm_changes.pressed.connect(_on_confirm_changes)
 	_blocking_windows.append(self)
 	
-	if !IVPluginUtils.is_plugin_enabled("ivoyager_tree_saver"):
+	if !IVPluginUtils.is_plugin_enabled("ivoyager_save"):
 		remove_subpanel(&"LABEL_SAVE_LOAD")
 
 

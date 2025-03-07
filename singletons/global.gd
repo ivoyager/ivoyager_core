@@ -51,10 +51,6 @@ signal about_to_stop_before_quit()
 signal about_to_quit()
 signal about_to_exit()
 signal simulator_exited()
-signal game_save_started()
-signal game_save_finished()
-signal game_load_started()
-signal game_load_finished()
 signal run_state_changed(is_running: bool) # is_system_built and !SceneTree.paused
 signal network_state_changed(network_state: bool) # IVEnums.NetworkState
 
@@ -87,15 +83,13 @@ signal options_requested()
 signal hotkeys_requested()
 signal credits_requested()
 signal help_requested() # hooked up in Planetarium
-signal save_dialog_requested()
-signal load_dialog_requested()
 signal close_all_admin_popups_requested() # main menu, options, etc.
 signal open_wiki_requested(wiki_title: String)
 signal show_hide_gui_requested(is_toggle: bool, is_show: bool) # 2nd arg ignored if is_toggle
 
 
 # containers - write authority indicated; safe to localize container reference
-var state := {} # IVStateManager & IVSaveManager; is_inited, is_running, etc.
+var state := {} # IVStateManager; is_inited, is_running, etc.
 var times: Array[float] = [] # IVTimekeeper [time (s, J2000), engine_time (s), solar_day (d)]
 var date: Array[int] = [] # IVTimekeeper; Gregorian [year, month, day]
 var clock: Array[int] = [] # IVTimekeeper; UT [hour, minute, second]

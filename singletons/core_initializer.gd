@@ -177,14 +177,6 @@ var gui_nodes := {
 	GameGUI = null, # assign here if convenient (over MouseTargetLabel, under SplashScreen)
 	SplashScreen = null, # assign here if convenient (over InGameGUI)
 	AdminPopups = null, # assign here if convenient (over SplashScreen)
-	
-	#MainMenuPopup = IVMainMenuPopup, # safe to replace or remove
-	#LoadDialog = IVLoadDialog, # auto removed if plugin missing or disabled
-	#SaveDialog = IVSaveDialog, # auto removed if plugin missing or disabled
-	#OptionsPopup = IVOptionsPopup, # safe to replace or remove
-	#HotkeysPopup = IVHotkeysPopup, # safe to replace or remove
-	#Confirmation = IVConfirmation, # safe to replace or remove
-	#MainProgBar = IVMainProgBar, # safe to replace or remove
 }
 
 var procedural_objects := {
@@ -301,10 +293,8 @@ func _instantiate_preinitializers() -> void:
 
 func _do_presets_and_plugin_mods() -> void:
 	# TODO: We might add class presets here
-	if !IVPluginUtils.is_plugin_enabled("ivoyager_tree_saver"):
+	if !IVPluginUtils.is_plugin_enabled("ivoyager_save"):
 		program_nodes.erase(&"SaveManager")
-		gui_nodes.erase(&"SaveDialog")
-		gui_nodes.erase(&"LoadDialog")
 
 
 func _instantiate_initializers() -> void:

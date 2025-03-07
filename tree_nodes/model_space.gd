@@ -25,6 +25,5 @@ extends Node3D
 ## Child nodes include the body's model (imported or generic [IVSpheroidModel])
 ## and, for Saturn, its [IVRings].[br][br]
 ##
-## This node is optional and maintained by [IVBody] only if needed. 
-
-const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL ## Free & rebuild on load.
+## This node is optional and maintained by [IVBody] only if needed. We assume
+## that no children need persistance.
