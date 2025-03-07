@@ -33,9 +33,9 @@ const SCENE := "res://addons/ivoyager_core/gui_popups/hotkeys_popup.tscn"
 			&"toggle_options" : &"LABEL_OPTIONS",
 			&"toggle_hotkeys" : &"LABEL_HOTKEYS",
 			&"load_file" : &"LABEL_LOAD_FILE",
-			&"quick_load" : &"LABEL_QUICK_LOAD",
+			&"quickload" : &"LABEL_QUICKLOAD",
 			&"save_as" : &"LABEL_SAVE_AS",
-			&"quick_save" : &"LABEL_QUICK_SAVE",
+			&"quicksave" : &"LABEL_QUICKSAVE",
 			&"quit" : &"LABEL_QUIT",
 			&"save_quit" : &"LABEL_SAVE_AND_QUIT",
 		},
@@ -152,9 +152,9 @@ func _ready() -> void:
 		remove_item(&"reverse_time")
 	if !IVPluginUtils.is_plugin_enabled("ivoyager_save"):
 		remove_item(&"load_file")
-		remove_item(&"quick_load")
+		remove_item(&"quickload")
 		remove_item(&"save_as")
-		remove_item(&"quick_save")
+		remove_item(&"quicksave")
 		remove_item(&"save_quit")
 	if IVCoreSettings.disable_quit:
 		remove_item(&"quit")

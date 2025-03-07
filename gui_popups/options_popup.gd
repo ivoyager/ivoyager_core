@@ -34,6 +34,7 @@ const DPRINT := true
 			&"save_base_name" : &"LABEL_BASE_NAME",
 			&"append_date_to_save" : &"LABEL_APPEND_DATE",
 			&"pause_on_load" : &"LABEL_PAUSE_ON_LOAD",
+			&"autosave_time_min" : &"LABEL_AUTOSAVE_TIME_MIN",
 		},
 		{
 			&"header" : &"LABEL_CAMERA",

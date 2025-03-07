@@ -45,7 +45,7 @@ var project_version: String = IVCoreSettings.project_version
 var ivoyager_version: String = IVGlobal.ivoyager_version
 var is_modded: bool = IVCoreSettings.is_modded
 
-var autosave_time_min := 0.1
+
 
 # private
 var _state: Dictionary = IVGlobal.state
@@ -62,14 +62,16 @@ func _ready() -> void:
 	# The Core plugin needs to compile with or without the Save plugin, so
 	# we duck type the IVSave singleton. The mess of warnings is unavoidable. 
 	_save_singleton = get_node_or_null(^"/root/IVSave")
+	
 	if !_save_singleton:
 		process_mode = PROCESS_MODE_DISABLED
-		#set_process_unhandled_key_input(false)
 		return
-	process_mode = PROCESS_MODE_ALWAYS
 	
+	process_mode = PROCESS_MODE_ALWAYS
 	timeout.connect(_on_timeout)
 	IVGlobal.simulator_started.connect(_start_autosave_timer)
+	IVGlobal.run_state_changed.connect(_on_run_state_changed)
+	IVGlobal.setting_changed.connect(_settings_listener)
 	
 	@warning_ignore("unsafe_property_access")
 	_save_singleton.name_generator = _name_generator
@@ -83,66 +85,47 @@ func _ready() -> void:
 	_save_singleton.save_checkpoint = _save_checkpoint
 	@warning_ignore("unsafe_property_access")
 	_save_singleton.load_checkpoint = _load_checkpoint
-	@warning_ignore("unsafe_property_access", "unsafe_cast")
-	(_save_singleton.save_started as Signal).connect(_on_save_started)
-	@warning_ignore("unsafe_property_access", "unsafe_cast")
-	(_save_singleton.save_finished as Signal).connect(_on_save_finished)
-	@warning_ignore("unsafe_property_access", "unsafe_cast")
-	(_save_singleton.load_started as Signal).connect(_on_load_started)
-	@warning_ignore("unsafe_property_access", "unsafe_cast")
-	(_save_singleton.about_to_free_procedural_tree_for_load as Signal).connect(
+	
+	@warning_ignore("unsafe_property_access", "unsafe_method_access")
+	_save_singleton.save_started.connect(_on_save_started)
+	@warning_ignore("unsafe_property_access", "unsafe_method_access")
+	_save_singleton.save_finished.connect(_on_save_finished)
+	@warning_ignore("unsafe_property_access", "unsafe_method_access")
+	_save_singleton.load_started.connect(_on_load_started)
+	@warning_ignore("unsafe_property_access", "unsafe_method_access")
+	_save_singleton.about_to_free_procedural_tree_for_load.connect(
 			_on_about_to_free_procedural_tree_for_load)
-	@warning_ignore("unsafe_property_access", "unsafe_cast")
-	(_save_singleton.about_to_build_procedural_tree_for_load as Signal).connect(
+	@warning_ignore("unsafe_property_access", "unsafe_method_access")
+	_save_singleton.about_to_build_procedural_tree_for_load.connect(
 			_on_about_to_build_procedural_tree_for_load)
-	@warning_ignore("unsafe_property_access", "unsafe_cast")
-	(_save_singleton.load_finished as Signal).connect(_on_load_finished)
-	@warning_ignore("unsafe_property_access", "unsafe_cast")
-	IVGlobal.close_all_admin_popups_requested.connect(_save_singleton.close_dialogs as Callable)
-	
-	@warning_ignore("unsafe_property_access", "unsafe_cast")
-	(_save_singleton.status_changed as Signal).connect(_on_status_changed)
-	
-	@warning_ignore("unsafe_property_access", "unsafe_cast")
-	(_save_singleton.dialog_opened as Signal).connect(_state_manager.require_stop)
-	@warning_ignore("unsafe_property_access", "unsafe_cast")
-	(_save_singleton.dialog_closed as Signal).connect(_state_manager.allow_run)
-	
-
-
-func _unhandled_key_input(event: InputEvent) -> void:
-	assert(_save_singleton)
-	if !event.is_action_type() or !event.is_pressed():
-		return
-	if event.is_action_pressed(&"quick_save"):
-		@warning_ignore("unsafe_method_access")
-		_save_singleton.quicksave()
-	elif event.is_action_pressed(&"save_as"):
-		@warning_ignore("unsafe_method_access")
-		_save_singleton.save_file()
-	elif event.is_action_pressed(&"quick_load"):
-		@warning_ignore("unsafe_method_access")
-		_save_singleton.quickload()
-	elif event.is_action_pressed(&"load_file"):
-		@warning_ignore("unsafe_method_access")
-		_save_singleton.load_file()
-	else:
-		return
-	get_viewport().set_input_as_handled()
+	@warning_ignore("unsafe_property_access", "unsafe_method_access")
+	_save_singleton.load_finished.connect(_on_load_finished)
+	@warning_ignore("unsafe_property_access", "unsafe_method_access")
+	_save_singleton.status_changed.connect(_on_status_changed)
+	@warning_ignore("unsafe_property_access", "unsafe_method_access")
+	_save_singleton.dialog_opened.connect(_state_manager.require_stop)
+	@warning_ignore("unsafe_property_access", "unsafe_method_access")
+	_save_singleton.dialog_closed.connect(_state_manager.allow_run)
+	@warning_ignore("unsafe_property_access", "unsafe_call_argument")
+	IVGlobal.close_all_admin_popups_requested.connect(_save_singleton.close_dialogs)
 
 
 func _start_autosave_timer() -> void:
+	var autosave_time_min: float = _settings[&"autosave_time_min"]
+	if autosave_time_min == 0:
+		stop()
+		return
 	start(autosave_time_min * 60)
 
 
 func _on_timeout() -> void:
-	
-	# FIXME: Not while sim stopped!
-	
-	
 	@warning_ignore("unsafe_method_access")
 	_save_singleton.autosave()
 	_start_autosave_timer()
+
+
+func _on_run_state_changed(is_running: bool) -> void:
+	paused = !is_running
 
 
 func _on_status_changed(is_saving: bool, is_loading: bool) -> void:
@@ -231,3 +214,8 @@ func _warn_if_versions_mismatch() -> void:
 func _print_node_count() -> void:
 	print("Nodes in tree after load & sim started: ", get_tree().get_node_count())
 	print("If unexpected relative to pre-save, set DEBUG_PRINT_NODES in ivoyager_save/save.gd.")
+
+
+func _settings_listener(setting: StringName, _value: Variant) -> void:
+	if setting == &"autosave_time_min":
+		_start_autosave_timer()

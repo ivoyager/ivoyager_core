@@ -40,6 +40,7 @@ func _init() -> void:
 		&"save_base_name" : "I Voyager",
 		&"append_date_to_save" : true,
 		&"pause_on_load" : false,
+		&"autosave_time_min" : 10,
 	
 		# camera
 		&"camera_transfer_time" : 1.0,
