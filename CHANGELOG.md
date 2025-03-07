@@ -6,13 +6,13 @@ File format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 See cloning and downloading instructions [here](https://www.ivoyager.dev/developers/).
 
-## [v0.0.22] - NOT RELEASED
+## [v0.0.22] - 2025-03-07
 
-Under development using Godot 4.3. **We will update to 4.4 in the next release!**
+Developed using Godot 4.3. **We will update to 4.4 in the next release!**
 
 ### Changed
-* Recoded IVSaveManager and other classes to work with the new (optional) [Save](https://github.com/ivoyager/ivoyager_save) plugin.
-* Removed save/load related GUI (moved to the plugin).
+* [API breaking] Recoded IVSaveManager and other classes to work with the new (optional) [Save](https://github.com/ivoyager/ivoyager_save) plugin.
+* [Project breaking] Removed save/load related GUI (moved to the plugin).
 
 ## [v0.0.21] - 2025-01-07
 
@@ -106,7 +106,7 @@ Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_tab
 ##
 I, Voyager projects v0.0.16 and earlier used a different core submodule [ivoyager](https://github.com/ivoyager/ivoyager) (now depreciated); see previous changelog [here](https://github.com/ivoyager/ivoyager/blob/master/CHANGELOG.md).
 
-[v0.0.22]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.21...HEAD
+[v0.0.22]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.21...v0.0.22
 [v0.0.21]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.20...v0.0.21
 [v0.0.20]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.19...v0.0.20
 [v0.0.19]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.18...v0.0.19
