@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://pukogbpgya48"]
 
-[ext_resource type="Script" path="res://addons/ivoyager_core/gui_widgets/selection_image.gd" id="1"]
+[ext_resource type="Script" uid="uid://3qpvqj6hrmah" path="res://addons/ivoyager_core/gui_widgets/selection_image.gd" id="1"]
 
 [node name="SelectionImage" type="TextureRect"]
 anchors_preset = 8

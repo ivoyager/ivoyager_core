@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://dqwafuo72wscj"]
 
-[ext_resource type="Script" path="res://addons/ivoyager_core/gui_widgets/link_label.gd" id="1"]
+[ext_resource type="Script" uid="uid://daa76nkc3jwfr" path="res://addons/ivoyager_core/gui_widgets/link_label.gd" id="1"]
 
 [node name="LinkLabel" type="RichTextLabel"]
 offset_top = 4.0

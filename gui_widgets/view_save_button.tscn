@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://do2jvg01jte0i"]
 
-[ext_resource type="Script" path="res://addons/ivoyager_core/gui_widgets/view_save_button.gd" id="1"]
+[ext_resource type="Script" uid="uid://0ji37c4eo6ax" path="res://addons/ivoyager_core/gui_widgets/view_save_button.gd" id="1"]
 
 [node name="ViewSaveButton" type="Button"]
 offset_left = 162.0

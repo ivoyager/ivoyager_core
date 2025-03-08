@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3 uid="uid://cv3oc6jmc4nmo"]
 
-[ext_resource type="Script" path="res://addons/ivoyager_core/gui_popups/view_save_popup.gd" id="1"]
+[ext_resource type="Script" uid="uid://cyoq7awt1amop" path="res://addons/ivoyager_core/gui_popups/view_save_popup.gd" id="1"]
 [ext_resource type="PackedScene" uid="uid://ccm8cp7kb55s4" path="res://addons/ivoyager_core/gui_widgets/view_saver.tscn" id="2"]
 
 [node name="ViewSavePopup" type="PopupPanel"]

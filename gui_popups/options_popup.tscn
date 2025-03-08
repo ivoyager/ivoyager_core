@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://do6i0el4c00jr"]
 
-[ext_resource type="Script" path="res://addons/ivoyager_core/gui_popups/options_popup.gd" id="1_yhrw4"]
+[ext_resource type="Script" uid="uid://busiu2jjkqnmv" path="res://addons/ivoyager_core/gui_popups/options_popup.gd" id="1_yhrw4"]
 
 [node name="OptionsPopup" type="PopupPanel"]
 process_mode = 3

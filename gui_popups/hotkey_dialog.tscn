@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://bd8gmabf8f6ub"]
 
-[ext_resource type="Script" path="res://addons/ivoyager_core/gui_popups/hotkey_dialog.gd" id="1"]
+[ext_resource type="Script" uid="uid://cjk4cicu4imsc" path="res://addons/ivoyager_core/gui_popups/hotkey_dialog.gd" id="1"]
 
 [node name="HotkeyDialog" type="ConfirmationDialog"]
 process_mode = 3

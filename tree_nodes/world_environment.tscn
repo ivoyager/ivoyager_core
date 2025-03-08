@@ -1,6 +1,6 @@
 [gd_scene load_steps=4 format=3 uid="uid://b15j2rbaf1c4j"]
 
-[ext_resource type="Script" path="res://addons/ivoyager_core/tree_nodes/world_environment.gd" id="1_yiiit"]
+[ext_resource type="Script" uid="uid://bo73pjkjri6pj" path="res://addons/ivoyager_core/tree_nodes/world_environment.gd" id="1_yiiit"]
 
 [sub_resource type="Environment" id="Environment_u6p4j"]
 ambient_light_source = 2

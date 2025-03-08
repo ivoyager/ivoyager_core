@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://c2knp7r6n1qy0"]
 
-[ext_resource type="Script" path="res://addons/ivoyager_core/gui_widgets/navigation_button.gd" id="1"]
+[ext_resource type="Script" uid="uid://bharwnu3pkixd" path="res://addons/ivoyager_core/gui_widgets/navigation_button.gd" id="1"]
 
 [node name="NavigationButton" type="Button"]
 offset_right = 12.0

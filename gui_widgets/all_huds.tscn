@@ -1,6 +1,6 @@
 [gd_scene load_steps=7 format=3 uid="uid://bimgbyu0v7s1j"]
 
-[ext_resource type="Script" path="res://addons/ivoyager_core/gui_widgets/all_huds.gd" id="1"]
+[ext_resource type="Script" uid="uid://dmae2kjgqgdu1" path="res://addons/ivoyager_core/gui_widgets/all_huds.gd" id="1"]
 [ext_resource type="PackedScene" uid="uid://b3hiqf4h71d6p" path="res://addons/ivoyager_core/gui_widgets/body_huds.tscn" id="2"]
 [ext_resource type="PackedScene" uid="uid://cjnmkmscbt4jl" path="res://addons/ivoyager_core/gui_widgets/sbg_huds.tscn" id="3"]
 [ext_resource type="PackedScene" uid="uid://bvs2mb8bj8gfn" path="res://addons/ivoyager_core/gui_widgets/view_save_flow.tscn" id="4"]

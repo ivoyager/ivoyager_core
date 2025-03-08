@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://bh7hd3sdaohjd"]
 
-[ext_resource type="Script" path="res://addons/ivoyager_core/gui_widgets/time_setter.gd" id="1"]
+[ext_resource type="Script" uid="uid://crm4ul2spji43" path="res://addons/ivoyager_core/gui_widgets/time_setter.gd" id="1"]
 
 [node name="TimeSetter" type="VBoxContainer"]
 offset_right = 40.0

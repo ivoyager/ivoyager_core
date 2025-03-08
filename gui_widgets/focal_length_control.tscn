@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://chl27l6aiico8"]
 
-[ext_resource type="Script" path="res://addons/ivoyager_core/gui_widgets/focal_length_control.gd" id="1_bs6ux"]
+[ext_resource type="Script" uid="uid://ba6hjji77fd83" path="res://addons/ivoyager_core/gui_widgets/focal_length_control.gd" id="1_bs6ux"]
 
 [node name="FocalLengthControl" type="HBoxContainer"]
 offset_top = 18.0

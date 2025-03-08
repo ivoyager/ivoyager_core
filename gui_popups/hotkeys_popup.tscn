@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://b2fdgq3tjd8wq"]
 
-[ext_resource type="Script" path="res://addons/ivoyager_core/gui_popups/hotkeys_popup.gd" id="1_f835g"]
+[ext_resource type="Script" uid="uid://m0d52s170evn" path="res://addons/ivoyager_core/gui_popups/hotkeys_popup.gd" id="1_f835g"]
 
 [node name="HotkeysPopup" type="PopupPanel"]
 process_mode = 3

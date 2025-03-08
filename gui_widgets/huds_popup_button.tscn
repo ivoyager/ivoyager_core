@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://b02brsb71lrev"]
 
-[ext_resource type="Script" path="res://addons/ivoyager_core/gui_widgets/huds_popup_button.gd" id="1"]
+[ext_resource type="Script" uid="uid://dmse4c3poo018" path="res://addons/ivoyager_core/gui_widgets/huds_popup_button.gd" id="1"]
 
 [node name="HUDsPopupButton" type="Button"]
 offset_right = 12.0

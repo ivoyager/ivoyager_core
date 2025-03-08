@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://bk1wcjtaqcyyd"]
 
-[ext_resource type="Script" path="res://addons/ivoyager_core/gui_widgets/selection_buttons.gd" id="1"]
+[ext_resource type="Script" uid="uid://3qal84lem0ak" path="res://addons/ivoyager_core/gui_widgets/selection_buttons.gd" id="1"]
 
 [node name="SelectionButtons" type="HBoxContainer"]
 offset_right = 40.0

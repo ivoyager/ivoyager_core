@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://b58glkdlp7x1i"]
 
-[ext_resource type="Script" path="res://addons/ivoyager_core/gui_widgets/selection_data.gd" id="1"]
+[ext_resource type="Script" uid="uid://cyqe41v8qidsw" path="res://addons/ivoyager_core/gui_widgets/selection_data.gd" id="1"]
 
 [node name="SelectionData" type="VBoxContainer"]
 offset_right = 40.0

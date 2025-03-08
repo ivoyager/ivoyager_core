@@ -1,6 +1,6 @@
-[gd_scene load_steps=2 format=2]
+[gd_scene load_steps=2 format=3 uid="uid://dhx38xdl0rgyq"]
 
-[ext_resource path="res://addons/ivoyager_core/gui_mods/control_sized.gd" type="Script" id=1]
+[ext_resource type="Script" uid="uid://cqana8e64h5aa" path="res://addons/ivoyager_core/gui_mods/control_sized.gd" id="1"]
 
 [node name="ControlSized" type="Node"]
-script = ExtResource( 1 )
+script = ExtResource("1")

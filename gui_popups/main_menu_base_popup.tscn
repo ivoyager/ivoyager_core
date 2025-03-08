@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://csvlw3mc4uvoc"]
 
-[ext_resource type="Script" path="res://addons/ivoyager_core/gui_popups/main_menu_base_popup.gd" id="1_bd2g2"]
+[ext_resource type="Script" uid="uid://bemxra84irc4p" path="res://addons/ivoyager_core/gui_popups/main_menu_base_popup.gd" id="1_bd2g2"]
 
 [node name="MainMenuBasePopup" type="PopupPanel"]
 script = ExtResource("1_bd2g2")

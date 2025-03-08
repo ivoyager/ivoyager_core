@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://bvs2mb8bj8gfn"]
 
-[ext_resource type="Script" path="res://addons/ivoyager_core/gui_widgets/view_save_flow.gd" id="1"]
+[ext_resource type="Script" uid="uid://m0bfk308biun" path="res://addons/ivoyager_core/gui_widgets/view_save_flow.gd" id="1"]
 
 [node name="ViewSaveFlow" type="HFlowContainer"]
 offset_top = 44.0

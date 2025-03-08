@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://ccm8cp7kb55s4"]
 
-[ext_resource type="Script" path="res://addons/ivoyager_core/gui_widgets/view_saver.gd" id="1"]
+[ext_resource type="Script" uid="uid://dfn7ckl0stohe" path="res://addons/ivoyager_core/gui_widgets/view_saver.gd" id="1"]
 
 [node name="ViewSaver" type="VBoxContainer"]
 offset_left = 5.0

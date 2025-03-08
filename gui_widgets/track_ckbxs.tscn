@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://b1mkm7ajlvvm0"]
 
-[ext_resource type="Script" path="res://addons/ivoyager_core/gui_widgets/track_ckbxs.gd" id="1"]
+[ext_resource type="Script" uid="uid://ciu1h5512i0i7" path="res://addons/ivoyager_core/gui_widgets/track_ckbxs.gd" id="1"]
 
 [node name="TrackCkbxs" type="HBoxContainer"]
 offset_right = 40.0

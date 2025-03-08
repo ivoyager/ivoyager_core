@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://bgja2vd1iswvn"]
 
-[ext_resource type="Script" path="res://addons/ivoyager_core/gui_widgets/body_h_scroll.gd" id="1"]
+[ext_resource type="Script" uid="uid://2v61ut81pk2l" path="res://addons/ivoyager_core/gui_widgets/body_h_scroll.gd" id="1"]
 
 [node name="BodyHScroll" type="ScrollContainer"]
 offset_right = 12.0

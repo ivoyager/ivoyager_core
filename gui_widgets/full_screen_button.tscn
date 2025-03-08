@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://cvv4u4ctix3v5"]
 
-[ext_resource type="Script" path="res://addons/ivoyager_core/gui_widgets/full_screen_button.gd" id="1_pu6oh"]
+[ext_resource type="Script" uid="uid://57h2ng8gqwmq" path="res://addons/ivoyager_core/gui_widgets/full_screen_button.gd" id="1_pu6oh"]
 
 [node name="FullScreenButton" type="Button"]
 text = "Full Screen"
