@@ -32,7 +32,7 @@ extends GridContainer
 # subset of IVBodyHUDsState.all_flags.
 
 const NULL_COLOR := Color.BLACK
-const BodyFlags: Dictionary = IVEnums.BodyFlags
+const BodyFlags := IVEnums.BodyFlags
 
 
 

@@ -63,28 +63,29 @@ var body_labels_use_orbit_color := false # true overrides above
 var cache_dir := "user://cache"
 
 # Theses could be modified after init, but you would have to rebuild the 'Home' View.
-var home_name := "PLANET_EARTH"
+var home_name := &"PLANET_EARTH"
 var home_longitude := 0.0
 var home_latitude := 0.0
 
 
-var colors := { # user settable colors in program_refs/settings_manager.gd
+var colors: Dictionary[StringName, Color] = { # user settable colors in program_refs/settings_manager.gd
 	normal = Color.WHITE,
 	good = Color.GREEN,
 	warning = Color.YELLOW,
 	danger = Color(1.0, 0.5, 0.5), # "red" is hard to read
 }
 
-var shared_resources := {
+# TODO: Move fully typed dict to IVGlobal. Move load paths to IVSharedInitializer.
+var shared_resources: Dictionary[StringName, Variant] = {
 	# Values can be resource paths or preloaded resources. IVSharedInitializer
 	# loads any paths at project init.
 	
 	# shaders
-	&"points_id_shader" : "res://addons/ivoyager_core/shaders/points.id.gdshader",
-	&"points_l4l5_id_shader" : "res://addons/ivoyager_core/shaders/points.l4l5.id.gdshader",
-	&"orbit_id_shader" : "res://addons/ivoyager_core/shaders/orbit.id.gdshader",
-	&"orbits_id_shader" : "res://addons/ivoyager_core/shaders/orbits.id.gdshader",
-	&"rings_shader" : "res://addons/ivoyager_core/shaders/rings.gdshader",
+	points_id_shader = "res://addons/ivoyager_core/shaders/points.id.gdshader",
+	points_l4l5_id_shader = "res://addons/ivoyager_core/shaders/points.l4l5.id.gdshader",
+	orbit_id_shader = "res://addons/ivoyager_core/shaders/orbit.id.gdshader",
+	orbits_id_shader = "res://addons/ivoyager_core/shaders/orbits.id.gdshader",
+	rings_shader = "res://addons/ivoyager_core/shaders/rings.gdshader",
 	
 	# additional items are constructed & added by initializers/shared_initializer.gd
 }
@@ -95,7 +96,7 @@ var shared_resources := {
  
 var enable_wiki := false
 var enable_precisions := false
-var tables := {
+var tables: Dictionary[StringName, String] = {
 	asset_adjustments = "res://addons/ivoyager_core/data/solar_system/asset_adjustments.tsv",
 	asteroids = "res://addons/ivoyager_core/data/solar_system/asteroids.tsv",
 	body_classes = "res://addons/ivoyager_core/data/solar_system/body_classes.tsv",
@@ -122,7 +123,7 @@ var replacement_missing_values := {} # not recomended to use this
 
 var wikipedia_locales: Array[String] = ["en"] # add locales present in data tables
 
-var body_tables: Array[String] = ["stars", "planets", "asteroids", "moons", "spacecrafts"]
+var body_tables: Array[StringName] = [&"stars", &"planets", &"asteroids", &"moons", &"spacecrafts"]
 
 # We search for assets based on "file_prefix" and sometimes other name elements
 # like "albedo". To build a model, IVModelManager first looks for an existing
@@ -137,11 +138,11 @@ var maps_search: Array[String] = ["res://addons/ivoyager_assets/maps"]
 var bodies_2d_search: Array[String] = ["res://addons/ivoyager_assets/bodies_2d"]
 var rings_search: Array[String] = ["res://addons/ivoyager_assets/rings"]
 
-var asset_paths := {
+var asset_paths: Dictionary[StringName, String] = {
 	starmap_8k = "res://addons/ivoyager_assets/starmaps/starmap_8k.jpg",
 	starmap_16k = "res://addons/ivoyager_assets/starmaps/starmap_16k.jpg",
 }
-var asset_paths_for_load := { # loaded into "assets" dict by IVAssetInitializer
+var asset_paths_for_load: Dictionary[StringName, String] = { # loaded into "assets" dict by IVAssetInitializer
 	primary_font = "res://addons/ivoyager_assets/fonts/Roboto-NotoSansSymbols-merged.ttf",
 	fallback_albedo_map = "res://addons/ivoyager_assets/fallbacks/blank_grid.jpg",
 	fallback_body_2d = "res://addons/ivoyager_assets/fallbacks/blank_grid_2d_globe.256.png",

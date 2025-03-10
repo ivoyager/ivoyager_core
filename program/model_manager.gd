@@ -45,9 +45,9 @@ var _spheroid_model_script: Script = IVGlobal.procedural_classes[&"SpheroidModel
 var _times: Array[float] = IVGlobal.times
 var _io_manager: IVIOManager
 var _fallback_albedo_map: Texture2D
-var _map_paths := {}
-var _model_paths := {}
-var _lazy_tracker := {}
+var _map_paths: Dictionary[String, String] = {}
+var _model_paths: Dictionary[String, String] = {}
+var _lazy_tracker: Dictionary[Node3D, float]= {}
 var _cull_times: Array[float] = []
 var _cull_models: Array[Node3D] = []
 var _cull_size: int

@@ -48,7 +48,7 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 var name_visible_flags := 0 # exclusive w/ symbol_visible_flags
 var symbol_visible_flags := 0 # exclusive w/ name_visible_flags
 var orbit_visible_flags := 0
-var orbit_colors := {} # must have full key set from all_flags bits!
+var orbit_colors: Dictionary[int, Color] = {} # must have full key set from all_flags bits!
 
 # project vars - set at project init
 var fallback_orbit_color := Color("FE9C33") # orange
@@ -58,7 +58,7 @@ var all_flags := 0
 var default_name_visible_flags := 0 # exclusive w/ symbol_visible_flags
 var default_symbol_visible_flags := 0 # exclusive w/ name_visible_flags
 var default_orbit_visible_flags := 0
-var default_orbit_colors := {}
+var default_orbit_colors: Dictionary[int, Color] = {}
 
 
 func _init() -> void:
@@ -265,9 +265,7 @@ func set_orbit_visible_flags(orbit_visible_flags_: int) -> void:
 # color
 
 func set_default_colors() -> void:
-	# TEST34
 	if orbit_colors == default_orbit_colors:
-#	if deep_equal(orbit_colors, default_orbit_colors):
 		return
 	orbit_colors.merge(default_orbit_colors, true)
 	color_changed.emit()
@@ -320,16 +318,16 @@ func set_orbit_color(body_flags: int, color: Color) -> void:
 		color_changed.emit()
 
 
-func get_non_default_orbit_colors() -> Dictionary:
+func get_non_default_orbit_colors() -> Dictionary[int, Color]:
 	# key-values equal to default are skipped
-	var dict := {}
+	var dict: Dictionary[int, Color] = {}
 	for flag: int in orbit_colors:
 		if orbit_colors[flag] != default_orbit_colors[flag]:
 			dict[flag] = orbit_colors[flag]
 	return dict
 
 
-func set_all_orbit_colors(dict: Dictionary) -> void:
+func set_all_orbit_colors(dict: Dictionary[int, Color]) -> void:
 	# missing key-values are set to default
 	var is_change := false
 	for flag: int in orbit_colors:

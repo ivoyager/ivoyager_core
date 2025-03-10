@@ -23,8 +23,8 @@ extends RefCounted
 # Loads assets specified in IVCoreSettings.
 
 var _asset_replacement_dir: String = IVCoreSettings.asset_replacement_dir
-var _asset_paths_for_load: Dictionary = IVCoreSettings.asset_paths_for_load
-var _assets: Dictionary = IVGlobal.assets
+var _asset_paths_for_load: Dictionary[StringName, String] = IVCoreSettings.asset_paths_for_load
+var _assets: Dictionary[StringName, Resource] = IVGlobal.assets
 var _asset_path_arrays: Array[Array] = [
 	IVCoreSettings.models_search,
 	IVCoreSettings.maps_search,

@@ -22,18 +22,20 @@ extends RefCounted
 
 ## Abstract base class for managing user cached items.
 ##
+## TODO: Inheritance here is terrible. Recode this class as a component!
+##
 ## Subclasses include [IVSettingsManager] and [IVInputMapManager].
 
 # project vars - set in subclass _init(); project can modify at init
 var cache_file_name := "generic_item.ivbinary" # change in subclass
 var cache_file_version := 1 # change in subclass; non-current is overwritten
-var defaults: Dictionary # subclass defines in _init()
-var current: Dictionary # subclass makes or references an existing dict
+var defaults: Dictionary[StringName, Variant] # subclass defines in _init()
+var current: Dictionary[StringName, Variant] # subclass makes or references an existing dict
 
 # private
 var _io_manager: IVIOManager
 var _file_path: String
-var _cached := {} # exact replica of disk cache notwithstanding I/O delay
+var _cached: Dictionary[StringName, Variant] = {} # exact replica of disk cache notwithstanding I/O delay
 var _missing_or_bad_cache_file := true
 
 
@@ -91,20 +93,20 @@ func is_all_defaults() -> bool:
 	return current == defaults
 
 
-func get_cached_value(key: StringName, cached_values: Dictionary) -> Variant: # unknown type
+func get_cached_value(key: StringName, cached_values: Dictionary[StringName, Variant]) -> Variant:
 	# If cache doesn't have it, we treat default as cached
 	if cached_values.has(key):
 		return cached_values[key]
 	return defaults[key]
 
 
-func is_cached(key: StringName, cached_values: Dictionary) -> bool:
+func is_cached(key: StringName, cached_values: Dictionary[StringName, Variant]) -> bool:
 	if cached_values.has(key):
 		return current[key] == cached_values[key]
 	return current[key] == defaults[key]
 
 
-func get_cached_values() -> Dictionary:
+func get_cached_values() -> Dictionary[StringName, Variant]:
 	return _cached
 
 
@@ -167,16 +169,20 @@ func _read_cache() -> void:
 	var file_var: Variant = file.get_var() # untyped for safety
 	# test for version and type consistency (no longer used items are ok)
 	if typeof(file_var) != TYPE_DICTIONARY:
-		prints("Overwriting obsolete cache file", _file_path)
+		push_warning("Overwriting obsolete cache file", _file_path)
 		return
 	var file_dict: Dictionary = file_var
-	if file_dict.get("__version__", -1) != cache_file_version:
-		prints("Overwriting obsolete cache file", _file_path)
+	if !file_dict.is_typed_key():
+		push_warning("Overwriting obsolete cache file", _file_path)
+		return
+		
+	if file_dict.get(&"__version__", -1) != cache_file_version:
+		push_warning("Overwriting obsolete cache file", _file_path)
 		return
 	for key: StringName in file_dict:
 		if current.has(key):
 			if typeof(current[key]) != typeof(file_dict[key]):
-				prints("Overwriting obsolete cache file:", _file_path)
+				push_warning("Overwriting obsolete cache file:", _file_path)
 				return
 	# file cache ok
 	_cached = file_dict

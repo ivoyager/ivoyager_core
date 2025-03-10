@@ -129,7 +129,6 @@ var speed_name: StringName
 var speed_symbol: StringName
 
 # private
-#var _state: Dictionary = IVGlobal.state
 var _allow_time_setting := IVCoreSettings.allow_time_setting
 var _allow_time_reversal := IVCoreSettings.allow_time_reversal
 #var _disable_pause: bool = IVCoreSettings.disable_pause

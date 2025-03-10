@@ -28,7 +28,7 @@ extends MultiMeshInstance3D
 ## Several subclass _init() overrides are provided to override above behavior,
 ## supply a different shader, or change other aspects of the MultiMesh.
 
-const math := preload("res://addons/ivoyager_core/static/math.gd")
+const math := preload("uid://csb570a3u1x1k")
 
 const FRAGMENT_SBG_ORBIT := IVFragmentIdentifier.FRAGMENT_SBG_ORBIT
 

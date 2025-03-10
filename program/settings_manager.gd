@@ -27,14 +27,14 @@ extends IVCacheManager
 ## Many (but not necessarily all) user settings are settable in [IVOptionsPopup].
 
 
-const BodyFlags: Dictionary = IVEnums.BodyFlags
+const BodyFlags := IVEnums.BodyFlags
 
 
 func _init() -> void:
 	super()
 	# project vars - modify on signal 'IVGlobal.project_objects_instantiated'
 	cache_file_name = "settings.ivbinary"
-	cache_file_version = 1
+	cache_file_version = 3
 	defaults = {
 		# save/load (only matters if Save pluin is enabled)
 		&"save_base_name" : "I Voyager",

@@ -79,7 +79,7 @@ const DPRINT := true
 }
 
 
-var _settings: Dictionary = IVGlobal.settings
+var _settings: Dictionary[StringName, Variant] = IVGlobal.settings
 var _blocking_windows: Array[Window] = IVGlobal.blocking_windows
 var _allow_close := false
 

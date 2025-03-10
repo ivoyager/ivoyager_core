@@ -26,10 +26,10 @@ extends Object
 # Tree utilities
 
 ## Frees all 'procedural' Nodes at or below [code]root_node[/code]. Note: The
-## 'I, Voyager - Tree Saver' plugin has a better deconstructor method
-## [code]free_procedural_objects_recursive()[/code] if that is enabled. This one will
-## work if there are no circular references to procedural RefCounted
-## instances.
+## 'I, Voyager - Save' plugin has a better deconstructor method
+## [code]free_procedural_objects_recursive()[/code] if that is enabled.
+## This one can't properly handle circular references to procedural
+## RefCounted instances.
 static func free_procedural_nodes_recursive(root_node: Node) -> void:
 	if root_node.get(&"PERSIST_MODE") == IVEnums.PERSIST_PROCEDURAL:
 		root_node.queue_free() # children will also be freed!

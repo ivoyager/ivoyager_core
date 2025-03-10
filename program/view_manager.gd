@@ -32,8 +32,8 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 var ViewScript: Script
 var file_path := IVCoreSettings.cache_dir.path_join("views.ivbinary")
 
-var _gamesave_views := {}
-var _cached_views := {}
+var _gamesave_views: Dictionary[StringName, IVView] = {}
+var _cached_views: Dictionary[StringName, IVView] = {}
 var _io_manager: IVIOManager
 var _missing_or_bad_cache_file := true
 
@@ -139,8 +139,10 @@ func _read_cache() -> void:
 	if typeof(file_var) != TYPE_DICTIONARY:
 		prints("Overwriting obsolete cache file", file_path)
 		return
-	@warning_ignore("unsafe_cast")
-	var dict := file_var as Dictionary
+	var dict: Dictionary = file_var
+	if !dict.is_typed():
+		prints("Overwriting obsolete cache file", file_path)
+		return
 	var bad_cache_data := false
 	for key: StringName in dict:
 		var data: Array = dict[key]

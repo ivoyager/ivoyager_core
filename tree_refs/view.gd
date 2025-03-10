@@ -82,11 +82,11 @@ var view_rotations := NULL_VECTOR3
 var name_visible_flags := 0 # exclusive w/ symbol_visible_flags
 var symbol_visible_flags := 0 # exclusive w/ name_visible_flags
 var orbit_visible_flags := 0
-var visible_points_groups := [] # untyped req for set from cache as of Godot 4.1.1
-var visible_orbits_groups := [] # untyped req for set from cache as of Godot 4.1.1
-var body_orbit_colors := {} # has non-default only
-var sbg_points_colors := {} # has non-default only
-var sbg_orbits_colors := {} # has non-default only
+var visible_points_groups: Array[StringName] = []
+var visible_orbits_groups: Array[StringName] = []
+var body_orbit_colors: Dictionary[int, Color] = {} # has non-default only
+var sbg_points_colors: Dictionary[StringName, Color] = {} # has non-default only
+var sbg_orbits_colors: Dictionary[StringName, Color] = {} # has non-default only
 
 var time := 0.0
 var speed_index := 0
@@ -94,7 +94,7 @@ var is_reversed := false
 
 
 # private
-static var _version_hash := PERSIST_PROPERTIES.hash() + 2 # test for cache is 'bad'
+static var _version_hash := PERSIST_PROPERTIES.hash() + 4 # test for cache is 'bad'
 static var _camera_handler: IVCameraHandler
 static var _body_huds_state: IVBodyHUDsState
 static var _sbg_huds_state: IVSBGHUDsState

@@ -52,8 +52,8 @@ signal up_lock_changed(flags: int, disabled_flags: int)
 signal tracking_changed(flags: int, disabled_flags: int)
 
 
-const math := preload("res://addons/ivoyager_core/static/math.gd")
-const utils := preload("res://addons/ivoyager_core/static/utils.gd")
+const math := preload("uid://csb570a3u1x1k")
+const utils := preload("uid://bdoygriurgvtc")
 
 const Flags := IVEnums.CameraFlags
 const ANY_UP_FLAGS := Flags.ANY_UP_FLAGS
@@ -130,7 +130,7 @@ var disabled_flags := 0 # IVEnums.CameraDisabledFlags
 
 # private
 var _universe: Node3D = IVGlobal.program.Universe
-var _settings: Dictionary = IVGlobal.settings
+var _settings: Dictionary[StringName, Variant] = IVGlobal.settings
 var _world_targeting: Array = IVGlobal.world_targeting
 var _max_dist: float = IVCoreSettings.max_camera_distance
 

@@ -88,8 +88,8 @@ var allow_threads := false
 var blocking_threads := []
 
 # private
-var _state: Dictionary = IVGlobal.state
-var _settings: Dictionary = IVGlobal.settings
+var _state: Dictionary[StringName, Variant] = IVGlobal.state
+var _settings: Dictionary[StringName, Variant] = IVGlobal.settings
 var _nodes_requiring_stop := []
 var _signal_when_threads_finished := false
 var _tree_build_counter := 0

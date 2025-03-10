@@ -49,7 +49,7 @@ enum {UP, DOWN, LEFT, RIGHT}
 @export var max_default_screen_proportions := Vector2(0.45, 0.45) # can override above
 
 # private
-static var _settings: Dictionary = IVGlobal.settings
+static var _settings: Dictionary[StringName, Variant] = IVGlobal.settings
 var _drag_point := Vector2.ZERO
 
 @onready var _viewport := get_viewport()

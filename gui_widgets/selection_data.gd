@@ -59,9 +59,9 @@ var enable_precisions := IVCoreSettings.enable_precisions
 var labels_stretch_ratio := 0.6
 var values_stretch_ratio := 0.4
 var interval := 0.0 # seconds; set 0.0 for no periodic updates
-var section_headers := [&"LABEL_ORBITAL_CHARACTERISTICS", &"LABEL_PHYSICAL_CHARACTERISTICS",
-	&"LABEL_ATMOSPHERE", &"LABEL_ATMOSPHERE_BY_VOLUME", &"LABEL_TRACE_ATMOSPHERE_BY_VOLUME",
-	&"LABEL_PHOTOSPHERE_BY_WEIGHT"]
+var section_headers: Array[StringName] = [&"LABEL_ORBITAL_CHARACTERISTICS",
+	&"LABEL_PHYSICAL_CHARACTERISTICS", &"LABEL_ATMOSPHERE", &"LABEL_ATMOSPHERE_BY_VOLUME",
+	&"LABEL_TRACE_ATMOSPHERE_BY_VOLUME", &"LABEL_PHOTOSPHERE_BY_WEIGHT"]
 var subsection_of: Array[int] = [-1, -1, -1, 2, 2, -1]
 var section_open: Array[bool] = [true, true, true, true, true, true]
 
@@ -209,7 +209,7 @@ var value_postprocessors := {
 	"body/characteristics/n_kn_dwf_planets" : mod_n_kn_dwf_planets,
 }
 
-var _state: Dictionary = IVGlobal.state
+var _state: Dictionary[StringName, Variant] = IVGlobal.state
 var _wiki_titles: Dictionary = IVTableData.wiki_lookup
 var _header_buttons: Array[Button] = []
 var _grids: Array[GridContainer] = []

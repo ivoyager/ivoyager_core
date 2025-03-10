@@ -48,8 +48,8 @@ var is_modded: bool = IVCoreSettings.is_modded
 
 
 # private
-var _state: Dictionary = IVGlobal.state
-var _settings: Dictionary = IVGlobal.settings
+var _state: Dictionary[StringName, Variant] = IVGlobal.state
+var _settings: Dictionary[StringName, Variant] = IVGlobal.settings
 var _save_singleton: Node
 
 

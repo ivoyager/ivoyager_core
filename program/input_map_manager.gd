@@ -44,7 +44,7 @@ func _init() -> void:
 	super()
 	# project vars - modify on signal project_objects_instantiated
 	cache_file_name = "input_map.ivbinary"
-	cache_file_version = 1
+	cache_file_version = 3
 	defaults = {
 		# Each "event_dict" must have event_class; all other keys are properties
 		# to be set on the InputEvent. Don't remove an action -- just give it an
@@ -417,8 +417,6 @@ static func strip_scancode_mods(keycode: int) -> int:
 
 
 # *****************************************************************************
-
-# TODO34: StringName here and base CacheManager
 
 func _about_to_change_current(action: StringName) -> void:
 	var scancodes := get_scancodes_w_mods_for_action(action)

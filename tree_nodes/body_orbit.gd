@@ -25,7 +25,7 @@ extends MeshInstance3D
 ## If FragmentIdentifier exists, then a shader
 ## is used to allow screen identification of the orbit loop.
 
-const math := preload("res://addons/ivoyager_core/static/math.gd")
+const math := preload("uid://csb570a3u1x1k")
 
 const FRAGMENT_BODY_ORBIT := IVFragmentIdentifier.FRAGMENT_BODY_ORBIT
 

@@ -55,7 +55,7 @@ var hybrid_drag_center_zone := 0.2 # for DRAG_PITCH_YAW_ROLL_HYBRID
 var hybrid_drag_outside_zone := 0.7 # for DRAG_PITCH_YAW_ROLL_HYBRID
 
 # private
-var _settings: Dictionary = IVGlobal.settings
+var _settings: Dictionary[StringName, Variant] = IVGlobal.settings
 var _world_targeting: Array = IVGlobal.world_targeting
 var _camera: IVCamera
 var _selection_manager: IVSelectionManager
@@ -89,6 +89,7 @@ func _ready() -> void:
 
 
 func _on_system_tree_ready(_is_new_game: bool) -> void:
+	@warning_ignore("unsafe_property_access")
 	_selection_manager = IVGlobal.program[&"TopGUI"].selection_manager
 	_selection_manager.selection_changed.connect(_on_selection_changed)
 	_selection_manager.selection_reselected.connect(_on_selection_reselected)

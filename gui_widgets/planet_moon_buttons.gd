@@ -48,7 +48,7 @@ var column_separation_ratio := 0.007143 # proportion of widget width, rounded
 # private
 var _selection_manager: IVSelectionManager # get from ancestor selection_manager
 var _currently_selected: Button
-var _resize_multipliers := {} # indexed by Control, holds Vector2
+var _resize_multipliers: Dictionary[Control, Vector2] = {} # indexed by Control, holds Vector2
 var _is_built := false
 
 @onready var _mouse_only_gui_nav: bool = false # IVGlobal.settings.mouse_only_gui_nav

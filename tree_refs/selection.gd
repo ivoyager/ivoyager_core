@@ -22,12 +22,15 @@ extends RefCounted
 
 ## Wrapper class for anything that can be selected.
 ##
+## TODO: Restructure so that this is a component. Any object can then be
+## selectable by having this component.
+##
 ## [IVSelectionManager] keeps an instance of this class as current selection
 ## and maintains selection history. In `ivoyager_core` we only select [IVBody]
 ## instances, but this class could be extended to wrap anything.
 
 
-const math := preload("res://addons/ivoyager_core/static/math.gd") # =IVMath when issue #37529 fixed
+const math := preload("uid://csb570a3u1x1k")
 
 const CameraFlags := IVEnums.CameraFlags
 const BodyFlags := IVEnums.BodyFlags

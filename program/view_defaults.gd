@@ -38,7 +38,7 @@ const NULL_VECTOR3 := Vector3(-INF, -INF, -INF)
 var move_home_at_start := true
 
 # read-only!
-var views := {}
+var views: Dictionary[StringName, IVView] = {}
 
 var _view_script: Script
 

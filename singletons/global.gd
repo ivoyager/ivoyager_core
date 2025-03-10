@@ -21,8 +21,8 @@ extends Node
 
 ## Added as singleton 'IVGlobal'.
 ##
-## Container arrays and dictionaries are never replaced, so it is safe to keep
-## a local reference in class files.
+## Array and dictionary references are never overwritten, so it is safe to keep
+## local references in class files.
 
 # simulator state broadcasts
 signal about_to_run_initializers() # IVCoreInitializer; after plugin preinitializers
@@ -89,23 +89,46 @@ signal show_hide_gui_requested(is_toggle: bool, is_show: bool) # 2nd arg ignored
 
 
 # containers - write authority indicated; safe to localize container reference
-var state := {} # IVStateManager; is_inited, is_running, etc.
-var times: Array[float] = [] # IVTimekeeper [time (s, J2000), engine_time (s), solar_day (d)]
-var date: Array[int] = [] # IVTimekeeper; Gregorian [year, month, day]
-var clock: Array[int] = [] # IVTimekeeper; UT [hour, minute, second]
-var program := {} # IVCoreInitializer instantiated objects (base or override classes)
-var procedural_classes := {} # IVCoreInitializer defined script classes (base or override)
-var assets := {} # AssetsInitializer loads from dynamic paths specified below
-var settings := {} # IVSettingsManager
-var themes := {} # IVThemeManager
-var fonts := {} # IVFontManager
-var bodies := {} # IVBody instances add/remove themselves; indexed by name
-var small_bodies_groups := {} # IVSmallBodiesGroup instances add/remove themselves; indexed by name
-var world_targeting := [] # IVWorldControl & others; optimized data for 3D world selection
-var top_bodies: Array[Node3D] = [] # IVBody instances add/remove themselves; just STAR_SUN for us
-var selections := {} # IVSelectionManager(s)
-var blocking_windows: Array[Window] = [] # add Windows that want & test for exclusivity
-var project := {} # for project use; not used by I, Voyager
+
+## Maintained by [IVStateManager]. Mostly boolean keys: is_inited, is_running, etc.
+var state: Dictionary[StringName, Variant] = {}
+## Maintained by [IVTimekeeper]. Holds [time (s, J2000), engine_time (s), solar_day (d)]
+## by default or possibly additional elements.
+var times: Array[float] = []
+## Maintained by [IVTimekeeper]. Holds Gregorian [year, month, day].
+var date: Array[int] = []
+## Maintained by [IVTimekeeper]. Holds UT [hour, minute, second].
+var clock: Array[int] = []
+## Populated by [IVCoreInitializer]. Holds instantiated program objects (base or override classes).
+var program: Dictionary[StringName, Object] = {}
+## Populated by [IVCoreInitializer]. Holds script classes for procedural objects (base or override).
+var procedural_classes: Dictionary[StringName, Resource] = {}
+## Populated by [AssetsInitializer]. Loaded assets from dynamic paths specified in [IVCoreSettings].
+var assets: Dictionary[StringName, Resource] = {}
+## Maintained by [IVSettingsManager].
+var settings: Dictionary[StringName, Variant] = {}
+## Maintained by [IVThemeManager].
+var themes: Dictionary[StringName, Theme] = {}
+## Maintained by [IVFontManager].
+var fonts: Dictionary[StringName, FontFile] = {}
+## Maintained by [IVBody] instances that add/remove themselves. Indexed by [param name].
+## TODO: Make this a static class dictionary.
+var bodies: Dictionary[StringName, Object] = {}
+## Maintained by [IVSmallBodiesGroup] instances that add/remove themselves. Indexed by [param name].
+## TODO: Make this a static class dictionary.
+var small_bodies_groups: Dictionary[StringName, Object] = {}
+## Maintained by [IVWorldControl] & others. Otimized data for 3D world selection
+var world_targeting := []
+## Maintained by [IVBody] instances that add/remove themselves. Only has one body
+## for a single star system (i.e., STAR_SUN in base solar system).
+var top_bodies: Array[Node3D] = []
+## Maintained by [IVSelectionManager] instances.
+## TODO: Make this a static class dictionary.
+var selections: Dictionary[StringName, Object] = {}
+## Maintained by Windows instances that want & test for exclusivity.
+var blocking_windows: Array[Window] = []
+## For project use. Not used by I, Voyager.
+var project := {}
 
 # read-only!
 var ivoyager_version: String

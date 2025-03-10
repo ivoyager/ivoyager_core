@@ -48,7 +48,7 @@ signal huds_visibility_changed(is_visible: bool)
 signal model_visibility_changed(is_visible: bool)
 
 
-const math := preload("res://addons/ivoyager_core/static/math.gd") # =IVMath when issue #37529 fixed
+const math := preload("uid://csb570a3u1x1k")
 
 const IDENTITY_BASIS := Basis.IDENTITY
 const ECLIPTIC_Z := IDENTITY_BASIS.z
@@ -95,8 +95,8 @@ var m_radius := 0.0 # required; optional e_radius & p_radius in characteristics
 var rotation_period := 0.0 # possibly derived (if tidally locked)
 var right_ascension := 0.0 # possibly derived (if axis locked)
 var declination := 0.0 # possibly derived (if axis locked)
-var characteristics := {} # non-object values
-var components := {} # objects (persisted only)
+var characteristics: Dictionary[StringName, Variant] = {} # non-object values
+var components: Dictionary[StringName, Object] = {} # objects (persisted only)
 var orbit: IVOrbit
 var satellites: Array[IVBody] = []
 var rotating_space: IVRotatingSpace # rotates & translates for L-points (lazy init)
