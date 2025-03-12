@@ -127,7 +127,7 @@ enum BodyFlags {
 	SHOW_IN_NAV_PANEL = 1 << 10,
 	
 	NEVER_SLEEP = 1 << 11, # won't work correctly if ancestor node sleeps
-	IS_TOP = 1 << 12, # non-orbiting stars; is in IVGlobal.top_bodies
+	IS_TOP = 1 << 12, # non-orbiting stars; is in IVBody.top_bodies
 	PROXY_STAR_SYSTEM = 1 << 13, # top star or barycenter of system
 	IS_PRIMARY_STAR = 1 << 14,
 	IS_STAR_ORBITING = 1 << 15,

@@ -73,6 +73,8 @@ var a_M0_n := PackedFloat32Array() # librating in l-point objects
 var s_g_mag_de := PackedFloat32Array() # orbit precessions, magnitude, & e amplitude (sec res only)
 var da_D_f_th0 := PackedFloat32Array() # Trojans only
 
+## Contains all IVSmallBodiesGroup instances currently in the tree.
+static var small_bodies_groups: Dictionary[StringName, IVSmallBodiesGroup] = {}
 static var null_pf32_array := PackedFloat32Array()
 
 
@@ -81,14 +83,14 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
-	assert(!IVGlobal.small_bodies_groups.has(name))
-	IVGlobal.small_bodies_groups[name] = self
+	assert(!small_bodies_groups.has(name))
+	small_bodies_groups[name] = self
 	_build_visuals()
 	IVGlobal.add_system_tree_item_finished.emit(self)
 
 
 func _exit_tree() -> void:
-	IVGlobal.small_bodies_groups.erase(name)
+	small_bodies_groups.erase(name)
 
 
 # *****************************************************************************

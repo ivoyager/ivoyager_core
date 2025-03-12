@@ -157,7 +157,7 @@ func _set_flags_from_table(body: IVBody, parent: IVBody) -> void:
 	
 	flags |= BodyFlags.EXISTS
 	if !parent:
-		flags |= BodyFlags.IS_TOP # will add self to IVGlobal.top_bodies
+		flags |= BodyFlags.IS_TOP # will add self to IVBody.top_bodies
 		flags |= BodyFlags.IS_PRIMARY_STAR
 		flags |= BodyFlags.PROXY_STAR_SYSTEM
 	if flags & BodyFlags.IS_STAR:

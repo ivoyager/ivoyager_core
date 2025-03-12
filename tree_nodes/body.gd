@@ -119,6 +119,11 @@ var min_hud_dist: float
 var sleep := false
 var shader_sun_index := -1
 
+## Contains all IVBody instances currently in the tree.
+static var bodies: Dictionary[StringName, IVBody] = {}
+## Contains IVBody instances that are at the top of an IVBody tree. In normal
+## usage this will be stars.
+static var top_bodies: Array[IVBody] = []
 static var sun_global_positions := Basis(Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0))
 
 # private
@@ -152,19 +157,19 @@ func _ready() -> void:
 	IVGlobal.setting_changed.connect(_settings_listener)
 	var timekeeper: IVTimekeeper = IVGlobal.program.Timekeeper
 	timekeeper.time_altered.connect(_on_time_altered)
-	assert(!IVGlobal.bodies.has(name))
-	IVGlobal.bodies[name] = self
+	assert(!bodies.has(name))
+	bodies[name] = self
 	if flags & BodyFlags.IS_TOP:
-		IVGlobal.top_bodies.append(self)
+		top_bodies.append(self)
 	recalculate_spatials()
 	_set_min_hud_dist()
 	_finish_tree_add.call_deferred()
 
 
 func _exit_tree() -> void:
-	IVGlobal.bodies.erase(name)
+	bodies.erase(name)
 	if flags & BodyFlags.IS_TOP:
-		IVGlobal.top_bodies.erase(self)
+		top_bodies.erase(self)
 
 
 func _on_system_tree_built_or_loaded(is_new_game: bool) -> void:

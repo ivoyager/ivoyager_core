@@ -39,7 +39,7 @@ var add_small_bodies_groups := true
 var add_camera := true
 
 # private
-var _bodies: Dictionary[StringName, Object] = IVGlobal.bodies
+var _bodies: Dictionary[StringName, IVBody] = IVBody.bodies
 var _body_builder: IVTableBodyBuilder
 var _sbg_builder: IVTableSBGBuilder
 var _body_script: Script

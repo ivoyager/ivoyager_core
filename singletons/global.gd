@@ -103,12 +103,8 @@ var clock: Array[int] = []
 var program: Dictionary[StringName, Object] = {}
 ## Populated by [IVCoreInitializer]. Holds script classes for procedural objects (base or override).
 var procedural_classes: Dictionary[StringName, Resource] = {}
-
-
-
 ## Populated by [IVAssetsInitializer] and [IVResourceInitializer].
 var resources: Dictionary[StringName, Resource] = {}
-
 ## Populated by [AssetsInitializer]. Loaded assets from dynamic paths specified in [IVCoreSettings].
 var assets: Dictionary[StringName, Resource] = {}
 ## Maintained by [IVSettingsManager].
@@ -117,20 +113,8 @@ var settings: Dictionary[StringName, Variant] = {}
 var themes: Dictionary[StringName, Theme] = {}
 ## Maintained by [IVFontManager].
 var fonts: Dictionary[StringName, FontFile] = {}
-## Maintained by [IVBody] instances that add/remove themselves. Indexed by [param name].
-## TODO: Make this a static class dictionary.
-var bodies: Dictionary[StringName, Object] = {}
-## Maintained by [IVSmallBodiesGroup] instances that add/remove themselves. Indexed by [param name].
-## TODO: Make this a static class dictionary.
-var small_bodies_groups: Dictionary[StringName, Object] = {}
 ## Maintained by [IVWorldControl] & others. Otimized data for 3D world selection
 var world_targeting := []
-## Maintained by [IVBody] instances that add/remove themselves. Only has one body
-## for a single star system (i.e., STAR_SUN in base solar system).
-var top_bodies: Array[Node3D] = []
-## Maintained by [IVSelectionManager] instances.
-## TODO: Make this a static class dictionary.
-var selections: Dictionary[StringName, Object] = {}
 ## Maintained by Windows instances that want & test for exclusivity.
 var blocking_windows: Array[Window] = []
 ## For project use. Not used by I, Voyager.

@@ -63,6 +63,8 @@ var body: IVBody # = spatial if is_body else null
 var texture_2d: Texture2D
 var texture_slice_2d: Texture2D # stars only
 
+## Contains all existing IVSelection instances.
+static var selections: Dictionary[StringName, IVSelection] = {}
 
 
 func _init() -> void:

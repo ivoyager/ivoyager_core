@@ -74,7 +74,7 @@ func _build(_dummy := false) -> void:
 	var column_separation := int(INIT_WIDTH * column_separation_ratio + 0.5)
 	set(&"theme_override_constants/separation", column_separation)
 	# calculate star "slice" relative size
-	var star: IVBody = IVGlobal.top_bodies[0]
+	var star: IVBody = IVBody.top_bodies[0]
 	var min_body_size := roundf(INIT_WIDTH * min_body_size_ratio)
 	# count & calcultate planet relative sizes
 	var base_size := 0.0
