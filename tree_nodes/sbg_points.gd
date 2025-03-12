@@ -101,11 +101,11 @@ func _init(group: IVSmallBodiesGroup) -> void:
 	var shader_material := ShaderMaterial.new()
 	if _lp_integer == -1: # not trojans
 		shader_material.shader = (_points_shader_override if _points_shader_override
-				else IVCoreSettings.shared_resources[&"points_id_shader"])
+				else IVGlobal.resources[&"points_id_shader"])
 	elif _lp_integer >= 4: # trojans
 		_secondary_orbit = group.secondary_body.orbit
 		shader_material.shader = (_points_l4l5_shader_override if _points_l4l5_shader_override
-				else IVCoreSettings.shared_resources[&"points_l4l5_id_shader"])
+				else IVGlobal.resources[&"points_l4l5_id_shader"])
 	material_override = shader_material
 	
 	# ArrayMesh construction

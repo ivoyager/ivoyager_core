@@ -74,7 +74,7 @@ func _init(group: IVSmallBodiesGroup) -> void:
 	# MultiMesh construction
 	multimesh = MultiMesh.new()
 	multimesh.transform_format = MultiMesh.TRANSFORM_3D
-	multimesh.mesh = IVCoreSettings.shared_resources[&"circle_mesh_low_res"]
+	multimesh.mesh = IVGlobal.resources[&"circle_mesh_low_res"]
 	multimesh.use_colors = _multimesh_use_colors
 	multimesh.use_custom_data = _multimesh_use_custom_data # may be forced true below
 	
@@ -85,7 +85,7 @@ func _init(group: IVSmallBodiesGroup) -> void:
 	elif _fragment_identifier and !_bypass_fragment_identifier: # use self-identifying shader
 		multimesh.use_custom_data = true
 		var shader_material := ShaderMaterial.new()
-		shader_material.shader = IVCoreSettings.shared_resources[&"orbits_id_shader"]
+		shader_material.shader = IVGlobal.resources[&"orbits_id_shader"]
 		material_override = shader_material
 	else:
 		var standard_material := StandardMaterial3D.new()

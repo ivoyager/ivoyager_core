@@ -20,7 +20,7 @@
 class_name IVAssetInitializer
 extends RefCounted
 
-# Loads assets specified in IVCoreSettings.
+## Loads assets specified in [IVCoreSettings].
 
 var _asset_replacement_dir: String = IVCoreSettings.asset_replacement_dir
 var _asset_paths_for_load: Dictionary[StringName, String] = IVCoreSettings.asset_paths_for_load

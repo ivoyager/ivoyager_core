@@ -17,46 +17,52 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVSharedResourceInitializer
+class_name IVResourceInitializer
 extends RefCounted
 
-# Adds resources to IVCoreSettings.shared_resources. Add more by adding to
-# 'constructor_callables' on 'project_objects_instantiated' signal.
+## Initializes shared resources that do not depend on ivoyager_assets.
+##
+## Resources are added to IVGlobal.resources. These resources are constructed
+## or loaded by Callables or paths set here, and do not depend on the
+## presence of ivoyager_assets (see IVAssetsInitializer for that).
 
 
-var constructor_callables := {
+var paths: Dictionary[StringName, String] = {
+	# shaders
+	points_id_shader = "res://addons/ivoyager_core/shaders/points.id.gdshader",
+	points_l4l5_id_shader = "res://addons/ivoyager_core/shaders/points.l4l5.id.gdshader",
+	orbit_id_shader = "res://addons/ivoyager_core/shaders/orbit.id.gdshader",
+	orbits_id_shader = "res://addons/ivoyager_core/shaders/orbits.id.gdshader",
+	rings_shader = "res://addons/ivoyager_core/shaders/rings.gdshader",
+}
+
+var constructors: Dictionary[StringName, Callable]= {
 	&"sphere_mesh" : _make_sphere_mesh,
 	&"circle_mesh" : _make_circle_mesh.bind(IVCoreSettings.vertecies_per_orbit),
 	&"circle_mesh_low_res" : _make_circle_mesh.bind(IVCoreSettings.vertecies_per_orbit_low_res),
 }
 
-var _shared_resources: Dictionary = IVCoreSettings.shared_resources
+var _resources: Dictionary = IVGlobal.resources
 
 
 func _init() -> void:
 	_load_resource_paths()
 	_make_shared_resources()
-	IVGlobal.program.erase(&"SharedResourceInitializer")
+	IVGlobal.program.erase(&"ResourceInitializer")
 
 
 func _load_resource_paths() -> void:
-	for key: StringName in _shared_resources:
-		var path_or_resource: Variant = _shared_resources[key]
-		var type := typeof(path_or_resource)
-		if type == TYPE_OBJECT:
-			assert(path_or_resource is Resource, "Non-Resource object in shared_resources")
-			continue
-		assert(type == TYPE_STRING, "Unknown type in shared_resources")
-		var path: String = path_or_resource
+	for key in paths:
+		var path := paths[key]
 		var resource: Resource = load(path)
 		assert(resource, "Failed to load resource at " + path)
-		_shared_resources[key] = resource
+		_resources[key] = resource
 
 
 func _make_shared_resources() -> void:
-	for key: StringName in constructor_callables:
-		var constructor: Callable = constructor_callables[key]
-		_shared_resources[key] = constructor.call()
+	for key in constructors:
+		var constructor := constructors[key]
+		_resources[key] = constructor.call()
 
 
 # constructor callables

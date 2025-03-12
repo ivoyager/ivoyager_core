@@ -105,7 +105,7 @@ var initializers: Dictionary[StringName, Variant] = {
 	# Path to RefCounted class ok.
 	LogInitializer = IVLogInitializer,
 	AssetInitializer = IVAssetInitializer,
-	SharedResourceInitializer = IVSharedResourceInitializer,
+	ResourceInitializer = IVResourceInitializer,
 	WikiInitializer = IVWikiInitializer,
 	TranslationImporter = IVTranslationImporter,
 	TableInitializer = IVTableInitializer,

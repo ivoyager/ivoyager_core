@@ -26,8 +26,8 @@ const SCENE := "res://addons/ivoyager_core/gui_popups/hotkey_dialog.tscn"
 signal hotkey_confirmed(action: StringName, index: int, keycode: int,
 		control: bool, alt: bool, shift: bool, meta: bool)
 
-var _in_use_color: Color = IVCoreSettings.colors[&"danger"]
-var _ok_color: Color = IVCoreSettings.colors[&"normal"]
+var _in_use_color: Color = IVCoreSettings.text_colors[&"danger"]
+var _ok_color: Color = IVCoreSettings.text_colors[&"base"]
 var _input_event_key: InputEventKey
 var _action: StringName
 var _index: int

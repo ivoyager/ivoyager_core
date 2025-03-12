@@ -68,27 +68,17 @@ var home_longitude := 0.0
 var home_latitude := 0.0
 
 
-var colors: Dictionary[StringName, Color] = { # user settable colors in program_refs/settings_manager.gd
-	normal = Color.WHITE,
+## Use this dictionary to set GUI text color meanings globally.
+var text_colors: Dictionary[StringName, Color] = {
+	great = Color.CYAN,
 	good = Color.GREEN,
-	warning = Color.YELLOW,
-	danger = Color(1.0, 0.5, 0.5), # "red" is hard to read
+	base = Color.WHITE,
+	caution = Color.YELLOW,
+	warning = Color.ORANGE,
+	danger = Color(1, 0.2, 0, 1), # RED is hard to read
+	flag = Color.FUCHSIA,
 }
 
-# TODO: Move fully typed dict to IVGlobal. Move load paths to IVSharedInitializer.
-var shared_resources: Dictionary[StringName, Variant] = {
-	# Values can be resource paths or preloaded resources. IVSharedInitializer
-	# loads any paths at project init.
-	
-	# shaders
-	points_id_shader = "res://addons/ivoyager_core/shaders/points.id.gdshader",
-	points_l4l5_id_shader = "res://addons/ivoyager_core/shaders/points.l4l5.id.gdshader",
-	orbit_id_shader = "res://addons/ivoyager_core/shaders/orbit.id.gdshader",
-	orbits_id_shader = "res://addons/ivoyager_core/shaders/orbits.id.gdshader",
-	rings_shader = "res://addons/ivoyager_core/shaders/rings.gdshader",
-	
-	# additional items are constructed & added by initializers/shared_initializer.gd
-}
 
 # *****************************************************************************
 # Settings that IVTableInitializer sends to the Table Importer plugin

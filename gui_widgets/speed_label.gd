@@ -22,8 +22,8 @@ extends Label
 
 # UI widget. Requires IVTimekeeper.
 
-var forward_color: Color = IVCoreSettings.colors[&"normal"]
-var reverse_color: Color = IVCoreSettings.colors[&"danger"]
+var forward_color: Color = IVCoreSettings.text_colors[&"base"]
+var reverse_color: Color = IVCoreSettings.text_colors[&"danger"]
 
 var _is_reversed := false
 
