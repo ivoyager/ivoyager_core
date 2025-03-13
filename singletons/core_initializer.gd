@@ -117,7 +117,8 @@ var program_refcounteds: Dictionary[StringName, Variant] = {
 	# Path to RefCounted class ok.
 	
 	# need first!
-	SettingsManager = IVSettingsManager, # 1st so IVGlobal.settings are valid
+	IOManager = IVIOManager,
+	SettingsManager = IVSettingsManager, # 1st after IOManager so IVGlobal.settings are valid
 	
 	# builders (generators, often from table or binary data)
 	TableSystemBuilder = IVTableSystemBuilder,
@@ -129,7 +130,6 @@ var program_refcounteds: Dictionary[StringName, Variant] = {
 	CompositionBuilder = IVCompositionBuilder, # remove or subclass
 	
 	# managers
-	IOManager = IVIOManager,
 	InputMapManager = IVInputMapManager,
 	FontManager = IVFontManager, # ok to replace
 	ThemeManager = IVThemeManager, # after IVFontManager; ok to replace

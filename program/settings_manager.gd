@@ -18,7 +18,7 @@
 # limitations under the License.
 # *****************************************************************************
 class_name IVSettingsManager
-extends IVCacheManager
+extends RefCounted
 
 ## Defines and manages user settings.
 ##
@@ -27,55 +27,56 @@ extends IVCacheManager
 ## Many (but not necessarily all) user settings are settable in [IVOptionsPopup].
 
 
-const BodyFlags := IVEnums.BodyFlags
+var file_name := "settings.ivbinary"
+var file_version := "0.0.23" # update when obsoleted
+var current := IVGlobal.settings
+var defaults := IVCoreSettings.default_cached_settings
+var cache_handler: IVCacheHandler
 
 
 func _init() -> void:
-	super()
-	# project vars - modify on signal 'IVGlobal.project_objects_instantiated'
-	cache_file_name = "settings.ivbinary"
-	cache_file_version = 3
-	defaults = {
-		# save/load (only matters if Save pluin is enabled)
-		&"save_base_name" : "I Voyager",
-		&"append_date_to_save" : true,
-		&"pause_on_load" : false,
-		&"autosave_time_min" : 10,
-	
-		# camera
-		&"camera_transfer_time" : 1.0,
-		&"camera_mouse_in_out_rate" : 1.0,
-		&"camera_mouse_move_rate" : 1.0,
-		&"camera_mouse_pitch_yaw_rate" : 1.0,
-		&"camera_mouse_roll_rate" : 1.0,
-		&"camera_key_in_out_rate" : 1.0,
-		&"camera_key_move_rate" : 1.0,
-		&"camera_key_pitch_yaw_rate" : 1.0,
-		&"camera_key_roll_rate" : 1.0,
-	
-		# UI & HUD display
-		&"gui_size" : IVEnums.GUISize.GUI_MEDIUM,
-		&"viewport_names_size" : 15,
-		&"viewport_symbols_size" : 25,
-		&"point_size" : 3,
-		&"hide_hud_when_close" : true, # restart or load required
-	
-		# graphics/performance
-		&"starmap" : IVEnums.StarmapSize.STARMAP_16K,
-	
-		# misc
-		&"mouse_action_releases_gui_focus" : true,
-	
-		# cached but not in IVOptionsPopup
-		&"save_dir" : "",
-		&"pbd_splash_caption_open" : false,
-		&"mouse_only_gui_nav" : false,
-	
-		}
-	
-	# read-only
-	current = IVGlobal.settings
+	cache_handler = IVCacheHandler.new(defaults, current, file_name, file_version)
+	cache_handler.current_changed.connect(_on_current_changed)
 
 
-func _on_change_current(setting: StringName) -> void:
-	IVGlobal.setting_changed.emit(setting, current[setting])
+## If suppress_caching = true, be sure to call cache_now() later.
+func change_current(key: StringName, value: Variant, suppress_caching := false) -> void:
+	cache_handler.change_current(key, value, suppress_caching)
+
+
+func cache_now() -> void:
+	cache_handler.cache_now()
+
+
+func is_default(key: StringName) -> bool:
+	return cache_handler.is_default(key)
+
+
+func is_all_defaults() -> bool:
+	return cache_handler.is_all_defaults()
+
+
+func get_cached_values() -> Dictionary[StringName, Variant]:
+	return cache_handler.get_cached_values()
+
+
+## If suppress_caching = true, be sure to call cache_now() later.
+func restore_default(key: StringName, suppress_caching := false) -> void:
+	cache_handler.restore_default(key, suppress_caching)
+
+
+## If suppress_caching = true, be sure to call cache_now() later.
+func restore_all_defaults(suppress_caching := false) -> void:
+	cache_handler.restore_all_defaults(suppress_caching)
+
+
+func is_cache_current() -> bool:
+	return cache_handler.is_cache_current()
+
+
+func restore_from_cache() -> void:
+	cache_handler.restore_from_cache()
+
+
+func _on_current_changed(key: StringName, new_value: Variant) -> void:
+	IVGlobal.setting_changed.emit(key, new_value)
