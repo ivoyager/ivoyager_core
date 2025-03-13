@@ -159,7 +159,7 @@ func _read_cache() -> void:
 func _write_cache(allow_threaded_cache_write := true) -> void:
 	# Unless this is app exit, no one is waiting for this and we can do the
 	# file write on i/o thread. At app exit, we want the main thread to wait.
-	var dict := {}
+	var dict: Dictionary[StringName, Array] = {}
 	for key: StringName in _cached_views:
 		var view: IVView = _cached_views[key]
 		var data := view.get_data_for_cache()
