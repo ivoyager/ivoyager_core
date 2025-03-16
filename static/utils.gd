@@ -137,10 +137,11 @@ static func linear2srgb(x: float) -> float:
 # Number strings
 
 ## Returns 64 bit string formatted '00000000_00000000_00000000_...'.
-static func get_64_bit_string(flags: int) -> String:
+static func get_bit_string(flags: int, bytes := 4) -> String:
+	var bits := bytes * 8
 	var result := ""
 	var index := 0
-	while index < 64:
+	while index < bits:
 		if index % 8 == 0 and index != 0:
 			result = "_" + result
 		result = "1" + result if flags & 1 else "0" + result

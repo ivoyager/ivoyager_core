@@ -31,11 +31,11 @@ extends HFlowContainer
 
 @onready var _view_manager: IVViewManager = IVGlobal.program[&"ViewManager"]
 
+const ViewFlags := IVView.ViewFlags
 
 var default_view_name := &"LABEL_CUSTOM1" # will increment if taken
 var collection_name := &""
 var is_cached := true
-var show_flags := IVView.ALL
 
 
 func _ready() -> void:
@@ -45,7 +45,7 @@ func _ready() -> void:
 
 func init(view_save_button: IVViewSaveButton, default_view_name_ := &"LABEL_CUSTOM1",
 		collection_name_ := &"", is_cached_ := true,
-		show_flags_ := IVView.ALL, init_flags := IVView.ALL,
+		show_flags: int = ViewFlags.ALL, init_flags: int = ViewFlags.ALL,
 		reserved_names: Array[StringName] = []) -> void:
 	# Call from containing scene.
 	# This method calls IVViewSaveButton.init() which calls IVViewSaver.init().
@@ -53,7 +53,6 @@ func init(view_save_button: IVViewSaveButton, default_view_name_ := &"LABEL_CUST
 	default_view_name = default_view_name_
 	collection_name = collection_name_
 	is_cached = is_cached_
-	show_flags = show_flags_
 	view_save_button.init(default_view_name, collection_name, is_cached, show_flags, init_flags,
 			reserved_names)
 	view_save_button.view_saved.connect(_on_view_saved)

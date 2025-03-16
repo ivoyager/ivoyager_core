@@ -25,11 +25,12 @@ extends VBoxContainer
 # IVViewSaveButton.
 
 const BodyFlags: Dictionary = IVEnums.BodyFlags
+const ViewFlags := IVView.ViewFlags
 
 var default_view_name := &"LABEL_CUSTOM1" # will increment if taken
 var collection_name := &"AH"
 var is_cached := true
-var view_flags := IVView.ALL_HUDS
+var view_flags := ViewFlags.ALL_HUDS
 var reserved_view_names: Array[StringName] = [
 	&"BUTTON_PLANETS1",
 	&"BUTTON_ASTEROIDS1",

@@ -29,6 +29,7 @@ extends RefCounted
 
 const CameraFlags := IVEnums.CameraFlags
 const BodyFlags := IVEnums.BodyFlags
+const ViewFlags := IVView.ViewFlags
 const AU := IVUnits.AU
 const KM := IVUnits.KM
 const METER := IVUnits.METER
@@ -95,7 +96,7 @@ func _hide_all() -> void:
 	# No HUDs visible.
 	@warning_ignore("unsafe_method_access")
 	var view: IVView = _view_script.new()
-	view.flags = IVView.HUDS_VISIBILITY
+	view.flags = ViewFlags.HUDS_VISIBILITY
 	views.HideAll = view
 
 
@@ -103,7 +104,7 @@ func _planets1() -> void:
 	# HUDs visible for the major bodies plus small moons (names and orbits).
 	@warning_ignore("unsafe_method_access")
 	var view: IVView = _view_script.new()
-	view.flags = IVView.HUDS_VISIBILITY
+	view.flags = ViewFlags.HUDS_VISIBILITY
 	view.orbit_visible_flags = (
 			# Must be from visibility_groups.tsv subset!
 			BodyFlags.IS_TRUE_PLANET
@@ -120,7 +121,7 @@ func _asteroids1() -> void:
 	# are set but not asteroid orbits (which are overwhelming).
 	@warning_ignore("unsafe_method_access")
 	var view: IVView = _view_script.new()
-	view.flags = IVView.HUDS_VISIBILITY
+	view.flags = ViewFlags.HUDS_VISIBILITY
 	view.orbit_visible_flags = (
 			# Must be from visibility_groups.tsv subset!
 			BodyFlags.IS_TRUE_PLANET
@@ -149,7 +150,7 @@ func _colors1() -> void:
 	# Empty View dicts set default colors.
 	@warning_ignore("unsafe_method_access")
 	var view: IVView = _view_script.new()
-	view.flags = IVView.HUDS_COLOR
+	view.flags = ViewFlags.HUDS_COLOR
 	views.Colors1 = view
 
 
@@ -159,7 +160,7 @@ func _zoom() -> void:
 	# Camera positioned for best dramatic view. Orbit tracking. No selection.
 	@warning_ignore("unsafe_method_access")
 	var view: IVView = _view_script.new()
-	view.flags = IVView.CAMERA_ORIENTATION | IVView.CAMERA_LONGITUDE
+	view.flags = ViewFlags.CAMERA_ORIENTATION | ViewFlags.CAMERA_LONGITUDE
 	view.camera_flags = CameraFlags.UP_LOCKED # | CameraFlags.TRACK_ORBIT
 	# See IVCamera 'perspective distance'; METER below is really body radii
 	view.view_position = Vector3(-INF, deg_to_rad(18.0), 3.0 * METER)
@@ -171,7 +172,7 @@ func _fortyfive() -> void:
 	# Camera positioned 45 degree above view. No selection or longitude.
 	@warning_ignore("unsafe_method_access")
 	var view: IVView = _view_script.new()
-	view.flags = IVView.CAMERA_ORIENTATION
+	view.flags = ViewFlags.CAMERA_ORIENTATION
 	view.camera_flags = CameraFlags.UP_LOCKED # | CameraFlags.TRACK_ORBIT
 	# See IVCamera 'perspective distance'; METER below is really body radii
 	view.view_position = Vector3(-INF, deg_to_rad(45.0), 10.0 * METER)
@@ -183,7 +184,7 @@ func _top() -> void:
 	# Camera positioned almost 90 degrees above. No selection or longitude.
 	@warning_ignore("unsafe_method_access")
 	var view: IVView = _view_script.new()
-	view.flags = IVView.CAMERA_ORIENTATION
+	view.flags = ViewFlags.CAMERA_ORIENTATION
 	view.camera_flags = CameraFlags.UP_LOCKED # | CameraFlags.TRACK_ORBIT
 	# See IVCamera 'perspective distance'; METER below is really body radii
 	view.view_position = Vector3(-INF, deg_to_rad(85.0), 25.0 * METER)
@@ -199,9 +200,9 @@ func _home() -> void:
 	@warning_ignore("unsafe_method_access")
 	var view: IVView = _view_script.new()
 	view.flags = (
-			IVView.ALL_CAMERA
-			| IVView.HUDS_VISIBILITY
-			| IVView.IS_NOW
+			ViewFlags.ALL_CAMERA
+			| ViewFlags.HUDS_VISIBILITY
+			| ViewFlags.IS_NOW
 	)
 	view.selection_name = IVCoreSettings.home_name
 	view.camera_flags = (
@@ -228,7 +229,7 @@ func _cislunar() -> void:
 	# Planets, moons & spacecraft visible.
 	@warning_ignore("unsafe_method_access")
 	var view: IVView = _view_script.new()
-	view.flags = IVView.ALL_CAMERA | IVView.HUDS_VISIBILITY
+	view.flags = ViewFlags.ALL_CAMERA | ViewFlags.HUDS_VISIBILITY
 	view.selection_name = &"PLANET_EARTH"
 	view.camera_flags = CameraFlags.UP_LOCKED | CameraFlags.TRACK_ORBIT
 	# See IVCamera 'perspective distance'; METER below is really body radii
@@ -251,7 +252,7 @@ func _system() -> void:
 	# Planets & moons visible.
 	@warning_ignore("unsafe_method_access")
 	var view: IVView = _view_script.new()
-	view.flags = IVView.ALL_CAMERA | IVView.HUDS_VISIBILITY
+	view.flags = ViewFlags.ALL_CAMERA | ViewFlags.HUDS_VISIBILITY
 	view.selection_name = &"STAR_SUN"
 	view.camera_flags = CameraFlags.UP_LOCKED | CameraFlags.TRACK_ECLIPTIC
 	view.view_position = Vector3(deg_to_rad(-90.0), deg_to_rad(15.0), 70.0 * AU)
@@ -274,7 +275,7 @@ func _asteroids() -> void:
 	# are set but not asteroid orbits (which are overwhelming).
 	@warning_ignore("unsafe_method_access")
 	var view: IVView = _view_script.new()
-	view.flags =  IVView.ALL_CAMERA | IVView.HUDS_VISIBILITY
+	view.flags =  ViewFlags.ALL_CAMERA | ViewFlags.HUDS_VISIBILITY
 	view.selection_name = &"STAR_SUN"
 	view.camera_flags = CameraFlags.UP_LOCKED | CameraFlags.TRACK_ECLIPTIC
 	view.view_position = Vector3(deg_to_rad(-90.0), deg_to_rad(45.0), 15.0 * AU)

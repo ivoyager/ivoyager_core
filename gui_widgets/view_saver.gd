@@ -23,14 +23,17 @@ extends VBoxContainer
 # GUI widget that saves current view. This widget is contained in
 # IVViewSavePopup and works in conjunction with IVViewSaveFlow (which shows
 # the resultant saved view buttons).
+#
+# Note: Unused buttions will be removed!
 
 signal view_saved(view_name: StringName)
 
+const ViewFlags := IVView.ViewFlags
 
 var default_view_name := &"LABEL_CUSTOM1" # will increment if taken
 var collection_name := &""
 var is_cached := true
-var show_flags := IVView.ALL
+var show_flags: int = ViewFlags.ALL
 var reserved_names: Array[StringName] = []
 
 @onready var _view_manager: IVViewManager = IVGlobal.program[&"ViewManager"]
@@ -43,6 +46,18 @@ var reserved_names: Array[StringName] = []
 @onready var _now_ckbx: CheckBox = $"%NowCkbx" # exclusive w/ _time_ckbx
 @onready var _line_edit: LineEdit = $"%LineEdit"
 
+# Unused buttons will be removed!
+@onready var flag_ckbxs : Dictionary[int, CheckBox] = {
+	ViewFlags.CAMERA_SELECTION : _selection_ckbx,
+	ViewFlags.CAMERA_LONGITUDE : _longitude_ckbx,
+	ViewFlags.CAMERA_ORIENTATION : _orientation_ckbx,
+	ViewFlags.HUDS_VISIBILITY : _visibilities_ckbx,
+	ViewFlags.HUDS_COLOR : _colors_ckbx,
+	ViewFlags.TIME_STATE : _time_ckbx,
+	ViewFlags.IS_NOW : _now_ckbx,
+}
+
+
 
 func _ready() -> void:
 	_line_edit.text = tr(default_view_name)
@@ -54,8 +69,8 @@ func _ready() -> void:
 
 
 func init(default_view_name_ := &"LABEL_CUSTOM1", collection_name_ := &"", is_cached_ := true,
-		show_flags_ := IVView.ALL, init_flags := IVView.ALL, reserved_names_: Array[StringName] = []
-		) -> void:
+		show_flags_: int = ViewFlags.ALL, init_flags: int = ViewFlags.ALL,
+		reserved_names_: Array[StringName] = []) -> void:
 	# Called by IVViewSaveButton in standard setup.
 	# Make 'collection_name_' unique to not share views with other GUI instances. 
 	default_view_name = default_view_name_
@@ -63,34 +78,31 @@ func init(default_view_name_ := &"LABEL_CUSTOM1", collection_name_ := &"", is_ca
 	is_cached = is_cached_
 	show_flags = show_flags_
 	reserved_names = reserved_names_
+	
+	# modify input flags as needed
+	if !IVCoreSettings.allow_time_setting:
+		show_flags &= ~ViewFlags.IS_NOW
+	init_flags &= show_flags # enforce subset
+	if init_flags & ViewFlags.TIME_STATE:
+		init_flags &= ~ViewFlags.IS_NOW # exclusive
+	
 	_line_edit.text = tr(default_view_name)
 	_increment_name_as_needed()
 	
-	# init checkboxes
-	if init_flags & IVView.TIME_STATE:
-		@warning_ignore("int_as_enum_without_cast")
-		init_flags &= ~IVView.IS_NOW # exclusive
-	
-	_selection_ckbx.visible = bool(show_flags & IVView.CAMERA_SELECTION)
-	_longitude_ckbx.visible = bool(show_flags & IVView.CAMERA_LONGITUDE)
-	_orientation_ckbx.visible = bool(show_flags & IVView.CAMERA_ORIENTATION)
-	_visibilities_ckbx.visible = bool(show_flags & IVView.HUDS_VISIBILITY)
-	_colors_ckbx.visible = bool(show_flags & IVView.HUDS_COLOR)
-	_time_ckbx.visible = bool(show_flags & IVView.TIME_STATE)
-	_now_ckbx.visible = bool(show_flags & IVView.IS_NOW) and IVCoreSettings.allow_time_setting
-	
-	if _time_ckbx.visible and _now_ckbx.visible:
+	# set button exclusivity if needed
+	if show_flags & ViewFlags.TIME_STATE and show_flags & ViewFlags.IS_NOW:
 		_time_ckbx.toggled.connect(_unset_exclusive.bind(_now_ckbx))
 		_now_ckbx.toggled.connect(_unset_exclusive.bind(_time_ckbx))
 	
-	_selection_ckbx.set_pressed_no_signal(bool(show_flags & init_flags & IVView.CAMERA_SELECTION))
-	_longitude_ckbx.set_pressed_no_signal(bool(show_flags & init_flags & IVView.CAMERA_LONGITUDE))
-	_orientation_ckbx.set_pressed_no_signal(bool(show_flags & init_flags & IVView.CAMERA_ORIENTATION))
-	_visibilities_ckbx.set_pressed_no_signal(bool(show_flags & init_flags & IVView.HUDS_VISIBILITY))
-	_colors_ckbx.set_pressed_no_signal(bool(show_flags & init_flags & IVView.HUDS_COLOR))
-	_time_ckbx.set_pressed_no_signal(bool(show_flags & init_flags & IVView.TIME_STATE))
-	_now_ckbx.set_pressed_no_signal(bool(show_flags & init_flags & IVView.IS_NOW)
-			and IVCoreSettings.allow_time_setting)
+	# remove buttons we'll never use
+	for flag: int in flag_ckbxs.keys(): # erase safe
+		if not flag & show_flags:
+			flag_ckbxs[flag].queue_free()
+			flag_ckbxs.erase(flag)
+	
+	# initial pressed state
+	for flag in flag_ckbxs:
+		flag_ckbxs[flag].set_pressed_no_signal(bool(flag & init_flags))
 
 
 func _unset_exclusive(is_pressed: bool, exclusive_button: CheckBox) -> void:
@@ -131,18 +143,7 @@ func _increment_name_as_needed() -> void:
 
 func _get_view_flags() -> int:
 	var flags := 0
-	if _selection_ckbx.pressed:
-		flags |= IVView.CAMERA_SELECTION
-	if _longitude_ckbx.pressed:
-		flags |= IVView.CAMERA_LONGITUDE
-	if _orientation_ckbx.pressed:
-		flags |= IVView.CAMERA_ORIENTATION
-	if _visibilities_ckbx.pressed:
-		flags |= IVView.HUDS_VISIBILITY
-	if _colors_ckbx.pressed:
-		flags |= IVView.HUDS_COLOR
-	if _time_ckbx.pressed:
-		flags |= IVView.TIME_STATE
-	if _now_ckbx.pressed:
-		flags |= IVView.IS_NOW
+	for flag in flag_ckbxs:
+		if flag_ckbxs[flag].button_pressed:
+			flags |= flag
 	return flags
