@@ -144,7 +144,7 @@ func _scancode_is_reserved(keycode: int) -> bool:
 
 
 func _scancode_is_present_action(scancode_w_mods: int) -> bool:
-	var actions_by_scancode_w_mods: Dictionary = _input_map_manager.actions_by_scancode_w_mods
+	var actions_by_scancode_w_mods := _input_map_manager.actions_by_scancode_w_mods
 	if !actions_by_scancode_w_mods.has(scancode_w_mods):
 		return false
 	var scancode_action: StringName = actions_by_scancode_w_mods[scancode_w_mods]
@@ -152,7 +152,7 @@ func _scancode_is_present_action(scancode_w_mods: int) -> bool:
 
 
 func _scancode_is_available(scancode_w_mods: int) -> bool:
-	var actions_by_scancode_w_mods: Dictionary = _input_map_manager.actions_by_scancode_w_mods
+	var actions_by_scancode_w_mods := _input_map_manager.actions_by_scancode_w_mods
 	if !actions_by_scancode_w_mods.has(scancode_w_mods):
 		return true
 	var scancode_action: StringName = actions_by_scancode_w_mods[scancode_w_mods]
@@ -165,7 +165,7 @@ func _scancode_is_available(scancode_w_mods: int) -> bool:
 
 
 func _get_scancode_action_text(scancode_w_mods: int) -> StringName:
-	var actions_by_scancode_w_mods: Dictionary = _input_map_manager.actions_by_scancode_w_mods
+	var actions_by_scancode_w_mods := _input_map_manager.actions_by_scancode_w_mods
 	if !actions_by_scancode_w_mods.has(scancode_w_mods):
 		return "unknown"
 	var scancode_action: StringName = actions_by_scancode_w_mods[scancode_w_mods]

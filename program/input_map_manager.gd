@@ -35,20 +35,19 @@ var defaults := IVCoreSettings.default_input_map
 var cache_handler: IVCacheHandler
 
 # project vars
-var reserved_scancodes := [] # user can't overwrite w/ or w/out key mods
-var event_classes := { # we'll expand this as needed
+var reserved_scancodes: Array[int] = [] # user can't overwrite w/ or w/out key mods
+var event_classes: Dictionary[StringName, Object] = { # we'll expand this as needed
 	&"InputEventKey" : InputEventKey,
 	&"InputEventJoypadButton" : InputEventJoypadButton,
 	}
 
 # read-only!
-var actions_by_scancode_w_mods := {}
+var actions_by_scancode_w_mods: Dictionary[int, StringName]= {}
 
 
 func _init() -> void:
 	cache_handler = IVCacheHandler.new(defaults, current, file_name, file_version)
-	cache_handler.about_to_change_current.connect(_unindex_scancodes)
-	cache_handler.current_changed.connect(_reset_scancodes)
+	cache_handler.current_changed.connect(_reset_scancodes_and_input_map)
 	IVGlobal.project_objects_instantiated.connect(_init_actions)
 
 
@@ -56,9 +55,8 @@ func _init_actions() -> void:
 	for action: StringName in current:
 		var scancodes := get_scancodes_w_mods_for_action(action)
 		for scancode_w_mods in scancodes:
-#			assert(!actions_by_scancode_w_mods.has(scancode_w_mods))
 			actions_by_scancode_w_mods[scancode_w_mods] = action
-		_set_input_map(action)
+		_reset_input_map(action)
 
 
 # *****************************************************************************
@@ -68,14 +66,13 @@ func set_action_event_dict(action: StringName, event_dict: Dictionary, index: in
 	# index can be arbitrarily large to add to end.
 	# If suppress_caching = true, be sure to call cache_now() later.
 	var events_array: Array = current[action]
-	_unindex_scancodes(action) # un-indexes scancodes, if any
 	var event_class: StringName = event_dict.event_class
 	var event_array_index := get_event_array_index(action, event_class, index)
 	if event_array_index == events_array.size():
 		events_array.append(event_dict)
 	else:
 		events_array[event_array_index] = event_dict
-	_reset_scancodes(action)
+	_reset_scancodes_and_input_map(action)
 	if !suppress_caching:
 		cache_handler.cache_now()
 
@@ -124,7 +121,7 @@ func remove_event_dict_by_index(action: StringName, event_class: StringName, ind
 				break
 			class_index += 1
 		i += 1
-	_reset_scancodes(action)
+	_reset_scancodes_and_input_map(action)
 	if !suppress_caching:
 		cache_handler.cache_now()
 
@@ -232,20 +229,18 @@ static func strip_scancode_mods(keycode: int) -> int:
 
 # *****************************************************************************
 
-func _unindex_scancodes(action: StringName, _dummy: Variant = null) -> void:
-	var scancodes := get_scancodes_w_mods_for_action(action)
-	for scancode_w_mods in scancodes:
-		actions_by_scancode_w_mods.erase(scancode_w_mods)
 
-
-func _reset_scancodes(action: StringName, _dummy: Variant = null) -> void:
+func _reset_scancodes_and_input_map(action: StringName, _dummy: Variant = null) -> void:
+	for scancode_w_mods: int in actions_by_scancode_w_mods.keys():
+		if actions_by_scancode_w_mods[scancode_w_mods] == action:
+			actions_by_scancode_w_mods.erase(scancode_w_mods)
 	var scancodes := get_scancodes_w_mods_for_action(action)
 	for scancode_w_mods in scancodes:
 		actions_by_scancode_w_mods[scancode_w_mods] = action
-	_set_input_map(action)
+	_reset_input_map(action)
 
 
-func _set_input_map(action: StringName) -> void:
+func _reset_input_map(action: StringName) -> void:
 	if InputMap.has_action(action):
 		InputMap.action_erase_events(action)
 	else:
