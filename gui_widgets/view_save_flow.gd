@@ -45,7 +45,7 @@ func _ready() -> void:
 
 func init(view_save_button: IVViewSaveButton, default_view_name_ := &"LABEL_CUSTOM1",
 		collection_name_ := &"", is_cached_ := true,
-		show_flags: int = ViewFlags.ALL, init_flags: int = ViewFlags.ALL,
+		show_flags: int = ViewFlags.VIEWFLAGS_ALL, init_flags: int = ViewFlags.VIEWFLAGS_ALL,
 		reserved_names: Array[StringName] = []) -> void:
 	# Call from containing scene.
 	# This method calls IVViewSaveButton.init() which calls IVViewSaver.init().

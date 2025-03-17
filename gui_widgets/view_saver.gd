@@ -33,7 +33,7 @@ const ViewFlags := IVView.ViewFlags
 var default_view_name := &"LABEL_CUSTOM1" # will increment if taken
 var collection_name := &""
 var is_cached := true
-var show_flags: int = ViewFlags.ALL
+var show_flags: int = ViewFlags.VIEWFLAGS_ALL
 var reserved_names: Array[StringName] = []
 
 @onready var _view_manager: IVViewManager = IVGlobal.program[&"ViewManager"]
@@ -48,13 +48,13 @@ var reserved_names: Array[StringName] = []
 
 # Unused buttons will be removed!
 @onready var flag_ckbxs : Dictionary[int, CheckBox] = {
-	ViewFlags.CAMERA_SELECTION : _selection_ckbx,
-	ViewFlags.CAMERA_LONGITUDE : _longitude_ckbx,
-	ViewFlags.CAMERA_ORIENTATION : _orientation_ckbx,
-	ViewFlags.HUDS_VISIBILITY : _visibilities_ckbx,
-	ViewFlags.HUDS_COLOR : _colors_ckbx,
-	ViewFlags.TIME_STATE : _time_ckbx,
-	ViewFlags.IS_NOW : _now_ckbx,
+	ViewFlags.VIEWFLAG_CAMERA_SELECTION : _selection_ckbx,
+	ViewFlags.VIEWFLAG_CAMERA_LONGITUDE : _longitude_ckbx,
+	ViewFlags.VIEWFLAG_CAMERA_ORIENTATION : _orientation_ckbx,
+	ViewFlags.VIEWFLAG_HUDS_VISIBILITY : _visibilities_ckbx,
+	ViewFlags.VIEWFLAG_HUDS_COLOR : _colors_ckbx,
+	ViewFlags.VIEWFLAG_TIME_STATE : _time_ckbx,
+	ViewFlags.VIEWFLAG_IS_NOW : _now_ckbx,
 }
 
 
@@ -69,7 +69,7 @@ func _ready() -> void:
 
 
 func init(default_view_name_ := &"LABEL_CUSTOM1", collection_name_ := &"", is_cached_ := true,
-		show_flags_: int = ViewFlags.ALL, init_flags: int = ViewFlags.ALL,
+		show_flags_: int = ViewFlags.VIEWFLAGS_ALL, init_flags: int = ViewFlags.VIEWFLAGS_ALL,
 		reserved_names_: Array[StringName] = []) -> void:
 	# Called by IVViewSaveButton in standard setup.
 	# Make 'collection_name_' unique to not share views with other GUI instances. 
@@ -81,16 +81,16 @@ func init(default_view_name_ := &"LABEL_CUSTOM1", collection_name_ := &"", is_ca
 	
 	# modify input flags as needed
 	if !IVCoreSettings.allow_time_setting:
-		show_flags &= ~ViewFlags.IS_NOW
+		show_flags &= ~ViewFlags.VIEWFLAG_IS_NOW
 	init_flags &= show_flags # enforce subset
-	if init_flags & ViewFlags.TIME_STATE:
-		init_flags &= ~ViewFlags.IS_NOW # exclusive
+	if init_flags & ViewFlags.VIEWFLAG_TIME_STATE:
+		init_flags &= ~ViewFlags.VIEWFLAG_IS_NOW # exclusive
 	
 	_line_edit.text = tr(default_view_name)
 	_increment_name_as_needed()
 	
 	# set button exclusivity if needed
-	if show_flags & ViewFlags.TIME_STATE and show_flags & ViewFlags.IS_NOW:
+	if show_flags & ViewFlags.VIEWFLAG_TIME_STATE and show_flags & ViewFlags.VIEWFLAG_IS_NOW:
 		_time_ckbx.toggled.connect(_unset_exclusive.bind(_now_ckbx))
 		_now_ckbx.toggled.connect(_unset_exclusive.bind(_time_ckbx))
 	

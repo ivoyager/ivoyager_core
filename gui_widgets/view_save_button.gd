@@ -44,7 +44,7 @@ func _ready() -> void:
 
 
 func init(default_view_name := &"LABEL_CUSTOM1", collection_name := &"", is_cached := true,
-		show_flags: int = ViewFlags.ALL, init_flags: int = ViewFlags.ALL,
+		show_flags: int = ViewFlags.VIEWFLAGS_ALL, init_flags: int = ViewFlags.VIEWFLAGS_ALL,
 		reserved_names: Array[StringName]= []) -> void:
 	# Called by IVViewCollection in standard setup.
 	# Make 'collection_name' unique to not share views with other GUI instances.
