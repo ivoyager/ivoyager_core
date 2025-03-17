@@ -28,8 +28,9 @@ extends Node
 signal about_to_run_initializers() # IVCoreInitializer; after plugin preinitializers
 signal translations_imported() # IVTranslationImporter; useful for boot screen
 signal data_tables_imported() # IVTableImporter
-signal preinitializers_inited()
-signal initializers_inited()
+signal preinitializers_inited() # IVTableImporter; plugins!
+signal initializer_inited(initializer: RefCounted) # IVCoreInitializer
+signal initializers_inited() # IVCoreInitializer; after all above
 signal project_objects_instantiated() # IVCoreInitializer; IVGlobal.program populated
 signal project_inited() # IVCoreInitializer; after above
 signal project_nodes_added() # IVCoreInitializer; prog_nodes & gui_nodes added

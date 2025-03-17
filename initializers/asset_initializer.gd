@@ -40,6 +40,10 @@ var _asset_path_dicts: Array[Dictionary] = [
 func _init() -> void:
 	_modify_asset_paths()
 	_load_assets()
+	IVGlobal.initializers_inited.connect(_remove_self)
+
+
+func _remove_self() -> void:
 	IVGlobal.program.erase(&"AssetInitializer")
 
 

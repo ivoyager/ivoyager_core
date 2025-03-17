@@ -52,19 +52,19 @@ mouse_filter = 2
 
 [node name="HideAll" parent="HBox" instance=ExtResource("7")]
 layout_mode = 2
-text = "BUTTON_HIDE_ALL"
+text = "VIEW_HIDE_ALL"
 
 [node name="Planets1" parent="HBox" instance=ExtResource("7")]
 layout_mode = 2
-text = "BUTTON_PLANETS1"
+text = "VIEW_PLANETS1"
 
 [node name="Asteroids1" parent="HBox" instance=ExtResource("7")]
 layout_mode = 2
-text = "BUTTON_ASTEROIDS1"
+text = "VIEW_ASTEROIDS1"
 
 [node name="Colors1" parent="HBox" instance=ExtResource("7")]
 layout_mode = 2
-text = "BUTTON_COLORS1"
+text = "VIEW_COLORS1"
 
 [node name="Spacer3" type="Control" parent="."]
 custom_minimum_size = Vector2(0, 4)

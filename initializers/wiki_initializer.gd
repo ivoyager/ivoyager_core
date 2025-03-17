@@ -36,4 +36,8 @@ func _init() -> void:
 		else:
 			IVGlobal.wiki = "en.wikipedia"
 	
+	IVGlobal.initializers_inited.connect(_remove_self)
+
+
+func _remove_self() -> void:
 	IVGlobal.program.erase(&"WikiInitializer")

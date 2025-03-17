@@ -48,6 +48,10 @@ var _resources: Dictionary = IVGlobal.resources
 func _init() -> void:
 	_load_resource_paths()
 	_make_shared_resources()
+	IVGlobal.initializers_inited.connect(_remove_self)
+
+
+func _remove_self() -> void:
 	IVGlobal.program.erase(&"ResourceInitializer")
 
 

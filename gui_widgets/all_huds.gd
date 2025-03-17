@@ -32,9 +32,10 @@ var collection_name := &"AH"
 var is_cached := true
 var view_flags := ViewFlags.VIEWFLAGS_ALL_HUDS
 var reserved_view_names: Array[StringName] = [
-	&"BUTTON_PLANETS1",
-	&"BUTTON_ASTEROIDS1",
-	&"BUTTON_COLORS1",
+	&"VIEW_HIDE_ALL",
+	&"VIEW_PLANETS1",
+	&"VIEW_ASTEROIDS1",
+	&"VIEW_COLORS1",
 ]
 
 var _column_master: GridContainer

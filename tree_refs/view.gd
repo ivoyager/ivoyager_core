@@ -122,13 +122,14 @@ func save_state(save_flags: int) -> void:
 
 
 func set_state(is_camera_instant_move := false) -> void:
-	# Sets all state that this view has.
+	# Sets all state in ViewFlags.
 	_set_camera_state(is_camera_instant_move)
 	_set_huds_state()
 	_set_time_state()
 
 
 # IVViewManager functions
+
 
 func reset() -> void:
 	# back to init state

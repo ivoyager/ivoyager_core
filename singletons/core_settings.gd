@@ -358,6 +358,7 @@ var tables: Dictionary[StringName, String] = {
 	small_bodies_groups = "res://addons/ivoyager_core/data/solar_system/small_bodies_groups.tsv",
 	spacecrafts = "res://addons/ivoyager_core/data/solar_system/spacecrafts.tsv",
 	stars = "res://addons/ivoyager_core/data/solar_system/stars.tsv",
+	views = "res://addons/ivoyager_core/data/solar_system/views.tsv",
 	visual_groups = "res://addons/ivoyager_core/data/solar_system/visual_groups.tsv",
 	wiki_extras = "res://addons/ivoyager_core/data/solar_system/wiki_extras.tsv",
 }
@@ -365,6 +366,8 @@ var table_project_enums := [
 	IVEnums.SBGClass,
 	IVEnums.Confidence,
 	IVBody.BodyFlags,
+	IVCamera.CameraFlags,
+	IVView.ViewFlags,
 ]
 var merge_table_constants := {}
 var replacement_missing_values := {} # not recomended to use this

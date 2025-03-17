@@ -125,6 +125,7 @@ var program_refcounteds: Dictionary[StringName, Variant] = {
 	TableBodyBuilder = IVTableBodyBuilder,
 	TableOrbitBuilder = IVTableOrbitBuilder,
 	TableSBGBuilder = IVTableSBGBuilder,
+	TableViewBuilder = IVTableViewBuilder,
 	BinaryAsteroidsBuilder = IVBinaryAsteroidsBuilder,
 	SelectionBuilder = IVSelectionBuilder,
 	CompositionBuilder = IVCompositionBuilder, # remove or subclass
@@ -137,8 +138,6 @@ var program_refcounteds: Dictionary[StringName, Variant] = {
 	WikiManager = IVWikiManager,
 	ModelManager = IVModelManager,
 	
-	# tools and resources
-	ViewDefaults = IVViewDefaults,
 }
 
 var program_nodes: Dictionary[StringName, Variant] = {
@@ -305,6 +304,7 @@ func _instantiate_initializers() -> void:
 		assert(!_program.has(key))
 		var initializer: RefCounted = IVFiles.make_object_or_scene(initializers[key])
 		_program[key] = initializer
+		IVGlobal.initializer_inited.emit(initializer)
 	IVGlobal.initializers_inited.emit()
 
 
