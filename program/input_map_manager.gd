@@ -162,6 +162,7 @@ func is_all_defaults() -> bool:
 
 
 func get_cached_values() -> Dictionary[StringName, Variant]:
+	# WARNING: Return is NOT reference-safe!
 	return cache_handler.get_cached_values()
 
 

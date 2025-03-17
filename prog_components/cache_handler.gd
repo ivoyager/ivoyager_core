@@ -26,12 +26,10 @@ extends RefCounted
 ## options, hotkeys, or similar data. Init on project_objects_instantiated
 ## signal.
 
-signal about_to_change_current(key: StringName, current_value: Variant)
 signal current_changed(key: StringName, new_value: Variant)
 
 
 var _version_key: StringName
-
 
 var _defaults: Dictionary[StringName, Variant]
 var _current: Dictionary[StringName, Variant]
@@ -59,15 +57,8 @@ func _init(defaults: Dictionary[StringName, Variant], current: Dictionary[String
 	_file_path = cache_dir.path_join(_file_name)
 	if !DirAccess.dir_exists_absolute(cache_dir):
 		DirAccess.make_dir_recursive_absolute(cache_dir)
-	
 	for key: StringName in _defaults:
-		var default: Variant = _defaults[key]
-		var type := typeof(default)
-		if type == TYPE_DICTIONARY or type == TYPE_ARRAY:
-			@warning_ignore("unsafe_method_access")
-			_current[key] = default.duplicate(true)
-		else:
-			_current[key] = default
+		_current[key] = _get_reference_safe(_defaults[key])
 	_read_cache()
 	if _missing_or_bad_cache_file:
 		_write_cache.call_deferred()
@@ -75,13 +66,7 @@ func _init(defaults: Dictionary[StringName, Variant], current: Dictionary[String
 
 ## If suppress_caching = true, be sure to call cache_now() later.
 func change_current(key: StringName, value: Variant, suppress_caching := false) -> void:
-	about_to_change_current.emit(key, _current[key])
-	var type := typeof(value)
-	if type == TYPE_DICTIONARY or type == TYPE_ARRAY:
-		@warning_ignore("unsafe_method_access")
-		_current[key] = value.duplicate(true)
-	else:
-		_current[key] = value
+	_current[key] = _get_reference_safe(value)
 	current_changed.emit(key, _current[key])
 	if !suppress_caching:
 		cache_now()
@@ -100,7 +85,8 @@ func is_all_defaults() -> bool:
 
 
 func get_cached_value(key: StringName) -> Variant:
-	# If cache doesn't have it, we treat default as cached
+	# If cache doesn't have it, we treat default as cached.
+	# WARNING: Return is NOT reference-safe!
 	if _cached.has(key):
 		return _cached[key]
 	return _defaults[key]
@@ -113,6 +99,7 @@ func is_cached(key: StringName) -> bool:
 
 
 func get_cached_values() -> Dictionary[StringName, Variant]:
+	# WARNING: Return is NOT reference-safe!
 	return _cached
 
 
@@ -138,18 +125,29 @@ func is_cache_current() -> bool:
 func restore_from_cache() -> void:
 	for key: StringName in _defaults:
 		if !is_cached(key):
-			var cached_value: Variant = get_cached_value(key)
-			change_current(key, cached_value, true)
+			change_current(key, get_cached_value(key), true)
 
 
 # *****************************************************************************
+
+
+func _get_reference_safe(value: Variant) -> Variant:
+	var type := typeof(value)
+	if type == TYPE_DICTIONARY:
+		var dict: Dictionary = value
+		return dict.duplicate(true)
+	if type == TYPE_ARRAY:
+		var array: Array = value
+		return array.duplicate(true)
+	assert(type != TYPE_OBJECT, "Unallowed Object value")
+	return value
 
 
 func _write_cache() -> void:
 	_cached.clear()
 	for key: StringName in _defaults:
 		if _current[key] != _defaults[key]: # cache only non-default values
-			_cached[key] = _current[key]
+			_cached[key] = _get_reference_safe(_current[key])
 	_cached[_version_key] = _file_version
 	_io_manager.store_var_to_file(_cached.duplicate(true), _file_path)
 
@@ -183,5 +181,5 @@ func _read_cache() -> void:
 	_cached = file_dict
 	for key: StringName in _cached:
 		if _current.has(key): # possibly old verson obsoleted key
-			_current[key] = _cached[key]
+			_current[key] = _get_reference_safe(_cached[key])
 	_missing_or_bad_cache_file = false

@@ -274,7 +274,7 @@ func _build_content() -> void:
 					var label_name: StringName = subpanel_dict[item]
 					var setting_hbox := _build_item(item, label_name)
 					subpanel_vbox.add_child(setting_hbox)
-	_on_content_built()
+	_on_content_built.call_deferred()
 
 
 func _on_content_built() -> void:
@@ -338,7 +338,7 @@ func _on_hotkey_confirmed(action: StringName, index: int, keycode: int,
 			event_dict.meta_pressed = true
 		print("Set ", action, ": ", event_dict)
 		_input_map_manager.set_action_event_dict(action, event_dict, index, true)
-	_build_content()
+	_build_content.call_deferred()
 
 
 func _on_restore_defaults() -> void:
