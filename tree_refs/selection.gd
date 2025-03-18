@@ -33,7 +33,7 @@ extends RefCounted
 const math := preload("uid://csb570a3u1x1k")
 
 const CameraFlags := IVEnums.CameraFlags
-const BodyFlags := IVEnums.BodyFlags
+const BodyFlags := IVBody.BodyFlags
 const IDENTITY_BASIS := Basis.IDENTITY
 const ECLIPTIC_X := Vector3(1.0, 0.0, 0.0)
 const ECLIPTIC_Y := Vector3(0.0, 1.0, 0.0)
@@ -155,7 +155,7 @@ func get_orbit_basis(time := NAN) -> Basis:
 	# FIXME: Make this more honest. We flip basis for planets for better view.
 	# Function names should make it clear this is for camera use.
 	var basis := body.get_orbit_basis(time)
-	if body.flags & BodyFlags.IS_STAR_ORBITING:
+	if body.flags & BodyFlags.BODYFLAGS_STAR_ORBITING:
 		return basis.rotated(basis.z, PI)
 	return basis
 

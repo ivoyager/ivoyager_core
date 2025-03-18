@@ -24,7 +24,7 @@ extends VBoxContainer
 # classes: IVBodyHUDs, IVSBGHUDs, IVViewButton, IVViewSaveFlow and
 # IVViewSaveButton.
 
-const BodyFlags: Dictionary = IVEnums.BodyFlags
+const BodyFlags: Dictionary = IVBody.BodyFlags
 const ViewFlags := IVView.ViewFlags
 
 var default_view_name := &"LABEL_CUSTOM1" # will increment if taken
@@ -62,7 +62,7 @@ func _on_child_entered_tree(control: Control) -> void:
 				body_huds.column0_en_width = 23
 				body_huds.columns_en_width = 6
 				body_huds.rows = [
-					[&"STAR_SUN", BodyFlags.IS_STAR, false],
+					[&"STAR_SUN", BodyFlags.BODYFLAGS_STAR, false],
 				]
 				body_huds.disable_orbits_rows.append(0) # no orbit for the Sun
 			&"PMOsHUDs":
@@ -70,27 +70,27 @@ func _on_child_entered_tree(control: Control) -> void:
 				body_huds.has_headers = false
 				body_huds.rows = [
 					[&"LABEL_PLANETARY_MASS_OBJECTS", 0, false], # 0 causes all flags below to be set
-					[&"LABEL_PLANETS", BodyFlags.IS_TRUE_PLANET, true],
-					[&"LABEL_DWARF_PLANETS", BodyFlags.IS_DWARF_PLANET, true],
-					[&"LABEL_MOONS_WIKI_PMO", BodyFlags.IS_PLANETARY_MASS_MOON, true],
+					[&"LABEL_PLANETS", BodyFlags.BODYFLAGS_TRUE_PLANET, true],
+					[&"LABEL_DWARF_PLANETS", BodyFlags.BODYFLAGS_DWARF_PLANET, true],
+					[&"LABEL_MOONS_WIKI_PMO", BodyFlags.BODYFLAGS_PLANETARY_MASS_MOON, true],
 				]
 			&"NonPMOMoonsHUDs":
 				body_huds.column_master = _column_master
 				body_huds.has_headers = false
 				body_huds.rows = [
-					[&"LABEL_MOONS_NON_PMO", BodyFlags.IS_NON_PLANETARY_MASS_MOON, false],
+					[&"LABEL_MOONS_NON_PMO", BodyFlags.BODYFLAGS_NON_PLANETARY_MASS_MOON, false],
 				]
 			&"VisitedAsteroidsHUDs":
 				body_huds.column_master = _column_master
 				body_huds.has_headers = false
 				body_huds.rows = [
-					[&"LABEL_ASTEROIDS_VISITED", BodyFlags.IS_ASTEROID, false], # TODO: IS_VISITED_ASTEROID flag
+					[&"LABEL_ASTEROIDS_VISITED", BodyFlags.BODYFLAGS_ASTEROID, false], # TODO: IS_VISITED_ASTEROID flag
 				]
 			&"SpacecraftHUDs":
 				body_huds.column_master = _column_master
 				body_huds.has_headers = false
 				body_huds.rows = [
-					[&"LABEL_SPACECRAFT", BodyFlags.IS_SPACECRAFT, false],
+					[&"LABEL_SPACECRAFT", BodyFlags.BODYFLAGS_SPACECRAFT, false],
 				]
 		return
 	

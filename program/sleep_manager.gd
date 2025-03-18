@@ -30,7 +30,7 @@ extends RefCounted
 ## instances. E.g., a game might have 1000s of instantiated asteroids or
 ## spacecrafts that can be put to sleep under certain conditions.
 
-const IS_STAR_ORBITING := IVEnums.BodyFlags.IS_STAR_ORBITING
+const BODYFLAGS_STAR_ORBITING := IVBody.BodyFlags.BODYFLAGS_STAR_ORBITING
 
 var _camera: Camera3D
 var _current_star_orbiter: IVBody
@@ -79,7 +79,7 @@ func _on_camera_parent_changed(body: IVBody) -> void:
 
 
 func _get_star_orbiter(body: IVBody) -> IVBody:
-	while not body.flags & IS_STAR_ORBITING:
+	while not body.flags & BODYFLAGS_STAR_ORBITING:
 		body = body.get_parent_node_3d() as IVBody
 		if !body: # reached the top
 			return null

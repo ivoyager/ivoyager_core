@@ -49,7 +49,7 @@ enum { # data_type
 const NumberType := IVQFormat.NumberType
 const DynamicUnitType := IVQFormat.DynamicUnitType
 
-const BodyFlags := IVEnums.BodyFlags
+const BodyFlags := IVBody.BodyFlags
 const NULL_ARRAY := []
 
 # project vars
@@ -198,8 +198,8 @@ var section_content: Array[Array] = [
 ]
 
 var body_flags_test := { # show criteria
-	"body/m_radius" : BodyFlags.DISPLAY_M_RADIUS,
-	"body/characteristics/hydrostatic_equilibrium" : BodyFlags.IS_MOON,
+	"body/m_radius" : BodyFlags.BODYFLAGS_DISPLAY_M_RADIUS,
+	"body/characteristics/hydrostatic_equilibrium" : BodyFlags.BODYFLAGS_MOON,
 }
 
 var value_postprocessors := {
@@ -320,9 +320,9 @@ func object_labels_values_display(object: Object, prespace: String) -> Array:
 
 func mod_rotation_period(value_txt: String, value: float) -> String:
 	if _body:
-		if _body.flags & BodyFlags.IS_TIDALLY_LOCKED:
+		if _body.flags & BodyFlags.BODYFLAGS_TIDALLY_LOCKED:
 			value_txt += " (%s)" % tr(&"TXT_TIDALLY_LOCKED").to_lower()
-		elif _body.flags & BodyFlags.TUMBLES_CHAOTICALLY:
+		elif _body.flags & BodyFlags.BODYFLAGS_TUMBLES_CHAOTICALLY:
 			value_txt = "~%s d (%s)" % [round(value / IVUnits.DAY), tr(&"TXT_CHAOTIC").to_lower()]
 		elif _body.name == &"PLANET_MERCURY":
 			value_txt += " (3:2 %s)" % tr(&"TXT_RESONANCE").to_lower()
@@ -333,16 +333,16 @@ func mod_rotation_period(value_txt: String, value: float) -> String:
 
 func mod_axial_tilt_to_orbit(value_txt: String, value: float) -> String:
 	if _body:
-		if is_zero_approx(value) and _body.flags & BodyFlags.IS_TIDALLY_LOCKED:
+		if is_zero_approx(value) and _body.flags & BodyFlags.BODYFLAGS_TIDALLY_LOCKED:
 			value_txt = "~0\u00B0"
-		elif _body.flags & BodyFlags.TUMBLES_CHAOTICALLY:
+		elif _body.flags & BodyFlags.BODYFLAGS_TUMBLES_CHAOTICALLY:
 			value_txt = tr(&"TXT_VARIABLE")
 	return value_txt
 
 
 func mod_axial_tilt_to_ecliptic(value_txt: String, _value: float) -> String:
 	if _body:
-		if _body.flags & BodyFlags.TUMBLES_CHAOTICALLY:
+		if _body.flags & BodyFlags.BODYFLAGS_TUMBLES_CHAOTICALLY:
 			value_txt = tr(&"TXT_VARIABLE")
 	return value_txt
 

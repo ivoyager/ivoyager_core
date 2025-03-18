@@ -24,7 +24,7 @@ extends Node
 ##
 ## Body HUDs must connect and set their own visibility on changed signals.
 ## A complete set of group 'keys' is defined in data table 'visual_groups.tsv'
-## based on exclusive bit flags in IVEnums.BodyFlags.[br][br]
+## based on exclusive bit flags in IVBody.BodyFlags.[br][br]
 ##
 ## See also [IVSBGHUDsState] for [IVSmallBodiesGroup] HUDs.
 
@@ -33,7 +33,7 @@ signal color_changed()
 
 
 const NULL_COLOR := Color.BLACK
-const BodyFlags: Dictionary = IVEnums.BodyFlags
+const BodyFlags: Dictionary = IVBody.BodyFlags
 
 const PERSIST_MODE := IVEnums.PERSIST_PROPERTIES_ONLY
 const PERSIST_PROPERTIES: Array[StringName] = [

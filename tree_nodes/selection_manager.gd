@@ -54,7 +54,7 @@ enum {
 	SELECTION_LAGRANGE_POINT,
 }
 
-const BodyFlags := IVEnums.BodyFlags
+const BodyFlags := IVBody.BodyFlags
 
 const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL
 const PERSIST_PROPERTIES: Array[StringName] = [
@@ -302,21 +302,21 @@ func next_last(incr: int, selection_type := -1, _alt_selection_type := -1) -> vo
 			select_body(sun)
 			return
 		SELECTION_PLANET:
-			var star := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.IS_STAR)
+			var star := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.BODYFLAGS_STAR)
 			if !star:
 				return
 			iteration_array = star.satellites
-			var planet := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.IS_PLANET)
+			var planet := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.BODYFLAGS_PLANET)
 			if planet:
 				index = iteration_array.find(planet)
 				if planet != current_body and incr == 1:
 					index -= 1
 		SELECTION_NAVIGATOR_MOON, SELECTION_MOON:
-			var planet := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.IS_PLANET)
+			var planet := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.BODYFLAGS_PLANET)
 			if !planet:
 				return
 			iteration_array = planet.satellites
-			var moon := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.IS_MOON)
+			var moon := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.BODYFLAGS_MOON)
 			if moon:
 				index = iteration_array.find(moon)
 				if moon != current_body and incr == 1:
@@ -343,15 +343,15 @@ func next_last(incr: int, selection_type := -1, _alt_selection_type := -1) -> vo
 			-1:
 				do_selection = true
 			SELECTION_STAR:
-				do_selection = bool(body.flags & BodyFlags.IS_STAR)
+				do_selection = bool(body.flags & BodyFlags.BODYFLAGS_STAR)
 			SELECTION_PLANET:
-				do_selection = bool(body.flags & BodyFlags.IS_PLANET)
+				do_selection = bool(body.flags & BodyFlags.BODYFLAGS_PLANET)
 			SELECTION_NAVIGATOR_MOON:
-				do_selection = bool(body.flags & BodyFlags.IS_NAVIGATOR_MOON)
+				do_selection = bool(body.flags & BodyFlags.BODYFLAGS_NAVIGATOR_MOON)
 			SELECTION_MOON:
-				do_selection = bool(body.flags & BodyFlags.IS_MOON)
+				do_selection = bool(body.flags & BodyFlags.BODYFLAGS_MOON)
 			SELECTION_SPACECRAFT:
-				do_selection = bool(body.flags & BodyFlags.IS_SPACECRAFT)
+				do_selection = bool(body.flags & BodyFlags.BODYFLAGS_SPACECRAFT)
 		if do_selection:
 			select_body(body)
 			return

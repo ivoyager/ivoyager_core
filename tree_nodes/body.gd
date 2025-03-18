@@ -47,6 +47,51 @@ extends Node3D
 signal huds_visibility_changed(is_visible: bool)
 signal model_visibility_changed(is_visible: bool)
 
+enum BodyFlags {
+	
+	BODYFLAGS_BARYCENTER = 1, # not implemented yet
+	BODYFLAGS_STAR = 1 << 1,
+	BODYFLAGS_PLANET = 1 << 2, # includes dwarf planet
+	BODYFLAGS_TRUE_PLANET = 1 << 3,
+	BODYFLAGS_DWARF_PLANET = 1 << 4,
+	BODYFLAGS_MOON = 1 << 5,
+	BODYFLAGS_ASTEROID = 1 << 6,
+	BODYFLAGS_COMET = 1 << 7,
+	BODYFLAGS_SPACECRAFT = 1 << 8,
+	
+	# combos
+	BODYFLAGS_PLANET_OR_MOON = 1 << 2 | 1 << 5,
+
+	BODYFLAGS_PLANETARY_MASS_OBJECT = 1 << 9,
+	BODYFLAGS_SHOW_IN_NAV_PANEL = 1 << 10,
+	
+	BODYFLAGS_NEVER_SLEEP = 1 << 11, # won't work correctly if ancestor node sleeps
+	BODYFLAGS_TOP = 1 << 12, # non-orbiting stars; is in IVBody.top_bodies
+	BODYFLAGS_PROXY_STAR_SYSTEM = 1 << 13, # top star or barycenter of system
+	BODYFLAGS_PRIMARY_STAR = 1 << 14,
+	BODYFLAGS_STAR_ORBITING = 1 << 15,
+	BODYFLAGS_TIDALLY_LOCKED = 1 << 16,
+	BODYFLAGS_AXIS_LOCKED = 1 << 17,
+	BODYFLAGS_TUMBLES_CHAOTICALLY = 1 << 18, # e.g., Hyperion (mechanic not implemented yet)
+	BODYFLAGS_NAVIGATOR_MOON = 1 << 19, # IVSelectionManager uses for cycling
+	BODYFLAGS_PLANETARY_MASS_MOON = 1 << 20,
+	BODYFLAGS_NON_PLANETARY_MASS_MOON = 1 << 21,
+	
+	BODYFLAGS_DISPLAY_M_RADIUS = 1 << 22,
+	BODYFLAGS_ATMOSPHERE = 1 << 23,
+	BODYFLAGS_GAS_GIANT = 1 << 24,
+	BODYFLAGS_NO_ORBIT = 1 << 25, # Hill Sphere is smaller than body radius (e.g., ISS)
+	BODYFLAGS_NO_STABLE_ORBIT = 1 << 26, # Hill Sphere is smaller than body radius x 3
+	BODYFLAGS_USE_CARDINAL_DIRECTIONS = 1 << 27,
+	BODYFLAGS_USE_PITCH_YAW = 1 << 28,
+	
+	BODYFLAGS_EXISTS = 1 << 29, # always set by IVTableBodyBuilder
+	BODYFLAGS_DISABLE_MODEL_SPACE = 1 << 30,
+	
+#   I, Voyager reserved to 1 << 45.
+#	Higher bits safe for projects.
+#	Max bit shift is 1 << 63.
+}
 
 const math := preload("uid://csb570a3u1x1k")
 
@@ -54,16 +99,15 @@ const IDENTITY_BASIS := Basis.IDENTITY
 const ECLIPTIC_Z := IDENTITY_BASIS.z
 const VECTOR2_ZERO := Vector2.ZERO
 const VECTOR2_NULL := Vector2(-INF, -INF)
-const BodyFlags := IVEnums.BodyFlags
-const IS_TOP := BodyFlags.IS_TOP
-const IS_STAR := BodyFlags.IS_STAR
-const IS_TRUE_PLANET := BodyFlags.IS_TRUE_PLANET
-const IS_DWARF_PLANET := BodyFlags.IS_DWARF_PLANET
-const IS_MOON := BodyFlags.IS_MOON
-const IS_TIDALLY_LOCKED := BodyFlags.IS_TIDALLY_LOCKED
-const IS_AXIS_LOCKED := BodyFlags.IS_AXIS_LOCKED
-const TUMBLES_CHAOTICALLY := BodyFlags.TUMBLES_CHAOTICALLY
-const NEVER_SLEEP := BodyFlags.NEVER_SLEEP
+const BODYFLAGS_TOP := BodyFlags.BODYFLAGS_TOP
+const BODYFLAGS_STAR := BodyFlags.BODYFLAGS_STAR
+const BODYFLAGS_TRUE_PLANET := BodyFlags.BODYFLAGS_TRUE_PLANET
+const BODYFLAGS_DWARF_PLANET := BodyFlags.BODYFLAGS_DWARF_PLANET
+const BODYFLAGS_MOON := BodyFlags.BODYFLAGS_MOON
+const BODYFLAGS_TIDALLY_LOCKED := BodyFlags.BODYFLAGS_TIDALLY_LOCKED
+const BODYFLAGS_AXIS_LOCKED := BodyFlags.BODYFLAGS_AXIS_LOCKED
+const BODYFLAGS_TUMBLES_CHAOTICALLY := BodyFlags.BODYFLAGS_TUMBLES_CHAOTICALLY
+const BODYFLAGS_NEVER_SLEEP := BodyFlags.BODYFLAGS_NEVER_SLEEP
 const IS_SERVER = IVEnums.NetworkState.IS_SERVER
 const MIN_SYSTEM_M_RADIUS_MULTIPLIER := 15.0
 const RINGS_LOD_LEVELS := 9 # must agree w/ assets, rings.gd and rings.shader
@@ -90,7 +134,7 @@ static var min_hud_dist_radius_multiplier := 500.0
 static var min_hud_dist_star_multiplier := 20.0 # combines w/ above
 
 # persisted
-var flags := 0 # see IVEnums.BodyFlags
+var flags := 0 # see IVBody.BodyFlags
 var m_radius := 0.0 # required; optional e_radius & p_radius in characteristics
 var rotation_period := 0.0 # possibly derived (if tidally locked)
 var right_ascension := 0.0 # possibly derived (if axis locked)
@@ -159,7 +203,7 @@ func _ready() -> void:
 	timekeeper.time_altered.connect(_on_time_altered)
 	assert(!bodies.has(name))
 	bodies[name] = self
-	if flags & BodyFlags.IS_TOP:
+	if flags & BodyFlags.BODYFLAGS_TOP:
 		top_bodies.append(self)
 	recalculate_spatials()
 	_set_min_hud_dist()
@@ -168,7 +212,7 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	bodies.erase(name)
-	if flags & BodyFlags.IS_TOP:
+	if flags & BodyFlags.BODYFLAGS_TOP:
 		top_bodies.erase(self)
 
 
@@ -185,9 +229,9 @@ func _on_system_tree_built_or_loaded(is_new_game: bool) -> void:
 	# non-table flags
 	var hill_sphere := get_hill_sphere()
 	if hill_sphere < m_radius:
-		flags |= BodyFlags.NO_ORBIT
+		flags |= BodyFlags.BODYFLAGS_NO_ORBIT
 	if hill_sphere / 3.0 < m_radius:
-		flags |= BodyFlags.NO_STABLE_ORBIT
+		flags |= BodyFlags.BODYFLAGS_NO_STABLE_ORBIT
 
 
 func _prepare_to_free() -> void:
@@ -548,7 +592,7 @@ func get_orbit_normal(time := NAN, flip_retrograde := false) -> Vector3:
 
 
 func get_orbit_inclination_to_equator(time := NAN) -> float:
-	if !orbit or flags & IS_TOP:
+	if !orbit or flags & BODYFLAGS_TOP:
 		return NAN
 	var orbit_normal := orbit.get_normal(time)
 	var parent: IVBody = get_parent_node_3d()
@@ -599,7 +643,7 @@ func get_orbit_basis(time := NAN) -> Basis:
 func get_hill_sphere(eccentricity := 0.0) -> float:
 	# returns INF if this is a top body in simulation
 	# see: https://en.wikipedia.org/wiki/Hill_sphere
-	if flags & BodyFlags.IS_TOP:
+	if flags & BodyFlags.BODYFLAGS_TOP:
 		return INF
 	var a := get_orbit_semi_major_axis()
 	var mass := get_mass()
@@ -613,7 +657,7 @@ func get_hill_sphere(eccentricity := 0.0) -> float:
 func get_star() -> IVBody:
 	# will error if not star or no star above
 	var body := self
-	while !(body.flags & IS_STAR):
+	while !(body.flags & BODYFLAGS_STAR):
 		body = get_parent_node_3d()
 	return body
 
@@ -625,7 +669,7 @@ func set_model_parameters(reference_basis: Basis, max_dist: float) -> void:
 
 
 func add_child_to_model_space(spatial: Node3D) -> void:
-	assert(not flags & BodyFlags.DISABLE_MODEL_SPACE)
+	assert(not flags & BodyFlags.BODYFLAGS_DISABLE_MODEL_SPACE)
 	if !model_space:
 		var ModelSpaceScript: Script = IVGlobal.procedural_classes[&"ModelSpace"]
 		@warning_ignore("unsafe_method_access")
@@ -643,9 +687,9 @@ func remove_child_from_model_space(spatial: Node3D) -> void:
 
 func remove_and_disable_model_space() -> void:
 	# Removes model(s) but everything else remains (label & orbit HUDs, etc.).
-	# Unsets BodyFlags.EXISTS.
-	flags |= BodyFlags.DISABLE_MODEL_SPACE
-	flags &= ~BodyFlags.EXISTS
+	# Unsets BodyFlags.BODYFLAGS_EXISTS.
+	flags |= BodyFlags.BODYFLAGS_DISABLE_MODEL_SPACE
+	flags &= ~BodyFlags.BODYFLAGS_EXISTS
 	if model_space:
 		model_space.queue_free()
 	model_space = null
@@ -661,7 +705,7 @@ func set_orbit(orbit_: IVOrbit) -> void:
 
 
 func set_sleep(sleep_: bool) -> void: # called by IVSleepManager
-	if flags & NEVER_SLEEP or sleep_ == sleep:
+	if flags & BODYFLAGS_NEVER_SLEEP or sleep_ == sleep:
 		return
 	if sleep_:
 		sleep = true
@@ -736,19 +780,19 @@ func recalculate_spatials() -> void:
 
 	# rotation_rate
 	var new_rotation_rate: float
-	if flags & IS_TIDALLY_LOCKED:
+	if flags & BODYFLAGS_TIDALLY_LOCKED:
 		new_rotation_rate = orbit.get_mean_motion()
 		rotation_period = TAU / new_rotation_rate
 	else:
 		new_rotation_rate = TAU / rotation_period
 	# rotation_vector
 	var new_rotation_vector: Vector3
-	if flags & IS_AXIS_LOCKED:
+	if flags & BODYFLAGS_AXIS_LOCKED:
 		new_rotation_vector = orbit.get_normal()
 		var ra_dec := math.get_spherical2(new_rotation_vector)
 		right_ascension = ra_dec[0]
 		declination = ra_dec[1]
-	elif flags & TUMBLES_CHAOTICALLY:
+	elif flags & BODYFLAGS_TUMBLES_CHAOTICALLY:
 		# TODO: something sensible for Hyperion
 		new_rotation_vector = _ecliptic_rotation * math.convert_spherical2(0.0, 0.0)
 	else:
@@ -757,7 +801,7 @@ func recalculate_spatials() -> void:
 	var new_rotation_at_epoch: float = characteristics.get(&"longitude_at_epoch", 0.0)
 	
 	if orbit:
-		if flags & IS_TIDALLY_LOCKED:
+		if flags & BODYFLAGS_TIDALLY_LOCKED:
 			new_rotation_at_epoch += orbit.get_mean_longitude(0.0) - PI
 		else:
 			new_rotation_at_epoch += orbit.get_true_longitude(0.0) - PI
@@ -765,11 +809,11 @@ func recalculate_spatials() -> void:
 	# possible polarity reversal; see comments under get_north_pole()
 	var reverse_polarity := false
 	var parent := get_parent_node_3d() as IVBody
-	if (flags & IS_TOP or flags & IS_STAR or flags & IS_TRUE_PLANET
-			or parent.flags & IS_TRUE_PLANET):
+	if (flags & BODYFLAGS_TOP or flags & BODYFLAGS_STAR or flags & BODYFLAGS_TRUE_PLANET
+			or parent.flags & BODYFLAGS_TRUE_PLANET):
 		if ECLIPTIC_Z.dot(new_rotation_vector) < 0.0:
 			reverse_polarity = true
-	elif parent.flags & IS_STAR: # any other star-orbiter (dwarf planets, asteroids, etc.)
+	elif parent.flags & BODYFLAGS_STAR: # any other star-orbiter (dwarf planets, asteroids, etc.)
 		if new_rotation_rate < 0.0:
 			reverse_polarity = true
 	else: # moons of not-true-planet star-orbiters
@@ -796,7 +840,7 @@ func _finish_tree_add() -> void:
 	# Add non-persisted HUD elements.
 	if get_model_type() != -1:
 		var model_manager: IVModelManager = IVGlobal.program[&"ModelManager"]
-		var lazy_init: bool = flags & IS_MOON and not flags & BodyFlags.IS_NAVIGATOR_MOON
+		var lazy_init: bool = flags & BODYFLAGS_MOON and not flags & BodyFlags.BODYFLAGS_NAVIGATOR_MOON
 		model_manager.add_model(self, lazy_init)
 	if has_omni_light():
 		var omni_light_type := get_omni_light_type()
@@ -822,7 +866,7 @@ func _finish_tree_add() -> void:
 				IVCoreSettings.body_labels_use_orbit_color)
 		add_child(body_label)
 	var file_prefix := get_file_prefix()
-	var is_star := bool(flags & BodyFlags.IS_STAR)
+	var is_star := bool(flags & BodyFlags.BODYFLAGS_STAR)
 	var rings_file_prefix := get_rings_file_prefix()
 	var io_manager: IVIOManager = IVGlobal.program[&"IOManager"]
 	io_manager.callback(_finish_tree_add_io.bind(file_prefix, is_star, rings_file_prefix))
@@ -867,7 +911,7 @@ func _finish_tree_add_io(file_prefix: String, is_star: bool, rings_file_prefix: 
 
 func _finish_tree_add_after_io(rings_images: Array[Image]) -> void:
 	# on main thread
-	if rings_images and not flags & BodyFlags.DISABLE_MODEL_SPACE:
+	if rings_images and not flags & BodyFlags.BODYFLAGS_DISABLE_MODEL_SPACE:
 		var star := get_star()
 		var use_shader_sun_index := star.shader_sun_index
 		var rings_script: Script = IVGlobal.procedural_classes[&"Rings"]
@@ -907,7 +951,7 @@ func _add_rotating_space() -> void:
 
 
 func _on_orbit_changed(_is_scheduled: bool) -> void:
-	if flags & IS_TIDALLY_LOCKED or flags & IS_AXIS_LOCKED:
+	if flags & BODYFLAGS_TIDALLY_LOCKED or flags & BODYFLAGS_AXIS_LOCKED:
 		recalculate_spatials()
 #	if !is_scheduled and _state.network_state == IS_SERVER: # sync clients
 #		# scheduled changes happen on client so don't need sync
@@ -932,7 +976,7 @@ func _on_time_altered(_previous_time: float) -> void:
 func _set_min_hud_dist() -> void:
 	if IVGlobal.settings.get(&"hide_hud_when_close", false):
 		min_hud_dist = m_radius * min_hud_dist_radius_multiplier
-		if flags & IS_STAR:
+		if flags & BODYFLAGS_STAR:
 			min_hud_dist *= min_hud_dist_star_multiplier # just the label
 	else:
 		min_hud_dist = 0.0

@@ -364,7 +364,7 @@ var tables: Dictionary[StringName, String] = {
 var table_project_enums := [
 	IVEnums.SBGClass,
 	IVEnums.Confidence,
-	IVEnums.BodyFlags,
+	IVBody.BodyFlags,
 ]
 var merge_table_constants := {}
 var replacement_missing_values := {} # not recomended to use this

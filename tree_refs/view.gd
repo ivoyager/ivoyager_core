@@ -28,15 +28,15 @@ extends RefCounted
 ## TODO: Hotkey bindings!
 
 enum ViewFlags { # flags
-	VIEWFLAG_CAMERA_SELECTION = 1,
-	VIEWFLAG_CAMERA_LONGITUDE = 1 << 1,
-	VIEWFLAG_CAMERA_ORIENTATION = 1 << 2,
+	VIEWFLAGS_CAMERA_SELECTION = 1,
+	VIEWFLAGS_CAMERA_LONGITUDE = 1 << 1,
+	VIEWFLAGS_CAMERA_ORIENTATION = 1 << 2,
 
-	VIEWFLAG_HUDS_VISIBILITY = 1 << 3,
-	VIEWFLAG_HUDS_COLOR = 1 << 4,
+	VIEWFLAGS_HUDS_VISIBILITY = 1 << 3,
+	VIEWFLAGS_HUDS_COLOR = 1 << 4,
 	
-	VIEWFLAG_TIME_STATE = 1 << 5,
-	VIEWFLAG_IS_NOW = 1 << 6,
+	VIEWFLAGS_TIME_STATE = 1 << 5,
+	VIEWFLAGS_IS_NOW = 1 << 6,
 	
 	# sets
 	VIEWFLAGS_ALL_CAMERA = (1 << 3) - 1,
@@ -183,11 +183,11 @@ func _save_camera_state() -> void:
 	if !(flags & ViewFlags.VIEWFLAGS_ALL_CAMERA):
 		return
 	var view_state := _camera_handler.get_camera_view_state()
-	if flags & ViewFlags.VIEWFLAG_CAMERA_SELECTION:
+	if flags & ViewFlags.VIEWFLAGS_CAMERA_SELECTION:
 		selection_name = view_state[0]
-	if flags & ViewFlags.VIEWFLAG_CAMERA_LONGITUDE:
+	if flags & ViewFlags.VIEWFLAGS_CAMERA_LONGITUDE:
 		view_position.x = view_state[2].x
-	if flags & ViewFlags.VIEWFLAG_CAMERA_ORIENTATION:
+	if flags & ViewFlags.VIEWFLAGS_CAMERA_ORIENTATION:
 		camera_flags = view_state[1]
 		view_position.y = view_state[2].y
 		view_position.z = view_state[2].z
@@ -203,20 +203,20 @@ func _set_camera_state(is_instant_move := false) -> void:
 
 
 func _save_huds_state() -> void:
-	if flags & ViewFlags.VIEWFLAG_HUDS_VISIBILITY:
+	if flags & ViewFlags.VIEWFLAGS_HUDS_VISIBILITY:
 		name_visible_flags = _body_huds_state.name_visible_flags
 		symbol_visible_flags = _body_huds_state.symbol_visible_flags
 		orbit_visible_flags = _body_huds_state.orbit_visible_flags
 		visible_points_groups = _sbg_huds_state.get_visible_points_groups()
 		visible_orbits_groups = _sbg_huds_state.get_visible_orbits_groups()
-	if flags & ViewFlags.VIEWFLAG_HUDS_COLOR:
+	if flags & ViewFlags.VIEWFLAGS_HUDS_COLOR:
 		body_orbit_colors = _body_huds_state.get_non_default_orbit_colors()
 		sbg_points_colors = _sbg_huds_state.get_non_default_points_colors()
 		sbg_orbits_colors = _sbg_huds_state.get_non_default_orbits_colors()
 
 
 func _set_huds_state() -> void:
-	if flags & ViewFlags.VIEWFLAG_HUDS_VISIBILITY:
+	if flags & ViewFlags.VIEWFLAGS_HUDS_VISIBILITY:
 		_body_huds_state.set_name_visible_flags(name_visible_flags)
 		_body_huds_state.set_symbol_visible_flags(symbol_visible_flags)
 		_body_huds_state.set_orbit_visible_flags(orbit_visible_flags)
@@ -226,7 +226,7 @@ func _set_huds_state() -> void:
 		_sbg_huds_state.set_visible_orbits_groups(
 				Array(visible_orbits_groups, TYPE_STRING_NAME, &"", null)
 		)
-	if flags & ViewFlags.VIEWFLAG_HUDS_COLOR:
+	if flags & ViewFlags.VIEWFLAGS_HUDS_COLOR:
 		_body_huds_state.set_all_orbit_colors(body_orbit_colors) # ref safe
 		_sbg_huds_state.set_all_points_colors(sbg_points_colors)
 		_sbg_huds_state.set_all_orbits_colors(sbg_orbits_colors)
@@ -237,10 +237,10 @@ func _set_huds_state() -> void:
 func _save_time_state() -> void:
 	# If both TIME_STATE and IS_NOW flags set, we unset one depending on
 	# IVTimekeeper.is_now.
-	if flags & ViewFlags.VIEWFLAG_IS_NOW and _timekeeper.is_now:
-		flags &= ~ViewFlags.VIEWFLAG_TIME_STATE
-	if flags & ViewFlags.VIEWFLAG_TIME_STATE:
-		flags &= ~ViewFlags.VIEWFLAG_IS_NOW
+	if flags & ViewFlags.VIEWFLAGS_IS_NOW and _timekeeper.is_now:
+		flags &= ~ViewFlags.VIEWFLAGS_TIME_STATE
+	if flags & ViewFlags.VIEWFLAGS_TIME_STATE:
+		flags &= ~ViewFlags.VIEWFLAGS_IS_NOW
 		time = _timekeeper.time
 		speed_index = _timekeeper.speed_index
 		is_reversed = _timekeeper.is_reversed
@@ -249,9 +249,9 @@ func _save_time_state() -> void:
 func _set_time_state() -> void:
 	# Note: IVTimekeeper ignores set functions that are disallowed in IVCoreSettings
 	# project settings. In most game applications, only speed is set.
-	if flags & ViewFlags.VIEWFLAG_TIME_STATE:
+	if flags & ViewFlags.VIEWFLAGS_TIME_STATE:
 		_timekeeper.set_time(time)
 		_timekeeper.change_speed(0, speed_index)
 		_timekeeper.set_time_reversed(is_reversed)
-	elif flags & ViewFlags.VIEWFLAG_IS_NOW:
+	elif flags & ViewFlags.VIEWFLAGS_IS_NOW:
 		_timekeeper.set_now_from_operating_system()
