@@ -75,35 +75,3 @@ enum NetworkStopSync {
 	QUIT,
 	DONT_SYNC,
 }
-
-# WIP - Not used yet
-enum LazyType { # WIP - for rebuild of body/model lazy init system
-	LAZY_NEVER, # default for stars and planets
-	LAZY_OUT_OF_SYSTEM, # default for dwarf planets & major moons
-	LAZY_MAX, # default for minor moons, instantiated asteroids & spacecraft
-}
-
-enum CameraFlags {
-	UP_LOCKED = 1,
-	UP_UNLOCKED = 1 << 1,
-	
-	TRACK_GROUND = 1 << 2,
-	TRACK_ORBIT = 1 << 3,
-	TRACK_ECLIPTIC = 1 << 4,
-	TRACK_GALACIC = 1 << 5, # not implemented yet
-	TRACK_SUPERGALACIC = 1 << 6, # not implemented yet
-	
-	# bits 32-63 should be safe to use for any extension project
-	
-	# combo masks
-	ANY_UP_FLAGS = 1 << 0 | 1 << 1,
-	ANY_TRACK_FLAGS = 1 << 2 | 1 << 3 | 1 << 4 | 1 << 5 | 1 << 6,
-}
-
-enum CameraDisabledFlags {
-	DISABLED_TRACK_GROUND = 1 << 0,
-	DISABLED_TRACK_ORBIT = 1 << 1,
-	DISABLED_TRACK_ECLIPTIC = 1 << 2,
-	DISABLED_TRACK_GALACIC = 1 << 3, # not implemented yet
-	DISABLED_TRACK_SUPERGALACIC = 1 << 4, # not implemented yet
-}

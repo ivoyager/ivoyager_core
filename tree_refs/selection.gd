@@ -32,7 +32,7 @@ extends RefCounted
 
 const math := preload("uid://csb570a3u1x1k")
 
-const CameraFlags := IVEnums.CameraFlags
+const CameraFlags := IVCamera.CameraFlags
 const BodyFlags := IVBody.BodyFlags
 const IDENTITY_BASIS := Basis.IDENTITY
 const ECLIPTIC_X := Vector3(1.0, 0.0, 0.0)

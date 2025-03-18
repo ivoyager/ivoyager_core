@@ -27,7 +27,7 @@ extends RefCounted
 ## TODO: Make these rows in table 'views.tsv'.
 
 
-const CameraFlags := IVEnums.CameraFlags
+const CameraFlags := IVCamera.CameraFlags
 const BodyFlags := IVBody.BodyFlags
 const ViewFlags := IVView.ViewFlags
 const AU := IVUnits.AU
@@ -161,7 +161,7 @@ func _zoom() -> void:
 	@warning_ignore("unsafe_method_access")
 	var view: IVView = _view_script.new()
 	view.flags = ViewFlags.VIEWFLAGS_CAMERA_ORIENTATION | ViewFlags.VIEWFLAGS_CAMERA_LONGITUDE
-	view.camera_flags = CameraFlags.UP_LOCKED # | CameraFlags.TRACK_ORBIT
+	view.camera_flags = CameraFlags.CAMERAFLAGS_UP_LOCKED # | CameraFlags.CAMERAFLAGS_TRACK_ORBIT
 	# See IVCamera 'perspective distance'; METER below is really body radii
 	view.view_position = Vector3(-INF, deg_to_rad(18.0), 3.0 * METER)
 	view.view_rotations = Vector3.ZERO
@@ -173,7 +173,7 @@ func _fortyfive() -> void:
 	@warning_ignore("unsafe_method_access")
 	var view: IVView = _view_script.new()
 	view.flags = ViewFlags.VIEWFLAGS_CAMERA_ORIENTATION
-	view.camera_flags = CameraFlags.UP_LOCKED # | CameraFlags.TRACK_ORBIT
+	view.camera_flags = CameraFlags.CAMERAFLAGS_UP_LOCKED # | CameraFlags.CAMERAFLAGS_TRACK_ORBIT
 	# See IVCamera 'perspective distance'; METER below is really body radii
 	view.view_position = Vector3(-INF, deg_to_rad(45.0), 10.0 * METER)
 	view.view_rotations = Vector3.ZERO
@@ -185,7 +185,7 @@ func _top() -> void:
 	@warning_ignore("unsafe_method_access")
 	var view: IVView = _view_script.new()
 	view.flags = ViewFlags.VIEWFLAGS_CAMERA_ORIENTATION
-	view.camera_flags = CameraFlags.UP_LOCKED # | CameraFlags.TRACK_ORBIT
+	view.camera_flags = CameraFlags.CAMERAFLAGS_UP_LOCKED # | CameraFlags.CAMERAFLAGS_TRACK_ORBIT
 	# See IVCamera 'perspective distance'; METER below is really body radii
 	view.view_position = Vector3(-INF, deg_to_rad(85.0), 25.0 * METER)
 	view.view_rotations = Vector3.ZERO
@@ -206,8 +206,8 @@ func _home() -> void:
 	)
 	view.selection_name = IVCoreSettings.home_name
 	view.camera_flags = (
-			CameraFlags.UP_LOCKED
-			| CameraFlags.TRACK_GROUND
+			CameraFlags.CAMERAFLAGS_UP_LOCKED
+			| CameraFlags.CAMERAFLAGS_TRACK_GROUND
 	)
 	# See IVCamera 'perspective distance'; METER below is really body radii
 	view.view_position = Vector3(IVCoreSettings.home_longitude, IVCoreSettings.home_latitude, 3.0 * METER)
@@ -231,7 +231,7 @@ func _cislunar() -> void:
 	var view: IVView = _view_script.new()
 	view.flags = ViewFlags.VIEWFLAGS_ALL_CAMERA | ViewFlags.VIEWFLAGS_HUDS_VISIBILITY
 	view.selection_name = &"PLANET_EARTH"
-	view.camera_flags = CameraFlags.UP_LOCKED | CameraFlags.TRACK_ORBIT
+	view.camera_flags = CameraFlags.CAMERAFLAGS_UP_LOCKED | CameraFlags.CAMERAFLAGS_TRACK_ORBIT
 	# See IVCamera 'perspective distance'; METER below is really body radii
 	view.view_position = Vector3(deg_to_rad(180.0), deg_to_rad(15.0), 120.0 * METER)
 	view.view_rotations = Vector3.ZERO
@@ -254,7 +254,7 @@ func _system() -> void:
 	var view: IVView = _view_script.new()
 	view.flags = ViewFlags.VIEWFLAGS_ALL_CAMERA | ViewFlags.VIEWFLAGS_HUDS_VISIBILITY
 	view.selection_name = &"STAR_SUN"
-	view.camera_flags = CameraFlags.UP_LOCKED | CameraFlags.TRACK_ECLIPTIC
+	view.camera_flags = CameraFlags.CAMERAFLAGS_UP_LOCKED | CameraFlags.CAMERAFLAGS_TRACK_ECLIPTIC
 	view.view_position = Vector3(deg_to_rad(-90.0), deg_to_rad(15.0), 70.0 * AU)
 	view.view_rotations = Vector3.ZERO
 	view.orbit_visible_flags = (
@@ -277,7 +277,7 @@ func _asteroids() -> void:
 	var view: IVView = _view_script.new()
 	view.flags =  ViewFlags.VIEWFLAGS_ALL_CAMERA | ViewFlags.VIEWFLAGS_HUDS_VISIBILITY
 	view.selection_name = &"STAR_SUN"
-	view.camera_flags = CameraFlags.UP_LOCKED | CameraFlags.TRACK_ECLIPTIC
+	view.camera_flags = CameraFlags.CAMERAFLAGS_UP_LOCKED | CameraFlags.CAMERAFLAGS_TRACK_ECLIPTIC
 	view.view_position = Vector3(deg_to_rad(-90.0), deg_to_rad(45.0), 15.0 * AU)
 	view.view_rotations = Vector3.ZERO
 

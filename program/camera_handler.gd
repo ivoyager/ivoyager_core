@@ -32,7 +32,7 @@ enum {
 }
 
 
-const CameraFlags := IVEnums.CameraFlags
+const CameraFlags := IVCamera.CameraFlags
 const NULL_VECTOR3 := Vector3(-INF, -INF, -INF)
 
 # project vars
@@ -138,7 +138,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		return
 	if event.is_pressed():
 		if event.is_action_pressed(&"recenter"):
-			_camera.move_to(null, CameraFlags.UP_LOCKED, NULL_VECTOR3, Vector3.ZERO)
+			_camera.move_to(null, CameraFlags.CAMERAFLAGS_UP_LOCKED, NULL_VECTOR3, Vector3.ZERO)
 		elif event.is_action_pressed(&"camera_left"):
 			_move_pressed.x = -_key_move_rate
 		elif event.is_action_pressed(&"camera_right"):

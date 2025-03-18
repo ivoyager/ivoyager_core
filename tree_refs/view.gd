@@ -75,7 +75,7 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 var flags := 0 # what state does this View have?
 
 var selection_name := &""
-var camera_flags := 0 # IVEnums.CameraFlags
+var camera_flags := 0 # IVCamera.CameraFlags
 var view_position := NULL_VECTOR3
 var view_rotations := NULL_VECTOR3
 
