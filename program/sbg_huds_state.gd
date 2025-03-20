@@ -33,7 +33,7 @@ const utils := preload("uid://bdoygriurgvtc")
 
 const NULL_COLOR := Color.BLACK
 
-const PERSIST_MODE := IVEnums.PERSIST_PROPERTIES_ONLY
+const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"points_visibilities",
 	&"orbits_visibilities",

@@ -99,14 +99,14 @@ var default_cached_settings: Dictionary[StringName, Variant] = {
 	&"camera_key_roll_rate" : 1.0,
 
 	# UI & HUD display
-	&"gui_size" : IVEnums.GUISize.GUI_MEDIUM,
+	&"gui_size" : IVGlobal.GUISize.GUI_MEDIUM,
 	&"viewport_names_size" : 15,
 	&"viewport_symbols_size" : 25,
 	&"point_size" : 3,
 	&"hide_hud_when_close" : true, # restart or load required
 
 	# graphics/performance
-	&"starmap" : IVEnums.StarmapSize.STARMAP_16K,
+	&"starmap" : IVGlobal.StarmapSize.STARMAP_16K,
 
 	# misc
 	&"mouse_action_releases_gui_focus" : true,
@@ -363,8 +363,8 @@ var tables: Dictionary[StringName, String] = {
 	wiki_extras = "res://addons/ivoyager_core/data/solar_system/wiki_extras.tsv",
 }
 var table_project_enums := [
-	IVEnums.SBGClass,
-	IVEnums.Confidence,
+	IVSmallBodiesGroup.SBGClass,
+	IVGlobal.Confidence,
 	IVBody.BodyFlags,
 	IVCamera.CameraFlags,
 	IVView.ViewFlags,

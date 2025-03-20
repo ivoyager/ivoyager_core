@@ -108,11 +108,11 @@ const BODYFLAGS_TIDALLY_LOCKED := BodyFlags.BODYFLAGS_TIDALLY_LOCKED
 const BODYFLAGS_AXIS_LOCKED := BodyFlags.BODYFLAGS_AXIS_LOCKED
 const BODYFLAGS_TUMBLES_CHAOTICALLY := BodyFlags.BODYFLAGS_TUMBLES_CHAOTICALLY
 const BODYFLAGS_NEVER_SLEEP := BodyFlags.BODYFLAGS_NEVER_SLEEP
-const IS_SERVER = IVEnums.NetworkState.IS_SERVER
+const IS_SERVER = IVGlobal.NetworkState.IS_SERVER
 const MIN_SYSTEM_M_RADIUS_MULTIPLIER := 15.0
 const RINGS_LOD_LEVELS := 9 # must agree w/ assets, rings.gd and rings.shader
 
-const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL # free & rebuild on load
+const PERSIST_MODE := IVGlobal.PERSIST_PROCEDURAL # free & rebuild on load
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"name",
 	&"flags",

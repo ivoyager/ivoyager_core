@@ -68,8 +68,8 @@ const DPRINT := true
 ]
 
 @export var setting_enums := {
-	gui_size = IVEnums.GUISize,
-	starmap = IVEnums.StarmapSize,
+	gui_size = IVGlobal.GUISize,
+	starmap = IVGlobal.StarmapSize,
 }
 @export var format_overrides := {
 	&"camera_transfer_time" : {&"max_value" : 10.0},

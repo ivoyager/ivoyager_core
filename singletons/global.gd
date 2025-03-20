@@ -53,7 +53,7 @@ signal about_to_quit()
 signal about_to_exit()
 signal simulator_exited()
 signal run_state_changed(is_running: bool) # is_system_built and !SceneTree.paused
-signal network_state_changed(network_state: bool) # IVEnums.NetworkState
+signal network_state_changed(network_state: bool) # IVGlobal.NetworkState
 
 # other broadcasts
 signal setting_changed(setting: StringName, value: Variant)
@@ -87,6 +87,58 @@ signal help_requested() # hooked up in Planetarium
 signal close_all_admin_popups_requested() # main menu, options, etc.
 signal open_wiki_requested(wiki_title: String)
 signal show_hide_gui_requested(is_toggle: bool, is_show: bool) # 2nd arg ignored if is_toggle
+
+
+enum GUISize {
+	GUI_SMALL,
+	GUI_MEDIUM,
+	GUI_LARGE,
+}
+
+enum StarmapSize {
+	STARMAP_8K,
+	STARMAP_16K,
+}
+
+enum Confidence {
+	CONFIDENCE_NO,
+	CONFIDENCE_DOUBTFUL,
+	CONFIDENCE_UNKNOWN,
+	CONFIDENCE_PROBABLY,
+	CONFIDENCE_YES,
+}
+
+enum NetworkState {
+	NO_NETWORK,
+	IS_SERVER,
+	IS_CLIENT,
+}
+
+enum NetworkStopSync {
+	BUILD_SYSTEM,
+	SAVE,
+	LOAD,
+	NEW_PLAYER, # needs save to enter in-progress game
+	EXIT,
+	QUIT,
+	DONT_SYNC,
+}
+
+## Duplicated from ivoyager_save plugin. Safe to use if plugin is not present.
+enum PersistMode {
+	NO_PERSIST, ## Non-persist object.
+	PERSIST_PROPERTIES_ONLY, ## Object will not be freed (Node only; must have stable NodePath).
+	PERSIST_PROCEDURAL, ## Object will be freed and rebuilt on game load (Node or RefCounted).
+}
+
+
+## Persist mode for the ivoyager_save plugin. Safe to use if plugin is not present.
+const NO_PERSIST := PersistMode.NO_PERSIST
+## Persist mode for the ivoyager_save plugin. Safe to use if plugin is not present.
+const PERSIST_PROPERTIES_ONLY := PersistMode.PERSIST_PROPERTIES_ONLY
+## Persist mode for the ivoyager_save plugin. Safe to use if plugin is not present.
+const PERSIST_PROCEDURAL := PersistMode.PERSIST_PROCEDURAL
+
 
 
 # containers - write authority indicated; safe to localize container reference

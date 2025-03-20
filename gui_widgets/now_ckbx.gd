@@ -24,7 +24,7 @@ extends CheckBox
 #
 # Used (e.g., in Planetarium) to set present time from user operating system.
 
-const IS_CLIENT := IVEnums.NetworkState.IS_CLIENT
+const IS_CLIENT := IVGlobal.NetworkState.IS_CLIENT
 
 var _state: Dictionary[StringName, Variant] = IVGlobal.state
 

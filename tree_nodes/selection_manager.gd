@@ -56,7 +56,7 @@ enum {
 
 const BodyFlags := IVBody.BodyFlags
 
-const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL
+const PERSIST_MODE := IVGlobal.PERSIST_PROCEDURAL
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"is_action_listener",
 	&"selection",

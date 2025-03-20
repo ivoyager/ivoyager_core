@@ -83,7 +83,7 @@ func _input(event):
 
 
 func init_min_size(gui_size: int, size_: Vector2) -> void:
-	# 'gui_size' is one of IVEnums.GUISize, or use -1 to set all.
+	# 'gui_size' is one of IVGlobal.GUISize, or use -1 to set all.
 	# Set x or y or both to zero for shrink to content.
 	# Args [-1, Vector2.ZERO] sets all GUI sizes to shrink to content. 
 	if gui_size != -1:

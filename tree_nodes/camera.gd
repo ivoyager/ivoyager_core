@@ -102,7 +102,7 @@ const MIN_DIST_RADII_METERS := 1.5 * METER # really target radii; see 'perspecti
 # It used to be that ~10 orders of magnitude was allowed between near and far.
 # As of Godot 4.1.1, still breaks above 1e6. 
 
-const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL
+const PERSIST_MODE := IVGlobal.PERSIST_PROCEDURAL
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"name",
 	&"fov",

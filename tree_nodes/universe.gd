@@ -49,7 +49,7 @@ extends Node3D
 ## responsve to camera) and user can interact with the world, and only
 ## [IVTimekeeper] pauses to stop time.
 
-const PERSIST_MODE := IVEnums.PERSIST_PROPERTIES_ONLY ## Don't free on load.
+const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY ## Don't free on load.
 const PERSIST_PROPERTIES: Array[StringName] = [&"persist"]
 
 

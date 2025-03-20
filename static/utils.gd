@@ -31,7 +31,7 @@ extends Object
 ## This one can't properly handle circular references to procedural
 ## RefCounted instances.
 static func free_procedural_nodes_recursive(root_node: Node) -> void:
-	if root_node.get(&"PERSIST_MODE") == IVEnums.PERSIST_PROCEDURAL:
+	if root_node.get(&"PERSIST_MODE") == IVGlobal.PERSIST_PROCEDURAL:
 		root_node.queue_free() # children will also be freed!
 		return
 	for child in root_node.get_children():

@@ -31,7 +31,7 @@ enum CompositionType {
 	BY_VOLUME,
 }
 
-const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL
+const PERSIST_MODE := IVGlobal.PERSIST_PROCEDURAL
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"type",
 	&"components",

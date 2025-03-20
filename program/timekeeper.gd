@@ -64,11 +64,11 @@ const MINUTE := IVUnits.MINUTE
 const HOUR := IVUnits.HOUR
 const DAY := IVUnits.DAY
 const J2000_JDN := 2451545 # Julian Day Number (JDN) of J2000 epoch time
-const NO_NETWORK := IVEnums.NetworkState.NO_NETWORK
-const IS_SERVER := IVEnums.NetworkState.IS_SERVER
-const IS_CLIENT := IVEnums.NetworkState.IS_CLIENT
+const NO_NETWORK := IVGlobal.NetworkState.NO_NETWORK
+const IS_SERVER := IVGlobal.NetworkState.IS_SERVER
+const IS_CLIENT := IVGlobal.NetworkState.IS_CLIENT
 
-const PERSIST_MODE := IVEnums.PERSIST_PROPERTIES_ONLY
+const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"time",
 	&"solar_day",
@@ -511,7 +511,7 @@ func _on_run_state_changed(is_running: bool) -> void:
 		set_now_from_operating_system()
 
 
-func _on_network_state_changed(network_state: IVEnums.NetworkState) -> void:
+func _on_network_state_changed(network_state: IVGlobal.NetworkState) -> void:
 	_network_state = network_state
 
 

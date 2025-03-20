@@ -35,7 +35,7 @@ signal color_changed()
 const NULL_COLOR := Color.BLACK
 const BodyFlags: Dictionary = IVBody.BodyFlags
 
-const PERSIST_MODE := IVEnums.PERSIST_PROPERTIES_ONLY
+const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"name_visible_flags",
 	&"symbol_visible_flags",

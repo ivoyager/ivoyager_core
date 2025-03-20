@@ -22,7 +22,7 @@ extends HBoxContainer
 
 # UI widget. Requires IVTimekeeper and IVStateManager.
 
-const IS_CLIENT := IVEnums.NetworkState.IS_CLIENT
+const IS_CLIENT := IVGlobal.NetworkState.IS_CLIENT
 
 var _state: Dictionary[StringName, Variant] = IVGlobal.state
 

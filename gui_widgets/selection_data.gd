@@ -127,7 +127,7 @@ var section_content: Array[Array] = [
 		[&"LABEL_POLAR_RADIUS", "body/characteristics/p_radius", NULL_ARRAY,
 			fixed_unit.bind(&"km")],
 		[&"LABEL_HYDROSTATIC_EQUILIBRIUM", "body/characteristics/hydrostatic_equilibrium", NULL_ARRAY,
-			enum_item.bind(IVEnums.Confidence)],
+			enum_item.bind(IVGlobal.Confidence)],
 		[&"LABEL_MASS", "body/characteristics/mass", NULL_ARRAY,
 			fixed_unit.bind(&"kg")],
 		[&"LABEL_SURFACE_GRAVITY", "body/characteristics/surface_gravity", NULL_ARRAY,
