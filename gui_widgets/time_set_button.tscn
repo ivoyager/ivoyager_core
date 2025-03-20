@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://bgk3lju7s35t"]
 
-[ext_resource type="Script" path="res://addons/ivoyager_core/gui_widgets/time_set_button.gd" id="1"]
+[ext_resource type="Script" uid="uid://kl2mc2esopbp" path="res://addons/ivoyager_core/gui_widgets/time_set_button.gd" id="1"]
 
 [node name="TimeSetButton" type="Button"]
 offset_left = 162.0

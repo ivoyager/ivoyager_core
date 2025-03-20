@@ -26,8 +26,8 @@ extends Button
 
 
 
-var full_screen_text := "BUTTON_FULL_SCREEN"
-var minimize_text := "BUTTON_MINIMIZE"
+var full_screen_text := &"BUTTON_FULL_SCREEN"
+var minimize_text := &"BUTTON_MINIMIZE"
 var frames_to_test_screen_state := 0 # may need value for HTML export
 
 var _is_fullscreen := false

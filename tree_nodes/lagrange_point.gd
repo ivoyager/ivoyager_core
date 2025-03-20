@@ -29,7 +29,7 @@ extends Node3D
 ## obtain (Body uses lazy init).
 
 
-const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL # free & rebuild on load
+const PERSIST_MODE := IVGlobal.PERSIST_PROCEDURAL # free & rebuild on load
 const PERSIST_PROPERTIES: Array[StringName] = [&"lp_integer"]
 
 

@@ -68,8 +68,8 @@ const DPRINT := true
 ]
 
 @export var setting_enums := {
-	gui_size = IVEnums.GUISize,
-	starmap = IVEnums.StarmapSize,
+	gui_size = IVGlobal.GUISize,
+	starmap = IVGlobal.StarmapSize,
 }
 @export var format_overrides := {
 	&"camera_transfer_time" : {&"max_value" : 10.0},
@@ -79,7 +79,7 @@ const DPRINT := true
 }
 
 
-var _settings: Dictionary = IVGlobal.settings
+var _settings: Dictionary[StringName, Variant] = IVGlobal.settings
 var _blocking_windows: Array[Window] = IVGlobal.blocking_windows
 var _allow_close := false
 

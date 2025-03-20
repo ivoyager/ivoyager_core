@@ -20,11 +20,11 @@
 class_name IVAssetInitializer
 extends RefCounted
 
-# Loads assets specified in IVCoreSettings.
+## Loads assets specified in [IVCoreSettings].
 
 var _asset_replacement_dir: String = IVCoreSettings.asset_replacement_dir
-var _asset_paths_for_load: Dictionary = IVCoreSettings.asset_paths_for_load
-var _assets: Dictionary = IVGlobal.assets
+var _asset_paths_for_load: Dictionary[StringName, String] = IVCoreSettings.asset_paths_for_load
+var _assets: Dictionary[StringName, Resource] = IVGlobal.assets
 var _asset_path_arrays: Array[Array] = [
 	IVCoreSettings.models_search,
 	IVCoreSettings.maps_search,
@@ -40,6 +40,10 @@ var _asset_path_dicts: Array[Dictionary] = [
 func _init() -> void:
 	_modify_asset_paths()
 	_load_assets()
+	IVGlobal.initializers_inited.connect(_remove_self)
+
+
+func _remove_self() -> void:
 	IVGlobal.program.erase(&"AssetInitializer")
 
 

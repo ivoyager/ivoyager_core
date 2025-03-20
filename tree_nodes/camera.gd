@@ -37,9 +37,6 @@ extends Camera3D
 ## meters are adjusted to 'target radii'. Distance vars in units AU are what
 ## they appear to be. In the transition distance they are intermediate.
 ## This system *may* break for objects smaller than meters (not tested yet).
-##
-## TODO: Reverse dependency with IVView. We want camera replaceability without
-## replacing IVView and its dependencies.
 
 signal move_started(to_spatial: Node3D, is_camera_lock: bool) # to_spatial is not parent yet
 signal parent_changed(spatial: Node3D)
@@ -51,14 +48,38 @@ signal camera_lock_changed(is_camera_lock: bool)
 signal up_lock_changed(flags: int, disabled_flags: int)
 signal tracking_changed(flags: int, disabled_flags: int)
 
+enum CameraFlags {
+	CAMERAFLAGS_UP_LOCKED = 1,
+	CAMERAFLAGS_UP_UNLOCKED = 1 << 1,
+	
+	CAMERAFLAGS_TRACK_GROUND = 1 << 2,
+	CAMERAFLAGS_TRACK_ORBIT = 1 << 3,
+	CAMERAFLAGS_TRACK_ECLIPTIC = 1 << 4,
+	CAMERAFLAGS_TRACK_GALACIC = 1 << 5, # not implemented yet
+	CAMERAFLAGS_TRACK_SUPERGALACIC = 1 << 6, # not implemented yet
+	
+	# Bits 32-63 are safe to use in projects.
+	
+	# combo masks
+	CAMERAFLAGS_UP_LOCKED_OR_UNLOCKED = 1 << 0 | 1 << 1,
+	CAMERAFLAGS_ANY_TRACKING = 1 << 2 | 1 << 3 | 1 << 4 | 1 << 5 | 1 << 6,
+}
 
-const math := preload("res://addons/ivoyager_core/static/math.gd")
-const utils := preload("res://addons/ivoyager_core/static/utils.gd")
+enum CameraDisabledFlags {
+	# Not fully implemented yet. The purpose is to disable specific tracking
+	# buttons when not applicable (e.g., "ground" when we are at au distances).
+	CAMERADISABLEDFLAGS_TRACK_GROUND = 1 << 0,
+	CAMERADISABLEDFLAGS_TRACK_ORBIT = 1 << 1,
+	CAMERADISABLEDFLAGS_TRACK_ECLIPTIC = 1 << 2,
+	CAMERADISABLEDFLAGS_TRACK_GALACIC = 1 << 3, # not implemented yet
+	CAMERADISABLEDFLAGS_TRACK_SUPERGALACIC = 1 << 4, # not implemented yet
+}
 
-const Flags := IVEnums.CameraFlags
-const ANY_UP_FLAGS := Flags.ANY_UP_FLAGS
-const ANY_TRACK_FLAGS := Flags.ANY_TRACK_FLAGS
-const DisabledFlags := IVEnums.CameraDisabledFlags
+const math := preload("uid://csb570a3u1x1k")
+const utils := preload("uid://bdoygriurgvtc")
+
+const CAMERAFLAGS_UP_LOCKED_OR_UNLOCKED := CameraFlags.CAMERAFLAGS_UP_LOCKED_OR_UNLOCKED
+const CAMERAFLAGS_ANY_TRACKING := CameraFlags.CAMERAFLAGS_ANY_TRACKING
 
 const IDENTITY_BASIS := Basis.IDENTITY
 const ECLIPTIC_X := IDENTITY_BASIS.x # primary direction
@@ -81,7 +102,7 @@ const MIN_DIST_RADII_METERS := 1.5 * METER # really target radii; see 'perspecti
 # It used to be that ~10 orders of magnitude was allowed between near and far.
 # As of Godot 4.1.1, still breaks above 1e6. 
 
-const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL
+const PERSIST_MODE := IVGlobal.PERSIST_PROCEDURAL
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"name",
 	&"fov",
@@ -97,7 +118,7 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 # ******************************* PERSISTED ***********************************
 
 # public - read only except project init
-var flags: int = Flags.UP_LOCKED | Flags.TRACK_ORBIT
+var flags: int = CameraFlags.CAMERAFLAGS_UP_LOCKED | CameraFlags.CAMERAFLAGS_TRACK_ORBIT
 var is_camera_lock := true
 
 # public - read only! (use move methods to set; these are "to" during transfer)
@@ -126,11 +147,11 @@ var min_perspective_radii_meters := 2.0 * METER # really target radii; see 'pers
 # public read-only
 var parent: Node3D # actual Node3D parent at this time
 var is_moving := false # body to body move in progress
-var disabled_flags := 0 # IVEnums.CameraDisabledFlags
+var disabled_flags := 0 # CameraDisabledFlags
 
 # private
 var _universe: Node3D = IVGlobal.program.Universe
-var _settings: Dictionary = IVGlobal.settings
+var _settings: Dictionary[StringName, Variant] = IVGlobal.settings
 var _world_targeting: Array = IVGlobal.world_targeting
 var _max_dist: float = IVCoreSettings.max_camera_distance
 
@@ -229,15 +250,15 @@ func move_to(to_selection: IVSelection, to_flags := 0, to_view_position := NULL_
 			to_view_rotations, is_instant_move]))
 	
 	# overrides
-	if to_flags & Flags.UP_LOCKED:
+	if to_flags & CameraFlags.CAMERAFLAGS_UP_LOCKED:
 		if to_view_rotations != NULL_VECTOR3:
 			to_view_rotations.z = 0.0 # cancel roll, if any
 	if (to_view_rotations != NULL_VECTOR3 and to_view_rotations.z != -INF
 			and to_view_rotations.z): # any roll unlocks 'up'
-		to_flags |= Flags.UP_UNLOCKED
+		to_flags |= CameraFlags.CAMERAFLAGS_UP_UNLOCKED
 	
-	var to_up_flags := to_flags & ANY_UP_FLAGS
-	var to_track_flags := to_flags & ANY_TRACK_FLAGS
+	var to_up_flags := to_flags & CAMERAFLAGS_UP_LOCKED_OR_UNLOCKED
+	var to_track_flags := to_flags & CAMERAFLAGS_ANY_TRACKING
 	
 	assert(to_up_flags & (to_up_flags - 1) == 0, "only 1 or 0 bits allowed")
 	assert(to_track_flags & (to_track_flags - 1) == 0, "only 1 or 0 bits allowed")
@@ -246,8 +267,8 @@ func move_to(to_selection: IVSelection, to_flags := 0, to_view_position := NULL_
 	if (
 			!is_instant_move
 			and (!to_selection or to_selection == selection)
-			and (!to_up_flags or to_up_flags == flags & ANY_UP_FLAGS)
-			and (!to_track_flags or to_track_flags == flags & ANY_TRACK_FLAGS)
+			and (!to_up_flags or to_up_flags == flags & CAMERAFLAGS_UP_LOCKED_OR_UNLOCKED)
+			and (!to_track_flags or to_track_flags == flags & CAMERAFLAGS_ANY_TRACKING)
 			and (to_view_position == NULL_VECTOR3 or to_view_position == view_position)
 			and (to_view_rotations == NULL_VECTOR3 or to_view_rotations == view_rotations)
 	):
@@ -264,10 +285,10 @@ func move_to(to_selection: IVSelection, to_flags := 0, to_view_position := NULL_
 	_trasfer_spatial = utils.get_common_node3d(_from_spatial, _to_spatial)
 	
 	# change booleans
-	var is_up_change: bool = ((to_up_flags and to_up_flags != flags & ANY_UP_FLAGS)
+	var is_up_change: bool = ((to_up_flags and to_up_flags != flags & CAMERAFLAGS_UP_LOCKED_OR_UNLOCKED)
 			or (to_view_rotations != NULL_VECTOR3 and to_view_rotations.z != -INF
-			and to_view_rotations.z and flags & Flags.UP_LOCKED))
-	var is_track_change := to_track_flags and to_track_flags != flags & ANY_TRACK_FLAGS
+			and to_view_rotations.z and flags & CameraFlags.CAMERAFLAGS_UP_LOCKED))
+	var is_track_change := to_track_flags and to_track_flags != flags & CAMERAFLAGS_ANY_TRACKING
 	
 	# set selection and flags
 	if to_selection and to_selection.spatial:
@@ -275,15 +296,15 @@ func move_to(to_selection: IVSelection, to_flags := 0, to_view_position := NULL_
 		perspective_radius = selection.get_perspective_radius()
 		_to_spatial = to_selection.spatial
 	if is_up_change:
-		flags &= ~ANY_UP_FLAGS
+		flags &= ~CAMERAFLAGS_UP_LOCKED_OR_UNLOCKED
 		flags |= to_up_flags
 	if is_track_change:
-		flags &= ~ANY_TRACK_FLAGS
+		flags &= ~CAMERAFLAGS_ANY_TRACKING
 		flags |= to_track_flags
 	if to_view_rotations != NULL_VECTOR3:
 		if to_view_rotations.z != -INF and to_view_rotations.z:
-			flags &= ~Flags.UP_LOCKED
-			flags |= Flags.UP_UNLOCKED
+			flags &= ~CameraFlags.CAMERAFLAGS_UP_LOCKED
+			flags |= CameraFlags.CAMERAFLAGS_UP_UNLOCKED
 	
 	# if track change w/out specified longitude, go to current longitude in new reference frame
 	if is_track_change and to_view_position.x == -INF:
@@ -306,7 +327,7 @@ func move_to(to_selection: IVSelection, to_flags := 0, to_view_position := NULL_
 			view_rotations.y = to_view_rotations.y
 		if to_view_rotations.z != -INF:
 			view_rotations.z = to_view_rotations.z
-	if flags & Flags.UP_LOCKED:
+	if flags & CameraFlags.CAMERAFLAGS_UP_LOCKED:
 		view_rotations.z = 0.0 # up lock overrides roll
 	view_position.z = clamp(view_position.z, MIN_DIST_RADII_METERS, _max_dist)
 	
@@ -335,13 +356,13 @@ func move_to(to_selection: IVSelection, to_flags := 0, to_view_position := NULL_
 
 func set_up_lock(is_locked: bool) -> void:
 	# Invokes a move to set, but not to unset.
-	if is_locked == bool(flags & Flags.UP_LOCKED):
+	if is_locked == bool(flags & CameraFlags.CAMERAFLAGS_UP_LOCKED):
 		return
 	if is_locked:
-		move_to(null, Flags.UP_LOCKED)
+		move_to(null, CameraFlags.CAMERAFLAGS_UP_LOCKED)
 	else:
-		flags &= ~Flags.UP_LOCKED
-		flags |= Flags.UP_UNLOCKED
+		flags &= ~CameraFlags.CAMERAFLAGS_UP_LOCKED
+		flags |= CameraFlags.CAMERAFLAGS_UP_UNLOCKED
 		up_lock_changed.emit(flags, disabled_flags)
 
 
@@ -527,7 +548,7 @@ func _process_motion(delta: float) -> void:
 	var origin := _transform.origin
 	var basis_ := _transform.basis
 
-	if bool(flags & Flags.UP_LOCKED):
+	if bool(flags & CameraFlags.CAMERAFLAGS_UP_LOCKED):
 		# A pole limiter prevents pole traversal. A spin dampener suppresses
 		# high longitudinal rate when near pole. There is NO change in
 		# view_rotations.
@@ -570,7 +591,7 @@ func _process_motion(delta: float) -> void:
 func _process_rotation(delta: float) -> void:
 	# Note: Although we follow z-up astronomy convention elsewhere, the camera
 	# uses y-up, z-forward, x-lateral.
-	var is_up_locked := bool(flags & Flags.UP_LOCKED)
+	var is_up_locked := bool(flags & CameraFlags.CAMERAFLAGS_UP_LOCKED)
 	
 	# take rotation from accumulator
 	var action_proportion := action_immediacy * delta
@@ -645,9 +666,9 @@ func _get_view_transform(view_position_: Vector3, view_rotations_: Vector3,
 
 
 static func _get_reference_basis(selection_: IVSelection, flags_: int) -> Basis:
-	if flags_ & Flags.TRACK_GROUND:
+	if flags_ & CameraFlags.CAMERAFLAGS_TRACK_GROUND:
 		return selection_.get_ground_basis()
-	if flags_ & Flags.TRACK_ORBIT:
+	if flags_ & CameraFlags.CAMERAFLAGS_TRACK_ORBIT:
 		return selection_.get_orbit_basis()
 	return selection_.get_ecliptic_basis() # identity basis for any IVBody
 

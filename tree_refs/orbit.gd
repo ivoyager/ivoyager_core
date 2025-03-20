@@ -59,8 +59,8 @@ extends RefCounted
 
 signal changed(is_scheduled: bool) # is_scheduled == false triggers network sync
 
-const math := preload("res://addons/ivoyager_core/static/math.gd") # =IVMath when issue #37529 fixed
-const utils := preload("res://addons/ivoyager_core/static/utils.gd")
+const math := preload("uid://csb570a3u1x1k")
+const utils := preload("uid://bdoygriurgvtc")
 
 const DPRINT := false
 const ECLIPTIC_UP := Vector3(0.0, 0.0, 1.0)
@@ -69,7 +69,7 @@ const T_3000CE := 10.0 * IVUnits.CENTURY # 3000 CE
 const UPDATE_TOLERANCE := 0.0002
 const UPDATE_LIMITER := IVUnits.HOUR # up to -10% to avoid schedular clumping
 
-const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL
+const PERSIST_MODE := IVGlobal.PERSIST_PROCEDURAL
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"reference_normal",
 	&"elements_at_epoch",

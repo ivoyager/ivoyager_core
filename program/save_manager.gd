@@ -26,14 +26,14 @@ extends Timer
 ## This class does nothing if the Save plugin is not present or is disabled. 
 
 const files := preload("res://addons/ivoyager_core/static/files.gd")
-const NO_NETWORK = IVEnums.NetworkState.NO_NETWORK
-const IS_SERVER = IVEnums.NetworkState.IS_SERVER
-const IS_CLIENT = IVEnums.NetworkState.IS_CLIENT
-const NetworkStopSync = IVEnums.NetworkStopSync
+const NO_NETWORK = IVGlobal.NetworkState.NO_NETWORK
+const IS_SERVER = IVGlobal.NetworkState.IS_SERVER
+const IS_CLIENT = IVGlobal.NetworkState.IS_CLIENT
+const NetworkStopSync = IVGlobal.NetworkStopSync
 
 const DPRINT := false
 
-const PERSIST_MODE := IVEnums.PERSIST_PROPERTIES_ONLY
+const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"project_version",
 	&"ivoyager_version",
@@ -48,8 +48,8 @@ var is_modded: bool = IVCoreSettings.is_modded
 
 
 # private
-var _state: Dictionary = IVGlobal.state
-var _settings: Dictionary = IVGlobal.settings
+var _state: Dictionary[StringName, Variant] = IVGlobal.state
+var _settings: Dictionary[StringName, Variant] = IVGlobal.settings
 var _save_singleton: Node
 
 

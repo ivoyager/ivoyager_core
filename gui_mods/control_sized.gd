@@ -43,7 +43,7 @@ extends Node
 @export var max_default_screen_proportions := Vector2(0.45, 0.45) # can override above
 
 # private
-@onready var _settings: Dictionary = IVGlobal.settings
+@onready var _settings: Dictionary[StringName, Variant] = IVGlobal.settings
 
 @onready var _viewport := get_viewport()
 @onready var _parent: Control = get_parent()
@@ -57,7 +57,7 @@ func _ready() -> void:
 
 
 func init_min_size(gui_size: int, size: Vector2) -> void:
-	# 'gui_size' is one of IVEnums.GUISize, or use -1 to set all.
+	# 'gui_size' is one of IVGlobal.GUISize, or use -1 to set all.
 	# Set x or y or both to zero for shrink to content.
 	# Args [-1, Vector2.ZERO] sets all GUI sizes to shrink to content. 
 	if gui_size != -1:

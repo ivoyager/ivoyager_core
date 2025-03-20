@@ -31,4 +31,8 @@ func _init() -> void:
 		print("ERROR! Could not open debug log at ", IVCoreSettings.debug_log_path)
 		return
 	IVGlobal.debug_log = debug_log
+	IVGlobal.initializers_inited.connect(_remove_self)
+
+
+func _remove_self() -> void:
 	IVGlobal.program.erase(&"LogInitializer")

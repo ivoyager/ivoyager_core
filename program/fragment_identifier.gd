@@ -58,7 +58,8 @@ var fragment_range := 9 # multiple of 3! Going big is expensive!
 
 # read-only!
 var current_id := -1
-var fragment_data := {} # arrays indexed by 36-bit id integer; [name, fragment_type, maybe more...]
+## Data arrays indexed by 36-bit id integer; [name, fragment_type, maybe more...].
+var fragment_data: Dictionary[int, Array] = {}
 
 
 # private

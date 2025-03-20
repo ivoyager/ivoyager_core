@@ -22,7 +22,7 @@ extends HBoxContainer
 
 # GUI Widget. Requires IVCamera.
 
-const Flags := IVEnums.CameraFlags
+const CameraFlags := IVCamera.CameraFlags
 
 var _camera: IVCamera
 
@@ -54,14 +54,14 @@ func _on_pressed(button: CheckBox) -> void:
 		return
 	match button.name:
 		&"Ground":
-			_camera.move_to(null, Flags.TRACK_GROUND)
+			_camera.move_to(null, CameraFlags.CAMERAFLAGS_TRACK_GROUND)
 		&"Orbit":
-			_camera.move_to(null, Flags.TRACK_ORBIT)
+			_camera.move_to(null, CameraFlags.CAMERAFLAGS_TRACK_ORBIT)
 		&"Ecliptic":
-			_camera.move_to(null, Flags.TRACK_ECLIPTIC)
+			_camera.move_to(null, CameraFlags.CAMERAFLAGS_TRACK_ECLIPTIC)
 
 
 func _update_tracking(flags: int, _disable_flags: int) -> void:
-	_ground_checkbox.set_pressed_no_signal(flags & Flags.TRACK_GROUND)
-	_orbit_checkbox.set_pressed_no_signal(flags & Flags.TRACK_ORBIT)
-	_ecliptic_checkbox.set_pressed_no_signal(flags & Flags.TRACK_ECLIPTIC)
+	_ground_checkbox.set_pressed_no_signal(flags & CameraFlags.CAMERAFLAGS_TRACK_GROUND)
+	_orbit_checkbox.set_pressed_no_signal(flags & CameraFlags.CAMERAFLAGS_TRACK_ORBIT)
+	_ecliptic_checkbox.set_pressed_no_signal(flags & CameraFlags.CAMERAFLAGS_TRACK_ECLIPTIC)

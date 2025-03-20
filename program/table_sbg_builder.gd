@@ -28,6 +28,8 @@ extends RefCounted
 ## future (e.g., artificial satellites) and they likely will have different
 ## binary formats.
 
+const SBGClass := IVSmallBodiesGroup.SBGClass
+
 
 var _binary_asteroids_builder: IVBinaryAsteroidsBuilder
 
@@ -44,17 +46,17 @@ func _on_project_objects_instantiated() -> void:
 func build_sbg_from_table(sbg: IVSmallBodiesGroup, table_name: StringName, row: int) -> void:
 	var name := IVTableData.get_db_entity_name(table_name, row)
 	var sbg_alias := IVTableData.get_db_string_name(table_name, &"sbg_alias", row)
-	var sbg_class := IVTableData.get_db_int(table_name, &"sbg_class", row)
+	var sbg_class := IVTableData.get_db_int(table_name, &"sbg_class", row) as SBGClass
 	
 	match sbg_class:
-		IVEnums.SBGClass.SBG_CLASS_ASTEROIDS:
+		SBGClass.SBG_CLASS_ASTEROIDS:
 			build_asteroids_sbg(sbg, table_name, row, name, sbg_alias, sbg_class)
 		_:
 			assert(false, "No implimentation for sbg_class %s" % sbg_class)
 
 
 func build_asteroids_sbg(sbg: IVSmallBodiesGroup, table_name: StringName, row: int,
-		name: StringName, sbg_alias: StringName, sbg_class: int) -> void:
+		name: StringName, sbg_alias: StringName, sbg_class: SBGClass) -> void:
 	var binary_dir := IVTableData.get_db_string(table_name, &"binary_dir", row)
 	var mag_cutoff := 100.0
 	var sbg_mag_cutoff_override: float = IVCoreSettings.sbg_mag_cutoff_override
@@ -67,7 +69,7 @@ func build_asteroids_sbg(sbg: IVSmallBodiesGroup, table_name: StringName, row: i
 	if lp_integer != -1:
 		assert(lp_integer == 4 or lp_integer == 5, "Only L4, L5 supported at this time!")
 		var secondary_name := IVTableData.get_db_string_name(table_name, &"secondary", row)
-		secondary = IVGlobal.bodies.get(secondary_name)
+		secondary = IVBody.bodies.get(secondary_name)
 		assert(secondary, "Secondary body missing for Lagrange point SmallBodiesGroup")
 	sbg.init(name, sbg_alias, sbg_class, lp_integer, secondary)
 	_binary_asteroids_builder.build_sbg_from_binaries(sbg, binary_dir, mag_cutoff)

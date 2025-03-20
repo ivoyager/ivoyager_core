@@ -63,7 +63,7 @@ func _build(_dummy := false) -> void:
 	if !_selection_manager:
 		return
 	_is_built = true
-	_body = IVGlobal.bodies[body_name]
+	_body = IVBody.bodies[body_name]
 	_selection_manager.selection_changed.connect(_update_selection)
 	_selection_manager.selection_reselected.connect(_update_selection)
 	flat = true
@@ -92,4 +92,4 @@ func _on_mouse_entered() -> void:
 
 func _on_mouse_exited() -> void:
 	_has_mouse = false
-	flat = !pressed
+	flat = !button_pressed

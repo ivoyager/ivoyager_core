@@ -45,7 +45,15 @@ signal group_appended(previous_size: int, new_size: int)
 signal adding_visuals() # existing visual nodes must free themselves
 
 
-const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL
+enum SBGClass {
+	SBG_CLASS_ASTEROIDS,
+	SBG_CLASS_COMETS,
+	SBG_CLASS_ARTIFICIAL_SATELLITES, # TODO: Roadmap
+	SBG_CLASS_OTHER,
+}
+
+
+const PERSIST_MODE := IVGlobal.PERSIST_PROCEDURAL
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"name",
 	&"sbg_alias",
@@ -62,7 +70,7 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 
 
 var sbg_alias: StringName
-var sbg_class: int # IVEnums.SBGClass
+var sbg_class: SBGClass # SBGClass
 var secondary_body: IVBody # e.g., Jupiter for Trojans; usually null
 var lp_integer := -1 # -1, 4 & 5 are currently supported
 var max_apoapsis := 0.0
@@ -73,6 +81,8 @@ var a_M0_n := PackedFloat32Array() # librating in l-point objects
 var s_g_mag_de := PackedFloat32Array() # orbit precessions, magnitude, & e amplitude (sec res only)
 var da_D_f_th0 := PackedFloat32Array() # Trojans only
 
+## Contains all IVSmallBodiesGroup instances currently in the tree.
+static var small_bodies_groups: Dictionary[StringName, IVSmallBodiesGroup] = {}
 static var null_pf32_array := PackedFloat32Array()
 
 
@@ -81,20 +91,20 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
-	assert(!IVGlobal.small_bodies_groups.has(name))
-	IVGlobal.small_bodies_groups[name] = self
+	assert(!small_bodies_groups.has(name))
+	small_bodies_groups[name] = self
 	_build_visuals()
 	IVGlobal.add_system_tree_item_finished.emit(self)
 
 
 func _exit_tree() -> void:
-	IVGlobal.small_bodies_groups.erase(name)
+	small_bodies_groups.erase(name)
 
 
 # *****************************************************************************
 # public API
 
-func init(name_: StringName, sbg_alias_: StringName, sbg_class_: int,
+func init(name_: StringName, sbg_alias_: StringName, sbg_class_: SBGClass,
 		lp_integer_ := -1, secondary_body_: IVBody = null) -> void:
 	# Last 2 args only if these are Lagrange point objects.
 	name = name_

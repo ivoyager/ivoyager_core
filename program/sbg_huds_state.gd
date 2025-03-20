@@ -29,11 +29,11 @@ signal orbits_visibility_changed()
 signal points_color_changed()
 signal orbits_color_changed()
 
-const utils := preload("res://addons/ivoyager_core/static/utils.gd")
+const utils := preload("uid://bdoygriurgvtc")
 
 const NULL_COLOR := Color.BLACK
 
-const PERSIST_MODE := IVEnums.PERSIST_PROPERTIES_ONLY
+const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"points_visibilities",
 	&"orbits_visibilities",
@@ -42,20 +42,20 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 ]
 
 # persisted - read-only!
-var points_visibilities := {} # indexed by sbg_alias; missing same as false
-var orbits_visibilities := {} # "
-var points_colors := {} # indexed by sbg_alias; missing same as fallback color
-var orbits_colors := {} # "
+var points_visibilities: Dictionary[StringName, bool] = {} # indexed by sbg_alias; missing same as false
+var orbits_visibilities: Dictionary[StringName, bool] = {} # "
+var points_colors: Dictionary[StringName, Color] = {} # indexed by sbg_alias; missing same as fallback color
+var orbits_colors: Dictionary[StringName, Color] = {} # "
 
 # project vars - set at project init
 var fallback_points_color := Color(0.0, 0.6, 0.0)
 var fallback_orbits_color := Color(0.8, 0.2, 0.2)
-var default_points_visibilities := {} # default is none, unless project changes
-var default_orbits_visibilities := {}
+var default_points_visibilities: Dictionary[StringName, bool] = {} # default is none, unless project changes
+var default_orbits_visibilities: Dictionary[StringName, bool] = {}
 
 # imported from small_bodies_groups.tsv - ready-only!
-var default_points_colors := {}
-var default_orbits_colors := {}
+var default_points_colors: Dictionary[StringName, Color] = {}
+var default_orbits_colors: Dictionary[StringName, Color] = {}
 
 
 
@@ -89,14 +89,11 @@ func hide_all() -> void:
 
 
 func set_default_visibilities() -> void:
-	# TEST34
 	if points_visibilities != default_points_visibilities:
-#	if !deep_equal(points_visibilities, default_points_visibilities):
 		points_visibilities.clear()
 		points_visibilities.merge(default_points_visibilities)
 		points_visibility_changed.emit()
 	if orbits_visibilities != default_orbits_visibilities:
-#	if !deep_equal(orbits_visibilities, default_orbits_visibilities):
 		orbits_visibilities.clear()
 		orbits_visibilities.merge(default_orbits_visibilities)
 		orbits_visibility_changed.emit()
@@ -155,12 +152,10 @@ func set_visible_orbits_groups(array: Array[StringName]) -> void:
 func set_default_colors() -> void:
 	# TEST34
 	if points_colors != default_points_colors:
-#	if !deep_equal(points_colors, default_points_colors):
 		points_colors.clear()
 		points_colors.merge(default_points_colors)
 		points_color_changed.emit()
 	if orbits_colors != default_orbits_colors:
-#	if !deep_equal(orbits_colors, default_orbits_colors):
 		orbits_colors.clear()
 		orbits_colors.merge(default_orbits_colors)
 		orbits_color_changed.emit()
@@ -236,25 +231,25 @@ func set_orbits_color(group: StringName, color: Color) -> void:
 	orbits_color_changed.emit()
 
 
-func get_non_default_points_colors() -> Dictionary:
+func get_non_default_points_colors() -> Dictionary[StringName, Color]:
 	# key-values equal to default are skipped
-	var dict := {}
+	var dict: Dictionary[StringName, Color] = {}
 	for key: StringName in points_colors:
 		if points_colors[key] != default_points_colors[key]:
 			dict[key] = points_colors[key]
 	return dict
 
 
-func get_non_default_orbits_colors() -> Dictionary:
+func get_non_default_orbits_colors() -> Dictionary[StringName, Color]:
 	# key-values equal to default are skipped
-	var dict := {}
+	var dict: Dictionary[StringName, Color] = {}
 	for key: StringName in orbits_colors:
 		if orbits_colors[key] != default_orbits_colors[key]:
 			dict[key] = orbits_colors[key]
 	return dict
 
 
-func set_all_points_colors(dict: Dictionary) -> void:
+func set_all_points_colors(dict: Dictionary[StringName, Color]) -> void:
 	# missing key-values are set to default
 	var is_change := false
 	for key: StringName in points_colors:
@@ -270,7 +265,7 @@ func set_all_points_colors(dict: Dictionary) -> void:
 		points_color_changed.emit()
 
 
-func set_all_orbits_colors(dict: Dictionary) -> void:
+func set_all_orbits_colors(dict: Dictionary[StringName, Color]) -> void:
 	# missing key-values are set to default
 	var is_change := false
 	for key: StringName in orbits_colors:

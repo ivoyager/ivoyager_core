@@ -41,4 +41,8 @@ func _init() -> void:
 	# signal done
 	IVGlobal.data_tables_imported.emit()
 	
+	IVGlobal.initializers_inited.connect(_remove_self)
+
+
+func _remove_self() -> void:
 	IVGlobal.program.erase(&"TableInitializer")

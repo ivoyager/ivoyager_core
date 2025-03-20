@@ -22,7 +22,7 @@ extends CheckBox
 
 # GUI Widget. Requires IVCamera.
 
-const Flags := IVEnums.CameraFlags
+const CameraFlags := IVCamera.CameraFlags
 
 var _camera: IVCamera
 
@@ -42,7 +42,7 @@ func _connect_camera(camera: IVCamera) -> void:
 
 
 func _update_ckbx(flags: int, _disable_flags: int) -> void:
-	button_pressed = bool(flags & Flags.UP_LOCKED)
+	button_pressed = bool(flags & CameraFlags.CAMERAFLAGS_UP_LOCKED)
 
 
 func _on_pressed() -> void:

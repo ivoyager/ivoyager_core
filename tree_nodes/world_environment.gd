@@ -56,13 +56,13 @@ func _ready() -> void:
 
 
 func _add_starmap_as_environment_sky() -> void:
-	var settings: Dictionary = IVGlobal.settings
-	var asset_paths: Dictionary = IVCoreSettings.asset_paths
+	var settings: Dictionary[StringName, Variant] = IVGlobal.settings
+	var asset_paths: Dictionary[StringName, String] = IVCoreSettings.asset_paths
 	var starmap_file: String
 	match settings.starmap:
-		IVEnums.StarmapSize.STARMAP_8K:
+		IVGlobal.StarmapSize.STARMAP_8K:
 			starmap_file = asset_paths.starmap_8k
-		IVEnums.StarmapSize.STARMAP_16K:
+		IVGlobal.StarmapSize.STARMAP_16K:
 			starmap_file = asset_paths.starmap_16k
 	if !ResourceLoader.exists(starmap_file):
 		starmap_file = asset_paths[fallback_starmap]

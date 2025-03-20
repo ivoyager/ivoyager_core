@@ -35,7 +35,7 @@ extends Node3D
 ## "small" eccentricity. I'm not sure exactly what small eccentricity means.
 
 
-const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL # free & rebuild on load
+const PERSIST_MODE := IVGlobal.PERSIST_PROCEDURAL # free & rebuild on load
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"mass_ratio",
 	&"characteristic_length",

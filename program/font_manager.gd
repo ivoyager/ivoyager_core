@@ -34,8 +34,8 @@ var gui_medium_sizes: Array[int] = [15, 20, 25]
 var gui_large_sizes: Array[int] = [18, 24, 31] 
 
 # private
-var _fonts: Dictionary = IVGlobal.fonts
-var _settings: Dictionary = IVGlobal.settings
+var _fonts: Dictionary[StringName, FontFile] = IVGlobal.fonts
+var _settings: Dictionary[StringName, Variant] = IVGlobal.settings
 var _primary_font: FontFile
 
 

@@ -22,22 +22,25 @@ extends RefCounted
 
 ## Wrapper class for anything that can be selected.
 ##
+## TODO: Restructure so that this is a component. Any object can then be
+## selectable by having this component.
+##
 ## [IVSelectionManager] keeps an instance of this class as current selection
 ## and maintains selection history. In `ivoyager_core` we only select [IVBody]
 ## instances, but this class could be extended to wrap anything.
 
 
-const math := preload("res://addons/ivoyager_core/static/math.gd") # =IVMath when issue #37529 fixed
+const math := preload("uid://csb570a3u1x1k")
 
-const CameraFlags := IVEnums.CameraFlags
-const BodyFlags := IVEnums.BodyFlags
+const CameraFlags := IVCamera.CameraFlags
+const BodyFlags := IVBody.BodyFlags
 const IDENTITY_BASIS := Basis.IDENTITY
 const ECLIPTIC_X := Vector3(1.0, 0.0, 0.0)
 const ECLIPTIC_Y := Vector3(0.0, 1.0, 0.0)
 const ECLIPTIC_Z := Vector3(0.0, 0.0, 1.0)
 const VECTOR2_ZERO := Vector2.ZERO
 
-const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL
+const PERSIST_MODE := IVGlobal.PERSIST_PROCEDURAL
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"name",
 	&"gui_name",
@@ -60,6 +63,8 @@ var body: IVBody # = spatial if is_body else null
 var texture_2d: Texture2D
 var texture_slice_2d: Texture2D # stars only
 
+## Contains all existing IVSelection instances.
+static var selections: Dictionary[StringName, IVSelection] = {}
 
 
 func _init() -> void:
@@ -150,7 +155,7 @@ func get_orbit_basis(time := NAN) -> Basis:
 	# FIXME: Make this more honest. We flip basis for planets for better view.
 	# Function names should make it clear this is for camera use.
 	var basis := body.get_orbit_basis(time)
-	if body.flags & BodyFlags.IS_STAR_ORBITING:
+	if body.flags & BodyFlags.BODYFLAGS_STAR_ORBITING:
 		return basis.rotated(basis.z, PI)
 	return basis
 

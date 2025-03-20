@@ -21,15 +21,16 @@ extends Node
 
 ## Added as singleton 'IVGlobal'.
 ##
-## Container arrays and dictionaries are never replaced, so it is safe to keep
-## a local reference in class files.
+## Array and dictionary references are never overwritten, so it is safe to keep
+## local references in class files.
 
 # simulator state broadcasts
 signal about_to_run_initializers() # IVCoreInitializer; after plugin preinitializers
 signal translations_imported() # IVTranslationImporter; useful for boot screen
 signal data_tables_imported() # IVTableImporter
-signal preinitializers_inited()
-signal initializers_inited()
+signal preinitializers_inited() # IVTableImporter; plugins!
+signal initializer_inited(initializer: RefCounted) # IVCoreInitializer
+signal initializers_inited() # IVCoreInitializer; after all above
 signal project_objects_instantiated() # IVCoreInitializer; IVGlobal.program populated
 signal project_inited() # IVCoreInitializer; after above
 signal project_nodes_added() # IVCoreInitializer; prog_nodes & gui_nodes added
@@ -52,7 +53,7 @@ signal about_to_quit()
 signal about_to_exit()
 signal simulator_exited()
 signal run_state_changed(is_running: bool) # is_system_built and !SceneTree.paused
-signal network_state_changed(network_state: bool) # IVEnums.NetworkState
+signal network_state_changed(network_state: bool) # IVGlobal.NetworkState
 
 # other broadcasts
 signal setting_changed(setting: StringName, value: Variant)
@@ -88,24 +89,89 @@ signal open_wiki_requested(wiki_title: String)
 signal show_hide_gui_requested(is_toggle: bool, is_show: bool) # 2nd arg ignored if is_toggle
 
 
+enum GUISize {
+	GUI_SMALL,
+	GUI_MEDIUM,
+	GUI_LARGE,
+}
+
+enum StarmapSize {
+	STARMAP_8K,
+	STARMAP_16K,
+}
+
+enum Confidence {
+	CONFIDENCE_NO,
+	CONFIDENCE_DOUBTFUL,
+	CONFIDENCE_UNKNOWN,
+	CONFIDENCE_PROBABLY,
+	CONFIDENCE_YES,
+}
+
+enum NetworkState {
+	NO_NETWORK,
+	IS_SERVER,
+	IS_CLIENT,
+}
+
+enum NetworkStopSync {
+	BUILD_SYSTEM,
+	SAVE,
+	LOAD,
+	NEW_PLAYER, # needs save to enter in-progress game
+	EXIT,
+	QUIT,
+	DONT_SYNC,
+}
+
+## Duplicated from ivoyager_save plugin. Safe to use if plugin is not present.
+enum PersistMode {
+	NO_PERSIST, ## Non-persist object.
+	PERSIST_PROPERTIES_ONLY, ## Object will not be freed (Node only; must have stable NodePath).
+	PERSIST_PROCEDURAL, ## Object will be freed and rebuilt on game load (Node or RefCounted).
+}
+
+
+## Persist mode for the ivoyager_save plugin. Safe to use if plugin is not present.
+const NO_PERSIST := PersistMode.NO_PERSIST
+## Persist mode for the ivoyager_save plugin. Safe to use if plugin is not present.
+const PERSIST_PROPERTIES_ONLY := PersistMode.PERSIST_PROPERTIES_ONLY
+## Persist mode for the ivoyager_save plugin. Safe to use if plugin is not present.
+const PERSIST_PROCEDURAL := PersistMode.PERSIST_PROCEDURAL
+
+
+
 # containers - write authority indicated; safe to localize container reference
-var state := {} # IVStateManager; is_inited, is_running, etc.
-var times: Array[float] = [] # IVTimekeeper [time (s, J2000), engine_time (s), solar_day (d)]
-var date: Array[int] = [] # IVTimekeeper; Gregorian [year, month, day]
-var clock: Array[int] = [] # IVTimekeeper; UT [hour, minute, second]
-var program := {} # IVCoreInitializer instantiated objects (base or override classes)
-var procedural_classes := {} # IVCoreInitializer defined script classes (base or override)
-var assets := {} # AssetsInitializer loads from dynamic paths specified below
-var settings := {} # IVSettingsManager
-var themes := {} # IVThemeManager
-var fonts := {} # IVFontManager
-var bodies := {} # IVBody instances add/remove themselves; indexed by name
-var small_bodies_groups := {} # IVSmallBodiesGroup instances add/remove themselves; indexed by name
-var world_targeting := [] # IVWorldControl & others; optimized data for 3D world selection
-var top_bodies: Array[Node3D] = [] # IVBody instances add/remove themselves; just STAR_SUN for us
-var selections := {} # IVSelectionManager(s)
-var blocking_windows: Array[Window] = [] # add Windows that want & test for exclusivity
-var project := {} # for project use; not used by I, Voyager
+
+## Maintained by [IVStateManager]. Mostly boolean keys: is_inited, is_running, etc.
+var state: Dictionary[StringName, Variant] = {}
+## Maintained by [IVTimekeeper]. Holds [time (s, J2000), engine_time (s), solar_day (d)]
+## by default or possibly additional elements.
+var times: Array[float] = []
+## Maintained by [IVTimekeeper]. Holds Gregorian [year, month, day].
+var date: Array[int] = []
+## Maintained by [IVTimekeeper]. Holds UT [hour, minute, second].
+var clock: Array[int] = []
+## Populated by [IVCoreInitializer]. Holds instantiated program objects (base or override classes).
+var program: Dictionary[StringName, Object] = {}
+## Populated by [IVCoreInitializer]. Holds script classes for procedural objects (base or override).
+var procedural_classes: Dictionary[StringName, Resource] = {}
+## Populated by [IVAssetsInitializer] and [IVResourceInitializer].
+var resources: Dictionary[StringName, Resource] = {}
+## Populated by [AssetsInitializer]. Loaded assets from dynamic paths specified in [IVCoreSettings].
+var assets: Dictionary[StringName, Resource] = {}
+## Maintained by [IVSettingsManager].
+var settings: Dictionary[StringName, Variant] = {}
+## Maintained by [IVThemeManager].
+var themes: Dictionary[StringName, Theme] = {}
+## Maintained by [IVFontManager].
+var fonts: Dictionary[StringName, FontFile] = {}
+## Maintained by [IVWorldControl] & others. Otimized data for 3D world selection
+var world_targeting := []
+## Maintained by Windows instances that want & test for exclusivity.
+var blocking_windows: Array[Window] = []
+## For project use. Not used by I, Voyager.
+var project := {}
 
 # read-only!
 var ivoyager_version: String

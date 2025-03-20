@@ -54,9 +54,9 @@ enum {
 	SELECTION_LAGRANGE_POINT,
 }
 
-const BodyFlags := IVEnums.BodyFlags
+const BodyFlags := IVBody.BodyFlags
 
-const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL
+const PERSIST_MODE := IVGlobal.PERSIST_PROCEDURAL
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"is_action_listener",
 	&"selection",
@@ -67,7 +67,7 @@ var is_action_listener := true
 var selection: IVSelection
 
 # private
-var _selections: Dictionary = IVGlobal.selections
+var _selections: Dictionary[StringName, IVSelection] = IVSelection.selections
 var _history: Array[WeakRef] = []
 var _history_index := -1
 var _supress_history := false
@@ -142,22 +142,22 @@ static func get_selection_manager(control: Control) -> IVSelectionManager:
 
 static func get_or_make_selection(selection_name: StringName) -> IVSelection:
 	# I, Voyager supports IVBody selection only! Override for others.
-	var selection_: IVSelection = IVGlobal.selections.get(selection_name)
+	var selection_: IVSelection = IVSelection.selections.get(selection_name)
 	if selection_:
 		return selection_
-	if IVGlobal.bodies.has(selection_name):
+	if IVBody.bodies.has(selection_name):
 		return make_selection_for_body(selection_name)
 	assert(false, "Unsupported selection type")
 	return null
 
 
 static func make_selection_for_body(body_name: StringName) -> IVSelection:
-	assert(!IVGlobal.selections.has(body_name))
-	var body: IVBody = IVGlobal.bodies[body_name] # must exist
+	assert(!IVSelection.selections.has(body_name))
+	var body: IVBody = IVBody.bodies[body_name] # must exist
 	var selection_builder: IVSelectionBuilder = IVGlobal.program[&"SelectionBuilder"]
 	var selection_ := selection_builder.build_body_selection(body)
 	if selection_:
-		IVGlobal.selections[body_name] = selection_
+		IVSelection.selections[body_name] = selection_
 	return selection_
 
 
@@ -166,7 +166,7 @@ static func get_body_above_selection(selection_: IVSelection) -> IVBody:
 		selection_ = get_or_make_selection(selection_.up_selection_name)
 		if selection_.body:
 			return selection_.body
-	return IVGlobal.top_bodies[0]
+	return IVBody.top_bodies[0]
 
 
 static func get_body_at_above_selection_w_flags(selection_: IVSelection, flags: int) -> IVBody:
@@ -298,25 +298,25 @@ func next_last(incr: int, selection_type := -1, _alt_selection_type := -1) -> vo
 			index = iteration_array.find(current_body)
 		SELECTION_STAR:
 			# TODO: code for multistar systems
-			var sun: IVBody = IVGlobal.top_bodies[0]
+			var sun: IVBody = IVBody.top_bodies[0]
 			select_body(sun)
 			return
 		SELECTION_PLANET:
-			var star := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.IS_STAR)
+			var star := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.BODYFLAGS_STAR)
 			if !star:
 				return
 			iteration_array = star.satellites
-			var planet := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.IS_PLANET)
+			var planet := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.BODYFLAGS_PLANET)
 			if planet:
 				index = iteration_array.find(planet)
 				if planet != current_body and incr == 1:
 					index -= 1
 		SELECTION_NAVIGATOR_MOON, SELECTION_MOON:
-			var planet := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.IS_PLANET)
+			var planet := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.BODYFLAGS_PLANET)
 			if !planet:
 				return
 			iteration_array = planet.satellites
-			var moon := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.IS_MOON)
+			var moon := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.BODYFLAGS_MOON)
 			if moon:
 				index = iteration_array.find(moon)
 				if moon != current_body and incr == 1:
@@ -343,15 +343,15 @@ func next_last(incr: int, selection_type := -1, _alt_selection_type := -1) -> vo
 			-1:
 				do_selection = true
 			SELECTION_STAR:
-				do_selection = bool(body.flags & BodyFlags.IS_STAR)
+				do_selection = bool(body.flags & BodyFlags.BODYFLAGS_STAR)
 			SELECTION_PLANET:
-				do_selection = bool(body.flags & BodyFlags.IS_PLANET)
+				do_selection = bool(body.flags & BodyFlags.BODYFLAGS_PLANET)
 			SELECTION_NAVIGATOR_MOON:
-				do_selection = bool(body.flags & BodyFlags.IS_NAVIGATOR_MOON)
+				do_selection = bool(body.flags & BodyFlags.BODYFLAGS_NAVIGATOR_MOON)
 			SELECTION_MOON:
-				do_selection = bool(body.flags & BodyFlags.IS_MOON)
+				do_selection = bool(body.flags & BodyFlags.BODYFLAGS_MOON)
 			SELECTION_SPACECRAFT:
-				do_selection = bool(body.flags & BodyFlags.IS_SPACECRAFT)
+				do_selection = bool(body.flags & BodyFlags.BODYFLAGS_SPACECRAFT)
 		if do_selection:
 			select_body(body)
 			return

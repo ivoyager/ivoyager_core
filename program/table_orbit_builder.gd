@@ -22,7 +22,7 @@ extends RefCounted
 
 ## Builds [IVOrbit] instances from data tables.
 
-const math := preload("res://addons/ivoyager_core/static/math.gd") # =IVMath when issue #37529 fixed
+const math := preload("uid://csb570a3u1x1k")
 
 const DPRINT := false
 const MIN_E_FOR_APSIDAL_PRECESSION := 0.0001
@@ -33,7 +33,7 @@ var _oribti_script: Script = IVGlobal.procedural_classes[&"Orbit"]
 
 var _dynamic_orbits: bool = IVCoreSettings.dynamic_orbits
 var _ecliptic_rotation: Basis = IVCoreSettings.ecliptic_rotation
-var _d := {
+var _d: Dictionary[StringName, Variant] = {
 	&"a" : NAN,
 	&"e" : NAN,
 	&"i" : NAN,

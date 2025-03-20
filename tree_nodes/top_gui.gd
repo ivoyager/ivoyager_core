@@ -36,7 +36,7 @@ extends Control
 # dictionary 'themes', which is applied here. Some Theme changes are needed for
 # proper GUI widget appearance.
 
-const PERSIST_MODE := IVEnums.PERSIST_PROPERTIES_ONLY # don't free on load
+const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY # don't free on load
 const PERSIST_PROPERTIES: Array[StringName] = [&"selection_manager"]
 
 var selection_manager: IVSelectionManager

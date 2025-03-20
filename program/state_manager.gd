@@ -38,7 +38,7 @@ extends Node
 ##   [code]is_quitting: bool[/code][br]
 ##   [code]is_game_loading: bool[/code] - via method call[br]
 ##   [code]is_loaded_game: bool[/code] - via method cal[br]
-##   [code]network_state: IVEnums.NetworkState[/code] - if exists, NetworkLobby also writes[br][br]
+##   [code]network_state: IVGlobal.NetworkState[/code] - if exists, NetworkLobby also writes[br][br]
 ##
 ## If IVCoreSettings.pause_only_stops_time == true, then PAUSE_MODE_PROCESS is
 ## set in Universe and TopGUI so IVCamera can still move, visuals work (some are
@@ -64,17 +64,17 @@ signal run_threads_allowed() # ok to start threads that affect gamestate
 signal run_threads_must_stop() # finish threads that affect gamestate
 signal threads_finished() # all blocking threads removed
 signal client_is_dropping_out(is_exit: bool)
-signal server_about_to_stop(network_sync_type: int) # IVEnums.NetworkStopSync; server only
+signal server_about_to_stop(network_sync_type: int) # IVGlobal.NetworkStopSync; server only
 signal server_about_to_run() # server only
 
-const NO_NETWORK = IVEnums.NetworkState.NO_NETWORK
-const IS_SERVER = IVEnums.NetworkState.IS_SERVER
-const IS_CLIENT = IVEnums.NetworkState.IS_CLIENT
-const NetworkStopSync = IVEnums.NetworkStopSync
+const NO_NETWORK = IVGlobal.NetworkState.NO_NETWORK
+const IS_SERVER = IVGlobal.NetworkState.IS_SERVER
+const IS_CLIENT = IVGlobal.NetworkState.IS_CLIENT
+const NetworkStopSync = IVGlobal.NetworkStopSync
 
 const DPRINT := false
 
-const PERSIST_MODE := IVEnums.PERSIST_PROPERTIES_ONLY
+const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY
 const PERSIST_PROPERTIES: Array[StringName] = [&"is_user_paused"]
 
 # project setting
@@ -88,8 +88,8 @@ var allow_threads := false
 var blocking_threads := []
 
 # private
-var _state: Dictionary = IVGlobal.state
-var _settings: Dictionary = IVGlobal.settings
+var _state: Dictionary[StringName, Variant] = IVGlobal.state
+var _settings: Dictionary[StringName, Variant] = IVGlobal.settings
 var _nodes_requiring_stop := []
 var _signal_when_threads_finished := false
 var _tree_build_counter := 0
@@ -159,7 +159,7 @@ func set_game_loading() -> void:
 	_state.is_system_built = false
 	_state.is_game_loading = true
 	_state.is_loaded_game = true
-	require_stop(self, IVEnums.NetworkStopSync.BUILD_SYSTEM, true)
+	require_stop(self, IVGlobal.NetworkStopSync.BUILD_SYSTEM, true)
 	IVGlobal.about_to_build_system_tree.emit()
 
 
@@ -170,7 +170,7 @@ func set_game_loaded() -> void:
 
 
 func build_system_tree_from_tables() -> void:
-	require_stop(self, IVEnums.NetworkStopSync.BUILD_SYSTEM, true)
+	require_stop(self, IVGlobal.NetworkStopSync.BUILD_SYSTEM, true)
 	_state.is_loaded_game = false
 	IVGlobal.about_to_build_system_tree.emit()
 	var table_system_builder: IVTableSystemBuilder = IVGlobal.program[&"TableSystemBuilder"]

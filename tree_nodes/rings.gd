@@ -76,7 +76,7 @@ func _ready() -> void:
 	gi_mode = GI_MODE_DISABLED
 	
 	mesh = PlaneMesh.new() # default 2x2
-	_rings_material.shader = IVCoreSettings.shared_resources[&"rings_shader"]
+	_rings_material.shader = IVGlobal.resources[&"rings_shader"]
 	_rings_material.set_shader_parameter(&"texture_width", float(_texture_width))
 	_rings_material.set_shader_parameter(&"texture_start", texture_start)
 	_rings_material.set_shader_parameter(&"inner_margin", inner_margin)

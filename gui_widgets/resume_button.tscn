@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://4wg2jxr7g6t2"]
 
-[ext_resource type="Script" path="res://addons/ivoyager_core/gui_widgets/resume_button.gd" id="1_7n8lv"]
+[ext_resource type="Script" uid="uid://clufupmt2qeoq" path="res://addons/ivoyager_core/gui_widgets/resume_button.gd" id="1_7n8lv"]
 
 [node name="ResumeButton" type="Button"]
 text = "BUTTON_RESUME"

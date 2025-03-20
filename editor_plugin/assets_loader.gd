@@ -20,30 +20,31 @@
 @tool
 extends HTTPRequest
 
+# Starts when added to the tree. Self-frees after completion or failure.
+
 const ASSETS_DIR := "res://addons/ivoyager_assets"
-const TEMP_DOWNLOAD_ZIP := "user://ivoyager_assets.zip"
-const ZIP_PATH_PREPEND := "res://addons/"
+const TEMP_FILE := "ivoyager_assets.zip"
+const UNZIP_PREPEND := "res://addons/"
 
-
-var _path: String
+var _source: String
 var _version: String
 var _size_bytes: float
 var _percent_downloaded := 0
 
 
-func _init(path: String, version: String, size_mib: float) -> void:
-	_path = path
+func _init(source: String, version: String, size_mib: float) -> void:
+	_source = source
 	_version = version
 	_size_bytes = size_mib * 1048576.0
-	download_file = TEMP_DOWNLOAD_ZIP
+	download_file = OS.get_temp_dir().path_join(TEMP_FILE)
 	use_threads = true
 
 
 func _ready() -> void:
-	print("\nDownloading ivoyager_assets %s from\n%s" % [_version, _path])
-	print("to temporary file %s..." % TEMP_DOWNLOAD_ZIP)
+	print("\nDownloading ivoyager_assets %s from\n%s" % [_version, _source])
+	print("to temporary file %s..." % download_file)
 	request_completed.connect(_on_request_completed)
-	var error := request(_path)
+	var error := request(_source)
 	if error != HTTPRequest.RESULT_SUCCESS:
 		push_error("There was an error in the HTTPRequest! Error = ", error)
 		queue_free()
@@ -53,8 +54,7 @@ func _process(_delta: float) -> void:
 	var bytes := get_downloaded_bytes()
 	var percent := roundi(100 * bytes / _size_bytes)
 	if percent >= _percent_downloaded + 10:
-		while percent >= _percent_downloaded + 10:
-			_percent_downloaded += 10
+		_percent_downloaded += 10
 		print("%s%% downloaded (%.1f MiB)" % [_percent_downloaded, bytes / 1048576.0])
 
 
@@ -72,9 +72,9 @@ func _on_request_completed(result: int, response_code: int, _headers: PackedStri
 
 func _replace_assets() -> void:
 	var zip_reader := ZIPReader.new()
-	var error := zip_reader.open(TEMP_DOWNLOAD_ZIP)
+	var error := zip_reader.open(download_file)
 	if error != OK:
-		push_error("Could not open zip archive at %s" % TEMP_DOWNLOAD_ZIP)
+		push_error("Could not open zip archive at %s" % download_file)
 		queue_free()
 		return
 	
@@ -90,7 +90,7 @@ func _replace_assets() -> void:
 			continue
 		assert(zip_path.begins_with("ivoyager_assets/"))
 		var file_data := zip_reader.read_file(zip_path)
-		var file_path := ZIP_PATH_PREPEND + zip_path
+		var file_path := UNZIP_PREPEND + zip_path
 		var dir_path := file_path.get_base_dir()
 		if !DirAccess.dir_exists_absolute(dir_path):
 			DirAccess.make_dir_recursive_absolute(dir_path)
@@ -104,8 +104,8 @@ func _replace_assets() -> void:
 	zip_reader.close()
 	print("Added %s files to %s" % [count, ASSETS_DIR])
 	await get_tree().process_frame
-	print("Removing temporary download file ", TEMP_DOWNLOAD_ZIP)
-	DirAccess.remove_absolute(TEMP_DOWNLOAD_ZIP)
+	print("Removing temporary download file ", download_file)
+	DirAccess.remove_absolute(download_file)
 	print(
 """
 

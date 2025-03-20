@@ -25,7 +25,7 @@ extends RefCounted
 
 const ECLIPTIC_Z := Vector3(0.0, 0.0, 1.0)
 const G := IVUnits.GRAVITATIONAL_CONSTANT
-const BodyFlags := IVEnums.BodyFlags
+const BodyFlags := IVBody.BodyFlags
 
 var enable_precisions := IVCoreSettings.enable_precisions
 
@@ -98,21 +98,21 @@ var move_from_characteristics_to_property: Array[StringName] = [
 ]
 
 var flag_fields := {
-	BodyFlags.IS_STAR : &"star",
-	BodyFlags.IS_PLANET : &"planet",
-	BodyFlags.IS_TRUE_PLANET : &"true_planet",
-	BodyFlags.IS_DWARF_PLANET : &"dwarf_planet",
-	BodyFlags.IS_MOON : &"moon",
-	BodyFlags.IS_TIDALLY_LOCKED : &"tidally_locked",
-	BodyFlags.IS_AXIS_LOCKED : &"axis_locked",
-	BodyFlags.TUMBLES_CHAOTICALLY : &"tumbles_chaotically",
-	BodyFlags.HAS_ATMOSPHERE : &"atmosphere",
-	BodyFlags.IS_GAS_GIANT : &"gas_giant",
-	BodyFlags.IS_ASTEROID : &"asteroid",
-	BodyFlags.IS_COMET : &"comet",
-	BodyFlags.IS_SPACECRAFT : &"spacecraft",
-	BodyFlags.IS_PLANETARY_MASS_OBJECT : &"planetary_mass_object",
-	BodyFlags.SHOW_IN_NAV_PANEL : &"show_in_nav_panel",
+	BodyFlags.BODYFLAGS_STAR : &"star",
+	BodyFlags.BODYFLAGS_PLANET : &"planet",
+	BodyFlags.BODYFLAGS_TRUE_PLANET : &"true_planet",
+	BodyFlags.BODYFLAGS_DWARF_PLANET : &"dwarf_planet",
+	BodyFlags.BODYFLAGS_MOON : &"moon",
+	BodyFlags.BODYFLAGS_TIDALLY_LOCKED : &"tidally_locked",
+	BodyFlags.BODYFLAGS_AXIS_LOCKED : &"axis_locked",
+	BodyFlags.BODYFLAGS_TUMBLES_CHAOTICALLY : &"tumbles_chaotically",
+	BodyFlags.BODYFLAGS_ATMOSPHERE : &"atmosphere",
+	BodyFlags.BODYFLAGS_GAS_GIANT : &"gas_giant",
+	BodyFlags.BODYFLAGS_ASTEROID : &"asteroid",
+	BodyFlags.BODYFLAGS_COMET : &"comet",
+	BodyFlags.BODYFLAGS_SPACECRAFT : &"spacecraft",
+	BodyFlags.BODYFLAGS_PLANETARY_MASS_OBJECT : &"planetary_mass_object",
+	BodyFlags.BODYFLAGS_SHOW_IN_NAV_PANEL : &"show_in_nav_panel",
 }
 
 
@@ -155,36 +155,36 @@ func _set_flags_from_table(body: IVBody, parent: IVBody) -> void:
 	# TODO: Below should be in IVBody to facilitate non-table construction, but
 	# we would need to fix subsequent usage and setting in this class.
 	
-	flags |= BodyFlags.EXISTS
+	flags |= BodyFlags.BODYFLAGS_EXISTS
 	if !parent:
-		flags |= BodyFlags.IS_TOP # will add self to IVGlobal.top_bodies
-		flags |= BodyFlags.IS_PRIMARY_STAR
-		flags |= BodyFlags.PROXY_STAR_SYSTEM
-	if flags & BodyFlags.IS_STAR:
-		flags |= BodyFlags.NEVER_SLEEP
-		flags |= BodyFlags.USE_CARDINAL_DIRECTIONS
-	if flags & BodyFlags.IS_PLANET:
-		flags |= BodyFlags.IS_STAR_ORBITING
-		flags |= BodyFlags.NEVER_SLEEP
-		flags |= BodyFlags.USE_CARDINAL_DIRECTIONS
-	if flags & BodyFlags.IS_MOON:
-		if flags & BodyFlags.SHOW_IN_NAV_PANEL:
-			flags |= BodyFlags.IS_NAVIGATOR_MOON
-		if flags & BodyFlags.IS_PLANETARY_MASS_OBJECT:
-			flags |= BodyFlags.IS_PLANETARY_MASS_MOON
+		flags |= BodyFlags.BODYFLAGS_TOP # will add self to IVBody.top_bodies
+		flags |= BodyFlags.BODYFLAGS_PRIMARY_STAR
+		flags |= BodyFlags.BODYFLAGS_PROXY_STAR_SYSTEM
+	if flags & BodyFlags.BODYFLAGS_STAR:
+		flags |= BodyFlags.BODYFLAGS_NEVER_SLEEP
+		flags |= BodyFlags.BODYFLAGS_USE_CARDINAL_DIRECTIONS
+	if flags & BodyFlags.BODYFLAGS_PLANET:
+		flags |= BodyFlags.BODYFLAGS_STAR_ORBITING
+		flags |= BodyFlags.BODYFLAGS_NEVER_SLEEP
+		flags |= BodyFlags.BODYFLAGS_USE_CARDINAL_DIRECTIONS
+	if flags & BodyFlags.BODYFLAGS_MOON:
+		if flags & BodyFlags.BODYFLAGS_SHOW_IN_NAV_PANEL:
+			flags |= BodyFlags.BODYFLAGS_NAVIGATOR_MOON
+		if flags & BodyFlags.BODYFLAGS_PLANETARY_MASS_OBJECT:
+			flags |= BodyFlags.BODYFLAGS_PLANETARY_MASS_MOON
 		else:
-			flags |= BodyFlags.IS_NON_PLANETARY_MASS_MOON
-		flags |= BodyFlags.USE_CARDINAL_DIRECTIONS
-	if flags & BodyFlags.IS_ASTEROID:
-		flags |= BodyFlags.IS_STAR_ORBITING
-		flags |= BodyFlags.NEVER_SLEEP
-	if flags & BodyFlags.IS_SPACECRAFT:
-		flags |= BodyFlags.USE_PITCH_YAW
+			flags |= BodyFlags.BODYFLAGS_NON_PLANETARY_MASS_MOON
+		flags |= BodyFlags.BODYFLAGS_USE_CARDINAL_DIRECTIONS
+	if flags & BodyFlags.BODYFLAGS_ASTEROID:
+		flags |= BodyFlags.BODYFLAGS_STAR_ORBITING
+		flags |= BodyFlags.BODYFLAGS_NEVER_SLEEP
+	if flags & BodyFlags.BODYFLAGS_SPACECRAFT:
+		flags |= BodyFlags.BODYFLAGS_USE_PITCH_YAW
 	body.flags = flags
 
 
 func _set_orbit_from_table(body: IVBody, parent: IVBody) -> void:
-	if body.flags & BodyFlags.IS_TOP:
+	if body.flags & BodyFlags.BODYFLAGS_TOP:
 		return
 	var orbit := _orbit_builder.make_orbit_from_data(_table_name, _row, parent)
 	body.set_orbit(orbit)
@@ -221,7 +221,7 @@ func _set_characteristics_from_table(body: IVBody) -> void:
 			var precision := IVTableData.get_db_least_float_precision(_table_name, [&"m_radius", &"e_radius"], _row)
 			_real_precisions[&"body/characteristics/p_radius"] = precision
 	else:
-		body.flags |= BodyFlags.DISPLAY_M_RADIUS
+		body.flags |= BodyFlags.BODYFLAGS_DISPLAY_M_RADIUS
 	if !characteristics.has(&"mass"): # moons.tsv has GM but not mass
 		assert(IVTableData.db_has_float_value(_table_name, &"GM", _row)) # table test
 		# We could in principle calculate mass from GM, but small moon GM is poor

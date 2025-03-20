@@ -1,4 +1,4 @@
-# core_editor_plugin.gd
+# editor_plugin.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -207,7 +207,7 @@ func _popup_download_confirmation(message: String) -> void:
 
 func _init_assets_loader() -> void:
 	var version: String = _config.get_value("ivoyager_assets", "version")
-	var path: String = _config.get_value("ivoyager_assets", "download")
-	var size_mib: float = _config.get_value("ivoyager_assets", "download_size_mib")
-	var assets_loader := preload("assets_loader.gd").new(path, version, size_mib)
+	var source: String = _config.get_value("ivoyager_assets", "source")
+	var size_mib: float = _config.get_value("ivoyager_assets", "size_mib")
+	var assets_loader := preload("assets_loader.gd").new(source, version, size_mib)
 	add_child(assets_loader)

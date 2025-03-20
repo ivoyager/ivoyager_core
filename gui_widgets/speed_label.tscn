@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://cc3uu3jh0620y"]
 
-[ext_resource type="Script" path="res://addons/ivoyager_core/gui_widgets/speed_label.gd" id="1"]
+[ext_resource type="Script" uid="uid://btmsp8rbqgti4" path="res://addons/ivoyager_core/gui_widgets/speed_label.gd" id="1"]
 
 [node name="SpeedLabel" type="Label"]
 offset_right = 40.0

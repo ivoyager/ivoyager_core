@@ -20,30 +20,44 @@
 class_name IVViewManager
 extends Node
 
-## Manages [IVView] instances that are persisted via gamesave or cache.
+## Builds [IVView] instances from table data (default views), and provides API
+## for user-created views that are persisted via gamesave or cache.
+##
+## TODO: We can use cache_handler.gd IF we add Callable properties to that
+## for object conversion.
 
 const files := preload("res://addons/ivoyager_core/static/files.gd")
 
-const PERSIST_MODE := IVEnums.PERSIST_PROPERTIES_ONLY
+const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY
 const PERSIST_PROPERTIES: Array[StringName] = [
-	&"_gamesave_views",
+	&"gamesave_views",
 ]
 
-var ViewScript: Script
+## If true, manager will set view &"VIEW_HOME" at simulator start.
+var move_home_at_start := true
+
 var file_path := IVCoreSettings.cache_dir.path_join("views.ivbinary")
 
-var _gamesave_views := {}
-var _cached_views := {}
+# read only!
+var table_views: Dictionary[StringName, IVView]
+var gamesave_views: Dictionary[StringName, IVView] = {}
+var cached_views: Dictionary[StringName, IVView] = {}
+
 var _io_manager: IVIOManager
 var _missing_or_bad_cache_file := true
+var _view_script: Script = IVGlobal.procedural_classes[&"View"]
 
 
 func _init() -> void:
 	IVGlobal.project_objects_instantiated.connect(_on_project_objects_instantiated)
+	IVGlobal.about_to_start_simulator.connect(_on_about_to_start_simulator)
 
 
 func _on_project_objects_instantiated() -> void:
-	ViewScript = IVGlobal.procedural_classes[&"View"]
+	# table read
+	var table_view_builder: IVTableViewBuilder = IVGlobal.program[&"TableViewBuilder"]
+	table_views = table_view_builder.build_all()
+	# caching
 	_io_manager = IVGlobal.program[&"IOManager"]
 	DirAccess.make_dir_recursive_absolute(IVCoreSettings.cache_dir)
 	_read_cache()
@@ -51,7 +65,22 @@ func _on_project_objects_instantiated() -> void:
 		_write_cache()
 
 
+func _on_about_to_start_simulator(is_new_game: bool) -> void:
+	if is_new_game and move_home_at_start:
+		set_table_view(&"VIEW_HOME", true)
+
 # public
+
+func set_table_view(view_name: StringName, is_camera_instant_move := false) -> void:
+	if !table_views.has(view_name):
+		return
+	var view: IVView = table_views[view_name]
+	view.set_state(is_camera_instant_move)
+
+
+func has_table_view(view_name: StringName) -> bool:
+	return table_views.has(view_name)
+
 
 func save_view(view_name: StringName, collection_name: StringName, is_cached: bool, flags: int,
 		allow_threaded_cache_write := true) -> void:
@@ -61,13 +90,13 @@ func save_view(view_name: StringName, collection_name: StringName, is_cached: bo
 		view.reset()
 	else:
 		@warning_ignore("unsafe_method_access")
-		view = ViewScript.new()
+		view = _view_script.new()
 	view.save_state(flags)
 	if is_cached:
-		_cached_views[key] = view
+		cached_views[key] = view
 		_write_cache(allow_threaded_cache_write)
 	else:
-		_gamesave_views[key] = view
+		gamesave_views[key] = view
 
 
 func set_view(view_name: StringName, collection_name: StringName, is_cached: bool,
@@ -75,9 +104,9 @@ func set_view(view_name: StringName, collection_name: StringName, is_cached: boo
 	var key := view_name + "." + collection_name
 	var view: IVView
 	if is_cached:
-		view = _cached_views.get(key)
+		view = cached_views.get(key)
 	else:
-		view = _gamesave_views.get(key)
+		view = gamesave_views.get(key)
 	if !view:
 		return
 	view.set_state(is_camera_instant_move)
@@ -87,39 +116,39 @@ func save_view_object(view: IVView, view_name: StringName, collection_name: Stri
 		allow_threaded_cache_write := true) -> void:
 	var key := view_name + "." + collection_name
 	if is_cached:
-		_cached_views[key] = view
+		cached_views[key] = view
 		_write_cache(allow_threaded_cache_write)
 	else:
-		_gamesave_views[key] = view
+		gamesave_views[key] = view
 
 
 func get_view_object(view_name: StringName, collection_name: StringName, is_cached: bool) -> IVView:
 	var key := view_name + "." + collection_name
 	if is_cached:
-		return _cached_views.get(key)
-	return _gamesave_views.get(key)
+		return cached_views.get(key)
+	return gamesave_views.get(key)
 
 
 func has_view(view_name: StringName, collection_name: StringName, is_cached: bool) -> bool:
 	var key := view_name + "." + collection_name
 	if is_cached:
-		return _cached_views.has(key)
-	return _gamesave_views.has(key)
+		return cached_views.has(key)
+	return gamesave_views.has(key)
 
 
 func remove_view(view_name: StringName, collection_name: StringName, is_cached: bool) -> void:
 	var key := view_name + "." + collection_name
 	if is_cached:
-		_cached_views.erase(key)
+		cached_views.erase(key)
 		_write_cache()
 	else:
-		_gamesave_views.erase(key)
+		gamesave_views.erase(key)
 	
 
 func get_names_in_collection(collection_name: StringName, is_cached: bool) -> Array[StringName]:
 	var group: Array[StringName] = []
 	var suffix := "." + collection_name
-	var dict := _cached_views if is_cached else _gamesave_views
+	var dict := cached_views if is_cached else gamesave_views
 	for key: StringName in dict:
 		if key.ends_with(suffix):
 			group.append(key.trim_suffix(suffix))
@@ -129,7 +158,7 @@ func get_names_in_collection(collection_name: StringName, is_cached: bool) -> Ar
 # private
 
 func _read_cache() -> void:
-	# Populate _cached_views once at project init on main thread.
+	# Populate cached_views once at project init on main thread.
 	var file := FileAccess.open(file_path, FileAccess.READ)
 	if !file:
 		prints("Creating new cache file", file_path)
@@ -139,17 +168,19 @@ func _read_cache() -> void:
 	if typeof(file_var) != TYPE_DICTIONARY:
 		prints("Overwriting obsolete cache file", file_path)
 		return
-	@warning_ignore("unsafe_cast")
-	var dict := file_var as Dictionary
+	var dict: Dictionary = file_var
+	if !dict.is_typed():
+		prints("Overwriting obsolete cache file", file_path)
+		return
 	var bad_cache_data := false
 	for key: StringName in dict:
 		var data: Array = dict[key]
 		@warning_ignore("unsafe_method_access") # possible replacement class
-		var view: IVView = ViewScript.new()
+		var view: IVView = _view_script.new()
 		if !view.set_data_from_cache(data): # may be prior version
 			bad_cache_data = true
 			continue
-		_cached_views[key] = view
+		cached_views[key] = view
 	if !bad_cache_data:
 		_missing_or_bad_cache_file = false
 
@@ -157,9 +188,9 @@ func _read_cache() -> void:
 func _write_cache(allow_threaded_cache_write := true) -> void:
 	# Unless this is app exit, no one is waiting for this and we can do the
 	# file write on i/o thread. At app exit, we want the main thread to wait.
-	var dict := {}
-	for key: StringName in _cached_views:
-		var view: IVView = _cached_views[key]
+	var dict: Dictionary[StringName, Array] = {}
+	for key: StringName in cached_views:
+		var view: IVView = cached_views[key]
 		var data := view.get_data_for_cache()
 		dict[key] = data
 	if allow_threaded_cache_write:

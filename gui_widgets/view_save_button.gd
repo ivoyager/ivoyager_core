@@ -27,6 +27,8 @@ extends Button
 
 signal view_saved(view_name: StringName)
 
+const ViewFlags := IVView.ViewFlags
+
 var _view_save_popup: IVViewSavePopup
 var _view_saver: IVViewSaver
 
@@ -42,10 +44,10 @@ func _ready() -> void:
 
 
 func init(default_view_name := &"LABEL_CUSTOM1", collection_name := &"", is_cached := true,
-		show_flags := IVView.ALL, init_flags := IVView.ALL, reserved_names: Array[StringName]= []
-		) -> void:
+		show_flags: int = ViewFlags.VIEWFLAGS_ALL, init_flags: int = ViewFlags.VIEWFLAGS_ALL,
+		reserved_names: Array[StringName]= []) -> void:
 	# Called by IVViewCollection in standard setup.
-	# Make 'collection_name' unique to not share views with other GUI instances. 
+	# Make 'collection_name' unique to not share views with other GUI instances.
 	_view_saver.init(default_view_name, collection_name, is_cached, show_flags, init_flags,
 			reserved_names)
 

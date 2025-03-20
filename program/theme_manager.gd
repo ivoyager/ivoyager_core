@@ -28,8 +28,8 @@ var global_font := &"gui_main" # these are defined in IVFontManager
 var main_menu_font := &"large"
 var splash_screen_font := &"medium"
 
-var _themes: Dictionary = IVGlobal.themes
-var _fonts: Dictionary = IVGlobal.fonts
+var _themes: Dictionary[StringName, Theme] = IVGlobal.themes
+var _fonts: Dictionary[StringName, FontFile] = IVGlobal.fonts
 
 
 func _init() -> void:

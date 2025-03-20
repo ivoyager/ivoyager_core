@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://cby2ugsop8ytv"]
 
-[ext_resource type="Script" path="res://addons/ivoyager_core/gui_mods/control_dynamic.gd" id="1"]
+[ext_resource type="Script" uid="uid://dq5lypurpjr1j" path="res://addons/ivoyager_core/gui_mods/control_dynamic.gd" id="1"]
 
 [node name="ControlDynamic" type="Control"]
 layout_mode = 3

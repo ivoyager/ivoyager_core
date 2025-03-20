@@ -91,45 +91,46 @@ var add_top_gui_to_universe := true # if true, happens in add_program_nodes()
 # (We want to support GDExtension classes in the future. Please tell us if you
 # want to help with that!)
 
-var preinitializers := {
+var preinitializers: Dictionary[StringName, Variant] = {
 	# RefCounted classes. IVCoreInitializer instances these first. External
 	# projects can add script paths here using 'res://ivoyager_override.cfg'.
 	# A reference is kept in dictionary 'IVGlobal.program' (erase it if you
 	# want to de-reference your preinitializer so it will free itself).
 }
 
-var initializers := {
+var initializers: Dictionary[StringName, Variant] = {
 	# RefCounted classes. IVCoreInitializer instances these after
 	# 'preinitializers'. These classes typically erase themselves from
 	# dictionary 'IVGlobal.program' after init, thereby freeing themselves.
 	# Path to RefCounted class ok.
 	LogInitializer = IVLogInitializer,
 	AssetInitializer = IVAssetInitializer,
-	SharedResourceInitializer = IVSharedResourceInitializer,
+	ResourceInitializer = IVResourceInitializer,
 	WikiInitializer = IVWikiInitializer,
 	TranslationImporter = IVTranslationImporter,
 	TableInitializer = IVTableInitializer,
 }
 
-var program_refcounteds := {
+var program_refcounteds: Dictionary[StringName, Variant] = {
 	# RefCounted classes. IVCoreInitializer instances one of each and adds to
 	# dictionary IVGlobal.program. No save/load persistence.
 	# Path to RefCounted class ok.
 	
 	# need first!
-	SettingsManager = IVSettingsManager, # 1st so IVGlobal.settings are valid
+	IOManager = IVIOManager,
+	SettingsManager = IVSettingsManager, # 1st after IOManager so IVGlobal.settings are valid
 	
 	# builders (generators, often from table or binary data)
 	TableSystemBuilder = IVTableSystemBuilder,
 	TableBodyBuilder = IVTableBodyBuilder,
 	TableOrbitBuilder = IVTableOrbitBuilder,
 	TableSBGBuilder = IVTableSBGBuilder,
+	TableViewBuilder = IVTableViewBuilder,
 	BinaryAsteroidsBuilder = IVBinaryAsteroidsBuilder,
 	SelectionBuilder = IVSelectionBuilder,
 	CompositionBuilder = IVCompositionBuilder, # remove or subclass
 	
 	# managers
-	IOManager = IVIOManager,
 	InputMapManager = IVInputMapManager,
 	FontManager = IVFontManager, # ok to replace
 	ThemeManager = IVThemeManager, # after IVFontManager; ok to replace
@@ -137,11 +138,9 @@ var program_refcounteds := {
 	WikiManager = IVWikiManager,
 	ModelManager = IVModelManager,
 	
-	# tools and resources
-	ViewDefaults = IVViewDefaults,
 }
 
-var program_nodes := {
+var program_nodes: Dictionary[StringName, Variant] = {
 	# IVCoreInitializer instances one of each and adds as child to Universe
 	# (before/"below" TopGUI) and to dictionary IVGlobal.program.
 	# Use PERSIST_MODE = PERSIST_PROPERTIES_ONLY if there is data to persist.
@@ -164,7 +163,7 @@ var program_nodes := {
 	SaveManager = IVSaveManager, # auto removed if plugin missing or disabled
 }
 
-var gui_nodes := {
+var gui_nodes: Dictionary[StringName, Variant] = {
 	# IVCoreInitializer instances one of each and adds as child to TopGUI (or
 	# substitute Control set in 'top_gui') and to dictionary IVGlobal.program.
 	# Order determines visual 'on top' and input event handling: last added
@@ -179,7 +178,7 @@ var gui_nodes := {
 	AdminPopups = null, # assign here if convenient (over SplashScreen)
 }
 
-var procedural_objects := {
+var procedural_objects: Dictionary[StringName, Variant] = {
 	# Nodes and references NOT instantiated by IVCoreInitializer. These class
 	# scripts plus all above can be accessed from IVGlobal.procedural_classes (keys
 	# have underscores). 
@@ -208,8 +207,8 @@ var procedural_objects := {
 
 # ***************************** PRIVATE VARS **********************************
 
-var _program: Dictionary = IVGlobal.program
-var _procedural_classes: Dictionary = IVGlobal.procedural_classes
+var _program: Dictionary[StringName, Object] = IVGlobal.program
+var _procedural_classes: Dictionary[StringName, Resource] = IVGlobal.procedural_classes
 
 
 # ****************************** PROJECT BUILD ********************************
@@ -305,6 +304,7 @@ func _instantiate_initializers() -> void:
 		assert(!_program.has(key))
 		var initializer: RefCounted = IVFiles.make_object_or_scene(initializers[key])
 		_program[key] = initializer
+		IVGlobal.initializer_inited.emit(initializer)
 	IVGlobal.initializers_inited.emit()
 
 

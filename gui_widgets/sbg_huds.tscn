@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://cjnmkmscbt4jl"]
 
-[ext_resource type="Script" path="res://addons/ivoyager_core/gui_widgets/sbg_huds.gd" id="1"]
+[ext_resource type="Script" uid="uid://bwmeemsb4j6wj" path="res://addons/ivoyager_core/gui_widgets/sbg_huds.gd" id="1"]
 
 [node name="SBGHUDs" type="GridContainer"]
 offset_right = 242.0

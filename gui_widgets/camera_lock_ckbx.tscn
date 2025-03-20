@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://crmkiyfceanog"]
 
-[ext_resource type="Script" path="res://addons/ivoyager_core/gui_widgets/camera_lock_ckbx.gd" id="1"]
+[ext_resource type="Script" uid="uid://p7dotuwa12tr" path="res://addons/ivoyager_core/gui_widgets/camera_lock_ckbx.gd" id="1"]
 
 [node name="CameraLockCkbx" type="CheckBox"]
 offset_right = 24.0

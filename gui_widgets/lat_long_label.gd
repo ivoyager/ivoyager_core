@@ -26,8 +26,8 @@ const SHORT_LOWER_CASE := IVQFormat.TextFormat.SHORT_LOWER_CASE
 const N_S_E_W := IVQFormat.LatitudeLongitudeType.N_S_E_W
 const LAT_LONG := IVQFormat.LatitudeLongitudeType.LAT_LONG
 const PITCH_YAW := IVQFormat.LatitudeLongitudeType.PITCH_YAW
-const USE_CARDINAL_DIRECTIONS := IVEnums.BodyFlags.USE_CARDINAL_DIRECTIONS
-const USE_PITCH_YAW := IVEnums.BodyFlags.USE_PITCH_YAW
+const BODYFLAGS_USE_CARDINAL_DIRECTIONS := IVBody.BodyFlags.BODYFLAGS_USE_CARDINAL_DIRECTIONS
+const BODYFLAGS_USE_PITCH_YAW := IVBody.BodyFlags.BODYFLAGS_USE_PITCH_YAW
 
 var qformat := IVQFormat # TODO: Change to const when Godot allows
 
@@ -55,9 +55,9 @@ func _on_latitude_longitude_changed(lat_long: Vector2, is_ecliptic: bool, select
 	var lat_long_type := N_S_E_W
 	if !is_ecliptic:
 		var flags := selection.get_flags()
-		if flags & USE_CARDINAL_DIRECTIONS:
+		if flags & BODYFLAGS_USE_CARDINAL_DIRECTIONS:
 			lat_long_type = N_S_E_W
-		elif flags & USE_PITCH_YAW:
+		elif flags & BODYFLAGS_USE_PITCH_YAW:
 			lat_long_type = PITCH_YAW
 		else:
 			lat_long_type = LAT_LONG

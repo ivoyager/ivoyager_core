@@ -39,7 +39,7 @@ var add_small_bodies_groups := true
 var add_camera := true
 
 # private
-var _bodies: Dictionary = IVGlobal.bodies
+var _bodies: Dictionary[StringName, IVBody] = IVBody.bodies
 var _body_builder: IVTableBodyBuilder
 var _sbg_builder: IVTableSBGBuilder
 var _body_script: Script
@@ -62,7 +62,7 @@ func build_system_tree() -> void:
 
 
 func _add_bodies() -> void:
-	var table_dict := {}
+	var table_dict: Dictionary[StringName, StringName] = {}
 	for table_name in IVCoreSettings.body_tables:
 		for row in IVTableData.get_n_rows(table_name):
 			var name := IVTableData.get_db_entity_name(table_name, row)
@@ -72,7 +72,7 @@ func _add_bodies() -> void:
 			_add_bodies_from_top(name, table_dict)
 
 
-func _add_bodies_from_top(name: StringName, table_dict: Dictionary) -> void:
+func _add_bodies_from_top(name: StringName, table_dict: Dictionary[StringName, StringName]) -> void:
 	# Add ancestors recursively from top, then this one.
 	var table_name: StringName = table_dict[name]
 	var row := IVTableData.get_row(name)

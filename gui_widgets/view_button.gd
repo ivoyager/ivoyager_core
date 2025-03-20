@@ -20,14 +20,23 @@
 class_name IVViewButton
 extends Button
 
-# GUI widget. Requires IVViewDefaults.
-#
-# The instance name must be changed to a valid key in IVViewDefaults.views.
-#
-# See IVViewSaveFlow for saved/removable view buttons.
+## GUI widget.
+##
+## Pre-built (default) buttons must have pre-set text that is a key in
+## IVViewManager.table_views, e.g., "VIEW_HOME", "VIEW_ZOOM", etc. (not the
+## translated name).
+##
+## TODO: Make this class work as user-added too. (Those are presently a
+## subclass in IVViewSaveFlow.)
+
+var _is_default_button: bool
+
+
+func _init(is_default_button := true) -> void:
+	_is_default_button = is_default_button
 
 
 func _ready() -> void:
-	var view_defaults: IVViewDefaults = IVGlobal.program[&"ViewDefaults"]
-	assert(view_defaults.has_view(name), "No default view with name = " + name)
-	pressed.connect(view_defaults.set_view.bind(name))
+	var view_manager: IVViewManager = IVGlobal.program[&"ViewManager"]
+	assert(view_manager.has_table_view(text), "No default view with name = " + text)
+	pressed.connect(view_manager.set_table_view.bind(text))

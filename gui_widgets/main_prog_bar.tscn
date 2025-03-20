@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://mfgs3v16xmna"]
 
-[ext_resource type="Script" path="res://addons/ivoyager_core/gui_widgets/main_prog_bar.gd" id="1"]
+[ext_resource type="Script" uid="uid://ku6nt06ys152" path="res://addons/ivoyager_core/gui_widgets/main_prog_bar.gd" id="1"]
 
 [node name="MainProgBar" type="ProgressBar"]
 process_mode = 3

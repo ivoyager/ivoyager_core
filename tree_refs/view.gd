@@ -27,28 +27,28 @@ extends RefCounted
 ##
 ## TODO: Hotkey bindings!
 
-enum { # flags
-	CAMERA_SELECTION = 1,
-	CAMERA_LONGITUDE = 1 << 1,
-	CAMERA_ORIENTATION = 1 << 2,
+enum ViewFlags { # flags
+	VIEWFLAGS_CAMERA_SELECTION = 1,
+	VIEWFLAGS_CAMERA_LONGITUDE = 1 << 1,
+	VIEWFLAGS_CAMERA_ORIENTATION = 1 << 2,
 
-	HUDS_VISIBILITY = 1 << 3,
-	HUDS_COLOR = 1 << 4,
+	VIEWFLAGS_HUDS_VISIBILITY = 1 << 3,
+	VIEWFLAGS_HUDS_COLOR = 1 << 4,
 	
-	TIME_STATE = 1 << 5,
-	IS_NOW = 1 << 6,
+	VIEWFLAGS_TIME_STATE = 1 << 5,
+	VIEWFLAGS_IS_NOW = 1 << 6,
 	
-	# flag sets
-	ALL_CAMERA = (1 << 3) - 1,
-	ALL_HUDS = 1 << 3 | 1 << 4,
-	ALL_BUT_TIME = (1 << 5) - 1,
-	ALL = (1 << 7) - 1,
+	# sets
+	VIEWFLAGS_ALL_CAMERA = (1 << 3) - 1,
+	VIEWFLAGS_ALL_HUDS = 1 << 3 | 1 << 4,
+	VIEWFLAGS_ALL_BUT_TIME = (1 << 5) - 1,
+	VIEWFLAGS_ALL = (1 << 7) - 1,
 }
 
 
 const NULL_VECTOR3 := Vector3(-INF, -INF, -INF)
 
-const PERSIST_MODE := IVEnums.PERSIST_PROCEDURAL
+const PERSIST_MODE := IVGlobal.PERSIST_PROCEDURAL
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"flags",
 	
@@ -75,18 +75,18 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 var flags := 0 # what state does this View have?
 
 var selection_name := &""
-var camera_flags := 0 # IVEnums.CameraFlags
+var camera_flags := 0 # IVCamera.CameraFlags
 var view_position := NULL_VECTOR3
 var view_rotations := NULL_VECTOR3
 
 var name_visible_flags := 0 # exclusive w/ symbol_visible_flags
 var symbol_visible_flags := 0 # exclusive w/ name_visible_flags
 var orbit_visible_flags := 0
-var visible_points_groups := [] # untyped req for set from cache as of Godot 4.1.1
-var visible_orbits_groups := [] # untyped req for set from cache as of Godot 4.1.1
-var body_orbit_colors := {} # has non-default only
-var sbg_points_colors := {} # has non-default only
-var sbg_orbits_colors := {} # has non-default only
+var visible_points_groups: Array[StringName] = []
+var visible_orbits_groups: Array[StringName] = []
+var body_orbit_colors: Dictionary[int, Color] = {} # has non-default only
+var sbg_points_colors: Dictionary[StringName, Color] = {} # has non-default only
+var sbg_orbits_colors: Dictionary[StringName, Color] = {} # has non-default only
 
 var time := 0.0
 var speed_index := 0
@@ -94,7 +94,7 @@ var is_reversed := false
 
 
 # private
-static var _version_hash := PERSIST_PROPERTIES.hash() + 2 # test for cache is 'bad'
+static var _version_hash := PERSIST_PROPERTIES.hash() + 4 # test for cache is 'bad'
 static var _camera_handler: IVCameraHandler
 static var _body_huds_state: IVBodyHUDsState
 static var _sbg_huds_state: IVSBGHUDsState
@@ -122,13 +122,14 @@ func save_state(save_flags: int) -> void:
 
 
 func set_state(is_camera_instant_move := false) -> void:
-	# Sets all state that this view has.
+	# Sets all state in ViewFlags.
 	_set_camera_state(is_camera_instant_move)
 	_set_huds_state()
 	_set_time_state()
 
 
 # IVViewManager functions
+
 
 func reset() -> void:
 	# back to init state
@@ -180,14 +181,14 @@ func set_data_from_cache(data: Variant) -> bool:
 # private
 
 func _save_camera_state() -> void:
-	if !(flags & ALL_CAMERA):
+	if !(flags & ViewFlags.VIEWFLAGS_ALL_CAMERA):
 		return
 	var view_state := _camera_handler.get_camera_view_state()
-	if flags & CAMERA_SELECTION:
+	if flags & ViewFlags.VIEWFLAGS_CAMERA_SELECTION:
 		selection_name = view_state[0]
-	if flags & CAMERA_LONGITUDE:
+	if flags & ViewFlags.VIEWFLAGS_CAMERA_LONGITUDE:
 		view_position.x = view_state[2].x
-	if flags & CAMERA_ORIENTATION:
+	if flags & ViewFlags.VIEWFLAGS_CAMERA_ORIENTATION:
 		camera_flags = view_state[1]
 		view_position.y = view_state[2].y
 		view_position.z = view_state[2].z
@@ -195,7 +196,7 @@ func _save_camera_state() -> void:
 
 
 func _set_camera_state(is_instant_move := false) -> void:
-	if !(flags & ALL_CAMERA):
+	if !(flags & ViewFlags.VIEWFLAGS_ALL_CAMERA):
 		return
 	# Note: the camera ignores all null or null-equivilant args.
 	_camera_handler.move_to_by_name(selection_name, camera_flags, view_position, view_rotations,
@@ -203,20 +204,20 @@ func _set_camera_state(is_instant_move := false) -> void:
 
 
 func _save_huds_state() -> void:
-	if flags & HUDS_VISIBILITY:
+	if flags & ViewFlags.VIEWFLAGS_HUDS_VISIBILITY:
 		name_visible_flags = _body_huds_state.name_visible_flags
 		symbol_visible_flags = _body_huds_state.symbol_visible_flags
 		orbit_visible_flags = _body_huds_state.orbit_visible_flags
 		visible_points_groups = _sbg_huds_state.get_visible_points_groups()
 		visible_orbits_groups = _sbg_huds_state.get_visible_orbits_groups()
-	if flags & HUDS_COLOR:
+	if flags & ViewFlags.VIEWFLAGS_HUDS_COLOR:
 		body_orbit_colors = _body_huds_state.get_non_default_orbit_colors()
 		sbg_points_colors = _sbg_huds_state.get_non_default_points_colors()
 		sbg_orbits_colors = _sbg_huds_state.get_non_default_orbits_colors()
 
 
 func _set_huds_state() -> void:
-	if flags & HUDS_VISIBILITY:
+	if flags & ViewFlags.VIEWFLAGS_HUDS_VISIBILITY:
 		_body_huds_state.set_name_visible_flags(name_visible_flags)
 		_body_huds_state.set_symbol_visible_flags(symbol_visible_flags)
 		_body_huds_state.set_orbit_visible_flags(orbit_visible_flags)
@@ -226,7 +227,7 @@ func _set_huds_state() -> void:
 		_sbg_huds_state.set_visible_orbits_groups(
 				Array(visible_orbits_groups, TYPE_STRING_NAME, &"", null)
 		)
-	if flags & HUDS_COLOR:
+	if flags & ViewFlags.VIEWFLAGS_HUDS_COLOR:
 		_body_huds_state.set_all_orbit_colors(body_orbit_colors) # ref safe
 		_sbg_huds_state.set_all_points_colors(sbg_points_colors)
 		_sbg_huds_state.set_all_orbits_colors(sbg_orbits_colors)
@@ -237,10 +238,10 @@ func _set_huds_state() -> void:
 func _save_time_state() -> void:
 	# If both TIME_STATE and IS_NOW flags set, we unset one depending on
 	# IVTimekeeper.is_now.
-	if flags & IS_NOW and _timekeeper.is_now:
-		flags &= ~TIME_STATE
-	if flags & TIME_STATE:
-		flags &= ~IS_NOW
+	if flags & ViewFlags.VIEWFLAGS_IS_NOW and _timekeeper.is_now:
+		flags &= ~ViewFlags.VIEWFLAGS_TIME_STATE
+	if flags & ViewFlags.VIEWFLAGS_TIME_STATE:
+		flags &= ~ViewFlags.VIEWFLAGS_IS_NOW
 		time = _timekeeper.time
 		speed_index = _timekeeper.speed_index
 		is_reversed = _timekeeper.is_reversed
@@ -249,9 +250,9 @@ func _save_time_state() -> void:
 func _set_time_state() -> void:
 	# Note: IVTimekeeper ignores set functions that are disallowed in IVCoreSettings
 	# project settings. In most game applications, only speed is set.
-	if flags & TIME_STATE:
+	if flags & ViewFlags.VIEWFLAGS_TIME_STATE:
 		_timekeeper.set_time(time)
 		_timekeeper.change_speed(0, speed_index)
 		_timekeeper.set_time_reversed(is_reversed)
-	elif flags & IS_NOW:
+	elif flags & ViewFlags.VIEWFLAGS_IS_NOW:
 		_timekeeper.set_now_from_operating_system()

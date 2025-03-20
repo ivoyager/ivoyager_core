@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://b7a02wvmqua4q"]
 
-[ext_resource type="Script" path="res://addons/ivoyager_core/gui_widgets/now_ckbx.gd" id="1"]
+[ext_resource type="Script" uid="uid://crnnlljrb6jna" path="res://addons/ivoyager_core/gui_widgets/now_ckbx.gd" id="1"]
 
 [node name="NowCkbx" type="CheckBox"]
 offset_right = 24.0

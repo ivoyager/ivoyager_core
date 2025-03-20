@@ -25,7 +25,7 @@ extends ScrollContainer
 #
 # Parent GUI should add bodies by calling add methods.
 
-const SHOW_IN_NAV_PANEL := IVEnums.BodyFlags.SHOW_IN_NAV_PANEL
+const BODYFLAGS_SHOW_IN_NAV_PANEL := IVBody.BodyFlags.BODYFLAGS_SHOW_IN_NAV_PANEL
 
 var _selection_manager: IVSelectionManager
 var _currently_selected: Button
@@ -76,8 +76,8 @@ func _add_bodies_from_table(table_name: String) -> void:
 	var body_names: Array = table.name
 	for i in body_names.size():
 		var body_name: String = body_names[i]
-		var body: IVBody = IVGlobal.bodies.get(body_name)
-		if body and body.flags & SHOW_IN_NAV_PANEL:
+		var body: IVBody = IVBody.bodies.get(body_name)
+		if body and body.flags & BODYFLAGS_SHOW_IN_NAV_PANEL:
 			add_body(body)
 
 
