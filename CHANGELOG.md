@@ -6,15 +6,21 @@ File format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 See cloning and downloading instructions [here](https://www.ivoyager.dev/developers/).
 
-## [v0.0.23] - UNRELEASED
+## [v0.0.23] - 2025-03-20
 
-Under development using Godot 4.4.
+Developed using Godot 4.4.
+
+### Added
+* New data table views.tsv from which we build default IVView instances. (Removed class IVViewsDefaults.)
 
 ### Changed
 * [API breaking] Type dictionaries where possible.
 * [API breaking] Replace IVCacheManager inheritance w/ IVCacheHandler as component.
 * [API breaking] Moved & renamed resource containers between IVProjectSettings and IVGlobal.
 * [API breaking] Moved several "catalog" containers from IVGlobal to static var in the respective class files. E.g., 'bodies', 'small_bodies_groups' and 'selections'.
+* [API breaking] Standardized many enum names for global table usage (e.g., added "BODYFLAGS_", "CAMERAFLAGS_" prefixes).
+* [API breaking] Removed IVEnums and moved all enums to appropriate class files or IVGlobal singleton.
+* Assets downloader uses OS.get_temp_dir() for the temp zip file.
 
 ### Fixed
 * Nav button and view save bugs related to 'pressed', 'button_pressed' misuse.
@@ -119,7 +125,7 @@ Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_tab
 ##
 I, Voyager projects v0.0.16 and earlier used a different core submodule [ivoyager](https://github.com/ivoyager/ivoyager) (now depreciated); see previous changelog [here](https://github.com/ivoyager/ivoyager/blob/master/CHANGELOG.md).
 
-[v0.0.23]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.22...HEAD
+[v0.0.23]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.22...v0.0.23
 [v0.0.22]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.21...v0.0.22
 [v0.0.21]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.20...v0.0.21
 [v0.0.20]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.19...v0.0.20
