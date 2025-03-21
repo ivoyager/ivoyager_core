@@ -496,8 +496,12 @@ func get_model_type() -> int: # models.tsv
 	return characteristics.get(&"model_type", -1)
 
 
-func has_omni_light() -> bool:
-	return characteristics.get(&"omni_light_type", -1) != -1
+func has_light() -> bool:
+	return has_dynamic_light() or get_omni_light_type() != -1
+
+
+func has_dynamic_light() -> bool:
+	return characteristics.get(&"dynamic_light", false)
 
 
 func get_omni_light_type() -> int:
@@ -840,15 +844,21 @@ func _finish_tree_add() -> void:
 	# Add non-persisted HUD elements.
 	if get_model_type() != -1:
 		var model_manager: IVModelManager = IVGlobal.program[&"ModelManager"]
-		var lazy_init: bool = flags & BODYFLAGS_MOON and not flags & BodyFlags.BODYFLAGS_NAVIGATOR_MOON
+		var lazy_init := flags & BODYFLAGS_MOON and !(flags & BodyFlags.BODYFLAGS_NAVIGATOR_MOON)
 		model_manager.add_model(self, lazy_init)
-	if has_omni_light():
-		var omni_light_type := get_omni_light_type()
-		var omni_light := OmniLight3D.new()
+	
+	var omni_light_type := get_omni_light_type()
+	if IVCoreSettings.dynamic_lights and has_dynamic_light():
+		var dynamic_light_script: Script = IVGlobal.procedural_classes[&"DynamicLight"]
+		@warning_ignore("unsafe_method_access")
+		var dynamic_light: Node3D = dynamic_light_script.new(name)
+		add_child(dynamic_light)
+	elif omni_light_type != -1:
 		# set properties entirely from table
+		var omni_light := OmniLight3D.new()
 		IVTableData.db_build_object_all_fields(omni_light, &"omni_lights", omni_light_type)
 		add_child(omni_light)
-		omni_light.light_bake_mode = Light3D.BAKE_DISABLED
+		#omni_light.light_bake_mode = Light3D.BAKE_DISABLED
 	
 	if orbit:
 		var body_orbit_script: Script = IVGlobal.procedural_classes[&"BodyOrbit"]

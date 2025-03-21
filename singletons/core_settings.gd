@@ -31,6 +31,7 @@ var project_name := ""
 var project_version := "" # external project can set for gamesave debuging
 var is_modded := false # this is aspirational
 var use_threads := true # false helps for debugging
+var dynamic_lights := true
 var dynamic_orbits := true # allows use of orbit element rates
 var sbg_mag_cutoff_override := INF # overrides small_bodies_group.tsv cutoff if <INF
 var skip_splash_screen := true
@@ -66,6 +67,18 @@ var cache_dir := "user://cache"
 var home_name := &"PLANET_EARTH"
 var home_longitude := 0.0
 var home_latitude := 0.0
+
+## Set VisualInstance3D.layer based on object m_radius. See [member size_layers].
+var apply_size_layers := true
+## If apply_size_layers == true, all VisualInstance3D instances will have [param layers]
+## set to one of n+1 values where this array contains n elements. Layer 0b0001
+## is set if m_radius >= size_layers[0], 0b0010 if < size_layers[0], 0b0100 if
+## < size_layers[1], etc.
+var size_layers: Array[float] = [
+	# larger m_radius gets mask 0b0001
+	100.0 * IVUnits.KM, # smaller m_radius gets mask 0b0010
+	0.1 * IVUnits.KM, # smaller m_radius gets mask 0b0100
+]
 
 
 ## Use this dictionary to set GUI text color meanings globally.
@@ -351,6 +364,7 @@ var tables: Dictionary[StringName, String] = {
 	asset_adjustments = "res://addons/ivoyager_core/data/solar_system/asset_adjustments.tsv",
 	asteroids = "res://addons/ivoyager_core/data/solar_system/asteroids.tsv",
 	body_classes = "res://addons/ivoyager_core/data/solar_system/body_classes.tsv",
+	dynamic_lights = "res://addons/ivoyager_core/data/solar_system/dynamic_lights.tsv",
 	omni_lights = "res://addons/ivoyager_core/data/solar_system/omni_lights.tsv",
 	models = "res://addons/ivoyager_core/data/solar_system/models.tsv",
 	moons = "res://addons/ivoyager_core/data/solar_system/moons.tsv",
@@ -419,3 +433,14 @@ var debug_log_path := "user://logs/debug.log" # modify or set "" to disable
 
 func _enter_tree() -> void:
 	IVFiles.init_from_config(self, IVGlobal.ivoyager_config, "core_settings")
+
+
+## Return is the layers mask. Returns 0b0001 if apply_size_layers == false.
+func get_visualinstance3d_layers_for_size(m_radius: float) -> int:
+	if !apply_size_layers:
+		return 0b0001
+	var layers := 0b0001
+	for size in size_layers:
+		if m_radius < size:
+			layers <<= 1
+	return layers

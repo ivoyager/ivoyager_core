@@ -166,7 +166,7 @@ var settings: Dictionary[StringName, Variant] = {}
 var themes: Dictionary[StringName, Theme] = {}
 ## Maintained by [IVFontManager].
 var fonts: Dictionary[StringName, FontFile] = {}
-## Maintained by [IVWorldControl] & others. Otimized data for 3D world selection
+## Maintained by [IVWorldController], [IVCamera] & others. Otimized data for 3D world effects.
 var world_targeting := []
 ## Maintained by Windows instances that want & test for exclusivity.
 var blocking_windows: Array[Window] = []

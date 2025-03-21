@@ -179,24 +179,24 @@ var gui_nodes: Dictionary[StringName, Variant] = {
 }
 
 var procedural_objects: Dictionary[StringName, Variant] = {
-	# Nodes and references NOT instantiated by IVCoreInitializer. These class
-	# scripts plus all above can be accessed from IVGlobal.procedural_classes (keys
-	# have underscores). 
-	# tree_nodes
+	# Nodes and RefCounteds NOT instantiated by IVCoreInitializer. These class
+	# scripts plus all above can be accessed from IVGlobal.procedural_classes.
 	# Path to scene, Node class, or RefCounted class ok.
+	# Nodes...
 	Body = IVBody, # many dependencies, best to subclass
 	Camera = IVCamera, # replaceable, but look for dependencies
 	BodyLabel = IVBodyLabel, # replace w/ Node3D
 	BodyOrbit = IVBodyOrbit, # replace w/ Node3D
 	SBGOrbits = IVSBGOrbits, # replace w/ Node3D
 	SBGPoints = IVSBGPoints, # replace w/ Node3D
+	DynamicLight = IVDynamicLight, # replace w/ Node3D
 	LagrangePoint = IVLagrangePoint, # replace w/ subclass
 	ModelSpace = IVModelSpace, # replace w/ Node3D
 	RotatingSpace = IVRotatingSpace, # replace w/ subclass
 	Rings = IVRings, # replace w/ Node3D
 	SpheroidModel = IVSpheroidModel, # replace w/ Node3D
 	SelectionManager = IVSelectionManager, # replace w/ Node3D
-	# tree_refs
+	# RefCounteds...
 	SmallBodiesGroup = IVSmallBodiesGroup,
 	Orbit = IVOrbit,
 	Selection = IVSelection,
