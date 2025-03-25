@@ -1,8 +1,8 @@
-	dynamic_shadow_max	shadow_max_plus	shadow_enabled	light_cull_mask	directional_shadow_max_distance	directional_shadow_pancake_size	directional_shadow_mode	directional_shadow_blend_splits	directional_shadow_split_1	directional_shadow_split_2	directional_shadow_split_3
-Type	BOOL	FLOAT	BOOL	INT	FLOAT	FLOAT	INT	BOOL	FLOAT	FLOAT	FLOAT
-Unit					km						
-Default			TRUE			20	2		0.1	0.2	0.5
-Prefix/DYNAMIC_LIGHT_											
-STAR_SUN_0	TRUE	5e5		0b0001				TRUE	0.3	0.5	0.7
-STAR_SUN_1				0b0010	1000			TRUE			
-STAR_SUN_2				0b0100	1			TRUE			
+	shadow_max_floor	shadow_max_ceiling	shadow_max_target_plus	shadow_max_planet_plus	directional_shadow_pancake_size	directional_shadow_mode	directional_shadow_blend_splits	directional_shadow_split_1	directional_shadow_split_2	directional_shadow_split_3	shadow_enabled	light_cull_mask	light_bake_mode	sky_mode	shadow_bias	shadow_blur
+Type	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	INT	BOOL	FLOAT	FLOAT	FLOAT	BOOL	INT	INT	INT	FLOAT	FLOAT
+Unit	km	km	km	km												
+Default	1	1e7			20	2		0.1	0.2	0.5	TRUE		0	1	0.1	1.0
+Prefix/DYNAMIC_LIGHT_																
+STAR_SUN_0	8e5	1e7	8e5	8e5			FALSE	0.3	0.5	0.7		0b0001				
+STAR_SUN_1	1e3	1e5	1e3				TRUE	0.25	0.4	0.7		0b0010				
+STAR_SUN_2	1	100	1				TRUE	0.2	0.3	0.7		0b0100				

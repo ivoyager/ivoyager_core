@@ -72,8 +72,13 @@ func _ready() -> void:
 	
 	scale = Vector3(outer_texture, outer_texture, outer_texture)
 	
-	cast_shadow = SHADOW_CASTING_SETTING_DOUBLE_SIDED
-	gi_mode = GI_MODE_DISABLED
+	# TODO: For rings shadow on Saturn, we need a separate dithering shader...
+	# https://github.com/godotengine/godot-proposals/issues/3276#issuecomment-917516630
+	# with SHADOW_CASTING_SETTING_SHADOWS_ONLY. I guess this might not be double-sided
+	# so we may need to flip by code.
+	# Or possibly we could implement a single shader with dithering...
+	#cast_shadow = SHADOW_CASTING_SETTING_DOUBLE_SIDED
+	cast_shadow = SHADOW_CASTING_SETTING_OFF # semi-transparancy can't cast shadows
 	
 	mesh = PlaneMesh.new() # default 2x2
 	_rings_material.shader = IVGlobal.resources[&"rings_shader"]

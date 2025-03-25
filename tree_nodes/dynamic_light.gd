@@ -32,85 +32,94 @@ extends DirectionalLight3D
 ## The parent node (this node) points in the direction from source to the
 ## camera. All lights are attenuated for source distance.
 
+# Shadows should be visible on the camera's parent and on the ancestor
+# "star orbiter". E.g., we see Io's shadow on Jupiter if we are anywhere
+# in Jupiter's system. Also, Jupiter should shade Io even if Io is on
+# the other side of Jupiter from us.
+# TODO: Optimize by having star_orbiter in IVGlobal container.
+
 
 # from table
-var dynamic_shadow_max: bool
-var shadow_max_plus: float
+var shadow_max_floor: float
+var shadow_max_ceiling: float
+var shadow_max_target_plus := NAN
+var shadow_max_planet_plus := NAN
 
 var _world_targeting: Array = IVGlobal.world_targeting
 var _parent_name: StringName
+var _light_number: int
+
+var _add_target_dist: bool
+var _add_planet_dist: bool
+
+var _distances: Array[float] # shared
 
 var _debug_frame := 0
 
 ## Names are constructed from the parent_name. E.g., STAR_SUN becomes
-## STAR_SUN_0, STAR_SUN_1, STAR_SUN_2 for three lights imported from
-## dynamic_lights.tsv.
-func _init(parent_name: StringName) -> void:
+## DYNAMIC_LIGHT_STAR_SUN_0, DYNAMIC_LIGHT_STAR_SUN_1, DYNAMIC_LIGHT_STAR_SUN_2
+## for three lights imported from dynamic_lights.tsv. Only the parent 0 light
+## needs to be inited externally.
+func _init(parent_name: StringName, light_number := 0, distances: Array[float] = [0.0, 0.0, 0.0]
+		) -> void:
 	_parent_name = parent_name
-	var this_light_name := StringName("DYNAMIC_LIGHT_" + parent_name + "_0")
-	var row := IVTableData.get_row(this_light_name)
+	_light_number = light_number
+	_distances = distances
+	var light_name := StringName("DYNAMIC_LIGHT_" + parent_name + "_" + str(light_number))
+	var row := IVTableData.get_row(light_name)
 	assert(row != -1)
 	IVTableData.db_build_object_all_fields(self, &"dynamic_lights", row)
-
+	
+	prints(_light_number, shadow_max_target_plus, shadow_max_planet_plus)
+	
+	_add_target_dist = !is_nan(shadow_max_target_plus)
+	_add_planet_dist = !is_nan(shadow_max_planet_plus)
 
 
 func _ready() -> void:
-	
-	if !IVCoreSettings.apply_size_layers:
+	if _light_number != 0 or !IVCoreSettings.apply_size_layers:
 		return
 	for i in IVCoreSettings.size_layers.size():
-		var child_append := "_" + str(i + 1) # "_1", etc.
-		var light_name := StringName("DYNAMIC_LIGHT_" + _parent_name + child_append)
-		var row := IVTableData.get_row(light_name)
-		assert(row != -1)
-		var child_light := DirectionalLight3D.new()
-		IVTableData.db_build_object_all_fields(child_light, &"dynamic_lights", row)
+		var child_light := IVDynamicLight.new(_parent_name, i + 1, _distances)
 		add_child(child_light)
-	
-		prints(light_name, child_light.shadow_enabled, child_light.directional_shadow_blend_splits,
-				child_light.directional_shadow_split_1)
-	
 
 
 func _process(_delta: float) -> void:
 	# Camera position determines light direction and intensity.
-	
+	# Only the parent light (0) points and calculates distances.
+	# In this context, "planet" = star orbiter.
 	const BODYFLAGS_STAR_ORBITING := IVBody.BodyFlags.BODYFLAGS_STAR_ORBITING
 	
+	_debug_frame += 1
 	
-	
-	var camera: Camera3D = _world_targeting[2]
-	if !camera:
-		return
-	var camera_global_position := camera.global_position
-	var source_vector := camera_global_position - global_position
-	var source_dist_sq := source_vector.length_squared()
-	#var camera_parent_dist := camera.position.length()
-	
-	look_at(source_vector)
-	
-	if dynamic_shadow_max:
-		# Shadows should be visible on the camera's parent and on the ancestor
-		# "star orbiter". E.g., we see Io's shadow on Jupiter if we are anywhere
-		# in Jupiter's system. Also, Jupiter should shade Io even if Io is on
-		# the other side of Jupiter from us.
-		# TODO: Optimize by having star_orbiter in IVGlobal container.
-		var star_orbiter: IVBody = camera.get_parent_node_3d()
-		while not star_orbiter.flags & BODYFLAGS_STAR_ORBITING:
-			star_orbiter = star_orbiter.get_parent_node_3d() as IVBody
-			if !star_orbiter:
+	if _light_number == 0:
+		var camera: Camera3D = _world_targeting[2]
+		if !camera:
+			return
+		var camera_global_position := camera.global_position
+		var source_vector := camera_global_position - global_position
+		var planet_dist := 0.0
+		var planet: IVBody = camera.get_parent_node_3d()
+		while not planet.flags & BODYFLAGS_STAR_ORBITING:
+			planet = planet.get_parent_node_3d() as IVBody # null above star
+			if !planet:
 				break
-		if star_orbiter:
-			var dist := (star_orbiter.global_position - camera_global_position).length()
-			directional_shadow_max_distance = dist + shadow_max_plus
+		if planet:
+			planet_dist = (planet.global_position - camera_global_position).length()
 		
-		
-			_debug_frame += 1
-			if _debug_frame % 60 == 0:
-				prints(star_orbiter.name, dist, directional_shadow_max_distance)
-		
-		
-		else: # camera is at a star or higher
-			directional_shadow_max_distance = shadow_max_plus
+		# parent light sets
+		_distances[0] = camera.position.length() # target distance
+		_distances[1] = planet_dist
+		_distances[2] = source_vector.length_squared()
+		look_at(source_vector)
 	
+		
+	# all lights
+	var shadow_max := shadow_max_floor
+	if _add_target_dist:
+		shadow_max = maxf(shadow_max, shadow_max_target_plus + _distances[0])
+	if _add_planet_dist:
+		shadow_max = maxf(shadow_max, shadow_max_planet_plus + _distances[1])
+	shadow_max = minf(shadow_max, shadow_max_ceiling)
+	directional_shadow_max_distance = shadow_max
 	

@@ -6,6 +6,20 @@ File format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 See cloning and downloading instructions [here](https://www.ivoyager.dev/developers/).
 
+## [v0.0.24] - UNRELEASED
+
+Developed using Godot 4.4.
+
+_NOTE: For the shadows fix to work, project must have scale METER ~ 2e3. See comments in: 
+https://github.com/ivoyager/planetarium/blob/master/planetarium/units.gd_
+
+### Added
+* SHADOWS!!!! Added class [IVDynamicLight](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/dynamic_light.gd) and table [dynamic_lights.tsv](https://github.com/ivoyager/ivoyager_core/blob/master/data/solar_system/dynamic_lights.tsv) to finally make shadows work.
+* Several settings in IVCoreSettings to implement dynamic lights.
+
+### Changed
+* To support shadows, all VisualInstance3D's have `layers` set. Large bodies have value 0b0001, but smaller have different values determined by IVCoreSettings.size_layers.
+
 ## [v0.0.23] - 2025-03-20
 
 Developed using Godot 4.4.
@@ -125,6 +139,7 @@ Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_tab
 ##
 I, Voyager projects v0.0.16 and earlier used a different core submodule [ivoyager](https://github.com/ivoyager/ivoyager) (now depreciated); see previous changelog [here](https://github.com/ivoyager/ivoyager/blob/master/CHANGELOG.md).
 
+[v0.0.24]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.23...HEAD
 [v0.0.23]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.22...v0.0.23
 [v0.0.22]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.21...v0.0.22
 [v0.0.21]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.20...v0.0.21
