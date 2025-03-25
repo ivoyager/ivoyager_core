@@ -23,10 +23,22 @@ extends RefCounted
 ## Builds IVView instances from table views.tsv.
 
 
-var as_is_fields: Array[StringName] = [&"selection_name", &"view_rotations",
-		&"visible_points_groups", &"visible_orbits_groups", &"time", &"speed_index", &"is_reversed"]
-var array_to_flags_fields: Array[StringName] = [&"flags", &"camera_flags", &"name_visible_flags",
-		&"symbol_visible_flags", &"orbit_visible_flags"]
+var as_is_fields: Array[StringName] = [
+	# Can't import dictionaries yet.
+	# Member 'view_position' is handled explicitly.
+	&"flags",
+	&"selection_name",
+	&"camera_flags",
+	&"view_rotations",
+	&"name_visible_flags",
+	&"symbol_visible_flags",
+	&"orbit_visible_flags",
+	&"visible_points_groups",
+	&"visible_orbits_groups",
+	&"time",
+	&"speed_index",
+	&"is_reversed",
+]
 
 var _view_script: Script
 
@@ -48,9 +60,6 @@ func build(row: int) -> IVView:
 	@warning_ignore("unsafe_method_access")
 	var view: IVView = _view_script.new()
 	IVTableData.db_build_object(view, as_is_fields, &"views", row)
-	for field in array_to_flags_fields:
-		var flags := IVTableData.get_db_array_as_flags(&"views", field, row)
-		view.set(field, flags)
 	var view_position_xy := IVTableData.get_db_vector2(&"views", &"view_position_xy", row)
 	var view_position_z := IVTableData.get_db_float(&"views", &"view_position_z", row)
 	view.view_position = Vector3(view_position_xy.x, view_position_xy.y, view_position_z)

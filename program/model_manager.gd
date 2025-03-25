@@ -81,7 +81,7 @@ func add_model(body: IVBody, lazy_init: bool) -> void: # Main thread
 	var e_radius := body.get_equatorial_radius()
 	var model_basis := _get_model_basis(file_prefix, m_radius, e_radius)
 	var max_dist: float
-	if body.has_omni_light():
+	if body.has_light():
 		max_dist = INF
 	else:
 		max_dist = m_radius * model_too_far_radius_multiplier
@@ -122,6 +122,7 @@ func _get_model_on_io_thread(body: IVBody, file_prefix: String, model_type: int,
 		model_basis: Basis, lazy_init: bool) -> void: # I/O thread
 	if body.flags & BODYFLAGS_DISABLE_MODEL_SPACE: # async possibility
 		return
+	var m_radius := body.m_radius
 	var model: Node3D
 	var path: String = _model_paths.get(file_prefix, "")
 	if path:
@@ -129,6 +130,7 @@ func _get_model_on_io_thread(body: IVBody, file_prefix: String, model_type: int,
 		var packed_scene: PackedScene = load(path)
 		model = packed_scene.instantiate()
 		model.transform.basis = model_basis
+		_set_layers_for_size(model, m_radius)
 		_finish_model.call_deferred(body, model, lazy_init)
 		return
 	# TODO: We need a fallback asteroid-like model for non-ellipsoid
@@ -145,6 +147,7 @@ func _get_model_on_io_thread(body: IVBody, file_prefix: String, model_type: int,
 		albedo_map = _fallback_albedo_map
 	@warning_ignore("unsafe_method_access") # Possible replacement class
 	model = _spheroid_model_script.new(model_type, model_basis, albedo_map, emission_map)
+	_set_layers_for_size(model, m_radius)
 	_finish_model.call_deferred(body, model, lazy_init)
 
 
@@ -218,6 +221,22 @@ func _get_model_basis(file_prefix: String, m_radius := NAN, e_radius := NAN) -> 
 	basis = basis.rotated(Vector3(0.0, 1.0, 0.0), -RIGHT_ANGLE) # adjust for centered prime meridian
 	basis = basis.rotated(Vector3(1.0, 0.0, 0.0), RIGHT_ANGLE) # z-up in astronomy!
 	return basis
+
+
+func _set_layers_for_size(node3d: Node3D, m_radius: float) -> void:
+	var layers := IVCoreSettings.get_visualinstance3d_layers_for_size(m_radius)
+	if layers != 0b0001: # not default
+		_set_layers_recursive(node3d, layers)
+
+
+func _set_layers_recursive(node3d: Node3D, layers: int) -> void:
+	var visualinstance3d := node3d as VisualInstance3D
+	if visualinstance3d:
+		visualinstance3d.layers = layers
+	for child in node3d.get_children():
+		var child_node3d := child as Node3D
+		if child_node3d:
+			_set_layers_recursive(child_node3d, layers)
 
 
 func _preregister_files() -> void:

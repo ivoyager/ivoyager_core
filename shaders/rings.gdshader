@@ -42,6 +42,8 @@ render_mode cull_disabled;
 // this reason and to save shader computation, lit versus unlit side is
 // determined externally and set as uniform.
 //
+// TODO: For ring shadow on Saturn, we need a dithering shader:
+// https://github.com/godotengine/godot-proposals/issues/3276#issuecomment-917516630
 
 // set by rings.gd once
 uniform float texture_width;
