@@ -46,13 +46,14 @@ var shadow_max_target_plus := NAN
 var shadow_max_planet_plus := NAN
 
 var _world_targeting: Array = IVGlobal.world_targeting
+var _attenuation_exponent := IVCoreSettings.attenuation_exponent
 var _parent_name: StringName
 var _light_number: int
 
 var _add_target_dist: bool
 var _add_planet_dist: bool
 
-var _distances: Array[float] # shared
+var _shared: Array[float]
 
 var _debug_frame := 0
 
@@ -60,18 +61,15 @@ var _debug_frame := 0
 ## DYNAMIC_LIGHT_STAR_SUN_0, DYNAMIC_LIGHT_STAR_SUN_1, DYNAMIC_LIGHT_STAR_SUN_2
 ## for three lights imported from dynamic_lights.tsv. Only the parent 0 light
 ## needs to be inited externally.
-func _init(parent_name: StringName, light_number := 0, distances: Array[float] = [0.0, 0.0, 0.0]
+func _init(parent_name: StringName, light_number := 0, shared: Array[float] = [0.0, 0.0, 0.0]
 		) -> void:
 	_parent_name = parent_name
 	_light_number = light_number
-	_distances = distances
+	_shared = shared
 	var light_name := StringName("DYNAMIC_LIGHT_" + parent_name + "_" + str(light_number))
 	var row := IVTableData.get_row(light_name)
 	assert(row != -1)
 	IVTableData.db_build_object_all_fields(self, &"dynamic_lights", row)
-	
-	prints(_light_number, shadow_max_target_plus, shadow_max_planet_plus)
-	
 	_add_target_dist = !is_nan(shadow_max_target_plus)
 	_add_planet_dist = !is_nan(shadow_max_planet_plus)
 
@@ -80,7 +78,7 @@ func _ready() -> void:
 	if _light_number != 0 or !IVCoreSettings.apply_size_layers:
 		return
 	for i in IVCoreSettings.size_layers.size():
-		var child_light := IVDynamicLight.new(_parent_name, i + 1, _distances)
+		var child_light := IVDynamicLight.new(_parent_name, i + 1, _shared)
 		add_child(child_light)
 
 
@@ -89,6 +87,7 @@ func _process(_delta: float) -> void:
 	# Only the parent light (0) points and calculates distances.
 	# In this context, "planet" = star orbiter.
 	const BODYFLAGS_STAR_ORBITING := IVBody.BodyFlags.BODYFLAGS_STAR_ORBITING
+	const AU_SQ := IVUnits.AU ** 2
 	
 	_debug_frame += 1
 	
@@ -106,20 +105,22 @@ func _process(_delta: float) -> void:
 				break
 		if planet:
 			planet_dist = (planet.global_position - camera_global_position).length()
+		var energy := AU_SQ / source_vector.length_squared()
+		if _attenuation_exponent != 2.0:
+			energy **= _attenuation_exponent * 0.5
 		
 		# parent light sets
-		_distances[0] = camera.position.length() # target distance
-		_distances[1] = planet_dist
-		_distances[2] = source_vector.length_squared()
+		_shared[0] = camera.position.length() # target distance
+		_shared[1] = planet_dist
+		_shared[2] = energy
 		look_at(source_vector)
 	
-		
 	# all lights
 	var shadow_max := shadow_max_floor
 	if _add_target_dist:
-		shadow_max = maxf(shadow_max, shadow_max_target_plus + _distances[0])
+		shadow_max = maxf(shadow_max, shadow_max_target_plus + _shared[0])
 	if _add_planet_dist:
-		shadow_max = maxf(shadow_max, shadow_max_planet_plus + _distances[1])
+		shadow_max = maxf(shadow_max, shadow_max_planet_plus + _shared[1])
 	shadow_max = minf(shadow_max, shadow_max_ceiling)
 	directional_shadow_max_distance = shadow_max
-	
+	light_energy = _shared[2]

@@ -32,6 +32,7 @@ var project_version := "" # external project can set for gamesave debuging
 var is_modded := false # this is aspirational
 var use_threads := true # false helps for debugging
 var dynamic_lights := true
+var attenuation_exponent := 0.5 # 2.0 is natural but << needed for non-physical
 var dynamic_orbits := true # allows use of orbit element rates
 var sbg_mag_cutoff_override := INF # overrides small_bodies_group.tsv cutoff if <INF
 var skip_splash_screen := true
