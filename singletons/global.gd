@@ -24,6 +24,9 @@ extends Node
 ## Array and dictionary references are never overwritten, so it is safe to keep
 ## local references in class files.
 
+# Developer note: Don't add any non-Godot dependencies in this file! That
+# messes up static class dependencies on this global.
+
 # simulator state broadcasts
 signal about_to_run_initializers() # IVCoreInitializer; after plugin preinitializers
 signal translations_imported() # IVTranslationImporter; useful for boot screen
@@ -58,6 +61,8 @@ signal network_state_changed(network_state: bool) # IVGlobal.NetworkState
 # other broadcasts
 signal setting_changed(setting: StringName, value: Variant)
 signal camera_ready(camera: Camera3D)
+## In this context, "planet" is star orbiting ancestor and "star" is galaxy orbiting ancestor.
+signal camera_tree_changed(camera: Camera3D, parent: Node3D, planet: Node3D, star: Node3D)
 
 # requests for state change
 signal start_requested()
@@ -166,8 +171,6 @@ var settings: Dictionary[StringName, Variant] = {}
 var themes: Dictionary[StringName, Theme] = {}
 ## Maintained by [IVFontManager].
 var fonts: Dictionary[StringName, FontFile] = {}
-## Maintained by [IVWorldController], [IVCamera] & others. Otimized data for 3D world effects.
-var world_targeting := []
 ## Maintained by Windows instances that want & test for exclusivity.
 var blocking_windows: Array[Window] = []
 ## For project use. Not used by I, Voyager.

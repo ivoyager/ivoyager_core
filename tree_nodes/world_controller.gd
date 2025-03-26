@@ -20,20 +20,14 @@
 class_name IVWorldController
 extends Control
 
+## Interface between the user mouse and the 3D world.
+##
 ## Receives mouse events in the 3D world area, sets cursor shape and interprets
-## mouse drags, clicks and wheel turn.
+## mouse drags, clicks and wheel turn. Potential mouse target Node3Ds must
+## call [method process_world_target] each frame to be available for mouse-over
+## identification and selection.
 
-# TODO: Below should really be a dictionary...
-# Inits IVGlobal.world_targeting, which has elements:
-#  [0] mouse_position: Vector2 (this object sets)
-#  [1] veiwport_height: float (this object sets)
-#  [2] camera: Camera (camera sets)
-#  [3] camera_fov: float (camera sets)
-#  [4] current_mouse_target: Object (targets set/unset themselves; e.g., see IVBody)
-#  [5] current_mouse_target_dist: float (as above)
-#  [6] current_fragment_id: int (a shader target; IVFragmentIdentifier sets)
-#  [7] current_cursor_type: int (this object sets)
-#
+
 #  The single instance of this node is added by IVCoreInitializer.
 
 
@@ -43,57 +37,50 @@ signal mouse_dragged(drag_vector: Vector2, button_mask: int, key_modifier_mask: 
 signal mouse_wheel_turned(is_up: bool)
 
 
+# project settings
+var min_click_radius := 20.0
+
 # read-only!
-var current_target: Object = null
+var camera: Camera3D
+var current_target: Node3D
+var cursor_shape := CURSOR_ARROW
+var mouse_position := Vector2.ZERO
+var veiwport_height := 0.0
 
 # private
-var _world_targeting: Array = IVGlobal.world_targeting
 var _pause_only_stops_time: bool = IVCoreSettings.pause_only_stops_time
 var _drag_start := Vector2.ZERO
 var _drag_segment_start := Vector2.ZERO
-var _has_mouse := true
 var _suppress_mouse_control := true # blocks signals EXCEPT 'mouse_target_changed'
+var _current_target_dist := INF
+
 
 
 func _init() -> void:
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
-	# see 'IVGlobal.world_targeting' comments above
-	_world_targeting.resize(8)
-	_world_targeting[0] = Vector2.ZERO
-	_world_targeting[1] = 0.0
-	_world_targeting[2] = null
-	_world_targeting[3] = 50.0
-	_world_targeting[4] = null
-	_world_targeting[5] = INF
-	_world_targeting[6] = -1
-	_world_targeting[7] = CURSOR_ARROW # current mouse cursor
+	IVGlobal.camera_ready.connect(_connect_camera)
+	IVGlobal.pause_changed.connect(_on_pause_changed)
 
 
 func _ready() -> void:
 	process_mode = PROCESS_MODE_ALWAYS # but some functionaly stops if !pause_only_stops_time
 	mouse_filter = MOUSE_FILTER_STOP
-	IVGlobal.pause_changed.connect(_on_pause_changed)
-	mouse_entered.connect(_on_mouse_entered)
-	mouse_exited.connect(_on_mouse_exited)
 	set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	var viewport := get_viewport()
 	viewport.size_changed.connect(_on_viewport_size_changed)
-	_world_targeting[1] = viewport.get_visible_rect().size.y
+	veiwport_height = viewport.get_visible_rect().size.y
 
 
 func _process(_delta: float) -> void:
-	var cursor_type := CURSOR_ARROW
 	if _drag_start:
-		cursor_type = CURSOR_MOVE
-	elif _world_targeting[4]: # there is a target object under the mouse!
-		cursor_type = CURSOR_POINTING_HAND
+		cursor_shape = CURSOR_MOVE
+	elif current_target:
+		cursor_shape = CURSOR_POINTING_HAND
+	else:
+		cursor_shape = CURSOR_ARROW
 	# TODO: When we can have interaction with asteroid point, that will
 	# cause pointy finger too.
-	_world_targeting[7] = cursor_type
-	set_default_cursor_shape(cursor_type)
-	if current_target != _world_targeting[4]:
-		current_target = _world_targeting[4]
-		mouse_target_changed.emit(current_target)
+	set_default_cursor_shape(cursor_shape)
 
 
 func _gui_input(input_event: InputEvent) -> void:
@@ -103,13 +90,12 @@ func _gui_input(input_event: InputEvent) -> void:
 		return # is this possible?
 	var mouse_motion := event as InputEventMouseMotion
 	if mouse_motion:
-		var mouse_pos: Vector2 = mouse_motion.position
-		_world_targeting[0] = mouse_pos
+		mouse_position = mouse_motion.position
 		if _suppress_mouse_control:
 			return
 		if _drag_segment_start: # accumulated mouse drag motion
-			var drag_vector := mouse_pos - _drag_segment_start
-			_drag_segment_start = mouse_pos
+			var drag_vector := mouse_position - _drag_segment_start
+			_drag_segment_start = mouse_position
 			mouse_dragged.emit(drag_vector, mouse_motion.button_mask,
 					_get_key_modifier_mask(mouse_motion))
 		return
@@ -132,19 +118,67 @@ func _gui_input(input_event: InputEvent) -> void:
 				_drag_segment_start = _drag_start
 			else: # end of drag or button-up after click selection
 				if _drag_start == mouse_button.position: # was a mouse click!
-					if _world_targeting[4]: # mouse_target
-						mouse_target_clicked.emit(_world_targeting[4], mouse_button.button_mask,
+					if current_target: # mouse_target
+						mouse_target_clicked.emit(current_target, mouse_button.button_mask,
 								_get_key_modifier_mask(mouse_button))
 				_drag_start = Vector2.ZERO
 				_drag_segment_start = Vector2.ZERO
 
 
+## Potential mouse targets must call this every frame to be available for
+## mouse-over identification and selection. Return value is distance from
+## target to the camera.
+func process_world_target(node3d: Node3D, radius: float) -> float:
+	if !camera:
+		return 0.0
+	var node3d_global_position := node3d.global_position
+	var camera_dist := node3d_global_position.distance_to(camera.global_position)
+	var is_in_mouse_click_radius := false
+	if !camera.is_position_behind(node3d_global_position):
+		var pos2d := camera.unproject_position(node3d_global_position)
+		var mouse_dist := pos2d.distance_to(mouse_position)
+		var click_radius := min_click_radius
+		var divisor := camera.fov * camera_dist
+		if divisor > 0.0:
+			var screen_radius := 55.0 * radius * veiwport_height / divisor
+			if click_radius < screen_radius:
+				click_radius = screen_radius
+		if mouse_dist < click_radius:
+			is_in_mouse_click_radius = true
+	
+	# set/unset this node3d as mouse target
+	if is_in_mouse_click_radius:
+		if node3d != current_target:
+			if camera_dist < _current_target_dist: # make node3d the mouse target
+				current_target = node3d
+				_current_target_dist = camera_dist
+				mouse_target_changed.emit(node3d)
+		else:
+			_current_target_dist = camera_dist
+	elif node3d == current_target: # remove node3d as mouse target
+		current_target = null
+		_current_target_dist = INF
+		mouse_target_changed.emit(null)
+	
+	return camera_dist
+
+
+func remove_world_target(node3d: Node3D) -> void:
+	if node3d == current_target:
+		current_target = null
+		_current_target_dist = INF
+
+
 func _clear() -> void:
-	_world_targeting[2] = null
-	_world_targeting[4] = null
-	_world_targeting[5] = INF
+	camera = null
+	current_target = null
+	_current_target_dist = INF
 	_drag_start = Vector2.ZERO
 	_drag_segment_start = Vector2.ZERO
+
+
+func _connect_camera(camera_: Camera3D) -> void:
+	camera = camera_
 
 
 func _get_key_modifier_mask(event: InputEventMouse) -> int:
@@ -174,12 +208,4 @@ func _on_pause_changed(is_paused: bool) -> void:
 
 
 func _on_viewport_size_changed() -> void:
-	_world_targeting[1] = get_viewport().get_visible_rect().size.y
-
-
-func _on_mouse_entered() -> void:
-	_has_mouse = true
-
-
-func _on_mouse_exited() -> void:
-	_has_mouse = false
+	veiwport_height = get_viewport().get_visible_rect().size.y

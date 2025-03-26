@@ -30,63 +30,38 @@ extends RefCounted
 ## instances. E.g., a game might have 1000s of instantiated asteroids or
 ## spacecrafts that can be put to sleep under certain conditions.
 
-const BODYFLAGS_STAR_ORBITING := IVBody.BodyFlags.BODYFLAGS_STAR_ORBITING
 
-var _camera: Camera3D
 var _current_star_orbiter: IVBody
 
 
 func _init() -> void:
-	IVGlobal.about_to_start_simulator.connect(_on_about_to_start_simulator)
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
-	IVGlobal.camera_ready.connect(_connect_camera)
-
-
-func _on_about_to_start_simulator(_is_new_game: bool) -> void:
-	for body: IVBody in IVBody.top_bodies:
-		_change_satellite_sleep_recursive(body, true)
+	IVGlobal.system_tree_ready.connect(_on_system_tree_ready)
+	IVGlobal.camera_tree_changed.connect(_on_camera_tree_changed)
 
 
 func _clear() -> void:
 	_current_star_orbiter = null
-	_disconnect_camera()
 
 
-func _connect_camera(camera: Camera3D) -> void:
-	if _camera != camera:
-		_disconnect_camera()
-		_camera = camera
-		@warning_ignore("unsafe_property_access", "unsafe_method_access") # possible replacement class
-		_camera.parent_changed.connect(_on_camera_parent_changed)
+func _on_system_tree_ready(_is_new_game: bool) -> void:
+	for body in IVBody.top_bodies:
+		_set_satellite_sleep_recursive(body, true)
 
 
-func _disconnect_camera() -> void:
-	if _camera and is_instance_valid(_camera):
-		@warning_ignore("unsafe_property_access", "unsafe_method_access") # possible replacement class
-		_camera.parent_changed.disconnect(_on_camera_parent_changed)
-	_camera = null
-
-
-func _on_camera_parent_changed(body: IVBody) -> void:
-	var to_star_orbiter := _get_star_orbiter(body)
+func _on_camera_tree_changed(_camera: Camera3D, _parent: Node3D, planet: Node3D, _star: Node3D
+		) -> void:
+	var to_star_orbiter := planet as IVBody
 	if _current_star_orbiter == to_star_orbiter:
 		return
 	if _current_star_orbiter:
-		_change_satellite_sleep_recursive(_current_star_orbiter, true)
+		_set_satellite_sleep_recursive(_current_star_orbiter, true)
 	if to_star_orbiter:
-		_change_satellite_sleep_recursive(to_star_orbiter, false)
+		_set_satellite_sleep_recursive(to_star_orbiter, false)
 	_current_star_orbiter = to_star_orbiter
 
 
-func _get_star_orbiter(body: IVBody) -> IVBody:
-	while not body.flags & BODYFLAGS_STAR_ORBITING:
-		body = body.get_parent_node_3d() as IVBody
-		if !body: # reached the top
-			return null
-	return body
-
-
-func _change_satellite_sleep_recursive(body: IVBody, is_sleep: bool) -> void:
+func _set_satellite_sleep_recursive(body: IVBody, is_sleep: bool) -> void:
 	for satellite in body.satellites:
 		satellite.set_sleep(is_sleep)
-		_change_satellite_sleep_recursive(satellite, is_sleep)
+		_set_satellite_sleep_recursive(satellite, is_sleep)

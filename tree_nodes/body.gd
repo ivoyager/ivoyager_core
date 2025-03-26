@@ -123,12 +123,10 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"characteristics",
 	&"components",
 	&"orbit",
-	&"satellites",
 	&"rotating_space",
 ]
 
 # class settings
-static var min_click_radius := 20.0
 static var max_hud_dist_orbit_radius_multiplier := 100.0
 static var min_hud_dist_radius_multiplier := 500.0
 static var min_hud_dist_star_multiplier := 20.0 # combines w/ above
@@ -142,7 +140,6 @@ var declination := 0.0 # possibly derived (if axis locked)
 var characteristics: Dictionary[StringName, Variant] = {} # non-object values
 var components: Dictionary[StringName, Object] = {} # objects (persisted only)
 var orbit: IVOrbit
-var satellites: Array[IVBody] = []
 var rotating_space: IVRotatingSpace # rotates & translates for L-points (lazy init)
 
 # read-only calculated spatials; change by setting right_ascension, declination, etc.
@@ -152,6 +149,9 @@ var rotation_at_epoch := 0.0
 var basis_at_epoch := IDENTITY_BASIS
 
 # read-only!
+var star: IVBody # above
+var star_orbiter: IVBody # this body or star orbiter above or null
+var satellites: Array[IVBody] = [] # IVBody children add/remove themselves
 var huds_visible := false # too far / too close toggle
 var model_visible := false
 var model_space: Node3D # rotation only, not scaled (lazy init), not persisted
@@ -173,8 +173,8 @@ static var sun_global_positions := Basis(Vector3(0, 0, 0), Vector3(0, 0, 0), Vec
 # private
 static var _is_class_instanced := false
 static var _times: Array[float] = IVGlobal.times
-static var _world_targeting: Array = IVGlobal.world_targeting
 static var _ecliptic_rotation: Basis
+static var _world_controller: IVWorldController
 
 
 
@@ -182,11 +182,13 @@ func _init() -> void:
 	if !_is_class_instanced:
 		_is_class_instanced = true
 		_ecliptic_rotation = IVCoreSettings.ecliptic_rotation
+		_world_controller = IVGlobal.program[&"WorldController"]
 	hide()
 
 
 func _enter_tree() -> void:
 	IVGlobal.add_system_tree_item_started.emit(self)
+	_set_relative_bodies()
 	if orbit:
 		orbit.reset_elements_and_interval_update()
 		orbit.changed.connect(_on_orbit_changed)
@@ -214,6 +216,7 @@ func _exit_tree() -> void:
 	bodies.erase(name)
 	if flags & BodyFlags.BODYFLAGS_TOP:
 		top_bodies.erase(self)
+	_clear_relative_bodies()
 
 
 func _on_system_tree_built_or_loaded(is_new_game: bool) -> void:
@@ -243,34 +246,8 @@ func _process(_delta: float) -> void:
 	# mode, API assumes that any properties updated here are stale and must be
 	# calculated in-function.
 	
-	# get camera distance and check mouse proximity
-	var camera: Camera3D = _world_targeting[2]
-	if !camera:
-		return
-	var camera_dist := global_position.distance_to(camera.global_position)
-	var is_in_mouse_click_radius := false
-	if !camera.is_position_behind(global_position):
-		var pos2d := camera.unproject_position(global_position)
-		var mouse_position: Vector2 = _world_targeting[0]
-		var mouse_dist := pos2d.distance_to(mouse_position)
-		var click_radius := min_click_radius
-		var divisor: float = _world_targeting[3] * camera_dist # fov * dist
-		if divisor > 0.0:
-			var screen_radius: float = 55.0 * m_radius * _world_targeting[1] / divisor
-			if click_radius < screen_radius:
-				click_radius = screen_radius
-		if mouse_dist < click_radius:
-			is_in_mouse_click_radius = true
+	var camera_dist := _world_controller.process_world_target(self, m_radius)
 	
-	# set/unset this body as mouse target
-	if is_in_mouse_click_radius:
-		if camera_dist < _world_targeting[5]: # make self the mouse target
-			_world_targeting[4] = self
-			_world_targeting[5] = camera_dist
-	elif _world_targeting[4] == self: # remove self as mouse target
-		_world_targeting[4] = null
-		_world_targeting[5] = INF
-
 	# update translation and reference frame 'spaces'
 	if orbit:
 		position = orbit.get_position()
@@ -658,13 +635,6 @@ func get_hill_sphere(eccentricity := 0.0) -> float:
 	return a * (1.0 - eccentricity) * pow(mass / (3.0 * parent_mass), 0.33333333)
 
 
-func get_star() -> IVBody:
-	# will error if not star or no star above
-	var body := self
-	while !(body.flags & BODYFLAGS_STAR):
-		body = get_parent_node_3d()
-	return body
-
 # special mechanics below
 
 func set_model_parameters(reference_basis: Basis, max_dist: float) -> void:
@@ -709,18 +679,15 @@ func set_orbit(orbit_: IVOrbit) -> void:
 
 
 func set_sleep(sleep_: bool) -> void: # called by IVSleepManager
-	if flags & BODYFLAGS_NEVER_SLEEP or sleep_ == sleep:
+	if sleep_ == sleep or flags & BODYFLAGS_NEVER_SLEEP:
 		return
 	if sleep_:
 		sleep = true
 		hide()
 		set_process(false)
-		if _world_targeting[4] == self: # remove self as mouse target
-			_world_targeting[4] = null
-			_world_targeting[5] = INF
+		_world_controller.remove_world_target(self)
 	else:
 		sleep = false
-		_process(0.0) # update position, etc., now; will show()
 		set_process(true)
 
 
@@ -840,6 +807,32 @@ func recalculate_spatials() -> void:
 # *****************************************************************************
 # private
 
+func _set_relative_bodies() -> void:
+	# For multi-star system, star_orbiter and star could be the same body.
+	star = null
+	star_orbiter = null
+	var up_tree := self
+	while up_tree:
+		if !star_orbiter and up_tree.flags & BodyFlags.BODYFLAGS_STAR_ORBITING:
+			star_orbiter = up_tree
+		if up_tree.flags & BodyFlags.BODYFLAGS_STAR:
+			star = up_tree
+			break
+		up_tree = up_tree.get_parent_node_3d() as IVBody
+	var parent := get_parent_node_3d() as IVBody
+	if parent:
+		assert(!parent.satellites.has(self))
+		parent.satellites.append(self)
+
+
+func _clear_relative_bodies() -> void:
+	star = null
+	star_orbiter = null
+	var parent := get_parent_node_3d() as IVBody
+	if parent:
+		parent.satellites.erase(self)
+
+
 func _finish_tree_add() -> void:
 	# Add non-persisted HUD elements.
 	if get_model_type() != -1:
@@ -922,7 +915,6 @@ func _finish_tree_add_io(file_prefix: String, is_star: bool, rings_file_prefix: 
 func _finish_tree_add_after_io(rings_images: Array[Image]) -> void:
 	# on main thread
 	if rings_images and not flags & BodyFlags.BODYFLAGS_DISABLE_MODEL_SPACE:
-		var star := get_star()
 		var use_shader_sun_index := star.shader_sun_index
 		var rings_script: Script = IVGlobal.procedural_classes[&"Rings"]
 		if rings_script:

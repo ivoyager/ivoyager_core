@@ -33,11 +33,10 @@ extends DirectionalLight3D
 ## camera. All lights are attenuated for source distance.
 
 # Shadows should be visible on the camera's parent and on the ancestor
-# "star orbiter". E.g., we see Io's shadow on Jupiter if we are anywhere
-# in Jupiter's system. Also, Jupiter should shade Io even if Io is on
+# "planet" (star orbiter). E.g., we see Io's shadow on Jupiter if we are
+# anywhere in Jupiter's system. Also, Jupiter should shade Io even if Io is on
 # the other side of Jupiter from us.
 # TODO: Optimize by having star_orbiter in IVGlobal container.
-
 
 # from table
 var shadow_max_floor: float
@@ -45,17 +44,15 @@ var shadow_max_ceiling: float
 var shadow_max_target_plus := NAN
 var shadow_max_planet_plus := NAN
 
-var _world_targeting: Array = IVGlobal.world_targeting
 var _attenuation_exponent := IVCoreSettings.attenuation_exponent
 var _parent_name: StringName
 var _light_number: int
-
+var _camera: Camera3D # only updated for light 0
+var _planet: Node3D # only updated for light 0
 var _add_target_dist: bool
 var _add_planet_dist: bool
-
 var _shared: Array[float]
 
-var _debug_frame := 0
 
 ## Names are constructed from the parent_name. E.g., STAR_SUN becomes
 ## DYNAMIC_LIGHT_STAR_SUN_0, DYNAMIC_LIGHT_STAR_SUN_1, DYNAMIC_LIGHT_STAR_SUN_2
@@ -72,6 +69,8 @@ func _init(parent_name: StringName, light_number := 0, shared: Array[float] = [0
 	IVTableData.db_build_object_all_fields(self, &"dynamic_lights", row)
 	_add_target_dist = !is_nan(shadow_max_target_plus)
 	_add_planet_dist = !is_nan(shadow_max_planet_plus)
+	if light_number == 0:
+		IVGlobal.camera_tree_changed.connect(_on_camera_tree_changed)
 
 
 func _ready() -> void:
@@ -84,33 +83,22 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	# Camera position determines light direction and intensity.
-	# Only the parent light (0) points and calculates distances.
+	# Only the parent light 0 points and calculates distances.
 	# In this context, "planet" = star orbiter.
-	const BODYFLAGS_STAR_ORBITING := IVBody.BodyFlags.BODYFLAGS_STAR_ORBITING
 	const AU_SQ := IVUnits.AU ** 2
 	
-	_debug_frame += 1
-	
-	if _light_number == 0:
-		var camera: Camera3D = _world_targeting[2]
-		if !camera:
-			return
-		var camera_global_position := camera.global_position
+	if _camera: # only set for light 0
+		var camera_global_position := _camera.global_position
 		var source_vector := camera_global_position - global_position
 		var planet_dist := 0.0
-		var planet: IVBody = camera.get_parent_node_3d()
-		while not planet.flags & BODYFLAGS_STAR_ORBITING:
-			planet = planet.get_parent_node_3d() as IVBody # null above star
-			if !planet:
-				break
-		if planet:
-			planet_dist = (planet.global_position - camera_global_position).length()
+		if _planet:
+			planet_dist = (_planet.global_position - camera_global_position).length()
 		var energy := AU_SQ / source_vector.length_squared()
 		if _attenuation_exponent != 2.0:
 			energy **= _attenuation_exponent * 0.5
 		
-		# parent light sets
-		_shared[0] = camera.position.length() # target distance
+		# parent light sets for all
+		_shared[0] = _camera.position.length() # target distance
 		_shared[1] = planet_dist
 		_shared[2] = energy
 		look_at(source_vector)
@@ -124,3 +112,10 @@ func _process(_delta: float) -> void:
 	shadow_max = minf(shadow_max, shadow_max_ceiling)
 	directional_shadow_max_distance = shadow_max
 	light_energy = _shared[2]
+
+
+func _on_camera_tree_changed(camera: Camera3D, _parent: Node3D, planet: Node3D, _star: Node3D
+		) -> void:
+	# Only connected for light 0.
+	_camera = camera
+	_planet = planet # really star orbiter

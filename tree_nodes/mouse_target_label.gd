@@ -27,11 +27,12 @@ extends Label
 
 var offset := Vector2(0.0, -7.0) # offset to not interfere w/ FragmentIdentifier
 
-var _world_targeting: Array = IVGlobal.world_targeting
 var _fragment_data: Dictionary[int, Array]
 
 var _object_text := ""
 var _fragment_text := ""
+
+@onready var _world_controller: IVWorldController = IVGlobal.program[&"WorldController"]
 
 
 func _ready() -> void:
@@ -51,7 +52,7 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	if _world_targeting[7] == CURSOR_MOVE:
+	if _world_controller.cursor_shape == CURSOR_MOVE:
 		hide()
 		return
 	if _object_text: # has priority over fragment
@@ -62,7 +63,7 @@ func _process(_delta: float) -> void:
 		hide()
 		return
 	show()
-	position = _world_targeting[0] + offset + Vector2(-size.x / 2.0, -size.y)
+	position = _world_controller.mouse_position + offset + Vector2(-size.x / 2.0, -size.y)
 
 
 func _on_mouse_target_changed(object: Object) -> void:

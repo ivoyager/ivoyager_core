@@ -88,7 +88,6 @@ func _add_bodies_from_top(name: StringName, table_dict: Dictionary[StringName, S
 	body.hide() # Bodies set their own visibility as needed
 	if parent:
 		parent.add_child(body)
-		parent.satellites.append(body)
 	elif attach_to_universe: # top body
 		var universe: Node3D = IVGlobal.program.Universe
 		universe.add_child(body)
