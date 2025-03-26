@@ -20,6 +20,9 @@ https://github.com/ivoyager/planetarium/blob/master/planetarium/units.gd_
 ### Changed
 * To support shadows, all VisualInstance3D's have `layers` set. Large bodies have value 0b0001, but smaller have different values determined by IVCoreSettings.size_layers.
 
+### Fixed
+* v0.0.23 regression where IVMouseTargetLabel failed to display shader targets (asteroids and orbit lines).
+
 ## [v0.0.23] - 2025-03-20
 
 Developed using Godot 4.4.
