@@ -77,10 +77,10 @@ func _on_fragment_changed(id: int) -> void:
 	if id == -1:
 		_fragment_text = ""
 		return
-	if id >= _fragment_data.size():
-		# This happens occasionally while quiting the application.
+	var data: Array = _fragment_data.get(id, []) # rarely missing key while quiting the application
+	if !data:
+		_fragment_text = ""
 		return
-	var data: Array = _fragment_data[id]
 	var instance_id: int = data[0]
 	var target_object := instance_from_id(instance_id)
 	@warning_ignore("unsafe_method_access") # any valid target will have 'get_fragment_text()'
