@@ -383,6 +383,7 @@ var table_project_enums := [
 	IVBody.BodyFlags,
 	IVCamera.CameraFlags,
 	IVView.ViewFlags,
+	IVGlobal.ShadowMask,
 ]
 var merge_table_constants := {}
 var replacement_missing_values := {} # not recomended to use this
@@ -411,11 +412,14 @@ var asset_paths: Dictionary[StringName, String] = {
 	starmap_8k = "res://addons/ivoyager_assets/starmaps/starmap_8k.jpg",
 	starmap_16k = "res://addons/ivoyager_assets/starmaps/starmap_16k.jpg",
 }
-var asset_paths_for_load: Dictionary[StringName, String] = { # loaded into "assets" dict by IVAssetInitializer
+var asset_paths_for_load: Dictionary[StringName, String] = {
+	# loaded into IVGlobal.assets by IVAssetInitializer
 	primary_font = "res://addons/ivoyager_assets/fonts/Roboto-NotoSansSymbols-merged.ttf",
 	fallback_albedo_map = "res://addons/ivoyager_assets/fallbacks/blank_grid.jpg",
 	fallback_body_2d = "res://addons/ivoyager_assets/fallbacks/blank_grid_2d_globe.256.png",
-#	fallback_model = "res://addons/ivoyager_assets/models/phobos/Phobos.1_1000.glb", # implement in 0.0.14
+#	fallback_model = "res://addons/ivoyager_assets/models/phobos/Phobos.1_1000.glb",
+	blue_noise_1024 = "res://addons/ivoyager_assets/noise/blue_noise_1024.png",
+	
 }
 var translations: Array[String] = [
 	# Added here so extensions can modify. Note that IVTranslationImporter will

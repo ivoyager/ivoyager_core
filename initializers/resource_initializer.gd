@@ -34,6 +34,7 @@ var paths: Dictionary[StringName, String] = {
 	orbit_id_shader = "res://addons/ivoyager_core/shaders/orbit.id.gdshader",
 	orbits_id_shader = "res://addons/ivoyager_core/shaders/orbits.id.gdshader",
 	rings_shader = "res://addons/ivoyager_core/shaders/rings.gdshader",
+	rings_shadow_caster_shader = "res://addons/ivoyager_core/shaders/rings_shadow_caster.gdshader",
 }
 
 var constructors: Dictionary[StringName, Callable]= {

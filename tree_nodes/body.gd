@@ -168,7 +168,7 @@ static var bodies: Dictionary[StringName, IVBody] = {}
 ## Contains IVBody instances that are at the top of an IVBody tree. In normal
 ## usage this will be stars.
 static var top_bodies: Array[IVBody] = []
-static var sun_global_positions := Basis(Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(0, 0, 0))
+static var sun_global_positions: Array[Vector3] = [Vector3(), Vector3(), Vector3()]
 
 # private
 static var _is_class_instanced := false
@@ -279,8 +279,9 @@ func _process(_delta: float) -> void:
 	# sun position(s) for shader global
 	if shader_sun_index != -1 and sun_global_positions[shader_sun_index] != global_position:
 		sun_global_positions[shader_sun_index] = global_position
-		RenderingServer.global_shader_parameter_set(
-				&"iv_sun_global_positions", sun_global_positions)
+		var as_basis := Basis(sun_global_positions[0], sun_global_positions[1],
+				sun_global_positions[2])
+		RenderingServer.global_shader_parameter_set( &"iv_sun_global_positions", as_basis)
 	show()
 
 

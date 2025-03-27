@@ -37,10 +37,13 @@ render_mode cull_disabled;
 // brightness given the 'thinness' (i.e., transparency) of our material with
 // black space as background.
 //
-// WARNING! For litside determination, FRONT_FACING is not reliable as of Godot
-// 4.2.2. It's sometimes wrong on my laptop (NVIDIA GeForce GTX 1650 Ti). For
-// this reason and to save shader computation, lit versus unlit side is
-// determined externally and set as uniform.
+// As of v0.0.24, IVRings flips to always keep the front face on the sun-
+// facing side. This is so the child ShadowCaster is correctly oriented.
+// (Because we can't have SHADOW_CASTING_SETTING_SHADOWS_ONLY and
+// SHADOW_CASTING_SETTING_DOUBLE_SIDED at the same time!)
+//
+// WARNING! FRONT_FACING is not reliable as of Godot 4.2.2. It's sometimes
+// wrong on my laptop (NVIDIA GeForce GTX 1650 Ti).
 //
 // TODO: For ring shadow on Saturn, we need a dithering shader:
 // https://github.com/godotengine/godot-proposals/issues/3276#issuecomment-917516630
@@ -74,18 +77,14 @@ global uniform mat3 iv_sun_global_positions;
 
 // varyings
 varying vec3 sun_direction;
-varying flat float lit_side; // >0.0 for lit side
+varying flat float camera_y; // >0.0 for lit side
 
 
 void vertex() {
 	vec3 sun_position = iv_sun_global_positions[sun_index];
 	vec3 sun_vector = (VIEW_MATRIX * vec4(sun_position, 1.0)).xyz;
 	sun_direction = normalize(sun_vector);
-
-	mat4 inverse_model_matrix = inverse(MODEL_MATRIX);
-	float sun_y = (inverse_model_matrix * vec4(sun_position, 1.0)).y;
-	float camera_y = (inverse_model_matrix * vec4(CAMERA_POSITION_WORLD, 1.0)).y;
-	lit_side = sun_y * camera_y; // positive if same sign
+	camera_y = (inverse(MODEL_MATRIX) * vec4(CAMERA_POSITION_WORLD, 1.0)).y;
 }
 
 
@@ -136,31 +135,22 @@ vec4 sample_color(int texel, float texel_fraction, int index, int lod) {
 
 
 void fragment() {
-	// remap plane to a 2x2 square with 0,0 center
-	float x = UV.x * 2.0 - 1.0;
-	float y = UV.y * 2.0 - 1.0;
-	float radius = sqrt(x * x + y * y);
-
+	
+	float r = length(UV * 2.0 - vec2(1.0));
+	
 	// dFdx() & dFdy() must be before the 'if' fork to avoid edge artifacts!
-	float texture_fraction = (radius - texture_start) / (1.0 - texture_start);
+	float texture_fraction = (r - texture_start) / (1.0 - texture_start);
 	float texel_position = texture_fraction * texture_width;
 	float dfdx = dFdx(texel_position); // texels per horizontal screen pixel
 	float dfdy = dFdy(texel_position); // texels per vertical screen pixel
 
-	if (radius < inner_margin || radius > outer_margin) {
-		// out of render area
-
-		// FIXME? Godot docs suggest that use of discard might break something
-		// related to shadows. Or maybe not. For now we're using ALPHA = 0.0.
-		// We can revisit use of discard after other shadow issues are resolved.
-
-		//discard;
-		ALPHA = 0.0;
+	if (r < inner_margin || r > outer_margin) {
+		discard; // out of rings area
 
 	} else {
 
 		// LOD for anti-aliasing
-		float dfdr = sqrt(dfdx * dfdx + dfdy * dfdy);
+		float dfdr = length(vec2(dfdx, dfdy));
 		float lod_map = log2(dfdr * dfdr_multiplier);
 		lod_map = clamp(round(lod_map), 0.0, 8.0);
 		int lod = int(lod_map);
@@ -180,7 +170,7 @@ void fragment() {
 		vec4 color;
 		vec3 albedo;
 
-		if (lit_side > 0.0) {
+		if (camera_y > 0.0) {
 			// lit side
 			vec4 backscatter = sample_color(texel, texel_fraction, 0, lod);
 			vec4 forwardscatter = sample_color(texel, texel_fraction, 1, lod);
