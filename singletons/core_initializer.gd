@@ -129,8 +129,9 @@ var program_refcounteds: Dictionary[StringName, Variant] = {
 	BinaryAsteroidsBuilder = IVBinaryAsteroidsBuilder,
 	SelectionBuilder = IVSelectionBuilder,
 	CompositionBuilder = IVCompositionBuilder, # remove or subclass
+	BodyFinisher = IVBodyFinisher,
 	
-	# managers
+	# managers, etc.
 	InputMapManager = IVInputMapManager,
 	FontManager = IVFontManager, # ok to replace
 	ThemeManager = IVThemeManager, # after IVFontManager; ok to replace

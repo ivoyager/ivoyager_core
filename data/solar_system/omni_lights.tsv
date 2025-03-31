@@ -1,9 +1,7 @@
-	omni_attenuation	omni_range	distance_fade_shadow	light_energy	shadow_enabled
-Type	FLOAT	FLOAT	FLOAT	FLOAT	BOOL
-Unit		au	au	m^0.4	
-Default					TRUE
-Prefix/OMNI_LIGHT_					
-SUN	0.4	120	120	5e4	
-# Subjective energy & attenuation. We want a little blow-out					
-# at Mercury, but good light on Saturn and still some at Pluto.					
-# light_energy has Unit so it will adjust to sim scale					
+	bodies	disable_if_dynamic_enabled	omni_attenuation	omni_range	light_energy	shadow_enabled
+Type	ARRAY[STRING_NAME]	BOOL	FLOAT	FLOAT	FLOAT	BOOL
+Unit				au	m^0.4	
+Default		TRUE				FALSE
+Prefix/OMNI_LIGHT_						
+SUN	STAR_SUN		0.4	120	5e4	
+# See dynamic_lights.tsv. You probably want that!						

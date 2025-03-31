@@ -21,18 +21,21 @@ class_name IVBody
 extends Node3D
 
 ## Base class for objects that orbit or are orbited, including stars, planets,
-## moons, visited asteroids, and spacecrafts.
+## moons, instantiated asteroids, and spacecrafts.
 ##
 ## IVBody nodes are NEVER scaled or rotated. Hence, local and global distances
 ## and directions are always consistent at any level of the solar system tree.
 ## For rotation, component nodes can be added to the body's [IVModelSpace] or
-## [IVRotatingSpace]. The former rotates with the body (for its model and rings)
-## and the later with its orbit (for Lagrange points).[br][br]
+## [IVRotatingSpace]. The former tilts and rotates with the body (for its model
+## and possibly rings) and the later with its orbit (for Lagrange points).[br][br]
 ## 
 ## Node name is always the data table row name: 'PLANET_EARTH', 'MOON_EUROPA',
 ## etc.[br][br]
 ##
-## See also IVSmallBodiesGroup for handling 1000s or 10000s of orbiting bodies
+## Many body-associated nodes are added by [IVBodyFinisher], including a model,
+## rings, lights and HUD elements.[br][br]
+##
+## See also IVSmallBodiesGroup for handling 1000s or 100000s of orbiting bodies
 ## without individual instantiation (e.g., asteroids).[br][br]
 ##
 ## TODO: (Ongoing) Make this node more 'drag-and_drop'.[br][br]
@@ -170,30 +173,22 @@ static var bodies: Dictionary[StringName, IVBody] = {}
 static var top_bodies: Array[IVBody] = []
 static var sun_global_positions: Array[Vector3] = [Vector3(), Vector3(), Vector3()]
 
-# private
-static var _is_class_instanced := false
-static var _times: Array[float] = IVGlobal.times
-static var _ecliptic_rotation: Basis
-static var _world_controller: IVWorldController
+# localized
+@onready var _times: Array[float] = IVGlobal.times
+@onready var _ecliptic_rotation: Basis = IVCoreSettings.ecliptic_rotation
+@onready var _world_controller: IVWorldController = IVGlobal.program[&"WorldController"]
 
-
-
-func _init() -> void:
-	if !_is_class_instanced:
-		_is_class_instanced = true
-		_ecliptic_rotation = IVCoreSettings.ecliptic_rotation
-		_world_controller = IVGlobal.program[&"WorldController"]
-	hide()
 
 
 func _enter_tree() -> void:
-	IVGlobal.add_system_tree_item_started.emit(self)
+	#IVGlobal.add_system_tree_item_started.emit(self)
 	_set_relative_bodies()
 	if orbit:
 		orbit.reset_elements_and_interval_update()
 		orbit.changed.connect(_on_orbit_changed)
 	shader_sun_index = characteristics.get(&"shader_sun_index", -1)
 	assert(shader_sun_index >= -1 and shader_sun_index <= 2)
+	hide()
 
 
 func _ready() -> void:
@@ -201,7 +196,7 @@ func _ready() -> void:
 	IVGlobal.system_tree_built_or_loaded.connect(_on_system_tree_built_or_loaded, CONNECT_ONE_SHOT)
 	IVGlobal.about_to_free_procedural_nodes.connect(_prepare_to_free, CONNECT_ONE_SHOT)
 	IVGlobal.setting_changed.connect(_settings_listener)
-	var timekeeper: IVTimekeeper = IVGlobal.program.Timekeeper
+	var timekeeper: IVTimekeeper = IVGlobal.program[&"Timekeeper"]
 	timekeeper.time_altered.connect(_on_time_altered)
 	assert(!bodies.has(name))
 	bodies[name] = self
@@ -209,7 +204,7 @@ func _ready() -> void:
 		top_bodies.append(self)
 	recalculate_spatials()
 	_set_min_hud_dist()
-	_finish_tree_add.call_deferred()
+	#_finish_tree_add.call_deferred()
 
 
 func _exit_tree() -> void:
@@ -287,6 +282,10 @@ func _process(_delta: float) -> void:
 
 # *****************************************************************************
 # public API
+
+func has_orbit() -> bool:
+	return orbit != null
+
 
 func get_float_precision(path: String) -> int:
 	# Available only if IVCoreSettings.enable_precisions == true. Gets the
@@ -475,35 +474,15 @@ func get_model_type() -> int: # models.tsv
 
 
 func has_light() -> bool:
-	return has_dynamic_light() or get_omni_light_type() != -1
+	return characteristics.get(&"has_light", false)
 
 
-func has_dynamic_light() -> bool:
-	return characteristics.get(&"dynamic_light", false)
-
-
-func get_omni_light_type() -> int:
-	return characteristics.get(&"omni_light_type", -1)
+func has_rings() -> bool:
+	return characteristics.get(&"has_rings", false)
 
 
 func get_file_prefix() -> String:
 	return characteristics.get(&"file_prefix", "")
-
-
-func has_rings() -> bool:
-	return characteristics.has(&"rings_radius")
-
-
-func get_rings_file_prefix() -> String:
-	return characteristics.get(&"rings_file_prefix", "")
-
-
-func get_rings_inner_radius() -> float:
-	return characteristics.get(&"rings_inner_radius", 0.0)
-
-
-func get_rings_outer_radius() -> float:
-	return characteristics.get(&"rings_outer_radius", 0.0)
 
 
 func get_latitude_longitude(at_translation: Vector3, time := NAN) -> Vector2:
@@ -834,96 +813,32 @@ func _clear_relative_bodies() -> void:
 		parent.satellites.erase(self)
 
 
-func _finish_tree_add() -> void:
-	# Add non-persisted HUD elements.
-	if get_model_type() != -1:
-		var model_manager: IVModelManager = IVGlobal.program[&"ModelManager"]
-		var lazy_init := flags & BODYFLAGS_MOON and !(flags & BodyFlags.BODYFLAGS_NAVIGATOR_MOON)
-		model_manager.add_model(self, lazy_init)
-	
-	var omni_light_type := get_omni_light_type()
-	if IVCoreSettings.dynamic_lights and has_dynamic_light():
-		var dynamic_light_script: Script = IVGlobal.procedural_classes[&"DynamicLight"]
-		@warning_ignore("unsafe_method_access")
-		var dynamic_light: Node3D = dynamic_light_script.new(name)
-		add_child(dynamic_light)
-	elif omni_light_type != -1:
-		# set properties entirely from table
-		var omni_light := OmniLight3D.new()
-		IVTableData.db_build_object_all_fields(omni_light, &"omni_lights", omni_light_type)
-		add_child(omni_light)
-		#omni_light.light_bake_mode = Light3D.BAKE_DISABLED
-	
-	if orbit:
-		var body_orbit_script: Script = IVGlobal.procedural_classes[&"BodyOrbit"]
-		if body_orbit_script:
-			@warning_ignore("unsafe_method_access")
-			# Script must have _init() that accepts arg below.
-			var body_orbit: Node3D = body_orbit_script.new(self)
-			get_parent().add_child(body_orbit)
-	
-	var body_label_script: Script = IVGlobal.procedural_classes[&"BodyLabel"]
-	if body_label_script:
-		@warning_ignore("unsafe_method_access")
-		# Script must have _init() that accepts args below.
-		var body_label: Node3D = body_label_script.new(self, IVCoreSettings.body_labels_color,
-				IVCoreSettings.body_labels_use_orbit_color)
-		add_child(body_label)
-	var file_prefix := get_file_prefix()
-	var is_star := bool(flags & BodyFlags.BODYFLAGS_STAR)
-	var rings_file_prefix := get_rings_file_prefix()
-	var io_manager: IVIOManager = IVGlobal.program[&"IOManager"]
-	io_manager.callback(_finish_tree_add_io.bind(file_prefix, is_star, rings_file_prefix))
+#func _finish_tree_add() -> void:
+	## Add non-persisted elements.
+	#
+	#var file_prefix := get_file_prefix()
+	#var is_star := bool(flags & BodyFlags.BODYFLAGS_STAR)
+	##var rings_file_prefix := get_rings_file_prefix()
+	#var io_manager: IVIOManager = IVGlobal.program[&"IOManager"]
+	#io_manager.callback(_finish_tree_add_io.bind(file_prefix, is_star))
 
 
-func _finish_tree_add_io(file_prefix: String, is_star: bool, rings_file_prefix: String
-		) -> void:
+#func _finish_tree_add_io(file_prefix: String, is_star: bool) -> void:
 	# on i/o thread if threads enabled
-	const files := preload("res://addons/ivoyager_core/static/files.gd")
-	var bodies_2d_search := IVCoreSettings.bodies_2d_search
-	texture_2d = files.find_and_load_resource(bodies_2d_search, file_prefix)
-	if !texture_2d:
-		texture_2d = IVGlobal.assets[&"fallback_body_2d"]
-	if is_star:
-		var slice_name := file_prefix + "_slice"
-		texture_slice_2d = files.find_and_load_resource(bodies_2d_search, slice_name)
+	#const files := preload("res://addons/ivoyager_core/static/files.gd")
+	#var bodies_2d_search := IVCoreSettings.bodies_2d_search
+	#texture_2d = files.find_and_load_resource(bodies_2d_search, file_prefix)
+	#if !texture_2d:
+		#texture_2d = IVGlobal.assets[&"fallback_body_2d"]
+	#if is_star:
+		#var slice_name := file_prefix + "_slice"
+		#texture_slice_2d = files.find_and_load_resource(bodies_2d_search, slice_name)
 	
-	var rings_images: Array[Image] # holds 3 images per LOD level
-	if rings_file_prefix:
-		var rings_search := IVCoreSettings.rings_search
-		var load_failure := false
-		for lod in RINGS_LOD_LEVELS:
-			var backscatter: Texture2D = files.find_and_load_resource(rings_search,
-					rings_file_prefix + ".backscatter.%s" % lod)
-			var forwardscatter: Texture2D = files.find_and_load_resource(rings_search,
-					rings_file_prefix + ".forwardscatter.%s" % lod)
-			var unlitside: Texture2D = files.find_and_load_resource(rings_search,
-					rings_file_prefix + ".unlitside.%s" % lod)
-			if !backscatter or !forwardscatter or !unlitside:
-				print("WARNING! Could not find all ring textures for prefix ", rings_file_prefix)
-				load_failure = true
-				break
-			rings_images.append(backscatter.get_image())
-			rings_images.append(forwardscatter.get_image())
-			rings_images.append(unlitside.get_image())
-			#rings_images = [backscatter.get_image(), forwardscatter.get_image(), unlitside.get_image()]
-		if load_failure:
-			rings_images.clear()
-	
-	_finish_tree_add_after_io.call_deferred(rings_images)
+	#_finish_tree_add_after_io.call_deferred()
 
 
-func _finish_tree_add_after_io(rings_images: Array[Image]) -> void:
-	# on main thread
-	if rings_images and not flags & BodyFlags.BODYFLAGS_DISABLE_MODEL_SPACE:
-		var use_shader_sun_index := star.shader_sun_index
-		var rings_script: Script = IVGlobal.procedural_classes[&"Rings"]
-		if rings_script:
-			@warning_ignore("unsafe_method_access") # Script must have _init() that accepts args.
-			var rings: Node3D = rings_script.new(self, use_shader_sun_index, rings_images)
-			add_child_to_model_space(rings)
-	
-	IVGlobal.add_system_tree_item_finished.emit(self)
+#func _finish_tree_add_after_io() -> void:
+	#IVGlobal.add_system_tree_item_finished.emit(self)
 
 
 func _add_rotating_space() -> void:

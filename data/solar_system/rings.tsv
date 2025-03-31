@@ -1,0 +1,6 @@
+	bodies	file_prefix	inner_radius	outer_radius	sun_index	shadow_lod	shadow_noise_base_strength
+Type	ARRAY[STRING_NAME]	STRING	FLOAT	FLOAT	INT	INT	FLOAT
+Default					0	5	0.006
+Unit			km	km			
+Prefix/RINGS_							
+SATURN	PLANET_SATURN	saturn.rings	74510	140390			

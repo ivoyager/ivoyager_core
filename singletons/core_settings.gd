@@ -370,6 +370,7 @@ var tables: Dictionary[StringName, String] = {
 	models = "res://addons/ivoyager_core/data/solar_system/models.tsv",
 	moons = "res://addons/ivoyager_core/data/solar_system/moons.tsv",
 	planets = "res://addons/ivoyager_core/data/solar_system/planets.tsv",
+	rings = "res://addons/ivoyager_core/data/solar_system/rings.tsv",
 	small_bodies_groups = "res://addons/ivoyager_core/data/solar_system/small_bodies_groups.tsv",
 	spacecrafts = "res://addons/ivoyager_core/data/solar_system/spacecrafts.tsv",
 	stars = "res://addons/ivoyager_core/data/solar_system/stars.tsv",

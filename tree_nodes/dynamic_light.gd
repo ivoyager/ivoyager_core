@@ -57,22 +57,33 @@ var _camera_planet: Node3D
 
 
 ## External call should supply [param body_name] only.
-func _init(body_name: StringName, row := -1, shared: Array[float] = [0.0, 0.0, 0.0]) -> void:
+func _init(body_name: StringName, row := -1, top_light := true,
+		shared: Array[float] = [0.0, 0.0, 0.0]) -> void:
+	assert(row != -1)
 	_body_name = body_name
+	_top_light = top_light
 	_shared = shared
-	if row == -1:
-		IVGlobal.camera_tree_changed.connect(_on_camera_tree_changed)
-		_top_light = true
-		row = _find_top_light()
-	assert(row != -1, "dynamic_lights.tsv does not have rows for %s" % body_name)
+	#if top_light:
+		#IVGlobal.camera_tree_changed.connect(_on_camera_tree_changed)
+		#IVGlobal.about_to_free_procedural_nodes.connect(_clear)
 	IVTableData.db_build_object_all_fields(self, &"dynamic_lights", row)
 	_add_target_dist = !is_nan(shadow_max_target_plus)
 	_add_planet_dist = !is_nan(shadow_max_planet_plus)
 
 
 func _ready() -> void:
-	if _top_light:
-		_add_child_lights()
+	if !_top_light:
+		return
+	IVGlobal.camera_tree_changed.connect(_on_camera_tree_changed)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
+	# add child lights
+	for row in IVTableData.get_n_rows(&"dynamic_lights"):
+		if IVTableData.get_db_entity_name(&"dynamic_lights", row) == name:
+			continue
+		var bodies: Array[StringName] = IVTableData.get_db_array(&"dynamic_lights", &"bodies", row)
+		if bodies.has(_body_name):
+			var child_light := IVDynamicLight.new(_body_name, row, false, _shared)
+			add_child(child_light)
 
 
 func _process(_delta: float) -> void:
@@ -108,22 +119,10 @@ func _process(_delta: float) -> void:
 	light_energy = _shared[2] * energy_multiplier
 
 
-func _find_top_light() -> int:
-	for row in IVTableData.get_n_rows(&"dynamic_lights"):
-		var bodies: Array[StringName] = IVTableData.get_db_array(&"dynamic_lights", &"bodies", row)
-		if bodies.has(_body_name):
-			return row
-	return -1
-
-
-func _add_child_lights() -> void:
-	for row in IVTableData.get_n_rows(&"dynamic_lights"):
-		if IVTableData.get_db_entity_name(&"dynamic_lights", row) == name:
-			continue
-		var bodies: Array[StringName] = IVTableData.get_db_array(&"dynamic_lights", &"bodies", row)
-		if bodies.has(_body_name):
-			var child_light := IVDynamicLight.new(_body_name, row, _shared)
-			add_child(child_light)
+func _clear() -> void:
+	# Only connected for top light.
+	_camera = null
+	_camera_planet = null
 
 
 func _on_camera_tree_changed(camera: Camera3D, _parent: Node3D, planet: Node3D, _star: Node3D

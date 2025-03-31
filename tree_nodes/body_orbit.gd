@@ -47,7 +47,7 @@ func _init(body: IVBody) -> void:
 	if !_is_class_instanced:
 		_is_class_instanced = true
 		_fragment_identifier = IVGlobal.program.get(&"FragmentIdentifier")
-		_body_huds_state = IVGlobal.program.BodyHUDsState
+		_body_huds_state = IVGlobal.program[&"BodyHUDsState"]
 	_body = body
 
 

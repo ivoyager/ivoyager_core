@@ -222,6 +222,9 @@ func get_fragment_text(data: Array) -> String:
 
 func _build_visuals() -> void:
 	# add non-persisted HUD elements
+	
+	# TODO: Implement in IVSBGFinisher similar to IVBodyFinisher.
+	
 	if !is_inside_tree():
 		return
 	adding_visuals.emit() # any pre-existing will queue_free

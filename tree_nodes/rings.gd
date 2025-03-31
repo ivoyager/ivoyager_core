@@ -29,6 +29,7 @@ extends MeshInstance3D
 ##
 ## Not persisted. IVBody instance adds on _ready().
 
+const files := preload("res://addons/ivoyager_core/static/files.gd")
 const ShadowMask := IVGlobal.ShadowMask
 
 const END_PADDING := 0.05 # must be same as ivbinary_maker that generated images
@@ -36,58 +37,103 @@ const RENDER_MARGIN := 0.01 # render outside of image data for smoothing
 const LOD_LEVELS := 9 # must agree w/ assets, body.gd and rings.shader
 
 
-var shadow_lod := 5 # affects shadow aliasing
-var shadow_noise_base_strength := 0.006 # affects shadow aliasing
+# set from table rings.tsv
+var file_prefix: String
+var inner_radius: float
+var outer_radius: float
+var sun_index: int
+var shadow_lod: int # affects shadow aliasing
+var shadow_noise_base_strength: float # affects shadow aliasing
 
 
-var _body: IVBody
 var _texture_width: int
 var _texture_start: float
 var _inner_margin: float
 var _outer_margin: float
-var _outer_radius: float
-var _texture_arrays: Array[Texture2DArray] # backscatter/forwardscatter/unlitside for each LOD
+
 var _rings_material := ShaderMaterial.new()
-var _sun_index: int
+var _texture_arrays: Array[Texture2DArray] = [] # backscatter/forwardscatter/unlitside for each LOD
+
 var _sun_global_positions: Array[Vector3]
 var _shadow_caster_image: Image
+var _shadow_caster_shared: Array[float] = [1.0, 0.005] # alpha_exponent, noise_strength
+
+var _body: IVBody
 var _camera: Camera3D
 
-var _shadow_caster_shared: Array[float] = [1.0, 0.006] # alpha_exponent, noise_strength
 
 
-
-func _init(body: IVBody, sun_index: int, rings_images: Array[Image]) -> void:
-	assert(rings_images[0] and rings_images[1] and rings_images[2])
+func _init(body: IVBody, row: int) -> void:
 	_body = body
-	_sun_index = sun_index
-	_texture_width = rings_images[0].get_width()
-	_sun_global_positions = body.sun_global_positions
-	_shadow_caster_image = rings_images[shadow_lod * 3] # all have the same alpha channel
+	_sun_global_positions = IVBody.sun_global_positions
+	IVTableData.db_build_object_all_fields(self, &"rings", row)
+	assert(shadow_lod < LOD_LEVELS)
+	
+	var rings_search := IVCoreSettings.rings_search
+
 	for lod in LOD_LEVELS:
-		var lod_rings_images := rings_images.slice(lod * 3, lod * 3 + 3) as Array[Image]
+		var file_elements := [file_prefix, lod]
+		var backscatter_file := "%s.backscatter.%s" % file_elements
+		var backscatter: Texture2D = files.find_and_load_resource(rings_search, backscatter_file)
+		assert(backscatter, "Failed to load '%s'" % backscatter_file)
+		var forwardscatter_file := "%s.forwardscatter.%s" % file_elements
+		var forwardscatter: Texture2D = files.find_and_load_resource(rings_search, forwardscatter_file)
+		assert(forwardscatter, "Failed to load '%s'" % forwardscatter_file)
+		var unlitside_file := "%s.unlitside.%s" % file_elements
+		var unlitside: Texture2D = files.find_and_load_resource(rings_search, unlitside_file)
+		assert(unlitside, "Failed to load '%s'" % unlitside_file)
+		
+		# We seem to need to load as textures, convert to images, then reconvert
+		# back to texture arrays. Maybe there is a better way?
+		var backscatter_image := backscatter.get_image()
+		var forwardscatter_image := forwardscatter.get_image()
+		var unlitside_image := unlitside.get_image()
+		var lod_images: Array[Image] = [backscatter_image, forwardscatter_image, unlitside_image]
 		var texture_array := Texture2DArray.new() # backscatter/forwardscatter/unlitside for LOD
-		texture_array.create_from_images(lod_rings_images)
+		texture_array.create_from_images(lod_images)
 		_texture_arrays.append(texture_array)
+	
+		if lod == 0:
+			_texture_width = backscatter_image.get_width()
+		if lod == shadow_lod:
+			_shadow_caster_image = backscatter_image # all have the same alpha channel
+	
+	
+	
+	
+		#rings_images.append(backscatter.get_image())
+		#rings_images.append(forwardscatter.get_image())
+		#rings_images.append(unlitside.get_image())
+	#
+	#
+	#assert(rings_images[0] and rings_images[1] and rings_images[2])
+	#
+	#_texture_width = rings_images[0].get_width()
+	#_sun_global_positions = body.sun_global_positions
+	#_shadow_caster_image = rings_images[shadow_lod * 3] # all have the same alpha channel
+	#for lod in LOD_LEVELS:
+		#var lod_rings_images := rings_images.slice(lod * 3, lod * 3 + 3) as Array[Image]
+		#var texture_array := Texture2DArray.new() # backscatter/forwardscatter/unlitside for LOD
+		#texture_array.create_from_images(lod_rings_images)
+		#_texture_arrays.append(texture_array)
 
 
 func _ready() -> void:
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
 	IVGlobal.camera_ready.connect(_connect_camera)
 	_connect_camera(get_viewport().get_camera_3d())
 	_body.model_visibility_changed.connect(_on_model_visibility_changed)
 	_on_model_visibility_changed(_body.model_visible)
 	
 	# distances in sim scale
-	_outer_radius = _body.get_rings_outer_radius()
-	var inner_radius: float = _body.get_rings_inner_radius()
-	var ring_span := _outer_radius - inner_radius
-	var outer_texture := _outer_radius + END_PADDING * ring_span # edge of plane
+	var ring_span := outer_radius - inner_radius
+	var outer_texture := outer_radius + END_PADDING * ring_span # edge of plane
 	var inner_texture := inner_radius - END_PADDING * ring_span # texture start from center
 	
 	# normalized distances from center of 2x2 plane
 	_texture_start = inner_texture / outer_texture
 	_inner_margin = (inner_radius - RENDER_MARGIN * ring_span) / outer_texture # render boundary
-	_outer_margin = (_outer_radius + RENDER_MARGIN * ring_span) / outer_texture # render boundary
+	_outer_margin = (outer_radius + RENDER_MARGIN * ring_span) / outer_texture # render boundary
 	
 	scale = Vector3(outer_texture, 1.0, outer_texture)
 	cast_shadow = SHADOW_CASTING_SETTING_OFF # semi-transparancy can't cast shadows
@@ -98,7 +144,7 @@ func _ready() -> void:
 	_rings_material.set_shader_parameter(&"texture_start", _texture_start)
 	_rings_material.set_shader_parameter(&"inner_margin", _inner_margin)
 	_rings_material.set_shader_parameter(&"outer_margin", _outer_margin)
-	_rings_material.set_shader_parameter(&"sun_index", _sun_index)
+	_rings_material.set_shader_parameter(&"sun_index", sun_index)
 	for lod in LOD_LEVELS:
 		_rings_material.set_shader_parameter("textures%s" % lod, _texture_arrays[lod])
 	set_surface_override_material(0, _rings_material)
@@ -115,7 +161,7 @@ func _process(_delta: float) -> void:
 	# rings.shader expects sun-facing and the ShadowCasters require it (because
 	# a GeometryInstance3D can't be shadow only and double sided at the same
 	# time). 
-	var sun_direction := _sun_global_positions[_sun_index].normalized()
+	var sun_direction := _sun_global_positions[sun_index].normalized()
 	var cos_sun_angle := global_basis.y.dot(sun_direction)
 	if cos_sun_angle < 0.0:
 		rotation.x *= -1
@@ -129,8 +175,13 @@ func _process(_delta: float) -> void:
 	_shadow_caster_shared[0] = maxf(cos_sun_angle, MIN_SHADOW_ALPHA_EXPONENT)
 	
 	# Shadow noise needs to increase with distance to prevent alias effect.
-	var dist_ratio := (_camera.global_position - global_position).length() / _outer_radius
+	var dist_ratio := (_camera.global_position - global_position).length() / outer_radius
 	_shadow_caster_shared[1] = shadow_noise_base_strength * dist_ratio
+
+
+func _clear() -> void:
+	_body = null
+	_camera = null
 
 
 func _connect_camera(camera: Camera3D) -> void:
