@@ -135,9 +135,9 @@ vec4 sample_color(int texel, float texel_fraction, int index, int lod) {
 
 
 void fragment() {
-	
+
 	float r = length(UV * 2.0 - vec2(1.0));
-	
+
 	// dFdx() & dFdy() must be before the 'if' fork to avoid edge artifacts!
 	float texture_fraction = (r - texture_start) / (1.0 - texture_start);
 	float texel_position = texture_fraction * texture_width;

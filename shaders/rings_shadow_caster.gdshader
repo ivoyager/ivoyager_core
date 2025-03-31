@@ -47,19 +47,19 @@ global uniform vec2 iv_vec2_randf; // updated each frame
 
 
 void fragment() {
-	
+
 	float r = length(UV * 2.0 - vec2(1.0));
-	
+
 	if (r < inner_margin || r > outer_margin) {
 		discard; // out of rings area
-	
+
 	} else {
-		
+
 		// noise here works best
 		ivec2 noise_position = ivec2(FRAGCOORD.xy + iv_vec2_randf * 1024.0) % 1024;
 		float noise = texelFetch(blue_noise_1024, noise_position, 0).r;
 		r += (noise - 0.5) * noise_strength;
-		
+
 		float texture_fraction = (r - texture_start) / (1.0 - texture_start);
 		float texel_position = texture_fraction * texture_width;
 		int texel = int(texel_position);
@@ -67,7 +67,7 @@ void fragment() {
 		float alpha = texelFetch(texture_r8, ivec2(texel, 0), 0).r * (1.0 - texel_fraction);
 		alpha += texelFetch(texture_r8, ivec2(texel, 0), 0).r * texel_fraction;
 		alpha = pow(alpha, alpha_exponent);
-		
+
 		if (alpha <= low_alpha || alpha > max_alpha) {
 			discard;
 		}
