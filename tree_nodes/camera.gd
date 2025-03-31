@@ -39,10 +39,8 @@ extends Camera3D
 ## This system *may* break for objects smaller than meters (not tested yet).
 
 signal move_started(to_spatial: Node3D, is_camera_lock: bool) # to_spatial is not parent yet
-signal parent_changed(spatial: Node3D)
 signal range_changed(camera_range: float)
 signal latitude_longitude_changed(lat_long: Vector2, is_ecliptic: bool, selection: IVSelection)
-
 signal field_of_view_changed(fov_: float, focal_length: float)
 signal camera_lock_changed(is_camera_lock: bool)
 signal up_lock_changed(flags: int, disabled_flags: int)
@@ -152,7 +150,6 @@ var disabled_flags := 0 # CameraDisabledFlags
 # private
 var _universe: Node3D = IVGlobal.program.Universe
 var _settings: Dictionary[StringName, Variant] = IVGlobal.settings
-var _world_targeting: Array = IVGlobal.world_targeting
 var _max_dist: float = IVCoreSettings.max_camera_distance
 
 # motions / rotations
@@ -194,8 +191,6 @@ func _ready() -> void:
 	transform = _transform
 	if !IVGlobal.state.is_loaded_game:
 		fov = IVCoreSettings.start_camera_fov
-	_world_targeting[2] = self
-	_world_targeting[3] = fov
 	IVGlobal.camera_ready.emit(self)
 	set_process(false) # don't process until sim started
 
@@ -377,16 +372,6 @@ func set_field_of_view(field_of_view: float) -> void:
 	field_of_view_changed.emit(field_of_view, math.get_focal_length_from_fov(field_of_view))
 
 
-# DEPRECIATED
-func increment_focal_length(_increment: int) -> void:
-	pass
-
-
-# DEPRECIATED
-func set_focal_length_index(_new_fl_index: int, _suppress_move := false) -> void:
-	pass
-
-
 func change_camera_lock(new_lock: bool) -> void:
 	if is_camera_lock != new_lock:
 		is_camera_lock = new_lock
@@ -407,6 +392,7 @@ func _on_system_tree_ready(_is_new_game: bool) -> void:
 		perspective_radius = selection.get_perspective_radius()
 	_from_selection = selection
 	_from_perspective_radius = perspective_radius
+	_signal_tree_changed()
 
 
 func _on_simulator_started() -> void:
@@ -464,10 +450,17 @@ func _do_handoff() -> void:
 	parent.remove_child(self)
 	_to_spatial.add_child(self)
 	parent = _to_spatial
-	parent_changed.emit(parent)
+	_signal_tree_changed()
 
 
-func _interpolate_path(from_transform: Transform3D, to_transform: Transform3D, progress: float) -> void:
+func _signal_tree_changed() -> void:
+	var planet: Node3D = selection.get_star_orbiter()
+	var star: Node3D = selection.get_star()
+	IVGlobal.camera_tree_changed.emit(self, parent, planet, star)
+
+
+func _interpolate_path(from_transform: Transform3D, to_transform: Transform3D, progress: float
+		) -> void:
 	# Interpolate spherical coordinates around a reference Spatial. Reference
 	# 'xfer' is either the parent (if 'from' or 'to' is child of the other) or
 	# common ancestor. This is likely the dominant view object during
@@ -746,7 +739,6 @@ func _signal_range_latitude_longitude(is_refresh := false) -> void:
 
 
 func _send_gui_refresh() -> void:
-	parent_changed.emit(parent)
 	field_of_view_changed.emit(fov, math.get_focal_length_from_fov(fov))
 	up_lock_changed.emit(flags, disabled_flags)
 	tracking_changed.emit(flags, disabled_flags)

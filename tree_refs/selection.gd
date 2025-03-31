@@ -170,3 +170,15 @@ func get_radius_for_camera() -> float:
 	if !is_body:
 		return IVUnits.KM
 	return body.get_mean_radius()
+
+
+func get_star() -> IVBody:
+	if !is_body:
+		return null
+	return body.star
+
+
+func get_star_orbiter() -> IVBody:
+	if !is_body:
+		return null
+	return body.star_orbiter

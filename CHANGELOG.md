@@ -6,19 +6,23 @@ File format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 See cloning and downloading instructions [here](https://www.ivoyager.dev/developers/).
 
-## [v0.0.24] - UNRELEASED
+## [v0.0.24] - 2025-03-31
 
 Developed using Godot 4.4.
 
-_NOTE: For the shadows fix to work, project must have scale METER ~ 2e3. See comments in: 
-https://github.com/ivoyager/planetarium/blob/master/planetarium/units.gd_
+NOTE: For the shadows fix to work, project must have scale METER ~ 1e3 (see  
+[comments](https://github.com/ivoyager/planetarium/blob/master/planetarium/units.gd)). For
+good quality shadows you also need ProjectSettings:
+* Rendering/Lights and Shadows/Directional Shadow/Size = 16384 (or as high as possible).
+* Rendering/Lights and Shadows/Directional Shadow/16 Bits = false.
+* Rendering/Anti Aliasing/Use TAA = true.
 
 ### Added
-* SHADOWS!!!! Added class [IVDynamicLight](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/dynamic_light.gd) and table [dynamic_lights.tsv](https://github.com/ivoyager/ivoyager_core/blob/master/data/solar_system/dynamic_lights.tsv) to finally make shadows work.
-* Several settings in IVCoreSettings to implement dynamic lights.
+* SHADOWS!!!! Dynamic lights system added to support shadows over vast scale differences and also semi-transparancy. See [IVDynamicLight](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/dynamic_light.gd) and [dynamic_lights.tsv](https://github.com/ivoyager/ivoyager_core/blob/master/data/solar_system/dynamic_lights.tsv).
+* Inner class IVRings/IVRingsShadowCaster and rings_shadow_caster.shader to cast semi-transparent shadows from Saturn Rings (in conjunction with above system).
 
 ### Changed
-* To support shadows, all VisualInstance3D's have `layers` set. Large bodies have value 0b0001, but smaller have different values determined by IVCoreSettings.size_layers.
+* To support shadows, all VisualInstance3D's have `layers` set. Large bodies have value 0b0001, but smaller have different values determined by IVCoreSettings.size_layers. A "semi-transparancy" mask (bits 8 to 11) is also applied to support Saturn Rings' shadows.
 
 ### Fixed
 * v0.0.23 regression where IVMouseTargetLabel failed to display shader targets (asteroids and orbit lines).
@@ -142,7 +146,7 @@ Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_tab
 ##
 I, Voyager projects v0.0.16 and earlier used a different core submodule [ivoyager](https://github.com/ivoyager/ivoyager) (now depreciated); see previous changelog [here](https://github.com/ivoyager/ivoyager/blob/master/CHANGELOG.md).
 
-[v0.0.24]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.23...HEAD
+[v0.0.24]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.23...v0.0.24
 [v0.0.23]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.22...v0.0.23
 [v0.0.22]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.21...v0.0.22
 [v0.0.21]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.20...v0.0.21

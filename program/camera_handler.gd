@@ -56,7 +56,6 @@ var hybrid_drag_outside_zone := 0.7 # for DRAG_PITCH_YAW_ROLL_HYBRID
 
 # private
 var _settings: Dictionary[StringName, Variant] = IVGlobal.settings
-var _world_targeting: Array = IVGlobal.world_targeting
 var _camera: IVCamera
 var _selection_manager: IVSelectionManager
 
@@ -105,14 +104,14 @@ func _process(delta: float) -> void:
 				_drag_vector *= delta * _mouse_pitch_yaw_rate
 				_camera.add_rotation(Vector3(_drag_vector.y, _drag_vector.x, 0.0))
 			DRAG_ROLL:
-				var mouse_position: Vector2 = _world_targeting[0]
+				var mouse_position := _world_controller.mouse_position
 				var viewport_rect_size := _viewport.get_visible_rect().size
 				var center_to_mouse := (mouse_position - viewport_rect_size / 2.0).normalized()
 				_drag_vector *= delta * _mouse_roll_rate
 				_camera.add_rotation(Vector3(0.0, 0.0, center_to_mouse.cross(_drag_vector)))
 			DRAG_PITCH_YAW_ROLL_HYBRID:
 				# one or a mix of two above based on mouse position
-				var mouse_position: Vector2 = _world_targeting[0]
+				var mouse_position: Vector2 = _world_controller.mouse_position
 				var mouse_rotate := _drag_vector * delta
 				var viewport_rect_size := _viewport.get_visible_rect().size
 				var z_proportion := (2.0 * mouse_position - viewport_rect_size).length() / viewport_rect_size.x

@@ -41,10 +41,8 @@ const DYNAMIC_STAR_GROW_DIST := 2.0 * IVUnits.AU
 const DYNAMIC_STAR_GROW_FACTOR := 0.5
 
 var is_dynamic_star := false
-
-static var _world_targeting: Array = IVGlobal.world_targeting
-
 var _reference_basis: Basis
+var _camera: Camera3D # only set if is_dynamic_star == true
 
 
 
@@ -55,32 +53,44 @@ func _init(model_type: int, reference_basis: Basis, albedo_map: Texture2D,
 	mesh = IVGlobal.resources[&"sphere_mesh"]
 	var surface := StandardMaterial3D.new()
 	set_surface_override_material(0, surface)
-	IVTableData.db_build_object(surface, MATERIAL_FIELDS, "models", model_type)
+	IVTableData.db_build_object(surface, MATERIAL_FIELDS, &"models", model_type)
 	if albedo_map:
 		surface.albedo_texture = albedo_map
 	if emission_map:
 		surface.emission_enabled = true
 		surface.emission_texture = emission_map
-	if IVTableData.get_db_bool("models", "starlight", model_type):
+	if IVTableData.get_db_bool(&"models", &"starlight", model_type):
 		cast_shadow = SHADOW_CASTING_SETTING_OFF
 		is_dynamic_star = true
 	else:
 		cast_shadow = SHADOW_CASTING_SETTING_ON
-		gi_mode = GI_MODE_DISABLED
 
 
 func _ready() -> void:
 	set_process(is_dynamic_star)
+	if !is_dynamic_star:
+		return
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
+	IVGlobal.camera_ready.connect(_connect_camera)
+	_connect_camera(get_viewport().get_camera_3d())
 
 
 func _process(_delta: float) -> void:
-	var camera: Camera3D = _world_targeting[2]
-	if !camera:
+	# Dynamic star only!
+	if !_camera:
 		return
-	var camera_dist := global_position.distance_to(camera.global_position)
+	var camera_dist := global_position.distance_to(_camera.global_position)
 	if camera_dist < DYNAMIC_STAR_GROW_DIST:
 		transform.basis = _reference_basis
 		return
 	var excess := camera_dist / DYNAMIC_STAR_GROW_DIST - 1.0
 	var factor := DYNAMIC_STAR_GROW_FACTOR * excess + 1.0
 	transform.basis = _reference_basis.scaled(Vector3(factor, factor, factor))
+
+
+func _clear() -> void:
+	_camera = null
+
+
+func _connect_camera(camera: Camera3D) -> void:
+	_camera = camera

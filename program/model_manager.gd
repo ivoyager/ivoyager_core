@@ -130,7 +130,7 @@ func _get_model_on_io_thread(body: IVBody, file_prefix: String, model_type: int,
 		var packed_scene: PackedScene = load(path)
 		model = packed_scene.instantiate()
 		model.transform.basis = model_basis
-		_set_layers_for_size(model, m_radius)
+		_set_layers(model, m_radius)
 		_finish_model.call_deferred(body, model, lazy_init)
 		return
 	# TODO: We need a fallback asteroid-like model for non-ellipsoid
@@ -147,7 +147,7 @@ func _get_model_on_io_thread(body: IVBody, file_prefix: String, model_type: int,
 		albedo_map = _fallback_albedo_map
 	@warning_ignore("unsafe_method_access") # Possible replacement class
 	model = _spheroid_model_script.new(model_type, model_basis, albedo_map, emission_map)
-	_set_layers_for_size(model, m_radius)
+	_set_layers(model, m_radius)
 	_finish_model.call_deferred(body, model, lazy_init)
 
 
@@ -223,10 +223,10 @@ func _get_model_basis(file_prefix: String, m_radius := NAN, e_radius := NAN) -> 
 	return basis
 
 
-func _set_layers_for_size(node3d: Node3D, m_radius: float) -> void:
+func _set_layers(node3d: Node3D, m_radius: float) -> void:
 	var layers := IVCoreSettings.get_visualinstance3d_layers_for_size(m_radius)
-	if layers != 0b0001: # not default
-		_set_layers_recursive(node3d, layers)
+	layers |= IVGlobal.ShadowMask.SHADOW_MASK_FULL
+	_set_layers_recursive(node3d, layers)
 
 
 func _set_layers_recursive(node3d: Node3D, layers: int) -> void:

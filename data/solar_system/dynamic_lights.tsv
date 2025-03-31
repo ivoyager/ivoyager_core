@@ -1,8 +1,11 @@
-	shadow_max_floor	shadow_max_ceiling	shadow_max_target_plus	shadow_max_planet_plus	directional_shadow_pancake_size	directional_shadow_mode	directional_shadow_blend_splits	directional_shadow_split_1	directional_shadow_split_2	directional_shadow_split_3	shadow_enabled	light_cull_mask	light_bake_mode	sky_mode	shadow_bias	shadow_blur
-Type	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	INT	BOOL	FLOAT	FLOAT	FLOAT	BOOL	INT	INT	INT	FLOAT	FLOAT
-Unit	km	km	km	km												
-Default	1	1e7			20	2		0.1	0.2	0.5	TRUE		0	1	0.1	1.0
-Prefix/DYNAMIC_LIGHT_																
-STAR_SUN_0	8e5	1e7	8e5	8e5			FALSE	0.3	0.5	0.7		0b0001				
-STAR_SUN_1	1e3	1e5	1e3				TRUE	0.25	0.4	0.7		0b0010				
-STAR_SUN_2	1	100	1				TRUE	0.2	0.3	0.7		0b0100				
+	bodies	energy_multiplier	shadow_max_floor	shadow_max_ceiling	shadow_max_target_plus	shadow_max_planet_plus	directional_shadow_pancake_size	directional_shadow_mode	directional_shadow_blend_splits	directional_shadow_split_1	directional_shadow_split_2	directional_shadow_split_3	shadow_enabled	light_cull_mask	shadow_caster_mask	light_bake_mode	sky_mode	shadow_bias	shadow_blur	shadow_opacity
+Type	ARRAY[STRING_NAME]	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	INT	BOOL	FLOAT	FLOAT	FLOAT	BOOL	INT	INT	INT	INT	FLOAT	FLOAT	FLOAT
+Unit			km	km	km	km														
+Default		1	1	1e7			20	2		0.1	0.2	0.5	TRUE		SHADOW_MASK_FULL	0	1	0.1	1.0	1.0
+Prefix/DYNAMIC_LIGHT_																				
+SUN_FAR_0	STAR_SUN	0.25	8e5	1e7	8e5	8e5			FALSE	0.3	0.5	0.7		0b0001	SHADOW_MASK_08					2.0625
+SUN_FAR_1	STAR_SUN	0.25	8e5	1e7	8e5	8e5			FALSE	0.3	0.5	0.7		0b0001	SHADOW_MASK_04					1.0625
+SUN_FAR_2	STAR_SUN	0.25	8e5	1e7	8e5	8e5			FALSE	0.3	0.5	0.7		0b0001	SHADOW_MASK_02					0.5625
+SUN_FAR_4	STAR_SUN	0.25	8e5	1e7	8e5	8e5			FALSE	0.3	0.5	0.7		0b0001	SHADOW_MASK_01					0.3125
+SUN_MIDDLE	STAR_SUN		1e3	1e5	1e3				TRUE	0.25	0.4	0.7		0b0010						
+SUN_NEAR	STAR_SUN		1	100	1				TRUE	0.2	0.3	0.7		0b0100						

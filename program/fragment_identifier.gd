@@ -48,7 +48,6 @@ enum { # fragment_type
 
 const CALIBRATION: Array[float] = [0.25, 0.375, 0.5, 0.625, 0.75] # >=1.0 will break shader logic!
 const COLOR_HALF_STEP := Color(0.015625, 0.015625, 0.015625, 0.0)
-const NULL_MOUSE_COORD := Vector2(-100.0, -100.0)
 
 
 # project vars
@@ -64,7 +63,6 @@ var fragment_data: Dictionary[int, Array] = {}
 
 # private
 var _node2d := Node2D.new()
-var _world_targeting: Array = IVGlobal.world_targeting
 var _n_calibration_steps := CALIBRATION.size()
 var _n_pxls: int
 var _picker_rect: Rect2
@@ -89,6 +87,7 @@ var _calibration_g: Array[float] = []
 var _calibration_b: Array[float] = []
 var _adj_values: Array[float] = []
 
+@onready var _world_controller: IVWorldController = IVGlobal.program[&"WorldController"]
 @onready var _root_texture: ViewportTexture = get_tree().root.get_texture()
 @onready var _picker_texture: ViewportTexture = get_texture()
 
@@ -123,7 +122,7 @@ func _process(_delta: float) -> void:
 	
 	RenderingServer.global_shader_parameter_set("iv_fragment_id_cycler", fragment_id_cycler)
 	RenderingServer.global_shader_parameter_set("iv_mouse_fragcoord",
-			_world_targeting[0] + Vector2(0.5, 0.5)) # see shader comment
+			_world_controller.mouse_position + Vector2(0.5, 0.5)) # see shader comment
 	
 
 
@@ -268,20 +267,14 @@ func _sort_pxl_offsets(a: Array, b: Array) -> bool:
 
 func _on_node2d_draw() -> void:
 	# Copy a tiny square of root viewport texture to this viewport.
-	_src_rect.position = _world_targeting[0] - _src_offset
+	_src_rect.position = _world_controller.mouse_position - _src_offset
 	_node2d.draw_texture_rect_region(_root_texture, _picker_rect, _src_rect)
 	_has_drawn = true
 
 
 func _on_frame_post_draw() -> void:
 	# Grab image from this viewport; scan pixels for shaders signaling id.
-	if _world_targeting[0].x < 0.0: # ie, WorldController.NULL_MOUSE_COORD
-		_has_drawn = false
-		if current_id != -1:
-			current_id = -1
-			_world_targeting[6] = -1
-			fragment_changed.emit(-1)
-		return
+	
 	_node2d.queue_redraw()
 	
 	if !_has_drawn:
@@ -297,20 +290,18 @@ func _on_frame_post_draw() -> void:
 	if id != -1:
 		if current_id != id: # gained or changed valid id
 			current_id = id
-			_world_targeting[6] = id
 			fragment_changed.emit(id)
 		_drop_frame_counter = 0
-		_drop_mouse_coord = _world_targeting[0]
+		_drop_mouse_coord = _world_controller.mouse_position
 		return
 	
 	if current_id == -1:
 		return
 	
-	var mouse_position: Vector2 = _world_targeting[0]
+	var mouse_position: Vector2 = _world_controller.mouse_position
 	if (_drop_frame_counter > drop_id_frames or
 			_drop_mouse_coord.distance_to(mouse_position) > drop_id_mouse_movement):
 		current_id = -1
-		_world_targeting[6] = -1
 		fragment_changed.emit(-1)
 		return
 	

@@ -24,6 +24,9 @@ extends Node
 ## Array and dictionary references are never overwritten, so it is safe to keep
 ## local references in class files.
 
+# Developer note: Don't add any non-Godot dependencies in this file! That
+# messes up static class dependencies on this global.
+
 # simulator state broadcasts
 signal about_to_run_initializers() # IVCoreInitializer; after plugin preinitializers
 signal translations_imported() # IVTranslationImporter; useful for boot screen
@@ -58,6 +61,8 @@ signal network_state_changed(network_state: bool) # IVGlobal.NetworkState
 # other broadcasts
 signal setting_changed(setting: StringName, value: Variant)
 signal camera_ready(camera: Camera3D)
+## In this context, "planet" is star orbiting ancestor and "star" is galaxy orbiting ancestor.
+signal camera_tree_changed(camera: Camera3D, parent: Node3D, planet: Node3D, star: Node3D)
 
 # requests for state change
 signal start_requested()
@@ -124,6 +129,24 @@ enum NetworkStopSync {
 	DONT_SYNC,
 }
 
+enum ShadowMask {
+	SHADOW_MASK_01 = 0b0001_0000_0000, # almost no shadow
+	SHADOW_MASK_02 = 0b0010_0000_0000,
+	SHADOW_MASK_03 = 0b0011_0000_0000,
+	SHADOW_MASK_04 = 0b0100_0000_0000,
+	SHADOW_MASK_05 = 0b0101_0000_0000,
+	SHADOW_MASK_06 = 0b0110_0000_0000,
+	SHADOW_MASK_07 = 0b0111_0000_0000,
+	SHADOW_MASK_08 = 0b1000_0000_0000,
+	SHADOW_MASK_09 = 0b1001_0000_0000,
+	SHADOW_MASK_10 = 0b1010_0000_0000,
+	SHADOW_MASK_11 = 0b1011_0000_0000,
+	SHADOW_MASK_12 = 0b1100_0000_0000,
+	SHADOW_MASK_13 = 0b1101_0000_0000,
+	SHADOW_MASK_14 = 0b1110_0000_0000,
+	SHADOW_MASK_FULL = 0b1111_0000_0000, # full shadow
+}
+
 ## Duplicated from ivoyager_save plugin. Safe to use if plugin is not present.
 enum PersistMode {
 	NO_PERSIST, ## Non-persist object.
@@ -166,8 +189,6 @@ var settings: Dictionary[StringName, Variant] = {}
 var themes: Dictionary[StringName, Theme] = {}
 ## Maintained by [IVFontManager].
 var fonts: Dictionary[StringName, FontFile] = {}
-## Maintained by [IVWorldController], [IVCamera] & others. Otimized data for 3D world effects.
-var world_targeting := []
 ## Maintained by Windows instances that want & test for exclusivity.
 var blocking_windows: Array[Window] = []
 ## For project use. Not used by I, Voyager.
