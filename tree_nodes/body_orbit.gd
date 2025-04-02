@@ -25,14 +25,9 @@ extends MeshInstance3D
 ## If FragmentIdentifier exists, then a shader
 ## is used to allow screen identification of the orbit loop.
 
-const math := preload("uid://csb570a3u1x1k")
+const math := preload("res://addons/ivoyager_core/static/math.gd")
 
 const FRAGMENT_BODY_ORBIT := IVFragmentIdentifier.FRAGMENT_BODY_ORBIT
-
-static var _times: Array[float] = IVGlobal.times
-static var _fragment_identifier: IVFragmentIdentifier # optional
-static var _body_huds_state: IVBodyHUDsState
-static var _is_class_instanced := false
 
 var _body: IVBody
 var _color: Color
@@ -42,12 +37,12 @@ var _body_huds_visible: bool # too close / too far
 var _body_visible: bool # this HUD node is sibling (not child) of its Body
 var _needs_transform := true
 
+@onready var _times: Array[float] = IVGlobal.times
+@onready var _fragment_identifier: IVFragmentIdentifier = IVGlobal.program.get(&"FragmentIdentifier")
+@onready var _body_huds_state: IVBodyHUDsState = IVGlobal.program[&"BodyHUDsState"]
+
 
 func _init(body: IVBody) -> void:
-	if !_is_class_instanced:
-		_is_class_instanced = true
-		_fragment_identifier = IVGlobal.program.get(&"FragmentIdentifier")
-		_body_huds_state = IVGlobal.program[&"BodyHUDsState"]
 	_body = body
 
 

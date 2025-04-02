@@ -37,7 +37,7 @@ signal initializers_inited() # IVCoreInitializer; after all above
 signal project_objects_instantiated() # IVCoreInitializer; IVGlobal.program populated
 signal project_inited() # IVCoreInitializer; after above
 signal project_nodes_added() # IVCoreInitializer; prog_nodes & gui_nodes added
-signal project_builder_finished() # IVCoreInitializer; 1 frame after above
+signal project_builder_finished() # IVCoreInitializer; 1 frame after above (splash screen showing)
 signal state_manager_inited()
 signal world_environment_added() # on Main after I/O thread finishes (slow!)
 signal about_to_build_system_tree() # new or loading game

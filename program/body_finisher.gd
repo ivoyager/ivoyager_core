@@ -54,6 +54,8 @@ func _on_node_added(node: Node) -> void:
 	if !body:
 		return
 	IVGlobal.add_system_tree_item_started.emit(body) # increments IVStateManager counter
+	
+	_set_body_textures(body)
 	if _use_threads:
 		WorkerThreadPool.add_task(_finish.bind(body))
 	else:
@@ -66,7 +68,6 @@ func _finish(body: IVBody) -> void:
 	var siblings: Array[Node] = []
 	var model_space_nodes: Array[Node3D] = []
 	
-	_set_body_textures(body)
 	_get_body_label(body, children)
 	
 	if body.has_orbit():
@@ -95,17 +96,8 @@ func _deffered_finish(body: IVBody, children: Array[Node], siblings: Array[Node]
 	IVGlobal.add_system_tree_item_finished.emit(body) # decrements IVStateManager counter
 
 
-func _use_lazy_init_model(body: IVBody) -> bool:
-	if not body.flags & BodyFlags.BODYFLAGS_MOON:
-		return false
-	if body.flags & BodyFlags.BODYFLAGS_NAVIGATOR_MOON:
-		return false
-	return true
-
-
-# All below happen on thread...
-
 func _set_body_textures(body: IVBody) -> void:
+	# Resource loading is NOT threadsafe!
 	var bodies_2d_search := IVCoreSettings.bodies_2d_search
 	var file_prefix := body.get_file_prefix()
 	var texture_2d: Texture2D = files.find_and_load_resource(bodies_2d_search, file_prefix)
@@ -115,7 +107,19 @@ func _set_body_textures(body: IVBody) -> void:
 	if body.flags & BodyFlags.BODYFLAGS_STAR:
 		var slice_name := file_prefix + "_slice"
 		body.texture_slice_2d = files.find_and_load_resource(bodies_2d_search, slice_name)
-	
+
+
+func _use_lazy_init_model(body: IVBody) -> bool:
+	if not body.flags & BodyFlags.BODYFLAGS_MOON:
+		return false
+	if body.flags & BodyFlags.BODYFLAGS_NAVIGATOR_MOON:
+		return false
+	return true
+
+
+# *****************************************************************************
+# All below happen on thread...
+
 
 func _get_body_label(body: IVBody, children: Array[Node]) -> void:
 	var body_label_script: Script = IVGlobal.procedural_classes[&"BodyLabel"]
@@ -139,17 +143,10 @@ func _get_dynamic_light(body: IVBody, children: Array[Node]) -> void:
 	if !IVCoreSettings.dynamic_lights:
 		return
 	var body_name := body.name
-	var parent_light_row := -1
-	for row in IVTableData.get_n_rows(&"dynamic_lights"):
-		var bodies: Array[StringName] = IVTableData.get_db_array(&"dynamic_lights", &"bodies", row)
-		if bodies.has(body_name):
-			parent_light_row = row
-			break
-	if parent_light_row == -1:
-		return
+	var row := IVTableData.db_find_in_array(&"dynamic_lights", &"bodies", body_name)
 	var dynamic_light_script: Script = IVGlobal.procedural_classes[&"DynamicLight"]
 	@warning_ignore("unsafe_method_access")
-	var dynamic_light: Node = dynamic_light_script.new(body_name, parent_light_row)
+	var dynamic_light: Node = dynamic_light_script.new(body_name, row)
 	children.append(dynamic_light)
 
 
@@ -173,11 +170,7 @@ func _get_omni_lights(body: IVBody, children: Array[Node]) -> void:
 
 func _get_rings(body: IVBody, model_space_nodes: Array[Node3D]) -> void:
 	# See IVRings for resource requirements.
-	var row := IVTableData.db_find_in_array(&"rings", &"bodies", body.name)
-	if row == -1:
-		assert(false, "Could not find row in rings.tsv for %s" % body.name)
-		return
 	var rings_script: Script = IVGlobal.procedural_classes[&"Rings"]
 	@warning_ignore("unsafe_method_access")
-	var rings: Node3D = rings_script.new(body, row)
+	var rings: Node3D = rings_script.new(body)
 	model_space_nodes.append(rings)

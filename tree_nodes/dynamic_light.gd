@@ -56,16 +56,12 @@ var _camera: Camera3D
 var _camera_planet: Node3D
 
 
-## External call should supply [param body_name] only.
 func _init(body_name: StringName, row := -1, top_light := true,
 		shared: Array[float] = [0.0, 0.0, 0.0]) -> void:
 	assert(row != -1)
 	_body_name = body_name
 	_top_light = top_light
 	_shared = shared
-	#if top_light:
-		#IVGlobal.camera_tree_changed.connect(_on_camera_tree_changed)
-		#IVGlobal.about_to_free_procedural_nodes.connect(_clear)
 	IVTableData.db_build_object_all_fields(self, &"dynamic_lights", row)
 	_add_target_dist = !is_nan(shadow_max_target_plus)
 	_add_planet_dist = !is_nan(shadow_max_planet_plus)
@@ -74,6 +70,7 @@ func _init(body_name: StringName, row := -1, top_light := true,
 func _ready() -> void:
 	if !_top_light:
 		return
+	# Only top light connects to camera!
 	IVGlobal.camera_tree_changed.connect(_on_camera_tree_changed)
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
 	# add child lights
@@ -92,7 +89,7 @@ func _process(_delta: float) -> void:
 	# In this context, "planet" = star orbiter.
 	const AU_SQ := IVUnits.AU ** 2
 	
-	if _camera: # only the top light has _camera set
+	if _camera: # only the top light has _camera
 		var camera_global_position := _camera.global_position
 		var source_vector := camera_global_position - global_position
 		var planet_dist := 0.0
