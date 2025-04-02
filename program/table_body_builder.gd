@@ -35,6 +35,7 @@ var characteristics_fields: Array[StringName] = [
 	&"hud_name",
 	&"body_class",
 	&"model_type",
+	&"lazy_model",
 	&"has_light",
 	&"shader_sun_index",
 	&"file_prefix",

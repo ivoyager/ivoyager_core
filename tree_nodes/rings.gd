@@ -88,8 +88,6 @@ func _ready() -> void:
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
 	IVGlobal.camera_ready.connect(_connect_camera)
 	_connect_camera(get_viewport().get_camera_3d())
-	_body.model_visibility_changed.connect(_on_model_visibility_changed)
-	_on_model_visibility_changed(_body.model_visible)
 	
 	# distances in sim scale
 	var ring_span := outer_radius - inner_radius
@@ -200,10 +198,6 @@ func _clear() -> void:
 
 func _connect_camera(camera: Camera3D) -> void:
 	_camera = camera
-
-
-func _on_model_visibility_changed(is_model_visible: bool) -> void:
-	visible = is_model_visible
 
 
 func _add_shadow_casters() -> void:

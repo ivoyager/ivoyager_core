@@ -35,18 +35,12 @@ const files := preload("res://addons/ivoyager_core/static/files.gd")
 const BodyFlags := IVBody.BodyFlags
 
 var _use_threads := IVCoreSettings.use_threads
-var _model_manager: IVModelManager
 var _tree: SceneTree
 
 
 func _init() -> void:
-	IVGlobal.project_inited.connect(_on_project_inited)
 	_tree = IVGlobal.get_tree()
 	_tree.node_added.connect(_on_node_added)
-
-
-func _on_project_inited() -> void:
-	_model_manager = IVGlobal.program[&"ModelManager"]
 
 
 func _on_node_added(node: Node) -> void:
@@ -55,7 +49,6 @@ func _on_node_added(node: Node) -> void:
 		return
 	IVGlobal.add_system_tree_item_started.emit(body) # increments IVStateManager counter
 	
-	_set_body_textures(body)
 	if _use_threads:
 		WorkerThreadPool.add_task(_finish.bind(body))
 	else:
@@ -84,8 +77,6 @@ func _finish(body: IVBody) -> void:
 func _deffered_finish(body: IVBody, children: Array[Node], siblings: Array[Node],
 		model_space_nodes: Array[Node3D]) -> void:
 	# Main thread.
-	if body.get_model_type() != -1:
-		_model_manager.add_model(body, _use_lazy_init_model(body))
 	for node in children:
 		body.add_child(node)
 	for node in siblings:
@@ -94,27 +85,6 @@ func _deffered_finish(body: IVBody, children: Array[Node], siblings: Array[Node]
 		body.add_child_to_model_space(node3d)
 	await _tree.process_frame
 	IVGlobal.add_system_tree_item_finished.emit(body) # decrements IVStateManager counter
-
-
-func _set_body_textures(body: IVBody) -> void:
-	# Resource loading is NOT threadsafe!
-	var bodies_2d_search := IVCoreSettings.bodies_2d_search
-	var file_prefix := body.get_file_prefix()
-	var texture_2d: Texture2D = files.find_and_load_resource(bodies_2d_search, file_prefix)
-	if !texture_2d:
-		texture_2d = IVGlobal.assets[&"fallback_body_2d"]
-	body.texture_2d = texture_2d
-	if body.flags & BodyFlags.BODYFLAGS_STAR:
-		var slice_name := file_prefix + "_slice"
-		body.texture_slice_2d = files.find_and_load_resource(bodies_2d_search, slice_name)
-
-
-func _use_lazy_init_model(body: IVBody) -> bool:
-	if not body.flags & BodyFlags.BODYFLAGS_MOON:
-		return false
-	if body.flags & BodyFlags.BODYFLAGS_NAVIGATOR_MOON:
-		return false
-	return true
 
 
 # *****************************************************************************

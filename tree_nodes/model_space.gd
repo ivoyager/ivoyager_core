@@ -20,10 +20,124 @@
 class_name IVModelSpace
 extends Node3D
 
-## A reference frame for an [IVBody] instance's physical rotation. 
+## Provides a model reference frame and instantiates a body's model. 
 ##
-## Child nodes include the body's model (imported or generic [IVSpheroidModel])
-## and, for Saturn, its [IVRings].[br][br]
+## This Node3D is tilted and rotated by [IVBody], but is not scaled.[br][br]
 ##
-## This node is optional and maintained by [IVBody] only if needed. We assume
-## that no children need persistance.
+## This node is not persisted. It is created by [IVBody] if/when needed.[br][br]
+## 
+## Children can be added that share the model's axial tilt and rotation.
+## In base Solar System setup, IVBodyFinisher adds IVRings for Saturn.[br][br]
+
+
+const MODEL_MAX_DISTANCE_MULTIPLIER := 3e3
+
+var reference_basis: Basis
+var max_distance: float
+
+var _body_name: StringName
+var _m_radius: float
+var _e_radius: float
+var _model_type: int
+
+var _model: Node3D
+
+
+func _init(body_name: StringName, m_radius: float, e_radius: float) -> void:
+	_body_name = body_name
+	_m_radius = m_radius
+	_e_radius = e_radius
+
+	# Always use PackedScene model if there is one. Otherwise, generate
+	# a spheroid model w/ maps or use a fallback.
+	var asset_preloader: IVAssetPreloader = IVGlobal.program[&"AssetPreloader"]
+	_model_type = asset_preloader.get_body_model_type(_body_name)
+	var packed_model := asset_preloader.get_body_packed_model(_body_name)
+	if packed_model:
+		_build_packed_model(asset_preloader, packed_model)
+		return
+	if IVTableData.get_db_bool(&"models", &"spheroid", _model_type):
+		_build_spheroid_model(asset_preloader)
+		return
+	_build_fallback_nonspheroid_model(asset_preloader)
+
+
+func _ready() -> void:
+	add_child(_model)
+
+
+func _build_packed_model(asset_preloader: IVAssetPreloader, packed_model: PackedScene) -> void:
+	const METER := IVUnits.METER
+	const RIGHT_ANGLE := PI / 2
+	var asset_row := asset_preloader.get_body_model_asset_row(_body_name)
+	var model_scale := METER
+	if asset_row != -1:
+		model_scale *= IVTableData.get_db_float(&"asset_adjustments", &"model_scale", asset_row)
+	
+	reference_basis = Basis().scaled(model_scale * Vector3.ONE)
+	reference_basis = reference_basis.rotated(Vector3(1.0, 0.0, 0.0), RIGHT_ANGLE) # z-up in astronomy!
+	
+	_model = packed_model.instantiate()
+	_model.basis = reference_basis
+	_set_max_distance()
+	_set_layers()
+
+
+func _build_spheroid_model(asset_preloader: IVAssetPreloader) -> void:
+	const RIGHT_ANGLE := PI / 2
+	
+	# If albedo_map and emission_map both exist and both are in asset_adjustments.tsv,
+	# they are expected to have the same values.
+	var asset_row := -1
+	var albedo_map := asset_preloader.get_body_albedo_map(_body_name)
+	if albedo_map:
+		asset_row = asset_preloader.get_body_albedo_asset_row(_body_name)
+	var emission_map := asset_preloader.get_body_emission_map(_body_name)
+	if emission_map:
+		asset_row = asset_preloader.get_body_emission_asset_row(_body_name)
+	if !albedo_map and !emission_map:
+		albedo_map = IVGlobal.assets[&"fallback_albedo_map"]
+	
+	var polar_radius: = 3.0 * _m_radius - 2.0 * _e_radius
+	reference_basis = Basis().scaled(Vector3(_e_radius, polar_radius, _e_radius))
+	var longitude_offset := RIGHT_ANGLE # centered prime meridian
+	if asset_row != -1:
+		# longitude_offset is expected to be the same for albedo_map and
+		# emission_map, if both happen to exist.
+		longitude_offset += IVTableData.get_db_float(&"asset_adjustments", &"longitude_offset", asset_row)
+	reference_basis = reference_basis.rotated(Vector3(0.0, 1.0, 0.0), -longitude_offset)
+	reference_basis = reference_basis.rotated(Vector3(1.0, 0.0, 0.0), RIGHT_ANGLE) # z-up in astronomy!
+	
+	var spheroid_model_script: Script = IVGlobal.procedural_classes[&"SpheroidModel"]
+	@warning_ignore("unsafe_method_access")
+	_model = spheroid_model_script.new(_model_type, reference_basis, albedo_map, emission_map)
+	_set_max_distance()
+	_set_layers()
+
+
+func _build_fallback_nonspheroid_model(asset_preloader: IVAssetPreloader) -> void:
+	# TODO: We need a fallback asteroid/comet PackedScene model here
+	_build_spheroid_model(asset_preloader) 
+
+
+func _set_max_distance() -> void:
+	if IVTableData.get_db_bool(&"models", &"inf_visibility", _model_type):
+		max_distance = INF
+	else:
+		max_distance = _m_radius * MODEL_MAX_DISTANCE_MULTIPLIER
+
+
+func _set_layers() -> void:
+	var layers := IVCoreSettings.get_visualinstance3d_layers_for_size(_m_radius)
+	layers |= IVGlobal.ShadowMask.SHADOW_MASK_FULL
+	_set_layers_recursive(_model, layers)
+
+
+func _set_layers_recursive(node3d: Node3D, layers: int) -> void:
+	var visualinstance3d := node3d as VisualInstance3D
+	if visualinstance3d:
+		visualinstance3d.layers = layers
+	for child in node3d.get_children():
+		var child_node3d := child as Node3D
+		if child_node3d:
+			_set_layers_recursive(child_node3d, layers)

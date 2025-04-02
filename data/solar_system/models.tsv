@@ -1,4 +1,4 @@
-	ellipsoid	starlight	metallic	roughness	rim_enabled	rim	rim_tint
+	spheroid	inf_visibility	metallic	roughness	rim_enabled	rim	rim_tint
 Type	BOOL	BOOL	FLOAT	FLOAT	BOOL	FLOAT	FLOAT
 Default	TRUE		0	0.6	TRUE	0.003	0.5
 Prefix/MODEL_							
@@ -16,3 +16,4 @@ SMALL_S_BODY
 SMALL_M_BODY							
 COMET							
 SPACECRAFT							
+#							

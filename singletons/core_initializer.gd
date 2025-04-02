@@ -120,7 +120,8 @@ var program_refcounteds: Dictionary[StringName, Variant] = {
 	IOManager = IVIOManager,
 	SettingsManager = IVSettingsManager, # 1st after IOManager so IVGlobal.settings are valid
 	
-	# builders (generators, often from table or binary data)
+	# loaders, builders, finishers
+	AssetPreloader = IVAssetPreloader,
 	TableSystemBuilder = IVTableSystemBuilder,
 	TableBodyBuilder = IVTableBodyBuilder,
 	TableOrbitBuilder = IVTableOrbitBuilder,
@@ -136,9 +137,8 @@ var program_refcounteds: Dictionary[StringName, Variant] = {
 	FontManager = IVFontManager, # ok to replace
 	ThemeManager = IVThemeManager, # after IVFontManager; ok to replace
 	SleepManager = IVSleepManager,
+	LazyManager = IVLazyManager,
 	WikiManager = IVWikiManager,
-	ModelManager = IVModelManager,
-	
 }
 
 var program_nodes: Dictionary[StringName, Variant] = {

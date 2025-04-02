@@ -397,10 +397,7 @@ var wikipedia_locales: Array[String] = ["en"] # add locales present in data tabl
 var body_tables: Array[StringName] = [&"stars", &"planets", &"asteroids", &"moons", &"spacecrafts"]
 
 # We search for assets based on "file_prefix" and sometimes other name elements
-# like "albedo". To build a model, IVModelManager first looks for an existing
-# model in models_search (1st path element to last). Failing that, it will use
-# the generic IVSpheroidModel and search for map textures in maps_search. If it
-# can't find "<file_prifix>.albedo" in maps_search, it will use fallback_albedo_map.
+# like "albedo".
 
 var asset_replacement_dir := ""  # replaces all "ivoyager_assets" below
 

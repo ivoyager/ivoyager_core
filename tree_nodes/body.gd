@@ -48,7 +48,8 @@ extends Node3D
 ## engine).
 
 signal huds_visibility_changed(is_visible: bool)
-signal model_visibility_changed(is_visible: bool)
+
+signal model_visibility_changed(is_visible: bool) # FIXME: Remove after ModelManager removal!
 
 enum BodyFlags {
 	
@@ -155,14 +156,15 @@ var basis_at_epoch := IDENTITY_BASIS
 var star: IVBody # above
 var star_orbiter: IVBody # this body or star orbiter above or null
 var satellites: Array[IVBody] = [] # IVBody children add/remove themselves
+var model_space: IVModelSpace # has model axial tilt and rotation (not scale)
 var huds_visible := false # too far / too close toggle
 var model_visible := false
-var model_space: Node3D # rotation only, not scaled (lazy init), not persisted
 var texture_2d: Texture2D
 var texture_slice_2d: Texture2D # GUI navigator graphic for sun only
 var model_reference_basis := IDENTITY_BASIS
 var max_model_dist := 0.0
 var min_hud_dist: float
+var lazy_uninited := false
 var sleep := false
 var shader_sun_index := -1
 
@@ -173,6 +175,7 @@ static var bodies: Dictionary[StringName, IVBody] = {}
 static var top_bodies: Array[IVBody] = []
 static var sun_global_positions: Array[Vector3] = [Vector3(), Vector3(), Vector3()]
 
+
 # localized
 @onready var _times: Array[float] = IVGlobal.times
 @onready var _ecliptic_rotation: Basis = IVCoreSettings.ecliptic_rotation
@@ -180,9 +183,15 @@ static var sun_global_positions: Array[Vector3] = [Vector3(), Vector3(), Vector3
 
 
 
+
+
 func _enter_tree() -> void:
-	#IVGlobal.add_system_tree_item_started.emit(self)
+	_set_resources()
 	_set_relative_bodies()
+	if characteristics.get(&"lazy_model") and IVGlobal.program[&"LazyManager"]:
+		lazy_uninited = true
+	else:
+		_add_model_space()
 	if orbit:
 		orbit.reset_elements_and_interval_update()
 		orbit.changed.connect(_on_orbit_changed)
@@ -251,13 +260,16 @@ func _process(_delta: float) -> void:
 			var x_axis := -position / orbit_dist
 			var z_axis := orbit.get_normal()
 			var y_axis := z_axis.cross(x_axis)
-			rotating_space.transform.basis = Basis(x_axis, y_axis, z_axis)
+			rotating_space.basis = Basis(x_axis, y_axis, z_axis)
 			rotating_space.position.x = orbit_dist - rotating_space.characteristic_length
+	
+	# update model space
 	if model_space:
 		var rotation_angle := wrapf(_times[0] * rotation_rate, 0.0, TAU)
-		model_space.transform.basis = basis_at_epoch.rotated(rotation_vector, rotation_angle)
+		model_space.basis = basis_at_epoch.rotated(rotation_vector, rotation_angle)
+		model_space.visible = camera_dist < max_model_dist
 	
-	# check HUD and model visibility
+	# set HUDs visibility
 	var hud_dist_ok := camera_dist > min_hud_dist or !model_space # not too close to camera
 	if hud_dist_ok and orbit:
 		var orbit_radius := position.length()
@@ -266,10 +278,6 @@ func _process(_delta: float) -> void:
 	if huds_visible != hud_dist_ok:
 		huds_visible = hud_dist_ok
 		huds_visibility_changed.emit(huds_visible)
-		
-	if model_visible != (camera_dist < max_model_dist):
-		model_visible = !model_visible
-		model_visibility_changed.emit(model_visible)
 	
 	# sun position(s) for shader global
 	if shader_sun_index != -1 and sun_global_positions[shader_sun_index] != global_position:
@@ -625,18 +633,15 @@ func set_model_parameters(reference_basis: Basis, max_dist: float) -> void:
 func add_child_to_model_space(spatial: Node3D) -> void:
 	assert(not flags & BodyFlags.BODYFLAGS_DISABLE_MODEL_SPACE)
 	if !model_space:
-		var ModelSpaceScript: Script = IVGlobal.procedural_classes[&"ModelSpace"]
-		@warning_ignore("unsafe_method_access")
-		model_space = ModelSpaceScript.new()
-		add_child(model_space)
+		_add_model_space()
 	model_space.add_child(spatial)
 
 
 func remove_child_from_model_space(spatial: Node3D) -> void:
 	model_space.remove_child(spatial)
-	if model_space.get_child_count() == 0:
-		model_space.queue_free()
-		model_space = null
+	#if model_space.get_child_count() == 0:
+		#model_space.queue_free()
+		#model_space = null
 
 
 func remove_and_disable_model_space() -> void:
@@ -656,6 +661,10 @@ func set_orbit(orbit_: IVOrbit) -> void:
 		return # do below on _enter_tree()
 	orbit_.reset_elements_and_interval_update()
 	orbit_.changed.connect(_on_orbit_changed)
+
+
+func lazy_init() -> void:
+	_add_model_space()
 
 
 func set_sleep(sleep_: bool) -> void: # called by IVSleepManager
@@ -786,6 +795,24 @@ func recalculate_spatials() -> void:
 
 # *****************************************************************************
 # private
+
+
+func _set_resources() -> void:
+	var asset_preloader: IVAssetPreloader = IVGlobal.program[&"AssetPreloader"]
+	texture_2d = asset_preloader.get_body_texture_2d(name)
+	texture_slice_2d = asset_preloader.get_body_texture_slice_2d(name) # usually null
+
+
+func _add_model_space() -> void:
+	assert(!model_space)
+	lazy_uninited = false
+	var model_space_script: Script = IVGlobal.procedural_classes[&"ModelSpace"]
+	@warning_ignore("unsafe_method_access")
+	model_space = model_space_script.new(name, m_radius, get_equatorial_radius())
+	model_reference_basis = model_space.reference_basis
+	max_model_dist = model_space.max_distance
+	add_child(model_space)
+
 
 func _set_relative_bodies() -> void:
 	# For multi-star system, star_orbiter and star could be the same body.
