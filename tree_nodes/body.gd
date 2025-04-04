@@ -20,20 +20,30 @@
 class_name IVBody
 extends Node3D
 
-## Base class for objects that orbit or are orbited, including stars, planets,
-## moons, instantiated asteroids, and spacecrafts.
+## An object that orbits or is orbited, including stars, planets, moons,
+## instantiated asteroids, and spacecrafts. [TODO: and barycenters.]
 ##
 ## IVBody nodes are NEVER scaled or rotated. Hence, local and global distances
-## and directions are always consistent at any level of the solar system tree.
+## and directions are always consistent at any level of the "body tree".
 ## For rotation, component nodes can be added to the body's [IVModelSpace] or
 ## [IVRotatingSpace]. The former tilts and rotates with the body (for its model
 ## and possibly rings) and the later with its orbit (for Lagrange points).[br][br]
 ## 
-## Node name is always the data table row name: 'PLANET_EARTH', 'MOON_EUROPA',
-## etc.[br][br]
+## Node name is always the data table row name: PLANET_EARTH, MOON_EUROPA,
+## SPACECRAFT_ISS, etc.[br][br]
 ##
-## Many body-associated nodes are added by [IVBodyFinisher], including a model,
-## rings, lights and HUD elements.[br][br]
+## This node adds its own [IVModelSpace] (which instantiates a model) if needed.
+## If this body has table value `lazy_model == true`, it won't add the model
+## space until/unless the camera visits this body or a closely associated
+## lazy body. See [IVLazyManager].[br][br]
+##
+## Some bodies (particularly moons and spacecrafts) have table value
+## `can_sleep == true`. These bodies' process state is on only when the camera
+## is in the same planet system. See [IVSleepManager].[br][br]
+##
+## Many body-associated "graphic" nodes are added by [IVBodyFinisher],
+## including rings, lights and HUD elements. (IVBody isn't aware of these
+## nodes.)[br][br]
 ##
 ## See also IVSmallBodiesGroup for handling 1000s or 100000s of orbiting bodies
 ## without individual instantiation (e.g., asteroids).[br][br]
@@ -610,11 +620,6 @@ func get_hill_sphere(eccentricity := 0.0) -> float:
 
 # special mechanics below
 
-func set_model_parameters(reference_basis: Basis, max_dist: float) -> void:
-	model_reference_basis = reference_basis
-	max_model_dist = max_dist
-
-
 func add_child_to_model_space(spatial: Node3D) -> void:
 	assert(not flags & BodyFlags.BODYFLAGS_DISABLE_MODEL_SPACE)
 	if !model_space:
@@ -624,9 +629,6 @@ func add_child_to_model_space(spatial: Node3D) -> void:
 
 func remove_child_from_model_space(spatial: Node3D) -> void:
 	model_space.remove_child(spatial)
-	#if model_space.get_child_count() == 0:
-		#model_space.queue_free()
-		#model_space = null
 
 
 func remove_and_disable_model_space() -> void:

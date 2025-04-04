@@ -102,6 +102,7 @@ var _tree_build_counter := 0
 
 func _init() -> void:
 	IVGlobal.project_builder_finished.connect(_on_project_builder_finished, CONNECT_ONE_SHOT)
+	IVGlobal.asset_preloader_finished.connect(_on_asset_preloader_finished, CONNECT_ONE_SHOT)
 	IVGlobal.about_to_build_system_tree.connect(_on_about_to_build_system_tree)
 	IVGlobal.system_tree_built_or_loaded.connect(_on_system_tree_built_or_loaded)
 	IVGlobal.add_system_tree_item_started.connect(_increment_tree_build_counter)
@@ -117,6 +118,7 @@ func _init() -> void:
 	
 	_state.is_inited = false
 	_state.is_splash_screen = false
+	_state.is_ok_to_start = false
 	_state.is_building_tree = false # new or loading game
 	_state.is_system_built = false
 	_state.is_system_ready = false
@@ -126,6 +128,7 @@ func _init() -> void:
 	_state.is_game_loading = false
 	_state.is_loaded_game = false
 	_state.network_state = NO_NETWORK
+	IVGlobal.state_changed.emit(_state)
 	
 	var universe: Node3D = IVGlobal.program[&"Universe"]
 	if IVCoreSettings.pause_only_stops_time:
@@ -161,9 +164,11 @@ func _unhandled_key_input(event: InputEvent) -> void:
 ## IVSaveManager only.
 func set_game_loading() -> void:
 	_state.is_splash_screen = false
+	_state.is_ok_to_start = false
 	_state.is_system_built = false
 	_state.is_game_loading = true
 	_state.is_loaded_game = true
+	IVGlobal.state_changed.emit(_state)
 	require_stop(self, IVGlobal.NetworkStopSync.BUILD_SYSTEM, true)
 	IVGlobal.about_to_build_system_tree.emit()
 
@@ -171,12 +176,16 @@ func set_game_loading() -> void:
 ## IVSaveManager only.
 func set_game_loaded() -> void:
 	_state.is_game_loading = false
+	IVGlobal.state_changed.emit(_state)
 	IVGlobal.system_tree_built_or_loaded.emit(false)
 
 
 func build_system_tree_from_tables() -> void:
-	require_stop(self, IVGlobal.NetworkStopSync.BUILD_SYSTEM, true)
+	assert(_state.is_ok_to_start)
+	_state.is_ok_to_start = false
 	_state.is_loaded_game = false
+	IVGlobal.state_changed.emit(_state)
+	require_stop(self, IVGlobal.NetworkStopSync.BUILD_SYSTEM, true)
 	IVGlobal.about_to_build_system_tree.emit()
 	var table_system_builder: IVTableSystemBuilder = IVGlobal.program[&"TableSystemBuilder"]
 	table_system_builder.build_system_tree()
@@ -278,6 +287,7 @@ func exit(force_exit := false, following_server := false) -> void:
 	_state.is_running = false
 	_tree.paused = true
 	_state.is_loaded_game = false
+	IVGlobal.state_changed.emit(_state)
 	require_stop(self, NetworkStopSync.EXIT, true)
 	await self.threads_finished
 	IVGlobal.about_to_exit.emit()
@@ -287,6 +297,8 @@ func exit(force_exit := false, following_server := false) -> void:
 	IVGlobal.close_all_admin_popups_requested.emit()
 	await _tree.process_frame
 	_state.is_splash_screen = true
+	_state.is_ok_to_start = true
+	IVGlobal.state_changed.emit(_state)
 	IVGlobal.simulator_exited.emit()
 
 
@@ -302,7 +314,9 @@ func quit(force_quit := false) -> void:
 			return
 	if _state.network_state == IS_CLIENT:
 		client_is_dropping_out.emit(false)
+	_state.is_ok_to_start = false
 	_state.is_quitting = true
+	IVGlobal.state_changed.emit(_state)
 	IVGlobal.about_to_stop_before_quit.emit()
 	require_stop(self, NetworkStopSync.QUIT, true)
 	await threads_finished
@@ -322,7 +336,12 @@ func _on_project_builder_finished() -> void:
 	await _tree.process_frame
 	_state.is_inited = true
 	_state.is_splash_screen = true
-	IVGlobal.state_manager_inited.emit()
+	IVGlobal.state_changed.emit(_state)
+
+
+func _on_asset_preloader_finished() -> void:
+	_state.is_ok_to_start = true
+	IVGlobal.state_changed.emit(_state)
 	if IVCoreSettings.skip_splash_screen:
 		build_system_tree_from_tables()
 
@@ -330,10 +349,12 @@ func _on_project_builder_finished() -> void:
 func _on_about_to_build_system_tree() -> void:
 	_state.is_splash_screen = false
 	_state.is_building_tree = true
+	IVGlobal.state_changed.emit(_state)
 
 
 func _on_system_tree_built_or_loaded(_is_new_game: bool) -> void:
 	_state.is_system_built = true
+	IVGlobal.state_changed.emit(_state)
 
 
 func _increment_tree_build_counter(_item: Node) -> void:
@@ -350,9 +371,11 @@ func _on_system_tree_ready(is_new_game: bool) -> void:
 	_state.is_building_tree = false
 	_state.is_game_loading = false
 	_state.is_system_ready = true
+	IVGlobal.state_changed.emit(_state)
 	print("System tree ready...")
 	await _tree.process_frame
 	_state.is_started_or_about_to_start = true
+	IVGlobal.state_changed.emit(_state)
 	IVGlobal.about_to_start_simulator.emit(is_new_game)
 	IVGlobal.close_all_admin_popups_requested.emit()
 	await _tree.process_frame
@@ -388,6 +411,7 @@ func _stop_simulator() -> void:
 	run_threads_must_stop.emit()
 	_state.is_running = false
 	_tree.paused = true
+	IVGlobal.state_changed.emit(_state)
 	IVGlobal.run_state_changed.emit(false)
 
 
@@ -395,6 +419,7 @@ func _run_simulator() -> void:
 	print("Run simulator")
 	_state.is_running = true
 	_tree.paused = is_user_paused
+	IVGlobal.state_changed.emit(_state)
 	IVGlobal.run_state_changed.emit(true)
 	assert(!DPRINT or IVDebug.dprint("signal run_threads_allowed"))
 	allow_threads = true

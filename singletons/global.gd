@@ -38,7 +38,8 @@ signal project_objects_instantiated() # IVCoreInitializer; IVGlobal.program popu
 signal project_inited() # IVCoreInitializer; after above
 signal project_nodes_added() # IVCoreInitializer; prog_nodes & gui_nodes added
 signal project_builder_finished() # IVCoreInitializer; 1 frame after above (splash screen showing)
-signal state_manager_inited()
+signal asset_preloader_finished() # IVAssetPreloader
+signal state_changed(state: Dictionary[StringName, Variant]) # see IVStateManager for keys
 signal world_environment_added() # on Main after I/O thread finishes (slow!)
 signal about_to_build_system_tree() # new or loading game
 signal add_system_tree_item_started(item: Node) # new or loading game (Body or SmallBodiesGroup)

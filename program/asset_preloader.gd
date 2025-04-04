@@ -23,19 +23,24 @@ extends RefCounted
 ## Loads and/or generates resources dynamically from data table specification
 ## for several procedural classes, including IVBody and IVRings.
 ##
-## Loads resources at signal `IVGlobal.project_builder_finished` (just after
+## Loads resources at signal IVGlobal.project_builder_finished (just after
 ## splash screen showing in typical game usage) and emits
-## `IVGlobal.asset_preloader_finished` when finished.
+## IVGlobal.asset_preloader_finished when finished.
+##
+## TODO: On thread.
 
 const files := preload("res://addons/ivoyager_core/static/files.gd")
 
-var _body_resources: Dictionary[StringName, Array] = {}
+const RINGS_LOD_LEVELS := 9 # must agree w/ assets, body.gd and rings.shader
 
+var _body_resources: Dictionary[StringName, Array] = {}
+var _rings_resources: Dictionary[String, Array] = {}
 
 
 
 func _init() -> void:
-	IVGlobal.project_builder_finished.connect(_load_body_resources)
+	IVGlobal.project_builder_finished.connect(_load_resources)
+
 
 
 func get_body_texture_2d(body_name: StringName) -> Texture2D:
@@ -74,7 +79,19 @@ func get_body_emission_asset_row(body_name: StringName) -> int:
 	return _body_resources[body_name][8]
 
 
+func get_rings_texture_arrays(rings_name: StringName) -> Array[Texture2DArray]:
+	return _rings_resources[rings_name][0]
 
+
+func get_rings_shadow_caster_texture(rings_name: StringName) -> Texture2D:
+	return _rings_resources[rings_name][1]
+
+
+
+func _load_resources() -> void:
+	_load_body_resources()
+	_load_rings_resources()
+	IVGlobal.asset_preloader_finished.emit()
 
 
 func _load_body_resources() -> void:
@@ -86,7 +103,7 @@ func _load_body_resources() -> void:
 	for table in IVCoreSettings.body_tables:
 		for row in IVTableData.get_n_rows(table):
 			
-			var entity_name := IVTableData.get_db_entity_name(table, row)
+			var body_name := IVTableData.get_db_entity_name(table, row)
 			var file_prefix := IVTableData.get_db_string(table, &"file_prefix", row)
 			assert(file_prefix)
 			
@@ -136,4 +153,60 @@ func _load_body_resources() -> void:
 				emission_map,
 				emission_asset_row]
 			
-			_body_resources[entity_name] = resources
+			_body_resources[body_name] = resources
+
+
+func _load_rings_resources() -> void:
+	
+	const BACKSCATTER_FILE_FORMAT := "%s.backscatter.%s"
+	const FORWARDSCATTER_FILE_FORMAT := "%s.forwardscatter.%s"
+	const UNLITSIDE_FILE_FORMAT := "%s.unlitside.%s"
+	
+	var rings_search := IVCoreSettings.rings_search
+	
+	for row in IVTableData.get_n_rows(&"rings"):
+		var rings_name := IVTableData.get_db_entity_name(&"rings", row)
+		var file_prefix := IVTableData.get_db_string(&"rings", &"file_prefix", row)
+		var shadow_lod := IVTableData.get_db_int(&"rings", &"shadow_lod", row)
+		shadow_lod = mini(shadow_lod, RINGS_LOD_LEVELS - 1)
+		
+		var texture_arrays: Array[Texture2DArray] = []
+		var shadow_image_rgba: Image
+		for lod in RINGS_LOD_LEVELS:
+			var file_elements := [file_prefix, lod]
+			var backscatter_file := BACKSCATTER_FILE_FORMAT % file_elements
+			var backscatter: Texture2D = files.find_and_load_resource(rings_search, backscatter_file)
+			assert(backscatter, "Failed to load '%s'" % backscatter_file)
+			var forwardscatter_file := FORWARDSCATTER_FILE_FORMAT % file_elements
+			var forwardscatter: Texture2D = files.find_and_load_resource(rings_search, forwardscatter_file)
+			assert(forwardscatter, "Failed to load '%s'" % forwardscatter_file)
+			var unlitside_file := UNLITSIDE_FILE_FORMAT % file_elements
+			var unlitside: Texture2D = files.find_and_load_resource(rings_search, unlitside_file)
+			assert(unlitside, "Failed to load '%s'" % unlitside_file)
+			
+			# We load as textures, convert to images, then reconvert back to
+			# texture arrays. This is not ideal, but I was unable to save
+			# Texture2DArray as a file resource as of Godot 4.2 (it's a
+			# Resource, so it should be saveable).
+			var backscatter_image := backscatter.get_image()
+			var forwardscatter_image := forwardscatter.get_image()
+			var unlitside_image := unlitside.get_image()
+			var lod_images: Array[Image] = [backscatter_image, forwardscatter_image, unlitside_image]
+			var texture_array := Texture2DArray.new() # backscatter/forwardscatter/unlitside for LOD
+			texture_array.create_from_images(lod_images)
+			texture_arrays.append(texture_array)
+			if lod == shadow_lod:
+				shadow_image_rgba = backscatter_image # all have the same alpha channel
+		
+		# Rebuild the shadow caster texture as smaller FORMAT_R8, alpha only.
+		# We could have this premade in ivoyager_assets, but it gives us
+		# flexibility with LOD to do here.
+		var shadow_width := shadow_image_rgba.get_width()
+		var shadow_image_r8 := Image.create_empty(shadow_width, 1, false, Image.FORMAT_R8)
+		for x in shadow_width:
+			var color := shadow_image_rgba.get_pixel(x, 0)
+			color.r = color.a
+			shadow_image_r8.set_pixel(x, 0, color)
+		var shadow_caster_texture := ImageTexture.create_from_image(shadow_image_r8)
+		
+		_rings_resources[rings_name] = [texture_arrays, shadow_caster_texture]

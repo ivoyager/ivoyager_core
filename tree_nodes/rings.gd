@@ -47,26 +47,16 @@ var shadow_noise_base_strength: float # affects shadow aliasing
 
 
 var _rings_material := ShaderMaterial.new()
-
-var _texture_arrays: Array[Texture2DArray] = [] # backscatter/forwardscatter/unlitside for each LOD
+var _texture_arrays: Array[Texture2DArray] # backscatter/forwardscatter/unlitside for each LOD
 var _texture_start: float
 var _inner_margin: float
 var _outer_margin: float
-
 var _sun_global_positions: Array[Vector3]
 var _shadow_caster_texture: Texture2D
 var _shadow_caster_shared: Array[float] = [1.0, 0.005] # alpha_exponent, noise_strength
-
 var _body: IVBody
 var _camera: Camera3D
 
-static var _pregenerated_resources: Dictionary[String, Array] = {} # indexed by file_prefix
-
-
-
-static func _static_init() -> void:
-	# Preload & process all rings textures.
-	IVGlobal.project_builder_finished.connect(_pregenerate_resources)
 
 
 func _init(body: IVBody) -> void:
@@ -76,9 +66,9 @@ func _init(body: IVBody) -> void:
 	var row := IVTableData.db_find_in_array(&"rings", &"bodies", body.name)
 	assert(row != -1, "Could not find row in rings.tsv for %s" % body.name)
 	IVTableData.db_build_object_all_fields(self, &"rings", row)
-	var resources := _pregenerated_resources[file_prefix]
-	_texture_arrays = resources[0]
-	_shadow_caster_texture = resources[1]
+	var asset_preloader: IVAssetPreloader = IVGlobal.program[&"AssetPreloader"]
+	_texture_arrays = asset_preloader.get_rings_texture_arrays(name)
+	_shadow_caster_texture = asset_preloader.get_rings_shadow_caster_texture(name)
 	cast_shadow = SHADOW_CASTING_SETTING_OFF # semi-transparancy can't cast shadows
 	mesh = PlaneMesh.new() # default 2x2
 	rotation.x = PI / 2.0 # z up astronomy
@@ -138,57 +128,6 @@ func _process(_delta: float) -> void:
 	# Shadow noise needs to increase with distance to prevent alias effect.
 	var dist_ratio := (_camera.global_position - global_position).length() / outer_radius
 	_shadow_caster_shared[1] = shadow_noise_base_strength * dist_ratio
-
-
-static func _pregenerate_resources() -> void:
-	
-	const BACKSCATTER_FILE_FORMAT := "%s.backscatter.%s"
-	const FORWARDSCATTER_FILE_FORMAT := "%s.forwardscatter.%s"
-	const UNLITSIDE_FILE_FORMAT := "%s.unlitside.%s"
-	
-	var rings_search := IVCoreSettings.rings_search
-	
-	for row in IVTableData.get_n_rows(&"rings"):
-		var file_prefix_ := IVTableData.get_db_string(&"rings", &"file_prefix", row)
-		var shadow_lod_ := IVTableData.get_db_int(&"rings", &"shadow_lod", row)
-		shadow_lod_ = mini(shadow_lod_, LOD_LEVELS - 1)
-		
-		var texture_arrays: Array[Texture2DArray] = []
-		var shadow_image_rgba: Image
-		for lod in LOD_LEVELS:
-			var file_elements := [file_prefix_, lod]
-			var backscatter_file := BACKSCATTER_FILE_FORMAT % file_elements
-			var backscatter: Texture2D = files.find_and_load_resource(rings_search, backscatter_file)
-			assert(backscatter, "Failed to load '%s'" % backscatter_file)
-			var forwardscatter_file := FORWARDSCATTER_FILE_FORMAT % file_elements
-			var forwardscatter: Texture2D = files.find_and_load_resource(rings_search, forwardscatter_file)
-			assert(forwardscatter, "Failed to load '%s'" % forwardscatter_file)
-			var unlitside_file := UNLITSIDE_FILE_FORMAT % file_elements
-			var unlitside: Texture2D = files.find_and_load_resource(rings_search, unlitside_file)
-			assert(unlitside, "Failed to load '%s'" % unlitside_file)
-			
-			# We seem to need to load as textures, convert to images, then reconvert
-			# back to texture arrays. Maybe there is a better way?
-			var backscatter_image := backscatter.get_image()
-			var forwardscatter_image := forwardscatter.get_image()
-			var unlitside_image := unlitside.get_image()
-			var lod_images: Array[Image] = [backscatter_image, forwardscatter_image, unlitside_image]
-			var texture_array := Texture2DArray.new() # backscatter/forwardscatter/unlitside for LOD
-			texture_array.create_from_images(lod_images)
-			texture_arrays.append(texture_array)
-			if lod == shadow_lod_:
-				shadow_image_rgba = backscatter_image # all have the same alpha channel
-		
-		# shadow caster texture is FORMAT_R8, alpha only
-		var shadow_width := shadow_image_rgba.get_width()
-		var shadow_image_r8 := Image.create_empty(shadow_width, 1, false, Image.FORMAT_R8)
-		for x in shadow_width:
-			var color := shadow_image_rgba.get_pixel(x, 0)
-			color.r = color.a
-			shadow_image_r8.set_pixel(x, 0, color)
-		var shadow_caster_texture := ImageTexture.create_from_image(shadow_image_r8)
-		
-		_pregenerated_resources[file_prefix_] = [texture_arrays, shadow_caster_texture]
 
 
 func _clear() -> void:
