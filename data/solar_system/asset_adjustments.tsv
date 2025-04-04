@@ -2,10 +2,11 @@
 Type	STRING	FLOAT	FLOAT
 Unit		deg	
 Default		0	1
-	Mars.albedo.noaa.CWreprocessed.4096.jpg	180	
-	Deimos.1_1000.glb		1000
-	Eros.1_10.glb		10
-	Hyperion.1_1000.glb		1000
-	Mimas.1_1000.glb		1000
-	Phobos.1_1000.glb		1000
-	Vesta.1_100.glb		100
+Prefix/ASSET_ADJUSTMENT_			
+Mars.albedo.noaa.CWreprocessed.4096.jpg	Mars.albedo.noaa.CWreprocessed.4096.jpg	180	
+Deimos.1_1000.glb	Deimos.1_1000.glb		1000
+Eros.1_10.glb	Eros.1_10.glb		10
+Hyperion.1_1000.glb	Hyperion.1_1000.glb		1000
+Mimas.1_1000.glb	Mimas.1_1000.glb		1000
+Phobos.1_1000.glb	Phobos.1_1000.glb		1000
+Vesta.1_100.glb	Vesta.1_100.glb		100
