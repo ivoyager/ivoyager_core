@@ -24,6 +24,7 @@ extends Button
 
 func _ready() -> void:
 	IVGlobal.state_changed.connect(_on_state_changed)
+	disabled = !IVGlobal.state.is_ok_to_start
 
 
 func _pressed() -> void:

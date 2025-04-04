@@ -27,7 +27,12 @@ extends RefCounted
 ## splash screen showing in typical game usage) and emits
 ## IVGlobal.asset_preloader_finished when finished.
 ##
-## TODO: On thread.
+## Resource loading happens on thread if IVCoreSettings.use_thread.
+##
+## WARNING: Loading the same resource using different threads at the same time
+## is hazardous. That can happen here only if these "procedural" resources are
+## loaded elsewhere in exactly this small time window.
+
 
 const files := preload("res://addons/ivoyager_core/static/files.gd")
 
@@ -39,7 +44,7 @@ var _rings_resources: Dictionary[String, Array] = {}
 
 
 func _init() -> void:
-	IVGlobal.project_builder_finished.connect(_load_resources)
+	IVGlobal.project_builder_finished.connect(_on_project_builder_finished)
 
 
 
@@ -88,10 +93,22 @@ func get_rings_shadow_caster_texture(rings_name: StringName) -> Texture2D:
 
 
 
+func _on_project_builder_finished() -> void:
+	if IVCoreSettings.use_threads:
+		WorkerThreadPool.add_task(_load_resources)
+	else:
+		_load_resources.call_deferred()
+
+
 func _load_resources() -> void:
 	_load_body_resources()
 	_load_rings_resources()
+	_signal_finished.call_deferred()
+
+
+func _signal_finished() -> void:
 	IVGlobal.asset_preloader_finished.emit()
+
 
 
 func _load_body_resources() -> void:
