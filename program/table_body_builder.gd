@@ -101,6 +101,7 @@ var flag_fields := {
 	BodyFlags.BODYFLAGS_TRUE_PLANET : &"true_planet",
 	BodyFlags.BODYFLAGS_DWARF_PLANET : &"dwarf_planet",
 	BodyFlags.BODYFLAGS_MOON : &"moon",
+	BodyFlags.BODYFLAGS_CAN_SLEEP : &"can_sleep",
 	BodyFlags.BODYFLAGS_TIDALLY_LOCKED : &"tidally_locked",
 	BodyFlags.BODYFLAGS_AXIS_LOCKED : &"axis_locked",
 	BodyFlags.BODYFLAGS_TUMBLES_CHAOTICALLY : &"tumbles_chaotically",
@@ -110,7 +111,7 @@ var flag_fields := {
 	BodyFlags.BODYFLAGS_COMET : &"comet",
 	BodyFlags.BODYFLAGS_SPACECRAFT : &"spacecraft",
 	BodyFlags.BODYFLAGS_PLANETARY_MASS_OBJECT : &"planetary_mass_object",
-	BodyFlags.BODYFLAGS_SHOW_IN_NAV_PANEL : &"show_in_nav_panel",
+	BodyFlags.BODYFLAGS_SHOW_IN_NAVIGATION_PANEL : &"show_in_nav_panel",
 }
 
 
@@ -159,14 +160,12 @@ func _set_flags_from_table(body: IVBody, parent: IVBody) -> void:
 		flags |= BodyFlags.BODYFLAGS_PRIMARY_STAR
 		flags |= BodyFlags.BODYFLAGS_PROXY_STAR_SYSTEM
 	if flags & BodyFlags.BODYFLAGS_STAR:
-		flags |= BodyFlags.BODYFLAGS_NEVER_SLEEP
 		flags |= BodyFlags.BODYFLAGS_USE_CARDINAL_DIRECTIONS
 	if flags & BodyFlags.BODYFLAGS_PLANET:
 		flags |= BodyFlags.BODYFLAGS_STAR_ORBITING
-		flags |= BodyFlags.BODYFLAGS_NEVER_SLEEP
 		flags |= BodyFlags.BODYFLAGS_USE_CARDINAL_DIRECTIONS
 	if flags & BodyFlags.BODYFLAGS_MOON:
-		if flags & BodyFlags.BODYFLAGS_SHOW_IN_NAV_PANEL:
+		if flags & BodyFlags.BODYFLAGS_SHOW_IN_NAVIGATION_PANEL:
 			flags |= BodyFlags.BODYFLAGS_NAVIGATOR_MOON
 		if flags & BodyFlags.BODYFLAGS_PLANETARY_MASS_OBJECT:
 			flags |= BodyFlags.BODYFLAGS_PLANETARY_MASS_MOON
@@ -175,7 +174,6 @@ func _set_flags_from_table(body: IVBody, parent: IVBody) -> void:
 		flags |= BodyFlags.BODYFLAGS_USE_CARDINAL_DIRECTIONS
 	if flags & BodyFlags.BODYFLAGS_ASTEROID:
 		flags |= BodyFlags.BODYFLAGS_STAR_ORBITING
-		flags |= BodyFlags.BODYFLAGS_NEVER_SLEEP
 	if flags & BodyFlags.BODYFLAGS_SPACECRAFT:
 		flags |= BodyFlags.BODYFLAGS_USE_PITCH_YAW
 	body.flags = flags
