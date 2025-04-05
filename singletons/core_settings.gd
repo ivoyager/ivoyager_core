@@ -396,29 +396,8 @@ var wikipedia_locales: Array[String] = ["en"] # add locales present in data tabl
 
 var body_tables: Array[StringName] = [&"stars", &"planets", &"asteroids", &"moons", &"spacecrafts"]
 
-# We search for assets based on "file_prefix" and sometimes other name elements
-# like "albedo".
 
-var asset_replacement_dir := ""  # replaces all "ivoyager_assets" below
-
-var models_search: Array[String] = ["res://addons/ivoyager_assets/models"] # prepend to prioritize
-var maps_search: Array[String] = ["res://addons/ivoyager_assets/maps"]
-var bodies_2d_search: Array[String] = ["res://addons/ivoyager_assets/bodies_2d"]
-var rings_search: Array[String] = ["res://addons/ivoyager_assets/rings"]
-
-var asset_paths: Dictionary[StringName, String] = {
-	starmap_8k = "res://addons/ivoyager_assets/starmaps/starmap_8k.jpg",
-	starmap_16k = "res://addons/ivoyager_assets/starmaps/starmap_16k.jpg",
-}
-var asset_paths_for_load: Dictionary[StringName, String] = {
-	# loaded into IVGlobal.assets by IVAssetInitializer
-	primary_font = "res://addons/ivoyager_assets/fonts/Roboto-NotoSansSymbols-merged.ttf",
-	fallback_albedo_map = "res://addons/ivoyager_assets/fallbacks/blank_grid.jpg",
-	fallback_body_2d = "res://addons/ivoyager_assets/fallbacks/blank_grid_2d_globe.256.png",
-#	fallback_model = "res://addons/ivoyager_assets/models/phobos/Phobos.1_1000.glb",
-	blue_noise_1024 = "res://addons/ivoyager_assets/noise/blue_noise_1024.png",
-	
-}
+# TODO: Move to IVTranslationImporter
 var translations: Array[String] = [
 	# Added here so extensions can modify. Note that IVTranslationImporter will
 	# process text (eg, interpret \uXXXX) and report duplicate keys only if

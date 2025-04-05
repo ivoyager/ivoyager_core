@@ -54,6 +54,7 @@ var _outer_margin: float
 var _sun_global_positions: Array[Vector3]
 var _shadow_caster_texture: Texture2D
 var _shadow_caster_shared: Array[float] = [1.0, 0.005] # alpha_exponent, noise_strength
+var _blue_noise_1024: Texture2D
 var _body: IVBody
 var _camera: Camera3D
 
@@ -69,6 +70,7 @@ func _init(body: IVBody) -> void:
 	var asset_preloader: IVAssetPreloader = IVGlobal.program[&"AssetPreloader"]
 	_texture_arrays = asset_preloader.get_rings_texture_arrays(name)
 	_shadow_caster_texture = asset_preloader.get_rings_shadow_caster_texture(name)
+	_blue_noise_1024 = asset_preloader.get_blue_noise_1024()
 	cast_shadow = SHADOW_CASTING_SETTING_OFF # semi-transparancy can't cast shadows
 	mesh = PlaneMesh.new() # default 2x2
 	rotation.x = PI / 2.0 # z up astronomy
@@ -148,7 +150,8 @@ func _add_shadow_casters() -> void:
 		if is_equal_approx(max_alpha, 1.0):
 			max_alpha = 1.1
 		var shadow_caster := IVRingsShadowCaster.new(_shadow_caster_texture, _texture_start,
-			_inner_margin, _outer_margin, low_alpha, max_alpha, shadow_mask, _shadow_caster_shared)
+			_inner_margin, _outer_margin, low_alpha, max_alpha, shadow_mask, _shadow_caster_shared,
+			_blue_noise_1024)
 		add_child(shadow_caster)
 		i += 1
 
@@ -164,11 +167,12 @@ class IVRingsShadowCaster extends MeshInstance3D:
 	var _low_alpha: float
 	var _max_alpha: float
 	var _shadow_caster_shared: Array[float]
+	var _blue_noise_1024: Texture2D
 	
 	
 	func _init(texture_r8: Texture2D, texture_start: float, inner_margin: float, outer_margin: float,
 			low_alpha: float, max_alpha: float, shadow_mask: ShadowMask,
-			shadow_caster_shared: Array[float]) -> void:
+			shadow_caster_shared: Array[float], blue_noise_1024: Texture2D) -> void:
 		_texture_r8 = texture_r8
 		_texture_start = texture_start
 		_inner_margin = inner_margin
@@ -176,6 +180,7 @@ class IVRingsShadowCaster extends MeshInstance3D:
 		_low_alpha = low_alpha
 		_max_alpha = max_alpha
 		_shadow_caster_shared = shadow_caster_shared
+		_blue_noise_1024 = blue_noise_1024
 		layers = shadow_mask
 		cast_shadow = SHADOW_CASTING_SETTING_SHADOWS_ONLY
 		mesh = PlaneMesh.new() # default 2x2
@@ -190,8 +195,7 @@ class IVRingsShadowCaster extends MeshInstance3D:
 		_shadow_caster_material.set_shader_parameter(&"outer_margin", _outer_margin)
 		_shadow_caster_material.set_shader_parameter(&"low_alpha", _low_alpha)
 		_shadow_caster_material.set_shader_parameter(&"max_alpha", _max_alpha)
-		var blue_noise_1024: Texture2D = IVGlobal.assets[&"blue_noise_1024"]
-		_shadow_caster_material.set_shader_parameter(&"blue_noise_1024", blue_noise_1024)
+		_shadow_caster_material.set_shader_parameter(&"blue_noise_1024", _blue_noise_1024)
 		set_surface_override_material(0, _shadow_caster_material)
 
 

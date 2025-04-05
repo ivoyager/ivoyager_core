@@ -24,7 +24,7 @@ extends RefCounted
 ##
 ## Resources are added to IVGlobal.resources. These resources are constructed
 ## or loaded by Callables or paths set here, and do not depend on the
-## presence of ivoyager_assets (see IVAssetsInitializer for that).
+## presence of ivoyager_assets (see IVAssetPreloader for that).
 
 
 var paths: Dictionary[StringName, String] = {

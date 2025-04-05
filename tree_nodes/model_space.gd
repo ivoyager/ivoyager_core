@@ -87,7 +87,7 @@ func _build_spheroid_model(asset_preloader: IVAssetPreloader) -> void:
 	const RIGHT_ANGLE := PI / 2
 	
 	# If albedo_map and emission_map both exist and both are in asset_adjustments.tsv,
-	# they are expected to have the same values.
+	# they are expected to have all the same table row values.
 	var asset_row := -1
 	var albedo_map := asset_preloader.get_body_albedo_map(_body_name)
 	if albedo_map:
@@ -95,15 +95,12 @@ func _build_spheroid_model(asset_preloader: IVAssetPreloader) -> void:
 	var emission_map := asset_preloader.get_body_emission_map(_body_name)
 	if emission_map:
 		asset_row = asset_preloader.get_body_emission_asset_row(_body_name)
-	if !albedo_map and !emission_map:
-		albedo_map = IVGlobal.assets[&"fallback_albedo_map"]
 	
 	var polar_radius: = 3.0 * _m_radius - 2.0 * _e_radius
 	reference_basis = Basis().scaled(Vector3(_e_radius, polar_radius, _e_radius))
 	var longitude_offset := RIGHT_ANGLE # centered prime meridian
 	if asset_row != -1:
-		# longitude_offset is expected to be the same for albedo_map and
-		# emission_map, if both happen to exist.
+		# longitude_offset same in albedo_map and emission_map, if both exist
 		longitude_offset += IVTableData.get_db_float(&"asset_adjustments", &"longitude_offset", asset_row)
 	reference_basis = reference_basis.rotated(Vector3(0.0, 1.0, 0.0), -longitude_offset)
 	reference_basis = reference_basis.rotated(Vector3(1.0, 0.0, 0.0), RIGHT_ANGLE) # z-up in astronomy!

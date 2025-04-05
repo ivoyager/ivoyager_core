@@ -20,32 +20,61 @@
 class_name IVAssetPreloader
 extends RefCounted
 
-## Loads and/or generates resources dynamically from data table specification
-## for several procedural classes, including IVBody and IVRings.
+## Loads and pregenerates resources from ivoyager_assets using dynamic
+## specification in data tables.
 ##
-## Loads resources at signal IVGlobal.project_builder_finished (just after
-## splash screen showing in typical game usage) and emits
-## IVGlobal.asset_preloader_finished when finished.
+## In typical setup, loading will commence right after splash screen is shown,
+## on signal IVGlobal.project_builder_finished. When finished, emits signal
+## IVGlobal.asset_preloader_finished.
+
+const files := preload("res://addons/ivoyager_core/static/files.gd")
+const RINGS_LOD_LEVELS := 9 # must agree w/ assets, body.gd and rings.shader
+
+## This setting AND IVCoreSettings.use_threads must be true for loading to
+## occur on thread.
 ##
-## Resource loading happens on thread if IVCoreSettings.use_thread.
+## Dev note: As of Godot 4.4.1, loading on thread is slow (e.g., ~3000 msec
+## versus ~800 msec for Planetarium on my laptop). Nevertheless, you might want
+## it so your splash screen can be interactive.
 ##
 ## WARNING: Loading the same resource using different threads at the same time
 ## is hazardous. That can happen here only if these "procedural" resources are
-## loaded elsewhere in exactly this small time window.
+## loaded elsewhere in the preload time window.
+var use_thread := false
+ ## Must exist in asset_paths.
+
+var models_search: Array[String] = ["res://addons/ivoyager_assets/models"] # prepend to prioritize
+var maps_search: Array[String] = ["res://addons/ivoyager_assets/maps"]
+var bodies_2d_search: Array[String] = ["res://addons/ivoyager_assets/bodies_2d"]
+var rings_search: Array[String] = ["res://addons/ivoyager_assets/rings"]
+
+var asset_paths: Dictionary[StringName, String] = {
+	blue_noise_1024 = "res://addons/ivoyager_assets/noise/blue_noise_1024.png",
+	starmap_8k = "res://addons/ivoyager_assets/starmaps/starmap_8k.jpg",
+	starmap_16k = "res://addons/ivoyager_assets/starmaps/starmap_16k.jpg",
+	fallback_body_texture_2d = "res://addons/ivoyager_assets/fallbacks/blank_grid_2d_globe.256.png",
+	fallback_body_albedo_map = "res://addons/ivoyager_assets/fallbacks/blank_grid.jpg",
+}
+var fallback_starmap := &"starmap_8k" # starmap_16k possibly removed for size reduction
 
 
-const files := preload("res://addons/ivoyager_core/static/files.gd")
 
-const RINGS_LOD_LEVELS := 9 # must agree w/ assets, body.gd and rings.shader
-
+var _blue_noise_1024: Texture2D
+var _starmap: Texture2D
 var _body_resources: Dictionary[StringName, Array] = {}
 var _rings_resources: Dictionary[String, Array] = {}
-
 
 
 func _init() -> void:
 	IVGlobal.project_builder_finished.connect(_on_project_builder_finished)
 
+
+func get_blue_noise_1024() -> Texture2D:
+	return _blue_noise_1024
+
+
+func get_starmap() -> Texture2D:
+	return _starmap
 
 
 func get_body_texture_2d(body_name: StringName) -> Texture2D:
@@ -94,15 +123,19 @@ func get_rings_shadow_caster_texture(rings_name: StringName) -> Texture2D:
 
 
 func _on_project_builder_finished() -> void:
-	if IVCoreSettings.use_threads:
-		WorkerThreadPool.add_task(_load_resources)
+	var start_msec := Time.get_ticks_msec()
+	if use_thread and IVCoreSettings.use_threads:
+		WorkerThreadPool.add_task(_load_resources.bind(start_msec))
 	else:
-		_load_resources.call_deferred()
+		_load_resources.call_deferred(start_msec)
 
 
-func _load_resources() -> void:
+func _load_resources(start_msec: int) -> void:
+	_load_starmap()
+	_load_blue_noise_1024()
 	_load_body_resources()
 	_load_rings_resources()
+	print("Loaded assets in %s msec" % (Time.get_ticks_msec() - start_msec))
 	_signal_finished.call_deferred()
 
 
@@ -110,12 +143,36 @@ func _signal_finished() -> void:
 	IVGlobal.asset_preloader_finished.emit()
 
 
+func _load_blue_noise_1024() -> void:
+	var path := asset_paths[&"blue_noise_1024"]
+	assert(ResourceLoader.exists(path))
+	_blue_noise_1024 = load(path)
+
+
+func _load_starmap() -> void:
+	var path: String
+	match IVGlobal.settings[&"starmap"]:
+		IVGlobal.StarmapSize.STARMAP_8K:
+			path = asset_paths[&"starmap_8k"]
+		IVGlobal.StarmapSize.STARMAP_16K:
+			path = asset_paths[&"starmap_16k"]
+	if !ResourceLoader.exists(path):
+		path = asset_paths[fallback_starmap]
+	assert(ResourceLoader.exists(path))
+	_starmap = load(path)
+
+
 
 func _load_body_resources() -> void:
 	
-	var bodies_2d_search := IVCoreSettings.bodies_2d_search
-	var models_search := IVCoreSettings.models_search
-	var maps_search := IVCoreSettings.maps_search
+	var fallback_texture_2d_path := asset_paths[&"fallback_body_texture_2d"]
+	assert(ResourceLoader.exists(fallback_texture_2d_path))
+	var fallback_texture_2d: Texture2D = load(fallback_texture_2d_path)
+	
+	var fallback_albedo_map_path := asset_paths[&"fallback_body_albedo_map"]
+	assert(ResourceLoader.exists(fallback_albedo_map_path))
+	var fallback_albedo_map: Texture2D = load(fallback_albedo_map_path)
+	
 	
 	for table in IVCoreSettings.body_tables:
 		for row in IVTableData.get_n_rows(table):
@@ -126,7 +183,7 @@ func _load_body_resources() -> void:
 			
 			var texture_2d: Texture2D = files.find_and_load_resource(bodies_2d_search, file_prefix)
 			if !texture_2d:
-				texture_2d = IVGlobal.assets[&"fallback_body_2d"]
+				texture_2d = fallback_texture_2d
 			
 			var texture_slice_2d: Texture2D = null
 			if IVTableData.get_db_bool(table, &"star", row):
@@ -159,6 +216,9 @@ func _load_body_resources() -> void:
 				emission_asset_row = IVTableData.db_find(&"asset_adjustments", &"file_name",
 						emission_path.get_file())
 			
+			if !albedo_map and !emission_map:
+				albedo_map = fallback_albedo_map
+			
 			var resources := [
 				texture_2d,
 				texture_slice_2d,
@@ -178,8 +238,6 @@ func _load_rings_resources() -> void:
 	const BACKSCATTER_FILE_FORMAT := "%s.backscatter.%s"
 	const FORWARDSCATTER_FILE_FORMAT := "%s.forwardscatter.%s"
 	const UNLITSIDE_FILE_FORMAT := "%s.unlitside.%s"
-	
-	var rings_search := IVCoreSettings.rings_search
 	
 	for row in IVTableData.get_n_rows(&"rings"):
 		var rings_name := IVTableData.get_db_entity_name(&"rings", row)

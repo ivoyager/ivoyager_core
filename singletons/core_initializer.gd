@@ -104,7 +104,7 @@ var initializers: Dictionary[StringName, Variant] = {
 	# dictionary 'IVGlobal.program' after init, thereby freeing themselves.
 	# Path to RefCounted class ok.
 	LogInitializer = IVLogInitializer,
-	AssetInitializer = IVAssetInitializer,
+	#AssetInitializer = IVAssetInitializer, # REMOVE!
 	ResourceInitializer = IVResourceInitializer,
 	WikiInitializer = IVWikiInitializer,
 	TranslationImporter = IVTranslationImporter,

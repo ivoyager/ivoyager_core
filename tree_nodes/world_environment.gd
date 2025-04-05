@@ -42,6 +42,10 @@ var camera_attributes_override_table_row_name := &"CAMERA_ATTRIBUTES_IVOYAGER"
 
 
 func _ready() -> void:
+	IVGlobal.asset_preloader_finished.connect(_on_asset_preloader_finished)
+
+
+func _on_asset_preloader_finished() -> void:
 	if add_starmap:
 		_add_starmap_as_environment_sky()
 	if environment_override_table:
@@ -56,17 +60,11 @@ func _ready() -> void:
 
 
 func _add_starmap_as_environment_sky() -> void:
-	var settings: Dictionary[StringName, Variant] = IVGlobal.settings
-	var asset_paths: Dictionary[StringName, String] = IVCoreSettings.asset_paths
-	var starmap_file: String
-	match settings.starmap:
-		IVGlobal.StarmapSize.STARMAP_8K:
-			starmap_file = asset_paths.starmap_8k
-		IVGlobal.StarmapSize.STARMAP_16K:
-			starmap_file = asset_paths.starmap_16k
-	if !ResourceLoader.exists(starmap_file):
-		starmap_file = asset_paths[fallback_starmap]
-	var starmap: Texture2D = load(starmap_file)
+	var asset_preloader: IVAssetPreloader = IVGlobal.program[&"AssetPreloader"]
+	var starmap := asset_preloader.get_starmap()
+	if !starmap:
+		return
+	
 	var sky_material := PanoramaSkyMaterial.new()
 	sky_material.panorama = starmap
 	var sky := Sky.new()

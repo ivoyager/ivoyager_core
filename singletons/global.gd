@@ -180,10 +180,8 @@ var clock: Array[int] = []
 var program: Dictionary[StringName, Object] = {}
 ## Populated by [IVCoreInitializer]. Holds script classes for procedural objects (base or override).
 var procedural_classes: Dictionary[StringName, Resource] = {}
-## Populated by [IVAssetsInitializer] and [IVResourceInitializer].
+## Populated by [IVResourceInitializer].
 var resources: Dictionary[StringName, Resource] = {}
-## Populated by [AssetsInitializer]. Loaded assets from dynamic paths specified in [IVCoreSettings].
-var assets: Dictionary[StringName, Resource] = {}
 ## Maintained by [IVSettingsManager].
 var settings: Dictionary[StringName, Variant] = {}
 ## Maintained by [IVThemeManager].
