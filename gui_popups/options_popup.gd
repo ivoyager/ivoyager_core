@@ -307,7 +307,7 @@ func _set_overrides(control: Control, setting: StringName) -> void:
 
 
 func _on_content_built() -> void:
-	_restore_defaults.disabled = _settings_manager.is_all_defaults()
+	_restore_defaults.disabled = _settings_manager.is_defaults()
 	_confirm_changes.disabled = _settings_manager.is_cache_current()
 
 
@@ -330,12 +330,12 @@ func _on_change(value: Variant, setting: StringName, default_button: Button,
 	assert(!DPRINT or IVDebug.dprint("Set " + setting + " = " + str(value)))
 	_settings_manager.change_current(setting, value, true)
 	default_button.disabled = _settings_manager.is_default(setting)
-	_restore_defaults.disabled = _settings_manager.is_all_defaults()
+	_restore_defaults.disabled = _settings_manager.is_defaults()
 	_confirm_changes.disabled = _settings_manager.is_cache_current()
 
 
 func _on_restore_defaults() -> void:
-	_settings_manager.restore_all_defaults(true)
+	_settings_manager.restore_defaults(true)
 	_build_content.call_deferred()
 
 

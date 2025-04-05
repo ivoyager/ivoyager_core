@@ -39,7 +39,7 @@ func _init() -> void:
 	cache_handler.current_changed.connect(_on_current_changed)
 
 
-## If suppress_caching = true, be sure to call cache_now() later.
+## If [param suppress_caching] == true, be sure to call [method cache_now] later.
 func change_current(key: StringName, value: Variant, suppress_caching := false) -> void:
 	cache_handler.change_current(key, value, suppress_caching)
 
@@ -52,22 +52,18 @@ func is_default(key: StringName) -> bool:
 	return cache_handler.is_default(key)
 
 
-func is_all_defaults() -> bool:
-	return cache_handler.is_all_defaults()
+func is_defaults() -> bool:
+	return cache_handler.is_defaults()
 
 
-func get_cached_values() -> Dictionary[StringName, Variant]:
-	return cache_handler.get_cached_values()
-
-
-## If suppress_caching = true, be sure to call cache_now() later.
+## If [param suppress_caching] == true, be sure to call [method cache_now] later.
 func restore_default(key: StringName, suppress_caching := false) -> void:
 	cache_handler.restore_default(key, suppress_caching)
 
 
-## If suppress_caching = true, be sure to call cache_now() later.
-func restore_all_defaults(suppress_caching := false) -> void:
-	cache_handler.restore_all_defaults(suppress_caching)
+## If [param suppress_caching] == true, be sure to call [method cache_now] later.
+func restore_defaults(suppress_caching := false) -> void:
+	cache_handler.restore_defaults(suppress_caching)
 
 
 func is_cache_current() -> bool:
