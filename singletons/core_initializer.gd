@@ -117,8 +117,7 @@ var program_refcounteds: Dictionary[StringName, Variant] = {
 	# Path to RefCounted class ok.
 	
 	# need first!
-	IOManager = IVIOManager,
-	SettingsManager = IVSettingsManager, # 1st after IOManager so IVGlobal.settings are valid
+	SettingsManager = IVSettingsManager, # 1st so IVGlobal.settings are valid
 	
 	# loaders, builders, finishers
 	AssetPreloader = IVAssetPreloader,
