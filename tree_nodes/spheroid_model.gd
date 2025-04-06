@@ -48,6 +48,7 @@ var _camera: Camera3D # only set if is_dynamic_star == true
 
 func _init(model_type: int, reference_basis: Basis, albedo_map: Texture2D,
 		emission_map: Texture2D) -> void:
+	name = &"SpheroidModel"
 	_reference_basis = reference_basis
 	transform.basis = _reference_basis # z up, possibly oblate
 	mesh = IVGlobal.resources[&"sphere_mesh"]

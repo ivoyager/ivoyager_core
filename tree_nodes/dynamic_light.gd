@@ -44,6 +44,7 @@ var shadow_max_planet_plus := NAN
 
 
 var _body_name: StringName
+var _row: int
 var _add_target_dist: bool
 var _add_planet_dist: bool
 var _shared: Array[float]
@@ -60,11 +61,13 @@ func _init(body_name: StringName, row := -1, top_light := true,
 		shared: Array[float] = [0.0, 0.0, 0.0]) -> void:
 	assert(row != -1)
 	_body_name = body_name
+	_row = row
 	_top_light = top_light
 	_shared = shared
 	IVTableData.db_build_object(self, &"dynamic_lights", row)
 	_add_target_dist = !is_nan(shadow_max_target_plus)
 	_add_planet_dist = !is_nan(shadow_max_planet_plus)
+	name = "DynamicLight" + str(row)
 
 
 func _ready() -> void:
@@ -75,7 +78,7 @@ func _ready() -> void:
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
 	# add child lights
 	for row in IVTableData.get_n_rows(&"dynamic_lights"):
-		if IVTableData.get_db_entity_name(&"dynamic_lights", row) == name:
+		if row == _row:
 			continue
 		var bodies: Array[StringName] = IVTableData.get_db_array(&"dynamic_lights", &"bodies", row)
 		if bodies.has(_body_name):

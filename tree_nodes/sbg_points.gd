@@ -73,6 +73,7 @@ var _bypass_fragment_identifier := false
 
 
 func _init(group: IVSmallBodiesGroup) -> void:
+	name = "SBGPoints" + group.sbg_alias
 	if !_is_class_instanced:
 		_is_class_instanced = true
 		_fragment_identifier = IVGlobal.program.get(&"FragmentIdentifier")

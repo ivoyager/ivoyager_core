@@ -56,6 +56,7 @@ var _lagrange_points := [] # index = lp_integer - 1
 
 
 func init(mass_ratio_: float, characteristic_length_: float, characteristic_time_: float) -> void:
+	name = &"RotatingSpace"
 	mass_ratio = mass_ratio_
 	characteristic_length = characteristic_length_
 	characteristic_time = characteristic_time_

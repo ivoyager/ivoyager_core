@@ -38,3 +38,4 @@ var lp_integer: int # 1, 2, 3, 4, 5
 
 func init(lp_integer_: int) -> void:
 	lp_integer = lp_integer_
+	name = "LagrangePoint" + str(lp_integer_)

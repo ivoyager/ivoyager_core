@@ -47,6 +47,7 @@ func _init(body_name: StringName, m_radius: float, e_radius: float) -> void:
 	_body_name = body_name
 	_m_radius = m_radius
 	_e_radius = e_radius
+	name = &"ModelSpace"
 
 	# Always use PackedScene model if there is one. Otherwise, generate
 	# a spheroid model w/ maps or use a fallback.

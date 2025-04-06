@@ -44,6 +44,7 @@ var _needs_transform := true
 
 func _init(body: IVBody) -> void:
 	_body = body
+	name = "BodyOrbit" + body.name
 
 
 func _ready() -> void:

@@ -49,6 +49,7 @@ var _suppress_set_custom_data := false
 
 
 func _init(group: IVSmallBodiesGroup) -> void:
+	name = "SBGOrbit" + group.sbg_alias
 	if !_is_class_instanced:
 		_is_class_instanced = true
 		_fragment_identifier = IVGlobal.program.get(&"FragmentIdentifier")

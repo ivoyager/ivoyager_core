@@ -36,6 +36,7 @@ var _fragment_text := ""
 
 
 func _ready() -> void:
+	name = &"MouseTargetLabel"
 	process_mode = PROCESS_MODE_ALWAYS
 	var world_controller: IVWorldController = IVGlobal.program.WorldController
 	world_controller.mouse_target_changed.connect(_on_mouse_target_changed)

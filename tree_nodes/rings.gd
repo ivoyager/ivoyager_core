@@ -62,6 +62,7 @@ var _camera: Camera3D
 
 func _init(body: IVBody) -> void:
 	# threadsafe
+	name = &"Rings"
 	_body = body
 	_sun_global_positions = IVBody.sun_global_positions
 	var row := IVTableData.db_find_in_array(&"rings", &"bodies", body.name)
@@ -184,6 +185,7 @@ class IVRingsShadowCaster extends MeshInstance3D:
 		layers = shadow_mask
 		cast_shadow = SHADOW_CASTING_SETTING_SHADOWS_ONLY
 		mesh = PlaneMesh.new() # default 2x2
+		name = "RingsShadowCaster" + str(low_alpha)
 
 
 	func _ready() -> void:

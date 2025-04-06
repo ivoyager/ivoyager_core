@@ -40,6 +40,7 @@ func _init(body: IVBody, color := Color.WHITE, use_orbit_color := false) -> void
 	_use_orbit_color = use_orbit_color
 	_name_font = IVGlobal.fonts[&"hud_names"]
 	_symbol_font = IVGlobal.fonts[&"hud_symbols"]
+	name = &"BodyLabel"
 
 
 func _ready() -> void:
