@@ -20,19 +20,239 @@
 class_name IVInputMapManager
 extends RefCounted
 
-## Defines and manages InputMap actions.
+## Defines and manages InputMap actions that are persisted in a cache file.
 ##
 ## We define InputMap actions here to allow player modification via [IVHotkeysPopup].
 ## Non-default actions are persisted in a cache file.[br][br]
 ##
+## Make all changes to static [member defaults] before _init()![br][br]
+##
 ## This node and [IVHotkeysPopup] are unaware of actions defined in project.godot.
 
+static var defaults: Dictionary[StringName, Variant] = {
+	# Each "event_dict" must have event_class; all other keys are properties
+	# to be set on the InputEvent. Don't remove an action -- just give it an
+	# empty array to disable.
+	#
+	# Note: I'M TOTALLY IGNORANT ABOUT JOYPAD CONTROLLERS! SOMEONE PLEASE
+	# HELP!
+	#
+	# Note 2: ui_xxx actions have hard-coding problems; see issue #43663.
+	# We can't set them here and (even in godot.project) we can't use key
+	# modifiers. Hopefully in 4.0 these can be fully customized.
+	
+#	ui_up = [
+#		{&"event_class" : &"InputEventKey", scancode = KEY_UP, &"alt_pressed" : true},
+#		{&"event_class" : &"InputEventJoypadButton", button_index = 12},
+#	],
+#	ui_down = [
+#		{&"event_class" : &"InputEventKey", scancode = KEY_DOWN, &"alt_pressed" : true},
+#		{&"event_class" : &"InputEventJoypadButton", button_index = 13},
+#	],
+#	ui_left = [
+#		{&"event_class" : &"InputEventKey", scancode = KEY_LEFT, &"alt_pressed" : true},
+#		{&"event_class" : &"InputEventJoypadButton", button_index = 14},
+#	],
+#	ui_right = [
+#		{&"event_class" : &"InputEventKey", scancode = KEY_RIGHT, &"alt_pressed" : true},
+#		{&"event_class" : &"InputEventJoypadButton", button_index = 15},
+#	],
+	
+	&"camera_up" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_UP},
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_UP, &"ctrl_pressed" : true},
+	],
+	&"camera_down" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_DOWN},
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_DOWN, &"ctrl_pressed" : true},
+	],
+	&"camera_left" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_LEFT},
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_LEFT, &"ctrl_pressed" : true},
+	],
+	&"camera_right" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_RIGHT},
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_RIGHT, &"ctrl_pressed" : true},
+	],
+	&"camera_in" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_PAGEDOWN}
+	],
+	&"camera_out" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_PAGEUP}
+	],
+	
+	&"recenter" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_KP_5},
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_D},
+	],
+	&"pitch_up" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_KP_8},
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_E},
+	],
+	&"pitch_down" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_KP_2},
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_C},
+	],
+	&"yaw_left" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_KP_4},
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_S},
+	],
+	&"yaw_right" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_KP_6},
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_F},
+	],
+	&"roll_left" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_KP_1},
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_X},
+	],
+	&"roll_right" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_KP_3},
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_V},
+	],
+	
+	&"select_up" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_UP, &"shift_pressed" : true}
+	],
+	&"select_down" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_DOWN, &"shift_pressed" : true}
+	],
+	&"select_left" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_LEFT, &"shift_pressed" : true}
+	],
+	&"select_right" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_RIGHT, &"shift_pressed" : true}
+	],
+	&"select_forward" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_PERIOD}
+	],
+	&"select_back" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_COMMA}
+	],
+	&"next_system" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_Y}
+	],
+	&"previous_system" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_Y, &"shift_pressed" : true}
+	],
+	&"next_star" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_T}
+	],
+	&"previous_star" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_T, &"shift_pressed" : true}
+	],
+	&"next_planet" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_P}
+	],
+	&"previous_planet" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_P, &"shift_pressed" : true}
+	],
+	&"next_nav_moon" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_M}
+	],
+	&"previous_nav_moon" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_M, &"shift_pressed" : true}
+	],
+	&"next_moon" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_N}
+	],
+	&"previous_moon" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_N, &"shift_pressed" : true}
+	],
+	&"next_asteroid" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_H}
+	],
+	&"previous_asteroid" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_H, &"shift_pressed" : true}
+	],
+	&"next_asteroid_group" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_G}
+	],
+	&"previous_asteroid_group" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_G, &"shift_pressed" : true}
+	],
+	&"next_comet" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_J}
+	],
+	&"previous_comet" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_J, &"shift_pressed" : true}
+	],
+	&"next_spacecraft" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_K}
+	],
+	&"previous_spacecraft" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_K, &"shift_pressed" : true}
+	],
+	&"toggle_orbits" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_O}
+	],
+	&"toggle_symbols" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_I}
+	],
+	&"toggle_names" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_L}
+	],
+	&"toggle_all_gui" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_G, &"ctrl_pressed" : true}
+	],
+	&"toggle_fullscreen" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_F, &"ctrl_pressed" : true}
+	],
+	&"toggle_pause" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_SPACE}
+	],
+	&"incr_speed" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_EQUAL},
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_BRACERIGHT},
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_BRACKETRIGHT}, # grrrr. Browsers!
+	],
+	&"decr_speed" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_MINUS},
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_BRACELEFT},
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_BRACKETLEFT},
+	],
+	&"reverse_time" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_BACKSPACE},
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_BACKSLASH},
+	],
+		
+	&"toggle_options" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_O, &"ctrl_pressed" : true}
+	],
+	&"toggle_hotkeys" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_H, &"ctrl_pressed" : true}
+	],
+	&"load_file" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_L, &"ctrl_pressed" : true}
+	],
+	&"quickload" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_L, &"alt_pressed" : true}
+	],
+	&"save_as" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_S, &"ctrl_pressed" : true}
+	],
+	&"quicksave" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_S, &"alt_pressed" : true}
+	],
+	&"quit" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_Q, &"ctrl_pressed" : true}
+	],
+	&"save_quit" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_Q, &"alt_pressed" : true}
+	],
+	
+	# Used by ProjectCyclablePanels GUI mod (which is used by Planetarium)
+	&"cycle_next_panel" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_QUOTELEFT}
+	],
+	&"cycle_prev_panel" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_QUOTELEFT, &"shift_pressed" : true}
+	],
+}
 
 var file_name := "input_map.ivbinary"
-var file_version := "0.0.23" # update when obsoleted
-var current: Dictionary[StringName, Variant] = {}
-var defaults := IVCoreSettings.default_input_map
+var file_version := "0.0.23" # update when old cache file might be problematic
 var cache_handler: IVCacheHandler
+var current: Dictionary[StringName, Variant] = {}
 
 # project vars
 var reserved_scancodes: Array[int] = [] # user can't overwrite w/ or w/out key mods

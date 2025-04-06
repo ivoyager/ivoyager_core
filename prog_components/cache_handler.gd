@@ -20,8 +20,8 @@
 class_name IVCacheHandler
 extends RefCounted
 
-## Program component for handling user cached items like game options, hotkeys
-## and similar data.
+## Program component for handling cached items like options, hotkeys and similar
+## data.
 ##
 ## Cache data must be in the form [code]Dictionary[StringName, Variant][/code]. 
 ##
