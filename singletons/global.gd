@@ -28,19 +28,18 @@ extends Node
 # messes up static class dependencies on this global.
 
 # simulator state broadcasts
-signal about_to_run_initializers() # IVCoreInitializer; after plugin preinitializers
-signal translations_imported() # IVTranslationImporter; useful for boot screen
-signal data_tables_imported() # IVTableImporter
 signal preinitializers_inited() # IVTableImporter; plugins!
-signal initializer_inited(initializer: RefCounted) # IVCoreInitializer
-signal initializers_inited() # IVCoreInitializer; after all above
+signal about_to_run_initializers() # IVCoreInitializer; after plugin preinitializers
+signal project_object_instantiated(object: Object) # IVCoreInitializer; each object in that file
+signal translations_imported() # IVTranslationImporter; useful for boot screen
+signal data_tables_imported() # IVTableInitializer
+signal project_initializers_instantiated() # IVCoreInitializer; all initializers
 signal project_objects_instantiated() # IVCoreInitializer; IVGlobal.program populated
 signal project_inited() # IVCoreInitializer; after above
 signal project_nodes_added() # IVCoreInitializer; prog_nodes & gui_nodes added
 signal project_builder_finished() # IVCoreInitializer; 1 frame after above (splash screen showing)
 signal asset_preloader_finished() # IVAssetPreloader
 signal state_changed(state: Dictionary[StringName, Variant]) # see IVStateManager for keys
-signal world_environment_added() # on Main after I/O thread finishes (slow!)
 signal about_to_build_system_tree() # new or loading game
 signal add_system_tree_item_started(item: Node) # new or loading game (Body or SmallBodiesGroup)
 signal add_system_tree_item_finished(item: Node) # after all I/O work has completed for item

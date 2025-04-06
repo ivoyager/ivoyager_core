@@ -20,21 +20,36 @@
 class_name IVTranslationImporter
 extends RefCounted
 
-# We report key duplicates and process text under the following conditions:
-#
-#   1. Translation is not added by editor (i.e., not in project.godot).
-#   2. Translation path is added to IVCoreSettings.translations.
-#   3. Translation are reimported with compress OFF (compress=false in *.import file).
-#
-# Processing modifications:
-#
-#   1. Interpret unicode escape "\uHHHH" (patches Godot issue #38716)
+## Imports translations dynamically allowing conversion of unicode \uHHHH
+## escapes and reporting of text key duplicates (which Godot doesn't do).
+##
+## This class processes translations and report key duplicates under the
+## following conditions:[br][br]
+##
+##   1. Translation is not added by editor (i.e., not in project.godot).[br]
+##   2. Translation path is added to [member translations].[br]
+##   3. Translation are reimported with compress OFF (compress=false in
+##      *.import file).[br][br]
+##
+## Processing modifications:[br][br]
+##
+##  1. Interpret unicode escape "\uHHHH" (patches Godot issue #38716)
+
+
+## For duplicate keys, 1st in this array will be kept. So prepend this
+## array if you want to override ivoyager text keys.
+static var translations: Array[String] = [
+	"res://addons/ivoyager_core/data/text/entities_text.en.translation",
+	"res://addons/ivoyager_core/data/text/gui_text.en.translation",
+	"res://addons/ivoyager_core/data/text/hints_text.en.translation",
+	"res://addons/ivoyager_core/data/text/long_text.en.translation",
+]
 
 
 func _init() -> void:
 	_load_translations()
 	IVGlobal.translations_imported.emit()
-	IVGlobal.initializers_inited.connect(_remove_self)
+	IVGlobal.project_objects_instantiated.connect(_remove_self)
 
 
 func _remove_self() -> void:
@@ -44,7 +59,7 @@ func _remove_self() -> void:
 func _load_translations() -> void:
 	var load_dict := {}
 	var duplications: Array[Array] = []
-	for tr_path in IVCoreSettings.translations:
+	for tr_path in translations:
 		var translation: Translation = load(tr_path)
 		if translation is OptimizedTranslation:
 			# Note: PHashTranslation doesn't work in add_translation in export
@@ -58,7 +73,7 @@ func _load_translations() -> void:
 			_process_translation(translation, load_dict, duplications)
 			TranslationServer.add_translation(translation)
 	if duplications:
-		print("WARNING! Duplication(s) found in translations; kept 1st:")
+		print("Duplication(s) found in translations; kept 1st:")
 		for duplication in duplications:
 			var key: String = duplication[0]
 			var tr1: Translation = duplication[1]

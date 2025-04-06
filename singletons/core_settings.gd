@@ -64,6 +64,9 @@ var body_labels_use_orbit_color := false # true overrides above
 
 var cache_dir := "user://cache"
 
+var enable_wiki := false # IVTableInitializer sends to the Tables plugin
+var enable_precisions := false # IVTableInitializer sends to the Tables plugin
+
 # Theses could be modified after init, but you would have to rebuild the 'Home' View.
 var home_name := &"PLANET_EARTH"
 var home_longitude := 0.0
@@ -355,40 +358,6 @@ var default_input_map: Dictionary[StringName, Variant] = {
 	
 }
 
-# *****************************************************************************
-# Settings that IVTableInitializer sends to the Table Importer plugin
-
- 
-var enable_wiki := false
-var enable_precisions := false
-var tables: Dictionary[StringName, String] = {
-	asset_adjustments = "res://addons/ivoyager_core/data/solar_system/asset_adjustments.tsv",
-	asteroids = "res://addons/ivoyager_core/data/solar_system/asteroids.tsv",
-	body_classes = "res://addons/ivoyager_core/data/solar_system/body_classes.tsv",
-	dynamic_lights = "res://addons/ivoyager_core/data/solar_system/dynamic_lights.tsv",
-	omni_lights = "res://addons/ivoyager_core/data/solar_system/omni_lights.tsv",
-	models = "res://addons/ivoyager_core/data/solar_system/models.tsv",
-	moons = "res://addons/ivoyager_core/data/solar_system/moons.tsv",
-	planets = "res://addons/ivoyager_core/data/solar_system/planets.tsv",
-	rings = "res://addons/ivoyager_core/data/solar_system/rings.tsv",
-	small_bodies_groups = "res://addons/ivoyager_core/data/solar_system/small_bodies_groups.tsv",
-	spacecrafts = "res://addons/ivoyager_core/data/solar_system/spacecrafts.tsv",
-	stars = "res://addons/ivoyager_core/data/solar_system/stars.tsv",
-	views = "res://addons/ivoyager_core/data/solar_system/views.tsv",
-	visual_groups = "res://addons/ivoyager_core/data/solar_system/visual_groups.tsv",
-	wiki_extras = "res://addons/ivoyager_core/data/solar_system/wiki_extras.tsv",
-}
-var table_project_enums := [
-	IVSmallBodiesGroup.SBGClass,
-	IVGlobal.Confidence,
-	IVBody.BodyFlags,
-	IVCamera.CameraFlags,
-	IVView.ViewFlags,
-	IVGlobal.ShadowMask,
-]
-var merge_table_constants := {}
-var replacement_missing_values := {} # not recomended to use this
-
 
 # *****************************************************************************
 
@@ -396,18 +365,6 @@ var wikipedia_locales: Array[String] = ["en"] # add locales present in data tabl
 
 var body_tables: Array[StringName] = [&"stars", &"planets", &"asteroids", &"moons", &"spacecrafts"]
 
-
-# TODO: Move to IVTranslationImporter
-var translations: Array[String] = [
-	# Added here so extensions can modify. Note that IVTranslationImporter will
-	# process text (eg, interpret \uXXXX) and report duplicate keys only if
-	# import file has compress=false. For duplicates, 1st in array below will
-	# be kept. So prepend this array if you want to override ivoyager text keys.
-	"res://addons/ivoyager_core/data/text/entities_text.en.translation",
-	"res://addons/ivoyager_core/data/text/gui_text.en.translation",
-	"res://addons/ivoyager_core/data/text/hints_text.en.translation",
-	"res://addons/ivoyager_core/data/text/long_text.en.translation",
-]
 
 var debug_log_path := "user://logs/debug.log" # modify or set "" to disable
 

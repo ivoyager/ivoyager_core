@@ -104,7 +104,6 @@ var initializers: Dictionary[StringName, Variant] = {
 	# dictionary 'IVGlobal.program' after init, thereby freeing themselves.
 	# Path to RefCounted class ok.
 	LogInitializer = IVLogInitializer,
-	#AssetInitializer = IVAssetInitializer, # REMOVE!
 	ResourceInitializer = IVResourceInitializer,
 	WikiInitializer = IVWikiInitializer,
 	TranslationImporter = IVTranslationImporter,
@@ -304,8 +303,8 @@ func _instantiate_initializers() -> void:
 		assert(!_program.has(key))
 		var initializer: RefCounted = IVFiles.make_object_or_scene(initializers[key])
 		_program[key] = initializer
-		IVGlobal.initializer_inited.emit(initializer)
-	IVGlobal.initializers_inited.emit()
+		IVGlobal.project_object_instantiated.emit(initializer)
+	IVGlobal.project_initializers_instantiated.emit()
 
 
 func _set_simulator_universe() -> void:
@@ -387,6 +386,7 @@ func _instantiate_and_index_program_objects() -> void:
 			if object is Node:
 				@warning_ignore("unsafe_property_access")
 				object.name = key
+			IVGlobal.project_object_instantiated.emit(object)
 	IVGlobal.project_objects_instantiated.emit()
 	await get_tree().process_frame
 	init_step_finished.emit()

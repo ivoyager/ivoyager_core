@@ -22,26 +22,63 @@ extends RefCounted
 
 ## Initializes tables using the ivoyager_tables plugin.
 ##
-## All parameters sent for table postprocessing can be modified in
-## [IVCoreSettings].
+## Static table parameters can be modified on signal IVGlobal.about_to_run_initializers.
+##
+## Alternatively, parameters can be modified by intercepting this object on signal
+## IVGlobal.project_object_instantiated(object: Object).
+##
+## After all initializers have been instantiated, this class will call
+## IVTableData.postprocess_tables() and then remove itself.
+
+ 
+static var tables: Dictionary[StringName, String] = {
+	asset_adjustments = "res://addons/ivoyager_core/data/solar_system/asset_adjustments.tsv",
+	asteroids = "res://addons/ivoyager_core/data/solar_system/asteroids.tsv",
+	body_classes = "res://addons/ivoyager_core/data/solar_system/body_classes.tsv",
+	dynamic_lights = "res://addons/ivoyager_core/data/solar_system/dynamic_lights.tsv",
+	omni_lights = "res://addons/ivoyager_core/data/solar_system/omni_lights.tsv",
+	models = "res://addons/ivoyager_core/data/solar_system/models.tsv",
+	moons = "res://addons/ivoyager_core/data/solar_system/moons.tsv",
+	planets = "res://addons/ivoyager_core/data/solar_system/planets.tsv",
+	rings = "res://addons/ivoyager_core/data/solar_system/rings.tsv",
+	small_bodies_groups = "res://addons/ivoyager_core/data/solar_system/small_bodies_groups.tsv",
+	spacecrafts = "res://addons/ivoyager_core/data/solar_system/spacecrafts.tsv",
+	stars = "res://addons/ivoyager_core/data/solar_system/stars.tsv",
+	views = "res://addons/ivoyager_core/data/solar_system/views.tsv",
+	visual_groups = "res://addons/ivoyager_core/data/solar_system/visual_groups.tsv",
+	wiki_extras = "res://addons/ivoyager_core/data/solar_system/wiki_extras.tsv",
+}
+static var table_project_enums := [
+	IVSmallBodiesGroup.SBGClass,
+	IVGlobal.Confidence,
+	IVBody.BodyFlags,
+	IVCamera.CameraFlags,
+	IVView.ViewFlags,
+	IVGlobal.ShadowMask,
+]
+static var merge_table_constants := {}
+static var replacement_missing_values := {} # not recomended to use this
+
 
 
 func _init() -> void:
-	
+	IVGlobal.project_initializers_instantiated.connect(_on_project_initializers_instantiated)
+
+
+func _on_project_initializers_instantiated() -> void:
 	IVTableData.postprocess_tables(
-			IVCoreSettings.tables.values(),
+			tables.values(),
 			IVQConvert.convert_quantity,
 			IVCoreSettings.enable_wiki,
 			IVCoreSettings.enable_precisions,
-			IVCoreSettings.table_project_enums,
-			IVCoreSettings.merge_table_constants,
-			IVCoreSettings.replacement_missing_values,
+			table_project_enums,
+			merge_table_constants,
+			replacement_missing_values,
 	)
 	
 	# signal done
 	IVGlobal.data_tables_imported.emit()
-	
-	IVGlobal.initializers_inited.connect(_remove_self)
+	IVGlobal.project_objects_instantiated.connect(_remove_self)
 
 
 func _remove_self() -> void:
