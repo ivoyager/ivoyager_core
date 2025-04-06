@@ -13,6 +13,8 @@ Developed using Godot 4.4.1
 ### Added
 * IVBodyFinisher class for adding non-procedural nodes from table data (to help declutter IVBody).
 
+### Fixed
+* Fixed errors caused by loading resources simultaneously on different threads. 
 
 ## [v0.0.24] - 2025-03-31
 

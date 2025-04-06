@@ -53,7 +53,7 @@ func _init(model_type: int, reference_basis: Basis, albedo_map: Texture2D,
 	mesh = IVGlobal.resources[&"sphere_mesh"]
 	var surface := StandardMaterial3D.new()
 	set_surface_override_material(0, surface)
-	IVTableData.db_build_object(surface, MATERIAL_FIELDS, &"models", model_type)
+	IVTableData.db_build_object(surface, &"models", model_type, MATERIAL_FIELDS)
 	if albedo_map:
 		surface.albedo_texture = albedo_map
 	if emission_map:

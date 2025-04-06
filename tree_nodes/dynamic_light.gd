@@ -62,7 +62,7 @@ func _init(body_name: StringName, row := -1, top_light := true,
 	_body_name = body_name
 	_top_light = top_light
 	_shared = shared
-	IVTableData.db_build_object_all_fields(self, &"dynamic_lights", row)
+	IVTableData.db_build_object(self, &"dynamic_lights", row)
 	_add_target_dist = !is_nan(shadow_max_target_plus)
 	_add_planet_dist = !is_nan(shadow_max_planet_plus)
 

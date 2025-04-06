@@ -95,26 +95,25 @@ var move_from_characteristics_to_property: Array[StringName] = [
 	&"declination",
 ]
 
-var flag_fields := {
-	BodyFlags.BODYFLAGS_STAR : &"star",
-	BodyFlags.BODYFLAGS_PLANET : &"planet",
-	BodyFlags.BODYFLAGS_TRUE_PLANET : &"true_planet",
-	BodyFlags.BODYFLAGS_DWARF_PLANET : &"dwarf_planet",
-	BodyFlags.BODYFLAGS_MOON : &"moon",
-	BodyFlags.BODYFLAGS_CAN_SLEEP : &"can_sleep",
-	BodyFlags.BODYFLAGS_TIDALLY_LOCKED : &"tidally_locked",
-	BodyFlags.BODYFLAGS_AXIS_LOCKED : &"axis_locked",
-	BodyFlags.BODYFLAGS_TUMBLES_CHAOTICALLY : &"tumbles_chaotically",
-	BodyFlags.BODYFLAGS_ATMOSPHERE : &"atmosphere",
-	BodyFlags.BODYFLAGS_GAS_GIANT : &"gas_giant",
-	BodyFlags.BODYFLAGS_ASTEROID : &"asteroid",
-	BodyFlags.BODYFLAGS_COMET : &"comet",
-	BodyFlags.BODYFLAGS_SPACECRAFT : &"spacecraft",
-	BodyFlags.BODYFLAGS_PLANETARY_MASS_OBJECT : &"planetary_mass_object",
-	BodyFlags.BODYFLAGS_SHOW_IN_NAVIGATION_PANEL : &"show_in_nav_panel",
+
+var field_flags: Dictionary[StringName, int] = {
+	&"star" : BodyFlags.BODYFLAGS_STAR,
+	&"planet" : BodyFlags.BODYFLAGS_PLANET,
+	&"true_planet" : BodyFlags.BODYFLAGS_TRUE_PLANET,
+	&"dwarf_planet" : BodyFlags.BODYFLAGS_DWARF_PLANET,
+	&"moon" : BodyFlags.BODYFLAGS_MOON,
+	&"can_sleep" : BodyFlags.BODYFLAGS_CAN_SLEEP,
+	&"tidally_locked" : BodyFlags.BODYFLAGS_TIDALLY_LOCKED,
+	&"axis_locked" : BodyFlags.BODYFLAGS_AXIS_LOCKED,
+	&"tumbles_chaotically" : BodyFlags.BODYFLAGS_TUMBLES_CHAOTICALLY,
+	&"atmosphere" : BodyFlags.BODYFLAGS_ATMOSPHERE,
+	&"gas_giant" : BodyFlags.BODYFLAGS_GAS_GIANT,
+	&"asteroid" : BodyFlags.BODYFLAGS_ASTEROID,
+	&"comet" : BodyFlags.BODYFLAGS_COMET,
+	&"spacecraft" : BodyFlags.BODYFLAGS_SPACECRAFT,
+	&"planetary_mass_object" : BodyFlags.BODYFLAGS_PLANETARY_MASS_OBJECT,
+	&"show_in_nav_panel" : BodyFlags.BODYFLAGS_SHOW_IN_NAVIGATION_PANEL,
 }
-
-
 
 var _orbit_builder: IVTableOrbitBuilder
 var _composition_builder: IVCompositionBuilder
@@ -149,7 +148,7 @@ func build_body_from_table(body: IVBody, table_name: String, row: int, parent: I
 
 func _set_flags_from_table(body: IVBody, parent: IVBody) -> void:
 	# flags
-	var flags := IVTableData.db_get_flags(flag_fields, _table_name, _row)
+	var flags := IVTableData.db_get_flags(_table_name, _row, field_flags)
 	# All below are constructed (non-table) flags.
 	# TODO: Below should be in IVBody to facilitate non-table construction, but
 	# we would need to fix subsequent usage and setting in this class.
@@ -188,7 +187,7 @@ func _set_orbit_from_table(body: IVBody, parent: IVBody) -> void:
 
 func _set_characteristics_from_table(body: IVBody) -> void:
 	var characteristics := body.characteristics
-	IVTableData.db_build_dictionary(characteristics, characteristics_fields, _table_name, _row)
+	IVTableData.db_build_dictionary(characteristics, _table_name, _row, characteristics_fields)
 	assert(characteristics.has(&"m_radius"), "Table must supply 'm_radius'")
 	
 	for property in move_from_characteristics_to_property:

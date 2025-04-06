@@ -134,7 +134,7 @@ func _get_omni_lights(body: IVBody, children: Array[Node]) -> void:
 		if !bodies.has(body_name):
 			continue
 		var omni_light := OmniLight3D.new()
-		IVTableData.db_build_object_all_fields(omni_light, &"omni_lights", row)
+		IVTableData.db_build_object(omni_light, &"omni_lights", row)
 		children.append(omni_light)
 
 

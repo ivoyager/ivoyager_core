@@ -93,7 +93,7 @@ func make_orbit_from_data(table_name: String, table_row: int, parent: IVBody) ->
 	const RIGHT_ANGLE := PI / 2.0
 	var mu := parent.get_standard_gravitational_parameter()
 	assert(mu)
-	IVTableData.db_build_dictionary_from_keys(_d, table_name, table_row)
+	IVTableData.db_build_dictionary(_d, table_name, table_row, _d.keys())
 
 	# convert to standardized orbital elements [a, e, i, Om, w, M0, n]
 	var a: float = _d.a

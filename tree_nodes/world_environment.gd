@@ -51,12 +51,11 @@ func _on_asset_preloader_finished() -> void:
 	if environment_override_table:
 		var row := IVTableData.get_row(environment_override_table_row_name)
 		assert(row >= 0)
-		IVTableData.db_build_object_all_fields(environment, environment_override_table, row)
+		IVTableData.db_build_object(environment, environment_override_table, row)
 	if camera_attributes_override_table:
 		var row := IVTableData.get_row(camera_attributes_override_table_row_name)
 		assert(row >= 0)
-		IVTableData.db_build_object_all_fields(camera_attributes, camera_attributes_override_table,
-				row)
+		IVTableData.db_build_object(camera_attributes, camera_attributes_override_table, row)
 
 
 func _add_starmap_as_environment_sky() -> void:

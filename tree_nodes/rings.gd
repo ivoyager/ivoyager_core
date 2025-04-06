@@ -66,7 +66,7 @@ func _init(body: IVBody) -> void:
 	_sun_global_positions = IVBody.sun_global_positions
 	var row := IVTableData.db_find_in_array(&"rings", &"bodies", body.name)
 	assert(row != -1, "Could not find row in rings.tsv for %s" % body.name)
-	IVTableData.db_build_object_all_fields(self, &"rings", row)
+	IVTableData.db_build_object(self, &"rings", row)
 	var asset_preloader: IVAssetPreloader = IVGlobal.program[&"AssetPreloader"]
 	_texture_arrays = asset_preloader.get_rings_texture_arrays(name)
 	_shadow_caster_texture = asset_preloader.get_rings_shadow_caster_texture(name)
