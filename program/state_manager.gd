@@ -118,6 +118,7 @@ func _init() -> void:
 	
 	_state.is_inited = false
 	_state.is_splash_screen = false
+	_state.is_assets_loaded = false
 	_state.is_ok_to_start = false
 	_state.is_building_tree = false # new or loading game
 	_state.is_system_built = false
@@ -340,6 +341,7 @@ func _on_project_builder_finished() -> void:
 
 
 func _on_asset_preloader_finished() -> void:
+	_state.is_assets_loaded = true
 	_state.is_ok_to_start = true
 	IVGlobal.state_changed.emit(_state)
 	if IVCoreSettings.skip_splash_screen:

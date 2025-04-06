@@ -100,14 +100,18 @@ var preinitializers: Dictionary[StringName, Variant] = {
 
 var initializers: Dictionary[StringName, Variant] = {
 	# RefCounted classes. IVCoreInitializer instances these after
-	# 'preinitializers'. These classes typically erase themselves from
+	# 'preinitializers'. Some of these classes may erase themselves from
 	# dictionary 'IVGlobal.program' after init, thereby freeing themselves.
 	# Path to RefCounted class ok.
-	LogInitializer = IVLogInitializer,
-	ResourceInitializer = IVResourceInitializer,
-	WikiInitializer = IVWikiInitializer,
-	TranslationImporter = IVTranslationImporter,
-	TableInitializer = IVTableInitializer,
+	LogInitializer = IVLogInitializer, # self-removes
+	ResourceInitializer = IVResourceInitializer, # self-removes
+	WikiInitializer = IVWikiInitializer, # self-removes
+	TranslationImporter = IVTranslationImporter, # self-removes
+	TableInitializer = IVTableInitializer, # self-removes
+	
+	SettingsManager = IVSettingsManager, # "initializer" so IVGlobal.settings are valid
+	InputMapManager = IVInputMapManager,
+	AssetPreloader = IVAssetPreloader,
 }
 
 var program_refcounteds: Dictionary[StringName, Variant] = {
@@ -115,11 +119,7 @@ var program_refcounteds: Dictionary[StringName, Variant] = {
 	# dictionary IVGlobal.program. No save/load persistence.
 	# Path to RefCounted class ok.
 	
-	# need first!
-	SettingsManager = IVSettingsManager, # 1st so IVGlobal.settings are valid
-	
-	# loaders, builders, finishers
-	AssetPreloader = IVAssetPreloader,
+	# builders, finishers (of procedural objects)
 	TableSystemBuilder = IVTableSystemBuilder,
 	TableBodyBuilder = IVTableBodyBuilder,
 	TableOrbitBuilder = IVTableOrbitBuilder,
@@ -131,7 +131,6 @@ var program_refcounteds: Dictionary[StringName, Variant] = {
 	BodyFinisher = IVBodyFinisher,
 	
 	# managers, etc.
-	InputMapManager = IVInputMapManager,
 	FontManager = IVFontManager, # ok to replace
 	ThemeManager = IVThemeManager, # after IVFontManager; ok to replace
 	SleepManager = IVSleepManager,
@@ -172,7 +171,7 @@ var gui_nodes: Dictionary[StringName, Variant] = {
 	# Path to scene or Node class ok.
 	WorldController = IVWorldController, # Control ok
 	MouseTargetLabel = IVMouseTargetLabel, # safe to replace or remove
-	GameGUI = null, # assign here if convenient (over MouseTargetLabel, under SplashScreen)
+	InGameGUI = null, # assign here if convenient (over MouseTargetLabel, under SplashScreen)
 	SplashScreen = null, # assign here if convenient (over InGameGUI)
 	AdminPopups = null, # assign here if convenient (over SplashScreen)
 }
