@@ -200,6 +200,7 @@ var debug_log: FileAccess # IVLogInitializer sets if debug build and debug_log_p
 var ivoyager_config: ConfigFile = IVPluginUtils.get_config_with_override(
 		"res://addons/ivoyager_core/ivoyager_core.cfg",
 		"res://ivoyager_override.cfg", "res://ivoyager_override2.cfg")
+var is_gl_compatibility := RenderingServer.get_current_rendering_method() == "gl_compatibility"
 
 
 

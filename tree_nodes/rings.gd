@@ -23,15 +23,16 @@ extends MeshInstance3D
 ## Visual planetary rings of an [IVBody] instance.
 ##
 ## This node self-adds multiple IVRingsShadowCaster (inner class) instances to
-## hack semi-transparent shadows (in conjuction with [IVDynamicLight] instances).
-## [br][br]
+## cast semi-transparent shadows (in conjuction with [IVDynamicLight] instances).
+## Shadow casting is disabled for Compatibility renderer (see comments in
+## [IVDynamicLight]).[br][br]
 ##
 ## All properties are set from data table rings.tsv.[br][br]
 ##
 ## These classes use rings.shader and rings_shadow_caster.shader. See comments
-## in shader files for graphic issues.[br][br]
+## in shader files for graphics issues and commentary.[br][br]
 ##
-## Not persisted. [IVBodyFinisher] adds when [IVBody] is added to the tree.
+## Not persisted. [IVBodyFinisher] adds when [IVBody] is added to the tree.[br][br]
 
 const files := preload("res://addons/ivoyager_core/static/files.gd")
 const ShadowMask := IVGlobal.ShadowMask
@@ -63,6 +64,7 @@ var _blue_noise_1024: Texture2D
 var _body: IVBody
 var _camera: Camera3D
 
+var _has_shadows := !IVGlobal.is_gl_compatibility
 
 
 func _init(body: IVBody) -> void:
@@ -108,7 +110,9 @@ func _ready() -> void:
 	_rings_material.set_shader_parameter(&"outer_margin", _outer_margin)
 	_rings_material.set_shader_parameter(&"sun_index", sun_index)
 	set_surface_override_material(0, _rings_material)
-	_add_shadow_casters()
+	
+	if _has_shadows:
+		_add_shadow_casters()
 
 
 func _process(_delta: float) -> void:
@@ -125,8 +129,11 @@ func _process(_delta: float) -> void:
 		rotation.x *= -1
 		cos_sun_angle *= -1
 	
+	if !_has_shadows:
+		return
+	
 	# Travel distance through the rings is proportional to 1/cos(sun_angle).
-	# We use cos_sun_angle (with minimum) as alpha exponent to adjust
+	# We use cos_sun_angle (with minimum) as alpha exponent to adjust shadows
 	# for light travel through rings at an angle. If sun were straight above,
 	# exponent would be 1.0 (no adjustment). When sun is edge on, exponent
 	# goes to minimum and all alpha values approach 1.0.

@@ -108,15 +108,13 @@ func _get_body_orbit(body: IVBody, siblings: Array[Node]) -> void:
 
 func _get_dynamic_light(body: IVBody, children: Array[Node]) -> void:
 	# Adds the "top" IVDynamicLight if applicable (the top light adds child
-	# dynamic lights). Does not add if IVCoreSettings.dynamic_lights == false
-	# or body_name does not exist in the "bodies" column of dynamic_lights.tsv.
+	# dynamic lights). Does not add if IVCoreSettings.dynamic_lights == false.
 	if !IVCoreSettings.dynamic_lights:
 		return
 	var body_name := body.name
-	var row := IVTableData.db_find_in_array(&"dynamic_lights", &"bodies", body_name)
 	var dynamic_light_script: Script = IVGlobal.procedural_classes[&"DynamicLight"]
 	@warning_ignore("unsafe_method_access")
-	var dynamic_light: Node = dynamic_light_script.new(body_name, row)
+	var dynamic_light: Node = dynamic_light_script.new(body_name)
 	children.append(dynamic_light)
 
 
