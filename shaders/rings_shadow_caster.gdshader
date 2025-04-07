@@ -21,11 +21,25 @@ shader_type spatial;
 
 // Maintained sun-facing by parent IVRings node.
 //
-// Applying noise to r breaks up banding patterns; applying to alpha doesn't.
+// There are banding/aliasing artifacts that are hard to remove. Here are the
+// factors to tweek:
 //
-// The iv_vec2_randf offset shifts noise sampling each frame, which causes a
-// temporal speckling effect that may be annoying. This seems to be fully fixed
-// by setting ProjectSetting/Renderer/Anti Aliasing/Use TAA == true.
+// 1. Max out directional shadow resolution in ProjectSettings. The higher the
+//    better.
+// 2. shadow_blur in dynamic_lights.tsv. Higher blur (>1.0) doesn't hide any
+//    of the artifacts here (it just makes the artifacts appear blurry).
+// 3. shadow_lod in rings.tsv. Higher removes banding pattern but starts to
+//    cause "chunky" aliasing.
+// 4. Increase radial_noise_multiplier by adjusting shadow_radial_noise_a, _b 
+//    and _c in rings.tsv (a quadratic function of distance). This applies
+//    noise to  radial mapping. Higher disrupts banding pattern but leaves a
+//    jagged pattern.
+// 5. const alpha_noise_multiplier (here). Softens jaggedness from above but
+//    causes noise grain.
+// 6. Widening the alpha sample in fragment() below. This reduces banding
+//    patterns without the downsides of #3 and #4. But it adds overhead.
+
+const float alpha_noise_multiplier = 0.1;
 
 // set once
 uniform sampler2D texture_r8;
@@ -37,12 +51,9 @@ uniform float low_alpha; // exclusive
 uniform float max_alpha; // inclusive
 uniform sampler2D blue_noise_1024;
 
-// set by rings.gd/ShadowCaster each frame
+// set by rings.gd/RingsShadowCaster each frame
 uniform float alpha_exponent; // 1.0 (sun above) -> 0.001 min (sun edge-on)
-uniform float noise_strength; // 0.005 is good close but needs boost when distant
-
-// global
-global uniform vec2 iv_vec2_randf; // updated each frame
+uniform float radial_noise_multiplier; // adjusted with distance
 
 
 
@@ -55,19 +66,32 @@ void fragment() {
 
 	} else {
 
-		// noise here works best
-		ivec2 noise_position = ivec2(FRAGCOORD.xy + iv_vec2_randf * 1024.0) % 1024;
-		float noise = texelFetch(blue_noise_1024, noise_position, 0).r;
-		r += (noise - 0.5) * noise_strength;
+		ivec2 noise_texel = ivec2(FRAGCOORD.xy) % 1024;
+		vec2 noise = texelFetch(blue_noise_1024, noise_texel, 0).rg;
+		r += (noise.r - 0.5) * radial_noise_multiplier;
 
 		float texture_fraction = (r - texture_start) / (1.0 - texture_start);
 		float texel_position = texture_fraction * texture_width;
 		int texel = int(texel_position);
 		float texel_fraction = fract(texel_position);
-		float alpha = texelFetch(texture_r8, ivec2(texel, 0), 0).r * (1.0 - texel_fraction);
-		alpha += texelFetch(texture_r8, ivec2(texel, 0), 0).r * texel_fraction;
-		alpha = pow(alpha, alpha_exponent);
+		float alpha = texelFetch(texture_r8, ivec2(texel - 6, 0), 0).r * (1.0 - texel_fraction);
+		alpha += texelFetch(texture_r8, ivec2(texel - 5, 0), 0).r;
+		alpha += texelFetch(texture_r8, ivec2(texel - 4, 0), 0).r;
+		alpha += texelFetch(texture_r8, ivec2(texel - 3, 0), 0).r;
+		alpha += texelFetch(texture_r8, ivec2(texel - 2, 0), 0).r;
+		alpha += texelFetch(texture_r8, ivec2(texel - 1, 0), 0).r;
+		alpha += texelFetch(texture_r8, ivec2(texel, 0), 0).r;
+		alpha += texelFetch(texture_r8, ivec2(texel + 1, 0), 0).r;
+		alpha += texelFetch(texture_r8, ivec2(texel + 2, 0), 0).r;
+		alpha += texelFetch(texture_r8, ivec2(texel + 3, 0), 0).r;
+		alpha += texelFetch(texture_r8, ivec2(texel + 4, 0), 0).r;
+		alpha += texelFetch(texture_r8, ivec2(texel + 5, 0), 0).r;
+		alpha += texelFetch(texture_r8, ivec2(texel + 6, 0), 0).r;
+		alpha += texelFetch(texture_r8, ivec2(texel + 7, 0), 0).r * texel_fraction;
+		alpha /= 13.0;
 
+		alpha = pow(alpha, alpha_exponent); // sun angle effect
+		alpha += (noise.g - 0.5) * alpha_noise_multiplier;
 		if (alpha <= low_alpha || alpha > max_alpha) {
 			discard;
 		}

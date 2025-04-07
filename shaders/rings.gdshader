@@ -44,9 +44,6 @@ render_mode cull_disabled;
 //
 // WARNING! FRONT_FACING is not reliable as of Godot 4.2.2. It's sometimes
 // wrong on my laptop (NVIDIA GeForce GTX 1650 Ti).
-//
-// TODO: For ring shadow on Saturn, we need a dithering shader:
-// https://github.com/godotengine/godot-proposals/issues/3276#issuecomment-917516630
 
 // set by rings.gd once
 uniform float texture_width;

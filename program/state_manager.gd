@@ -144,11 +144,6 @@ func _ready() -> void:
 	require_stop(self, -1, true)
 
 
-func _process(_delta: float) -> void:
-	# Used by rings shader, but could be general usage...
-	RenderingServer.global_shader_parameter_set( &"iv_vec2_randf", Vector2(randf(), randf()))
-
-
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"toggle_pause"):
 		change_pause()

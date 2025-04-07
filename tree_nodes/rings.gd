@@ -23,11 +23,15 @@ extends MeshInstance3D
 ## Visual planetary rings of an [IVBody] instance.
 ##
 ## This node self-adds multiple IVRingsShadowCaster (inner class) instances to
-## hack semi-transparent shadows (in conjuction with IVDynamicLight instances).
+## hack semi-transparent shadows (in conjuction with [IVDynamicLight] instances).
+## [br][br]
 ##
-## These classes use rings.shader and rings_shadow_caster.shader.
+## All properties are set from data table rings.tsv.[br][br]
 ##
-## Not persisted. IVBody instance adds on _ready().
+## These classes use rings.shader and rings_shadow_caster.shader. See comments
+## in shader files for graphic issues.[br][br]
+##
+## Not persisted. [IVBodyFinisher] adds when [IVBody] is added to the tree.
 
 const files := preload("res://addons/ivoyager_core/static/files.gd")
 const ShadowMask := IVGlobal.ShadowMask
@@ -37,13 +41,14 @@ const RENDER_MARGIN := 0.01 # render outside of image data for smoothing
 const LOD_LEVELS := 9 # must agree w/ assets, body.gd and rings.shader
 
 
-# set from table rings.tsv
+# All set from table rings.tsv (shadow_lod is used by asset_preloader.gd).
 var file_prefix: String
 var inner_radius: float
 var outer_radius: float
 var sun_index: int
-var shadow_lod: int # affects shadow aliasing
-var shadow_noise_base_strength: float # affects shadow aliasing
+var shadow_radial_noise_a: float # breaks banding artifact (with camera distance squared)
+var shadow_radial_noise_b: float  # breaks banding artifact pattern (with camera distance)
+var shadow_radial_noise_c: float  # breaks banding artifact (constant)
 
 
 var _rings_material := ShaderMaterial.new()
@@ -113,8 +118,7 @@ func _process(_delta: float) -> void:
 		return
 	
 	# rings.shader expects sun-facing and the ShadowCasters require it (because
-	# a GeometryInstance3D can't be shadow only and double sided at the same
-	# time). 
+	# a GeometryInstance3D can't be both shadow-only and double-sided). 
 	var sun_direction := _sun_global_positions[sun_index].normalized()
 	var cos_sun_angle := global_basis.y.dot(sun_direction)
 	if cos_sun_angle < 0.0:
@@ -128,9 +132,11 @@ func _process(_delta: float) -> void:
 	# goes to minimum and all alpha values approach 1.0.
 	_shadow_caster_shared[0] = maxf(cos_sun_angle, MIN_SHADOW_ALPHA_EXPONENT) # alpha_exponent
 	
-	# Shadow noise needs to increase with distance to prevent alias effect.
+	# Shadow radial_noise_multiplier needs to increase with distance to prevent
+	# banding artifacts.
 	var dist_ratio := (_camera.global_position - global_position).length() / outer_radius
-	_shadow_caster_shared[1] = shadow_noise_base_strength * dist_ratio
+	_shadow_caster_shared[1] = (shadow_radial_noise_a * (dist_ratio ** 2)
+			+ shadow_radial_noise_b * dist_ratio + shadow_radial_noise_c) # radial_noise_multiplier
 
 
 func _clear() -> void:
@@ -149,7 +155,7 @@ func _add_shadow_casters() -> void:
 		var low_alpha := i * increment
 		var max_alpha := (i + 1) * increment
 		if is_equal_approx(max_alpha, 1.0):
-			max_alpha = 1.1
+			max_alpha = 3.0 # >1.0 allows for noise addition
 		var shadow_caster := IVRingsShadowCaster.new(_shadow_caster_texture, _texture_start,
 			_inner_margin, _outer_margin, low_alpha, max_alpha, shadow_mask, _shadow_caster_shared,
 			_blue_noise_1024)
@@ -185,7 +191,7 @@ class IVRingsShadowCaster extends MeshInstance3D:
 		layers = shadow_mask
 		cast_shadow = SHADOW_CASTING_SETTING_SHADOWS_ONLY
 		mesh = PlaneMesh.new() # default 2x2
-		name = "RingsShadowCaster" + str(low_alpha)
+		name = "RingsShadowCaster" + str(low_alpha).replace(".", "p")
 
 
 	func _ready() -> void:
@@ -203,4 +209,5 @@ class IVRingsShadowCaster extends MeshInstance3D:
 
 	func _process(_delta: float) -> void:
 		_shadow_caster_material.set_shader_parameter(&"alpha_exponent", _shadow_caster_shared[0])
-		_shadow_caster_material.set_shader_parameter(&"noise_strength", _shadow_caster_shared[1])
+		_shadow_caster_material.set_shader_parameter(&"radial_noise_multiplier",
+				_shadow_caster_shared[1])
