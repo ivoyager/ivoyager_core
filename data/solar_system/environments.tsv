@@ -1,0 +1,6 @@
+	ambient_light_source	ambient_light_color	ambient_light_energy
+Type	INT	COLOR	FLOAT
+Default	2	0, 0, 0	1
+Prefix/ENVIRONMENT_			
+PLANETARIUM		0.74, 0.81, 1	0.02
+HARD_REALISM		0.74, 0.81, 1	0.02

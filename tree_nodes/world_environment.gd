@@ -20,25 +20,21 @@
 class_name IVWorldEnvironment
 extends WorldEnvironment
 
-## Default WorldEnvironment that incudes an Environment and CameraAttributes.
+## Default WorldEnvironment that sets Environment and CameraAttributes
+## properties from data tables.
 ##
-## This node and its resources are added as a scene by [IVCoreInitializer] to
-## facilitate experimentation during Editor run. The starmap (Environment.sky)
-## is set by code so ivoyager_core is valid without assets.
+## For projects that supply their own WorldEnvironment, disable this node by
+## removing from dictionary program_nodes in [IVCoreInitializer].[br][br]
 ##
-## It's possible to create override tables that modify Environment and
-## CameraAttributes properties by setting override table and row names here.
+## This node sets its Environment and CameraAttributes from data tables
+## environments.tsv and camera_attributes.tsv, respectively. The starmap
+## is added by code according to user settings and fallback specification
+### (see [IVAssetPreloader]).[br][br]
 
 ## For scene instantiation by [IVCoreInitializer].
 const SCENE := "res://addons/ivoyager_core/tree_nodes/world_environment.tscn"
 
 var add_starmap := true
-var fallback_starmap := &"starmap_8k" ## IVCoreSettings.asset_paths index; must exist
-var environment_override_table := &""
-var environment_override_table_row_name := &"ENVIRONMENT_IVOYAGER"
-var camera_attributes_override_table := &""
-var camera_attributes_override_table_row_name := &"CAMERA_ATTRIBUTES_IVOYAGER"
-
 
 
 func _ready() -> void:
@@ -46,16 +42,17 @@ func _ready() -> void:
 
 
 func _on_asset_preloader_finished() -> void:
+	if IVCoreSettings.camera_attributes:
+		var row := IVTableData.get_row(IVCoreSettings.camera_attributes)
+		assert(row != -1, "Unknown IVCoreSettings.camera_attributes '%s'"
+				% IVCoreSettings.camera_attributes)
+		IVTableData.db_build_object(camera_attributes, &"camera_attributes", row)
+	if IVCoreSettings.environment:
+		var row := IVTableData.get_row(IVCoreSettings.environment)
+		assert(row != -1, "Unknown IVCoreSettings.environment '%s'" % IVCoreSettings.environment)
+		IVTableData.db_build_object(environment, &"environments", row)
 	if add_starmap:
 		_add_starmap_as_environment_sky()
-	if environment_override_table:
-		var row := IVTableData.get_row(environment_override_table_row_name)
-		assert(row >= 0)
-		IVTableData.db_build_object(environment, environment_override_table, row)
-	if camera_attributes_override_table:
-		var row := IVTableData.get_row(camera_attributes_override_table_row_name)
-		assert(row >= 0)
-		IVTableData.db_build_object(camera_attributes, camera_attributes_override_table, row)
 
 
 func _add_starmap_as_environment_sky() -> void:

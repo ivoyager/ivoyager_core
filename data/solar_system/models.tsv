@@ -1,19 +1,19 @@
-	spheroid	inf_visibility	metallic	roughness	rim_enabled	rim	rim_tint
-Type	BOOL	BOOL	FLOAT	FLOAT	BOOL	FLOAT	FLOAT
-Default	TRUE		0	0.6	TRUE	0.003	0.5
-Prefix/MODEL_							
-G_STAR	x	x					
-ROCKY_WORLD	x						
-DESERT_WORLD	x						
-CONTINENTAL_WORLD	x						
-THICK_ATM_WORLD	x						
-ICE_WORLD	x						
-VOLCANO_WORLD	x						
-GAS_GIANT	x						
-ICE_GIANT	x						
-SMALL_C_BODY							
-SMALL_S_BODY							
-SMALL_M_BODY							
-COMET							
-SPACECRAFT							
-#							
+	spheroid	metallic	roughness	rim_enabled	rim	rim_tint	inf_visibility	is_star	emission_energy_multiplier
+Type	BOOL	FLOAT	FLOAT	BOOL	FLOAT	FLOAT	BOOL	BOOL	FLOAT
+Default	TRUE	0	0.6	TRUE	0.003	0.5			1
+Prefix/MODEL_									
+G_STAR	x						x	x	1e5
+ROCKY_WORLD	x								
+DESERT_WORLD	x								
+CONTINENTAL_WORLD	x								
+THICK_ATM_WORLD	x								
+ICE_WORLD	x								
+VOLCANO_WORLD	x								
+GAS_GIANT	x								
+ICE_GIANT	x								
+SMALL_C_BODY									
+SMALL_S_BODY									
+SMALL_M_BODY									
+COMET									
+SPACECRAFT									
+#									

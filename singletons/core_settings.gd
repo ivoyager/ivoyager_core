@@ -31,6 +31,20 @@ var project_name := ""
 var project_version := "" # external project can set for gamesave debuging
 var is_modded := false # this is aspirational
 var use_threads := true # false helps for debugging
+## Specifies [Environment] properties from data table environment.tsv that are
+## applied by [IVWorldEnvironment]. Note: I, Voyager's WorldEnvironment can be
+## disabled in [IVCoreInitializer].
+var environment := &"ENVIRONMENT_PLANETARIUM"
+## Specifies [CameraAttribute] properties from data table camera_attributes.tsv
+## that are applied by [IVWorldEnvironment]. Note: I, Voyager's WorldEnvironment
+## can be disabled in [IVCoreInitializer].
+var camera_attributes := &"CAMERA_ATTRIBUTES_HARD_REALISM"
+
+## @experimental
+var use_physical_light := false
+## @experimental
+var camera_attributes_physical := &"CAMERA_ATTRIBUTES_PHYSICAL_HARD_REALISM"
+
 var dynamic_lights := true
 var nonphysical_energy_at_1_au := 1.5 # some blowout is good
 var nonphysical_attenuation_exponent := 0.5 # physical is 2.0

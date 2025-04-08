@@ -30,23 +30,26 @@ extends RefCounted
 ## After all initializers have been instantiated, this class will call
 ## IVTableData.postprocess_tables() and then remove itself.
 
- 
+
+static var table_base_path := "res://addons/ivoyager_core/data/solar_system/%s.tsv" 
 static var tables: Dictionary[StringName, String] = {
-	asset_adjustments = "res://addons/ivoyager_core/data/solar_system/asset_adjustments.tsv",
-	asteroids = "res://addons/ivoyager_core/data/solar_system/asteroids.tsv",
-	body_classes = "res://addons/ivoyager_core/data/solar_system/body_classes.tsv",
-	dynamic_lights = "res://addons/ivoyager_core/data/solar_system/dynamic_lights.tsv",
-	omni_lights = "res://addons/ivoyager_core/data/solar_system/omni_lights.tsv",
-	models = "res://addons/ivoyager_core/data/solar_system/models.tsv",
-	moons = "res://addons/ivoyager_core/data/solar_system/moons.tsv",
-	planets = "res://addons/ivoyager_core/data/solar_system/planets.tsv",
-	rings = "res://addons/ivoyager_core/data/solar_system/rings.tsv",
-	small_bodies_groups = "res://addons/ivoyager_core/data/solar_system/small_bodies_groups.tsv",
-	spacecrafts = "res://addons/ivoyager_core/data/solar_system/spacecrafts.tsv",
-	stars = "res://addons/ivoyager_core/data/solar_system/stars.tsv",
-	views = "res://addons/ivoyager_core/data/solar_system/views.tsv",
-	visual_groups = "res://addons/ivoyager_core/data/solar_system/visual_groups.tsv",
-	wiki_extras = "res://addons/ivoyager_core/data/solar_system/wiki_extras.tsv",
+	asset_adjustments = table_base_path % "asset_adjustments",
+	asteroids = table_base_path % "asteroids",
+	body_classes = table_base_path % "body_classes",
+	camera_attributes = table_base_path % "camera_attributes",
+	dynamic_lights = table_base_path % "dynamic_lights",
+	environments = table_base_path % "environments",
+	omni_lights = table_base_path % "omni_lights",
+	models = table_base_path % "models",
+	moons = table_base_path % "moons",
+	planets = table_base_path % "planets",
+	rings = table_base_path % "rings",
+	small_bodies_groups = table_base_path % "small_bodies_groups",
+	spacecrafts = table_base_path % "spacecrafts",
+	stars = table_base_path % "stars",
+	views = table_base_path % "views",
+	visual_groups = table_base_path % "visual_groups",
+	wiki_extras = table_base_path % "wiki_extras",
 }
 static var table_project_enums := [
 	IVSmallBodiesGroup.SBGClass,
@@ -57,7 +60,7 @@ static var table_project_enums := [
 	IVGlobal.ShadowMask,
 ]
 static var merge_table_constants := {}
-static var replacement_missing_values := {} # not recomended to use this
+static var replacement_missing_values := {}
 
 
 

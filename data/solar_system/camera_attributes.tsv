@@ -1,0 +1,6 @@
+	auto_exposure_enabled	auto_exposure_scale	auto_exposure_speed	exposure_multiplier	auto_exposure_min_sensitivity	auto_exposure_max_sensitivity
+Type	BOOL	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT
+Default		0.4	0.5	1	0	800
+Prefix/CAMERA_ATTRIBUTES_						
+PLANETARIUM						
+HARD_REALISM	x	0.2	10		80	
