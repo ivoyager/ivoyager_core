@@ -58,7 +58,7 @@ var _process_shadow_distances: bool
 var _add_shadow_target_dist: bool
 var _add_shadow_planet_dist: bool
 
-var _nonphysical_energy_at_1_au := IVCoreSettings.nonphysical_energy_at_1_au
+var _energy_at_1_au := IVCoreSettings.nonphysical_energy_at_1_au
 var _attenuation_exponent := IVCoreSettings.nonphysical_attenuation_exponent
 
 # top light only
@@ -102,7 +102,7 @@ func _process(_delta: float) -> void:
 		var camera_global_position := _camera.global_position
 		var source_vector := camera_global_position - global_position
 		var source_dist_au := source_vector.length() / AU
-		var energy := _nonphysical_energy_at_1_au / (source_dist_au ** _attenuation_exponent)
+		var energy := _energy_at_1_au / (source_dist_au ** _attenuation_exponent)
 		# parent light sets for all
 		look_at(source_vector)
 		_shared[0] = energy

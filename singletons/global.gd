@@ -192,14 +192,20 @@ var blocking_windows: Array[Window] = []
 ## For project use. Not used by I, Voyager.
 var project := {}
 
-# read-only!
+## Read-only!
 var ivoyager_version: String
+## Read-only!
 var assets_version: String
-var wiki: String # IVWikiInitializer sets; "wiki" (internal), "en.wiki", etc.
+## Read-only! [IVWikiInitializer] sets this to "wiki" (internal), "en.wiki", etc.
+var wiki: String
+## @depreciate: See comments in [IVDebug].
 var debug_log: FileAccess # IVLogInitializer sets if debug build and debug_log_path
+## Read-only! The plugin ConfigFile generated from res://addons/ivoyager_core/ivoyager_core.cfg
+## with possible overrides in res://ivoyager_override.cfg and res://ivoyager_override2.cfg.
 var ivoyager_config: ConfigFile = IVPluginUtils.get_config_with_override(
 		"res://addons/ivoyager_core/ivoyager_core.cfg",
 		"res://ivoyager_override.cfg", "res://ivoyager_override2.cfg")
+## Read-only! Indicates project running with Compatibility renderer.
 var is_gl_compatibility := RenderingServer.get_current_rendering_method() == "gl_compatibility"
 
 

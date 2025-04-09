@@ -45,6 +45,9 @@ render_mode cull_disabled;
 // WARNING! FRONT_FACING is not reliable as of Godot 4.2.2. It's sometimes
 // wrong on my laptop (NVIDIA GeForce GTX 1650 Ti).
 
+const float dfdr_multiplier = 1.0; // smaller for more detail & more aliasing
+const float phase_exponent = 6.0; // larger narrows the low phase-angle effect
+
 // set by rings.gd once
 uniform float texture_width;
 uniform float texture_start; // from center
@@ -61,13 +64,11 @@ uniform sampler2DArray textures6 : source_color;
 uniform sampler2DArray textures7 : source_color;
 uniform sampler2DArray textures8 : source_color;
 
-// visual settings
-uniform float dfdr_multiplier = 1.0; // for LOD calculation; smaller for more detail & aliasing
-uniform float phase_exponent = 6.0; // larger narrows the low phase-angle effect
+// exposed visual settings
 uniform float forwardscatter_redshift = 1.05;
 uniform float unlitside_boost = 3.0; // general brightening
-uniform float litside_phase_boost = 6.0; // low phase-angle brightening
-uniform float unlitside_phase_boost = 4.0;
+uniform float litside_phase_boost = 3.0; // low phase-angle brightening
+uniform float unlitside_phase_boost = 2.0;
 
 // globals
 global uniform mat3 iv_sun_global_positions;

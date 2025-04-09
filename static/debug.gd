@@ -25,6 +25,9 @@ extends Object
 ## Print & log functions return true so they can be wrapped in assert(). E.g.,[br]
 ##     [code]assert(IVDebug.dlog("debug print"))[/code][br]
 ##     [code]assert(!DPRINT or IVDebug.dprint("debug print"))[/code]
+##
+## TODO: Make this a self-contained singleton. Consolidate log_initializer.gd
+## and related IVCoreSettings and IVGlobal members.
 
 
 static func dprint(arg: Variant, arg2: Variant = "", arg3: Variant = "", arg4: Variant = ""

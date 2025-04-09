@@ -27,40 +27,68 @@ extends Node
 ##
 ## With very few exceptions, these should not be modified after program start!
 
+## External project should set.
 var project_name := ""
-var project_version := "" # external project can set for gamesave debuging
+## External project should set. Useful for gamesave debuging.
+var project_version := ""
+## @experimental: Possible future implementation.
 var is_modded := false # this is aspirational
+
+## Set false to disable thread use throughout the ivoyager_core plugin. This
+## can be helpful for debugging. Some class files also have property
+## [param use_threads]. In these classes, both this setting and the file
+## setting must be true for threads to be used.
 var use_threads := true # false helps for debugging
+
 ## Specifies [Environment] properties from data table environment.tsv that are
-## applied by [IVWorldEnvironment]. Note: I, Voyager's WorldEnvironment can be
+## applied by [IVWorldEnvironment]. I, Voyager's WorldEnvironment can be
 ## disabled in [IVCoreInitializer].
 var environment := &"ENVIRONMENT_PLANETARIUM"
-## Specifies [CameraAttribute] properties from data table camera_attributes.tsv
-## that are applied by [IVWorldEnvironment]. Note: I, Voyager's WorldEnvironment
-## can be disabled in [IVCoreInitializer].
+## Specifies [CameraAttributes] properties from data table camera_attributes.tsv
+## that are applied by [IVWorldEnvironment]. If this row has auto_exposure_enabled
+## and project uses Compatibility renderer, a fallback will be used.
+## I, Voyager's WorldEnvironment can be disabled in [IVCoreInitializer].
 var camera_attributes := &"CAMERA_ATTRIBUTES_HARD_REALISM"
 
-## @experimental
+## @experimental: Possible future implementation. (Sim implements practiccal
+## lighting only for now.)
 var use_physical_light := false
-## @experimental
+## @experimental: Possible future implementation. (Sim implements practiccal
+## lighting only for now.)
 var camera_attributes_physical := &"CAMERA_ATTRIBUTES_PHYSICAL_HARD_REALISM"
 
+## See [IVDynamicLight].
 var dynamic_lights := true
-var nonphysical_energy_at_1_au := 1.5 # some blowout is good
+## See [IVDynamicLight].
+var nonphysical_energy_at_1_au := 1.2 # some blowout is good
+## See [IVDynamicLight].
 var nonphysical_attenuation_exponent := 0.5 # physical is 2.0
-var dynamic_orbits := true # allows use of orbit element rates
-var sbg_mag_cutoff_override := INF # overrides small_bodies_group.tsv cutoff if <INF
+## Allows use of orbit element rates, e.g., for nodal and apsidal precession.
+## See [IVOrbit].
+var dynamic_orbits := true
+## If <INF, overrides magnitude cutoff specified in small_bodies_group.tsv.
+var sbg_mag_cutoff_override := INF
+## Starts simulation without waiting (e.g., as in the Planetarium). If using a
+## splash screen, set this value to false and start the simulation using
+## [signal IVGlobal.start_requested].
 var skip_splash_screen := true
-var pause_only_stops_time := false # if true, Universe & TopGUI are set to process
+## if true, Universe is set to process_mode = PROCESS_MODE_ALWAYS. See [IVStateManager].
+var pause_only_stops_time := false
+## See [IVStateManager].
 var disable_pause := false
+## See [IVStateManager].
 var disable_exit := false
+## See [IVStateManager].
 var disable_quit := false
 
-var use_internal_wiki := false # FIXME: WikiManager doesn't do anything yet
+## @experimental: Not implemented yet, but see [IVWikiManager].
+var use_internal_wiki := false
 
-var start_time: float = 22.0 * IVUnits.YEAR # from J2000 epoch
-var start_camera_fov: float = IVMath.get_focal_length_from_fov(35.0)
+## From J2000 epoch.
+var start_time: float = 22.0 * IVUnits.YEAR
+var start_camera_fov: float = IVMath.get_fov_from_focal_length(24.0)
 var allow_time_setting := false
+
 var allow_time_reversal := false
 var popops_can_stop_sim := true # false overrides stop_sim member in all popups
 var limit_stops_in_multiplayer := true # overrides most stops
@@ -69,20 +97,25 @@ var limit_stops_in_multiplayer := true # overrides most stops
 var allow_fullscreen_toggle := true
 var auto_exposure_enabled := true
 var vertecies_per_orbit: int = 500
-var vertecies_per_orbit_low_res: int = 100 # for small bodies like asteroids
+var vertecies_per_orbit_low_res: int = 100 # for 10000s of small bodies like asteroids
 var max_camera_distance: float = 5e3 * IVUnits.AU
 var obliquity_of_the_ecliptic: float = 23.439 * IVUnits.DEG
 var ecliptic_rotation := IVMath.get_x_rotation_matrix(obliquity_of_the_ecliptic)
 
 var body_labels_color := Color.WHITE
-var body_labels_use_orbit_color := false # true overrides above
+## If true, overrides [member body_labels_color].
+var body_labels_use_orbit_color := false
 
+## See [IVCacheHandler].
 var cache_dir := "user://cache"
 
-var enable_wiki := false # IVTableInitializer sends to the Tables plugin
-var enable_precisions := false # IVTableInitializer sends to the Tables plugin
+## [IVTableInitializer] sends this value to the 
+## [url=https://github.com/ivoyager/ivoyager_tables]Tables plugin[/url].
+var enable_wiki := false
+## [IVTableInitializer] sends this value to the 
+## [url=https://github.com/ivoyager/ivoyager_tables]Tables plugin[/url].
+var enable_precisions := false
 
-# Theses could be modified after init, but you would have to rebuild the 'Home' View.
 var home_name := &"PLANET_EARTH"
 var home_longitude := 0.0
 var home_latitude := 0.0
@@ -111,11 +144,14 @@ var text_colors: Dictionary[StringName, Color] = {
 	flag = Color.FUCHSIA,
 }
 
+## @experimental: See [IVWikiManager].
+var wikipedia_locales: Array[String] = ["en"]
 
-var wikipedia_locales: Array[String] = ["en"] # add locales present in data tables
-
+## Holds all data tables that specify IVBody instances. Used by [IVAssetPreloader]
+## and [IVTableSystemBuilder] (and possibly elsewhere).
 var body_tables: Array[StringName] = [&"stars", &"planets", &"asteroids", &"moons", &"spacecrafts"]
 
+## @depreciate: See comments in [IVDebug].
 var debug_log_path := "user://logs/debug.log" # modify or set "" to disable
 
 
@@ -124,7 +160,8 @@ func _enter_tree() -> void:
 	IVFiles.init_from_config(self, IVGlobal.ivoyager_config, "core_settings")
 
 
-## Return is the layers mask. Returns 1 if apply_size_layers == false.
+## Return is the appropriate layers mask for [param m_radius] specified by [member size_layers].
+## Returns 1 if [member apply_size_layers] == false.
 func get_visualinstance3d_layers_for_size(m_radius: float) -> int:
 	if !apply_size_layers:
 		return 1

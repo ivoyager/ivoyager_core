@@ -30,7 +30,7 @@ shader_type spatial;
 //    of the artifacts here (it just makes the artifacts appear blurry).
 // 3. shadow_lod in rings.tsv. Higher removes banding pattern but starts to
 //    cause "chunky" aliasing.
-// 4. Increase radial_noise_multiplier by adjusting shadow_radial_noise_a, _b 
+// 4. Increase radial_noise_multiplier by adjusting shadow_radial_noise_a, _b
 //    and _c in rings.tsv (a quadratic function of distance). This applies
 //    noise to  radial mapping. Higher disrupts banding pattern but leaves a
 //    jagged pattern.

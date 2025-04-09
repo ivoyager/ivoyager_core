@@ -34,7 +34,9 @@ extends WorldEnvironment
 ## For scene instantiation by [IVCoreInitializer].
 const SCENE := "res://addons/ivoyager_core/tree_nodes/world_environment.tscn"
 
+
 var add_starmap := true
+var camera_attributes_gl_compatibility_fallback := "CAMERA_ATTRIBUTES_GL_COMPATIBILITY_FALLBACK"
 
 
 func _ready() -> void:
@@ -46,16 +48,22 @@ func _on_asset_preloader_finished() -> void:
 		var row := IVTableData.get_row(IVCoreSettings.camera_attributes)
 		assert(row != -1, "Unknown IVCoreSettings.camera_attributes '%s'"
 				% IVCoreSettings.camera_attributes)
+		if IVGlobal.is_gl_compatibility and !_is_gl_compatibility_camera_attributes(row):
+			row = IVTableData.get_row(camera_attributes_gl_compatibility_fallback)
 		IVTableData.db_build_object(camera_attributes, &"camera_attributes", row)
 	if IVCoreSettings.environment:
 		var row := IVTableData.get_row(IVCoreSettings.environment)
 		assert(row != -1, "Unknown IVCoreSettings.environment '%s'" % IVCoreSettings.environment)
 		IVTableData.db_build_object(environment, &"environments", row)
 	if add_starmap:
-		_add_starmap_as_environment_sky()
+		_add_starmap_sky()
 
 
-func _add_starmap_as_environment_sky() -> void:
+func _is_gl_compatibility_camera_attributes(row: int) -> bool:
+	return !IVTableData.get_db_bool(&"camera_attributes", &"auto_exposure_enabled", row)
+
+
+func _add_starmap_sky() -> void:
 	var asset_preloader: IVAssetPreloader = IVGlobal.program[&"AssetPreloader"]
 	var starmap := asset_preloader.get_starmap()
 	if !starmap:
