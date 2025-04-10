@@ -47,7 +47,7 @@ signal adding_visuals() # existing visual nodes must free themselves
 
 enum SBGClass {
 	SBG_CLASS_ASTEROIDS,
-	SBG_CLASS_COMETS,
+	SBG_CLASS_COMETS, # TODO: Roadmap
 	SBG_CLASS_ARTIFICIAL_SATELLITES, # TODO: Roadmap
 	SBG_CLASS_OTHER,
 }

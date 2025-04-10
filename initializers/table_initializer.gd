@@ -51,16 +51,9 @@ static var tables: Dictionary[StringName, String] = {
 	visual_groups = table_base_path % "visual_groups",
 	wiki_extras = table_base_path % "wiki_extras",
 }
-static var table_project_enums := [
-	IVSmallBodiesGroup.SBGClass,
-	IVGlobal.Confidence,
-	IVBody.BodyFlags,
-	IVCamera.CameraFlags,
-	IVView.ViewFlags,
-	IVGlobal.ShadowMask,
-]
-static var merge_table_constants := {}
-static var replacement_missing_values := {}
+
+static var merge_overwrite_table_constants: Dictionary[StringName, Variant] = {}
+static var merge_overwrite_missing_values: Dictionary[int, Variant] = {} # use is not recommended
 
 
 
@@ -74,9 +67,8 @@ func _on_project_initializers_instantiated() -> void:
 			IVQConvert.convert_quantity,
 			IVCoreSettings.enable_wiki,
 			IVCoreSettings.enable_precisions,
-			table_project_enums,
-			merge_table_constants,
-			replacement_missing_values,
+			merge_overwrite_table_constants,
+			merge_overwrite_missing_values,
 	)
 	
 	# signal done

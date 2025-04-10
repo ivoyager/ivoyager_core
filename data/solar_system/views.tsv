@@ -1,5 +1,5 @@
 	flags	selection_name	camera_flags	view_position_xy	view_position_z	view_rotations	name_visible_flags	symbol_visible_flags	orbit_visible_flags	visible_points_groups	visible_orbits_groups	time	speed_index	is_reversed
-Type	INT	STRING_NAME	INT	VECTOR2	FLOAT	VECTOR3	INT	INT	INT	ARRAY[STRING_NAME]	ARRAY[STRING_NAME]	FLOAT	INT	BOOL
+Type	IVView.ViewFlags	STRING_NAME	IVCamera.CameraFlags	VECTOR2	FLOAT	VECTOR3	IVBody.BodyFlags	IVBody.BodyFlags	IVBody.BodyFlags	ARRAY[STRING_NAME]	ARRAY[STRING_NAME]	FLOAT	INT	BOOL
 Default				-INF, -INF	-INF	-INF, -INF, -INF								
 Unit				deg	m	deg								
 Prefix/VIEW_	VIEWFLAGS_		CAMERAFLAGS_				BODYFLAGS_	BODYFLAGS_	BODYFLAGS_					
