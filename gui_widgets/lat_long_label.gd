@@ -22,15 +22,6 @@ extends Label
 
 # GUI widget. Requires IVCamera.
 
-const SHORT_LOWER_CASE := IVQFormat.TextFormat.SHORT_LOWER_CASE
-const N_S_E_W := IVQFormat.LatitudeLongitudeType.N_S_E_W
-const LAT_LONG := IVQFormat.LatitudeLongitudeType.LAT_LONG
-const PITCH_YAW := IVQFormat.LatitudeLongitudeType.PITCH_YAW
-const BODYFLAGS_USE_CARDINAL_DIRECTIONS := IVBody.BodyFlags.BODYFLAGS_USE_CARDINAL_DIRECTIONS
-const BODYFLAGS_USE_PITCH_YAW := IVBody.BodyFlags.BODYFLAGS_USE_PITCH_YAW
-
-var qformat := IVQFormat # TODO: Change to const when Godot allows
-
 var _camera: IVCamera
 
 
@@ -52,6 +43,12 @@ func _connect_camera(camera: IVCamera) -> void:
 
 func _on_latitude_longitude_changed(lat_long: Vector2, is_ecliptic: bool, selection: IVSelection
 		) -> void:
+	const BODYFLAGS_USE_CARDINAL_DIRECTIONS := IVBody.BodyFlags.BODYFLAGS_USE_CARDINAL_DIRECTIONS
+	const BODYFLAGS_USE_PITCH_YAW := IVBody.BodyFlags.BODYFLAGS_USE_PITCH_YAW
+	const SHORT_LOWER_CASE := IVQFormat.TextFormat.SHORT_LOWER_CASE
+	const N_S_E_W := IVQFormat.LatitudeLongitudeType.N_S_E_W
+	const LAT_LONG := IVQFormat.LatitudeLongitudeType.LAT_LONG
+	const PITCH_YAW := IVQFormat.LatitudeLongitudeType.PITCH_YAW
 	var lat_long_type := N_S_E_W
 	if !is_ecliptic:
 		var flags := selection.get_flags()
@@ -61,7 +58,7 @@ func _on_latitude_longitude_changed(lat_long: Vector2, is_ecliptic: bool, select
 			lat_long_type = PITCH_YAW
 		else:
 			lat_long_type = LAT_LONG
-	var new_text := qformat.latitude_longitude(lat_long, 1, lat_long_type, SHORT_LOWER_CASE)
+	var new_text := IVQFormat.latitude_longitude(lat_long, 1, lat_long_type, SHORT_LOWER_CASE)
 	if is_ecliptic:
 		new_text += " (" + tr(&"TXT_ECLIPTIC") + ")"
 	text = new_text

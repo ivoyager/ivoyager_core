@@ -1,4 +1,4 @@
-# lazy_manager.gd
+# lazy_model_initializer.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -17,7 +17,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVLazyManager
+class_name IVLazyModelInitializer
 extends RefCounted
 
 ## Optional manager for lazy model instantiation.
@@ -34,40 +34,36 @@ extends RefCounted
 ## See also [IVSleepManager] for reduction of IVBody._process() calls where not
 ## needed.
 
-# Dev note: It would be possible to track visitation and remove lazy models if
-# they become stale during a session. But it doesn't seem worth the overhead.
+# TOTO: Rename IVLazyModelInitializer
 
 func _init() -> void:
 	IVGlobal.camera_tree_changed.connect(_on_camera_tree_changed)
 
 
-func _on_camera_tree_changed(_camera: Camera3D, parent: Node3D, _planet: Node3D, _star: Node3D
+func _on_camera_tree_changed(_camera: Camera3D, parent: Node3D, _star_orbiter: Node3D, _star: Node3D
 		) -> void:
 	var body := parent as IVBody
-	if !body:
+	if !body or !body.lazy_model_uninited:
 		return
-	if !body.lazy_uninited:
-		return
-	body.lazy_init()
+	body.lazy_model_init()
 	
-	# Note: It's rare that lazy model bodies have a lazy parent or any
-	# satellites at all because bodies with satellites are large. But
-	# we test here just in case. One example might be a remote dwarf planet
-	# with moons (and possibly a spacecraft at this system).
+	# It's rare that a lazy model body has a satellite or a lazy parent
+	# (because bodies with satellites are large), but we test here just in case.
+	# One example might be a remote dwarf planet with moons.
 	_lazy_init_down(body)
 	_lazy_init_up(body)
 
 
 func _lazy_init_down(body: IVBody) -> void:
 	for satellite in body.satellites:
-		if satellite.lazy_uninited:
-			satellite.lazy_init()
+		if satellite.lazy_model_uninited:
+			satellite.lazy_model_init()
 			_lazy_init_down(satellite)
 
 
 func _lazy_init_up(body: IVBody) -> void:
 	var parent := body.get_parent_node_3d() as IVBody
-	if parent and parent.lazy_uninited:
-		parent.lazy_init()
+	if parent and parent.lazy_model_uninited:
+		parent.lazy_model_init()
 		_lazy_init_down(parent) # cousins?
 		_lazy_init_up(parent)

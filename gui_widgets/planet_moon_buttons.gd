@@ -31,7 +31,7 @@ extends HBoxContainer
 
 # TODO: This class needs to provide a 'widget_resized' signal for parent useage.
 
-const BODYFLAGS_PLANET := IVBody.BodyFlags.BODYFLAGS_PLANET
+const BODYFLAGS_PLANET_OR_DWARF_PLANET := IVBody.BodyFlags.BODYFLAGS_PLANET_OR_DWARF_PLANET
 const BODYFLAGS_MOON := IVBody.BodyFlags.BODYFLAGS_MOON
 
 const BODYFLAGS_SHOW_IN_NAVIGATION_PANEL := IVBody.BodyFlags.BODYFLAGS_SHOW_IN_NAVIGATION_PANEL
@@ -74,7 +74,7 @@ func _build(_dummy := false) -> void:
 	var column_separation := int(INIT_WIDTH * column_separation_ratio + 0.5)
 	set(&"theme_override_constants/separation", column_separation)
 	# calculate star "slice" relative size
-	var star: IVBody = IVBody.top_bodies[0]
+	var star: IVBody = IVBody.galaxy_orbiters[0]
 	var min_body_size := roundf(INIT_WIDTH * min_body_size_ratio)
 	# count & calcultate planet relative sizes
 	var base_size := 0.0
@@ -83,7 +83,7 @@ func _build(_dummy := false) -> void:
 	var planet_sizes: Array[float] = []
 	var n_planets := 0
 	for planet in star.satellites:
-		if not planet.flags & BODYFLAGS_PLANET:
+		if not planet.flags & BODYFLAGS_PLANET_OR_DWARF_PLANET:
 			continue
 		base_size = planet.get_mean_radius() ** size_exponent
 		planet_sizes.append(base_size)
@@ -108,7 +108,7 @@ func _build(_dummy := false) -> void:
 	# build the system button tree
 	var column := 0
 	for planet in star.satellites: # vertical box for each planet w/ its moons
-		if not planet.flags & BODYFLAGS_PLANET or not planet.flags & BODYFLAGS_SHOW_IN_NAVIGATION_PANEL:
+		if not planet.flags & BODYFLAGS_PLANET_OR_DWARF_PLANET or not planet.flags & BODYFLAGS_SHOW_IN_NAVIGATION_PANEL:
 			continue
 		# For each planet column, column_widths[column] sets the top Spacer
 		# width (and therefore the column width) and planet_sizes[column] sets

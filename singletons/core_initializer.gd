@@ -134,7 +134,7 @@ var program_refcounteds: Dictionary[StringName, Variant] = {
 	FontManager = IVFontManager, # ok to replace
 	ThemeManager = IVThemeManager, # after IVFontManager; ok to replace
 	SleepManager = IVSleepManager,
-	LazyManager = IVLazyManager,
+	LazyModelInitializer = IVLazyModelInitializer,
 	WikiManager = IVWikiManager,
 }
 

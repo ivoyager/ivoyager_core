@@ -1,4 +1,4 @@
-	gl_compatibility	bodies	energy_multiplier	shadow_max_floor	shadow_max_ceiling	shadow_max_target_plus	shadow_max_planet_plus	directional_shadow_blend_splits	directional_shadow_split_1	directional_shadow_split_2	directional_shadow_split_3	shadow_enabled	light_cull_mask	shadow_caster_mask	light_bake_mode	sky_mode	shadow_bias	shadow_blur	shadow_opacity
+	gl_compatibility	bodies	energy_multiplier	shadow_max_floor	shadow_max_ceiling	shadow_max_target_plus	shadow_max_star_orbiter_plus	directional_shadow_blend_splits	directional_shadow_split_1	directional_shadow_split_2	directional_shadow_split_3	shadow_enabled	light_cull_mask	shadow_caster_mask	light_bake_mode	sky_mode	shadow_bias	shadow_blur	shadow_opacity
 Type	BOOL	ARRAY[STRING_NAME]	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	BOOL	FLOAT	FLOAT	FLOAT	BOOL	INT	IVGlobal.ShadowMask	Light3D	DirectionalLight3D	FLOAT	FLOAT	FLOAT
 Unit				km	km	km	km												
 Default	FALSE		1	1	1e7			FALSE	0.1	0.2	0.5	FALSE	0xFFFFFFFF	0xFFFFFFFF	BAKE_DISABLED	SKY_MODE_LIGHT_ONLY	0.1	1.0	1.0

@@ -25,12 +25,12 @@ extends RefCounted
 ##
 ## If present, this manager modifies process state for bodies that have
 ## property `can_sleep == true` (mainly moons and spacecrafts). These bodies
-## are processed only when the camera is in their planet system. ("Planet" in
+## are processed only when the camera is in their star_orbiter system. ("Planet" in
 ## this context means star orbiting body.)
 ##
 ## If this manager is removed, bodies will never sleep.
 
-var _current_planet: IVBody
+var _current_star_orbiter: IVBody
 
 
 func _init() -> void:
@@ -40,24 +40,24 @@ func _init() -> void:
 
 
 func _clear() -> void:
-	_current_planet = null
+	_current_star_orbiter = null
 
 
 func _on_system_tree_ready(_is_new_game: bool) -> void:
-	for body in IVBody.top_bodies:
+	for body in IVBody.galaxy_orbiters:
 		_set_sleep_recursive(body, true)
 
 
-func _on_camera_tree_changed(_camera: Camera3D, _parent: Node3D, planet: Node3D, _star: Node3D
+func _on_camera_tree_changed(_camera: Camera3D, _parent: Node3D, star_orbiter: Node3D, _star: Node3D
 		) -> void:
-	var to_planet := planet as IVBody
-	if _current_planet == to_planet:
+	var to_star_orbiter := star_orbiter as IVBody
+	if _current_star_orbiter == to_star_orbiter:
 		return
-	if _current_planet:
-		_set_sleep_recursive(_current_planet, true)
-	if to_planet:
-		_set_sleep_recursive(to_planet, false)
-	_current_planet = to_planet
+	if _current_star_orbiter:
+		_set_sleep_recursive(_current_star_orbiter, true)
+	if to_star_orbiter:
+		_set_sleep_recursive(to_star_orbiter, false)
+	_current_star_orbiter = to_star_orbiter
 
 
 func _set_sleep_recursive(body: IVBody, is_sleep: bool) -> void:

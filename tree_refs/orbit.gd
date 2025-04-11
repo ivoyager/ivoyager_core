@@ -50,14 +50,23 @@ extends RefCounted
 #
 # See static/units.gd for base units.
 #
-# TODO: This is by far the largest CPU hog. Here is a data-oriented fix: 
-#   - SystemOrbits will house all orbit data in packed arrays, and have all
-#     existing methods here with leading orbit_id arg.
-#   - IVBody will have orbit_id only, and call SystemOrbits directly.
-#   - Depreciate this class.
-#   - GDNative version of SystemOrbits
+#
+# TODO? Re-parameterize to support parabolic (e=1) or hyperbolic (e>1) orbits:
+#   [0] p, semi-parameter (=semi-latus rectum). p = a * (1.0 - e**2).
+#   [1-4] same as above.
+#   [5] soe, specific orbital energy (<0 for elliptic).
+#   or, [5] mu, standard gravidational constant (soe). mu = n**2 * a**3.
+#   [6] tp, time of periapsis passage
+
 
 signal changed(is_scheduled: bool) # is_scheduled == false triggers network sync
+
+enum OrbitReference {
+	ORBIT_REFERENCE_ECLIPTIC,
+	ORBIT_REFERENCE_EQUATORIAL,
+	ORBIT_REFERENCE_LAPLACE,
+}
+
 
 const math := preload("uid://csb570a3u1x1k")
 const utils := preload("uid://bdoygriurgvtc")
@@ -87,20 +96,15 @@ var m_modifiers: Array[float] = [] # [b, c, s, f]; planets Jupiter to Pluto only
 var current_elements: Array[float] = utils.init_array(7, 0.0, TYPE_FLOAT)
 
 # private
-static var _times: Array[float] = IVGlobal.times
-static var _scheduler: IVScheduler
-static var _is_class_instanced := false
+var _times: Array[float] = IVGlobal.times
+var _scheduler: IVScheduler = IVGlobal.program[&"Scheduler"]
+
 
 var _update_interval := 0.0
 var _begin_current := INF
 var _end_current := -INF
 
 
-
-func _init() -> void:
-	if !_is_class_instanced:
-		_is_class_instanced = true
-		_scheduler = IVGlobal.program[&"Scheduler"]
 
 
 # TODO:
@@ -337,10 +341,10 @@ func get_position(time := NAN) -> Vector3:
 	elif time > _end_current or time < _begin_current:
 		elements = utils.init_array(7, 0.0, TYPE_FLOAT)
 		_set_elements(time, elements)
-	var R := IVOrbit.get_position_from_elements(elements, time)
+	var position := IVOrbit.get_position_from_elements(elements, time)
 	if reference_normal != ECLIPTIC_UP:
-		R = math.rotate_vector_z(R, reference_normal)
-	return R
+		position = math.rotate_vector_z(position, reference_normal)
+	return position
 
 
 func get_position_velocity(time := NAN) -> Array[Vector3]:
@@ -400,9 +404,10 @@ static func get_position_from_elements(elements: Array[float], time: float) -> V
 	return Vector3(x, y, z)
 
 
+## Returns position and velocity vectors.
+## @experimental: Not tested.
+## TODO: Alternate func to return 6 element Array[float] for 64-bit precision.
 static func get_vectors_from_elements(elements: Array[float], time: float) -> Array[Vector3]:
-	# NOT TESTED!!!
-	# returns R, V vectors
 	var a: float = elements[0]  # semi-major axis
 	var e: float = elements[1]  # eccentricity
 	var i: float = elements[2]  # inclination
@@ -440,34 +445,36 @@ static func get_vectors_from_elements(elements: Array[float], time: float) -> Ar
 	return Array([Vector3(x, y, z), Vector3(vx, vy, vz)], TYPE_VECTOR3, &"", null)
 
 
-static func get_elements_from_vectors(R: Vector3, V: Vector3, mu: float, time: float) -> Array[float]:
-	# returns an elements array
-	# NOT TESTED!!!
-	var h_bar: Vector3 = R.cross(V)
+## returns an orbital elements array.
+## @experimental: Not tested.
+## TODO: Alternate func to take 6 element Array[float] for 64-bit precision.
+static func get_elements_from_vectors(position: Vector3, velocity: Vector3, mu: float, time: float
+		) -> Array[float]:
+	var h_bar: Vector3 = position.cross(velocity)
 	var h := h_bar.length()
-	var r := R.length()
-	var v_sq := V.length_squared()
+	var r := position.length()
+	var v_sq := velocity.length_squared()
 	var En := v_sq / 2.0 - mu / r # specific energy
 	var a := -mu / (2.0 * En)
 	var e_sq := 1.0 - h * h / (a * mu)
 	var e := sqrt(e_sq) if e_sq > 0.0 else 0.0
 	var i := acos(h_bar.z / h)
 	var p := a * (1.0 - e * e)
-	var nu := atan2(sqrt(p / mu) * R.dot(V), p - r)
+	var nu := atan2(sqrt(p / mu) * position.dot(velocity), p - r)
 	var Om: float
 	var w: float
 	if i > 0.000001:
 		Om = atan2(h_bar.x, -h_bar.y)
 		if e > 0.000001:
-			w = atan2(R.z / sin(i), R.x * Om + R.y * Om) - nu
+			w = atan2(position.z / sin(i), position.x * Om + position.y * Om) - nu
 		else:
 			w = 0.0
 	else:
 		Om = 0.0
 		if e > 0.000001:
-			var e_vec := ((v_sq - mu / r) * R - R.dot(V) * V) / mu
+			var e_vec := ((v_sq - mu / r) * position - position.dot(velocity) * velocity) / mu
 			w = atan2(e_vec.y, e_vec.x)
-			if R.cross(V).z < 0:
+			if position.cross(velocity).z < 0:
 				w = TAU - w
 		else:
 			w = 0.0
@@ -539,7 +546,7 @@ func _scheduler_update(_this_arg_is_a_bug: Variant = null) -> void:
 
 func _set_elements(time: float, elements: Array[float]) -> void:
 	# elements must be size 7.
-	# Based on https://ssd.jpl.nasa.gov/txt/aprx_pos_planets.pdf (time range
+	# Based on https://ssd.jpl.nasa.gov/planets/approx_pos.html (time range
 	# 3000 BCE - 3000 CE) except we apply Jupiter to Pluto M modifiers to
 	# adjust M0 here rather than adjusting M in position calculation.
 	const RIGHT_ANGLE := PI / 2.0
@@ -573,7 +580,7 @@ func _set_elements(time: float, elements: Array[float]) -> void:
 		if c != 0.0: # if so, we also have non-zero s & f
 			M0 += c * cos(f * time) + s * sin(f * time) # safe unclamped
 	# standardize wrap range
-	i = wrapf(i, -PI, PI)
+	i = wrapf(i, -PI, PI) # FIXME: Something needs to be done if rates wrap i!
 	Om = wrapf(Om, 0.0, TAU)
 	w = wrapf(w, 0.0, TAU)
 	M0 = wrapf(M0, 0.0, TAU)

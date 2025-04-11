@@ -61,8 +61,7 @@ signal network_state_changed(network_state: bool) # IVGlobal.NetworkState
 # other broadcasts
 signal setting_changed(setting: StringName, value: Variant)
 signal camera_ready(camera: Camera3D)
-## In this context, "planet" is star orbiting ancestor and "star" is galaxy orbiting ancestor.
-signal camera_tree_changed(camera: Camera3D, parent: Node3D, planet: Node3D, star: Node3D)
+signal camera_tree_changed(camera: Camera3D, parent: Node3D, star_orbiter: Node3D, star: Node3D)
 
 # requests for state change
 signal start_requested()

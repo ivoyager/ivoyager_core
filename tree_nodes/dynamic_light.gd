@@ -47,7 +47,7 @@ var energy_multiplier: float
 var shadow_max_floor: float
 var shadow_max_ceiling: float
 var shadow_max_target_plus := NAN
-var shadow_max_planet_plus := NAN
+var shadow_max_star_orbiter_plus := NAN
 
 
 var _body_name: StringName
@@ -56,14 +56,14 @@ var _row: int
 var _shared: Array[float]
 var _process_shadow_distances: bool
 var _add_shadow_target_dist: bool
-var _add_shadow_planet_dist: bool
+var _add_shadow_star_orbiter_dist: bool
 
 var _energy_at_1_au := IVCoreSettings.nonphysical_energy_at_1_au
 var _attenuation_exponent := IVCoreSettings.nonphysical_attenuation_exponent
 
 # top light only
 var _camera: Camera3D
-var _camera_planet: Node3D
+var _camera_star_orbiter: Node3D
 
 
 
@@ -80,7 +80,7 @@ func _init(body_name: StringName, top_light := true, row := -1,
 	IVTableData.db_build_object(self, &"dynamic_lights", row)
 	_process_shadow_distances = !is_gl_compatibility
 	_add_shadow_target_dist = !is_nan(shadow_max_target_plus)
-	_add_shadow_planet_dist = !is_nan(shadow_max_planet_plus)
+	_add_shadow_star_orbiter_dist = !is_nan(shadow_max_star_orbiter_plus)
 	name = "DynamicLight" + str(row)
 
 
@@ -108,12 +108,12 @@ func _process(_delta: float) -> void:
 		_shared[0] = energy
 		
 		if _process_shadow_distances:
-			var planet_dist := 0.0
-			if _camera_planet:
-				planet_dist = (_camera_planet.global_position - camera_global_position).length()
+			var star_orbiter_dist := 0.0
+			if _camera_star_orbiter:
+				star_orbiter_dist = (_camera_star_orbiter.global_position - camera_global_position).length()
 			# parent light sets for all
 			_shared[1] = _camera.position.length() # target distance
-			_shared[2] = planet_dist
+			_shared[2] = star_orbiter_dist
 	
 	# all lights
 	light_energy = _shared[0] * energy_multiplier
@@ -121,8 +121,8 @@ func _process(_delta: float) -> void:
 		var shadow_max_dist := shadow_max_floor
 		if _add_shadow_target_dist:
 			shadow_max_dist = maxf(shadow_max_dist, shadow_max_target_plus + _shared[1])
-		if _add_shadow_planet_dist:
-			shadow_max_dist = maxf(shadow_max_dist, shadow_max_planet_plus + _shared[2])
+		if _add_shadow_star_orbiter_dist:
+			shadow_max_dist = maxf(shadow_max_dist, shadow_max_star_orbiter_plus + _shared[2])
 		shadow_max_dist = minf(shadow_max_dist, shadow_max_ceiling)
 		directional_shadow_max_distance = shadow_max_dist
 
@@ -130,14 +130,14 @@ func _process(_delta: float) -> void:
 func _clear() -> void:
 	# Only connected for top light.
 	_camera = null
-	_camera_planet = null
+	_camera_star_orbiter = null
 
 
-func _on_camera_tree_changed(camera: Camera3D, _parent: Node3D, planet: Node3D, _star: Node3D
+func _on_camera_tree_changed(camera: Camera3D, _parent: Node3D, star_orbiter: Node3D, _star: Node3D
 		) -> void:
 	# Only connected for top light.
 	_camera = camera
-	_camera_planet = planet # really star orbiter
+	_camera_star_orbiter = star_orbiter # really star orbiter
 
 
 func _get_top_light(gl_compatibility: bool) -> int:

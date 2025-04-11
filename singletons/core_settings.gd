@@ -120,16 +120,16 @@ var home_name := &"PLANET_EARTH"
 var home_longitude := 0.0
 var home_latitude := 0.0
 
-## Set VisualInstance3D.layer based on object m_radius. See [member size_layers].
+## Set VisualInstance3D.layer based on object mean_radius. See [member size_layers].
 var apply_size_layers := true
 ## If apply_size_layers == true, all VisualInstance3D instances will have [param layers]
 ## set to one of n+1 values where this array contains n elements. Layer 0b0001
-## is set if m_radius >= size_layers[0], 0b0010 if < size_layers[0], 0b0100 if
+## is set if mean_radius >= size_layers[0], 0b0010 if < size_layers[0], 0b0100 if
 ## < size_layers[1], etc.
 var size_layers: Array[float] = [
-	# larger m_radius gets mask 0b0001
-	100.0 * IVUnits.KM, # smaller m_radius gets mask 0b0010
-	0.1 * IVUnits.KM, # smaller m_radius gets mask 0b0100
+	# larger mean_radius gets mask 0b0001
+	100.0 * IVUnits.KM, # smaller mean_radius gets mask 0b0010
+	0.1 * IVUnits.KM, # smaller mean_radius gets mask 0b0100
 ]
 
 
@@ -160,13 +160,13 @@ func _enter_tree() -> void:
 	IVFiles.init_from_config(self, IVGlobal.ivoyager_config, "core_settings")
 
 
-## Return is the appropriate layers mask for [param m_radius] specified by [member size_layers].
+## Return is the appropriate layers mask for [param mean_radius] specified by [member size_layers].
 ## Returns 1 if [member apply_size_layers] == false.
-func get_visualinstance3d_layers_for_size(m_radius: float) -> int:
+func get_visualinstance3d_layers_for_size(mean_radius: float) -> int:
 	if !apply_size_layers:
 		return 1
 	var layers := 1
 	for size in size_layers:
-		if m_radius < size:
+		if mean_radius < size:
 			layers <<= 1
 	return layers

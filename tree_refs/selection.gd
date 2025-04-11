@@ -155,7 +155,7 @@ func get_orbit_basis(time := NAN) -> Basis:
 	# FIXME: Make this more honest. We flip basis for planets for better view.
 	# Function names should make it clear this is for camera use.
 	var basis := body.get_orbit_basis(time)
-	if body.flags & BodyFlags.BODYFLAGS_STAR_ORBITING:
+	if body.flags & BodyFlags.BODYFLAGS_STAR_ORBITER:
 		return basis.rotated(basis.z, PI)
 	return basis
 

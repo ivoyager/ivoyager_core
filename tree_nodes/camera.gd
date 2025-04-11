@@ -31,7 +31,7 @@ extends Camera3D
 ##
 ## This camera uses a 'perspective distance' when moving from body to body at
 ## close range. This distance is adjusted for body 'perspective_radius' (usually
-## the same as 'm_radius') so that it appears the same size in the view. At far
+## the same as 'mean_radius') so that it appears the same size in the view. At far
 ## distances there is no adjustment. (There is a transition between the two.)
 ## Hence, distance vars with name '_radii_meters' that are on the order of
 ## meters are adjusted to 'target radii'. Distance vars in units AU are what
@@ -454,9 +454,9 @@ func _do_handoff() -> void:
 
 
 func _signal_tree_changed() -> void:
-	var planet: Node3D = selection.get_star_orbiter()
+	var star_orbiter: Node3D = selection.get_star_orbiter()
 	var star: Node3D = selection.get_star()
-	IVGlobal.camera_tree_changed.emit(self, parent, planet, star)
+	IVGlobal.camera_tree_changed.emit(self, parent, star_orbiter, star)
 
 
 func _interpolate_path(from_transform: Transform3D, to_transform: Transform3D, progress: float

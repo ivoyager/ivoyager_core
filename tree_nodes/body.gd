@@ -35,7 +35,7 @@ extends Node3D
 ## This node adds its own [IVModelSpace] (which instantiates a model) if needed.
 ## If this body has table value `lazy_model == true`, it won't add the model
 ## space until/unless the camera visits this body or a closely associated
-## lazy body. See [IVLazyManager].[br][br]
+## lazy body. See [IVLazyModelInitializer].[br][br]
 ##
 ## Some bodies (particularly moons and spacecrafts) have table value
 ## `can_sleep == true`. These bodies' process state is on only when the camera
@@ -45,8 +45,17 @@ extends Node3D
 ## including rings, lights and HUD elements. (IVBody isn't aware of these
 ## nodes.)[br][br]
 ##
+## IVBody properties are core information required for all bodies. Specialized
+## information is contained in dictionary [member characteristics]. For
+## example all bodies have [member mean_radius], but oblate spheroid bodies
+## (most planets and stars) also have characteristics keys &"equatorial_radius"
+## and &"polar_radius".
+## 
 ## See also IVSmallBodiesGroup for handling 1000s or 100000s of orbiting bodies
 ## without individual instantiation (e.g., asteroids).[br][br]
+##
+## TODO: Public API for changing orbit context or "identity". E.g., a spacecraft
+## becomes BODYFLAGS_STAR_ORBITER, or an asteroid is captured to become a moon.
 ##
 ## TODO: (Ongoing) Make this node more 'drag-and_drop'.[br][br]
 ##
@@ -57,50 +66,49 @@ extends Node3D
 ## anytime it changes in a 'non-schedualed' way (e.g., impulse from a rocket
 ## engine).
 
+
 signal huds_visibility_changed(is_visible: bool)
 
+
+## Bits to 1 << 39 are reserved for ivoyager_core future use. Higher bits are
+## safe to use for external projects. Max bit shift is 1 << 63.
 enum BodyFlags {
 	
-	BODYFLAGS_BARYCENTER = 1, # not implemented yet
-	BODYFLAGS_STAR = 1 << 1,
-	BODYFLAGS_PLANET = 1 << 2, # includes dwarf planet
-	BODYFLAGS_TRUE_PLANET = 1 << 3,
-	BODYFLAGS_DWARF_PLANET = 1 << 4,
-	BODYFLAGS_MOON = 1 << 5,
-	BODYFLAGS_ASTEROID = 1 << 6,
-	BODYFLAGS_COMET = 1 << 7,
-	BODYFLAGS_SPACECRAFT = 1 << 8,
+	# orbit context & identity
+	BODYFLAGS_GALAXY_ORBITER = 1,
+	BODYFLAGS_STAR_ORBITER = 1 << 1,
+	BODYFLAGS_BARYCENTER = 1 << 2, ## not implemented yet
+	BODYFLAGS_PLANETARY_MASS_OBJECT = 1 << 3,
+	BODYFLAGS_STAR = 1 << 4,
+	BODYFLAGS_PLANET_OR_DWARF_PLANET = 1 << 5,
+	BODYFLAGS_PLANET = 1 << 6,
+	BODYFLAGS_DWARF_PLANET = 1 << 7,
+	BODYFLAGS_MOON = 1 << 8,
+	BODYFLAGS_PLANETARY_MASS_MOON = 1 << 9,
+	BODYFLAGS_NON_PLANETARY_MASS_MOON = 1 << 10,
+	BODYFLAGS_ASTEROID = 1 << 11,
+	BODYFLAGS_COMET = 1 << 12,
+	BODYFLAGS_SPACECRAFT = 1 << 13,
 	
-	BODYFLAGS_PLANETARY_MASS_OBJECT = 1 << 9,
-	BODYFLAGS_SHOW_IN_NAVIGATION_PANEL = 1 << 10,
-	
-	BODYFLAGS_CAN_SLEEP = 1 << 11,
-	BODYFLAGS_TOP = 1 << 12, # non-orbiting stars; is in IVBody.top_bodies
-	BODYFLAGS_PROXY_STAR_SYSTEM = 1 << 13, # top star or barycenter of system
-	BODYFLAGS_PRIMARY_STAR = 1 << 14,
-	BODYFLAGS_STAR_ORBITING = 1 << 15,
+	# rotation mechanics
 	BODYFLAGS_TIDALLY_LOCKED = 1 << 16,
 	BODYFLAGS_AXIS_LOCKED = 1 << 17,
-	BODYFLAGS_TUMBLES_CHAOTICALLY = 1 << 18, # e.g., Hyperion (mechanic not implemented yet)
-	BODYFLAGS_NAVIGATOR_MOON = 1 << 19, # IVSelectionManager uses for cycling
-	BODYFLAGS_PLANETARY_MASS_MOON = 1 << 20,
-	BODYFLAGS_NON_PLANETARY_MASS_MOON = 1 << 21,
+	BODYFLAGS_TUMBLES_CHAOTICALLY = 1 << 18, ## e.g., Hyperion (mechanic not implemented)
 	
-	BODYFLAGS_DISPLAY_M_RADIUS = 1 << 22,
-	BODYFLAGS_ATMOSPHERE = 1 << 23,
-	BODYFLAGS_GAS_GIANT = 1 << 24,
-	BODYFLAGS_NO_ORBIT = 1 << 25, # Hill Sphere is smaller than body radius (e.g., ISS)
-	BODYFLAGS_NO_STABLE_ORBIT = 1 << 26, # Hill Sphere is smaller than body radius x 3
-	BODYFLAGS_USE_CARDINAL_DIRECTIONS = 1 << 27,
-	BODYFLAGS_USE_PITCH_YAW = 1 << 28,
+	# program mechanics
+	BODYFLAGS_LAZY_MODEL = 1 << 21,
+	BODYFLAGS_SLEEP = 1 << 22,
+	BODYFLAGS_DISABLE_MODEL_SPACE = 1 << 23,
+	BODYFLAGS_EXISTS = 1 << 24, ## @depreciate: (currently set by IVTableBodyBuilder)
 	
-	BODYFLAGS_EXISTS = 1 << 29, # always set by IVTableBodyBuilder
-	BODYFLAGS_DISABLE_MODEL_SPACE = 1 << 30,
+	# GUI
+	BODYFLAGS_SHOW_IN_NAVIGATION_PANEL = 1 << 26,
+	BODYFLAGS_DISPLAY_EQUATORIAL_POLAR_RADII = 1 << 27,
+	BODYFLAGS_USE_CARDINAL_DIRECTIONS = 1 << 28,
+	BODYFLAGS_USE_PITCH_YAW = 1 << 29,
 	
-#   I, Voyager reserved to 1 << 45.
-#	Higher bits safe for projects.
-#	Max bit shift is 1 << 63.
 }
+
 
 const math := preload("uid://csb570a3u1x1k")
 
@@ -113,59 +121,67 @@ const PERSIST_MODE := IVGlobal.PERSIST_PROCEDURAL # free & rebuild on load
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"name",
 	&"flags",
-	&"m_radius",
+	&"mean_radius",
 	&"rotation_period",
 	&"right_ascension",
 	&"declination",
+	&"gm",
+	&"mass",
 	&"characteristics",
 	&"components",
 	&"orbit",
 	&"rotating_space",
 ]
 
-# class settings
-static var max_hud_dist_orbit_radius_multiplier := 100.0
-static var min_hud_dist_radius_multiplier := 500.0
-static var min_hud_dist_star_multiplier := 20.0 # combines w/ above
-
 # persisted
-var flags := 0 # see IVBody.BodyFlags
-var m_radius := 0.0 # required; optional e_radius & p_radius in characteristics
-var rotation_period := 0.0 # possibly derived (if tidally locked)
-var right_ascension := 0.0 # possibly derived (if axis locked)
-var declination := 0.0 # possibly derived (if axis locked)
+var flags := 0 # BodyFlags
+var mean_radius := 0.0
+var rotation_period := INF # updated if tidally locked
+var right_ascension := 0.0 # updated if axis locked
+var declination := 0.0 # updated if axis locked
+var gm := 0.0 # standard gravitational parameter (often more accurate than mass)
+var mass := 0.0
 var characteristics: Dictionary[StringName, Variant] = {} # non-object values
 var components: Dictionary[StringName, Object] = {} # objects (persisted only)
 var orbit: IVOrbit
 var rotating_space: IVRotatingSpace # rotates & translates for L-points (lazy init)
 
-# read-only calculated spatials; change by setting right_ascension, declination, etc.
+# read-only calculated spatials
 var rotation_vector := ECLIPTIC_Z # synonymous with 'north'
 var rotation_rate := 0.0
 var rotation_at_epoch := 0.0
 var basis_at_epoch := IDENTITY_BASIS
 
 # read-only!
-var star: IVBody # above
+var star: IVBody # this body or above
 var star_orbiter: IVBody # this body or star orbiter above or null
 var satellites: Array[IVBody] = [] # IVBody children add/remove themselves
 var model_space: IVModelSpace # has model axial tilt and rotation (not scale)
 var huds_visible := false # too far / too close toggle
 var model_visible := false
 var texture_2d: Texture2D
-var texture_slice_2d: Texture2D # GUI navigator graphic for sun only
+var texture_slice_2d: Texture2D # navigation panel graphic for sun only
 var model_reference_basis := IDENTITY_BASIS
 var max_model_dist := 0.0
 var min_hud_dist: float
-var lazy_uninited := false
+var lazy_model_uninited := false
 var sleep := false
 var shader_sun_index := -1
 
-## Contains all IVBody instances currently in the tree.
+
+static var max_hud_dist_orbit_radius_multiplier := 100.0 ## class setting
+static var min_hud_dist_radius_multiplier := 500.0 ## class setting
+static var min_hud_dist_star_multiplier := 20.0 ## class setting
+
+## Contains all added IVBody instances.
 static var bodies: Dictionary[StringName, IVBody] = {}
-## Contains IVBody instances that are at the top of an IVBody tree. In normal
-## usage this will be stars.
-static var top_bodies: Array[IVBody] = []
+## Contains IVBody instances that are at the top of an IVBody tree, i.e., the
+## system star or the primary star for multi-star system.
+static var galaxy_orbiters: Array[IVBody] = [] # TODO: Make dictionary to future-proof
+## This is used by shaders and is currently limited to 3 elements because we
+## can't have array shader globals (this is converted to mat3). FIXME: Don't use
+## a shader global, but have rings.gd know what sun affects it and send that
+## to shader on _process().
 static var sun_global_positions: Array[Vector3] = [Vector3(), Vector3(), Vector3()]
 
 
@@ -177,10 +193,11 @@ static var sun_global_positions: Array[Vector3] = [Vector3(), Vector3(), Vector3
 
 
 func _enter_tree() -> void:
+	const BODYFLAGS_LAZY_MODEL := BodyFlags.BODYFLAGS_LAZY_MODEL
 	_set_resources()
 	_set_relative_bodies()
-	if characteristics.get(&"lazy_model") and IVGlobal.program[&"LazyManager"]:
-		lazy_uninited = true
+	if flags & BODYFLAGS_LAZY_MODEL and IVGlobal.program.has(&"LazyManager"):
+		lazy_model_uninited = true
 	else:
 		_add_model_space()
 	if orbit:
@@ -192,7 +209,7 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
-	const BODYFLAGS_TOP := BodyFlags.BODYFLAGS_TOP
+	const BODYFLAGS_GALAXY_ORBITER := BodyFlags.BODYFLAGS_GALAXY_ORBITER
 	process_mode = PROCESS_MODE_ALWAYS # time will stop, but allow pointy finger on mouseover
 	IVGlobal.system_tree_built_or_loaded.connect(_on_system_tree_built_or_loaded, CONNECT_ONE_SHOT)
 	IVGlobal.about_to_free_procedural_nodes.connect(_prepare_to_free, CONNECT_ONE_SHOT)
@@ -201,18 +218,17 @@ func _ready() -> void:
 	timekeeper.time_altered.connect(_on_time_altered)
 	assert(!bodies.has(name))
 	bodies[name] = self
-	if flags & BODYFLAGS_TOP:
-		top_bodies.append(self)
+	if flags & BODYFLAGS_GALAXY_ORBITER:
+		galaxy_orbiters.append(self)
 	recalculate_spatials()
 	_set_min_hud_dist()
-	#_finish_tree_add.call_deferred()
 
 
 func _exit_tree() -> void:
-	const BODYFLAGS_TOP := BodyFlags.BODYFLAGS_TOP
+	const BODYFLAGS_GALAXY_ORBITER := BodyFlags.BODYFLAGS_GALAXY_ORBITER
 	bodies.erase(name)
-	if flags & BODYFLAGS_TOP:
-		top_bodies.erase(self)
+	if flags & BODYFLAGS_GALAXY_ORBITER:
+		galaxy_orbiters.erase(self)
 	_clear_relative_bodies()
 
 
@@ -220,18 +236,12 @@ func _on_system_tree_built_or_loaded(is_new_game: bool) -> void:
 	if !is_new_game:
 		return
 	if !characteristics.get(&"system_radius"):
-		var system_radius := m_radius * MIN_SYSTEM_M_RADIUS_MULTIPLIER
+		var system_radius := mean_radius * MIN_SYSTEM_M_RADIUS_MULTIPLIER
 		for satellite in satellites:
 			var a: float = satellite.get_orbit_semi_major_axis()
 			if system_radius < a:
 				system_radius = a
 		characteristics[&"system_radius"] = system_radius
-	# non-table flags
-	var hill_sphere := get_hill_sphere()
-	if hill_sphere < m_radius:
-		flags |= BodyFlags.BODYFLAGS_NO_ORBIT
-	if hill_sphere / 3.0 < m_radius:
-		flags |= BodyFlags.BODYFLAGS_NO_STABLE_ORBIT
 
 
 func _prepare_to_free() -> void:
@@ -243,7 +253,7 @@ func _process(_delta: float) -> void:
 	# mode, API assumes that any properties updated here are stale and must be
 	# calculated in-function.
 	
-	var camera_dist := _world_controller.process_world_target(self, m_radius)
+	var camera_dist := _world_controller.process_world_target(self, mean_radius)
 	
 	# update translation and reference frame 'spaces'
 	if orbit:
@@ -288,58 +298,32 @@ func has_orbit() -> bool:
 	return orbit != null
 
 
+## Available only if IVCoreSettings.enable_precisions == true. Gets the
+## precision (significant digits) of a float value as it was entered in the
+## data table file or as calculated. [param path] can be a path to a property,
+## a method, or a component property or method. See [IVSelectionData] for
+## usage. Used by Planetarium.
 func get_float_precision(path: String) -> int:
-	# Available only if IVCoreSettings.enable_precisions == true. Gets the
-	# precision (significant digits) of a real value as it was entered in the
-	# table *.tsv file. Used by Planetarium.
-	if !characteristics.has(&"real_precisions"):
+	if !characteristics.has(&"float_precisions"):
 		return -1
-	var real_precisions: Dictionary = characteristics[&"real_precisions"]
-	return real_precisions.get(path, -1)
+	var float_precisions: Dictionary = characteristics[&"float_precisions"]
+	return float_precisions.get(path, -1)
 
 
 func get_characteristic(characteristic_name: StringName) -> Variant:
-	match characteristic_name:
-		&"m_radius":
-			return m_radius
-		&"rotation_period":
-			return rotation_period
-		&"right_ascension":
-			return right_ascension
-		&"declination":
-			return declination
 	return characteristics.get(characteristic_name)
 
 
-func set_characteristic(characteristic_name: StringName, value: Variant,
-		supress_recalculation := false) -> void:
-	# Set supress_recalculation == true only if you are doing many changes and
-	# will call recalculate_spatials() manually.
-	match characteristic_name:
-		&"m_radius":
-			m_radius = value
-			return
-		&"rotation_period":
-			var float_value: float = value
-			set_rotation_period(float_value, supress_recalculation)
-			return
-		&"right_ascension":
-			var float_value: float = value
-			set_right_ascension(float_value, supress_recalculation)
-			return
-		&"declination":
-			var float_value: float = value
-			set_declination(float_value, supress_recalculation)
-			return
+func set_characteristic(characteristic_name: StringName, value: Variant) -> void:
 	characteristics[characteristic_name] = value
 
 
 func get_mean_radius() -> float:
-	return m_radius
+	return mean_radius
 
 
 func set_mean_radius(value: float) -> void:
-	m_radius = value
+	mean_radius = value
 
 
 func get_rotation_period() -> float:
@@ -372,6 +356,36 @@ func set_declination(value: float, supress_recalculation := false) -> void:
 		recalculate_spatials()
 
 
+func get_mass() -> float:
+	return mass
+
+
+func set_mass(value: float) -> void:
+	mass = value
+
+
+func get_standard_gravitational_parameter() -> float:
+	return gm
+
+
+func set_standard_gravitational_parameter(value: float) -> void:
+	gm = value
+
+
+func get_equatorial_radius() -> float:
+	var equatorial_radius: float = characteristics.get(&"equatorial_radius", 0.0)
+	if equatorial_radius:
+		return equatorial_radius
+	return mean_radius
+
+
+func get_polar_radius() -> float:
+	var polar_radius: float = characteristics.get(&"polar_radius", 0.0)
+	if polar_radius:
+		return polar_radius
+	return mean_radius
+
+
 func get_hud_name() -> String:
 	return characteristics.get(&"hud_name", name)
 
@@ -398,22 +412,6 @@ func set_body_class(value: int) -> void:
 	characteristics[&"body_class"] = value
 
 
-func get_mass() -> float:
-	return characteristics.get(&"mass", 0.0)
-
-
-func set_mass(value: float) -> void:
-	characteristics[&"mass"] = value
-
-
-func get_standard_gravitational_parameter() -> float:
-	return characteristics.get(&"GM", 0.0)
-
-
-func set_standard_gravitational_parameter(value: float) -> void:
-	characteristics[&"GM"] = value
-
-
 func get_system_radius() -> float:
 	# From data table or set to outermost satellite semi-major axis.
 	return characteristics.get(&"system_radius", 0.0)
@@ -424,12 +422,12 @@ func set_system_radius(value: float) -> void:
 
 
 func get_perspective_radius() -> float:
-	# For camera perspective distancing. Same as m_radius unless something
+	# For camera perspective distancing. Same as mean_radius unless something
 	# different is needed.
 	var perspective_radius: float = characteristics.get(&"perspective_radius", 0.0)
 	if perspective_radius:
 		return perspective_radius
-	return m_radius
+	return mean_radius
 
 
 func set_perspective_radius(value: float) -> void:
@@ -438,34 +436,7 @@ func set_perspective_radius(value: float) -> void:
 		characteristics[&"perspective_radius"] = value
 
 
-func get_equatorial_radius() -> float:
-	var e_radius: float = characteristics.get(&"e_radius", 0.0)
-	if e_radius:
-		return e_radius
-	return m_radius
 
-
-func set_equatorial_radius(value: float) -> void:
-	# Will also modify p_radius so that:
-	# m_radius = (p_radius + 2.0 * e_radius) / 3.0.
-	if value != get_equatorial_radius():
-		characteristics[&"e_radius"] = value
-		characteristics[&"p_radius"] = 3.0 * m_radius - 2.0 * value
-
-
-func get_polar_radius() -> float:
-	var p_radius: float = characteristics.get(&"p_radius", 0.0)
-	if p_radius:
-		return p_radius
-	return m_radius
-
-
-func set_polar_radius(value: float) -> void:
-	# Will also modify e_radius so that:
-	# m_radius = (p_radius + 2.0 * e_radius) / 3.0.
-	if value != get_polar_radius():
-		characteristics[&"p_radius"] = value
-		characteristics[&"e_radius"] = (3.0 * m_radius - value) / 2.0
 
 
 # get onlys below; set is invalid or may need some work to do
@@ -554,8 +525,8 @@ func get_orbit_normal(time := NAN, flip_retrograde := false) -> Vector3:
 
 
 func get_orbit_inclination_to_equator(time := NAN) -> float:
-	const BODYFLAGS_TOP := BodyFlags.BODYFLAGS_TOP
-	if !orbit or flags & BODYFLAGS_TOP:
+	const BODYFLAGS_GALAXY_ORBITER := BodyFlags.BODYFLAGS_GALAXY_ORBITER
+	if !orbit or flags & BODYFLAGS_GALAXY_ORBITER:
 		return NAN
 	var orbit_normal := orbit.get_normal(time)
 	var parent: IVBody = get_parent_node_3d()
@@ -606,11 +577,10 @@ func get_orbit_basis(time := NAN) -> Basis:
 func get_hill_sphere(eccentricity := 0.0) -> float:
 	# returns INF if this is a top body in simulation
 	# see: https://en.wikipedia.org/wiki/Hill_sphere
-	const BODYFLAGS_TOP := BodyFlags.BODYFLAGS_TOP
-	if flags & BODYFLAGS_TOP:
+	const BODYFLAGS_GALAXY_ORBITER := BodyFlags.BODYFLAGS_GALAXY_ORBITER
+	if flags & BODYFLAGS_GALAXY_ORBITER:
 		return INF
 	var a := get_orbit_semi_major_axis()
-	var mass := get_mass()
 	var parent: IVBody = get_parent_node_3d()
 	var parent_mass: float = parent.get_mass()
 	if !a or !mass or !parent_mass:
@@ -651,14 +621,14 @@ func set_orbit(orbit_: IVOrbit) -> void:
 	orbit_.changed.connect(_on_orbit_changed)
 
 
-func lazy_init() -> void:
+func lazy_model_init() -> void:
 	_add_model_space()
 
 
 ## Only [IVSleepManager] should call this.
 func set_sleep(sleep_: bool) -> void:
-	const BODYFLAGS_CAN_SLEEP := BodyFlags.BODYFLAGS_CAN_SLEEP
-	if sleep == sleep_ or not flags & BODYFLAGS_CAN_SLEEP:
+	const BODYFLAGS_SLEEP := BodyFlags.BODYFLAGS_SLEEP
+	if sleep == sleep_ or not flags & BODYFLAGS_SLEEP:
 		return
 	sleep = sleep_
 	if sleep_:
@@ -726,9 +696,9 @@ func recalculate_spatials() -> void:
 	#
 	# TODO: We still need rotation precession for Bodies with axial tilt.
 	# TODO: Some special mechanic for tumblers like Hyperion.
-	const BODYFLAGS_TOP := BodyFlags.BODYFLAGS_TOP
+	const BODYFLAGS_GALAXY_ORBITER := BodyFlags.BODYFLAGS_GALAXY_ORBITER
 	const BODYFLAGS_STAR := BodyFlags.BODYFLAGS_STAR
-	const BODYFLAGS_TRUE_PLANET := BodyFlags.BODYFLAGS_TRUE_PLANET
+	const BODYFLAGS_PLANET := BodyFlags.BODYFLAGS_PLANET
 	const BODYFLAGS_TIDALLY_LOCKED := BodyFlags.BODYFLAGS_TIDALLY_LOCKED
 	const BODYFLAGS_AXIS_LOCKED := BodyFlags.BODYFLAGS_AXIS_LOCKED
 	const BODYFLAGS_TUMBLES_CHAOTICALLY := BodyFlags.BODYFLAGS_TUMBLES_CHAOTICALLY
@@ -764,8 +734,8 @@ func recalculate_spatials() -> void:
 	# possible polarity reversal; see comments under get_north_pole()
 	var reverse_polarity := false
 	var parent := get_parent_node_3d() as IVBody
-	if (flags & BODYFLAGS_TOP or flags & BODYFLAGS_STAR or flags & BODYFLAGS_TRUE_PLANET
-			or parent.flags & BODYFLAGS_TRUE_PLANET):
+	if (flags & BODYFLAGS_GALAXY_ORBITER or flags & BODYFLAGS_STAR or flags & BODYFLAGS_PLANET
+			or parent.flags & BODYFLAGS_PLANET):
 		if ECLIPTIC_Z.dot(new_rotation_vector) < 0.0:
 			reverse_polarity = true
 	elif parent.flags & BODYFLAGS_STAR: # any other star-orbiter (dwarf planets, asteroids, etc.)
@@ -801,25 +771,26 @@ func _set_resources() -> void:
 func _add_model_space() -> void:
 	const BODYFLAGS_DISABLE_MODEL_SPACE := BodyFlags.BODYFLAGS_DISABLE_MODEL_SPACE
 	assert(!model_space)
-	lazy_uninited = false
+	lazy_model_uninited = false
 	if flags & BODYFLAGS_DISABLE_MODEL_SPACE:
 		return
 	var model_space_script: Script = IVGlobal.procedural_classes[&"ModelSpace"]
 	@warning_ignore("unsafe_method_access")
-	model_space = model_space_script.new(name, m_radius, get_equatorial_radius())
+	model_space = model_space_script.new(name, mean_radius, get_equatorial_radius())
 	model_reference_basis = model_space.reference_basis
 	max_model_dist = model_space.max_distance
 	add_child(model_space)
 
 
 func _set_relative_bodies() -> void:
-	# For multi-star system, star_orbiter and star could be the same body.
+	# For multi-star system, a star could be a star orbiter.
 	const BODYFLAGS_STAR := BodyFlags.BODYFLAGS_STAR
+	const BODYFLAGS_STAR_ORBITER := BodyFlags.BODYFLAGS_STAR_ORBITER
 	star = null
 	star_orbiter = null
 	var up_tree := self
 	while up_tree:
-		if !star_orbiter and up_tree.flags & BodyFlags.BODYFLAGS_STAR_ORBITING:
+		if !star_orbiter and up_tree.flags & BodyFlags.BODYFLAGS_STAR_ORBITER:
 			star_orbiter = up_tree
 		if up_tree.flags & BODYFLAGS_STAR:
 			star = up_tree
@@ -896,7 +867,7 @@ func _on_time_altered(_previous_time: float) -> void:
 func _set_min_hud_dist() -> void:
 	const BODYFLAGS_STAR := BodyFlags.BODYFLAGS_STAR
 	if IVGlobal.settings.get(&"hide_hud_when_close", false):
-		min_hud_dist = m_radius * min_hud_dist_radius_multiplier
+		min_hud_dist = mean_radius * min_hud_dist_radius_multiplier
 		if flags & BODYFLAGS_STAR:
 			min_hud_dist *= min_hud_dist_star_multiplier # just the label
 	else:
