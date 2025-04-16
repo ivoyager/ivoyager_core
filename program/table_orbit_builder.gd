@@ -29,29 +29,41 @@ const MIN_INCLINATION_FOR_NODAL_PRECESSION := 0.001 # ~0.06 deg
 var _oribti_script: Script = IVGlobal.procedural_classes[&"Orbit"]
 var _dynamic_orbits: bool = IVCoreSettings.dynamic_orbits
 var _ecliptic_rotation: Basis = IVCoreSettings.ecliptic_rotation
-var _o: Dictionary[StringName, float] = { # resused for each table row
-	&"semi_major_axis" : NAN,
-	&"eccentricity" : NAN,
-	&"inclination" : NAN,
-	&"longitude_ascending_node" : NAN,
-	&"argument_of_periapsis" : NAN,
-	&"mean_anomaly_at_epoch" : NAN,
-	&"mean_motion" : NAN,
-	&"semi_major_axis_rate" : NAN,
-	&"eccentricity_rate" : NAN,
-	&"inclination_rate" : NAN,
-	&"longitude_ascending_node_rate" : NAN,
-	&"argument_of_periapsis_rate" : NAN,
-	&"mean_anomaly_correction_b" : NAN,
-	&"mean_anomaly_correction_c" : NAN,
-	&"mean_anomaly_correction_s" : NAN,
-	&"mean_anomaly_correction_f" : NAN,
-	&"nodal_period" : NAN,
-	&"apsidal_period" : NAN,
-	&"epoch_jd" : NAN,
-	&"orbit_right_ascension" : NAN,
-	&"orbit_declination" : NAN,
-}
+
+
+var _orbit_fields: Array[StringName] = [
+	# table fields dict reset & resused for each row
+	
+	# common specification
+	&"epoch_jd", # optional; hard-coded default if missing
+	&"semi_major_axis",
+	&"eccentricity",
+	&"inclination",
+	&"longitude_ascending_node",
+	&"argument_of_periapsis", # or longitude_of_periapsis (planet variant)
+	&"mean_anomaly_at_epoch",
+	&"mean_motion", # optional; calculate from parant GM if missing
+	
+	# satellite specifics
+	&"nodal_period",
+	&"apsidal_period",
+	&"orbit_reference",
+	&"orbit_right_ascension",
+	&"orbit_declination",
+	
+	# planet variants & specifics
+	&"longitude_of_periapsis", # = longitude_ascending_node + argument_of_periapsis
+	&"semi_major_axis_rate",
+	&"eccentricity_rate",
+	&"inclination_rate",
+	&"longitude_ascending_node_rate",
+	&"longitude_of_periapsis_rate",
+	&"mean_anomaly_correction_b",
+	&"mean_anomaly_correction_c",
+	&"mean_anomaly_correction_s",
+	&"mean_anomaly_correction_f",
+	
+]
 
 
 
@@ -60,9 +72,9 @@ func make_orbit(table: String, row: int, parent: IVBody) -> IVOrbit:
 	#  [0] a,  semimajor axis (in UnitDef.KM) [TODO: allow negative for hyperbolic!]
 	#  [1] e,  eccentricity (0.0 - 1.0)
 	#  [2] i,  inclination (rad)
-	#  [3] Om, longitude of the ascending node (rad)
-	#  [4] w,  argument of periapsis (rad)
-	#  [5] M0, mean anomaly at epoch (rad)
+	#  [3] ln, longitude of the ascending node (rad)
+	#  [4] ap,  argument of periapsis (rad)
+	#  [5] m0, mean anomaly at epoch (rad)
 	#  [6] n,  mean motion (rad/s)
 	#
 	# Elements 0-5 completely define an orbit assuming we know mu
@@ -85,105 +97,147 @@ func make_orbit(table: String, row: int, parent: IVBody) -> IVOrbit:
 	const OrbitReference := IVOrbit.OrbitReference
 	const DAY := IVUnits.DAY
 	const RIGHT_ANGLE := PI / 2.0
+	const J2000_JD := 2451545.0
 	
-	IVTableData.db_build_dictionary(_o, table, row, _o.keys())
-	var orbit_reference := IVTableData.get_db_int(table, &"orbit_reference", row)
-
-	# standard orbital elements [a, e, i, Om, w, M0, n]
-	var a := _o.semi_major_axis
-	var e := _o.eccentricity
-	var i := _o.inclination
-	var Om := _o.longitude_ascending_node
-	var w := _o.argument_of_periapsis
-	var M0 := _o.mean_anomaly_at_epoch
-	var n := _o.mean_motion
+	var data: Dictionary[StringName, Variant] = {}
+	IVTableData.db_build_dictionary(data, table, row, _orbit_fields)
 	
-	assert(!is_nan(a))
-	assert(!is_nan(e))
-	assert(!is_nan(i))
-	assert(!is_nan(Om))
-	assert(!is_nan(w))
-	assert(!is_nan(M0))
+	# standard orbital elements [a, e, i, lan, aop, m0, n]
+	var a: float = data.get(&"semi_major_axis", 0.0)
+	var e: float = data.get(&"eccentricity", NAN)
+	var i: float = data.get(&"inclination", NAN)
+	var lan: float = data.get(&"longitude_ascending_node", NAN)
+	var aop: float = data.get(&"argument_of_periapsis", NAN)
+	var m0: float = data.get(&"mean_anomaly_at_epoch", NAN)
+	var n: float = data.get(&"mean_motion", NAN)
+	# alt
+	var lop: float = data.get(&"longitude_of_periapsis", NAN)
 	
+	assert(a, "Table must specify non-zero 'semi_major_axis'")
+	assert(!is_nan(e), "Table must specify 'eccentricity'")
+	assert(!is_nan(i), "Table must specify 'inclination'")
+	assert(!is_nan(lan), "Table must specify 'longitude_ascending_node'")
+	assert(is_nan(aop) != is_nan(lop),
+		"Table must specify 'argument_of_periapsis' or 'longitude_of_periapsis' (not both)")
+	assert(!is_nan(m0), "Table must specify 'mean_anomaly_at_epoch'")
+	
+	# lop = lan + (polarity * aop).
+	# Note: polarity is never included in Wikipedia equations, but is clearly
+	# needed for retrograde orbits in visual diagrams. See:
+	# https://en.wikipedia.org/wiki/Longitude_of_periapsis
+	var polarity := signf(RIGHT_ANGLE - i) # prograde +1.0; retrograde -1.0
+	if is_nan(aop):
+		aop = polarity * (lop - lan)
+	
+	# TODO: Test and warn if table n inconsistant with parent GM...
 	if is_nan(n):
 		var mu := parent.get_standard_gravitational_parameter()
 		assert(mu)
 		n = sqrt(mu / (a * a * a))
 	
-	var epoch_jd := _o.epoch_jd
+	var epoch_jd: float = data.get(&"epoch_jd", NAN)
 	if !is_nan(epoch_jd):
-		var epoch_offset := (2451545.0 - epoch_jd) * DAY # J2000
-		M0 += n * epoch_offset
-		M0 = wrapf(M0, 0.0, TAU)
+		var epoch_offset := (J2000_JD - epoch_jd) * DAY # J2000
+		m0 += n * epoch_offset
+		m0 = wrapf(m0, 0.0, TAU)
 	
-	var elements := Array([a, e, i, Om, w, M0, n], TYPE_FLOAT, &"", null)
+	var elements := Array([a, e, i, lan, aop, m0, n], TYPE_FLOAT, &"", null)
+	
 	@warning_ignore("unsafe_method_access") # Possible replacement class
 	var orbit: IVOrbit = _oribti_script.new()
 	orbit.elements_at_epoch = elements
 	
 	if _dynamic_orbits:
 		# Element rates are optional. For planets, we get these as "x_rate" for
-		# a, e, i, Om & w.
+		# a, e, i, lan & ap.
 		# For moons, we get these as nodal period and apsidal period,
-		# corresponding to rotational period of Om & w, respectively.
+		# corresponding to rotational period of ln & ap, respectively.
 		# TODO: in asteroid data, these are g & s, I think...
 		# Rate info (if given) must match one or the other format.
 		var element_rates: Array[float] # optional
-		var m_modifiers: Array[float] # optional
+		var m_modifiers: Array[float] # optional (only if element_rates exists)
 		
 		# planet format
-		var a_rate := _o.semi_major_axis_rate
-		var e_rate := _o.eccentricity_rate
-		var i_rate := _o.inclination_rate
-		var Om_rate := _o.longitude_ascending_node_rate # nodal precession
-		var w_rate := _o.argument_of_periapsis_rate # apsidal precession
+		var a_rate: float = data.get(&"semi_major_axis_rate", NAN)
+		var e_rate: float = data.get(&"eccentricity_rate", NAN)
+		var i_rate: float = data.get(&"inclination_rate", NAN)
+		var lan_rate: float = data.get(&"longitude_ascending_node_rate", NAN)
+		var lop_rate: float = data.get(&"longitude_of_periapsis_rate", NAN)
 		
 		# satellite format
-		var nodal_period := _o.nodal_period # nodal precession (possibly w/ sign flip)
-		var apsidal_period := _o.apsidal_period # apsidal precession
+		var nodal_period: float = data.get(&"nodal_period", NAN)
+		var apsidal_period: float = data.get(&"apsidal_period", NAN)
 		
 		if !is_nan(a_rate): # planet format
-			assert(!is_nan(e_rate) and !is_nan(i_rate) and !is_nan(Om_rate) and !is_nan(w_rate))
-			element_rates = Array([a_rate, e_rate, i_rate, Om_rate, w_rate], TYPE_FLOAT, &"", null)
+			assert(!is_nan(e_rate) and !is_nan(i_rate) and !is_nan(lan_rate) and !is_nan(lop_rate)
+					and is_nan(nodal_period) and is_nan(apsidal_period),
+					"Expected dynamic orbit parameters in either planet format (5 rates) or " +
+					"satellite format (nodal_period, apsidal_period)")
 			
-			# mean anomaly corrections for Jupiter to Pluto.
-			var b := _o.mean_anomaly_correction_b
+			var aop_rate := polarity * (lop_rate - lan_rate) # convert rates as elements above
+			element_rates = Array([a_rate, e_rate, i_rate, lan_rate, aop_rate], TYPE_FLOAT, &"", null)
+			
+			# mean anomaly corrections for Jupiter to Pluto (expect all or none)
+			var b: float = data.get(&"mean_anomaly_correction_b", NAN)
+			var c: float = data.get(&"mean_anomaly_correction_c", NAN)
+			var s: float = data.get(&"mean_anomaly_correction_s", NAN)
+			var f: float = data.get(&"mean_anomaly_correction_f", NAN)
 			if !is_nan(b): # must also have c, s, f
-				var c := _o.mean_anomaly_correction_c
-				var s := _o.mean_anomaly_correction_s
-				var f := _o.mean_anomaly_correction_f
-				assert(!is_nan(c) and !is_nan(s) and !is_nan(f))
+				assert(!is_nan(c) and !is_nan(s) and !is_nan(f),
+						"Expected all or none: 'mean_anomaly_correction_b', '_c', '_s' and '_f'")
 				m_modifiers = Array([b, c, s, f], TYPE_FLOAT, &"", null)
+			else:
+				assert(is_nan(c) and is_nan(s) and is_nan(f),
+						"Expected all or none: 'mean_anomaly_correction_b', '_c', '_s' and '_f'")
 				
 		elif !is_nan(nodal_period): # satellite format
-			assert(!is_nan(apsidal_period)) # both or neither
-			# For satellites around an oblique body, apsidal precession is in
-			# the direction of orbit and nodal precession is in the opposite
-			# direction. (Hence, the sign flip for Om_rate.)
-			# Some values are tiny leading to div/0 or excessive updating. These
-			# correspond to near-circular and/or non-inclined orbits, where Om
-			# and w are technically undefined and updates are irrelevant.
+			
+			assert(!is_nan(apsidal_period) and is_nan(e_rate) and is_nan(i_rate) and is_nan(lan_rate)
+					and is_nan(lop_rate),
+					"Expected dynamic orbit parameters in either planet format (5 rates) or " +
+					"satellite format (nodal_period, apsidal_period)")
+			
+			# Nearly non-inclined and near-circular orbits lead to tiny nodal
+			# and apsidal periods, leading to excessive updates or div/0. In
+			# the extreme, lan and aop become technically undefined and updates
+			# are irrelevant. We use thresholds here to set undefined periods
+			# (=0.0) which will result in 0.0 rates below. 
 			if i < MIN_INCLINATION_FOR_NODAL_PRECESSION:
 				nodal_period = 0.0
 			if e < MIN_ECCENTRICITY_FOR_APSIDAL_PRECESSION:
 				apsidal_period = 0.0
-			var orbit_sign := signf(RIGHT_ANGLE - i) # prograde +1.0; retrograde -1.0
-			Om_rate = 0.0
-			w_rate = 0.0
-			if nodal_period != 0.0:
-				# FIXME: Looks like this is giving the wrong polarity in Jupiter
-				# moons. I.e., the orbit plane is precessing in the same direction
-				# as orbit.
-				Om_rate = -orbit_sign * TAU / nodal_period # opposite to orbit!
-			if apsidal_period != 0.0:
-				w_rate = orbit_sign * TAU / apsidal_period
-			if Om_rate or w_rate:
-				element_rates = Array([0.0, 0.0, 0.0, Om_rate, w_rate], TYPE_FLOAT, &"", null)
+			
+			# For satellites around an oblique body, apsidal precession is in
+			# the direction of orbit and nodal precession is in the opposite
+			# direction for prograde orbits, and reverse for retrograde.
+			lan_rate = 0.0
+			if nodal_period:
+				# Positive nodal_period means negative lan_rate, unless retrograde.
+				lan_rate = -polarity * TAU / nodal_period
+			# Apsidal period determines *longitude* of periapsis rate (lop_rate)...
+			# aop_rate = polarity * (lop_rate - lan_rate)
+			var aop_rate := -polarity * lan_rate
+			if apsidal_period:
+				# Positive apsidal_period means positive lop_rate, unless retrograde.
+				var prograde_lop_rate := TAU / apsidal_period # = polarity * lop_rate
+				aop_rate += prograde_lop_rate
+				
+				# Sanity test:
+				# 1. Observed Earth's prograde Moon w/ apsidal precession in
+				#    direction of orbit and nodal precession in opposite
+				#    direction, with roughly correct periods.
+				# 2. Observed retrograde outer moons of Jupiter w/ apsidal
+				#    precessions in direction of orbits (i.e., retrograde) and
+				#    nodal precessions in opposite direction (i.e., prograde),
+				#    with ~80 year(ish) periods.
+				
+			if lan_rate or aop_rate:
+				element_rates = Array([0.0, 0.0, 0.0, lan_rate, aop_rate], TYPE_FLOAT, &"", null)
 		
 		else:
-			assert(is_nan(e_rate) and is_nan(i_rate) and is_nan(Om_rate) and is_nan(w_rate)
-					and is_nan(apsidal_period) and is_nan(nodal_period),
-					"Expected dynamic orbit elements in either planet format (5 rates) or " +
+			assert(is_nan(e_rate) and is_nan(i_rate) and is_nan(lan_rate) and is_nan(lop_rate)
+					and is_nan(nodal_period) and is_nan(apsidal_period),
+					"Expected dynamic orbit parameters in either planet format (5 rates) or " +
 					"satellite format (nodal_period, apsidal_period)")
 		
 		# add orbit rates/corrections, if any
@@ -193,19 +247,18 @@ func make_orbit(table: String, row: int, parent: IVBody) -> IVOrbit:
 				orbit.m_modifiers = m_modifiers
 	
 	# reference plane (moons!)
+	var orbit_reference: int = data.get(&"orbit_reference", -1)
 	if orbit_reference == OrbitReference.ORBIT_REFERENCE_EQUATORIAL:
 		orbit.reference_normal = parent.get_positive_pole()
 	elif orbit_reference == OrbitReference.ORBIT_REFERENCE_LAPLACE:
-		assert(!is_nan(_o.orbit_right_ascension))
-		assert(!is_nan(_o.orbit_declination))
-		var ref_normal := math.convert_spherical2(_o.orbit_right_ascension, _o.orbit_declination)
+		var orbit_ra: float = data.get(&"orbit_right_ascension", NAN)
+		var orbit_dec: float = data.get(&"orbit_declination", NAN)
+		assert(!is_nan(orbit_ra), "Expected 'orbit_right_ascension' for ORBIT_REFERENCE_LAPLACE")
+		assert(!is_nan(orbit_dec), "Expected 'orbit_declination' for ORBIT_REFERENCE_LAPLACE")
+		var ref_normal := math.convert_spherical2(orbit_ra, orbit_dec)
 		ref_normal = _ecliptic_rotation * ref_normal
 		orbit.reference_normal = ref_normal
 	else:
-		assert(orbit_reference == OrbitReference.ORBIT_REFERENCE_ECLIPTIC or orbit_reference == -1)
-		
-	# reset for next orbit build
-	for field: StringName in _o:
-		_o[field] = NAN
+		assert(orbit_reference == -1 or orbit_reference == OrbitReference.ORBIT_REFERENCE_ECLIPTIC)
 	
 	return orbit

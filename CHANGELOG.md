@@ -12,9 +12,16 @@ Developed using Godot 4.4.1
 
 ### Added
 * IVBodyFinisher class for adding non-procedural nodes from table data (to help declutter IVBody).
+* IVLazyModelInitializer for initing lazy models. (Replaces overly complicated IVLazyManager.)
+
+### Changed
+* [API breaking] Renamed and reorganized enums in IVBody.BodyFlags.
+* Unabbreviated field names in body tables for orbit parameters.
+* De-cluttered code in various TableXxxxBuilder classes. Force user to enter needed fields in table rather than trying to accommodate every data variation.
 
 ### Fixed
-* Fixed errors caused by loading resources simultaneously on different threads. 
+* Fixed errors caused by loading resources simultaneously on different threads.
+* Fixed nodal and apsidal precessions for retrograde oribits. (I'm 90% sure after observations.)
 
 ## [v0.0.24] - 2025-03-31
 
