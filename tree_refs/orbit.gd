@@ -59,7 +59,10 @@ extends RefCounted
 #   [6] tp, time of periapsis passage
 # Alternatively, it might be more optimal (for calculations) to append the
 # existing array.
-
+#
+# 
+# TODO? There are faster algorithms for Keplar's equation that could be coded:
+# https://github.com/oliverphilcox/Keplers-Goat-Herd.
 
 signal changed(is_scheduled: bool) # is_scheduled == false triggers network sync
 

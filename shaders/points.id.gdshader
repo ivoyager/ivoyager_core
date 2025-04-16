@@ -37,7 +37,7 @@ varying flat vec3 fragment_id;
 
 
 void vertex() {
-	fragment_id = VERTEX; // constant id for each vertex
+	fragment_id = VERTEX; // id for each vertex (not position!)
 	
 	// orbital elements
 	float a = CUSTOM1[0]; // semi-major axis
@@ -49,11 +49,18 @@ void vertex() {
 	float n = CUSTOM1[2]; // mean motion
 	
 	// precessions & magnitude
-//	float s = CUSTOM2[0]; // nodal precession; NOT IMPLEMENTED YET
-//	float g = CUSTOM2[1]; // apsidal precession; NOT IMPLEMENTED YET
-//	float mag = CUSTOM2[3]; // magnitude; NOT IMPLEMENTED YET
+	float s = CUSTOM2[0]; // nodal precession (=longitude ascending node rate)
+	float g = CUSTOM2[1]; // apsidal precession (=longitude of periapsis rate)
+//	float mag = CUSTOM2[3]; // magnitude; NOT IMPLEMENTED
 	
-	float m = m0 + n * iv_time; // mean anomaly
+	// orbit precessions
+	lan += s * iv_time;
+	aop += (g - s) * iv_time; // arg of periapsis = long of periapsis - long ascending node
+	lan = mod(lan, TAU);
+	aop = mod(aop, TAU);
+	
+	// mean anomaly
+	float m = m0 + n * iv_time;
 	m = mod(m + PI, TAU) - PI;
 	
 	vec3 position = get_orbit_position(a, e, i, lan, aop, m);

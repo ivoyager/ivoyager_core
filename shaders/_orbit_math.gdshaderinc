@@ -2,7 +2,7 @@
 // This file is part of I, Voyager
 // https://ivoyager.dev
 // *****************************************************************************
-// Copyright 2017-2023 Charlie Whitfield
+// Copyright 2017-2025 Charlie Whitfield
 // I, Voyager is a registered trademark of Charlie Whitfield in the US
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,16 +18,15 @@
 // limitations under the License.
 // *****************************************************************************
 
+// TODO? There are faster algorithms for Keplar's equation that could be coded:
+// https://github.com/oliverphilcox/Keplers-Goat-Herd.
 
 vec3 get_orbit_position(float a, float e, float i, float lan, float aop, float m){
-	// Duplicates orbital math in IVOrbits with some optimization of the
-	// numerical approximation.
+	// Mostly duplicates orbital math in IVOrbits.
 	
-	// A while loop here breaks WebGL1 export. From empirical testing, the
-	// 2nd adjustment ('ea -= delta_ea') is needed for the vast majority of points
-	// (hence, no 'if' test). A tiny minority make it to the 5th adjustment. If
-	// we understand GPU warps and wavefronts correctly, the forking here isn't
-	// too bad.
+	// A while loop here breaks WebGL1 export. From empirical testing, two
+	// corrections are needed for the vast majority of points and only a
+	// tiny minority receive the 5th correction.
 	float ea = m + e * sin(m); // eccentric anomaly (initial approximation)
 	float delta_ea = (ea - m - e * sin(ea)) / (1.0 - e * cos(ea));
 	ea -= delta_ea;
@@ -59,4 +58,3 @@ vec3 get_orbit_position(float a, float e, float i, float lan, float aop, float m
 	
 	return vec3(x, y, z);
 }
-

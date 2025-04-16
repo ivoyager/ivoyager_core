@@ -127,6 +127,25 @@ func append_data(names_append: PackedStringArray, e_i_lan_aop_append: PackedFloa
 	assert(s_g_mag_de_append.size() == n_bodies * 4)
 	assert(da_d_f_th0_append.size() == (0 if lp_integer == -1 else n_bodies * 4))
 	
+	
+	# *************************************************************************
+	# FIXME: WORKS FOR UNKNOWN REASON! The PI adjustment here fixes precessions
+	# so that the Hildas maintain position correctly over 3000 BC - 3000 AD.
+	# This strongly suggests a conversion error somewhere. HOWEVER, the print
+	# statement shows that our conversion from source to internal units is correct.
+	
+	# Print statement unconverts internal rad/s back to source units "/yr. This
+	# prints -59.1700357686738, 54.0702746719668 for Ceres, which agrees w/ source.
+	#printt(rad_to_deg(s_g_mag_de_append[0]) * 3600 * IVUnits.YEAR,
+			#rad_to_deg(s_g_mag_de_append[1]) * 3600 * IVUnits.YEAR, sbg_alias, names_append[0])
+	
+	for i in n_bodies:
+		# Here is the mystery fix...
+		s_g_mag_de_append[i * 4] /= PI # s
+		s_g_mag_de_append[i * 4 + 1] /= PI # g
+	# *************************************************************************
+	
+	
 	var previous_size := names.size()
 	names.append_array(names_append)
 	e_i_lan_aop.append_array(e_i_lan_aop_append)

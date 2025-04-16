@@ -20,7 +20,7 @@
 shader_type spatial;
 render_mode unshaded, cull_disabled, skip_vertex_transform;
 
-// See comments in points.id.shader.
+// See comments in points.id.gdshader.
 //
 // For L4/L5 objects, a & m are determined by da, dl, f & th0 together with
 // characteristic_length (semi-major axis of the secondary body) and mean
@@ -66,7 +66,7 @@ float axis_ocillator(float da, float th){
 
 
 void vertex() {
-	fragment_id = VERTEX;
+	fragment_id = VERTEX; // id for each vertex (not position!)
 	
 	// orbit elements
 	float e = CUSTOM0[0]; // eccentricity
@@ -74,16 +74,23 @@ void vertex() {
 	float lan = CUSTOM0[2]; // longitude of the ascending node
 	float aop = CUSTOM0[3]; // argument of periapsis
 	
-	// lagrangian
+	// lagrange point parameters
 	float da = CUSTOM1[0]; // amplitude of axis ocillation
 	float dl = CUSTOM1[1]; // amplitude of longitudinal ocillation
 	float f = CUSTOM1[2]; // frequency of ocillation
 	float th0 = CUSTOM1[3]; // ocillator at epoch
 	
-	// orbit precessions & magnitude
-//	float s = CUSTOM2[0]; // nodal precession; NOT IMPLEMENTED YET
-//	float g = CUSTOM2[1]; // apsidal precession; NOT IMPLEMENTED YET
-//	float mag = CUSTOM2[3]; // magnitude; NOT IMPLEMENTED YET
+	// orbit precessions
+	float s = CUSTOM2[0]; // nodal precession (=longitude_ascending_node_rate)
+	float g = CUSTOM2[1]; // apsidal precession (=longitude_of_periapsis_rate)
+	
+//	float mag = CUSTOM2[3]; // magnitude; NOT IMPLEMENTED
+	
+	// orbit precessions
+	lan += s * iv_time;
+	aop += (g - s) * iv_time; // arg of periapsis = long of periapsis - long ascending node
+	lan = mod(lan, TAU);
+	aop = mod(aop, TAU);
 	
 	// libration of a & m
 	float th = th0 + f * iv_time;
