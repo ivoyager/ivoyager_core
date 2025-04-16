@@ -86,30 +86,30 @@ static func rotate_basis_z(basis: Basis, new_z: Vector3) -> Basis:
 	return basis
 
 
-static func get_rotation_matrix(keplerian_elements: Array[float]) -> Basis:
-	var i: float = keplerian_elements[2]
-	var Om: float = keplerian_elements[3]
-	var w: float = keplerian_elements[4]
+static func get_orbit_rotation_matrix(elements: Array[float]) -> Basis:
+	var i: float = elements[2]
+	var lan: float = elements[3]
+	var aop: float = elements[4]
 	var sin_i := sin(i)
 	var cos_i := cos(i)
-	var sin_Om := sin(Om)
-	var cos_Om := cos(Om)
-	var sin_w := sin(w)
-	var cos_w := cos(w)
+	var sin_lan := sin(lan)
+	var cos_lan := cos(lan)
+	var sin_aop := sin(aop)
+	var cos_aop := cos(aop)
 	return Basis(
 		Vector3(
-			cos_Om * cos_w - sin_Om * cos_i * sin_w,
-			sin_Om * cos_w + cos_Om * cos_i * sin_w,
-			sin_i * sin_w
+			cos_lan * cos_aop - sin_lan * cos_i * sin_aop,
+			sin_lan * cos_aop + cos_lan * cos_i * sin_aop,
+			sin_i * sin_aop
 		),
 		Vector3(
-			-cos_Om * sin_w - sin_Om * cos_i * cos_w,
-			-sin_Om * sin_w + cos_Om * cos_i * cos_w,
-			sin_i * cos_w
+			-cos_lan * sin_aop - sin_lan * cos_i * cos_aop,
+			-sin_lan * sin_aop + cos_lan * cos_i * cos_aop,
+			sin_i * cos_aop
 		),
 		Vector3(
-			sin_i * sin_Om,
-			-sin_i * cos_Om,
+			sin_i * sin_lan,
+			-sin_i * cos_lan,
 			cos_i
 		)
 	)
@@ -140,23 +140,23 @@ static func get_z_rotation_matrix(th: float) -> Basis:
 	)
 
 
-static func get_euler_rotation_matrix(Om: float, i: float, w: float) -> Basis:
-	# WIP - I started this and didn't finish. Never tested.
-	# Om, i, w are Euler angles alpha, beta, gamma (intrinsic rotations)
-	var x1 := cos(Om) * cos(w) - sin(Om) * cos(i) * sin(w)
-	var x2 := sin(Om) * cos(w) + cos(w) * cos(i) * sin(w)
-	var x3 := sin(i) * sin(w)
-	var y1 := -cos(Om) * sin(w) - sin(Om) * cos(i) * cos(w)
-	var y2 := -sin(Om) * sin(w) + cos(Om) * cos(i) * cos(w)
-	var y3 := sin(i) * cos(w)
-	var z1 := sin(i) * sin(Om)
-	var z2 := -sin(i) * cos(Om)
-	var z3 := cos(i)
-	return Basis(
-		Vector3(x1, x2, x3),
-		Vector3(y1, y2, y3),
-		Vector3(z1, z2, z3)
-	)
+# WIP - I started this and didn't finish. Never tested.
+# lan, i, aop are Euler angles alpha, beta, gamma (intrinsic rotations)
+#static func get_euler_rotation_matrix(lan: float, i: float, aop: float) -> Basis:
+	#var x1 := cos(lan) * cos(aop) - sin(lan) * cos(i) * sin(aop)
+	#var x2 := sin(lan) * cos(aop) + cos(aop) * cos(i) * sin(aop)
+	#var x3 := sin(i) * sin(aop)
+	#var y1 := -cos(lan) * sin(aop) - sin(lan) * cos(i) * cos(aop)
+	#var y2 := -sin(lan) * sin(aop) + cos(lan) * cos(i) * cos(aop)
+	#var y3 := sin(i) * cos(aop)
+	#var z1 := sin(i) * sin(lan)
+	#var z2 := -sin(i) * cos(lan)
+	#var z3 := cos(i)
+	#return Basis(
+		#Vector3(x1, x2, x3),
+		#Vector3(y1, y2, y3),
+		#Vector3(z1, z2, z3)
+	#)
 
 
 # Spherical

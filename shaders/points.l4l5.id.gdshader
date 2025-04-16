@@ -22,12 +22,12 @@ render_mode unshaded, cull_disabled, skip_vertex_transform;
 
 // See comments in points.id.shader.
 //
-// For L4/L5 objects, a & M are determined by da, D, f & th0 together with
+// For L4/L5 objects, a & m are determined by da, dl, f & th0 together with
 // characteristic_length (semi-major axis of the secondary body) and mean
 // longitude (leading or lagging secondary body by 60 degrees).
 //
 // da: amplitude of axis ocillation
-// D: amplitude of longitudinal ocillation
+// dl: amplitude of longitudinal ocillation
 // f: frequency of ocillation (period = TAU / f)
 // th0: phase at epoch
 // e, i, s, g: same as non-lagrange-point orbits
@@ -52,9 +52,9 @@ varying flat vec3 fragment_id;
 #include "_orbit_math.gdshaderinc"
 
 
-float longitude_ocillator(float D, float th){
+float longitude_ocillator(float dl, float th){
 	// th = 0 when trojan is at 'leading' extreme (max L relative to L-point).
-	return D * cos(th);
+	return dl * cos(th);
 }
 
 
@@ -71,12 +71,12 @@ void vertex() {
 	// orbit elements
 	float e = CUSTOM0[0]; // eccentricity
 	float i = CUSTOM0[1]; // inclination
-	float Om = CUSTOM0[2]; // longitude of the ascending node
-	float w = CUSTOM0[3]; // argument of periapsis
+	float lan = CUSTOM0[2]; // longitude of the ascending node
+	float aop = CUSTOM0[3]; // argument of periapsis
 	
 	// lagrangian
 	float da = CUSTOM1[0]; // amplitude of axis ocillation
-	float D = CUSTOM1[1]; // amplitude of longitudinal ocillation
+	float dl = CUSTOM1[1]; // amplitude of longitudinal ocillation
 	float f = CUSTOM1[2]; // frequency of ocillation
 	float th0 = CUSTOM1[3]; // ocillator at epoch
 	
@@ -85,13 +85,13 @@ void vertex() {
 //	float g = CUSTOM2[1]; // apsidal precession; NOT IMPLEMENTED YET
 //	float mag = CUSTOM2[3]; // magnitude; NOT IMPLEMENTED YET
 	
-	// libration of a & M
+	// libration of a & m
 	float th = th0 + f * iv_time;
 	float a = characteristic_length + axis_ocillator(da, th);
-	float M = lp_mean_longitude - Om - w + longitude_ocillator(D, th);
-	M = mod(M + PI, TAU) - PI;
+	float m = lp_mean_longitude - lan - aop + longitude_ocillator(dl, th);
+	m = mod(m + PI, TAU) - PI;
 	
-	vec3 position = get_orbit_position(a, e, i, Om, w, M);
+	vec3 position = get_orbit_position(a, e, i, lan, aop, m);
 	
 	// We skip VERTEX here, but this is the 2-step version...
 	// VERTEX = (MODELVIEW_MATRIX * vec4(x, y, z, 1.0)).xyz;

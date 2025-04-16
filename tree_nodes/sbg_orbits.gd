@@ -107,7 +107,7 @@ func _init(group: IVSmallBodiesGroup) -> void:
 		var e: float = elements[1]
 		var b: = sqrt(a * a * (1.0 - e * e)) # simi-minor axis
 		var orbit_basis := Basis().scaled(Vector3(a, b, 1.0))
-		orbit_basis = math.get_rotation_matrix(elements) * orbit_basis
+		orbit_basis = math.get_orbit_rotation_matrix(elements) * orbit_basis
 		var orbit_transform := Transform3D(orbit_basis, -e * orbit_basis.x)
 		multimesh.set_instance_transform(i, orbit_transform)
 		if is_set_custom_data:

@@ -114,8 +114,8 @@ func _init(group: IVSmallBodiesGroup) -> void:
 	var arrays := [] # packed arrays
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = _vec3ids
-	arrays[Mesh.ARRAY_CUSTOM0] = group.e_i_Om_w
-	arrays[Mesh.ARRAY_CUSTOM1] = group.a_M0_n if _lp_integer == -1 else group.da_D_f_th0
+	arrays[Mesh.ARRAY_CUSTOM0] = group.e_i_lan_aop
+	arrays[Mesh.ARRAY_CUSTOM1] = group.a_m0_n if _lp_integer == -1 else group.da_d_f_th0
 	arrays[Mesh.ARRAY_CUSTOM2] = group.s_g_mag_de
 	var array_flags := ARRAY_FLAGS if _lp_integer == -1 else L4L5_ARRAY_FLAGS
 	points_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_POINTS, arrays, [], {}, array_flags)

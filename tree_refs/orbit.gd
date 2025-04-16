@@ -26,22 +26,22 @@ extends RefCounted
 ## coordinate system.
 
 # Orbit info is kept in standardized arrays of fixed size. reference_normal is
-# normal to the reference plane (ecliptic, equatorial or specified Laplace
-# plane; many moons use the latter two); the "orbit normal" precesses around
-# the reference_normal.
+# normal to the reference plane, which may be ecliptic_xy, equatorial or
+# specified Laplace plane (most moons use the latter two). The orbit precesses
+# around the reference_normal.
 #
 # The standard orbital 'elements' array:
 #   [0] a, semi-major axis
 #   [1] e, eccentricity
 #   [2] i, inclination
-#   [3] Om, longitude of the ascending node
-#   [4] w, argument of periapsis
-#   [5] M0, mean anomaly at epoch
+#   [3] lan, longitude of the ascending node
+#   [4] aop, argument of periapsis
+#   [5] m0, mean anomaly at epoch
 #   [6] n, mean motion
 #
 # Position is determined by time, reference_normal and current_elements;
 # current_elements is determined by time, elements_at_epoch, element_rates
-# and m_modifiers (if exists). element_rates and m_modifiers represent
+# and m_corrections (if exists). element_rates and m_corrections represent
 # perturbations "endongenous" to the orbital system (e.g., oblateness of parent
 # body). A rocket engine "perturbs" the system by directly affecting
 # current orbital elements. However, we will apply such effects by back-
@@ -57,6 +57,8 @@ extends RefCounted
 #   [5] soe, specific orbital energy (<0 for elliptic).
 #   or, [5] mu, standard gravidational constant (soe). mu = n**2 * a**3.
 #   [6] tp, time of periapsis passage
+# Alternatively, it might be more optimal (for calculations) to append the
+# existing array.
 
 
 signal changed(is_scheduled: bool) # is_scheduled == false triggers network sync
@@ -83,14 +85,14 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"reference_normal",
 	&"elements_at_epoch",
 	&"element_rates",
-	&"m_modifiers",
+	&"m_corrections",
 ]
 
 # persisted
 var reference_normal := ECLIPTIC_UP # moons are often different
-var elements_at_epoch: Array[float] = [] # [a, e, i, Om, w, M0, n]; required
-var element_rates: Array[float] = [] # [a, e, i, Om, w]; optional
-var m_modifiers: Array[float] = [] # [b, c, s, f]; planets Jupiter to Pluto only
+var elements_at_epoch: Array[float] = [] # [a, e, i, lan, aop, m0, n]; required
+var element_rates: Array[float] = [] # [a, e, i, lan, aop]; optional
+var m_corrections: Array[float] = [] # [b, c, s, f]; planets Jupiter to Pluto only
 
 # read-only
 var current_elements: Array[float] = utils.init_array(7, 0.0, TYPE_FLOAT)
@@ -113,7 +115,7 @@ func perturb(_delta_v: Vector3, _at_time := NAN) -> void:
 	# back-calculate and apply changes to elements_at_epoch that will give us
 	# needed change in current_elements.
 	# Based on context, we may need to recalculate element_rates or even
-	# m_modifiers.
+	# m_corrections.
 	pass
 
 
@@ -256,10 +258,10 @@ func get_normal(time := NAN, flip_retrograde := false) -> Vector3:
 	if !is_nan(time) and (time > _end_current or time < _begin_current):
 		elements = utils.init_array(7, 0.0, TYPE_FLOAT)
 		_set_elements(time, elements)
-	# Orbit normal is defined by Om & i. This vector precesses around the
+	# Orbit normal is defined by lan & i. This vector precesses around the
 	# reference_normal.
 	var relative_normal := math.convert_spherical2(
-			elements[3] + RIGHT_ANGLE, elements[2] + RIGHT_ANGLE) # Om, i
+			elements[3] + RIGHT_ANGLE, elements[2] + RIGHT_ANGLE) # lan, i
 	var orbit_normal: Vector3
 	if elements[2] > RIGHT_ANGLE: # retrograde
 		orbit_normal = math.rotate_vector_z(relative_normal, reference_normal)
@@ -279,7 +281,7 @@ func get_mean_anomaly(time := NAN) -> float:
 	elif time > _end_current or time < _begin_current:
 		elements = utils.init_array(7, 0.0, TYPE_FLOAT)
 		_set_elements(time, elements)
-	return wrapf(elements[6] * time + elements[5], -PI, PI) # M = n * time + M0
+	return wrapf(elements[6] * time + elements[5], -PI, PI) # m = n * time + m0
 
 
 func get_true_anomaly(time := NAN) -> float:
@@ -290,16 +292,16 @@ func get_true_anomaly(time := NAN) -> float:
 		elements = utils.init_array(7, 0.0, TYPE_FLOAT)
 		_set_elements(time, elements)
 	var e: float = elements[1]  # eccentricity
-	var M0: float = elements[5] # mean anomaly at epoch
+	var m0: float = elements[5] # mean anomaly at epoch
 	var n: float = elements[6]  # mean motion
-	var M := wrapf(M0 + n * time, -PI, PI) # mean anomaly
-	var EA := M + e * sin(M) # eccentric anomaly
-	var dEA := (EA - M - e * sin(EA)) / (1.0 - e * cos(EA))
-	EA -= dEA
-	while abs(dEA) > 1e-5:
-		dEA = (EA - M - e * sin(EA)) / (1.0 - e * cos(EA))
-		EA -= dEA
-	return 2.0 * atan(sqrt((1.0 + e) / (1.0 - e)) * tan(EA / 2.0)) # nu
+	var m := wrapf(m0 + n * time, -PI, PI) # mean anomaly
+	var ea := m + e * sin(m) # eccentric anomaly (initial estimate)
+	var delta_ea := (ea - m - e * sin(ea)) / (1.0 - e * cos(ea))
+	ea -= delta_ea
+	while abs(delta_ea) > 1e-5:
+		delta_ea = (ea - m - e * sin(ea)) / (1.0 - e * cos(ea))
+		ea -= delta_ea
+	return 2.0 * atan(sqrt((1.0 + e) / (1.0 - e)) * tan(ea / 2.0)) # nu
 
 
 func get_mean_longitude(time := NAN) -> float:
@@ -309,8 +311,8 @@ func get_mean_longitude(time := NAN) -> float:
 	elif time > _end_current or time < _begin_current:
 		elements = utils.init_array(7, 0.0, TYPE_FLOAT)
 		_set_elements(time, elements)
-	var M: float = elements[6] * time + elements[5]
-	return wrapf(M + elements[3] + elements[4], -PI, PI) # M + Om + w
+	var m: float = elements[6] * time + elements[5]
+	return wrapf(m + elements[3] + elements[4], -PI, PI) # m + lan + aop
 
 
 func get_true_longitude(time := NAN) -> float:
@@ -321,17 +323,17 @@ func get_true_longitude(time := NAN) -> float:
 		elements = utils.init_array(7, 0.0, TYPE_FLOAT)
 		_set_elements(time, elements)
 	var e: float = elements[1]  # eccentricity
-	var M0: float = elements[5] # mean anomaly at epoch
+	var m0: float = elements[5] # mean anomaly at epoch
 	var n: float = elements[6]  # mean motion
-	var M := wrapf(M0 + n * time, -PI, PI) # mean anomaly
-	var EA := M + e * sin(M) # eccentric anomaly
-	var dEA := (EA - M - e * sin(EA)) / (1.0 - e * cos(EA))
-	EA -= dEA
-	while abs(dEA) > 1e-5:
-		dEA = (EA - M - e * sin(EA)) / (1.0 - e * cos(EA))
-		EA -= dEA
-	var nu := 2.0 * atan(sqrt((1.0 + e) / (1.0 - e)) * tan(EA / 2.0)) # nu
-	return wrapf(nu + elements[3] + elements[4], -PI, PI) # nu + Om + w
+	var m := wrapf(m0 + n * time, -PI, PI) # mean anomaly
+	var ea := m + e * sin(m) # eccentric anomaly (initial estimate)
+	var delta_ea := (ea - m - e * sin(ea)) / (1.0 - e * cos(ea))
+	ea -= delta_ea
+	while abs(delta_ea) > 1e-5:
+		delta_ea = (ea - m - e * sin(ea)) / (1.0 - e * cos(ea))
+		ea -= delta_ea
+	var nu := 2.0 * atan(sqrt((1.0 + e) / (1.0 - e)) * tan(ea / 2.0)) # nu
+	return wrapf(nu + elements[3] + elements[4], -PI, PI) # nu + lan + aop
 
 
 func get_position(time := NAN) -> Vector3:
@@ -356,11 +358,11 @@ func get_position_velocity(time := NAN) -> Array[Vector3]:
 	elif time > _end_current or time < _begin_current:
 		elements = utils.init_array(7, 0.0, TYPE_FLOAT)
 		_set_elements(time, elements)
-	var RV := IVOrbit.get_vectors_from_elements(elements, time)
+	var position_velocity := IVOrbit.get_vectors_from_elements(elements, time)
 	if reference_normal != ECLIPTIC_UP:
-		RV[0] = math.rotate_vector_z(RV[0], reference_normal)
-		RV[1] = math.rotate_vector_z(RV[1], reference_normal)
-	return RV
+		position_velocity[0] = math.rotate_vector_z(position_velocity[0], reference_normal)
+		position_velocity[1] = math.rotate_vector_z(position_velocity[1], reference_normal)
+	return position_velocity
 
 
 func get_elements(time := NAN) -> Array[float]:
@@ -373,34 +375,34 @@ func get_elements(time := NAN) -> Array[float]:
 
 static func get_position_from_elements(elements: Array[float], time: float) -> Vector3:
 	# Derived from https://ssd.jpl.nasa.gov/planets/approx_pos.html. However,
-	# we use M modifiers (b, c, s, f) to modify M0 in our dynamic orbital
+	# we use m modifiers (b, c, s, f) to modify m0 in our dynamic orbital
 	# elements (see _set_elements function) rather than modifying M here.
 	# Thus, position is strictly a function of time and orbital elements.
 	var a: float = elements[0]  # semi-major axis
 	var e: float = elements[1]  # eccentricity
 	var i: float = elements[2]  # inclination
-	var Om: float = elements[3] # longitude of the ascending node
-	var w: float = elements[4]  # argument of periapsis
-	var M0: float = elements[5] # mean anomaly at epoch
+	var lan: float = elements[3] # longitude of the ascending node
+	var aop: float = elements[4]  # argument of periapsis
+	var m0: float = elements[5] # mean anomaly at epoch
 	var n: float = elements[6]  # mean motion
-	var M := wrapf(M0 + n * time, -PI, PI) # mean anomaly
-	var EA := M + e * sin(M) # eccentric anomaly
-	var dEA := (EA - M - e * sin(EA)) / (1.0 - e * cos(EA))
-	EA -= dEA
-	while abs(dEA) > 1e-5:
-		dEA = (EA - M - e * sin(EA)) / (1.0 - e * cos(EA))
-		EA -= dEA
-	var nu := 2.0 * atan(sqrt((1.0 + e) / (1.0 - e)) * tan(EA / 2.0)) # true anomaly
-	var r := a * (1.0 - e * cos(EA))
+	var m := wrapf(m0 + n * time, -PI, PI) # mean anomaly
+	var ea := m + e * sin(m) # eccentric anomaly (initial estimate)
+	var delta_ea := (ea - m - e * sin(ea)) / (1.0 - e * cos(ea))
+	ea -= delta_ea
+	while abs(delta_ea) > 1e-5:
+		delta_ea = (ea - m - e * sin(ea)) / (1.0 - e * cos(ea))
+		ea -= delta_ea
+	var nu := 2.0 * atan(sqrt((1.0 + e) / (1.0 - e)) * tan(ea / 2.0)) # true anomaly
+	var r := a * (1.0 - e * cos(ea))
 	var cos_i := cos(i)
 	var sin_i := sin(i)
-	var sin_Om := sin(Om)
-	var cos_Om := cos(Om)
-	var sin_w_nu := sin(w + nu)
-	var cos_w_nu := cos(w + nu)
-	var x := r * (cos_Om * cos_w_nu - sin_Om * sin_w_nu * cos_i)
-	var y := r * (sin_Om * cos_w_nu + cos_Om * sin_w_nu * cos_i)
-	var z := r * (sin_w_nu * sin_i)
+	var sin_lan := sin(lan)
+	var cos_lan := cos(lan)
+	var sin_aop_nu := sin(aop + nu)
+	var cos_aop_nu := cos(aop + nu)
+	var x := r * (cos_lan * cos_aop_nu - sin_lan * sin_aop_nu * cos_i)
+	var y := r * (sin_lan * cos_aop_nu + cos_lan * sin_aop_nu * cos_i)
+	var z := r * (sin_aop_nu * sin_i)
 	return Vector3(x, y, z)
 
 
@@ -411,37 +413,37 @@ static func get_vectors_from_elements(elements: Array[float], time: float) -> Ar
 	var a: float = elements[0]  # semi-major axis
 	var e: float = elements[1]  # eccentricity
 	var i: float = elements[2]  # inclination
-	var Om: float = elements[3] # longitude of the ascending node
-	var w: float = elements[4]  # argument of periapsis
-	var M0: float = elements[5] # mean anomaly at epoch
+	var lan: float = elements[3] # longitude of the ascending node
+	var aop: float = elements[4]  # argument of periapsis
+	var m0: float = elements[5] # mean anomaly at epoch
 	var n: float = elements[6]  # mean motion
-	var M := wrapf(M0 + n * time, -PI, PI) # mean anomaly
-	var EA := M + e * sin(M) # eccentric anomaly
-	var dEA := (EA - M - e * sin(EA)) / (1.0 - e * cos(EA))
-	EA -= dEA
-	while abs(dEA) > 1e-5:
-		dEA = (EA - M - e * sin(EA)) / (1.0 - e * cos(EA))
-		EA -= dEA
-	var nu := 2.0 * atan(sqrt((1.0 + e) / (1.0 - e)) * tan(EA / 2.0)) # true anomaly
-	var r := a * (1.0 - e * cos(EA))
+	var m := wrapf(m0 + n * time, -PI, PI) # mean anomaly
+	var ea := m + e * sin(m) # eccentric anomaly (initial estimate)
+	var delta_ea := (ea - m - e * sin(ea)) / (1.0 - e * cos(ea))
+	ea -= delta_ea
+	while abs(delta_ea) > 1e-5:
+		delta_ea = (ea - m - e * sin(ea)) / (1.0 - e * cos(ea))
+		ea -= delta_ea
+	var nu := 2.0 * atan(sqrt((1.0 + e) / (1.0 - e)) * tan(ea / 2.0)) # true anomaly
+	var r := a * (1.0 - e * cos(ea))
 	var cos_i := cos(i)
 	var sin_i := sin(i)
-	var sin_Om := sin(Om)
-	var cos_Om := cos(Om)
-	var sin_w_nu := sin(w + nu)
-	var cos_w_nu := cos(w + nu)
-	var x := r * (cos_Om * cos_w_nu - sin_Om * sin_w_nu * cos_i)
-	var y := r * (sin_Om * cos_w_nu + cos_Om * sin_w_nu * cos_i)
-	var z := r * (sin_w_nu * sin_i)
+	var sin_lan := sin(lan)
+	var cos_lan := cos(lan)
+	var sin_aop_nu := sin(aop + nu)
+	var cos_aop_nu := cos(aop + nu)
+	var x := r * (cos_lan * cos_aop_nu - sin_lan * sin_aop_nu * cos_i)
+	var y := r * (sin_lan * cos_aop_nu + cos_lan * sin_aop_nu * cos_i)
+	var z := r * (sin_aop_nu * sin_i)
 	# above copied from position function; below velocity
 	var mu := n * n * a * a * a # is this exactly correct if it is a proper orbit???
 	var p := a * (1.0 - e * e)
 	var h := sqrt(mu * p) # specific angular momentum
 	var c1 := h * e * sin(nu) / (r * p)
 	var c2 := h / r
-	var vx := c1 * x - c2 * (cos_Om * sin_w_nu + sin_Om * cos_w_nu * cos_i)
-	var vy := c1 * y - c2 * (sin_Om * sin_w_nu - cos_Om * cos_w_nu * cos_i)
-	var vz := c1 * z - c2 * (cos_w_nu * sin_i)
+	var vx := c1 * x - c2 * (cos_lan * sin_aop_nu + sin_lan * cos_aop_nu * cos_i)
+	var vy := c1 * y - c2 * (sin_lan * sin_aop_nu - cos_lan * cos_aop_nu * cos_i)
+	var vz := c1 * z - c2 * (cos_aop_nu * sin_i)
 	return Array([Vector3(x, y, z), Vector3(vx, vy, vz)], TYPE_VECTOR3, &"", null)
 
 
@@ -454,34 +456,34 @@ static func get_elements_from_vectors(position: Vector3, velocity: Vector3, mu: 
 	var h := h_bar.length()
 	var r := position.length()
 	var v_sq := velocity.length_squared()
-	var En := v_sq / 2.0 - mu / r # specific energy
-	var a := -mu / (2.0 * En)
+	var se := v_sq / 2.0 - mu / r # specific energy
+	var a := -mu / (2.0 * se)
 	var e_sq := 1.0 - h * h / (a * mu)
 	var e := sqrt(e_sq) if e_sq > 0.0 else 0.0
 	var i := acos(h_bar.z / h)
 	var p := a * (1.0 - e * e)
 	var nu := atan2(sqrt(p / mu) * position.dot(velocity), p - r)
-	var Om: float
-	var w: float
+	var lan: float
+	var aop: float
 	if i > 0.000001:
-		Om = atan2(h_bar.x, -h_bar.y)
+		lan = atan2(h_bar.x, -h_bar.y)
 		if e > 0.000001:
-			w = atan2(position.z / sin(i), position.x * Om + position.y * Om) - nu
+			aop = atan2(position.z / sin(i), position.x * lan + position.y * lan) - nu
 		else:
-			w = 0.0
+			aop = 0.0
 	else:
-		Om = 0.0
+		lan = 0.0
 		if e > 0.000001:
 			var e_vec := ((v_sq - mu / r) * position - position.dot(velocity) * velocity) / mu
-			w = atan2(e_vec.y, e_vec.x)
+			aop = atan2(e_vec.y, e_vec.x)
 			if position.cross(velocity).z < 0:
-				w = TAU - w
+				aop = TAU - aop
 		else:
-			w = 0.0
+			aop = 0.0
 	var n := sqrt(mu / a / a / a)
-	var EA := 2.0 * atan(sqrt((1.0 - e) / (1.0 + e)) * tan(nu / 2.0))
-	var M0 := EA - e * sin(EA) - n * time
-	return Array([a, e, i, Om, w, M0, n], TYPE_FLOAT, &"", null)
+	var ea := 2.0 * atan(sqrt((1.0 - e) / (1.0 + e)) * tan(nu / 2.0))
+	var m0 := ea - e * sin(ea) - n * time
+	return Array([a, e, i, lan, aop, m0, n], TYPE_FLOAT, &"", null)
 
 
 # *****************************************************************************
@@ -506,9 +508,9 @@ func reset_elements_and_interval_update() -> void:
 	var a_pps: float = abs(element_rates[0]) / IVUnits.AU
 	var e_pps: float = abs(element_rates[1]) / 0.1 # arbitrary
 	var i_pps: float = abs(element_rates[2]) / TAU
-	var Om_pps: float = abs(element_rates[3]) / TAU
-	var w_pps: float = abs(element_rates[4]) / TAU
-	var max_pps: float = [a_pps, e_pps, i_pps, Om_pps, w_pps].max()
+	var lan_pps: float = abs(element_rates[3]) / TAU
+	var aop_pps: float = abs(element_rates[4]) / TAU
+	var max_pps: float = [a_pps, e_pps, i_pps, lan_pps, aop_pps].max()
 	var interval := UPDATE_TOLERANCE / max_pps
 	if interval < UPDATE_LIMITER:
 		# Allow up to -10% below limiter to avoid IVScheduler clumping
@@ -524,10 +526,10 @@ func reset_elements_and_interval_update() -> void:
 
 
 func orbit_sync(reference_normal_: Vector3, elements_at_epoch_: Array[float],
-		element_rates_: Array[float], m_modifiers_: Array[float]) -> void:
+		element_rates_: Array[float], m_corrections_: Array[float]) -> void:
 	reference_normal = reference_normal_
 	elements_at_epoch = elements_at_epoch_
-	m_modifiers = m_modifiers_
+	m_corrections = m_corrections_
 	if element_rates == element_rates_: # content test as of Godot 3.2.3!
 		_set_elements(_times[0] + _update_interval / 2.0, current_elements)
 	else:
@@ -548,7 +550,7 @@ func _set_elements(time: float, elements: Array[float]) -> void:
 	# elements must be size 7.
 	# Based on https://ssd.jpl.nasa.gov/planets/approx_pos.html (time range
 	# 3000 BCE - 3000 CE) except we apply Jupiter to Pluto M modifiers to
-	# adjust M0 here rather than adjusting M in position calculation.
+	# adjust m0 here rather than adjusting M in position calculation.
 	const RIGHT_ANGLE := PI / 2.0
 	if !element_rates: # no rates for this body or dynamic_orbits == false
 		var index := 0
@@ -562,32 +564,32 @@ func _set_elements(time: float, elements: Array[float]) -> void:
 	var a: float = elements_at_epoch[0] + element_rates[0] * t_clamped
 	var e: float = elements_at_epoch[1] + element_rates[1] * t_clamped
 	var i: float = elements_at_epoch[2] + element_rates[2] * t_clamped
-	var Om: float = elements_at_epoch[3] + element_rates[3] * time
-	var w: float = elements_at_epoch[4] + element_rates[4] * time
-	# adjust M0 for Om & w to give correct M at time
-	var M0: float
+	var lan: float = elements_at_epoch[3] + element_rates[3] * time
+	var aop: float = elements_at_epoch[4] + element_rates[4] * time
+	# adjust m0 for lan & aop to give correct M at time
+	var m0: float
 	if elements_at_epoch[2] > RIGHT_ANGLE:
-		M0 = elements_at_epoch[5] + (element_rates[3] + element_rates[4]) * time
+		m0 = elements_at_epoch[5] + (element_rates[3] + element_rates[4]) * time
 	else:
-		M0 = elements_at_epoch[5] - (element_rates[3] + element_rates[4]) * time
+		m0 = elements_at_epoch[5] - (element_rates[3] + element_rates[4]) * time
 	var n: float = elements_at_epoch[6] # does not change
-	if m_modifiers: # Jupiter, Saturn, Uranus, Neptune & Pluto only
-		var b: float = m_modifiers[0]
-		var c: float = m_modifiers[1]
-		var s: float = m_modifiers[2]
-		var f: float = m_modifiers[3]
-		M0 += b * t_clamped * t_clamped # clamp this due to square
+	if m_corrections: # Jupiter, Saturn, Uranus, Neptune & Pluto only
+		var b: float = m_corrections[0]
+		var c: float = m_corrections[1]
+		var s: float = m_corrections[2]
+		var f: float = m_corrections[3]
+		m0 += b * t_clamped * t_clamped # clamp this due to square
 		if c != 0.0: # if so, we also have non-zero s & f
-			M0 += c * cos(f * time) + s * sin(f * time) # safe unclamped
+			m0 += c * cos(f * time) + s * sin(f * time) # safe unclamped
 	# standardize wrap range
 	i = wrapf(i, -PI, PI) # FIXME: Something needs to be done if rates wrap i!
-	Om = wrapf(Om, 0.0, TAU)
-	w = wrapf(w, 0.0, TAU)
-	M0 = wrapf(M0, 0.0, TAU)
+	lan = wrapf(lan, 0.0, TAU)
+	aop = wrapf(aop, 0.0, TAU)
+	m0 = wrapf(m0, 0.0, TAU)
 	elements[0] = a
 	elements[1] = e
 	elements[2] = i
-	elements[3] = Om
-	elements[4] = w
-	elements[5] = M0
+	elements[3] = lan
+	elements[4] = aop
+	elements[5] = m0
 	elements[6] = n

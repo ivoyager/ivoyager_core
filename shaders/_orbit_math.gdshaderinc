@@ -19,43 +19,43 @@
 // *****************************************************************************
 
 
-vec3 get_orbit_position(float a, float e, float i, float Om, float w, float M){
+vec3 get_orbit_position(float a, float e, float i, float lan, float aop, float m){
 	// Duplicates orbital math in IVOrbits with some optimization of the
 	// numerical approximation.
 	
 	// A while loop here breaks WebGL1 export. From empirical testing, the
-	// 2nd adjustment ('EA -= dEA') is needed for the vast majority of points
+	// 2nd adjustment ('ea -= delta_ea') is needed for the vast majority of points
 	// (hence, no 'if' test). A tiny minority make it to the 5th adjustment. If
 	// we understand GPU warps and wavefronts correctly, the forking here isn't
 	// too bad.
-	float EA = M + e * sin(M); // eccentric anomaly
-	float dEA = (EA - M - e * sin(EA)) / (1.0 - e * cos(EA));
-	EA -= dEA;
-	dEA = (EA - M - e * sin(EA)) / (1.0 - e * cos(EA));
-	EA -= dEA;
-	if (abs(dEA) > 1e-5){
-		dEA = (EA - M - e * sin(EA)) / (1.0 - e * cos(EA));
-		EA -= dEA;
-		if (abs(dEA) > 1e-5){
-			dEA = (EA - M - e * sin(EA)) / (1.0 - e * cos(EA));
-			EA -= dEA;
-			if (abs(dEA) > 1e-5){
-				dEA = (EA - M - e * sin(EA)) / (1.0 - e * cos(EA));
-				EA -= dEA;
+	float ea = m + e * sin(m); // eccentric anomaly (initial approximation)
+	float delta_ea = (ea - m - e * sin(ea)) / (1.0 - e * cos(ea));
+	ea -= delta_ea;
+	delta_ea = (ea - m - e * sin(ea)) / (1.0 - e * cos(ea));
+	ea -= delta_ea;
+	if (abs(delta_ea) > 1e-5){
+		delta_ea = (ea - m - e * sin(ea)) / (1.0 - e * cos(ea));
+		ea -= delta_ea;
+		if (abs(delta_ea) > 1e-5){
+			delta_ea = (ea - m - e * sin(ea)) / (1.0 - e * cos(ea));
+			ea -= delta_ea;
+			if (abs(delta_ea) > 1e-5){
+				delta_ea = (ea - m - e * sin(ea)) / (1.0 - e * cos(ea));
+				ea -= delta_ea;
 			}
 		}
 	}
 	
-	float nu = 2.0 * atan(sqrt((1.0 + e) / (1.0 - e)) * tan(EA / 2.0));
-	float r = a * (1.0 - e * cos(EA));
+	float nu = 2.0 * atan(sqrt((1.0 + e) / (1.0 - e)) * tan(ea / 2.0));
+	float r = a * (1.0 - e * cos(ea));
 	float cos_i = cos(i);
-	float sin_Om = sin(Om);
-	float cos_Om = cos(Om);
-	float sin_w_nu = sin(w + nu);
-	float cos_w_nu = cos(w + nu);
-	float x = r * (cos_Om * cos_w_nu - sin_Om * sin_w_nu * cos_i);
-	float y = r * (sin_Om * cos_w_nu + cos_Om * sin_w_nu * cos_i);
-	float z = r * sin(i) * sin_w_nu;
+	float sin_lan = sin(lan);
+	float cos_lan = cos(lan);
+	float sin_aop_nu = sin(aop + nu);
+	float cos_aop_nu = cos(aop + nu);
+	float x = r * (cos_lan * cos_aop_nu - sin_lan * sin_aop_nu * cos_i);
+	float y = r * (sin_lan * cos_aop_nu + cos_lan * sin_aop_nu * cos_i);
+	float z = r * sin(i) * sin_aop_nu;
 	
 	return vec3(x, y, z);
 }

@@ -155,14 +155,14 @@ func make_orbit(table: String, row: int, parent: IVBody) -> IVOrbit:
 		# TODO: in asteroid data, these are g & s, I think...
 		# Rate info (if given) must match one or the other format.
 		var element_rates: Array[float] # optional
-		var m_modifiers: Array[float] # optional (only if element_rates exists)
+		var m_corrections: Array[float] # optional (only if element_rates exists)
 		
 		# planet format
 		var a_rate: float = data.get(&"semi_major_axis_rate", NAN)
 		var e_rate: float = data.get(&"eccentricity_rate", NAN)
 		var i_rate: float = data.get(&"inclination_rate", NAN)
 		var lan_rate: float = data.get(&"longitude_ascending_node_rate", NAN)
-		var lop_rate: float = data.get(&"longitude_of_periapsis_rate", NAN)
+		var lop_rate: float = data.get(&"longitude_of_periapsis_rate", NAN) # we calculate aop_rate
 		
 		# satellite format
 		var nodal_period: float = data.get(&"nodal_period", NAN)
@@ -185,7 +185,7 @@ func make_orbit(table: String, row: int, parent: IVBody) -> IVOrbit:
 			if !is_nan(b): # must also have c, s, f
 				assert(!is_nan(c) and !is_nan(s) and !is_nan(f),
 						"Expected all or none: 'mean_anomaly_correction_b', '_c', '_s' and '_f'")
-				m_modifiers = Array([b, c, s, f], TYPE_FLOAT, &"", null)
+				m_corrections = Array([b, c, s, f], TYPE_FLOAT, &"", null)
 			else:
 				assert(is_nan(c) and is_nan(s) and is_nan(f),
 						"Expected all or none: 'mean_anomaly_correction_b', '_c', '_s' and '_f'")
@@ -197,7 +197,7 @@ func make_orbit(table: String, row: int, parent: IVBody) -> IVOrbit:
 					"Expected dynamic orbit parameters in either planet format (5 rates) or " +
 					"satellite format (nodal_period, apsidal_period)")
 			
-			# Nearly non-inclined and near-circular orbits lead to tiny nodal
+			# Nearly non-inclined and near-circular orbits have tiny nodal
 			# and apsidal periods, leading to excessive updates or div/0. In
 			# the extreme, lan and aop become technically undefined and updates
 			# are irrelevant. We use thresholds here to set undefined periods
@@ -219,8 +219,8 @@ func make_orbit(table: String, row: int, parent: IVBody) -> IVOrbit:
 			var aop_rate := -polarity * lan_rate
 			if apsidal_period:
 				# Positive apsidal_period means positive lop_rate, unless retrograde.
-				var prograde_lop_rate := TAU / apsidal_period # = polarity * lop_rate
-				aop_rate += prograde_lop_rate
+				var prograde_lop_rate := TAU / apsidal_period # (lop_rate = polarity * TAU / ...)
+				aop_rate += prograde_lop_rate # (+- polarity * lop_rate)
 				
 				# Sanity test:
 				# 1. Observed Earth's prograde Moon w/ apsidal precession in
@@ -243,10 +243,10 @@ func make_orbit(table: String, row: int, parent: IVBody) -> IVOrbit:
 		# add orbit rates/corrections, if any
 		if element_rates:
 			orbit.element_rates = element_rates
-			if m_modifiers:
-				orbit.m_modifiers = m_modifiers
+			if m_corrections:
+				orbit.m_corrections = m_corrections
 	
-	# reference plane (moons!)
+	# reference plane (moons use all of these!)
 	var orbit_reference: int = data.get(&"orbit_reference", -1)
 	if orbit_reference == OrbitReference.ORBIT_REFERENCE_EQUATORIAL:
 		orbit.reference_normal = parent.get_positive_pole()
@@ -255,9 +255,9 @@ func make_orbit(table: String, row: int, parent: IVBody) -> IVOrbit:
 		var orbit_dec: float = data.get(&"orbit_declination", NAN)
 		assert(!is_nan(orbit_ra), "Expected 'orbit_right_ascension' for ORBIT_REFERENCE_LAPLACE")
 		assert(!is_nan(orbit_dec), "Expected 'orbit_declination' for ORBIT_REFERENCE_LAPLACE")
-		var ref_normal := math.convert_spherical2(orbit_ra, orbit_dec)
-		ref_normal = _ecliptic_rotation * ref_normal
-		orbit.reference_normal = ref_normal
+		var reference_normal := math.convert_spherical2(orbit_ra, orbit_dec)
+		reference_normal = _ecliptic_rotation * reference_normal
+		orbit.reference_normal = reference_normal
 	else:
 		assert(orbit_reference == -1 or orbit_reference == OrbitReference.ORBIT_REFERENCE_ECLIPTIC)
 	
