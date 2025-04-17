@@ -23,7 +23,7 @@
 
 vec3 get_orbit_position(float a, float e, float i, float lan, float aop, float m){
 	// Mostly duplicates orbital math in IVOrbits.
-	
+
 	// A while loop here breaks WebGL1 export. From empirical testing, two
 	// corrections are needed for the vast majority of points and only a
 	// tiny minority receive the 5th correction.
@@ -44,7 +44,7 @@ vec3 get_orbit_position(float a, float e, float i, float lan, float aop, float m
 			}
 		}
 	}
-	
+
 	float nu = 2.0 * atan(sqrt((1.0 + e) / (1.0 - e)) * tan(ea / 2.0));
 	float r = a * (1.0 - e * cos(ea));
 	float cos_i = cos(i);
@@ -55,6 +55,6 @@ vec3 get_orbit_position(float a, float e, float i, float lan, float aop, float m
 	float x = r * (cos_lan * cos_aop_nu - sin_lan * sin_aop_nu * cos_i);
 	float y = r * (sin_lan * cos_aop_nu + cos_lan * sin_aop_nu * cos_i);
 	float z = r * sin(i) * sin_aop_nu;
-	
+
 	return vec3(x, y, z);
 }

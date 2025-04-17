@@ -35,7 +35,6 @@ extends MeshInstance3D
 
 
 const FRAGMENT_SBG_POINT := IVFragmentIdentifier.FRAGMENT_SBG_POINT
-const PI_DIV_3 := PI / 3.0 # 60 degrees
 
 
 const ARRAY_FLAGS = (
@@ -63,6 +62,7 @@ var _vec3ids := PackedVector3Array() # point ids for FragmentIdentifier
 
 # Lagrange point
 var _lp_integer := -1 # -1 or 1-5
+var _longitude_offset := 0.0 # +PI/3 for L4; -PI/3 for L5
 var _secondary_orbit: IVOrbit
 
 # subclass _init() overrides
@@ -80,6 +80,10 @@ func _init(group: IVSmallBodiesGroup) -> void:
 		_sbg_huds_state = IVGlobal.program[&"SBGHUDsState"]
 	_sbg_alias = group.sbg_alias
 	_lp_integer = group.lp_integer
+	if _lp_integer == 4:
+		_longitude_offset = PI / 3
+	elif _lp_integer == 5:
+		_longitude_offset = -PI / 3
 	cast_shadow = SHADOW_CASTING_SETTING_OFF
 	group.adding_visuals.connect(_hide_and_free, CONNECT_ONE_SHOT)
 	_sbg_huds_state.points_visibility_changed.connect(_set_visibility)
@@ -126,7 +130,7 @@ func _init(group: IVSmallBodiesGroup) -> void:
 	# set shader parameters
 	shader_material.set_shader_parameter(&"point_size", float(_point_size))
 	if _lp_integer >= 4: # trojans
-		shader_material.set_shader_parameter(&"lp_integer", _lp_integer)
+		shader_material.set_shader_parameter(&"leading_sign", 1.0 if _lp_integer == 4 else -1.0)
 		var characteristic_length := _secondary_orbit.get_semimajor_axis()
 		shader_material.set_shader_parameter(&"characteristic_length", characteristic_length)
 
@@ -138,16 +142,12 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	# lagrange points 4 & 5 only
+	# Only L4 and L5 process!
 	if !visible:
 		return
-	var lp_mean_longitude: float
-	if _lp_integer == 4:
-		lp_mean_longitude = _secondary_orbit.get_mean_longitude() + PI_DIV_3
-	elif _lp_integer == 5:
-		lp_mean_longitude = _secondary_orbit.get_mean_longitude() - PI_DIV_3
+	var lp_longitude := _secondary_orbit.get_mean_longitude() + _longitude_offset
 	var shader_material: ShaderMaterial = material_override
-	shader_material.set_shader_parameter(&"lp_mean_longitude", lp_mean_longitude)
+	shader_material.set_shader_parameter(&"lp_longitude", lp_longitude)
 
 
 func _hide_and_free() -> void:

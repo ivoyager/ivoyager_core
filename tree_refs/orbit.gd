@@ -66,6 +66,7 @@ extends RefCounted
 
 signal changed(is_scheduled: bool) # is_scheduled == false triggers network sync
 
+
 enum OrbitReference {
 	ORBIT_REFERENCE_ECLIPTIC,
 	ORBIT_REFERENCE_EQUATORIAL,
@@ -80,7 +81,7 @@ const DPRINT := false
 const ECLIPTIC_UP := Vector3(0.0, 0.0, 1.0)
 const T_3000BCE := -50.0 * IVUnits.CENTURY # 3000 BCE
 const T_3000CE := 10.0 * IVUnits.CENTURY # 3000 CE
-const UPDATE_TOLERANCE := 0.0002
+const UPDATE_TOLERANCE := 0.0001
 const UPDATE_LIMITER := IVUnits.HOUR # up to -10% to avoid schedular clumping
 
 const PERSIST_MODE := IVGlobal.PERSIST_PROCEDURAL
@@ -506,18 +507,20 @@ func reset_elements_and_interval_update() -> void:
 		_begin_current = -INF
 		_end_current = INF
 		return
-	# Set _update_interval based on fastest element rate. We normalize to
-	# values that are (very!) roughly analogous to "parts per second".
-	var a_pps: float = abs(element_rates[0]) / IVUnits.AU
-	var e_pps: float = abs(element_rates[1]) / 0.1 # arbitrary
-	var i_pps: float = abs(element_rates[2]) / TAU
-	var lan_pps: float = abs(element_rates[3]) / TAU
-	var aop_pps: float = abs(element_rates[4]) / TAU
-	var max_pps: float = [a_pps, e_pps, i_pps, lan_pps, aop_pps].max()
-	var interval := UPDATE_TOLERANCE / max_pps
+	# Set _update_interval based on the fastest "normalized" element rate.
+	var rates_normed: Array[float] = [
+		abs(element_rates[0]) / elements_at_epoch[0], # a, relative to a at epoch
+		abs(element_rates[1]) / 0.1, # e, relative to arbitrary large delta e
+		abs(element_rates[2]) / TAU, # i, relative to full rotation
+		abs(element_rates[3]) / TAU, # lan, relative to full rotation
+		abs(element_rates[4]) / TAU, # aop, relative to full rotation
+	]
+	var max_rate_normed: float = rates_normed.max()
+	var interval := UPDATE_TOLERANCE / max_rate_normed
 	if interval < UPDATE_LIMITER:
-		# Allow up to -10% below limiter to avoid IVScheduler clumping
+		# Allow up to -10% below limiter to avoid clumping
 		interval = interval / 10.0 + UPDATE_LIMITER * 0.9
+	
 	_begin_current = time
 	_end_current = time + interval * 1.1
 	_set_elements(time + interval / 2.0, current_elements)

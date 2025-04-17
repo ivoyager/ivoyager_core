@@ -13,6 +13,7 @@ Developed using Godot 4.4.1
 ### Added
 * IVBodyFinisher class for adding non-procedural nodes from table data (to help declutter IVBody).
 * IVLazyModelInitializer for initing lazy models. (Replaces overly complicated IVLazyManager.)
+* Implemented nodal and apsidal precessions for asteroid orbits (points only).
 
 ### Changed
 * [API breaking] Renamed and reorganized enums in IVBody.BodyFlags.
@@ -22,6 +23,8 @@ Developed using Godot 4.4.1
 ### Fixed
 * Fixed errors caused by loading resources simultaneously on different threads.
 * Fixed nodal and apsidal precessions for retrograde oribits. (I'm 90% sure after observations.)
+* Hilda asteroids now maintain aphelion inside Jupiter's L3, L4, L5 points from 3000 BC - 3000 AD. (Due to precessions implementation.)
+* Tadpole orbits for Jupiter Trojans now have propper distal "tails".
 
 ## [v0.0.24] - 2025-03-31
 
