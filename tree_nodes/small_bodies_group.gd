@@ -129,7 +129,7 @@ func append_data(names_append: PackedStringArray, e_i_lan_aop_append: PackedFloa
 	
 	
 	# *************************************************************************
-	# FIXME: WORKS FOR UNKNOWN REASON! The PI adjustment here fixes precessions
+	# FIXME: WORKS FOR UNKNOWN REASON! The adjustment here fixes precessions
 	# so that the Hildas maintain position correctly over 3000 BC - 3000 AD.
 	# This strongly suggests a conversion error somewhere. HOWEVER, the print
 	# statement shows that our conversion from source to internal units is correct.
@@ -139,10 +139,10 @@ func append_data(names_append: PackedStringArray, e_i_lan_aop_append: PackedFloa
 	#printt(rad_to_deg(s_g_mag_de_append[0]) * 3600 * IVUnits.YEAR,
 			#rad_to_deg(s_g_mag_de_append[1]) * 3600 * IVUnits.YEAR, sbg_alias, names_append[0])
 	
+	# Here is the mystery fix...
 	for i in n_bodies:
-		# Here is the mystery fix...
-		s_g_mag_de_append[i * 4] /= PI # s
-		s_g_mag_de_append[i * 4 + 1] /= PI # g
+		s_g_mag_de_append[i * 4] /= 3.0 # s
+		s_g_mag_de_append[i * 4 + 1] /= 3.0 # g
 	# *************************************************************************
 	
 	
