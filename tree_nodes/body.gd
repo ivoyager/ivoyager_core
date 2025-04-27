@@ -24,10 +24,9 @@ extends Node3D
 ## instantiated asteroids, and spacecrafts. [TODO: and barycenters.]
 ##
 ## IVBody nodes are NEVER scaled or rotated. Hence, local and global distances
-## and directions are always consistent at any level of the "body tree".
-## For rotation, component nodes can be added to the body's [IVModelSpace] or
-## [IVRotatingSpace]. The former tilts and rotates with the body (for its model
-## and possibly rings) and the later with its orbit (for Lagrange points).[br][br]
+## and directions are always consistent at any level of the "body tree". To
+## share this body's orientation in space, Saturn's [IVRings] are added to its
+## [IVModelSpace].[br][br]
 ## 
 ## Node name is always the data table row name: PLANET_EARTH, MOON_EUROPA,
 ## SPACECRAFT_ISS, etc.[br][br]
@@ -63,10 +62,10 @@ extends Node3D
 ## (especially) more accurate.[br][br]
 ##
 ## TODO: Implement network sync! This will mainly involve synching IVOrbit
-## anytime it changes in a 'non-schedualed' way (e.g., impulse from a rocket
+## anytime it changes in an extrinsic way (e.g., impulse from a rocket
 ## engine).
 
-
+signal orbit_changed(is_intrinsic: bool)
 signal huds_visibility_changed(is_visible: bool)
 
 
@@ -112,8 +111,8 @@ enum BodyFlags {
 
 const math := preload("uid://csb570a3u1x1k")
 
-const IDENTITY_BASIS := Basis.IDENTITY
-const ECLIPTIC_Z := IDENTITY_BASIS.z
+const ECLIPTIC_BASIS := Basis.IDENTITY
+const ECLIPTIC_NORTH := ECLIPTIC_BASIS.z
 
 const MIN_SYSTEM_M_RADIUS_MULTIPLIER := 15.0
 
@@ -130,7 +129,6 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"characteristics",
 	&"components",
 	&"orbit",
-	&"rotating_space",
 ]
 
 # persisted
@@ -138,19 +136,19 @@ var flags := 0 # BodyFlags
 var mean_radius := 0.0
 var rotation_period := INF # updated if tidally locked
 var right_ascension := 0.0 # updated if axis locked
-var declination := 0.0 # updated if axis locked
-var gm := 0.0 # standard gravitational parameter (often more accurate than mass)
+var declination := PI / 2.0 # updated if axis locked
+var gm := 0.0 # G x Mass; standard gravitational parameter (often more accurate than mass!)
 var mass := 0.0
 var characteristics: Dictionary[StringName, Variant] = {} # non-object values
 var components: Dictionary[StringName, Object] = {} # objects (persisted only)
 var orbit: IVOrbit
-var rotating_space: IVRotatingSpace # rotates & translates for L-points (lazy init)
+
 
 # read-only calculated spatials
-var rotation_vector := ECLIPTIC_Z # synonymous with 'north'
+var rotation_vector := ECLIPTIC_NORTH
 var rotation_rate := 0.0
 var rotation_at_epoch := 0.0
-var basis_at_epoch := IDENTITY_BASIS
+var basis_at_epoch := ECLIPTIC_BASIS
 
 # read-only!
 var star: IVBody # this body or above
@@ -161,7 +159,7 @@ var huds_visible := false # too far / too close toggle
 var model_visible := false
 var texture_2d: Texture2D
 var texture_slice_2d: Texture2D # navigation panel graphic for sun only
-var model_reference_basis := IDENTITY_BASIS
+var model_reference_basis := ECLIPTIC_BASIS
 var max_model_dist := 0.0
 var min_hud_dist: float
 var lazy_model_uninited := false
@@ -187,7 +185,6 @@ static var sun_global_positions: Array[Vector3] = [Vector3(), Vector3(), Vector3
 
 # localized
 @onready var _times: Array[float] = IVGlobal.times
-@onready var _ecliptic_rotation: Basis = IVCoreSettings.ecliptic_rotation
 @onready var _world_controller: IVWorldController = IVGlobal.program[&"WorldController"]
 
 
@@ -201,7 +198,6 @@ func _enter_tree() -> void:
 	else:
 		_add_model_space()
 	if orbit:
-		orbit.reset_elements_and_interval_update()
 		orbit.changed.connect(_on_orbit_changed)
 	shader_sun_index = characteristics.get(&"shader_sun_index", -1)
 	assert(shader_sun_index >= -1 and shader_sun_index <= 2)
@@ -251,20 +247,12 @@ func _prepare_to_free() -> void:
 func _process(_delta: float) -> void:
 	# _process() is disabled while in sleep mode (sleep == true). When in sleep
 	# mode, API assumes that any properties updated here are stale and must be
-	# calculated in-function.
+	# obtained using time parameter.
 	
 	var camera_dist := _world_controller.process_world_target(self, mean_radius)
 	
-	# update translation and reference frame 'spaces'
 	if orbit:
-		position = orbit.get_position()
-		if rotating_space:
-			var orbit_dist := position.length()
-			var x_axis := -position / orbit_dist
-			var z_axis := orbit.get_normal()
-			var y_axis := z_axis.cross(x_axis)
-			rotating_space.basis = Basis(x_axis, y_axis, z_axis)
-			rotating_space.position.x = orbit_dist - rotating_space.characteristic_length
+		position = orbit.update(_times[0])
 	
 	# update model space
 	if model_space:
@@ -458,7 +446,7 @@ func get_file_prefix() -> String:
 
 
 func get_latitude_longitude(at_translation: Vector3, time := NAN) -> Vector2:
-	var ground_basis := get_ground_basis(time)
+	var ground_basis := get_ground_tracking_basis(time)
 	var spherical := math.get_rotated_spherical3(at_translation, ground_basis)
 	var latitude: float = spherical[1]
 	var longitude: float = wrapf(spherical[0], -PI, PI)
@@ -506,32 +494,75 @@ func get_positive_pole(_time := NAN) -> Vector3:
 	return rotation_vector
 
 
+func get_orbit_mean_longitude(time := NAN) -> float:
+	if !orbit:
+		return 0.0
+	if is_nan(time):
+		if !sleep:
+			return orbit.get_mean_longitude_at_update()
+		time = _times[0]
+	return orbit.get_mean_longitude(time)
+
+
+func get_orbit_true_longitude(time := NAN) -> float:
+	if !orbit:
+		return 0.0
+	if is_nan(time):
+		if !sleep:
+			return orbit.get_true_longitude_at_update()
+		time = _times[0]
+	return orbit.get_true_longitude(time)
+
+
 func is_orbit_retrograde(time := NAN) -> bool:
 	if !orbit:
 		return false
-	return orbit.is_retrograde(time)
+	if is_nan(time):
+		if !sleep:
+			return orbit.is_retrograde()
+		time = _times[0]
+	return orbit.is_retrograde_at_time(time)
+
+
+func get_orbit_semi_parameter(time := NAN) -> float:
+	if !orbit:
+		return 0.0
+	if is_nan(time):
+		if !sleep:
+			return orbit.get_semi_parameter()
+		time = _times[0]
+	return orbit.get_semi_parameter_at_time(time)
 
 
 func get_orbit_semi_major_axis(time := NAN) -> float:
 	if !orbit:
 		return 0.0
-	return orbit.get_semimajor_axis(time)
+	if is_nan(time):
+		if !sleep:
+			return orbit.get_semi_major_axis()
+		time = _times[0]
+	return orbit.get_semi_major_axis_at_time(time)
 
 
 func get_orbit_normal(time := NAN, flip_retrograde := false) -> Vector3:
 	if !orbit:
-		return ECLIPTIC_Z
-	return orbit.get_normal(time, flip_retrograde)
+		return ECLIPTIC_NORTH
+	if is_nan(time):
+		if !sleep:
+			return orbit.get_normal(flip_retrograde)
+		time = _times[0]
+	return orbit.get_normal_at_time(time, flip_retrograde)
 
 
-func get_orbit_inclination_to_equator(time := NAN) -> float:
-	const BODYFLAGS_GALAXY_ORBITER := BodyFlags.BODYFLAGS_GALAXY_ORBITER
-	if !orbit or flags & BODYFLAGS_GALAXY_ORBITER:
-		return NAN
-	var orbit_normal := orbit.get_normal(time)
-	var parent: IVBody = get_parent_node_3d()
-	var positive_pole: Vector3 = parent.get_positive_pole(time)
-	return orbit_normal.angle_to(positive_pole)
+
+func get_orbit_ellipse_transform(time := NAN) -> Transform3D:
+	if !orbit:
+		return Transform3D()
+	if is_nan(time):
+		if !sleep:
+			return orbit.get_ellipse_transform()
+		time = _times[0]
+	return orbit.get_ellipse_transform_at_time(time)
 
 
 func is_rotation_retrograde() -> bool:
@@ -541,42 +572,59 @@ func is_rotation_retrograde() -> bool:
 func get_axial_tilt_to_orbit(time := NAN) -> float:
 	if !orbit:
 		return NAN
+	var orbit_normal: Vector3
+	if is_nan(time):
+		if !sleep:
+			orbit_normal = orbit.get_normal()
+		else:
+			time = _times[0]
+			orbit_normal = orbit.get_normal_at_time(time)
+	else:
+		orbit_normal = orbit.get_normal_at_time(time)
 	var positive_pole := get_positive_pole(time)
-	var orbit_normal := orbit.get_normal(time)
 	return positive_pole.angle_to(orbit_normal)
 
 
 func get_axial_tilt_to_ecliptic(time := NAN) -> float:
 	var positive_pole := get_positive_pole(time)
-	return positive_pole.angle_to(ECLIPTIC_Z)
+	return positive_pole.angle_to(ECLIPTIC_NORTH)
 
 
-func get_ground_basis(time := NAN) -> Basis:
-	# Returns a rotating basis referenced to ground (i.e, the Body model).
-	if model_space and is_nan(time):
-		return model_space.transform.basis
-	else:
-		if is_nan(time):
-			time = _times[0]
-		var rotation_angle := wrapf(time * rotation_rate, 0.0, TAU)
-		return basis_at_epoch.rotated(rotation_vector, rotation_angle)
+## Returns a basis that rotates with the ground (i.e, with the body model).
+func get_ground_tracking_basis(time := NAN) -> Basis:
+	if is_nan(time):
+		if model_space and !sleep:
+			return model_space.basis
+		time = _times[0]
+	var rotation_angle := wrapf(time * rotation_rate, 0.0, TAU)
+	return basis_at_epoch.rotated(rotation_vector, rotation_angle)
 
 
-func get_orbit_basis(time := NAN) -> Basis:
-	# Returns a rotating basis with Body parent in the -x direction.
-	if rotating_space and is_nan(time):
-		return rotating_space.transform.basis
+## Returns a basis that rotates with the body's orbit, with the parent in the
+## -x direction and orbit normal in the z direction. Returns identity basis if
+## this IVBody has no IVOrbit. This is a different basis than IVOrbit.get_basis().
+func get_orbit_tracking_basis(time := NAN) -> Basis:
 	if !orbit:
-		return IDENTITY_BASIS
-	var x_axis := -orbit.get_position(time).normalized()
-	var z_axis := orbit.get_normal(time, true)
-	var y_axis := z_axis.cross(x_axis)
+		return ECLIPTIC_BASIS
+	var x_axis: Vector3
+	var y_axis: Vector3
+	var z_axis: Vector3
+	if is_nan(time):
+		if !sleep:
+			x_axis = -position.normalized()
+			z_axis = orbit.get_normal(true, true)
+			y_axis = z_axis.cross(x_axis)
+			return Basis(x_axis, y_axis, z_axis)
+		time = _times[0]
+	x_axis = -orbit.get_position(time).normalized()
+	z_axis = orbit.get_normal_at_time(time, true, true)
+	y_axis = z_axis.cross(x_axis)
 	return Basis(x_axis, y_axis, z_axis)
 
 
+## See https://en.wikipedia.org/wiki/Hill_sphere.
+## Currently returns INF if this is a top body in simulation.
 func get_hill_sphere(eccentricity := 0.0) -> float:
-	# returns INF if this is a top body in simulation
-	# see: https://en.wikipedia.org/wiki/Hill_sphere
 	const BODYFLAGS_GALAXY_ORBITER := BodyFlags.BODYFLAGS_GALAXY_ORBITER
 	if flags & BODYFLAGS_GALAXY_ORBITER:
 		return INF
@@ -612,13 +660,14 @@ func remove_and_disable_model_space() -> void:
 	model_space = null
 
 
-func set_orbit(orbit_: IVOrbit) -> void:
-	assert(orbit_)
-	orbit = orbit_
+func set_orbit(new_orbit: IVOrbit) -> void:
+	assert(new_orbit)
+	if orbit:
+		orbit.changed.disconnect(_on_orbit_changed)
+	orbit = new_orbit
 	if !is_inside_tree():
-		return # do below on _enter_tree()
-	orbit_.reset_elements_and_interval_update()
-	orbit_.changed.connect(_on_orbit_changed)
+		return # below happens on _enter_tree()
+	new_orbit.changed.connect(_on_orbit_changed)
 
 
 func lazy_model_init() -> void:
@@ -639,36 +688,6 @@ func set_sleep(sleep_: bool) -> void:
 		set_process(true)
 
 
-func get_lagrange_point_local_space(lp_integer: int) -> Vector3:
-	# Returns Vector3.ZERO if we don't have parameters to calculate.
-	assert(lp_integer >=1 and lp_integer <= 5)
-	if !rotating_space:
-		_add_rotating_space()
-		if !rotating_space:
-			return Vector3.ZERO
-	return rotating_space.get_lagrange_point_local_space(lp_integer)
-
-
-func get_lagrange_point_global_space(lp_integer: int) -> Vector3:
-	# Returns Vector3.ZERO if we don't have parameters to calculate.
-	assert(lp_integer >=1 and lp_integer <= 5)
-	if !rotating_space:
-		_add_rotating_space()
-		if !rotating_space:
-			return Vector3.ZERO
-	return rotating_space.get_lagrange_point_global_space(lp_integer)
-
-
-func get_lagrange_point_node3d(lp_integer: int) -> IVLagrangePoint:
-	# Returns null if we don't have parameters to calculate.
-	assert(lp_integer >=1 and lp_integer <= 5)
-	if !rotating_space:
-		_add_rotating_space()
-		if !rotating_space:
-			return null
-	return rotating_space.get_lagrange_point_node3d(lp_integer)
-
-
 func get_fragment_data(_fragment_type: int) -> Array:
 	# Only FRAGMENT_BODY_ORBIT at this time.
 	return [get_instance_id()]
@@ -679,7 +698,12 @@ func get_fragment_text(_data: Array) -> String:
 	return tr(name) + " (" + tr("LABEL_ORBIT").to_lower() + ")"
 
 
+
 func recalculate_spatials() -> void:
+	
+	# TODO: Make this internal to ModelSpace. (But don't make ModelSpace
+	# persistant!)
+	
 	# Sets 'rotation_rate', 'rotation_vector' and 'rotation_at_epoch' and
 	# (possibly) associated values in 'characteristics'. For planets, these are
 	# fixed values determined by table-loaded 'characteristics.RA', '.dec' and
@@ -703,25 +727,29 @@ func recalculate_spatials() -> void:
 	const BODYFLAGS_AXIS_LOCKED := BodyFlags.BODYFLAGS_AXIS_LOCKED
 	const BODYFLAGS_TUMBLES_CHAOTICALLY := BodyFlags.BODYFLAGS_TUMBLES_CHAOTICALLY
 	
-	# rotation_rate
+	var new_rotation_vector: Vector3
 	var new_rotation_rate: float
+	
+	# rotation_rate
 	if flags & BODYFLAGS_TIDALLY_LOCKED:
 		new_rotation_rate = orbit.get_mean_motion()
 		rotation_period = TAU / new_rotation_rate
 	else:
 		new_rotation_rate = TAU / rotation_period
+	
 	# rotation_vector
-	var new_rotation_vector: Vector3
 	if flags & BODYFLAGS_AXIS_LOCKED:
-		new_rotation_vector = orbit.get_normal()
-		var ra_dec := math.get_spherical2(new_rotation_vector)
+		new_rotation_vector = orbit.get_normal_at_time(_times[0]) # ecliptic
+		var ra_dec := IVAstronomy.get_equatorial_coordinates_from_ecliptic_vector(
+				new_rotation_vector)
 		right_ascension = ra_dec[0]
 		declination = ra_dec[1]
+		
 	elif flags & BODYFLAGS_TUMBLES_CHAOTICALLY:
-		# TODO: something sensible for Hyperion
-		new_rotation_vector = _ecliptic_rotation * math.convert_spherical2(0.0, 0.0)
+		# TODO: something sensible for Hyperion and outer gas giant moons
+		new_rotation_vector = IVAstronomy.ECLIPTIC_NORTH
 	else:
-		new_rotation_vector = _ecliptic_rotation * math.convert_spherical2(
+		new_rotation_vector = IVAstronomy.get_ecliptic_unit_vector_from_equatorial_angles(
 				right_ascension, declination)
 	var new_rotation_at_epoch: float = characteristics.get(&"longitude_at_epoch", 0.0)
 	
@@ -736,7 +764,7 @@ func recalculate_spatials() -> void:
 	var parent := get_parent_node_3d() as IVBody
 	if (flags & BODYFLAGS_GALAXY_ORBITER or flags & BODYFLAGS_STAR or flags & BODYFLAGS_PLANET
 			or parent.flags & BODYFLAGS_PLANET):
-		if ECLIPTIC_Z.dot(new_rotation_vector) < 0.0:
+		if ECLIPTIC_NORTH.dot(new_rotation_vector) < 0.0:
 			reverse_polarity = true
 	elif parent.flags & BODYFLAGS_STAR: # any other star-orbiter (dwarf planets, asteroids, etc.)
 		if new_rotation_rate < 0.0:
@@ -753,9 +781,10 @@ func recalculate_spatials() -> void:
 	rotation_rate = new_rotation_rate
 	rotation_vector = new_rotation_vector
 	rotation_at_epoch = new_rotation_at_epoch
+	
+	var new_basis := IVAstronomy.get_basis_from_north_vector(rotation_vector)
+	basis_at_epoch = new_basis.rotated(rotation_vector, rotation_at_epoch)
 
-	var basis_ := math.rotate_basis_z(Basis(), rotation_vector)
-	basis_at_epoch = basis_.rotated(rotation_vector, rotation_at_epoch)
 
 
 # *****************************************************************************
@@ -810,57 +839,18 @@ func _clear_relative_bodies() -> void:
 		parent.satellites.erase(self)
 
 
-func _add_rotating_space() -> void:
-	# bail out if we don't have requried parameters
-	if !orbit:
-		return
-	var m2 := get_mass()
-	if !m2:
-		return
-	var parent := get_parent_node_3d() as IVBody
-	var m1 := parent.get_mass()
-	if !m1:
-		return
-	var mass_ratio := m1 / m2
-	var characteristic_length := orbit.get_semimajor_axis()
-	var characteristic_time := orbit.get_orbit_period()
-	var RotatingSpaceScript: Script = IVGlobal.procedural_classes[&"RotatingSpace"]
-	@warning_ignore("unsafe_method_access")
-	rotating_space = RotatingSpaceScript.new()
-	rotating_space.init(mass_ratio, characteristic_length, characteristic_time)
-	var translation_ := orbit.get_position()
-	var orbit_dist := translation_.length()
-	var x_axis := -translation_ / orbit_dist
-	var z_axis := orbit.get_normal()
-	var y_axis := z_axis.cross(x_axis)
-	rotating_space.transform.basis = Basis(x_axis, y_axis, z_axis)
-	rotating_space.position.x = orbit_dist - rotating_space.characteristic_length
-
-
-func _on_orbit_changed(_is_scheduled: bool) -> void:
+func _on_orbit_changed(is_intrinsic: bool) -> void:
+	#prints("_on_orbit_changed", name)
 	const BODYFLAGS_TIDALLY_LOCKED := BodyFlags.BODYFLAGS_TIDALLY_LOCKED
 	const BODYFLAGS_AXIS_LOCKED := BodyFlags.BODYFLAGS_AXIS_LOCKED
-	#const IS_SERVER = IVGlobal.NetworkState.IS_SERVER
-	
 	if flags & BODYFLAGS_TIDALLY_LOCKED or flags & BODYFLAGS_AXIS_LOCKED:
 		recalculate_spatials()
-#	if !is_scheduled and _state.network_state == IS_SERVER: # sync clients
-#		# scheduled changes happen on client so don't need sync
-#		rpc("_orbit_sync", orbit.reference_normal, orbit.elements_at_epoch, orbit.element_rates,
-#				orbit.m_modifiers)
+	orbit_changed.emit(is_intrinsic)
 
-
-#@rpc("any_peer") func _orbit_sync(reference_normal: Vector3, elements_at_epoch: Array,
-#		element_rates: Array, m_modifiers: Array) -> void: # client-side network game only
-#	# FIXME34: All rpc
-#	if _tree.get_remote_sender_id() != 1:
-#		return # from server only
-#	orbit.orbit_sync(reference_normal, elements_at_epoch, element_rates, m_modifiers)
 
 
 func _on_time_altered(_previous_time: float) -> void:
-	if orbit:
-		orbit.reset_elements_and_interval_update()
+	await get_tree().process_frame
 	recalculate_spatials()
 
 

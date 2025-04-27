@@ -176,6 +176,15 @@ var gui_nodes: Dictionary[StringName, Variant] = {
 	AdminPopups = null, # assign here if convenient (over SplashScreen)
 }
 
+
+# FIXME: Procedural classes is a pain in the ass. If a generator class is used,
+# then the generator should specify the exact class. User can replace the generator.
+# This applies to IVBodyFinisher for HUDs and IVRings generation.
+# That should be the plugin standard. Not sure what to do in the case where
+# IVBody calls for a procedural class directly. Perhaps where convenient
+# (even in some generators) we can have static vars defining the script classes.
+
+# DEPRECIATE
 var procedural_objects: Dictionary[StringName, Variant] = {
 	# Nodes and RefCounteds NOT instantiated by IVCoreInitializer. These class
 	# scripts plus all above can be accessed from IVGlobal.procedural_classes.
@@ -188,9 +197,7 @@ var procedural_objects: Dictionary[StringName, Variant] = {
 	SBGOrbits = IVSBGOrbits, # replace w/ Node3D
 	SBGPoints = IVSBGPoints, # replace w/ Node3D
 	DynamicLight = IVDynamicLight, # replace w/ Node3D
-	LagrangePoint = IVLagrangePoint, # replace w/ subclass
 	ModelSpace = IVModelSpace, # replace w/ Node3D
-	RotatingSpace = IVRotatingSpace, # replace w/ subclass
 	Rings = IVRings, # replace w/ Node3D
 	SpheroidModel = IVSpheroidModel, # replace w/ Node3D
 	SelectionManager = IVSelectionManager, # replace w/ Node3D

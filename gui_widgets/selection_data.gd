@@ -89,8 +89,6 @@ var section_content: Array[Array] = [
 			dynamic_unit.bind(DynamicUnitType.VELOCITY_MPS_KMPS, true, 5)],
 		[&"LABEL_INCLINATION_TO_ECLIPTIC", "body/orbit/get_inclination_to_ecliptic", NULL_ARRAY,
 			fixed_unit.bind(&"deg", true, 3, NumberType.DECIMAL_PLACES)],
-		[&"LABEL_INCLINATION_TO_EQUATOR", "body/get_orbit_inclination_to_equator", NULL_ARRAY,
-			fixed_unit.bind(&"deg", true, 3, NumberType.DECIMAL_PLACES)],
 		[&"LABEL_DIST_GALACTIC_CORE", "body/characteristics/dist_galactic_core", NULL_ARRAY,
 			dynamic_unit.bind(DynamicUnitType.LENGTH_KM_AU)],
 		[&"LABEL_GALACTIC_PERIOD", "body/characteristics/galactic_period", NULL_ARRAY,

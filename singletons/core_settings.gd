@@ -63,9 +63,6 @@ var dynamic_lights := true
 var nonphysical_energy_at_1_au := 1.2 # some blowout is good
 ## See [IVDynamicLight].
 var nonphysical_attenuation_exponent := 0.5 # physical is 2.0
-## Allows use of orbit element rates, e.g., for nodal and apsidal precession.
-## See [IVOrbit].
-var dynamic_orbits := true
 ## If <INF, overrides magnitude cutoff specified in small_bodies_group.tsv.
 var sbg_mag_cutoff_override := INF
 ## Starts simulation without waiting (e.g., as in the Planetarium). If using a
@@ -99,8 +96,6 @@ var auto_exposure_enabled := true
 var vertecies_per_orbit: int = 500
 var vertecies_per_orbit_low_res: int = 100 # for 10000s of small bodies like asteroids
 var max_camera_distance: float = 5e3 * IVUnits.AU
-var obliquity_of_the_ecliptic: float = 23.439 * IVUnits.DEG
-var ecliptic_rotation := IVMath.get_x_rotation_matrix(obliquity_of_the_ecliptic)
 
 var body_labels_color := Color.WHITE
 ## If true, overrides [member body_labels_color].
