@@ -660,10 +660,10 @@ func _get_view_transform(view_position_: Vector3, view_rotations_: Vector3,
 
 static func _get_reference_basis(selection_: IVSelection, flags_: int) -> Basis:
 	if flags_ & CameraFlags.CAMERAFLAGS_TRACK_GROUND:
-		return selection_.get_ground_basis()
+		return selection_.get_ground_tracking_basis()
 	if flags_ & CameraFlags.CAMERAFLAGS_TRACK_ORBIT:
-		return selection_.get_orbit_basis()
-	return selection_.get_ecliptic_basis() # identity basis for any IVBody
+		return selection_.get_orbit_tracking_basis()
+	return Basis.IDENTITY # identity basis for any IVBody
 
 
 func _get_perspective_dist(dist: float, radius: float) -> float:

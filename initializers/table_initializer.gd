@@ -52,7 +52,12 @@ static var tables: Dictionary[StringName, String] = {
 	wiki_extras = table_base_path % "wiki_extras",
 }
 
-static var merge_overwrite_table_constants: Dictionary[StringName, Variant] = {}
+static var merge_overwrite_table_constants: Dictionary[StringName, Variant] = {
+	&"3000_BC" : -50.0 * IVUnits.CENTURY,
+	&"3000_AD" : +10.0 * IVUnits.CENTURY,
+	&"1800_AD" : -2.0 * IVUnits.CENTURY,
+	&"2050_AD" : +0.5 * IVUnits.CENTURY,
+}
 static var merge_overwrite_missing_values: Dictionary[int, Variant] = {} # use is not recommended
 
 

@@ -48,27 +48,27 @@ var _multimesh_use_colors := false # default is to set as a group
 var _suppress_set_custom_data := false
 
 
-func _init(group: IVSmallBodiesGroup) -> void:
-	name = "SBGOrbit" + group.sbg_alias
+func _init(sbg: IVSmallBodiesGroup) -> void:
+	name = "SBGOrbit" + sbg.sbg_alias
 	if !_is_class_instanced:
 		_is_class_instanced = true
 		_fragment_identifier = IVGlobal.program.get(&"FragmentIdentifier")
 		_sbg_huds_state = IVGlobal.program.SBGHUDsState
-	_sbg_alias = group.sbg_alias
+	_sbg_alias = sbg.sbg_alias
 	cast_shadow = SHADOW_CASTING_SETTING_OFF
 	process_mode = PROCESS_MODE_ALWAYS # FragmentIdentifier still processing
-	group.adding_visuals.connect(_hide_and_free, CONNECT_ONE_SHOT)
+	sbg.adding_visuals.connect(_hide_and_free, CONNECT_ONE_SHOT)
 	_sbg_huds_state.orbits_visibility_changed.connect(_set_visibility)
 	_sbg_huds_state.orbits_color_changed.connect(_set_color)
 	
-	var number := group.get_number()
+	var number := sbg.get_number()
 	
 	# fragment ids
 	var i := 0
 	if _fragment_identifier and !_bypass_fragment_identifier:
 		_vec3ids.resize(number)
 		while i < number:
-			var data := group.get_fragment_data(FRAGMENT_SBG_ORBIT, i)
+			var data := sbg.get_fragment_data(FRAGMENT_SBG_ORBIT, i)
 			_vec3ids[i] = _fragment_identifier.get_new_id_as_vec3(data)
 			i += 1
 	
@@ -102,13 +102,7 @@ func _init(group: IVSmallBodiesGroup) -> void:
 	i = 0
 	while i < number:
 		# currently assumes ecliptic reference
-		var elements := group.get_orbit_elements(i)
-		var a: float = elements[0]
-		var e: float = elements[1]
-		var b: = sqrt(a * a * (1.0 - e * e)) # simi-minor axis
-		var orbit_basis := Basis().scaled(Vector3(a, b, 1.0))
-		orbit_basis = math.get_orbit_rotation_matrix(elements) * orbit_basis
-		var orbit_transform := Transform3D(orbit_basis, -e * orbit_basis.x)
+		var orbit_transform := sbg.get_ellipse_transform(i)
 		multimesh.set_instance_transform(i, orbit_transform)
 		if is_set_custom_data:
 			var vec3id := _vec3ids[i]

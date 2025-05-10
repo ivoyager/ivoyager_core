@@ -62,7 +62,7 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"lp_integer",
 	&"max_apoapsis",
 	&"names",
-	&"e_i_lan_aop",
+	&"e_i_lan_ap",
 	&"a_m0_n",
 	&"s_g_mag_de",
 	&"da_d_f_th0",
@@ -76,7 +76,7 @@ var lp_integer := -1 # -1, 4 & 5 are currently supported
 var max_apoapsis := 0.0
 
 var names := PackedStringArray()
-var e_i_lan_aop := PackedFloat32Array() # fixed & precessing (except e in sec res)
+var e_i_lan_ap := PackedFloat32Array() # fixed & precessing (except e in sec res)
 var a_m0_n := PackedFloat32Array() # librating in l-point objects
 var s_g_mag_de := PackedFloat32Array() # orbit precessions, magnitude, & e amplitude (sec res only)
 var da_d_f_th0 := PackedFloat32Array() # Trojans only
@@ -148,7 +148,7 @@ func append_data(names_append: PackedStringArray, e_i_lan_aop_append: PackedFloa
 	
 	var previous_size := names.size()
 	names.append_array(names_append)
-	e_i_lan_aop.append_array(e_i_lan_aop_append)
+	e_i_lan_ap.append_array(e_i_lan_aop_append)
 	a_m0_n.append_array(a_m0_n_append)
 	s_g_mag_de.append_array(s_g_mag_de_append)
 	if lp_integer != -1:
@@ -178,17 +178,17 @@ func update_max_apoapsis(start_index: int, stop_index: int, increase_only := tru
 	if lp_integer == -1:
 		while i < stop_index:
 			var a := a_m0_n[i * 3]
-			var e := e_i_lan_aop[i * 4]
+			var e := e_i_lan_ap[i * 4]
 			var apoapsis := a * (1.0 + e)
 			if range_max < apoapsis:
 				range_max = apoapsis
 			i += 1
 	else:
-		var characteristic_length := secondary_body.get_orbit_semi_major_axis()
+		var secondary_a := secondary_body.get_orbit_semi_major_axis()
 		while i < stop_index:
 			var da: float = da_d_f_th0[i * 4]
-			var e: float = e_i_lan_aop[i * 4]
-			var apoapsis := (characteristic_length + da) * (1.0 + e)
+			var e: float = e_i_lan_ap[i * 4]
+			var apoapsis := (secondary_a + da) * (1.0 + e)
 			if range_max < apoapsis:
 				range_max = apoapsis
 			i += 1
@@ -206,20 +206,30 @@ func get_number() -> int:
 	return names.size()
 
 
+func get_ellipse_transform(index: int) -> Transform3D:
+	var a := a_m0_n[index * 3]
+	var e := e_i_lan_ap[index * 4]
+	var i := e_i_lan_ap[index * 4 + 1]
+	var lan := e_i_lan_ap[index * 4 + 2]
+	var ap := e_i_lan_ap[index * 4 + 3]
+	return IVOrbit.get_ellipse_transform_from_elements(a, e, i, lan, ap)
+
+
+## Returns an element list [a, e, i, lan, ap, m0, n]. FIXME: Trojan elements
+## vary with libration. This is reflected in shader point calculations but not
+## in elements here (yet).
+## @experimental: The element list will change in the future to be more in line with [IVOrbit]. 
 func get_orbit_elements(index: int) -> Array[float]:
-	# [a, e, i, lan, aop, m0, n]; see IVOrbit.
-	# FIXME: Trojan elements a, m0 & n vary with libration. This is reflected in
-	# shader point calculations but not in elements here (yet).
 	
-	return Array([
+	return [
 		a_m0_n[index * 3],
-		e_i_lan_aop[index * 4],
-		e_i_lan_aop[index * 4 + 1],
-		e_i_lan_aop[index * 4 + 2],
-		e_i_lan_aop[index * 4 + 3],
+		e_i_lan_ap[index * 4],
+		e_i_lan_ap[index * 4 + 1],
+		e_i_lan_ap[index * 4 + 2],
+		e_i_lan_ap[index * 4 + 3],
 		a_m0_n[index * 3 + 1],
 		a_m0_n[index * 3 + 2],
-	], TYPE_FLOAT, &"", null)
+	]
 
 
 func get_fragment_data(fragment_type: int, index: int) -> Array:
