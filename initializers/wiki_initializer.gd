@@ -36,7 +36,7 @@ func _init() -> void:
 		else:
 			IVGlobal.wiki = "en.wikipedia"
 	
-	IVGlobal.initializers_inited.connect(_remove_self)
+	IVGlobal.project_objects_instantiated.connect(_remove_self)
 
 
 func _remove_self() -> void:

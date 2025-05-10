@@ -59,7 +59,7 @@ func build_all() -> Dictionary[StringName, IVView]:
 func build(row: int) -> IVView:
 	@warning_ignore("unsafe_method_access")
 	var view: IVView = _view_script.new()
-	IVTableData.db_build_object(view, as_is_fields, &"views", row)
+	IVTableData.db_build_object(view, &"views", row, as_is_fields)
 	var view_position_xy := IVTableData.get_db_vector2(&"views", &"view_position_xy", row)
 	var view_position_z := IVTableData.get_db_float(&"views", &"view_position_z", row)
 	view.view_position = Vector3(view_position_xy.x, view_position_xy.y, view_position_z)

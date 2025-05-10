@@ -52,12 +52,12 @@ func _load_asteroids_group_binary(sbg: IVSmallBodiesGroup, binary_dir: String, m
 	var binary_data: Array = binary.get_var()
 	binary.close()
 	var names: PackedStringArray = binary_data[0]
-	var e_i_Om_w: PackedFloat32Array = binary_data[1]
-	var a_M0_n: PackedFloat32Array = binary_data[2]
+	var e_i_lan_ap: PackedFloat32Array = binary_data[1]
+	var a_m0_n: PackedFloat32Array = binary_data[2]
 	var s_g_mag_de: PackedFloat32Array = binary_data[3]
-	var da_D_f_th0: PackedFloat32Array
+	var da_d_f_th0: PackedFloat32Array
 	if lp_integer != -1:
-		da_D_f_th0 = binary_data[4]
+		da_d_f_th0 = binary_data[4]
 	
 	# apply scale if needed
 	var size := names.size()
@@ -66,9 +66,9 @@ func _load_asteroids_group_binary(sbg: IVSmallBodiesGroup, binary_dir: String, m
 	if scale_multiplier != 1.0:
 		var index := 0
 		while index < size:
-			a_M0_n[index * 3] *= scale_multiplier # a only
+			a_m0_n[index * 3] *= scale_multiplier # a only
 			if lp_integer != -1:
-				da_D_f_th0[index * 4] *= scale_multiplier # da only
+				da_d_f_th0[index * 4] *= scale_multiplier # da only
 			index += 1
 	
-	sbg.append_data(names, e_i_Om_w, a_M0_n, s_g_mag_de, da_D_f_th0)
+	sbg.append_data(names, e_i_lan_ap, a_m0_n, s_g_mag_de, da_d_f_th0)

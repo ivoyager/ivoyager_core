@@ -23,7 +23,8 @@ extends Button
 
 
 func _ready() -> void:
-	IVGlobal.simulator_exited.connect(_enable)
+	IVGlobal.state_changed.connect(_on_state_changed)
+	disabled = !IVGlobal.state.is_ok_to_start
 
 
 func _pressed() -> void:
@@ -35,5 +36,5 @@ func _start() -> void:
 	IVGlobal.start_requested.emit()
 
 
-func _enable() -> void:
-	disabled = false
+func _on_state_changed(state: Dictionary[StringName, Variant]) -> void:
+	disabled = !state.is_ok_to_start

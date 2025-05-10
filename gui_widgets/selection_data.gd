@@ -36,6 +36,8 @@ extends VBoxContainer
 # For most applicatios, you'll want to put this widget in a ScrollContainer.
 #
 # TODO: tooltips.
+#
+
 
 enum { # data_type
 	AS_IS,
@@ -87,8 +89,6 @@ var section_content: Array[Array] = [
 			dynamic_unit.bind(DynamicUnitType.VELOCITY_MPS_KMPS, true, 5)],
 		[&"LABEL_INCLINATION_TO_ECLIPTIC", "body/orbit/get_inclination_to_ecliptic", NULL_ARRAY,
 			fixed_unit.bind(&"deg", true, 3, NumberType.DECIMAL_PLACES)],
-		[&"LABEL_INCLINATION_TO_EQUATOR", "body/get_orbit_inclination_to_equator", NULL_ARRAY,
-			fixed_unit.bind(&"deg", true, 3, NumberType.DECIMAL_PLACES)],
 		[&"LABEL_DIST_GALACTIC_CORE", "body/characteristics/dist_galactic_core", NULL_ARRAY,
 			dynamic_unit.bind(DynamicUnitType.LENGTH_KM_AU)],
 		[&"LABEL_GALACTIC_PERIOD", "body/characteristics/galactic_period", NULL_ARRAY,
@@ -120,15 +120,15 @@ var section_content: Array[Array] = [
 			table_entity.bind(&"body_classes")],
 		[&"LABEL_STELLAR_CLASSIFICATION", "body/characteristics/stellar_classification", NULL_ARRAY,
 			as_text],
-		[&"LABEL_MEAN_RADIUS", "body/m_radius", NULL_ARRAY,
+		[&"LABEL_MEAN_RADIUS", "body/mean_radius", NULL_ARRAY,
 			fixed_unit.bind(&"km")],
-		[&"LABEL_EQUATORIAL_RADIUS", "body/characteristics/e_radius", NULL_ARRAY,
+		[&"LABEL_EQUATORIAL_RADIUS", "body/characteristics/equatorial_radius", NULL_ARRAY,
 			fixed_unit.bind(&"km")],
-		[&"LABEL_POLAR_RADIUS", "body/characteristics/p_radius", NULL_ARRAY,
+		[&"LABEL_POLAR_RADIUS", "body/characteristics/polar_radius", NULL_ARRAY,
 			fixed_unit.bind(&"km")],
 		[&"LABEL_HYDROSTATIC_EQUILIBRIUM", "body/characteristics/hydrostatic_equilibrium", NULL_ARRAY,
 			enum_item.bind(IVGlobal.Confidence)],
-		[&"LABEL_MASS", "body/characteristics/mass", NULL_ARRAY,
+		[&"LABEL_MASS", "body/mass", NULL_ARRAY,
 			fixed_unit.bind(&"kg")],
 		[&"LABEL_SURFACE_GRAVITY", "body/characteristics/surface_gravity", NULL_ARRAY,
 			fixed_unit.bind(&"_g")],
@@ -197,10 +197,17 @@ var section_content: Array[Array] = [
 	],
 ]
 
-var body_flags_test := { # show criteria
-	"body/m_radius" : BodyFlags.BODYFLAGS_DISPLAY_M_RADIUS,
-	"body/characteristics/hydrostatic_equilibrium" : BodyFlags.BODYFLAGS_MOON,
+var show_body_flags := { # show test
+	&"LABEL_EQUATORIAL_RADIUS" : BodyFlags.BODYFLAGS_DISPLAY_EQUATORIAL_POLAR_RADII,
+	&"LABEL_POLAR_RADIUS" : BodyFlags.BODYFLAGS_DISPLAY_EQUATORIAL_POLAR_RADII,
+	&"LABEL_HYDROSTATIC_EQUILIBRIUM" : BodyFlags.BODYFLAGS_MOON,
 }
+
+var dont_show_body_flags := { # don't show test
+	&"LABEL_MEAN_RADIUS" : BodyFlags.BODYFLAGS_DISPLAY_EQUATORIAL_POLAR_RADII,
+}
+
+var display_0_as_question_mark := {} # TODO (eg, mass)
 
 var value_postprocessors := {
 	"body/rotation_period" : mod_rotation_period,
@@ -523,11 +530,14 @@ func _get_row_info(section: int, data_index: int, prespace: String) -> Array:
 	# Returns [label_txt, value_txt, is_label_link, is_value_link], or empty array if n/a (skip)
 	
 	var line_content: Array = section_content[section][data_index]
+	var item: StringName = line_content[0]
 	var path: String = line_content[1]
 	# flags exclusion
-	var body_flags: int = body_flags_test.get(path, 0)
-	if body_flags:
-		if !_body or not _body.flags & body_flags:
+	if show_body_flags.has(item):
+		if !_body or !(_body.flags & show_body_flags[item]):
+			return NULL_ARRAY
+	if dont_show_body_flags.has(item):
+		if !_body or _body.flags & dont_show_body_flags[item]:
 			return NULL_ARRAY
 	# get value from IVSelection or nested object
 	var method_args: Array = line_content[2]

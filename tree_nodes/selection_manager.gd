@@ -166,7 +166,7 @@ static func get_body_above_selection(selection_: IVSelection) -> IVBody:
 		selection_ = get_or_make_selection(selection_.up_selection_name)
 		if selection_.body:
 			return selection_.body
-	return IVBody.top_bodies[0]
+	return IVBody.galaxy_orbiters[0]
 
 
 static func get_body_at_above_selection_w_flags(selection_: IVSelection, flags: int) -> IVBody:
@@ -298,7 +298,7 @@ func next_last(incr: int, selection_type := -1, _alt_selection_type := -1) -> vo
 			index = iteration_array.find(current_body)
 		SELECTION_STAR:
 			# TODO: code for multistar systems
-			var sun: IVBody = IVBody.top_bodies[0]
+			var sun: IVBody = IVBody.galaxy_orbiters[0]
 			select_body(sun)
 			return
 		SELECTION_PLANET:
@@ -306,13 +306,13 @@ func next_last(incr: int, selection_type := -1, _alt_selection_type := -1) -> vo
 			if !star:
 				return
 			iteration_array = star.satellites
-			var planet := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.BODYFLAGS_PLANET)
+			var planet := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.BODYFLAGS_PLANET_OR_DWARF_PLANET)
 			if planet:
 				index = iteration_array.find(planet)
 				if planet != current_body and incr == 1:
 					index -= 1
 		SELECTION_NAVIGATOR_MOON, SELECTION_MOON:
-			var planet := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.BODYFLAGS_PLANET)
+			var planet := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.BODYFLAGS_PLANET_OR_DWARF_PLANET)
 			if !planet:
 				return
 			iteration_array = planet.satellites
@@ -345,9 +345,10 @@ func next_last(incr: int, selection_type := -1, _alt_selection_type := -1) -> vo
 			SELECTION_STAR:
 				do_selection = bool(body.flags & BodyFlags.BODYFLAGS_STAR)
 			SELECTION_PLANET:
-				do_selection = bool(body.flags & BodyFlags.BODYFLAGS_PLANET)
+				do_selection = bool(body.flags & BodyFlags.BODYFLAGS_PLANET_OR_DWARF_PLANET)
 			SELECTION_NAVIGATOR_MOON:
-				do_selection = bool(body.flags & BodyFlags.BODYFLAGS_NAVIGATOR_MOON)
+				do_selection = (body.flags & BodyFlags.BODYFLAGS_MOON
+						and body.flags & BodyFlags.BODYFLAGS_SHOW_IN_NAVIGATION_PANEL)
 			SELECTION_MOON:
 				do_selection = bool(body.flags & BodyFlags.BODYFLAGS_MOON)
 			SELECTION_SPACECRAFT:

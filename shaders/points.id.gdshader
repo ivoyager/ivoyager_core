@@ -37,32 +37,39 @@ varying flat vec3 fragment_id;
 
 
 void vertex() {
-	fragment_id = VERTEX; // constant id for each vertex
-	
+	fragment_id = VERTEX; // id for each vertex (not position!)
+
 	// orbital elements
 	float a = CUSTOM1[0]; // semi-major axis
 	float e = CUSTOM0[0]; // eccentricity
 	float i = CUSTOM0[1]; // inclination
-	float Om = CUSTOM0[2]; // longitude of the ascending node
-	float w = CUSTOM0[3]; // argument of periapsis
-	float M0 = CUSTOM1[1]; // mean anomaly at epoch
+	float lan = CUSTOM0[2]; // longitude of the ascending node
+	float aop = CUSTOM0[3]; // argument of periapsis
+	float m0 = CUSTOM1[1]; // mean anomaly at epoch
 	float n = CUSTOM1[2]; // mean motion
-	
+
 	// precessions & magnitude
-//	float s = CUSTOM2[0]; // nodal precession; NOT IMPLEMENTED YET
-//	float g = CUSTOM2[1]; // apsidal precession; NOT IMPLEMENTED YET
-//	float mag = CUSTOM2[3]; // magnitude; NOT IMPLEMENTED YET
-	
-	float M = M0 + n * iv_time; // mean anomaly
-	M = mod(M + PI, TAU) - PI;
-	
-	vec3 position = get_orbit_position(a, e, i, Om, w, M);
-	
+	float s = CUSTOM2[0]; // nodal precession (=longitude ascending node rate)
+	float g = CUSTOM2[1]; // apsidal precession (=longitude of periapsis rate)
+//	float mag = CUSTOM2[3]; // magnitude; NOT IMPLEMENTED
+
+	// orbit precessions
+	lan += s * iv_time;
+	aop += (g - s) * iv_time; // arg of periapsis = long of periapsis - long ascending node
+	lan = mod(lan, TAU);
+	aop = mod(aop, TAU);
+
+	// mean anomaly
+	float m = m0 + n * iv_time;
+	m = mod(m + PI, TAU) - PI;
+
+	vec3 position = get_orbit_position(a, e, i, lan, aop, m);
+
 	// We skip VERTEX here, but this is the 2-step version...
 	// VERTEX = (MODELVIEW_MATRIX * vec4(x, y, z, 1.0)).xyz;
 	// POSITION = PROJECTION_MATRIX * vec4(VERTEX, 1.0);	
 	POSITION = PROJECTION_MATRIX * (MODELVIEW_MATRIX * vec4(position, 1.0));
-	
+
 	POINT_SIZE = point_size;
 }
 
@@ -74,4 +81,3 @@ void fragment() {
 		ALBEDO = color;
 	}
 }
-

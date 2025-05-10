@@ -43,7 +43,7 @@ func _on_project_objects_instantiated() -> void:
 	_binary_asteroids_builder = IVGlobal.program[&"BinaryAsteroidsBuilder"]
 
 
-func build_sbg_from_table(sbg: IVSmallBodiesGroup, table_name: StringName, row: int) -> void:
+func build_sbg(sbg: IVSmallBodiesGroup, table_name: StringName, row: int) -> void:
 	var name := IVTableData.get_db_entity_name(table_name, row)
 	var sbg_alias := IVTableData.get_db_string_name(table_name, &"sbg_alias", row)
 	var sbg_class := IVTableData.get_db_int(table_name, &"sbg_class", row) as SBGClass

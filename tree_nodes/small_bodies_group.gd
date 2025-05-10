@@ -47,7 +47,7 @@ signal adding_visuals() # existing visual nodes must free themselves
 
 enum SBGClass {
 	SBG_CLASS_ASTEROIDS,
-	SBG_CLASS_COMETS,
+	SBG_CLASS_COMETS, # TODO: Roadmap
 	SBG_CLASS_ARTIFICIAL_SATELLITES, # TODO: Roadmap
 	SBG_CLASS_OTHER,
 }
@@ -62,10 +62,10 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"lp_integer",
 	&"max_apoapsis",
 	&"names",
-	&"e_i_Om_w",
-	&"a_M0_n",
+	&"e_i_lan_ap",
+	&"a_m0_n",
 	&"s_g_mag_de",
-	&"da_D_f_th0",
+	&"da_d_f_th0",
 ]
 
 
@@ -76,10 +76,10 @@ var lp_integer := -1 # -1, 4 & 5 are currently supported
 var max_apoapsis := 0.0
 
 var names := PackedStringArray()
-var e_i_Om_w := PackedFloat32Array() # fixed & precessing (except e in sec res)
-var a_M0_n := PackedFloat32Array() # librating in l-point objects
+var e_i_lan_ap := PackedFloat32Array() # fixed & precessing (except e in sec res)
+var a_m0_n := PackedFloat32Array() # librating in l-point objects
 var s_g_mag_de := PackedFloat32Array() # orbit precessions, magnitude, & e amplitude (sec res only)
-var da_D_f_th0 := PackedFloat32Array() # Trojans only
+var da_d_f_th0 := PackedFloat32Array() # Trojans only
 
 ## Contains all IVSmallBodiesGroup instances currently in the tree.
 static var small_bodies_groups: Dictionary[StringName, IVSmallBodiesGroup] = {}
@@ -117,23 +117,42 @@ func init(name_: StringName, sbg_alias_: StringName, sbg_class_: SBGClass,
 ## If possible, append all data before adding this node to the tree. If called
 ## after tree add, existing visual nodes will be discarded and new ones will
 ## be created.
-func append_data(names_append: PackedStringArray, e_i_Om_w_append: PackedFloat32Array,
-		a_M0_n_append: PackedFloat32Array, s_g_mag_de_append: PackedFloat32Array,
-		da_D_f_th0_append := null_pf32_array, suppress_max_apoapsis_update := false,
+func append_data(names_append: PackedStringArray, e_i_lan_aop_append: PackedFloat32Array,
+		a_m0_n_append: PackedFloat32Array, s_g_mag_de_append: PackedFloat32Array,
+		da_d_f_th0_append := null_pf32_array, suppress_max_apoapsis_update := false,
 		suppress_visuals_rebuild := false) -> void:
 	var n_bodies := names_append.size()
-	assert(e_i_Om_w_append.size() == n_bodies * 4)
-	assert(a_M0_n_append.size() == n_bodies * 3)
+	assert(e_i_lan_aop_append.size() == n_bodies * 4)
+	assert(a_m0_n_append.size() == n_bodies * 3)
 	assert(s_g_mag_de_append.size() == n_bodies * 4)
-	assert(da_D_f_th0_append.size() == (0 if lp_integer == -1 else n_bodies * 4))
+	assert(da_d_f_th0_append.size() == (0 if lp_integer == -1 else n_bodies * 4))
+	
+	
+	# *************************************************************************
+	# FIXME: WORKS FOR UNKNOWN REASON! The adjustment here fixes precessions
+	# so that the Hildas maintain position correctly over 3000 BC - 3000 AD.
+	# This strongly suggests a conversion error somewhere. HOWEVER, the print
+	# statement shows that our conversion from source to internal units is correct.
+	
+	# Print statement unconverts internal rad/s back to source units "/yr. This
+	# prints -59.1700357686738, 54.0702746719668 for Ceres, which agrees w/ source.
+	#printt(rad_to_deg(s_g_mag_de_append[0]) * 3600 * IVUnits.YEAR,
+			#rad_to_deg(s_g_mag_de_append[1]) * 3600 * IVUnits.YEAR, sbg_alias, names_append[0])
+	
+	# Here is the mystery fix...
+	for i in n_bodies:
+		s_g_mag_de_append[i * 4] /= 3.0 # s
+		s_g_mag_de_append[i * 4 + 1] /= 3.0 # g
+	# *************************************************************************
+	
 	
 	var previous_size := names.size()
 	names.append_array(names_append)
-	e_i_Om_w.append_array(e_i_Om_w_append)
-	a_M0_n.append_array(a_M0_n_append)
+	e_i_lan_ap.append_array(e_i_lan_aop_append)
+	a_m0_n.append_array(a_m0_n_append)
 	s_g_mag_de.append_array(s_g_mag_de_append)
 	if lp_integer != -1:
-		da_D_f_th0.append_array(da_D_f_th0_append)
+		da_d_f_th0.append_array(da_d_f_th0_append)
 	
 	var new_size := previous_size + n_bodies
 	if !suppress_max_apoapsis_update:
@@ -158,18 +177,18 @@ func update_max_apoapsis(start_index: int, stop_index: int, increase_only := tru
 	var i := start_index
 	if lp_integer == -1:
 		while i < stop_index:
-			var a := a_M0_n[i * 3]
-			var e := e_i_Om_w[i * 4]
+			var a := a_m0_n[i * 3]
+			var e := e_i_lan_ap[i * 4]
 			var apoapsis := a * (1.0 + e)
 			if range_max < apoapsis:
 				range_max = apoapsis
 			i += 1
 	else:
-		var characteristic_length := secondary_body.get_orbit_semi_major_axis()
+		var secondary_a := secondary_body.get_orbit_semi_major_axis()
 		while i < stop_index:
-			var da: float = da_D_f_th0[i * 4]
-			var e: float = e_i_Om_w[i * 4]
-			var apoapsis := (characteristic_length + da) * (1.0 + e)
+			var da: float = da_d_f_th0[i * 4]
+			var e: float = e_i_lan_ap[i * 4]
+			var apoapsis := (secondary_a + da) * (1.0 + e)
 			if range_max < apoapsis:
 				range_max = apoapsis
 			i += 1
@@ -187,20 +206,30 @@ func get_number() -> int:
 	return names.size()
 
 
+func get_ellipse_transform(index: int) -> Transform3D:
+	var a := a_m0_n[index * 3]
+	var e := e_i_lan_ap[index * 4]
+	var i := e_i_lan_ap[index * 4 + 1]
+	var lan := e_i_lan_ap[index * 4 + 2]
+	var ap := e_i_lan_ap[index * 4 + 3]
+	return IVOrbit.get_ellipse_transform_from_elements(a, e, i, lan, ap)
+
+
+## Returns an element list [a, e, i, lan, ap, m0, n]. FIXME: Trojan elements
+## vary with libration. This is reflected in shader point calculations but not
+## in elements here (yet).
+## @experimental: The element list will change in the future to be more in line with [IVOrbit]. 
 func get_orbit_elements(index: int) -> Array[float]:
-	# [a, e, i, Om, w, M0, n]
-	# WIP - Trojan elements a, M0 & n vary with libration. This is reflected in
-	# shader point calculations but not in elements here (yet).
 	
-	return Array([
-		a_M0_n[index * 3],
-		e_i_Om_w[index * 4],
-		e_i_Om_w[index * 4 + 1],
-		e_i_Om_w[index * 4 + 2],
-		e_i_Om_w[index * 4 + 3],
-		a_M0_n[index * 3 + 1],
-		a_M0_n[index * 3 + 2],
-	], TYPE_FLOAT, &"", null)
+	return [
+		a_m0_n[index * 3],
+		e_i_lan_ap[index * 4],
+		e_i_lan_ap[index * 4 + 1],
+		e_i_lan_ap[index * 4 + 2],
+		e_i_lan_ap[index * 4 + 3],
+		a_m0_n[index * 3 + 1],
+		a_m0_n[index * 3 + 2],
+	]
 
 
 func get_fragment_data(fragment_type: int, index: int) -> Array:
@@ -222,6 +251,9 @@ func get_fragment_text(data: Array) -> String:
 
 func _build_visuals() -> void:
 	# add non-persisted HUD elements
+	
+	# TODO: Implement in IVSBGFinisher similar to IVBodyFinisher.
+	
 	if !is_inside_tree():
 		return
 	adding_visuals.emit() # any pre-existing will queue_free

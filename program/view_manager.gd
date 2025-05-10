@@ -22,9 +22,6 @@ extends Node
 
 ## Builds [IVView] instances from table data (default views), and provides API
 ## for user-created views that are persisted via gamesave or cache.
-##
-## TODO: We can use cache_handler.gd IF we add Callable properties to that
-## for object conversion.
 
 const files := preload("res://addons/ivoyager_core/static/files.gd")
 
@@ -43,7 +40,6 @@ var table_views: Dictionary[StringName, IVView]
 var gamesave_views: Dictionary[StringName, IVView] = {}
 var cached_views: Dictionary[StringName, IVView] = {}
 
-var _io_manager: IVIOManager
 var _missing_or_bad_cache_file := true
 var _view_script: Script = IVGlobal.procedural_classes[&"View"]
 
@@ -58,7 +54,6 @@ func _on_project_objects_instantiated() -> void:
 	var table_view_builder: IVTableViewBuilder = IVGlobal.program[&"TableViewBuilder"]
 	table_views = table_view_builder.build_all()
 	# caching
-	_io_manager = IVGlobal.program[&"IOManager"]
 	DirAccess.make_dir_recursive_absolute(IVCoreSettings.cache_dir)
 	_read_cache()
 	if _missing_or_bad_cache_file:
@@ -157,24 +152,28 @@ func get_names_in_collection(collection_name: StringName, is_cached: bool) -> Ar
 
 # private
 
+# This replicates some IVCacheHandler code, but it's really hard to generalize
+# that class to handle objects.
+
 func _read_cache() -> void:
 	# Populate cached_views once at project init on main thread.
 	var file := FileAccess.open(file_path, FileAccess.READ)
 	if !file:
 		prints("Creating new cache file", file_path)
 		return
+	
+	# May have old cache file, so treat with care...
 	var file_var: Variant = file.get_var() # untyped for safety
-	file.close()
 	if typeof(file_var) != TYPE_DICTIONARY:
 		prints("Overwriting obsolete cache file", file_path)
 		return
-	var dict: Dictionary = file_var
-	if !dict.is_typed():
+	var file_dict: Dictionary = file_var
+	if file_dict.get_typed_key_builtin() != TYPE_STRING_NAME:
 		prints("Overwriting obsolete cache file", file_path)
 		return
 	var bad_cache_data := false
-	for key: StringName in dict:
-		var data: Array = dict[key]
+	for key: StringName in file_dict:
+		var data: Array = file_dict[key]
 		@warning_ignore("unsafe_method_access") # possible replacement class
 		var view: IVView = _view_script.new()
 		if !view.set_data_from_cache(data): # may be prior version
@@ -187,22 +186,22 @@ func _read_cache() -> void:
 
 func _write_cache(allow_threaded_cache_write := true) -> void:
 	# Unless this is app exit, no one is waiting for this and we can do the
-	# file write on i/o thread. At app exit, we want the main thread to wait.
+	# file write on thread. At app exit, we want the main thread to wait.
 	var dict: Dictionary[StringName, Array] = {}
 	for key: StringName in cached_views:
 		var view: IVView = cached_views[key]
 		var data := view.get_data_for_cache()
 		dict[key] = data
 	if allow_threaded_cache_write:
-		_io_manager.callback(_write_cache_maybe_on_io_thread.bind(dict))
+		WorkerThreadPool.add_task(_write_cache_file.bind(dict))
 	else:
-		_write_cache_maybe_on_io_thread(dict)
-	
+		_write_cache_file(dict)
 
-func _write_cache_maybe_on_io_thread(dict: Dictionary) -> void:
+
+func _write_cache_file(dict: Dictionary[StringName, Array]) -> void:
 	var file := FileAccess.open(file_path, FileAccess.WRITE)
-	if !file:
-		print("ERROR! Could not open ", file_path, " for write!")
+	var err := FileAccess.get_open_error()
+	if err != OK:
+		push_error("Could not open file for write: ", file_path)
 		return
 	file.store_var(dict)
-	file.close()

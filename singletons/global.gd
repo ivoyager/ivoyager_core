@@ -28,18 +28,18 @@ extends Node
 # messes up static class dependencies on this global.
 
 # simulator state broadcasts
-signal about_to_run_initializers() # IVCoreInitializer; after plugin preinitializers
-signal translations_imported() # IVTranslationImporter; useful for boot screen
-signal data_tables_imported() # IVTableImporter
 signal preinitializers_inited() # IVTableImporter; plugins!
-signal initializer_inited(initializer: RefCounted) # IVCoreInitializer
-signal initializers_inited() # IVCoreInitializer; after all above
+signal about_to_run_initializers() # IVCoreInitializer; after plugin preinitializers
+signal project_object_instantiated(object: Object) # IVCoreInitializer; each object in that file
+signal translations_imported() # IVTranslationImporter; useful for boot screen
+signal data_tables_imported() # IVTableInitializer
+signal project_initializers_instantiated() # IVCoreInitializer; all initializers
 signal project_objects_instantiated() # IVCoreInitializer; IVGlobal.program populated
 signal project_inited() # IVCoreInitializer; after above
 signal project_nodes_added() # IVCoreInitializer; prog_nodes & gui_nodes added
-signal project_builder_finished() # IVCoreInitializer; 1 frame after above
-signal state_manager_inited()
-signal world_environment_added() # on Main after I/O thread finishes (slow!)
+signal project_builder_finished() # IVCoreInitializer; 1 frame after above (splash screen showing)
+signal asset_preloader_finished() # IVAssetPreloader
+signal state_changed(state: Dictionary[StringName, Variant]) # see IVStateManager for keys
 signal about_to_build_system_tree() # new or loading game
 signal add_system_tree_item_started(item: Node) # new or loading game (Body or SmallBodiesGroup)
 signal add_system_tree_item_finished(item: Node) # after all I/O work has completed for item
@@ -61,8 +61,7 @@ signal network_state_changed(network_state: bool) # IVGlobal.NetworkState
 # other broadcasts
 signal setting_changed(setting: StringName, value: Variant)
 signal camera_ready(camera: Camera3D)
-## In this context, "planet" is star orbiting ancestor and "star" is galaxy orbiting ancestor.
-signal camera_tree_changed(camera: Camera3D, parent: Node3D, planet: Node3D, star: Node3D)
+signal camera_tree_changed(camera: Camera3D, parent: Node3D, star_orbiter: Node3D, star: Node3D)
 
 # requests for state change
 signal start_requested()
@@ -179,10 +178,8 @@ var clock: Array[int] = []
 var program: Dictionary[StringName, Object] = {}
 ## Populated by [IVCoreInitializer]. Holds script classes for procedural objects (base or override).
 var procedural_classes: Dictionary[StringName, Resource] = {}
-## Populated by [IVAssetsInitializer] and [IVResourceInitializer].
+## Populated by [IVResourceInitializer].
 var resources: Dictionary[StringName, Resource] = {}
-## Populated by [AssetsInitializer]. Loaded assets from dynamic paths specified in [IVCoreSettings].
-var assets: Dictionary[StringName, Resource] = {}
 ## Maintained by [IVSettingsManager].
 var settings: Dictionary[StringName, Variant] = {}
 ## Maintained by [IVThemeManager].
@@ -194,14 +191,21 @@ var blocking_windows: Array[Window] = []
 ## For project use. Not used by I, Voyager.
 var project := {}
 
-# read-only!
+## Read-only!
 var ivoyager_version: String
+## Read-only!
 var assets_version: String
-var wiki: String # IVWikiInitializer sets; "wiki" (internal), "en.wiki", etc.
+## Read-only! [IVWikiInitializer] sets this to "wiki" (internal), "en.wiki", etc.
+var wiki: String
+## @depreciate: See comments in [IVDebug].
 var debug_log: FileAccess # IVLogInitializer sets if debug build and debug_log_path
+## Read-only! The plugin ConfigFile generated from res://addons/ivoyager_core/ivoyager_core.cfg
+## with possible overrides in res://ivoyager_override.cfg and res://ivoyager_override2.cfg.
 var ivoyager_config: ConfigFile = IVPluginUtils.get_config_with_override(
 		"res://addons/ivoyager_core/ivoyager_core.cfg",
 		"res://ivoyager_override.cfg", "res://ivoyager_override2.cfg")
+## Read-only! Indicates project running with Compatibility renderer.
+var is_gl_compatibility := RenderingServer.get_current_rendering_method() == "gl_compatibility"
 
 
 

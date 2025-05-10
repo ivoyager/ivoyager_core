@@ -6,6 +6,28 @@ File format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 See cloning and downloading instructions [here](https://www.ivoyager.dev/developers/).
 
+## [v0.0.25] - UNRELEASED
+
+Developed using Godot 4.4.1
+
+### Added
+* IVAstronomy centralizes astronomy related constants (G, etc.) and static methods.
+* IVBodyFinisher class for adding non-procedural nodes from table data (to help declutter IVBody).
+* IVLazyModelInitializer for initing lazy models. (Replaces overly complicated IVLazyManager.)
+* Implemented nodal and apsidal precessions for asteroid orbits (points only).
+
+### Changed
+* [API breaking] Total [IVOrbit](https://github.com/ivoyager/ivoyager_core/blob/master/tree_refs/orbit.gd) overhaul. Ready for beta.
+* [API breaking] Renamed and reorganized enums in IVBody.BodyFlags.
+* Unabbreviated field names in body tables for orbit parameters.
+* De-cluttered code in various TableXxxxBuilder classes. Force user to enter needed fields in table rather than trying to accommodate every data variation.
+
+### Fixed
+* Fixed errors caused by loading resources simultaneously on different threads.
+* Fixed nodal and apsidal precessions for retrograde oribits. (I'm 90% sure after observations.)
+* Hilda asteroids now maintain aphelion inside Jupiter's L3, L4, L5 points from 3000 BC - 3000 AD. (Due to precessions implementation.)
+* Tadpole orbits for Jupiter Trojans now have propper distal "tails".
+
 ## [v0.0.24] - 2025-03-31
 
 Developed using Godot 4.4.
@@ -146,6 +168,7 @@ Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_tab
 ##
 I, Voyager projects v0.0.16 and earlier used a different core submodule [ivoyager](https://github.com/ivoyager/ivoyager) (now depreciated); see previous changelog [here](https://github.com/ivoyager/ivoyager/blob/master/CHANGELOG.md).
 
+[v0.0.25]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.24...HEAD
 [v0.0.24]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.23...v0.0.24
 [v0.0.23]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.22...v0.0.23
 [v0.0.22]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.21...v0.0.22

@@ -20,26 +20,65 @@
 class_name IVSettingsManager
 extends RefCounted
 
-## Defines and manages user settings.
+## Defines and manages user settings that are persisted in a cache file.
 ##
-## Non-default settings are persisted in a cache file.[br][br]
+## Make all changes to static [member defaults] before _init()![br][br]
 ##
 ## Many (but not necessarily all) user settings are settable in [IVOptionsPopup].
 
 
+static var defaults: Dictionary[StringName, Variant] = {
+	# save/load (only matters if Save pluin is enabled)
+	&"save_base_name" : "I Voyager",
+	&"append_date_to_save" : true,
+	&"pause_on_load" : false,
+	&"autosave_time_min" : 10,
+
+	# camera
+	&"camera_transfer_time" : 1.0,
+	&"camera_mouse_in_out_rate" : 1.0,
+	&"camera_mouse_move_rate" : 1.0,
+	&"camera_mouse_pitch_yaw_rate" : 1.0,
+	&"camera_mouse_roll_rate" : 1.0,
+	&"camera_key_in_out_rate" : 1.0,
+	&"camera_key_move_rate" : 1.0,
+	&"camera_key_pitch_yaw_rate" : 1.0,
+	&"camera_key_roll_rate" : 1.0,
+
+	# UI & HUD display
+	&"gui_size" : IVGlobal.GUISize.GUI_MEDIUM,
+	&"viewport_names_size" : 15,
+	&"viewport_symbols_size" : 25,
+	&"point_size" : 3,
+	&"hide_hud_when_close" : true, # restart or load required
+
+	# graphics/performance
+	&"starmap" : IVGlobal.StarmapSize.STARMAP_16K,
+
+	# misc
+	&"mouse_action_releases_gui_focus" : true,
+
+	# cached but not in IVOptionsPopup
+	# FIXME: Obsolete below?
+	&"save_dir" : "",
+	&"pbd_splash_caption_open" : false,
+	&"mouse_only_gui_nav" : false,
+
+}
+
 var file_name := "settings.ivbinary"
-var file_version := "0.0.23" # update when obsoleted
-var current := IVGlobal.settings
-var defaults := IVCoreSettings.default_cached_settings
+var file_version := "0.0.23" # update when old cache file might be problematic
 var cache_handler: IVCacheHandler
+
+var _current := IVGlobal.settings
 
 
 func _init() -> void:
-	cache_handler = IVCacheHandler.new(defaults, current, file_name, file_version)
+	cache_handler = IVCacheHandler.new(defaults, _current, file_name, file_version)
 	cache_handler.current_changed.connect(_on_current_changed)
 
 
-## If suppress_caching = true, be sure to call cache_now() later.
+## If [param suppress_caching] == true, be sure to call [method cache_now] later.
 func change_current(key: StringName, value: Variant, suppress_caching := false) -> void:
 	cache_handler.change_current(key, value, suppress_caching)
 
@@ -52,22 +91,18 @@ func is_default(key: StringName) -> bool:
 	return cache_handler.is_default(key)
 
 
-func is_all_defaults() -> bool:
-	return cache_handler.is_all_defaults()
+func is_defaults() -> bool:
+	return cache_handler.is_defaults()
 
 
-func get_cached_values() -> Dictionary[StringName, Variant]:
-	return cache_handler.get_cached_values()
-
-
-## If suppress_caching = true, be sure to call cache_now() later.
+## If [param suppress_caching] == true, be sure to call [method cache_now] later.
 func restore_default(key: StringName, suppress_caching := false) -> void:
 	cache_handler.restore_default(key, suppress_caching)
 
 
-## If suppress_caching = true, be sure to call cache_now() later.
-func restore_all_defaults(suppress_caching := false) -> void:
-	cache_handler.restore_all_defaults(suppress_caching)
+## If [param suppress_caching] == true, be sure to call [method cache_now] later.
+func restore_defaults(suppress_caching := false) -> void:
+	cache_handler.restore_defaults(suppress_caching)
 
 
 func is_cache_current() -> bool:

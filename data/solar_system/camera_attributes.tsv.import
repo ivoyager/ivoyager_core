@@ -1,0 +1,14 @@
+[remap]
+
+importer="ivoyager.tables"
+type="IVTableResource"
+uid="uid://c1a5gsdro1n17"
+path="res://.godot/imported/camera_attributes.tsv-6b60205dcc934e52ffd9dd2e8d5dce74.tres"
+
+[deps]
+
+source_file="res://addons/ivoyager_core/data/solar_system/camera_attributes.tsv"
+dest_files=["res://.godot/imported/camera_attributes.tsv-6b60205dcc934e52ffd9dd2e8d5dce74.tres"]
+
+[params]
+

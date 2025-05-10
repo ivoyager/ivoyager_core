@@ -25,7 +25,7 @@ class_name IVBodyLabel
 var _color: Color
 var _use_orbit_color: bool
 
-var _body_huds_state: IVBodyHUDsState = IVGlobal.program.BodyHUDsState
+var _body_huds_state: IVBodyHUDsState = IVGlobal.program[&"BodyHUDsState"]
 var _body: IVBody
 var _name_font: Font
 var _symbol_font: Font
@@ -38,8 +38,9 @@ func _init(body: IVBody, color := Color.WHITE, use_orbit_color := false) -> void
 	_body = body
 	_color = color
 	_use_orbit_color = use_orbit_color
-	_name_font = IVGlobal.fonts.hud_names
-	_symbol_font = IVGlobal.fonts.hud_symbols
+	_name_font = IVGlobal.fonts[&"hud_names"]
+	_symbol_font = IVGlobal.fonts[&"hud_symbols"]
+	name = &"BodyLabel"
 
 
 func _ready() -> void:

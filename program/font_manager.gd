@@ -24,6 +24,9 @@ extends RefCounted
 ## (["addons/ivoyager_core/singletons/global.gd"]).
 
 # project vars - modify on signal project_objects_instantiated
+
+var primary_font_path := "res://addons/ivoyager_assets/fonts/Roboto-NotoSansSymbols-merged.ttf"
+
 var fixed_sizes := {
 	&"two_pt" : 2, # hack to allow small button height (e.g., in SystemNavigator)
 	&"medium" : 22,
@@ -45,7 +48,10 @@ func _init() -> void:
 
 func _on_project_objects_instantiated() -> void:
 	IVGlobal.setting_changed.connect(_settings_listener)
-	_primary_font = IVGlobal.assets[&"primary_font"]
+	
+	assert(ResourceLoader.exists(primary_font_path))
+	_primary_font = load(primary_font_path)
+	
 	for key: StringName in fixed_sizes:
 		_fonts[key] = _primary_font.duplicate()
 		_fonts[key].fixed_size = fixed_sizes[key]

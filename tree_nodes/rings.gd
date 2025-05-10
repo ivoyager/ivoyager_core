@@ -23,12 +23,18 @@ extends MeshInstance3D
 ## Visual planetary rings of an [IVBody] instance.
 ##
 ## This node self-adds multiple IVRingsShadowCaster (inner class) instances to
-## hack semi-transparent shadows (in conjuction with IVDynamicLight instances).
+## cast semi-transparent shadows (in conjuction with [IVDynamicLight] instances).
+## Shadow casting is disabled for Compatibility renderer (see comments in
+## [IVDynamicLight]).[br][br]
 ##
-## These classes use rings.shader and rings_shadow_caster.shader.
+## All properties are set from data table rings.tsv.[br][br]
 ##
-## Not persisted. IVBody instance adds on _ready().
+## These classes use rings.shader and rings_shadow_caster.shader. See comments
+## in shader files for graphics issues and commentary.[br][br]
+##
+## Not persisted. [IVBodyFinisher] adds when [IVBody] is added to the tree.[br][br]
 
+const files := preload("res://addons/ivoyager_core/static/files.gd")
 const ShadowMask := IVGlobal.ShadowMask
 
 const END_PADDING := 0.05 # must be same as ivbinary_maker that generated images
@@ -36,74 +42,81 @@ const RENDER_MARGIN := 0.01 # render outside of image data for smoothing
 const LOD_LEVELS := 9 # must agree w/ assets, body.gd and rings.shader
 
 
-var shadow_lod := 5 # affects shadow aliasing
-var shadow_noise_base_strength := 0.006 # affects shadow aliasing
+# All set from table rings.tsv (shadow_lod is used by asset_preloader.gd).
+var file_prefix: String
+var inner_radius: float
+var outer_radius: float
+var sun_index: int
+var shadow_radial_noise_a: float # breaks banding artifact (with camera distance squared)
+var shadow_radial_noise_b: float  # breaks banding artifact pattern (with camera distance)
+var shadow_radial_noise_c: float  # breaks banding artifact (constant)
 
 
-var _body: IVBody
-var _texture_width: int
+var _rings_material := ShaderMaterial.new()
+var _texture_arrays: Array[Texture2DArray] # backscatter/forwardscatter/unlitside for each LOD
 var _texture_start: float
 var _inner_margin: float
 var _outer_margin: float
-var _outer_radius: float
-var _texture_arrays: Array[Texture2DArray] # backscatter/forwardscatter/unlitside for each LOD
-var _rings_material := ShaderMaterial.new()
-var _sun_index: int
 var _sun_global_positions: Array[Vector3]
-var _shadow_caster_image: Image
+var _shadow_caster_texture: Texture2D
+var _shadow_caster_shared: Array[float] = [1.0, 0.005] # alpha_exponent, noise_strength
+var _blue_noise_1024: Texture2D
+var _body: IVBody
 var _camera: Camera3D
 
-var _shadow_caster_shared: Array[float] = [1.0, 0.006] # alpha_exponent, noise_strength
+var _has_shadows := !IVGlobal.is_gl_compatibility
 
 
-
-func _init(body: IVBody, sun_index: int, rings_images: Array[Image]) -> void:
-	assert(rings_images[0] and rings_images[1] and rings_images[2])
+func _init(body: IVBody) -> void:
+	# threadsafe
+	name = &"Rings"
 	_body = body
-	_sun_index = sun_index
-	_texture_width = rings_images[0].get_width()
-	_sun_global_positions = body.sun_global_positions
-	_shadow_caster_image = rings_images[shadow_lod * 3] # all have the same alpha channel
-	for lod in LOD_LEVELS:
-		var lod_rings_images := rings_images.slice(lod * 3, lod * 3 + 3) as Array[Image]
-		var texture_array := Texture2DArray.new() # backscatter/forwardscatter/unlitside for LOD
-		texture_array.create_from_images(lod_rings_images)
-		_texture_arrays.append(texture_array)
+	_sun_global_positions = IVBody.sun_global_positions
+	var row := IVTableData.db_find_in_array(&"rings", &"bodies", body.name)
+	assert(row != -1, "Could not find row in rings.tsv for %s" % body.name)
+	IVTableData.db_build_object(self, &"rings", row)
+	var asset_preloader: IVAssetPreloader = IVGlobal.program[&"AssetPreloader"]
+	_texture_arrays = asset_preloader.get_rings_texture_arrays(name)
+	_shadow_caster_texture = asset_preloader.get_rings_shadow_caster_texture(name)
+	_blue_noise_1024 = asset_preloader.get_blue_noise_1024()
+	cast_shadow = SHADOW_CASTING_SETTING_OFF # semi-transparancy can't cast shadows
+	mesh = PlaneMesh.new() # default 2x2
+	rotation.x = PI / 2.0 # z up astronomy
 
 
 func _ready() -> void:
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
 	IVGlobal.camera_ready.connect(_connect_camera)
 	_connect_camera(get_viewport().get_camera_3d())
-	_body.model_visibility_changed.connect(_on_model_visibility_changed)
-	_on_model_visibility_changed(_body.model_visible)
 	
 	# distances in sim scale
-	_outer_radius = _body.get_rings_outer_radius()
-	var inner_radius: float = _body.get_rings_inner_radius()
-	var ring_span := _outer_radius - inner_radius
-	var outer_texture := _outer_radius + END_PADDING * ring_span # edge of plane
+	var ring_span := outer_radius - inner_radius
+	var outer_texture := outer_radius + END_PADDING * ring_span # edge of plane
 	var inner_texture := inner_radius - END_PADDING * ring_span # texture start from center
 	
 	# normalized distances from center of 2x2 plane
 	_texture_start = inner_texture / outer_texture
 	_inner_margin = (inner_radius - RENDER_MARGIN * ring_span) / outer_texture # render boundary
-	_outer_margin = (_outer_radius + RENDER_MARGIN * ring_span) / outer_texture # render boundary
+	_outer_margin = (outer_radius + RENDER_MARGIN * ring_span) / outer_texture # render boundary
 	
 	scale = Vector3(outer_texture, 1.0, outer_texture)
-	cast_shadow = SHADOW_CASTING_SETTING_OFF # semi-transparancy can't cast shadows
 	
-	mesh = PlaneMesh.new() # default 2x2
 	_rings_material.shader = IVGlobal.resources[&"rings_shader"]
-	_rings_material.set_shader_parameter(&"texture_width", float(_texture_width))
+	for lod in LOD_LEVELS:
+		_rings_material.set_shader_parameter("textures%s" % lod, _texture_arrays[lod])
+	_rings_material.set_shader_parameter(&"texture_width", float(_texture_arrays[0].get_width()))
 	_rings_material.set_shader_parameter(&"texture_start", _texture_start)
 	_rings_material.set_shader_parameter(&"inner_margin", _inner_margin)
 	_rings_material.set_shader_parameter(&"outer_margin", _outer_margin)
-	_rings_material.set_shader_parameter(&"sun_index", _sun_index)
-	for lod in LOD_LEVELS:
-		_rings_material.set_shader_parameter("textures%s" % lod, _texture_arrays[lod])
+	_rings_material.set_shader_parameter(&"sun_index", sun_index)
 	set_surface_override_material(0, _rings_material)
-	rotation.x = PI / 2.0
-	_add_shadow_casters()
+	
+	if IVGlobal.is_gl_compatibility:
+		_rings_material.set_shader_parameter(&"litside_phase_boost", 1.25)
+		_rings_material.set_shader_parameter(&"unlitside_phase_boost", 1.5)
+	
+	if _has_shadows:
+		_add_shadow_casters()
 
 
 func _process(_delta: float) -> void:
@@ -113,32 +126,37 @@ func _process(_delta: float) -> void:
 		return
 	
 	# rings.shader expects sun-facing and the ShadowCasters require it (because
-	# a GeometryInstance3D can't be shadow only and double sided at the same
-	# time). 
-	var sun_direction := _sun_global_positions[_sun_index].normalized()
+	# a GeometryInstance3D can't be both shadow-only and double-sided). 
+	var sun_direction := _sun_global_positions[sun_index].normalized()
 	var cos_sun_angle := global_basis.y.dot(sun_direction)
 	if cos_sun_angle < 0.0:
 		rotation.x *= -1
 		cos_sun_angle *= -1
 	
+	if !_has_shadows:
+		return
+	
 	# Travel distance through the rings is proportional to 1/cos(sun_angle).
-	# We use cos_sun_angle (with minimum) as alpha exponent to adjust
+	# We use cos_sun_angle (with minimum) as alpha exponent to adjust shadows
 	# for light travel through rings at an angle. If sun were straight above,
 	# exponent would be 1.0 (no adjustment). When sun is edge on, exponent
 	# goes to minimum and all alpha values approach 1.0.
-	_shadow_caster_shared[0] = maxf(cos_sun_angle, MIN_SHADOW_ALPHA_EXPONENT)
+	_shadow_caster_shared[0] = maxf(cos_sun_angle, MIN_SHADOW_ALPHA_EXPONENT) # alpha_exponent
 	
-	# Shadow noise needs to increase with distance to prevent alias effect.
-	var dist_ratio := (_camera.global_position - global_position).length() / _outer_radius
-	_shadow_caster_shared[1] = shadow_noise_base_strength * dist_ratio
+	# Shadow radial_noise_multiplier needs to increase with distance to prevent
+	# banding artifacts.
+	var dist_ratio := (_camera.global_position - global_position).length() / outer_radius
+	_shadow_caster_shared[1] = (shadow_radial_noise_a * (dist_ratio ** 2)
+			+ shadow_radial_noise_b * dist_ratio + shadow_radial_noise_c) # radial_noise_multiplier
+
+
+func _clear() -> void:
+	_body = null
+	_camera = null
 
 
 func _connect_camera(camera: Camera3D) -> void:
 	_camera = camera
-
-
-func _on_model_visibility_changed(is_model_visible: bool) -> void:
-	visible = is_model_visible
 
 
 func _add_shadow_casters() -> void:
@@ -148,66 +166,59 @@ func _add_shadow_casters() -> void:
 		var low_alpha := i * increment
 		var max_alpha := (i + 1) * increment
 		if is_equal_approx(max_alpha, 1.0):
-			max_alpha = 1.1
-		var shadow_caster := IVRingsShadowCaster.new(_shadow_caster_image, _texture_start,
-			_inner_margin, _outer_margin, low_alpha, max_alpha, shadow_mask, _shadow_caster_shared)
+			max_alpha = 3.0 # >1.0 allows for noise addition
+		var shadow_caster := IVRingsShadowCaster.new(_shadow_caster_texture, _texture_start,
+			_inner_margin, _outer_margin, low_alpha, max_alpha, shadow_mask, _shadow_caster_shared,
+			_blue_noise_1024)
 		add_child(shadow_caster)
 		i += 1
-	_shadow_caster_image = null
 
 
 
 class IVRingsShadowCaster extends MeshInstance3D:
 	
+	var _shadow_caster_material := ShaderMaterial.new()
+	var _texture_r8: Texture2D
 	var _texture_start: float
 	var _inner_margin: float
 	var _outer_margin: float
 	var _low_alpha: float
 	var _max_alpha: float
-
-	var _texture_width: int
-	var _texture_r8: ImageTexture
-	var _shadow_caster_material := ShaderMaterial.new()
-
 	var _shadow_caster_shared: Array[float]
+	var _blue_noise_1024: Texture2D
 	
 	
-	func _init(image_rgba8: Image, texture_start: float, inner_margin: float, outer_margin: float,
+	func _init(texture_r8: Texture2D, texture_start: float, inner_margin: float, outer_margin: float,
 			low_alpha: float, max_alpha: float, shadow_mask: ShadowMask,
-			shadow_caster_shared: Array[float]) -> void:
+			shadow_caster_shared: Array[float], blue_noise_1024: Texture2D) -> void:
+		_texture_r8 = texture_r8
 		_texture_start = texture_start
 		_inner_margin = inner_margin
 		_outer_margin = outer_margin
 		_low_alpha = low_alpha
 		_max_alpha = max_alpha
 		_shadow_caster_shared = shadow_caster_shared
-		_texture_width = image_rgba8.get_width()
-		var image_r8 := Image.create_empty(_texture_width, 1, false, Image.FORMAT_R8)
-		for x in _texture_width:
-			var color := image_rgba8.get_pixel(x, 0)
-			color.r = color.a
-			image_r8.set_pixel(x, 0, color)
-		_texture_r8 = ImageTexture.create_from_image(image_r8)
-		
+		_blue_noise_1024 = blue_noise_1024
 		layers = shadow_mask
+		cast_shadow = SHADOW_CASTING_SETTING_SHADOWS_ONLY
+		mesh = PlaneMesh.new() # default 2x2
+		name = "RingsShadowCaster" + str(low_alpha).replace(".", "p")
 
 
 	func _ready() -> void:
-		cast_shadow = SHADOW_CASTING_SETTING_SHADOWS_ONLY
-		mesh = PlaneMesh.new() # default 2x2
 		_shadow_caster_material.shader = IVGlobal.resources[&"rings_shadow_caster_shader"]
 		_shadow_caster_material.set_shader_parameter(&"texture_r8", _texture_r8)
-		_shadow_caster_material.set_shader_parameter(&"texture_width", float(_texture_width))
+		_shadow_caster_material.set_shader_parameter(&"texture_width", float(_texture_r8.get_width()))
 		_shadow_caster_material.set_shader_parameter(&"texture_start", _texture_start)
 		_shadow_caster_material.set_shader_parameter(&"inner_margin", _inner_margin)
 		_shadow_caster_material.set_shader_parameter(&"outer_margin", _outer_margin)
 		_shadow_caster_material.set_shader_parameter(&"low_alpha", _low_alpha)
 		_shadow_caster_material.set_shader_parameter(&"max_alpha", _max_alpha)
-		var blue_noise_1024: Texture2D = IVGlobal.assets[&"blue_noise_1024"]
-		_shadow_caster_material.set_shader_parameter(&"blue_noise_1024", blue_noise_1024)
+		_shadow_caster_material.set_shader_parameter(&"blue_noise_1024", _blue_noise_1024)
 		set_surface_override_material(0, _shadow_caster_material)
 
 
 	func _process(_delta: float) -> void:
 		_shadow_caster_material.set_shader_parameter(&"alpha_exponent", _shadow_caster_shared[0])
-		_shadow_caster_material.set_shader_parameter(&"noise_strength", _shadow_caster_shared[1])
+		_shadow_caster_material.set_shader_parameter(&"radial_noise_multiplier",
+				_shadow_caster_shared[1])

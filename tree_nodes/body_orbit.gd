@@ -20,40 +20,45 @@
 class_name IVBodyOrbit
 extends MeshInstance3D
 
-## Visual orbit of an [IVBody] instance.
+## Visual elliptic orbit of an [IVBody] instance.
 ##
 ## If FragmentIdentifier exists, then a shader
-## is used to allow screen identification of the orbit loop.
-
-const math := preload("uid://csb570a3u1x1k")
+## is used to allow screen identification of the orbit loop.[br][br]
+##
+## TODO: Rename this class to IVOrbitEllipse. Modify code so that it sets
+## visible = false for non-elliptic orbit (and doesn't break).[br][br]
+##
+## TODO: New class IVOrbitSegment. This class can draw a specified
+## segment of an elliptic, parabolic or hyperbolic orbit (the latter two can
+## only be segments). Lazy add only if a segment is asked for or if orbit ever
+## goes parabolic or hyperbolic.[br][br]
+##
+## Both classes need to work without an IVBody dependence so we can construct
+## visuals as needed, e.g., for a patched conic flight path. It should depend
+## instead on IVOrbit (since that is a RefCounted that would also be used in
+## a flight path).
 
 const FRAGMENT_BODY_ORBIT := IVFragmentIdentifier.FRAGMENT_BODY_ORBIT
 
-static var _times: Array[float] = IVGlobal.times
-static var _fragment_identifier: IVFragmentIdentifier # optional
-static var _body_huds_state: IVBodyHUDsState
-static var _is_class_instanced := false
-
 var _body: IVBody
 var _color: Color
-
 var _is_orbit_group_visible: bool
 var _body_huds_visible: bool # too close / too far
-var _body_visible: bool # this HUD node is sibling (not child) of its Body
-var _needs_transform := true
+var _body_visible: bool # this HUD node is sibling (not child) of its IVBody
+var _dirty_transform := true
+
+@onready var _fragment_identifier: IVFragmentIdentifier = IVGlobal.program.get(&"FragmentIdentifier")
+@onready var _body_huds_state: IVBodyHUDsState = IVGlobal.program[&"BodyHUDsState"]
 
 
 func _init(body: IVBody) -> void:
-	if !_is_class_instanced:
-		_is_class_instanced = true
-		_fragment_identifier = IVGlobal.program.get(&"FragmentIdentifier")
-		_body_huds_state = IVGlobal.program.BodyHUDsState
 	_body = body
+	name = "BodyOrbit" + body.name
 
 
 func _ready() -> void:
 	process_mode = PROCESS_MODE_ALWAYS # FragmentIdentifier still processing
-	_body.orbit.changed.connect(_set_transform_from_orbit)
+	_body.orbit_changed.connect(_set_ellipse_transform)
 	_body_huds_state.visibility_changed.connect(_on_global_huds_changed)
 	_body_huds_state.color_changed.connect(_set_color)
 	_body.huds_visibility_changed.connect(_on_body_huds_changed)
@@ -77,43 +82,33 @@ func _ready() -> void:
 	_on_global_huds_changed()
 
 
-func _set_transform_from_orbit(_is_scheduled := false) -> void:
-	# Stretches, rotates and positions circle_mesh to make an orbit ellipse!
-	if !visible:
-		_needs_transform = true
-		return
-	_needs_transform = false
-	var reference_normal := _body.orbit.reference_normal
-	var elements := _body.orbit.get_elements(_times[0])
-	var a: float = elements[0]
-	var e: float = elements[1]
-	var b: = sqrt(a * a * (1.0 - e * e)) # simi-minor axis
-	var orbit_basis := Basis().scaled(Vector3(a, b, 1.0))
-	orbit_basis = math.get_rotation_matrix(elements) * orbit_basis
-	orbit_basis = math.rotate_basis_z(orbit_basis, reference_normal)
-	transform.basis = orbit_basis
-	transform.origin = -e * orbit_basis.x
-
-
 func _on_global_huds_changed() -> void:
 	_is_orbit_group_visible = _body_huds_state.is_orbit_visible(_body.flags)
-	_set_visual_state()
+	_set_visibility_state()
 
 
 func _on_body_huds_changed(is_visible_: bool) -> void:
 	_body_huds_visible = is_visible_
-	_set_visual_state()
+	_set_visibility_state()
 
 
 func _on_body_visibility_changed() -> void:
 	_body_visible = _body.visible
-	_set_visual_state()
+	_set_visibility_state()
 
 
-func _set_visual_state() -> void:
+func _set_visibility_state() -> void:
 	visible = _is_orbit_group_visible and _body_huds_visible and _body_visible
-	if visible and _needs_transform:
-		_set_transform_from_orbit()
+	if visible and _dirty_transform:
+		_set_ellipse_transform()
+
+
+func _set_ellipse_transform(_is_intrinsic := false) -> void:
+	if !visible:
+		_dirty_transform = true
+		return
+	_dirty_transform = false
+	transform = _body.get_orbit_ellipse_transform()
 
 
 func _set_color() -> void:

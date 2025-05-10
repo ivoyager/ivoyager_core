@@ -71,7 +71,7 @@ func _on_child_entered_tree(control: Control) -> void:
 				body_huds.has_headers = false
 				body_huds.rows = [
 					[&"LABEL_PLANETARY_MASS_OBJECTS", 0, false], # 0 causes all flags below to be set
-					[&"LABEL_PLANETS", BodyFlags.BODYFLAGS_TRUE_PLANET, true],
+					[&"LABEL_PLANETS", BodyFlags.BODYFLAGS_PLANET, true],
 					[&"LABEL_DWARF_PLANETS", BodyFlags.BODYFLAGS_DWARF_PLANET, true],
 					[&"LABEL_MOONS_WIKI_PMO", BodyFlags.BODYFLAGS_PLANETARY_MASS_MOON, true],
 				]

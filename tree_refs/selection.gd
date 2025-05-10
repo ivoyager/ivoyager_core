@@ -131,39 +131,27 @@ func get_flags() -> int:
 	return body.flags
 
 
-func get_orbit_normal(time := NAN, flip_retrograde := false) -> Vector3:
-	if !is_body:
-		return ECLIPTIC_Z
-	return body.get_orbit_normal(time, flip_retrograde)
-
-
 func get_up(time := NAN) -> Vector3:
 	if !is_body:
 		return ECLIPTIC_Z
 	return body.get_north_pole(time)
 
 
-func get_ground_basis(time := NAN) -> Basis:
+func get_ground_tracking_basis(time := NAN) -> Basis:
 	if !is_body:
 		return IDENTITY_BASIS
-	return body.get_ground_basis(time)
+	return body.get_ground_tracking_basis(time)
 
 
-func get_orbit_basis(time := NAN) -> Basis:
+func get_orbit_tracking_basis(time := NAN) -> Basis:
 	if !is_body:
 		return IDENTITY_BASIS
 	# FIXME: Make this more honest. We flip basis for planets for better view.
 	# Function names should make it clear this is for camera use.
-	var basis := body.get_orbit_basis(time)
-	if body.flags & BodyFlags.BODYFLAGS_STAR_ORBITING:
+	var basis := body.get_orbit_tracking_basis(time)
+	if body.flags & BodyFlags.BODYFLAGS_STAR_ORBITER:
 		return basis.rotated(basis.z, PI)
 	return basis
-
-
-func get_ecliptic_basis() -> Basis:
-	if !is_body:
-		return IDENTITY_BASIS
-	return body.global_transform.basis
 
 
 func get_radius_for_camera() -> float:

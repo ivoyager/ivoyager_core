@@ -20,14 +20,14 @@
 shader_type spatial;
 render_mode unshaded, cull_disabled, skip_vertex_transform;
 
-// See comments in points.id.shader.
+// See comments in points.id.gdshader.
 //
-// For L4/L5 objects, a & M are determined by da, D, f & th0 together with
+// For L4/L5 objects, a & m are determined by da, dl, f & th0 together with
 // characteristic_length (semi-major axis of the secondary body) and mean
 // longitude (leading or lagging secondary body by 60 degrees).
 //
 // da: amplitude of axis ocillation
-// D: amplitude of longitudinal ocillation
+// dl: amplitude of longitudinal ocillation
 // f: frequency of ocillation (period = TAU / f)
 // th0: phase at epoch
 // e, i, s, g: same as non-lagrange-point orbits
@@ -38,13 +38,18 @@ render_mode unshaded, cull_disabled, skip_vertex_transform;
 // TODO: Notwithstanding above, we could improve our ocillator functions to
 // give more 'tadpole'-shaped librations.
 
+const float TAIL_FACTOR = 1.0; // Nonlinear distal-to-secondondary effect
+
 global uniform float iv_time;
 
-uniform float lp_mean_longitude; // update per frame
-uniform int lp_integer; // 4 or 5; not currently used but should be for better ocillators
+// set once
+uniform float leading_sign; // +1.0 leading L4 member, -1.0 lagging L5 member
 uniform float characteristic_length; // semi-major axis of the secondary body
 uniform float point_size = 3.0;
 uniform vec3 color : source_color = vec3(0.0, 1.0, 0.0);
+
+// updated each frame
+uniform float lp_longitude; // of the L4 or L5 point
 
 varying flat vec3 fragment_id;
 
@@ -52,52 +57,67 @@ varying flat vec3 fragment_id;
 #include "_orbit_math.gdshaderinc"
 
 
-float longitude_ocillator(float D, float th){
-	// th = 0 when trojan is at 'leading' extreme (max L relative to L-point).
-	return D * cos(th);
+float longitude_ocillator(float dl, float th){
+	// Max longitude (leading extreme) is when th = 0.0.
+	// This is a simple harmonic ocillator plus a non-linear effect that
+	// exagerates offset for high dl asteroids when distal to secondary.
+	// For reference, dl = 0.5 (~14 deg) is typical and 1.0 (~29 deg) is extreme.
+	float cos_th = cos(th); // +1.0 leading, -1.0 lagging
+	float distal_factor = abs(cos_th + leading_sign); // 0.0 proximal, 2.0 distal
+	float harmonic_ocillator = dl * cos_th;
+	return harmonic_ocillator * (1.0 + dl * dl * distal_factor * TAIL_FACTOR);
 }
 
 
 float axis_ocillator(float da, float th){
-	// clockwise; leading L4s are slowed and fall into lower orbit as they
-	// approach the secondary body
+	// This is a simple harmonic ocillator. Asteroids "orbit" the l-points
+	// clockwise from the top. Leading L4s are slowed and fall into lower orbit
+	// as Jupiter approaches from behind. Lagging L5s are accelerated and lift
+	// into a higher orbit as they approach Jupiter.
 	return da * sin(th);
 }
 
 
 void vertex() {
-	fragment_id = VERTEX;
-	
+	fragment_id = VERTEX; // id for each vertex (not position!)
+
 	// orbit elements
 	float e = CUSTOM0[0]; // eccentricity
 	float i = CUSTOM0[1]; // inclination
-	float Om = CUSTOM0[2]; // longitude of the ascending node
-	float w = CUSTOM0[3]; // argument of periapsis
-	
-	// lagrangian
+	float lan = CUSTOM0[2]; // longitude of the ascending node
+	float aop = CUSTOM0[3]; // argument of periapsis
+
+	// lagrange point parameters
 	float da = CUSTOM1[0]; // amplitude of axis ocillation
-	float D = CUSTOM1[1]; // amplitude of longitudinal ocillation
+	float dl = CUSTOM1[1]; // amplitude of longitudinal ocillation
 	float f = CUSTOM1[2]; // frequency of ocillation
 	float th0 = CUSTOM1[3]; // ocillator at epoch
-	
-	// orbit precessions & magnitude
-//	float s = CUSTOM2[0]; // nodal precession; NOT IMPLEMENTED YET
-//	float g = CUSTOM2[1]; // apsidal precession; NOT IMPLEMENTED YET
-//	float mag = CUSTOM2[3]; // magnitude; NOT IMPLEMENTED YET
-	
-	// libration of a & M
+
+	// orbit precessions
+	float s = CUSTOM2[0]; // nodal precession (=longitude_ascending_node_rate)
+	float g = CUSTOM2[1]; // apsidal precession (=longitude_of_periapsis_rate)
+
+//	float mag = CUSTOM2[3]; // magnitude; NOT IMPLEMENTED
+
+	// orbit precessions
+	lan += s * iv_time;
+	aop += (g - s) * iv_time; // arg of periapsis = long of periapsis - long ascending node
+	lan = mod(lan, TAU);
+	aop = mod(aop, TAU);
+
+	// libration of a & m
 	float th = th0 + f * iv_time;
 	float a = characteristic_length + axis_ocillator(da, th);
-	float M = lp_mean_longitude - Om - w + longitude_ocillator(D, th);
-	M = mod(M + PI, TAU) - PI;
-	
-	vec3 position = get_orbit_position(a, e, i, Om, w, M);
-	
+	float m = lp_longitude - lan - aop + longitude_ocillator(dl, th);
+	m = mod(m + PI, TAU) - PI;
+
+	vec3 position = get_orbit_position(a, e, i, lan, aop, m);
+
 	// We skip VERTEX here, but this is the 2-step version...
 	// VERTEX = (MODELVIEW_MATRIX * vec4(x, y, z, 1.0)).xyz;
-	// POSITION = PROJECTION_MATRIX * vec4(VERTEX, 1.0);	
+	// POSITION = PROJECTION_MATRIX * vec4(VERTEX, 1.0);
 	POSITION = PROJECTION_MATRIX * (MODELVIEW_MATRIX * vec4(position, 1.0));
-	
+
 	POINT_SIZE = point_size;
 }
 
@@ -109,4 +129,3 @@ void fragment() {
 		ALBEDO = color;
 	}
 }
-

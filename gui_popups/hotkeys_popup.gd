@@ -278,7 +278,7 @@ func _build_content() -> void:
 
 
 func _on_content_built() -> void:
-	_restore_defaults.disabled = _input_map_manager.is_all_defaults()
+	_restore_defaults.disabled = _input_map_manager.is_defaults()
 	_confirm_changes.disabled = _input_map_manager.is_cache_current()
 
 
@@ -342,7 +342,7 @@ func _on_hotkey_confirmed(action: StringName, index: int, keycode: int,
 
 
 func _on_restore_defaults() -> void:
-	_input_map_manager.restore_all_defaults(true)
+	_input_map_manager.restore_defaults(true)
 	_build_content.call_deferred()
 
 

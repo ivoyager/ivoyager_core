@@ -45,7 +45,7 @@ var indent := "  "
 var rows: Array[Array] = [
 	# [row_name, flags, is_indent]
 	[&"LABEL_PLANETARY_MASS_OBJECTS", 0, false], # 0 replaced by all flags from following rows
-	[&"LABEL_PLANETS", BodyFlags.BODYFLAGS_TRUE_PLANET, true],
+	[&"LABEL_PLANETS", BodyFlags.BODYFLAGS_PLANET, true],
 	[&"LABEL_DWARF_PLANETS", BodyFlags.BODYFLAGS_DWARF_PLANET, true],
 	[&"LABEL_MOONS_WIKI_PMO", BodyFlags.BODYFLAGS_PLANETARY_MASS_MOON, true],
 ]

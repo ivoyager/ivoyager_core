@@ -22,19 +22,20 @@ extends RefCounted
 
 ## Initializes shared resources that do not depend on ivoyager_assets.
 ##
-## Resources are added to IVGlobal.resources. These resources are constructed
-## or loaded by Callables or paths set here, and do not depend on the
-## presence of ivoyager_assets (see IVAssetsInitializer for that).
+## Resources are added to IVGlobal.resources. These resources are preloaded or
+## constructed according to property dictionaries here and do not depend on the
+## presence of ivoyager_assets (see IVAssetPreloader for that).
 
 
-var paths: Dictionary[StringName, String] = {
+var preloads: Dictionary[StringName, Resource] = {
 	# shaders
-	points_id_shader = "res://addons/ivoyager_core/shaders/points.id.gdshader",
-	points_l4l5_id_shader = "res://addons/ivoyager_core/shaders/points.l4l5.id.gdshader",
-	orbit_id_shader = "res://addons/ivoyager_core/shaders/orbit.id.gdshader",
-	orbits_id_shader = "res://addons/ivoyager_core/shaders/orbits.id.gdshader",
-	rings_shader = "res://addons/ivoyager_core/shaders/rings.gdshader",
-	rings_shadow_caster_shader = "res://addons/ivoyager_core/shaders/rings_shadow_caster.gdshader",
+	points_id_shader = preload("res://addons/ivoyager_core/shaders/points.id.gdshader"),
+	points_l4l5_id_shader = preload("res://addons/ivoyager_core/shaders/points.l4l5.id.gdshader"),
+	orbit_id_shader = preload("res://addons/ivoyager_core/shaders/orbit.id.gdshader"),
+	orbits_id_shader = preload("res://addons/ivoyager_core/shaders/orbits.id.gdshader"),
+	rings_shader = preload("res://addons/ivoyager_core/shaders/rings.gdshader"),
+	rings_shadow_caster_shader = preload(
+			"res://addons/ivoyager_core/shaders/rings_shadow_caster.gdshader"),
 }
 
 var constructors: Dictionary[StringName, Callable]= {
@@ -47,21 +48,18 @@ var _resources: Dictionary = IVGlobal.resources
 
 
 func _init() -> void:
-	_load_resource_paths()
+	_add_preloads()
 	_make_shared_resources()
-	IVGlobal.initializers_inited.connect(_remove_self)
+	IVGlobal.project_objects_instantiated.connect(_remove_self)
 
 
 func _remove_self() -> void:
 	IVGlobal.program.erase(&"ResourceInitializer")
 
 
-func _load_resource_paths() -> void:
-	for key in paths:
-		var path := paths[key]
-		var resource: Resource = load(path)
-		assert(resource, "Failed to load resource at " + path)
-		_resources[key] = resource
+func _add_preloads() -> void:
+	for key in preloads:
+		_resources[key] = preloads[key]
 
 
 func _make_shared_resources() -> void:
