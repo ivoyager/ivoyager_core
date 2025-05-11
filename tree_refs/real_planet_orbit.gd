@@ -222,6 +222,8 @@ func update(time: float, rotate_to_ecliptic := true) -> Vector3:
 		correction += m_correction_c * cos(ft) + m_correction_s * sin(ft)
 		_time_periapsis = _time_periapsis_at_epoch - correction / _mean_motion
 	
+	# FIXME: Needs changed emission here based on above
+	
 	return super(time, rotate_to_ecliptic)
 
 
@@ -580,8 +582,8 @@ func get_basis_at_time(time: float, rotate_to_ecliptic := true) -> Basis:
 	return basis
 
 
-## See [method IVOrbit.get_ellipse_transform_at_time].
-func get_ellipse_transform_at_time(time: float, rotate_to_ecliptic := true) -> Transform3D:
+## See [method IVOrbit.get_unit_circle_transform_at_time].
+func get_unit_circle_transform_at_time(time: float, rotate_to_ecliptic := true) -> Transform3D:
 	
 	var clamp_time := clampf(time, validity_begin, validity_end)
 	var a := _semi_major_axis_at_epoch + _semi_major_axis_rate * clamp_time

@@ -65,7 +65,7 @@ extends Node3D
 ## anytime it changes in an extrinsic way (e.g., impulse from a rocket
 ## engine).
 
-signal orbit_changed(is_intrinsic: bool)
+signal orbit_changed(orbit: IVOrbit, is_intrinsic: bool)
 signal huds_visibility_changed(is_visible: bool)
 
 
@@ -544,6 +544,16 @@ func get_orbit_semi_major_axis(time := NAN) -> float:
 	return orbit.get_semi_major_axis_at_time(time)
 
 
+func get_orbit_eccentricity(time := NAN) -> float:
+	if !orbit:
+		return 0.0
+	if is_nan(time):
+		if !sleep:
+			return orbit.get_eccentricity()
+		time = _times[0]
+	return orbit.get_eccentricity_at_time(time)
+
+
 func get_orbit_normal(time := NAN, flip_retrograde := false) -> Vector3:
 	if !orbit:
 		return ECLIPTIC_NORTH
@@ -552,17 +562,6 @@ func get_orbit_normal(time := NAN, flip_retrograde := false) -> Vector3:
 			return orbit.get_normal(flip_retrograde)
 		time = _times[0]
 	return orbit.get_normal_at_time(time, flip_retrograde)
-
-
-
-func get_orbit_ellipse_transform(time := NAN) -> Transform3D:
-	if !orbit:
-		return Transform3D()
-	if is_nan(time):
-		if !sleep:
-			return orbit.get_ellipse_transform()
-		time = _times[0]
-	return orbit.get_ellipse_transform_at_time(time)
 
 
 func is_rotation_retrograde() -> bool:
@@ -845,7 +844,7 @@ func _on_orbit_changed(is_intrinsic: bool) -> void:
 	const BODYFLAGS_AXIS_LOCKED := BodyFlags.BODYFLAGS_AXIS_LOCKED
 	if flags & BODYFLAGS_TIDALLY_LOCKED or flags & BODYFLAGS_AXIS_LOCKED:
 		recalculate_spatials()
-	orbit_changed.emit(is_intrinsic)
+	orbit_changed.emit(orbit, is_intrinsic)
 
 
 

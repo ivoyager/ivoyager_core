@@ -20,7 +20,7 @@
 shader_type spatial;
 render_mode unshaded, cull_disabled, skip_vertex_transform;
 
-// VERTEX encodes the fragment_id (see IVFragmentIdentifier). 
+// VERTEX encodes the fragment_id (see IVFragmentIdentifier).
 // We set POSITION directly here so VERTEX remains unchanged.
 //
 // Orbital parameters are set via CUSTOMx channels by IVSBGPoints.
@@ -67,7 +67,7 @@ void vertex() {
 
 	// We skip VERTEX here, but this is the 2-step version...
 	// VERTEX = (MODELVIEW_MATRIX * vec4(x, y, z, 1.0)).xyz;
-	// POSITION = PROJECTION_MATRIX * vec4(VERTEX, 1.0);	
+	// POSITION = PROJECTION_MATRIX * vec4(VERTEX, 1.0);
 	POSITION = PROJECTION_MATRIX * (MODELVIEW_MATRIX * vec4(position, 1.0));
 
 	POINT_SIZE = point_size;

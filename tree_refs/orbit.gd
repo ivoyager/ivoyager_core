@@ -159,10 +159,10 @@ extends RefCounted
 
 
 ## Signal emitted when orbital elements change by a threshold amount.
-## [param is_intrinsic] is true if the cause is internally specified (e.g.,
+## [param is_change_intrinsic] is true if the cause is internally specified (e.g.,
 ## precessions) and is false if external (e.g., due to thrust in an IVOrbit
 ## subclass).
-signal changed(is_intrinsic: bool) # false should trigger rpc network sync
+signal changed(is_intrinsic: bool)
 
 
 ## Type of orbit reference plane. (An orbit's specific reference plane is
@@ -595,7 +595,7 @@ static func get_basis_from_elements(inclination: float, longitude_ascending_node
 ## focus (stretches, rotates and re-positions). Use for graphic representation
 ## of an orbit. Basis is intrinsic.
 @warning_ignore("shadowed_variable")
-static func get_ellipse_transform_from_elements(semi_major_axis: float, eccentricity: float,
+static func get_unit_circle_transform_from_elements(semi_major_axis: float, eccentricity: float,
 		inclination: float, longitude_ascending_node: float, argument_periapsis: float
 		) -> Transform3D:
 	if eccentricity >= 1.0:
@@ -1168,7 +1168,9 @@ func get_specific_energy_rate() -> float:
 
 func set_specific_energy(value: float) -> void:
 	_specific_energy = value
+	
 	# TODO: Energy!
+	
 	changed.emit(false)
 
 
@@ -1319,10 +1321,9 @@ func get_basis_at_time(time: float, rotate_to_ecliptic := true) -> Basis:
 	return basis
 
 
-## Returns a Transform3D that can be used to transform a unit circle in the xy-
-## plane into an ellipse representing this orbit with parent at the focus (stretches,
-## rotates and re-positions). Use for graphic representation of this elliptic orbit.
-func get_ellipse_transform(rotate_to_ecliptic := true) -> Transform3D:
+## Returned Transform3D can convert a unit circle into this orbit's path, if
+## this orbit is closed (e < 1).
+func get_unit_circle_transform(rotate_to_ecliptic := true) -> Transform3D:
 	if _eccentricity >= 1.0:
 		return Transform3D()
 	var b := sqrt(_semi_major_axis * _semi_major_axis * (1.0 - _eccentricity * _eccentricity))
@@ -1331,13 +1332,53 @@ func get_ellipse_transform(rotate_to_ecliptic := true) -> Transform3D:
 	return Transform3D(basis, -_eccentricity * basis.x)
 
 
-## Returns a Transform3D that can be used to transform a unit circle in the xy-
-## plane into an ellipse representing this orbit with parent at the focus (stretches,
-## rotates and re-positions). Use for graphic representation of this elliptic orbit.
-func get_ellipse_transform_at_time(time: float, rotate_to_ecliptic := true) -> Transform3D:
+## Returned Transform3D can convert a unit circle into this orbit's path, if
+## this orbit is closed (e < 1).
+func get_unit_circle_transform_at_time(time: float, rotate_to_ecliptic := true) -> Transform3D:
 	if _eccentricity >= 1.0:
 		return Transform3D()
 	var b := sqrt(_semi_major_axis * _semi_major_axis * (1.0 - _eccentricity * _eccentricity))
 	var orbit_basis := get_basis_at_time(time, rotate_to_ecliptic)
 	var basis := orbit_basis * Basis().scaled(Vector3(_semi_major_axis, b, 1.0))
 	return Transform3D(basis, -_eccentricity * basis.x)
+
+
+## Returned Transform3D can convert a unit rectangular hyperbola (e = sqrt(2))
+## into this orbit's path, if this orbit is hyperbolic (e > 1).
+func get_unit_rectangular_hyperbola_transform(rotate_to_ecliptic := true) -> Transform3D:
+	const SQRT2 := sqrt(2.0)
+	if _eccentricity <= 1.0:
+		return Transform3D()
+	var b := sqrt(_semi_major_axis * _semi_major_axis * (_eccentricity * _eccentricity - 1.0))
+	var orbit_basis := get_basis(rotate_to_ecliptic)
+	var basis := orbit_basis * Basis().scaled(Vector3(-_semi_major_axis, b, 1.0))
+	return Transform3D(basis, (_eccentricity - SQRT2) * basis.x)
+
+
+## Returned Transform3D can convert a unit rectangular hyperbola (e = sqrt(2))
+## into this orbit's path, if this orbit is hyperbolic (e > 1).
+func get_unit_rectangular_hyperbola_transform_at_time(time: float, rotate_to_ecliptic := true
+		) -> Transform3D:
+	const SQRT2 := sqrt(2.0)
+	if _eccentricity <= 1.0:
+		return Transform3D()
+	var b := sqrt(_semi_major_axis * _semi_major_axis * (_eccentricity * _eccentricity - 1.0))
+	var orbit_basis := get_basis_at_time(time, rotate_to_ecliptic)
+	var basis := orbit_basis * Basis().scaled(Vector3(-_semi_major_axis, b, 1.0))
+	return Transform3D(basis, (_eccentricity - SQRT2) * basis.x)
+
+
+## Returned Transform3D can convert a unit parabola into this orbit's path, if
+## this orbit is parabolic (e = 1).
+func get_unit_parabola_transform(rotate_to_ecliptic := true) -> Transform3D:
+	var orbit_basis := get_basis(rotate_to_ecliptic)
+	var basis := orbit_basis * Basis().scaled(Vector3(_semi_parameter, _semi_parameter, 1.0))
+	return Transform3D(basis, Vector3.ZERO)
+
+
+## Returned Transform3D can convert a unit parabola into this orbit's path, if
+## this orbit is parabolic (e = 1).
+func get_unit_parabola_transform_at_time(time: float, rotate_to_ecliptic := true) -> Transform3D:
+	var orbit_basis := get_basis_at_time(time, rotate_to_ecliptic)
+	var basis := orbit_basis * Basis().scaled(Vector3(_semi_parameter, _semi_parameter, 1.0))
+	return Transform3D(basis, Vector3.ZERO)

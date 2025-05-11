@@ -64,7 +64,7 @@ func _finish(body: IVBody) -> void:
 	_get_body_label(body, children)
 	
 	if body.has_orbit():
-		_get_body_orbit(body, siblings)
+		_get_orbit_visual(body, siblings)
 	if body.has_light():
 		_get_dynamic_light(body, children)
 		_get_omni_lights(body, children)
@@ -99,11 +99,11 @@ func _get_body_label(body: IVBody, children: Array[Node]) -> void:
 	children.append(body_label)
 
 
-func _get_body_orbit(body: IVBody, siblings: Array[Node]) -> void:
-	var body_orbit_script: Script = IVGlobal.procedural_classes[&"BodyOrbit"]
+func _get_orbit_visual(body: IVBody, siblings: Array[Node]) -> void:
+	var orbit_visual_script: Script = IVGlobal.procedural_classes[&"OrbitVisual"]
 	@warning_ignore("unsafe_method_access")
-	var body_orbit: Node = body_orbit_script.new(body)
-	siblings.append(body_orbit)
+	var orbit_visual: Node = orbit_visual_script.new(body)
+	siblings.append(orbit_visual)
 
 
 func _get_dynamic_light(body: IVBody, children: Array[Node]) -> void:
