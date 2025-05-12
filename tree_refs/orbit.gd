@@ -159,7 +159,7 @@ extends RefCounted
 
 
 ## Signal emitted when orbital elements change by a threshold amount.
-## [param is_change_intrinsic] is true if the cause is internally specified (e.g.,
+## [param is_intrinsic] is true if the cause is internally specified (e.g.,
 ## precessions) and is false if external (e.g., due to thrust in an IVOrbit
 ## subclass).
 signal changed(is_intrinsic: bool)
@@ -174,8 +174,11 @@ enum ReferencePlane {
 }
 
 const ECLIPTIC_SPACE := Basis.IDENTITY
-## Minimum accumulated element change (in radians) for update and [signal changed] signal.
-const CHANGED_ANGLE_THRESHOLD := 0.001
+## Minimum accumulated element change for update and [signal changed] signal.
+const CHANGED_THRESHOLD := 0.005
+
+
+
 ## Just under 0.0 so Earth doesn't cause error. (Earth i = -9.48517e-06 at epoch.)
 const MIN_INCLINATION := -0.001
 ## Inclination too near π/2 is bumped a titch to prevent math singularity.
@@ -466,7 +469,6 @@ static func get_true_anomaly_from_mean_anomaly_elliptic(eccentricity: float, mea
 
 ## Static method returns true anomaly (θ; estimated iteratively) for a hyperbolic
 ## orbit (e > 1). -π ≤ θ < π.
-## @experimental: Not yet tested.
 @warning_ignore("shadowed_variable")
 static func get_true_anomaly_from_mean_anomaly_hyperbolic(eccentricity: float, mean_anomaly: float
 		) -> float:
@@ -483,7 +485,6 @@ static func get_true_anomaly_from_mean_anomaly_hyperbolic(eccentricity: float, m
 
 
 ## Static method returns true anomaly (θ) for a parabolic orbit (e = 1). -π ≤ θ < π.
-## @experimental: Not yet tested.
 @warning_ignore("shadowed_variable")
 static func get_true_anomaly_from_mean_anomaly_parabolic(mean_anomaly: float) -> float:
 	# https://en.wikipedia.org/wiki/Parabolic_trajectory
@@ -590,21 +591,47 @@ static func get_basis_from_elements(inclination: float, longitude_ascending_node
 	)
 
 
-## Static method returns a Transform3D that can be used to transform a unit
-## circle in the xy-plane into the specified orbit ellipse with parent at the
-## focus (stretches, rotates and re-positions). Use for graphic representation
-## of an orbit. Basis is intrinsic.
+## Static method returns a Transform3D that can convert a unit circle into the
+## specified orbit's path, if the specified orbit is closed (e < 1).
 @warning_ignore("shadowed_variable")
 static func get_unit_circle_transform_from_elements(semi_major_axis: float, eccentricity: float,
-		inclination: float, longitude_ascending_node: float, argument_periapsis: float
-		) -> Transform3D:
+		inclination: float, longitude_ascending_node: float, argument_periapsis: float,
+		reference_basis := Basis.IDENTITY) -> Transform3D:
 	if eccentricity >= 1.0:
 		return Transform3D()
 	var b := sqrt(semi_major_axis * semi_major_axis * (1.0 - eccentricity * eccentricity))
-	var orbit_basis := get_basis_from_elements(inclination, longitude_ascending_node,
-			argument_periapsis)
+	var orbit_basis := reference_basis * get_basis_from_elements(inclination,
+			longitude_ascending_node, argument_periapsis)
 	var basis := orbit_basis * Basis().scaled(Vector3(semi_major_axis, b, 1.0))
 	return Transform3D(basis, -eccentricity * basis.x)
+
+
+## Static method returns a Transform3D that can convert a unit rectangular hyperbola
+## into the specified orbit's path, if the specified orbit is hyperbolic (e > 1).
+@warning_ignore("shadowed_variable")
+static func get_unit_rectangular_hyperbola_transform_from_elements(semi_major_axis: float,
+		eccentricity: float, inclination: float, longitude_ascending_node: float,
+		argument_periapsis: float, reference_basis := Basis.IDENTITY) -> Transform3D:
+	const SQRT2 := sqrt(2.0) # rectangular hyperbola has e = sqrt(2)
+	if eccentricity <= 1.0:
+		return Transform3D()
+	var b := sqrt(semi_major_axis * semi_major_axis * (eccentricity * eccentricity - 1.0))
+	var orbit_basis := reference_basis * get_basis_from_elements(inclination,
+			longitude_ascending_node, argument_periapsis)
+	var basis := orbit_basis * Basis().scaled(Vector3(-semi_major_axis, b, 1.0))
+	return Transform3D(basis, (eccentricity - SQRT2) * basis.x)
+
+
+## Static method returns a Transform3D that can convert a unit parabola into the
+## specified orbit's path, if the specified orbit is parabolic (e = 1).
+@warning_ignore("shadowed_variable")
+static func get_unit_parabola_transform_from_elements(semi_parameter: float, inclination: float,
+		longitude_ascending_node: float, argument_periapsis: float,
+		reference_basis := Basis.IDENTITY) -> Transform3D:
+	var orbit_basis := reference_basis * get_basis_from_elements(inclination,
+			longitude_ascending_node, argument_periapsis)
+	var basis := orbit_basis * Basis().scaled(Vector3(semi_parameter, semi_parameter, 1.0))
+	return Transform3D(basis, Vector3.ZERO)
 
 
 ## Static method returns time of periapsis passage (t₀) modulo orbit period (P)
@@ -630,14 +657,14 @@ static func modulo_time_periapsis_elliptic(time_periapsis: float, mean_motion: f
 ## Return can be in the ecliptic basis or the orbit [member reference_basis]
 ## (the former by default).
 func update(time: float, rotate_to_ecliptic := true) -> Vector3:
-	
+	const CHANGED_ANGLE_THRESHOLD := CHANGED_THRESHOLD / TAU
 	const REFERENCE_PLANE_ECLIPTIC := ReferencePlane.REFERENCE_PLANE_ECLIPTIC
 	
 	# evolve orbit
 	var lan := fposmod(_longitude_ascending_node_at_epoch + _longitude_ascending_node_rate * time, TAU)
 	var ap := fposmod(_argument_periapsis_at_epoch + _argument_periapsis_rate * time, TAU)
 	
-	# update & signal if accumulated change is significant (< 1 deg/Cy for planets!)
+	# update & signal if accumulated change is significant
 	if (absf(lan - _longitude_ascending_node) > CHANGED_ANGLE_THRESHOLD
 			or absf(ap - _argument_periapsis) > CHANGED_ANGLE_THRESHOLD):
 		_longitude_ascending_node = lan
@@ -1343,10 +1370,10 @@ func get_unit_circle_transform_at_time(time: float, rotate_to_ecliptic := true) 
 	return Transform3D(basis, -_eccentricity * basis.x)
 
 
-## Returned Transform3D can convert a unit rectangular hyperbola (e = sqrt(2))
-## into this orbit's path, if this orbit is hyperbolic (e > 1).
+## Returned Transform3D can convert a unit rectangular hyperbola into this
+## orbit's path, if this orbit is hyperbolic (e > 1).
 func get_unit_rectangular_hyperbola_transform(rotate_to_ecliptic := true) -> Transform3D:
-	const SQRT2 := sqrt(2.0)
+	const SQRT2 := sqrt(2.0) # rectangular hyperbola has e = sqrt(2)
 	if _eccentricity <= 1.0:
 		return Transform3D()
 	var b := sqrt(_semi_major_axis * _semi_major_axis * (_eccentricity * _eccentricity - 1.0))
@@ -1355,11 +1382,11 @@ func get_unit_rectangular_hyperbola_transform(rotate_to_ecliptic := true) -> Tra
 	return Transform3D(basis, (_eccentricity - SQRT2) * basis.x)
 
 
-## Returned Transform3D can convert a unit rectangular hyperbola (e = sqrt(2))
-## into this orbit's path, if this orbit is hyperbolic (e > 1).
+## Returned Transform3D can convert a unit rectangular hyperbola into this
+## orbit's path, if this orbit is hyperbolic (e > 1).
 func get_unit_rectangular_hyperbola_transform_at_time(time: float, rotate_to_ecliptic := true
 		) -> Transform3D:
-	const SQRT2 := sqrt(2.0)
+	const SQRT2 := sqrt(2.0) # rectangular hyperbola has e = sqrt(2)
 	if _eccentricity <= 1.0:
 		return Transform3D()
 	var b := sqrt(_semi_major_axis * _semi_major_axis * (_eccentricity * _eccentricity - 1.0))

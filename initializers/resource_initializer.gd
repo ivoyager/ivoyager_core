@@ -103,9 +103,9 @@ func _make_circle_mesh(n_vertecies: int) -> ArrayMesh:
 
 
 func _make_open_conic_mesh(n_vertecies: int, e: float, max_r: float) -> ArrayMesh:
-	# Unit (p = 1) parabola or hyperbola opening to the left (periapsis at
-	# longitude 0). For a rectangular hyperbola, use e = sqrt(2). A Rectangular
-	# hyperbola can be stretched into any hyperbola.
+	# Unit (p = 1) parabola or hyperbola opening to the left (periapsis on +x
+	# axis at longitude 0). For a rectangular hyperbola, use e = sqrt(2).
+	# A Rectangular hyperbola can be stretched into any hyperbola.
 	# Open conics are nearly a straight line at max_r. Using polar construction
 	# concentrates vertexes where it is most curved. TODO: We need a few extra
 	# vertexes on the looonnnng straight ends because long straight lines should
@@ -116,16 +116,14 @@ func _make_open_conic_mesh(n_vertecies: int, e: float, max_r: float) -> ArrayMes
 	verteces.resize(n_vertecies)
 	# Going clockwise starting from upper-left quadrant...
 	var nu_start := acos((1.0 / max_r - 1.0) / e)
-	prints(nu_start)
 	var angle_increment := 2.0 * nu_start / (n_vertecies - 1)
 	var i := 0
 	while i < n_vertecies:
 		var nu := nu_start - angle_increment * i # true anomaly
 		var r := 1.0 / (1.0 + e * cos(nu))
 		verteces[i] = Vector3(r * cos(nu), r * sin(nu), 0.0)
-		#print(verteces[i])
 		i += 1
-	prints(verteces[0], verteces[1], verteces[-2], verteces[-1])
+	#prints(verteces[0], verteces[1], verteces[-2], verteces[-1])
 	var mesh_arrays := []
 	mesh_arrays.resize(ArrayMesh.ARRAY_MAX)
 	mesh_arrays[ArrayMesh.ARRAY_VERTEX] = verteces

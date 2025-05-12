@@ -78,23 +78,20 @@ func _ready() -> void:
 	_on_global_huds_changed()
 
 
-func _on_orbit_changed(orbit: IVOrbit, _dummy := false) -> void:
+func _on_orbit_changed(orbit: IVOrbit, _is_intrinsic := false) -> void:
 	if !visible:
 		_dirty_orbit = true
 		return
 	_dirty_orbit = false
 	var e := orbit.get_eccentricity()
 	if e < 1.0:
-		if mesh != _circle_mesh:
-			mesh = _circle_mesh
+		mesh = _circle_mesh
 		transform = orbit.get_unit_circle_transform()
 	elif e > 1.0:
-		if mesh != _rectangular_hyperbola_mesh:
-			mesh = _rectangular_hyperbola_mesh
+		mesh = _rectangular_hyperbola_mesh
 		transform = orbit.get_unit_rectangular_hyperbola_transform()
 	else:
-		if mesh != _parabola_mesh:
-			mesh = _parabola_mesh
+		mesh = _parabola_mesh
 		transform = orbit.get_unit_parabola_transform()
 
 
