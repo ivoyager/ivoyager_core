@@ -51,7 +51,7 @@ var _orbit_fields: Array[StringName] = [
 	&"longitude_ascending_node",
 	&"argument_periapsis",
 	&"time_periapsis",
-	&"orbit_gm", # if provided, cross check with parent GM
+	&"orbit_gravitational_parameter", # if provided, cross check with parent GM
 	
 	# alternative elements
 	&"semi_major_axis",
@@ -111,10 +111,8 @@ func make_orbit(table: String, row: int, parent: IVBody) -> IVOrbit:
 			"'orbit_right_ascension' specified for non-Laplace orbit")
 		assert(!data.has(&"orbit_declination"),
 			"'orbit_declination' specified for non-Laplace orbit")
-		reference_basis = IVAstronomy.get_ecliptic_basis_from_equatorial_north(
-				parent.right_ascension, parent.declination)
-		if parent.rotation_rate < 0.0:
-			reference_basis = reference_basis.rotated(reference_basis.x, PI) # keep longitude 0
+		var positive_axis := parent.get_positive_axis()
+		reference_basis = IVAstronomy.get_basis_from_z_axis_and_vernal_equinox(positive_axis)
 	elif reference_plane_type == ReferencePlane.REFERENCE_PLANE_LAPLACE:
 		assert(data.has(&"orbit_right_ascension"),
 				"Expected 'orbit_right_ascension' for ORBIT_REFERENCE_LAPLACE")
@@ -157,29 +155,30 @@ func make_orbit(table: String, row: int, parent: IVBody) -> IVOrbit:
 	assert(!is_nan(argument_periapsis),
 			"Table must specify 'argument_periapsis' or 'longitude_periapsis'")
 	
-	var standard_gravitational_parameter := parent.get_standard_gravitational_parameter()
-	if data.has(&"orbit_gm"):
-		var orbit_gm: float = data[&"orbit_gm"]
-		var excess_gm := (orbit_gm - standard_gravitational_parameter) / standard_gravitational_parameter
+	var gravitational_parameter := parent.get_gravitational_parameter()
+	if data.has(&"orbit_gravitational_parameter"):
+		var orbit_gm: float = data[&"orbit_gravitational_parameter"]
+		var excess_gm := (orbit_gm - gravitational_parameter) / gravitational_parameter
 		if excess_gm > WARNING_EXCESS_BARYCENTER_GM or excess_gm < WARNING_SHORTFALL_BARYCENTER_GM:
-			push_warning("%s 'orbit_gm' (%s) differs from parent GM (%s)" %
+			push_warning("%s 'orbit_gravitational_parameter' (%s) differs from parent GM (%s)" %
 					[data[&"name"], String.num_scientific(orbit_gm),
-					String.num_scientific(standard_gravitational_parameter)]
+					String.num_scientific(gravitational_parameter)]
 					+ " more than expected")
-		standard_gravitational_parameter = orbit_gm
+		gravitational_parameter = orbit_gm
 	if data.has(&"mean_motion"):
-		assert(!data.has(&"orbit_gm"), "Don't specify 'mean_motion' AND 'orbit_gm'")
+		assert(!data.has(&"orbit_gravitational_parameter"),
+				"Don't specify 'mean_motion' AND 'orbit_gravitational_parameter'")
 		assert(eccentricity < 1.0, "'mean_motion' specified for parabolic or hyperbolic orbit")
 		var n: float = data[&"mean_motion"]
 		var a := semi_parameter / (1.0 - eccentricity * eccentricity)
 		var derived_gm := a ** 3 * n ** 2
-		var excess_gm := (derived_gm - standard_gravitational_parameter) / standard_gravitational_parameter
+		var excess_gm := (derived_gm - gravitational_parameter) / gravitational_parameter
 		if excess_gm > WARNING_EXCESS_BARYCENTER_GM or excess_gm < WARNING_SHORTFALL_BARYCENTER_GM:
 			push_warning("%s derived orbit GM (%s) differs from parent GM (%s)" %
 					[data[&"name"], String.num_scientific(derived_gm),
-					String.num_scientific(standard_gravitational_parameter)]
+					String.num_scientific(gravitational_parameter)]
 					+ " more than expected")
-		standard_gravitational_parameter = derived_gm
+		gravitational_parameter = derived_gm
 	
 	if data.has(&"mean_anomaly_at_epoch"):
 		assert(is_nan(time_periapsis),
@@ -188,7 +187,7 @@ func make_orbit(table: String, row: int, parent: IVBody) -> IVOrbit:
 				"'mean_anomaly_at_epoch' specified for parabolic or hyperbolic orbit")
 		var m0: float = data[&"mean_anomaly_at_epoch"]
 		var a := semi_parameter / (1.0 - eccentricity * eccentricity)
-		var n := sqrt(standard_gravitational_parameter / a ** 3)
+		var n := sqrt(gravitational_parameter / a ** 3)
 		time_periapsis = IVOrbit.modulo_time_periapsis_elliptic(-m0 / n, n)
 	assert(!is_nan(time_periapsis),
 			"Table must specify 'time_periapsis' or 'mean_anomaly_at_epoch'")
@@ -234,7 +233,7 @@ func make_orbit(table: String, row: int, parent: IVBody) -> IVOrbit:
 		time_periapsis += epoch_delta
 		if eccentricity < 1.0:
 			var a := semi_parameter / (1.0 - eccentricity * eccentricity)
-			var n := sqrt(standard_gravitational_parameter / a ** 3)
+			var n := sqrt(gravitational_parameter / a ** 3)
 			time_periapsis = IVOrbit.modulo_time_periapsis_elliptic(time_periapsis, n)
 			
 		# precessions (at epoch angles)
@@ -255,7 +254,7 @@ func make_orbit(table: String, row: int, parent: IVBody) -> IVOrbit:
 		argument_periapsis,
 		argument_periapsis_rate,
 		time_periapsis,
-		standard_gravitational_parameter
+		gravitational_parameter
 	)
 	
 	return orbit

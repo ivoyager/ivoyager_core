@@ -24,7 +24,8 @@ extends Node3D
 ##
 ## This Node3D is tilted and rotated by [IVBody], but is not scaled.[br][br]
 ##
-## This node is not persisted. It is created by [IVBody] if/when needed.[br][br]
+## This node is not persisted. It is created by [IVBody] only if/when needed,
+## and then remains for the remainder of the user session (lazy init).[br][br]
 ## 
 ## Children can be added that share the model's axial tilt and rotation.
 ## In base Solar System setup, IVBodyFinisher adds IVRings for Saturn.[br][br]

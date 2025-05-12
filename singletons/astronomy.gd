@@ -83,22 +83,22 @@ static func get_equatorial_coordinates_from_ecliptic_vector(vector3: Vector3) ->
 
 
 
-## Returns a basis that has z-axis in the specified north direction and x-axis
-## in the plane of north and vernal equinox. I.e., the x-axis will be at
+## Returns a basis that has z-axis in the specified direction and x-axis
+## in the plane of z-axis and vernal equinox. I.e., the x-axis will be at
 ## longitude 0. Works in ecliptic or equatorial coordinates, where the resuting
-## basis will be in the same coordinate system as [param north] (which must be
-## a unit vector). Note: If the specified north is exacly in the direction of
-## vernal equinox, it will be bumped 0.0001 radians in the direction of the
-## z-axis (this is necessary in order to have a determined x-axis).
-static func get_basis_from_north_vector(north: Vector3) -> Basis:
-	assert(north.is_normalized())
+## basis will be in the same coordinate system as [param z_axis] (which must be
+## a unit vector). Note: If the specified z_axis is exacly in the direction of
+## vernal equinox, it will be rotated 0.0001 radians around the y-axis
+## (this is necessary in order to have a determined x-axis).
+static func get_basis_from_z_axis_and_vernal_equinox(z_axis: Vector3) -> Basis:
+	assert(z_axis.is_normalized())
 	const SINGULARITY_BUMP := 0.0001
 	const ECLIPTIC_Y := Vector3(0, 1, 0)
-	if north.is_equal_approx(VERNAL_EQUINOX): # edge case (tested at <~0.00001 rotated in 32-bit)
-		north = north.rotated(ECLIPTIC_Y, -SINGULARITY_BUMP) 
-	var y := north.cross(VERNAL_EQUINOX).normalized() # perpendicular to vernal equinox
-	var x := y.cross(north) # in the plane of vernal equinox (usually close to it)
-	return Basis(x, y, north)
+	if z_axis.is_equal_approx(VERNAL_EQUINOX): # edge case (tested at <~0.00001 rotated in 32-bit)
+		z_axis = z_axis.rotated(ECLIPTIC_Y, -SINGULARITY_BUMP) 
+	var y := z_axis.cross(VERNAL_EQUINOX).normalized() # perpendicular to vernal equinox
+	var x := y.cross(z_axis) # in the plane of vernal equinox (usually close to it)
+	return Basis(x, y, z_axis)
 
 
 ## Returns a basis in ecliptic space that has z-axis in the north direction

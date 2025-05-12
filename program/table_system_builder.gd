@@ -85,18 +85,15 @@ func _add_bodies_from_top(name: StringName, table_dict: Dictionary[StringName, S
 		if !_bodies.has(parent_name):
 			_add_bodies_from_top(parent_name, table_dict)
 		parent = _bodies[parent_name]
-	@warning_ignore("unsafe_method_access")
-	var body: IVBody = _body_script.new()
-	_body_builder.build_body(body, table_name, row, parent)
-	body.hide() # Bodies set their own visibility as needed
+	var body := _body_builder.build_body(table_name, row, parent)
 	if parent:
 		parent.add_child(body)
-	else:
-		assert(body.flags & BodyFlags.BODYFLAGS_GALAXY_ORBITER,
+		return
+	assert(body.flags & BodyFlags.BODYFLAGS_GALAXY_ORBITER,
 			"body.tsv row with no parent must have galaxy_orbiter == TRUE")
-		if add_to_universe:
-			var universe: Node3D = IVGlobal.program.Universe
-			universe.add_child(body)
+	if add_to_universe:
+		var universe: Node3D = IVGlobal.program.Universe
+		universe.add_child(body)
 
 
 func _add_small_bodies_groups() -> void:

@@ -167,7 +167,7 @@ static func create_real_planet_orbit(
 	orbit._argument_periapsis_rate = longitude_periapsis_rate - longitude_ascending_node_rate
 	orbit._time_periapsis = modulo_time_periapsis_elliptic(-mean_anomaly_at_epoch / mean_motion,
 			mean_motion)
-	orbit._standard_gravitational_parameter = semi_major_axis ** 3 * mean_motion ** 2
+	orbit._gravitational_parameter = semi_major_axis ** 3 * mean_motion ** 2
 	
 	# set evolving parameters to epoch (precessing)
 	orbit._longitude_ascending_node = longitude_ascending_node
@@ -177,7 +177,7 @@ static func create_real_planet_orbit(
 	orbit._semi_major_axis = semi_major_axis
 	orbit._mean_motion = mean_motion
 	orbit._specific_energy = -0.5 * semi_major_axis ** 2 * mean_motion ** 2
-	orbit._specific_angular_momentum = sqrt(orbit._standard_gravitational_parameter
+	orbit._specific_angular_momentum = sqrt(orbit._gravitational_parameter
 			* orbit._semi_parameter)
 	
 	# Subclass members
@@ -259,7 +259,7 @@ func update(time: float, rotate_to_ecliptic := true) -> Vector3:
 		_true_anomaly = get_true_anomaly_from_mean_anomaly_hyperbolic(e, _mean_anomaly)
 	else:
 		_mean_anomaly = get_mean_anomaly_from_elements_parabolic(p, t0,
-				_standard_gravitational_parameter, time)
+				_gravitational_parameter, time)
 		_true_anomaly = get_true_anomaly_from_mean_anomaly_parabolic(_mean_anomaly)
 	
 	var position := get_position_from_elements_at_true_anomaly(p, e, i, lan, ap, _true_anomaly)
@@ -303,7 +303,7 @@ func get_position(time: float, rotate_to_ecliptic := true) -> Vector3:
 		nu = get_true_anomaly_from_mean_anomaly_hyperbolic(e, m)
 	else:
 		var m := get_mean_anomaly_from_elements_parabolic(p, t0,
-				_standard_gravitational_parameter, time)
+				_gravitational_parameter, time)
 		nu = get_true_anomaly_from_mean_anomaly_parabolic(m)
 	
 	var position := get_position_from_elements_at_true_anomaly(p, e, i, lan, ap, nu)
@@ -347,7 +347,7 @@ func get_state_vectors(time: float, rotate_to_ecliptic := true) -> Array[Vector3
 		nu = get_true_anomaly_from_mean_anomaly_hyperbolic(e, m)
 	else:
 		var m := get_mean_anomaly_from_elements_parabolic(p, t0,
-				_standard_gravitational_parameter, time)
+				_gravitational_parameter, time)
 		nu = get_true_anomaly_from_mean_anomaly_parabolic(m)
 	
 	var vectors := get_state_vectors_from_elements_at_true_anomaly(p, e,
@@ -379,7 +379,7 @@ func get_mean_anomaly(time: float) -> float:
 		return fposmod(_mean_motion * (time - t0) + PI, TAU) - PI
 	if e > 1.0:
 		return _mean_motion * (time - t0)
-	return get_mean_anomaly_from_elements_parabolic(p, t0, _standard_gravitational_parameter, time)
+	return get_mean_anomaly_from_elements_parabolic(p, t0, _gravitational_parameter, time)
 
 
 ## See [method IVOrbit.get_true_anomaly].
@@ -406,7 +406,7 @@ func get_true_anomaly(time: float) -> float:
 	if e > 1.0:
 		m = _mean_motion * (time - t0)
 		return get_true_anomaly_from_mean_anomaly_hyperbolic(e, m)
-	m = get_mean_anomaly_from_elements_parabolic(p, t0, _standard_gravitational_parameter, time)
+	m = get_mean_anomaly_from_elements_parabolic(p, t0, _gravitational_parameter, time)
 	return get_true_anomaly_from_mean_anomaly_parabolic(m)
 
 
@@ -457,7 +457,7 @@ func set_time_periapsis(_value: float) -> void:
 
 
 ## DISABLED
-func set_standard_gravitational_parameter(_value: float) -> void:
+func set_gravitational_parameter(_value: float) -> void:
 	pass
 
 
@@ -545,15 +545,18 @@ func get_time_periapsis_at_epoch() -> float:
 # Derivable elements
 
 
+## See [method IVOrbit.get_semi_major_axis_at_time].
 func get_semi_major_axis_at_time(time: float) -> float:
 	var clamp_time := clampf(time, validity_begin, validity_end)
 	return _semi_major_axis_at_epoch + _semi_major_axis_rate * clamp_time
 
 
+## See [method IVOrbit.get_semi_major_axis_at_epoch].
 func get_semi_major_axis_at_epoch() -> float:
 	return _semi_major_axis_at_epoch
 
 
+## See [method IVOrbit.get_semi_major_axis_rate].
 func get_semi_major_axis_rate() -> float:
 	return _semi_major_axis_rate
 
@@ -561,10 +564,12 @@ func get_semi_major_axis_rate() -> float:
 # Note: retrograde won't ever change here...
 
 
+## See [method IVOrbit.get_mean_anomaly_at_epoch].
 func get_mean_anomaly_at_epoch() -> float:
 	return fposmod(-_mean_motion * _time_periapsis_at_epoch, TAU)
 
 
+## See [method IVOrbit.get_mean_anomaly_at_epoch_at_time].
 func get_mean_anomaly_at_epoch_at_time(time: float) -> float:
 	var t0 := _time_periapsis_at_epoch
 	if m_correction_b:
@@ -576,11 +581,10 @@ func get_mean_anomaly_at_epoch_at_time(time: float) -> float:
 	return fposmod(-_mean_motion * t0, TAU)
 
 
-func get_mean_anomaly_at_epoch_at_epoch() -> float:
-	return fposmod(-_mean_motion * _time_periapsis_at_epoch, TAU)
-
-
-# Note: There is no mean_anomaly_at_epoch_rate, as such...
+## See [method IVOrbit.get_mean_longitude_at_epoch].
+func get_mean_longitude_at_epoch() -> float:
+	return fposmod(-mean_motion * _time_periapsis_at_epoch + _longitude_ascending_node_at_epoch
+			+ _argument_periapsis_at_epoch, TAU)
 
 
 # *****************************************************************************
