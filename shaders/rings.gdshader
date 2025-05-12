@@ -45,15 +45,14 @@ render_mode cull_disabled;
 // WARNING! FRONT_FACING is not reliable as of Godot 4.2.2. It's sometimes
 // wrong on my laptop (NVIDIA GeForce GTX 1650 Ti).
 
-const float dfdr_multiplier = 1.0; // smaller for more detail & more aliasing
-const float phase_exponent = 6.0; // larger narrows the low phase-angle effect
+const float DFDR_MULTIPLIER = 1.0; // smaller for more detail & more aliasing
+const float PHASE_EXPONENT = 6.0; // larger narrows the low phase-angle effect
 
 // set by rings.gd once
 uniform float texture_width;
 uniform float texture_start; // from center
 uniform float inner_margin; // from center, includes padding (> texture_start)
 uniform float outer_margin; // from center, includes padding (< 1.0)
-uniform int sun_index; // must be 0, 1 or 2
 uniform sampler2DArray textures0 : source_color; // backscatter/forwardscatter/unlitside for LOD 0
 uniform sampler2DArray textures1 : source_color;
 uniform sampler2DArray textures2 : source_color;
@@ -64,25 +63,23 @@ uniform sampler2DArray textures6 : source_color;
 uniform sampler2DArray textures7 : source_color;
 uniform sampler2DArray textures8 : source_color;
 
+// set by rings.gd every frame
+uniform vec3 illumination_position;
+
 // exposed visual settings
 uniform float forwardscatter_redshift = 1.05;
 uniform float unlitside_boost = 3.0; // general brightening
 uniform float litside_phase_boost = 3.0; // low phase-angle brightening
 uniform float unlitside_phase_boost = 2.0;
 
-// globals
-global uniform mat3 iv_sun_global_positions;
-
 // varyings
-varying vec3 sun_direction;
-varying flat float camera_y; // >0.0 for lit side
+varying vec3 illumination_direction;
+varying flat float camera_model_elevation; // >0.0 for lit side
 
 
 void vertex() {
-	vec3 sun_position = iv_sun_global_positions[sun_index];
-	vec3 sun_vector = (VIEW_MATRIX * vec4(sun_position, 1.0)).xyz;
-	sun_direction = normalize(sun_vector);
-	camera_y = (inverse(MODEL_MATRIX) * vec4(CAMERA_POSITION_WORLD, 1.0)).y;
+	illumination_direction = normalize((VIEW_MATRIX * vec4(illumination_position, 1.0)).xyz);
+	camera_model_elevation = (inverse(MODEL_MATRIX) * vec4(CAMERA_POSITION_WORLD, 1.0)).y;
 }
 
 
@@ -149,7 +146,7 @@ void fragment() {
 
 		// LOD for anti-aliasing
 		float dfdr = length(vec2(dfdx, dfdy));
-		float lod_map = log2(dfdr * dfdr_multiplier);
+		float lod_map = log2(dfdr * DFDR_MULTIPLIER);
 		lod_map = clamp(round(lod_map), 0.0, 8.0);
 		int lod = int(lod_map);
 
@@ -162,13 +159,13 @@ void fragment() {
 		float texel_fraction = fract(texel_position);
 
 		// phase effects (phase_mix = 1.0 corresponds to phase angle = 0.0)
-		float phase_mix = dot(sun_direction, VIEW) / 2.0 + 0.5;
-		phase_mix = pow(phase_mix, phase_exponent);
+		float phase_mix = dot(illumination_direction, VIEW) / 2.0 + 0.5;
+		phase_mix = pow(phase_mix, PHASE_EXPONENT);
 
 		vec4 color;
 		vec3 albedo;
 
-		if (camera_y > 0.0) {
+		if (camera_model_elevation > 0.0) {
 			// lit side
 			vec4 backscatter = sample_color(texel, texel_fraction, 0, lod);
 			vec4 forwardscatter = sample_color(texel, texel_fraction, 1, lod);

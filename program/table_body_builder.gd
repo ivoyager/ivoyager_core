@@ -42,7 +42,6 @@ var characteristics_fields: Array[StringName] = [
 	&"body_class",
 	&"model_type",
 	&"has_light",
-	&"shader_sun_index",
 	&"file_prefix",
 	&"has_rings",
 	&"n_kn_planets",

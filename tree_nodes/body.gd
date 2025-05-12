@@ -164,7 +164,6 @@ var max_model_dist := 0.0
 var min_hud_dist: float
 var lazy_model_uninited := false
 var sleep := false
-var shader_sun_index := -1
 
 
 static var max_hud_dist_orbit_radius_multiplier := 100.0 ## class setting
@@ -176,11 +175,6 @@ static var bodies: Dictionary[StringName, IVBody] = {}
 ## Contains IVBody instances that are at the top of an IVBody tree, i.e., the
 ## system star or the primary star for multi-star system.
 static var galaxy_orbiters: Array[IVBody] = [] # TODO: Make dictionary to future-proof
-## This is used by shaders and is currently limited to 3 elements because we
-## can't have array shader globals (this is converted to mat3). FIXME: Don't use
-## a shader global, but have rings.gd know what sun affects it and send that
-## to shader on _process().
-static var sun_global_positions: Array[Vector3] = [Vector3(), Vector3(), Vector3()]
 
 
 # localized
@@ -199,8 +193,6 @@ func _enter_tree() -> void:
 		_add_model_space()
 	if orbit:
 		orbit.changed.connect(_on_orbit_changed)
-	shader_sun_index = characteristics.get(&"shader_sun_index", -1)
-	assert(shader_sun_index >= -1 and shader_sun_index <= 2)
 	hide()
 
 
@@ -249,10 +241,10 @@ func _process(_delta: float) -> void:
 	# mode, API assumes that any properties updated here are stale and must be
 	# obtained using time parameter.
 	
-	var camera_dist := _world_controller.process_world_target(self, mean_radius)
-	
 	if orbit:
 		position = orbit.update(_times[0])
+	
+	var camera_dist := _world_controller.update_world_target(self, mean_radius)
 	
 	# update model space
 	if model_space:
@@ -270,12 +262,6 @@ func _process(_delta: float) -> void:
 		huds_visible = hud_dist_ok
 		huds_visibility_changed.emit(huds_visible)
 	
-	# sun position(s) for shader global
-	if shader_sun_index != -1 and sun_global_positions[shader_sun_index] != global_position:
-		sun_global_positions[shader_sun_index] = global_position
-		var as_basis := Basis(sun_global_positions[0], sun_global_positions[1],
-				sun_global_positions[2])
-		RenderingServer.global_shader_parameter_set( &"iv_sun_global_positions", as_basis)
 	show()
 
 
