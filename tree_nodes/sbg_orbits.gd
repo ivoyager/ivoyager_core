@@ -102,7 +102,7 @@ func _init(sbg: IVSmallBodiesGroup) -> void:
 	i = 0
 	while i < number:
 		# currently assumes ecliptic reference
-		var orbit_transform := sbg.get_ellipse_transform(i)
+		var orbit_transform := sbg.get_unit_circle_transform(i)
 		multimesh.set_instance_transform(i, orbit_transform)
 		if is_set_custom_data:
 			var vec3id := _vec3ids[i]

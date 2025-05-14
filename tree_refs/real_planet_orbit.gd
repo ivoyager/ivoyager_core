@@ -167,7 +167,7 @@ static func create_real_planet_orbit(
 	orbit._argument_periapsis_rate = longitude_periapsis_rate - longitude_ascending_node_rate
 	orbit._time_periapsis = modulo_time_periapsis_elliptic(-mean_anomaly_at_epoch / mean_motion,
 			mean_motion)
-	orbit._standard_gravitational_parameter = semi_major_axis ** 3 * mean_motion ** 2
+	orbit._gravitational_parameter = semi_major_axis ** 3 * mean_motion ** 2
 	
 	# set evolving parameters to epoch (precessing)
 	orbit._longitude_ascending_node = longitude_ascending_node
@@ -177,7 +177,7 @@ static func create_real_planet_orbit(
 	orbit._semi_major_axis = semi_major_axis
 	orbit._mean_motion = mean_motion
 	orbit._specific_energy = -0.5 * semi_major_axis ** 2 * mean_motion ** 2
-	orbit._specific_angular_momentum = sqrt(orbit._standard_gravitational_parameter
+	orbit._specific_angular_momentum = sqrt(orbit._gravitational_parameter
 			* orbit._semi_parameter)
 	
 	# Subclass members
@@ -210,19 +210,63 @@ static func create_real_planet_orbit(
 ## in any case, the energy changes should be tiny. So we don't update these.
 func update(time: float, rotate_to_ecliptic := true) -> Vector3:
 	
+	const CHANGED_ANGLE_THRESHOLD := CHANGED_THRESHOLD / TAU
+	const REFERENCE_PLANE_ECLIPTIC := ReferencePlane.REFERENCE_PLANE_ECLIPTIC
+	
 	# orbit evolution not in base class
 	var clamp_time := clampf(time, validity_begin, validity_end)
-	_semi_major_axis = _semi_major_axis_at_epoch + _semi_major_axis_rate * clamp_time
-	_eccentricity = _eccentricity_at_epoch + _eccentricity_rate * clamp_time
-	_inclination = _inclination_at_epoch + _inclination_rate * clamp_time
-	_semi_parameter = _semi_major_axis * (1.0 - _eccentricity * _eccentricity)
+	var a := _semi_major_axis_at_epoch + _semi_major_axis_rate * clamp_time
+	var e := _eccentricity_at_epoch + _eccentricity_rate * clamp_time
+	var i := _inclination_at_epoch + _inclination_rate * clamp_time
+	var p := a * (1.0 - e * e)
+	var t0 := _time_periapsis_at_epoch
 	if m_correction_b:
 		var ft := m_correction_f * time # no reason to clamp cyclic effect
 		var correction := m_correction_b * clamp_time * clamp_time
 		correction += m_correction_c * cos(ft) + m_correction_s * sin(ft)
-		_time_periapsis = _time_periapsis_at_epoch - correction / _mean_motion
+		t0 = _time_periapsis_at_epoch - correction / _mean_motion
 	
-	return super(time, rotate_to_ecliptic)
+	# evolve orbit (base class)
+	var lan := fposmod(_longitude_ascending_node_at_epoch + _longitude_ascending_node_rate * time, TAU)
+	var ap := fposmod(_argument_periapsis_at_epoch + _argument_periapsis_rate * time, TAU)
+	
+	# update & signal if accumulated change is significant
+	if (absf(lan - _longitude_ascending_node) > CHANGED_ANGLE_THRESHOLD
+			or absf(ap - _argument_periapsis) > CHANGED_ANGLE_THRESHOLD
+			or absf(i - _inclination) > CHANGED_ANGLE_THRESHOLD
+			or absf(a - _semi_major_axis) / a > CHANGED_THRESHOLD
+			or absf(e - _eccentricity) > CHANGED_THRESHOLD
+			or absf(p - _semi_parameter) / p > CHANGED_THRESHOLD
+			or absf(t0 - _time_periapsis) * _mean_motion > CHANGED_ANGLE_THRESHOLD
+			):
+		_semi_major_axis = a
+		_eccentricity = e
+		_inclination = i
+		_semi_parameter = p
+		_time_periapsis = t0
+		_longitude_ascending_node = lan
+		_argument_periapsis = ap
+		changed.emit(true)
+	
+	# BELOW COPIED FROM BASE W/ SUBSTITUTIONS
+	
+	# some inline static methods below...
+	if e < 1.0:
+		_mean_anomaly = fposmod(_mean_motion * (time - t0) + PI, TAU) - PI
+		_true_anomaly = get_true_anomaly_from_mean_anomaly_elliptic(e, _mean_anomaly)
+	elif e > 1.0:
+		_mean_anomaly = _mean_motion * (time - t0)
+		_true_anomaly = get_true_anomaly_from_mean_anomaly_hyperbolic(e, _mean_anomaly)
+	else:
+		_mean_anomaly = get_mean_anomaly_from_elements_parabolic(p, t0,
+				_gravitational_parameter, time)
+		_true_anomaly = get_true_anomaly_from_mean_anomaly_parabolic(_mean_anomaly)
+	
+	var position := get_position_from_elements_at_true_anomaly(p, e, i, lan, ap, _true_anomaly)
+	
+	if rotate_to_ecliptic and _reference_plane_type != REFERENCE_PLANE_ECLIPTIC:
+		return _reference_basis * position
+	return position
 
 
 ## See [method IVOrbit.get_position].
@@ -259,7 +303,7 @@ func get_position(time: float, rotate_to_ecliptic := true) -> Vector3:
 		nu = get_true_anomaly_from_mean_anomaly_hyperbolic(e, m)
 	else:
 		var m := get_mean_anomaly_from_elements_parabolic(p, t0,
-				_standard_gravitational_parameter, time)
+				_gravitational_parameter, time)
 		nu = get_true_anomaly_from_mean_anomaly_parabolic(m)
 	
 	var position := get_position_from_elements_at_true_anomaly(p, e, i, lan, ap, nu)
@@ -303,7 +347,7 @@ func get_state_vectors(time: float, rotate_to_ecliptic := true) -> Array[Vector3
 		nu = get_true_anomaly_from_mean_anomaly_hyperbolic(e, m)
 	else:
 		var m := get_mean_anomaly_from_elements_parabolic(p, t0,
-				_standard_gravitational_parameter, time)
+				_gravitational_parameter, time)
 		nu = get_true_anomaly_from_mean_anomaly_parabolic(m)
 	
 	var vectors := get_state_vectors_from_elements_at_true_anomaly(p, e,
@@ -335,7 +379,7 @@ func get_mean_anomaly(time: float) -> float:
 		return fposmod(_mean_motion * (time - t0) + PI, TAU) - PI
 	if e > 1.0:
 		return _mean_motion * (time - t0)
-	return get_mean_anomaly_from_elements_parabolic(p, t0, _standard_gravitational_parameter, time)
+	return get_mean_anomaly_from_elements_parabolic(p, t0, _gravitational_parameter, time)
 
 
 ## See [method IVOrbit.get_true_anomaly].
@@ -362,7 +406,7 @@ func get_true_anomaly(time: float) -> float:
 	if e > 1.0:
 		m = _mean_motion * (time - t0)
 		return get_true_anomaly_from_mean_anomaly_hyperbolic(e, m)
-	m = get_mean_anomaly_from_elements_parabolic(p, t0, _standard_gravitational_parameter, time)
+	m = get_mean_anomaly_from_elements_parabolic(p, t0, _gravitational_parameter, time)
 	return get_true_anomaly_from_mean_anomaly_parabolic(m)
 
 
@@ -413,7 +457,7 @@ func set_time_periapsis(_value: float) -> void:
 
 
 ## DISABLED
-func set_standard_gravitational_parameter(_value: float) -> void:
+func set_gravitational_parameter(_value: float) -> void:
 	pass
 
 
@@ -501,15 +545,18 @@ func get_time_periapsis_at_epoch() -> float:
 # Derivable elements
 
 
+## See [method IVOrbit.get_semi_major_axis_at_time].
 func get_semi_major_axis_at_time(time: float) -> float:
 	var clamp_time := clampf(time, validity_begin, validity_end)
 	return _semi_major_axis_at_epoch + _semi_major_axis_rate * clamp_time
 
 
+## See [method IVOrbit.get_semi_major_axis_at_epoch].
 func get_semi_major_axis_at_epoch() -> float:
 	return _semi_major_axis_at_epoch
 
 
+## See [method IVOrbit.get_semi_major_axis_rate].
 func get_semi_major_axis_rate() -> float:
 	return _semi_major_axis_rate
 
@@ -517,10 +564,12 @@ func get_semi_major_axis_rate() -> float:
 # Note: retrograde won't ever change here...
 
 
+## See [method IVOrbit.get_mean_anomaly_at_epoch].
 func get_mean_anomaly_at_epoch() -> float:
 	return fposmod(-_mean_motion * _time_periapsis_at_epoch, TAU)
 
 
+## See [method IVOrbit.get_mean_anomaly_at_epoch_at_time].
 func get_mean_anomaly_at_epoch_at_time(time: float) -> float:
 	var t0 := _time_periapsis_at_epoch
 	if m_correction_b:
@@ -532,11 +581,10 @@ func get_mean_anomaly_at_epoch_at_time(time: float) -> float:
 	return fposmod(-_mean_motion * t0, TAU)
 
 
-func get_mean_anomaly_at_epoch_at_epoch() -> float:
-	return fposmod(-_mean_motion * _time_periapsis_at_epoch, TAU)
-
-
-# Note: There is no mean_anomaly_at_epoch_rate, as such...
+## See [method IVOrbit.get_mean_longitude_at_epoch].
+func get_mean_longitude_at_epoch() -> float:
+	return fposmod(-mean_motion * _time_periapsis_at_epoch + _longitude_ascending_node_at_epoch
+			+ _argument_periapsis_at_epoch, TAU)
 
 
 # *****************************************************************************
@@ -580,8 +628,8 @@ func get_basis_at_time(time: float, rotate_to_ecliptic := true) -> Basis:
 	return basis
 
 
-## See [method IVOrbit.get_ellipse_transform_at_time].
-func get_ellipse_transform_at_time(time: float, rotate_to_ecliptic := true) -> Transform3D:
+## See [method IVOrbit.get_unit_circle_transform_at_time].
+func get_unit_circle_transform_at_time(time: float, rotate_to_ecliptic := true) -> Transform3D:
 	
 	var clamp_time := clampf(time, validity_begin, validity_end)
 	var a := _semi_major_axis_at_epoch + _semi_major_axis_rate * clamp_time
@@ -595,3 +643,37 @@ func get_ellipse_transform_at_time(time: float, rotate_to_ecliptic := true) -> T
 	var orbit_basis := get_basis_at_time(time, rotate_to_ecliptic)
 	var basis := orbit_basis * Basis().scaled(Vector3(a, b, 1.0))
 	return Transform3D(basis, -e * basis.x)
+
+
+## See [method IVOrbit.get_unit_rectangular_hyperbola_transform_at_time].
+func get_unit_rectangular_hyperbola_transform_at_time(time: float, rotate_to_ecliptic := true
+		) -> Transform3D:
+	
+	var clamp_time := clampf(time, validity_begin, validity_end)
+	var a := _semi_major_axis_at_epoch + _semi_major_axis_rate * clamp_time
+	var e := _eccentricity_at_epoch + _eccentricity_rate * clamp_time
+	
+	# BELOW COPIED FROM BASE W/ SUBSTITUTIONS
+	
+	const SQRT2 := sqrt(2.0) # rectangular hyperbola has e = sqrt(2)
+	if e <= 1.0:
+		return Transform3D()
+	var b := sqrt(a * a * (e * e - 1.0))
+	var orbit_basis := get_basis_at_time(time, rotate_to_ecliptic)
+	var basis := orbit_basis * Basis().scaled(Vector3(-a, b, 1.0))
+	return Transform3D(basis, (e - SQRT2) * basis.x)
+
+
+## See [method IVOrbit.get_unit_parabola_transform_at_time].
+func get_unit_parabola_transform_at_time(time: float, rotate_to_ecliptic := true) -> Transform3D:
+	
+	var clamp_time := clampf(time, validity_begin, validity_end)
+	var a := _semi_major_axis_at_epoch + _semi_major_axis_rate * clamp_time
+	var e := _eccentricity_at_epoch + _eccentricity_rate * clamp_time
+	var p := a * (1.0 - e * e)
+	
+	# BELOW COPIED FROM BASE W/ SUBSTITUTIONS
+	
+	var orbit_basis := get_basis_at_time(time, rotate_to_ecliptic)
+	var basis := orbit_basis * Basis().scaled(Vector3(p, p, 1.0))
+	return Transform3D(basis, Vector3.ZERO)

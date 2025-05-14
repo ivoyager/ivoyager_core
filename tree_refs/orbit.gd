@@ -45,7 +45,7 @@ extends RefCounted
 ## [member longitude_ascending_node] (Ω). Precesses.[br]
 ## [member argument_periapsis] (ω). ω = ϖ - Ω, where ϖ is longitude of periapsis. Precesses.[br]
 ## [member time_periapsis] (t₀).[br]
-## [member standard_gravitational_parameter] (GM, μ).[br][br]
+## [member gravitational_parameter] (GM, μ).[br][br]
 ##
 ## Additional elements are derived from above and maintained for
 ## convenience:[br][br]
@@ -162,7 +162,7 @@ extends RefCounted
 ## [param is_intrinsic] is true if the cause is internally specified (e.g.,
 ## precessions) and is false if external (e.g., due to thrust in an IVOrbit
 ## subclass).
-signal changed(is_intrinsic: bool) # false should trigger rpc network sync
+signal changed(is_intrinsic: bool)
 
 
 ## Type of orbit reference plane. (An orbit's specific reference plane is
@@ -174,8 +174,11 @@ enum ReferencePlane {
 }
 
 const ECLIPTIC_SPACE := Basis.IDENTITY
-## Minimum accumulated element change (in radians) for update and [signal changed] signal.
-const CHANGED_ANGLE_THRESHOLD := 0.001
+## Minimum accumulated element change for update and [signal changed] signal.
+const CHANGED_THRESHOLD := 0.005
+
+
+
 ## Just under 0.0 so Earth doesn't cause error. (Earth i = -9.48517e-06 at epoch.)
 const MIN_INCLINATION := -0.001
 ## Inclination too near π/2 is bumped a titch to prevent math singularity.
@@ -191,7 +194,7 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"_longitude_ascending_node",
 	&"_argument_periapsis",
 	&"_time_periapsis",
-	&"_standard_gravitational_parameter",
+	&"_gravitational_parameter",
 	&"_semi_major_axis",
 	&"_mean_motion",
 	&"_specific_energy",
@@ -243,8 +246,8 @@ var time_periapsis: float: get = get_time_periapsis, set = set_time_periapsis
 ## barycenter mass. Note: this is an effective barycenter GM that may differ
 ## somewhat from parent GM, mainly (but not only) due to excess barycenter mass
 ## (>+10% for Pluto's moons).
-var standard_gravitational_parameter: float:
-	get = get_standard_gravitational_parameter, set = set_standard_gravitational_parameter
+var gravitational_parameter: float:
+	get = get_gravitational_parameter, set = set_gravitational_parameter
 
 ## Semi-major axis (a). a > 0 (elliptic orbit); a = INF (parabolic); a < 0 (hyperbolic).
 var semi_major_axis: float: get = get_semi_major_axis, set = set_semi_major_axis
@@ -286,7 +289,7 @@ var _inclination: float
 var _longitude_ascending_node: float
 var _argument_periapsis: float
 var _time_periapsis: float
-var _standard_gravitational_parameter: float
+var _gravitational_parameter: float
 
 # derived elements & parameters
 var _semi_major_axis: float
@@ -323,7 +326,7 @@ static func create_from_elements(
 		argument_periapsis: float,
 		argument_periapsis_rate: float,
 		time_periapsis: float,
-		standard_gravitational_parameter: float,
+		gravitational_parameter: float,
 		existing_orbit: IVOrbit = null
 	) -> IVOrbit:
 	
@@ -341,7 +344,7 @@ static func create_from_elements(
 	assert(!is_nan(argument_periapsis))
 	assert(!is_nan(argument_periapsis_rate))
 	assert(!is_nan(time_periapsis))
-	assert(standard_gravitational_parameter > 0.0)
+	assert(gravitational_parameter > 0.0)
 	
 	# Quietly fix inclination too near RIGHT_ANGLE
 	if absf(inclination - RIGHT_ANGLE) < INCLINATION_RIGHT_ANGLE_BUMP:
@@ -362,7 +365,7 @@ static func create_from_elements(
 	orbit._argument_periapsis_at_epoch = argument_periapsis
 	orbit._argument_periapsis_rate = argument_periapsis_rate
 	orbit._time_periapsis = time_periapsis
-	orbit._standard_gravitational_parameter = standard_gravitational_parameter
+	orbit._gravitational_parameter = gravitational_parameter
 	
 	# set evolving parameters to epoch
 	orbit._longitude_ascending_node = longitude_ascending_node
@@ -371,13 +374,13 @@ static func create_from_elements(
 	# derived
 	if eccentricity != 1.0:
 		orbit._semi_major_axis = semi_parameter / (1.0 - eccentricity * eccentricity)
-		orbit._mean_motion = sqrt(standard_gravitational_parameter / absf(orbit._semi_major_axis) ** 3)
-		orbit._specific_energy = -0.5 * standard_gravitational_parameter / orbit._semi_major_axis
+		orbit._mean_motion = sqrt(gravitational_parameter / absf(orbit._semi_major_axis) ** 3)
+		orbit._specific_energy = -0.5 * gravitational_parameter / orbit._semi_major_axis
 	else:
 		orbit._semi_major_axis = INF
 		orbit._mean_motion = 0.0
 		orbit._specific_energy = 0.0
-	orbit._specific_angular_momentum = sqrt(standard_gravitational_parameter * semi_parameter)
+	orbit._specific_angular_momentum = sqrt(gravitational_parameter * semi_parameter)
 	
 	return orbit
 
@@ -388,7 +391,7 @@ static func create_from_elements(
 static func create_from_state_vectors_and_precessions(
 		position: Vector3,
 		velocity: Vector3,
-		standard_gravitational_parameter: float,
+		gravitational_parameter: float,
 		reference_plane_type: ReferencePlane,
 		reference_basis: Basis,
 		longitude_ascending_node_rate: float,
@@ -404,7 +407,7 @@ static func create_from_state_vectors_and_precessions(
 static func create_from_state_vectors_and_environment(
 		position: Vector3,
 		velocity: Vector3,
-		standard_gravitational_parameter: float,
+		gravitational_parameter: float,
 		dynamic_form_factor: float, # primary's J2 (oblateness effect, known or estimated)
 		primary_orbit: IVOrbit, # includes GM of the grandparent
 		grandparent_orbit: IVOrbit, # For a Moon-oribiter, the Earth's orbit
@@ -440,11 +443,11 @@ static func get_mean_anomaly_from_elements_hyperbolic(time_periapsis: float,
 ## This is a "by convention" M that relates to time of perihelion passage in Barker's equation.
 @warning_ignore("shadowed_variable")
 static func get_mean_anomaly_from_elements_parabolic(semi_parameter: float,time_periapsis: float,
-		standard_gravitational_parameter: float, time: float) -> float:
+		gravitational_parameter: float, time: float) -> float:
 	# https://en.wikipedia.org/wiki/Parabolic_trajectory
 	# M below is a sort of "mean anomaly" by convention.
 	var q := semi_parameter / 2.0 # radius at periapsis
-	return (time - time_periapsis) * sqrt(standard_gravitational_parameter / (2.0 * q * q * q))
+	return (time - time_periapsis) * sqrt(gravitational_parameter / (2.0 * q * q * q))
 
 
 ## Static method returns true anomaly (θ; estimated iteratively) for an elliptic
@@ -466,7 +469,6 @@ static func get_true_anomaly_from_mean_anomaly_elliptic(eccentricity: float, mea
 
 ## Static method returns true anomaly (θ; estimated iteratively) for a hyperbolic
 ## orbit (e > 1). -π ≤ θ < π.
-## @experimental: Not yet tested.
 @warning_ignore("shadowed_variable")
 static func get_true_anomaly_from_mean_anomaly_hyperbolic(eccentricity: float, mean_anomaly: float
 		) -> float:
@@ -483,7 +485,6 @@ static func get_true_anomaly_from_mean_anomaly_hyperbolic(eccentricity: float, m
 
 
 ## Static method returns true anomaly (θ) for a parabolic orbit (e = 1). -π ≤ θ < π.
-## @experimental: Not yet tested.
 @warning_ignore("shadowed_variable")
 static func get_true_anomaly_from_mean_anomaly_parabolic(mean_anomaly: float) -> float:
 	# https://en.wikipedia.org/wiki/Parabolic_trajectory
@@ -590,21 +591,47 @@ static func get_basis_from_elements(inclination: float, longitude_ascending_node
 	)
 
 
-## Static method returns a Transform3D that can be used to transform a unit
-## circle in the xy-plane into the specified orbit ellipse with parent at the
-## focus (stretches, rotates and re-positions). Use for graphic representation
-## of an orbit. Basis is intrinsic.
+## Static method returns a Transform3D that can convert a unit circle into the
+## specified orbit's path, if the specified orbit is closed (e < 1).
 @warning_ignore("shadowed_variable")
-static func get_ellipse_transform_from_elements(semi_major_axis: float, eccentricity: float,
-		inclination: float, longitude_ascending_node: float, argument_periapsis: float
-		) -> Transform3D:
+static func get_unit_circle_transform_from_elements(semi_major_axis: float, eccentricity: float,
+		inclination: float, longitude_ascending_node: float, argument_periapsis: float,
+		reference_basis := Basis.IDENTITY) -> Transform3D:
 	if eccentricity >= 1.0:
 		return Transform3D()
 	var b := sqrt(semi_major_axis * semi_major_axis * (1.0 - eccentricity * eccentricity))
-	var orbit_basis := get_basis_from_elements(inclination, longitude_ascending_node,
-			argument_periapsis)
+	var orbit_basis := reference_basis * get_basis_from_elements(inclination,
+			longitude_ascending_node, argument_periapsis)
 	var basis := orbit_basis * Basis().scaled(Vector3(semi_major_axis, b, 1.0))
 	return Transform3D(basis, -eccentricity * basis.x)
+
+
+## Static method returns a Transform3D that can convert a unit rectangular hyperbola
+## into the specified orbit's path, if the specified orbit is hyperbolic (e > 1).
+@warning_ignore("shadowed_variable")
+static func get_unit_rectangular_hyperbola_transform_from_elements(semi_major_axis: float,
+		eccentricity: float, inclination: float, longitude_ascending_node: float,
+		argument_periapsis: float, reference_basis := Basis.IDENTITY) -> Transform3D:
+	const SQRT2 := sqrt(2.0) # rectangular hyperbola has e = sqrt(2)
+	if eccentricity <= 1.0:
+		return Transform3D()
+	var b := sqrt(semi_major_axis * semi_major_axis * (eccentricity * eccentricity - 1.0))
+	var orbit_basis := reference_basis * get_basis_from_elements(inclination,
+			longitude_ascending_node, argument_periapsis)
+	var basis := orbit_basis * Basis().scaled(Vector3(-semi_major_axis, b, 1.0))
+	return Transform3D(basis, (eccentricity - SQRT2) * basis.x)
+
+
+## Static method returns a Transform3D that can convert a unit parabola into the
+## specified orbit's path, if the specified orbit is parabolic (e = 1).
+@warning_ignore("shadowed_variable")
+static func get_unit_parabola_transform_from_elements(semi_parameter: float, inclination: float,
+		longitude_ascending_node: float, argument_periapsis: float,
+		reference_basis := Basis.IDENTITY) -> Transform3D:
+	var orbit_basis := reference_basis * get_basis_from_elements(inclination,
+			longitude_ascending_node, argument_periapsis)
+	var basis := orbit_basis * Basis().scaled(Vector3(semi_parameter, semi_parameter, 1.0))
+	return Transform3D(basis, Vector3.ZERO)
 
 
 ## Static method returns time of periapsis passage (t₀) modulo orbit period (P)
@@ -630,14 +657,14 @@ static func modulo_time_periapsis_elliptic(time_periapsis: float, mean_motion: f
 ## Return can be in the ecliptic basis or the orbit [member reference_basis]
 ## (the former by default).
 func update(time: float, rotate_to_ecliptic := true) -> Vector3:
-	
+	const CHANGED_ANGLE_THRESHOLD := CHANGED_THRESHOLD / TAU
 	const REFERENCE_PLANE_ECLIPTIC := ReferencePlane.REFERENCE_PLANE_ECLIPTIC
 	
 	# evolve orbit
 	var lan := fposmod(_longitude_ascending_node_at_epoch + _longitude_ascending_node_rate * time, TAU)
 	var ap := fposmod(_argument_periapsis_at_epoch + _argument_periapsis_rate * time, TAU)
 	
-	# update & signal if accumulated change is significant (< 1 deg/Cy for planets!)
+	# update & signal if accumulated change is significant
 	if (absf(lan - _longitude_ascending_node) > CHANGED_ANGLE_THRESHOLD
 			or absf(ap - _argument_periapsis) > CHANGED_ANGLE_THRESHOLD):
 		_longitude_ascending_node = lan
@@ -653,7 +680,7 @@ func update(time: float, rotate_to_ecliptic := true) -> Vector3:
 		_true_anomaly = get_true_anomaly_from_mean_anomaly_hyperbolic(_eccentricity, _mean_anomaly)
 	else:
 		_mean_anomaly = get_mean_anomaly_from_elements_parabolic(_semi_parameter, _time_periapsis,
-				_standard_gravitational_parameter, time)
+				_gravitational_parameter, time)
 		_true_anomaly = get_true_anomaly_from_mean_anomaly_parabolic(_mean_anomaly)
 	
 	var position := get_position_from_elements_at_true_anomaly(_semi_parameter, _eccentricity,
@@ -685,7 +712,7 @@ func get_position(time: float, rotate_to_ecliptic := true) -> Vector3:
 		nu = get_true_anomaly_from_mean_anomaly_hyperbolic(_eccentricity, m)
 	else:
 		var m := get_mean_anomaly_from_elements_parabolic(_semi_parameter, _time_periapsis,
-				_standard_gravitational_parameter, time)
+				_gravitational_parameter, time)
 		nu = get_true_anomaly_from_mean_anomaly_parabolic(m)
 	
 	var position := get_position_from_elements_at_true_anomaly(_semi_parameter, _eccentricity,
@@ -718,7 +745,7 @@ func get_state_vectors(time: float, rotate_to_ecliptic := true) -> Array[Vector3
 		nu = get_true_anomaly_from_mean_anomaly_hyperbolic(_eccentricity, m)
 	else:
 		var m := get_mean_anomaly_from_elements_parabolic(_semi_parameter, _time_periapsis,
-				_standard_gravitational_parameter, time)
+				_gravitational_parameter, time)
 		nu = get_true_anomaly_from_mean_anomaly_parabolic(m)
 	
 	var vectors := get_state_vectors_from_elements_at_true_anomaly(_semi_parameter, _eccentricity,
@@ -738,7 +765,7 @@ func get_mean_anomaly(time: float) -> float:
 	if _eccentricity > 1.0:
 		return _mean_motion * (time - _time_periapsis)
 	return get_mean_anomaly_from_elements_parabolic(_semi_parameter, _time_periapsis,
-			_standard_gravitational_parameter, time)
+			_gravitational_parameter, time)
 
 
 ## Returns mean anomaly (M) after the last [method update] call. -π ≤ M < π.
@@ -778,7 +805,7 @@ func get_true_anomaly(time: float) -> float:
 		m = _mean_motion * (time - _time_periapsis)
 		return get_true_anomaly_from_mean_anomaly_hyperbolic(_eccentricity, m)
 	m = get_mean_anomaly_from_elements_parabolic(_semi_parameter, _time_periapsis,
-				_standard_gravitational_parameter, time)
+				_gravitational_parameter, time)
 	return get_true_anomaly_from_mean_anomaly_parabolic(m)
 
 
@@ -863,13 +890,13 @@ func set_semi_parameter(value: float) -> void:
 	_semi_parameter = value
 	if _eccentricity != 1.0:
 		_semi_major_axis = _semi_parameter / (1.0 - _eccentricity * _eccentricity)
-		_mean_motion = sqrt(_standard_gravitational_parameter / absf(_semi_major_axis) ** 3)
-		_specific_energy = -0.5 * _standard_gravitational_parameter / _semi_major_axis
+		_mean_motion = sqrt(_gravitational_parameter / absf(_semi_major_axis) ** 3)
+		_specific_energy = -0.5 * _gravitational_parameter / _semi_major_axis
 	else:
 		_semi_major_axis = INF
 		_mean_motion = 0.0
 		_specific_energy = 0.0
-	_specific_angular_momentum = sqrt(_standard_gravitational_parameter * _semi_parameter)
+	_specific_angular_momentum = sqrt(_gravitational_parameter * _semi_parameter)
 	changed.emit(false)
 
 
@@ -898,8 +925,8 @@ func set_eccentricity(value: float) -> void:
 	_eccentricity = value
 	if _eccentricity != 1.0:
 		_semi_major_axis = _semi_parameter / (1.0 - _eccentricity * _eccentricity)
-		_mean_motion = sqrt(_standard_gravitational_parameter / absf(_semi_major_axis) ** 3)
-		_specific_energy = -0.5 * _standard_gravitational_parameter / _semi_major_axis
+		_mean_motion = sqrt(_gravitational_parameter / absf(_semi_major_axis) ** 3)
+		_specific_energy = -0.5 * _gravitational_parameter / _semi_major_axis
 	else:
 		_semi_major_axis = INF
 		_mean_motion = 0.0
@@ -1044,39 +1071,39 @@ func set_time_periapsis(value: float) -> void:
 	changed.emit(false)
 
 
-func get_standard_gravitational_parameter() -> float:
-	return _standard_gravitational_parameter
+func get_gravitational_parameter() -> float:
+	return _gravitational_parameter
 
 
 ## Note: standard gravitational parameter (GM) does not evolve in the base
 ## IVOrbit class, but it may in a subclass.
-func get_standard_gravitational_parameter_at_time(_time: float) -> float:
-	return _standard_gravitational_parameter
+func get_gravitational_parameter_at_time(_time: float) -> float:
+	return _gravitational_parameter
 
 
 ## Note: standard gravitational parameter (GM) does not evolve in the base
 ## IVOrbit class, but it may in a subclass.
-func get_standard_gravitational_parameter_at_epoch() -> float:
-	return _standard_gravitational_parameter
+func get_gravitational_parameter_at_epoch() -> float:
+	return _gravitational_parameter
 
 
 ## Note: standard gravitational parameter (GM) does not evolve in the base
 ## IVOrbit class, but it may in a subclass.
-func get_standard_gravitational_parameter_rate() -> float:
+func get_gravitational_parameter_rate() -> float:
 	return 0.0
 
 
 
 ## Keeps orbit shape fixed; changes other parameters as needed.
-func set_standard_gravitational_parameter(value: float) -> void:
-	_standard_gravitational_parameter = value
+func set_gravitational_parameter(value: float) -> void:
+	_gravitational_parameter = value
 	if _eccentricity != 1.0:
-		_mean_motion = sqrt(_standard_gravitational_parameter / absf(_semi_major_axis) ** 3)
-		_specific_energy = -0.5 * _standard_gravitational_parameter / _semi_major_axis
+		_mean_motion = sqrt(_gravitational_parameter / absf(_semi_major_axis) ** 3)
+		_specific_energy = -0.5 * _gravitational_parameter / _semi_major_axis
 	else:
 		_mean_motion = 0.0
 		_specific_energy = 0.0
-	_specific_angular_momentum = sqrt(_standard_gravitational_parameter * _semi_parameter)
+	_specific_angular_momentum = sqrt(_gravitational_parameter * _semi_parameter)
 	changed.emit(false)
 
 
@@ -1108,9 +1135,9 @@ func set_semi_major_axis(value: float) -> void:
 		return
 	_semi_major_axis = value
 	_semi_parameter = _semi_major_axis * (1.0 - _eccentricity * _eccentricity)
-	_mean_motion = sqrt(_standard_gravitational_parameter / absf(_semi_major_axis) ** 3)
-	_specific_energy = -0.5 * _standard_gravitational_parameter / _semi_major_axis
-	_specific_angular_momentum = sqrt(_standard_gravitational_parameter * _semi_parameter)
+	_mean_motion = sqrt(_gravitational_parameter / absf(_semi_major_axis) ** 3)
+	_specific_energy = -0.5 * _gravitational_parameter / _semi_major_axis
+	_specific_angular_momentum = sqrt(_gravitational_parameter * _semi_parameter)
 	changed.emit(false)
 
 
@@ -1140,10 +1167,10 @@ func set_mean_motion(value: float) -> void:
 		return
 	_mean_motion = value
 	var s := 1.0 if _eccentricity < 1.0 else -1.0
-	_semi_major_axis = s * (sqrt(_standard_gravitational_parameter) / _mean_motion) ** (1.0 / 3.0)
+	_semi_major_axis = s * (sqrt(_gravitational_parameter) / _mean_motion) ** (1.0 / 3.0)
 	_semi_parameter = _semi_major_axis * (1.0 - _eccentricity * _eccentricity)
-	_specific_energy = -0.5 * _standard_gravitational_parameter / _semi_major_axis
-	_specific_angular_momentum = sqrt(_standard_gravitational_parameter * _semi_parameter)
+	_specific_energy = -0.5 * _gravitational_parameter / _semi_major_axis
+	_specific_angular_momentum = sqrt(_gravitational_parameter * _semi_parameter)
 	changed.emit(false)
 
 
@@ -1168,7 +1195,9 @@ func get_specific_energy_rate() -> float:
 
 func set_specific_energy(value: float) -> void:
 	_specific_energy = value
+	
 	# TODO: Energy!
+	
 	changed.emit(false)
 
 
@@ -1199,11 +1228,11 @@ func set_specific_angular_momentum(value: float) -> void:
 	if value <= 0.0:
 		return
 	_specific_angular_momentum = value
-	_semi_parameter = _specific_angular_momentum ** 2 / _standard_gravitational_parameter
+	_semi_parameter = _specific_angular_momentum ** 2 / _gravitational_parameter
 	if _eccentricity != 1.0:
 		_semi_major_axis = _semi_parameter / (1.0 - _eccentricity * _eccentricity)
-		_mean_motion = sqrt(_standard_gravitational_parameter / absf(_semi_major_axis) ** 3)
-		_specific_energy = -0.5 * _standard_gravitational_parameter / _semi_major_axis
+		_mean_motion = sqrt(_gravitational_parameter / absf(_semi_major_axis) ** 3)
+		_specific_energy = -0.5 * _gravitational_parameter / _semi_major_axis
 	else:
 		_semi_major_axis = INF
 		_mean_motion = 0.0
@@ -1249,6 +1278,21 @@ func get_mean_anomaly_at_epoch_at_time(_time: float) -> float:
 func get_mean_anomaly_at_epoch_rate() -> float:
 	return 0.0
 
+
+## Returns mean longitude at epoch (L₀). 0 ≤ L₀ < 2π.
+func get_mean_longitude_at_epoch() -> float:
+	return fposmod(-_mean_motion * _time_periapsis + _longitude_ascending_node_at_epoch
+			+ _argument_periapsis_at_epoch, TAU)
+
+
+## Returns mean longitude at epoch rate (dL₀/dt).
+func get_mean_longitude_at_epoch_rate() -> float:
+	return _longitude_ascending_node_rate + _argument_periapsis_rate
+
+
+## Returns mean longitude rate (dL/dt).
+func get_mean_longitude_rate() -> float:
+	return _mean_motion + _longitude_ascending_node_rate + _argument_periapsis_rate
 
 
 # *****************************************************************************
@@ -1319,10 +1363,9 @@ func get_basis_at_time(time: float, rotate_to_ecliptic := true) -> Basis:
 	return basis
 
 
-## Returns a Transform3D that can be used to transform a unit circle in the xy-
-## plane into an ellipse representing this orbit with parent at the focus (stretches,
-## rotates and re-positions). Use for graphic representation of this elliptic orbit.
-func get_ellipse_transform(rotate_to_ecliptic := true) -> Transform3D:
+## Returned Transform3D can convert a unit circle into this orbit's path, if
+## this orbit is closed (e < 1).
+func get_unit_circle_transform(rotate_to_ecliptic := true) -> Transform3D:
 	if _eccentricity >= 1.0:
 		return Transform3D()
 	var b := sqrt(_semi_major_axis * _semi_major_axis * (1.0 - _eccentricity * _eccentricity))
@@ -1331,13 +1374,53 @@ func get_ellipse_transform(rotate_to_ecliptic := true) -> Transform3D:
 	return Transform3D(basis, -_eccentricity * basis.x)
 
 
-## Returns a Transform3D that can be used to transform a unit circle in the xy-
-## plane into an ellipse representing this orbit with parent at the focus (stretches,
-## rotates and re-positions). Use for graphic representation of this elliptic orbit.
-func get_ellipse_transform_at_time(time: float, rotate_to_ecliptic := true) -> Transform3D:
+## Returned Transform3D can convert a unit circle into this orbit's path, if
+## this orbit is closed (e < 1).
+func get_unit_circle_transform_at_time(time: float, rotate_to_ecliptic := true) -> Transform3D:
 	if _eccentricity >= 1.0:
 		return Transform3D()
 	var b := sqrt(_semi_major_axis * _semi_major_axis * (1.0 - _eccentricity * _eccentricity))
 	var orbit_basis := get_basis_at_time(time, rotate_to_ecliptic)
 	var basis := orbit_basis * Basis().scaled(Vector3(_semi_major_axis, b, 1.0))
 	return Transform3D(basis, -_eccentricity * basis.x)
+
+
+## Returned Transform3D can convert a unit rectangular hyperbola into this
+## orbit's path, if this orbit is hyperbolic (e > 1).
+func get_unit_rectangular_hyperbola_transform(rotate_to_ecliptic := true) -> Transform3D:
+	const SQRT2 := sqrt(2.0) # rectangular hyperbola has e = sqrt(2)
+	if _eccentricity <= 1.0:
+		return Transform3D()
+	var b := sqrt(_semi_major_axis * _semi_major_axis * (_eccentricity * _eccentricity - 1.0))
+	var orbit_basis := get_basis(rotate_to_ecliptic)
+	var basis := orbit_basis * Basis().scaled(Vector3(-_semi_major_axis, b, 1.0))
+	return Transform3D(basis, (_eccentricity - SQRT2) * basis.x)
+
+
+## Returned Transform3D can convert a unit rectangular hyperbola into this
+## orbit's path, if this orbit is hyperbolic (e > 1).
+func get_unit_rectangular_hyperbola_transform_at_time(time: float, rotate_to_ecliptic := true
+		) -> Transform3D:
+	const SQRT2 := sqrt(2.0) # rectangular hyperbola has e = sqrt(2)
+	if _eccentricity <= 1.0:
+		return Transform3D()
+	var b := sqrt(_semi_major_axis * _semi_major_axis * (_eccentricity * _eccentricity - 1.0))
+	var orbit_basis := get_basis_at_time(time, rotate_to_ecliptic)
+	var basis := orbit_basis * Basis().scaled(Vector3(-_semi_major_axis, b, 1.0))
+	return Transform3D(basis, (_eccentricity - SQRT2) * basis.x)
+
+
+## Returned Transform3D can convert a unit parabola into this orbit's path, if
+## this orbit is parabolic (e = 1).
+func get_unit_parabola_transform(rotate_to_ecliptic := true) -> Transform3D:
+	var orbit_basis := get_basis(rotate_to_ecliptic)
+	var basis := orbit_basis * Basis().scaled(Vector3(_semi_parameter, _semi_parameter, 1.0))
+	return Transform3D(basis, Vector3.ZERO)
+
+
+## Returned Transform3D can convert a unit parabola into this orbit's path, if
+## this orbit is parabolic (e = 1).
+func get_unit_parabola_transform_at_time(time: float, rotate_to_ecliptic := true) -> Transform3D:
+	var orbit_basis := get_basis_at_time(time, rotate_to_ecliptic)
+	var basis := orbit_basis * Basis().scaled(Vector3(_semi_parameter, _semi_parameter, 1.0))
+	return Transform3D(basis, Vector3.ZERO)

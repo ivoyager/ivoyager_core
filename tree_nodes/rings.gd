@@ -42,14 +42,14 @@ const RENDER_MARGIN := 0.01 # render outside of image data for smoothing
 const LOD_LEVELS := 9 # must agree w/ assets, body.gd and rings.shader
 
 
-# All set from table rings.tsv (shadow_lod is used by asset_preloader.gd).
+# All built from table rings.tsv (shadow_lod is used by asset_preloader.gd).
 var file_prefix: String
 var inner_radius: float
 var outer_radius: float
-var sun_index: int
 var shadow_radial_noise_a: float # breaks banding artifact (with camera distance squared)
 var shadow_radial_noise_b: float  # breaks banding artifact pattern (with camera distance)
 var shadow_radial_noise_c: float  # breaks banding artifact (constant)
+var illuminating_star: StringName
 
 
 var _rings_material := ShaderMaterial.new()
@@ -57,11 +57,11 @@ var _texture_arrays: Array[Texture2DArray] # backscatter/forwardscatter/unlitsid
 var _texture_start: float
 var _inner_margin: float
 var _outer_margin: float
-var _sun_global_positions: Array[Vector3]
 var _shadow_caster_texture: Texture2D
 var _shadow_caster_shared: Array[float] = [1.0, 0.005] # alpha_exponent, noise_strength
 var _blue_noise_1024: Texture2D
 var _body: IVBody
+var _illuminating_star: IVBody
 var _camera: Camera3D
 
 var _has_shadows := !IVGlobal.is_gl_compatibility
@@ -71,7 +71,6 @@ func _init(body: IVBody) -> void:
 	# threadsafe
 	name = &"Rings"
 	_body = body
-	_sun_global_positions = IVBody.sun_global_positions
 	var row := IVTableData.db_find_in_array(&"rings", &"bodies", body.name)
 	assert(row != -1, "Could not find row in rings.tsv for %s" % body.name)
 	IVTableData.db_build_object(self, &"rings", row)
@@ -88,6 +87,9 @@ func _ready() -> void:
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
 	IVGlobal.camera_ready.connect(_connect_camera)
 	_connect_camera(get_viewport().get_camera_3d())
+	
+	_illuminating_star = IVBody.bodies.get(illuminating_star)
+	assert(_illuminating_star, "Could not find illuminating star '%s'" % illuminating_star)
 	
 	# distances in sim scale
 	var ring_span := outer_radius - inner_radius
@@ -108,7 +110,6 @@ func _ready() -> void:
 	_rings_material.set_shader_parameter(&"texture_start", _texture_start)
 	_rings_material.set_shader_parameter(&"inner_margin", _inner_margin)
 	_rings_material.set_shader_parameter(&"outer_margin", _outer_margin)
-	_rings_material.set_shader_parameter(&"sun_index", sun_index)
 	set_surface_override_material(0, _rings_material)
 	
 	if IVGlobal.is_gl_compatibility:
@@ -122,26 +123,29 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	var MIN_SHADOW_ALPHA_EXPONENT := 0.001
 	
-	if !_camera:
+	if !visible or !_camera:
 		return
 	
 	# rings.shader expects sun-facing and the ShadowCasters require it (because
-	# a GeometryInstance3D can't be both shadow-only and double-sided). 
-	var sun_direction := _sun_global_positions[sun_index].normalized()
-	var cos_sun_angle := global_basis.y.dot(sun_direction)
-	if cos_sun_angle < 0.0:
+	# a GeometryInstance3D can't be both shadow-only and double-sided). So we
+	# flip here as needed to keep mesh front face toward the sun.
+	var illumination_position := _illuminating_star.global_position
+	var cos_illumination_angle := global_basis.y.dot(illumination_position.normalized())
+	if cos_illumination_angle < 0.0:
 		rotation.x *= -1
-		cos_sun_angle *= -1
+		cos_illumination_angle *= -1
+	
+	_rings_material.set_shader_parameter(&"illumination_position", illumination_position)
 	
 	if !_has_shadows:
 		return
 	
-	# Travel distance through the rings is proportional to 1/cos(sun_angle).
-	# We use cos_sun_angle (with minimum) as alpha exponent to adjust shadows
+	# Travel distance through the rings is proportional to 1/cos(illumination_angle).
+	# We use cos_illumination_angle (with minimum) as alpha exponent to adjust shadows
 	# for light travel through rings at an angle. If sun were straight above,
 	# exponent would be 1.0 (no adjustment). When sun is edge on, exponent
 	# goes to minimum and all alpha values approach 1.0.
-	_shadow_caster_shared[0] = maxf(cos_sun_angle, MIN_SHADOW_ALPHA_EXPONENT) # alpha_exponent
+	_shadow_caster_shared[0] = maxf(cos_illumination_angle, MIN_SHADOW_ALPHA_EXPONENT) # alpha_exponent
 	
 	# Shadow radial_noise_multiplier needs to increase with distance to prevent
 	# banding artifacts.

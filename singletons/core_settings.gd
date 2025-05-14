@@ -95,6 +95,7 @@ var allow_fullscreen_toggle := true
 var auto_exposure_enabled := true
 var vertecies_per_orbit: int = 500
 var vertecies_per_orbit_low_res: int = 100 # for 10000s of small bodies like asteroids
+var open_conic_max_radius := 1000.0 # for unit conic (p = 1.0)
 var max_camera_distance: float = 5e3 * IVUnits.AU
 
 var body_labels_color := Color.WHITE

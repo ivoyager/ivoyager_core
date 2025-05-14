@@ -206,13 +206,13 @@ func get_number() -> int:
 	return names.size()
 
 
-func get_ellipse_transform(index: int) -> Transform3D:
+func get_unit_circle_transform(index: int) -> Transform3D:
 	var a := a_m0_n[index * 3]
 	var e := e_i_lan_ap[index * 4]
 	var i := e_i_lan_ap[index * 4 + 1]
 	var lan := e_i_lan_ap[index * 4 + 2]
 	var ap := e_i_lan_ap[index * 4 + 3]
-	return IVOrbit.get_ellipse_transform_from_elements(a, e, i, lan, ap)
+	return IVOrbit.get_unit_circle_transform_from_elements(a, e, i, lan, ap)
 
 
 ## Returns an element list [a, e, i, lan, ap, m0, n]. FIXME: Trojan elements

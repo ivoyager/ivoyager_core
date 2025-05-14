@@ -24,7 +24,7 @@ extends Control
 ##
 ## Receives mouse events in the 3D world area, sets cursor shape and interprets
 ## mouse drags, clicks and wheel turn. Potential mouse target Node3Ds must
-## call [method process_world_target] each frame to be available for mouse-over
+## call [method update_world_target] each frame to be available for mouse-over
 ## identification and selection.
 
 
@@ -128,7 +128,7 @@ func _gui_input(input_event: InputEvent) -> void:
 ## Potential mouse targets must call this every frame to be available for
 ## mouse-over identification and selection. Return value is distance from
 ## target to the camera.
-func process_world_target(node3d: Node3D, radius: float) -> float:
+func update_world_target(node3d: Node3D, radius: float) -> float:
 	if !camera:
 		return 0.0
 	var node3d_global_position := node3d.global_position

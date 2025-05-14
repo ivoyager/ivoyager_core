@@ -25,14 +25,14 @@ extends RefCounted
 const BodyFlags := IVBody.BodyFlags
 
 ## Set IVBody property if non-missing value in table.
-var property_fields: Array[StringName] = [
+var create_fields: Array[StringName] = [
 	&"name",
 	&"mean_radius",
-	&"rotation_period",
+	&"gravitational_parameter",
 	&"right_ascension",
 	&"declination",
-	&"gm",
-	&"mass",
+	&"rotation_period",
+	&"rotation_at_epoch",
 ]
 
 ## Add to IVBody.characteristics if non-missing value in table.
@@ -42,7 +42,6 @@ var characteristics_fields: Array[StringName] = [
 	&"body_class",
 	&"model_type",
 	&"has_light",
-	&"shader_sun_index",
 	&"file_prefix",
 	&"has_rings",
 	&"n_kn_planets",
@@ -52,6 +51,8 @@ var characteristics_fields: Array[StringName] = [
 	&"n_nat_satellites",
 	&"n_kn_nat_satellites",
 	&"n_kn_quasi_satellites",
+	&"substellar_longitude_at_epoch",
+	&"mass",
 	&"surface_gravity",
 	&"esc_vel",
 	&"equatorial_radius",
@@ -107,10 +108,10 @@ var flag_fields: Dictionary[StringName, int] = {
 	
 	&"tidally_locked" : BodyFlags.BODYFLAGS_TIDALLY_LOCKED,
 	&"axis_locked" : BodyFlags.BODYFLAGS_AXIS_LOCKED,
-	&"tumbles_chaotically" : BodyFlags.BODYFLAGS_TUMBLES_CHAOTICALLY,
+	&"tumbles_chaotically" : BodyFlags.BODYFLAGS_CHAOTIC_TUMBLER,
 	
 	&"lazy_model" : BodyFlags.BODYFLAGS_LAZY_MODEL,
-	&"sleep" : BodyFlags.BODYFLAGS_SLEEP,
+	&"sleep" : BodyFlags.BODYFLAGS_CAN_SLEEP,
 	
 	&"show_in_nav_panel" : BodyFlags.BODYFLAGS_SHOW_IN_NAVIGATION_PANEL,
 	&"display_equatorial_polar_radii" : BodyFlags.BODYFLAGS_DISPLAY_EQUATORIAL_POLAR_RADII,
@@ -133,39 +134,95 @@ func _on_project_objects_instantiated() -> void:
 	_composition_builder = IVGlobal.program.get(&"CompositionBuilder")
 
 
-func build_body(body: IVBody, table_name: String, row: int, parent: IVBody) -> void:
-	_set_table_data(body, table_name, row)
+
+func build_body(table_name: String, row: int, parent: IVBody) -> IVBody:
+	
+	var flags := IVTableData.db_get_flags(table_name, row, flag_fields)
+	assert(bool(flags & BodyFlags.BODYFLAGS_GALAXY_ORBITER) == (parent == null))
+	
+	var orbit: IVOrbit = null
+	if parent:
+		orbit = _orbit_builder.make_orbit(table_name, row, parent)
+	
+	var characteristics: Dictionary[StringName, Variant] = {}
+	IVTableData.db_build_dictionary(characteristics, table_name, row, characteristics_fields)
+	
 	if _enable_precisions:
 		var precisions: Dictionary[String, int] = {}
 		_set_table_data_precisions(table_name, row, precisions)
-		body.characteristics[&"float_precisions"] = precisions
-	_set_orbit(body, table_name, row, parent)
+		characteristics[&"float_precisions"] = precisions
+		
+	var components: Dictionary[StringName, RefCounted] = {}
+	
+	var create_parameters: Dictionary[StringName, Variant] = {}
+	IVTableData.db_build_dictionary(create_parameters, table_name, row, create_fields)
+	
+	assert(create_parameters.has(&"name"))
+	assert(create_parameters.has(&"mean_radius"))
+	
+	var name: StringName = create_parameters[&"name"]
+	var mean_radius: float = create_parameters[&"mean_radius"]
+	var gravitational_parameter: float = create_parameters.get(&"gravitational_parameter", 0.0)
+	var right_ascension: float = create_parameters.get(&"right_ascension", 0.0)
+	var declination: float = create_parameters.get(&"declination", 0.0)
+	var rotation_period: float = create_parameters.get(&"rotation_period", 0.0)
+	var rotation_at_epoch: float = create_parameters.get(&"rotation_at_epoch", NAN)
+	
+	if !gravitational_parameter and characteristics.has(&"mass"):
+		gravitational_parameter = IVAstronomy.G * characteristics[&"mass"]
+	
+	if is_nan(rotation_at_epoch):
+		if orbit:
+			rotation_at_epoch = orbit.get_mean_longitude_at_epoch() - PI
+			if characteristics.has(&"substellar_longitude_at_epoch"):
+				# This is longitude facing parent at epoch
+				rotation_at_epoch += characteristics[&"substellar_longitude_at_epoch"]
+		else:
+			rotation_at_epoch = 0.0
+	
+	# Notes:
+	#
+	# create_from_astronomy_specs() will calculate gravitational_parameter from
+	# characteristics.mass, if that is present and gravitational_parameter == 0.0.
+	# If not, 0.0 will be ok in most cases. The body can't be orbited if GM is
+	# too small anyway.
+	#
+	# Rotation parameters don't matter if the body is tidally and axis-locked
+	# (they will be updated by the orbit). However, we also have hundreds of
+	# small outer moons (not tidally locked) that don't have rotation specs.
+	# These will get a generic fallback model and have north in ecliptic north
+	# direction. (TODO: "Tumbler" code with random inertial axes and rotation
+	# rates.)
+	
+	var body := IVBody.create_from_astronomy_specs(
+		name,
+		mean_radius,
+		gravitational_parameter,
+		right_ascension,
+		declination,
+		rotation_period,
+		rotation_at_epoch,
+		characteristics,
+		components,
+		orbit,
+		flags
+	)
+	
+	# TODO: Recode to take a dictionary...
 	if _composition_builder:
 		_composition_builder.add_compositions_from_table(body, table_name, row)
-
-
-func _set_table_data(body: IVBody, table_name: StringName, row: int) -> void:
-	IVTableData.db_build_object(body, table_name, row, property_fields)
-	IVTableData.db_build_dictionary(body.characteristics, table_name, row, characteristics_fields)
-	body.flags = IVTableData.db_get_flags(table_name, row, flag_fields)
-	body.flags |= BodyFlags.BODYFLAGS_EXISTS
-	assert(body.mean_radius)
+	
+	
+	return body
 
 
 func _set_table_data_precisions(table_name: StringName, row: int,
 		precisions: Dictionary[String, int]) -> void:
-	var precision_array := IVTableData.get_db_float_precisions(property_fields, table_name, row)
-	for i in property_fields.size():
+	var precision_array := IVTableData.get_db_float_precisions(create_fields, table_name, row)
+	for i in create_fields.size():
 		if precision_array[i] != -1:
-			precisions["body/" + property_fields[i]] = precision_array[i]
+			precisions["body/" + create_fields[i]] = precision_array[i]
 	precision_array = IVTableData.get_db_float_precisions(characteristics_fields, table_name, row)
 	for i in characteristics_fields.size():
 		if precision_array[i] != -1:
 			precisions["body/characteristics/" + characteristics_fields[i]] = precision_array[i]
-
-
-func _set_orbit(body: IVBody, table_name: String, row: int, parent: IVBody) -> void:
-	if body.flags & BodyFlags.BODYFLAGS_GALAXY_ORBITER:
-		return
-	var orbit := _orbit_builder.make_orbit(table_name, row, parent)
-	body.set_orbit(orbit)

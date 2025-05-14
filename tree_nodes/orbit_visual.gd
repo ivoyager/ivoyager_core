@@ -1,4 +1,4 @@
-# body_orbit.gd
+# orbit_visual.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -17,26 +17,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVBodyOrbit
+class_name IVOrbitVisual
 extends MeshInstance3D
 
-## Visual elliptic orbit of an [IVBody] instance.
+## Visual representation of an [IVBody]'s elliptic, parabolic or hyperbolic
+## orbit.
 ##
-## If FragmentIdentifier exists, then a shader
-## is used to allow screen identification of the orbit loop.[br][br]
+## This class works by transforming a circle mesh into an elliptic orbit, a
+## parabola mesh into a parabolic trajectory, or a rectangular-hyperbolic mesh
+## into a hyperbolic trajectory. The three meshes are reused for all orbits.
 ##
-## TODO: Rename this class to IVOrbitEllipse. Modify code so that it sets
-## visible = false for non-elliptic orbit (and doesn't break).[br][br]
-##
-## TODO: New class IVOrbitSegment. This class can draw a specified
-## segment of an elliptic, parabolic or hyperbolic orbit (the latter two can
-## only be segments). Lazy add only if a segment is asked for or if orbit ever
-## goes parabolic or hyperbolic.[br][br]
-##
-## Both classes need to work without an IVBody dependence so we can construct
-## visuals as needed, e.g., for a patched conic flight path. It should depend
-## instead on IVOrbit (since that is a RefCounted that would also be used in
-## a flight path).
+## If FragmentIdentifier exists, then a shader is used to allow screen
+## identification of the orbit loop.[br][br]
+
 
 const FRAGMENT_BODY_ORBIT := IVFragmentIdentifier.FRAGMENT_BODY_ORBIT
 
@@ -45,25 +38,28 @@ var _color: Color
 var _is_orbit_group_visible: bool
 var _body_huds_visible: bool # too close / too far
 var _body_visible: bool # this HUD node is sibling (not child) of its IVBody
-var _dirty_transform := true
+var _dirty_orbit := true
 
-@onready var _fragment_identifier: IVFragmentIdentifier = IVGlobal.program.get(&"FragmentIdentifier")
-@onready var _body_huds_state: IVBodyHUDsState = IVGlobal.program[&"BodyHUDsState"]
+var _fragment_identifier: IVFragmentIdentifier = IVGlobal.program.get(&"FragmentIdentifier")
+var _body_huds_state: IVBodyHUDsState = IVGlobal.program[&"BodyHUDsState"]
+var _circle_mesh: ArrayMesh = IVGlobal.resources[&"circle_mesh"]
+var _parabola_mesh: ArrayMesh = IVGlobal.resources[&"parabola_mesh"]
+var _rectangular_hyperbola_mesh: ArrayMesh = IVGlobal.resources[&"rectangular_hyperbola_mesh"]
 
 
 func _init(body: IVBody) -> void:
 	_body = body
-	name = "BodyOrbit" + body.name
+	name = "OrbitVisual_" + body.name
 
 
 func _ready() -> void:
 	process_mode = PROCESS_MODE_ALWAYS # FragmentIdentifier still processing
-	_body.orbit_changed.connect(_set_ellipse_transform)
+	_body.orbit_changed.connect(_on_orbit_changed)
 	_body_huds_state.visibility_changed.connect(_on_global_huds_changed)
 	_body_huds_state.color_changed.connect(_set_color)
 	_body.huds_visibility_changed.connect(_on_body_huds_changed)
 	_body.visibility_changed.connect(_on_body_visibility_changed)
-	mesh = IVGlobal.resources[&"circle_mesh"]
+	#mesh = IVGlobal.resources[&"circle_mesh"]
 	cast_shadow = SHADOW_CASTING_SETTING_OFF
 	if _fragment_identifier: # use self-identifying fragment shader
 		var data := _body.get_fragment_data(FRAGMENT_BODY_ORBIT)
@@ -80,6 +76,23 @@ func _ready() -> void:
 	_body_huds_visible = _body.huds_visible
 	_body_visible = _body.visible
 	_on_global_huds_changed()
+
+
+func _on_orbit_changed(orbit: IVOrbit, _is_intrinsic := false) -> void:
+	if !visible:
+		_dirty_orbit = true
+		return
+	_dirty_orbit = false
+	var e := orbit.get_eccentricity()
+	if e < 1.0:
+		mesh = _circle_mesh
+		transform = orbit.get_unit_circle_transform()
+	elif e > 1.0:
+		mesh = _rectangular_hyperbola_mesh
+		transform = orbit.get_unit_rectangular_hyperbola_transform()
+	else:
+		mesh = _parabola_mesh
+		transform = orbit.get_unit_parabola_transform()
 
 
 func _on_global_huds_changed() -> void:
@@ -99,16 +112,8 @@ func _on_body_visibility_changed() -> void:
 
 func _set_visibility_state() -> void:
 	visible = _is_orbit_group_visible and _body_huds_visible and _body_visible
-	if visible and _dirty_transform:
-		_set_ellipse_transform()
-
-
-func _set_ellipse_transform(_is_intrinsic := false) -> void:
-	if !visible:
-		_dirty_transform = true
-		return
-	_dirty_transform = false
-	transform = _body.get_orbit_ellipse_transform()
+	if visible and _dirty_orbit:
+		_on_orbit_changed(_body.orbit)
 
 
 func _set_color() -> void:

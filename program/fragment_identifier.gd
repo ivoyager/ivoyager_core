@@ -107,8 +107,6 @@ func _ready() -> void:
 	disable_3d = true
 	render_target_update_mode = UPDATE_ALWAYS
 	size = _picker_rect.size
-	
-	
 	RenderingServer.global_shader_parameter_set("iv_fragment_id_range", float(fragment_range))
 
 

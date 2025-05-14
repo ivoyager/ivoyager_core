@@ -31,15 +31,15 @@ extends DirectionalLight3D
 ## All lights are attenuated for source distance.[br][br]
 ##
 ## Shadows are intentionally disabled if using Compatibility renderer. There
-## are many problems:[br]
+## are many problems for Compatibility renderer:[br]
 ##  1. The current implementation doesn't work correctly for far. Io shadow on
 ##     Jupiter disappears when moving in.[br]
 ##  2. There seems to be issues with light_cull_mask, shadow_caster_mask and/or
 ##     shadow_opacity. One or more of these don't work correctly.[br]
 ##  3. Lighting energy is wrong with multiple lights. See Godot issue:
 ##     https://github.com/godotengine/godot/issues/90259.[br]
-##  4. In Compatibility mode, all color handling changes if any light has
-##     shadows enabled. See comments in issue above.[br]
+##  4. All color handling changes if any light has shadows enabled. See
+##     comments in issue above.[br]
 
 
 # from table
