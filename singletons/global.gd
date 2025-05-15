@@ -197,7 +197,7 @@ var ivoyager_version: String
 var assets_version: String
 ## Read-only! [IVWikiInitializer] sets this to "wiki" (internal), "en.wiki", etc.
 var wiki: String
-## @depreciate: See comments in [IVDebug].
+## @deprecate: See comments in [IVDebug].
 var debug_log: FileAccess # IVLogInitializer sets if debug build and debug_log_path
 ## Read-only! The plugin ConfigFile generated from res://addons/ivoyager_core/ivoyager_core.cfg
 ## with possible overrides in res://ivoyager_override.cfg and res://ivoyager_override2.cfg.

@@ -131,7 +131,7 @@ var _transform := Transform3D(Basis(), Vector3(0, 0, KM)) # working value
 # *****************************************************************************
 
 # public - project init vars
-var ease_exponent := 5.0 # DEPRECIATE: Make dynamic for distance / size
+var ease_exponent := 5.0 # DEPRECATE: Make dynamic for distance / size
 var gui_ecliptic_coordinates_dist := 1e6 * KM
 var action_immediacy := 10.0 # how fast we use up the accumulators
 var min_action := 0.002 # use all below this
@@ -660,7 +660,7 @@ func _get_view_transform(view_position_: Vector3, view_rotations_: Vector3,
 
 static func _get_reference_basis(selection_: IVSelection, flags_: int) -> Basis:
 	if flags_ & CameraFlags.CAMERAFLAGS_TRACK_GROUND:
-		return selection_.get_ground_tracking_basis()
+		return selection_.get_orientation()
 	if flags_ & CameraFlags.CAMERAFLAGS_TRACK_ORBIT:
 		return selection_.get_orbit_tracking_basis()
 	return Basis.IDENTITY # identity basis for any IVBody

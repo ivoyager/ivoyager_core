@@ -184,7 +184,7 @@ var gui_nodes: Dictionary[StringName, Variant] = {
 # IVBody calls for a procedural class directly. Perhaps where convenient
 # (even in some generators) we can have static vars defining the script classes.
 
-# DEPRECIATE
+# DEPRECATE
 var procedural_objects: Dictionary[StringName, Variant] = {
 	# Nodes and RefCounteds NOT instantiated by IVCoreInitializer. These class
 	# scripts plus all above can be accessed from IVGlobal.procedural_classes.

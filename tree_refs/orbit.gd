@@ -82,7 +82,11 @@ extends RefCounted
 ## around at editor runtime. The setters generally hold e and GM fixed and
 ## update other elements as needed, but see methods for specific cases. Code
 ## based changes to elements should be implemented in a subclass (see Roadmap
-## below).[br][br][br]
+## below).[br][br]
+##
+## Get methods are generally threadsafe, but element values may be inconsistant
+## if an orbit change is being set concurently. Set methods cause [signal changed]
+## signal so are NOT threadsafe.[br][br][br]
 ##
 ## [b]Method naming conventions (gets/sets)[/b][br][br]
 ##
@@ -158,11 +162,11 @@ extends RefCounted
 ## isn't ready yet).[br][br]
 
 
-## Signal emitted when orbital elements change by a threshold amount.
+## Signal emitted when orbital elements are set or evolve by a threshold amount.
 ## [param is_intrinsic] is true if the cause is internally specified (e.g.,
 ## precessions) and is false if external (e.g., due to thrust in an IVOrbit
 ## subclass).
-signal changed(is_intrinsic: bool)
+signal changed(is_intrinsic: bool, precession_only: bool)
 
 
 ## Type of orbit reference plane. (An orbit's specific reference plane is
@@ -669,7 +673,7 @@ func update(time: float, rotate_to_ecliptic := true) -> Vector3:
 			or absf(ap - _argument_periapsis) > CHANGED_ANGLE_THRESHOLD):
 		_longitude_ascending_node = lan
 		_argument_periapsis = ap
-		changed.emit(true)
+		changed.emit(true, true)
 	
 	# some inline static methods below...
 	if _eccentricity < 1.0:
@@ -861,7 +865,7 @@ func set_reference_plane_and_basis(plane_type: ReferencePlane, basis: Basis) -> 
 	assert(basis.is_conformal() and basis.x.is_normalized())
 	_reference_plane_type = plane_type
 	_reference_basis = basis
-	changed.emit(false)
+	changed.emit(false, false)
 
 
 func get_semi_parameter() -> float:
@@ -897,7 +901,7 @@ func set_semi_parameter(value: float) -> void:
 		_mean_motion = 0.0
 		_specific_energy = 0.0
 	_specific_angular_momentum = sqrt(_gravitational_parameter * _semi_parameter)
-	changed.emit(false)
+	changed.emit(false, false)
 
 
 func get_eccentricity() -> float:
@@ -931,7 +935,7 @@ func set_eccentricity(value: float) -> void:
 		_semi_major_axis = INF
 		_mean_motion = 0.0
 		_specific_energy = 0.0
-	changed.emit(false)
+	changed.emit(false, false)
 
 
 func get_inclination() -> float:
@@ -960,7 +964,7 @@ func set_inclination(value: float) -> void:
 	if absf(value - RIGHT_ANGLE) < INCLINATION_RIGHT_ANGLE_BUMP:
 		value = RIGHT_ANGLE - INCLINATION_RIGHT_ANGLE_BUMP
 	_inclination = value
-	changed.emit(false)
+	changed.emit(false, false)
 
 
 # Subclass overrides:
@@ -988,7 +992,7 @@ func set_longitude_ascending_node(value: float) -> void:
 
 func set_longitude_ascending_node_at_epoch(value: float) -> void:
 	_longitude_ascending_node_at_epoch = fposmod(value, TAU)
-	changed.emit(false)
+	changed.emit(false, false)
 
 
 func set_longitude_ascending_node_rate(value: float) -> void:
@@ -1000,7 +1004,7 @@ func set_longitude_ascending_node_rate(value: float) -> void:
 func set_longitude_ascending_node_rate_at_time(value: float, time: float) -> void:
 	_longitude_ascending_node_rate = value
 	if !time:
-		changed.emit(false)
+		changed.emit(false, false)
 		return
 	set_longitude_ascending_node_at_epoch(_longitude_ascending_node - value * time)
 
@@ -1027,7 +1031,7 @@ func set_argument_periapsis(value: float) -> void:
 
 func set_argument_periapsis_at_epoch(value: float) -> void:
 	_argument_periapsis_at_epoch = fposmod(value, TAU)
-	changed.emit(false)
+	changed.emit(false, false)
 
 
 func set_argument_periapsis_rate(value: float) -> void:
@@ -1039,7 +1043,7 @@ func set_argument_periapsis_rate(value: float) -> void:
 func set_argument_periapsis_rate_at_time(value: float, time: float) -> void:
 	_argument_periapsis_rate = value
 	if !time:
-		changed.emit(false)
+		changed.emit(false, false)
 		return
 	set_argument_periapsis_at_epoch(_argument_periapsis - value * time)
 
@@ -1068,7 +1072,7 @@ func set_time_periapsis(value: float) -> void:
 	if _eccentricity < 1.0:
 		value = modulo_time_periapsis_elliptic(value, _mean_motion)
 	_time_periapsis = value
-	changed.emit(false)
+	changed.emit(false, false)
 
 
 func get_gravitational_parameter() -> float:
@@ -1104,7 +1108,7 @@ func set_gravitational_parameter(value: float) -> void:
 		_mean_motion = 0.0
 		_specific_energy = 0.0
 	_specific_angular_momentum = sqrt(_gravitational_parameter * _semi_parameter)
-	changed.emit(false)
+	changed.emit(false, false)
 
 
 func get_semi_major_axis() -> float:
@@ -1138,7 +1142,7 @@ func set_semi_major_axis(value: float) -> void:
 	_mean_motion = sqrt(_gravitational_parameter / absf(_semi_major_axis) ** 3)
 	_specific_energy = -0.5 * _gravitational_parameter / _semi_major_axis
 	_specific_angular_momentum = sqrt(_gravitational_parameter * _semi_parameter)
-	changed.emit(false)
+	changed.emit(false, false)
 
 
 func get_mean_motion() -> float:
@@ -1171,7 +1175,7 @@ func set_mean_motion(value: float) -> void:
 	_semi_parameter = _semi_major_axis * (1.0 - _eccentricity * _eccentricity)
 	_specific_energy = -0.5 * _gravitational_parameter / _semi_major_axis
 	_specific_angular_momentum = sqrt(_gravitational_parameter * _semi_parameter)
-	changed.emit(false)
+	changed.emit(false, false)
 
 
 func get_specific_energy() -> float:
@@ -1198,7 +1202,7 @@ func set_specific_energy(value: float) -> void:
 	
 	# TODO: Energy!
 	
-	changed.emit(false)
+	changed.emit(false, false)
 
 
 func get_specific_angular_momentum() -> float:
@@ -1237,7 +1241,7 @@ func set_specific_angular_momentum(value: float) -> void:
 		_semi_major_axis = INF
 		_mean_motion = 0.0
 		_specific_energy = 0.0
-	changed.emit(false)
+	changed.emit(false, false)
 
 
 # *****************************************************************************

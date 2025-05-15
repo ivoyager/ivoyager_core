@@ -20,7 +20,7 @@
 class_name IVWikiInitializer
 extends RefCounted
 
-# FIXME or DEPRECIATE: IVCoreSettings 'wiki' settings don't do anything now. We need
+# FIXME or DEPRECATE: IVCoreSettings 'wiki' settings don't do anything now. We need
 # to figure out how to do localization.
 # Many loose ends after shift to Table Importer plugin...
 

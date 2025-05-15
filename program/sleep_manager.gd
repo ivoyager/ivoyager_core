@@ -45,7 +45,7 @@ func _clear() -> void:
 
 func _on_system_tree_ready(_is_new_game: bool) -> void:
 	for body in IVBody.galaxy_orbiters:
-		_set_sleep_recursive(body, true)
+		_set_sleeping_recursive(body, true)
 
 
 func _on_camera_tree_changed(_camera: Camera3D, _parent: Node3D, star_orbiter: Node3D, _star: Node3D
@@ -54,13 +54,13 @@ func _on_camera_tree_changed(_camera: Camera3D, _parent: Node3D, star_orbiter: N
 	if _current_star_orbiter == to_star_orbiter:
 		return
 	if _current_star_orbiter:
-		_set_sleep_recursive(_current_star_orbiter, true)
+		_set_sleeping_recursive(_current_star_orbiter, true)
 	if to_star_orbiter:
-		_set_sleep_recursive(to_star_orbiter, false)
+		_set_sleeping_recursive(to_star_orbiter, false)
 	_current_star_orbiter = to_star_orbiter
 
 
-func _set_sleep_recursive(body: IVBody, is_sleep: bool) -> void:
+func _set_sleeping_recursive(body: IVBody, is_asleep: bool) -> void:
 	for satellite in body.satellites:
-		satellite.set_sleep(is_sleep) # does nothing if can_sleep == false
-		_set_sleep_recursive(satellite, is_sleep)
+		satellite.set_sleeping(is_asleep) # does nothing if can_sleep == false
+		_set_sleeping_recursive(satellite, is_asleep)

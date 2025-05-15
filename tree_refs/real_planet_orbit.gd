@@ -213,7 +213,21 @@ func update(time: float, rotate_to_ecliptic := true) -> Vector3:
 	const CHANGED_ANGLE_THRESHOLD := CHANGED_THRESHOLD / TAU
 	const REFERENCE_PLANE_ECLIPTIC := ReferencePlane.REFERENCE_PLANE_ECLIPTIC
 	
-	# orbit evolution not in base class
+	# evolve orbit (precession only)
+	var lan := fposmod(_longitude_ascending_node_at_epoch + _longitude_ascending_node_rate * time, TAU)
+	var ap := fposmod(_argument_periapsis_at_epoch + _argument_periapsis_rate * time, TAU)
+	
+	# update & signal if accumulated change is significant (precession only)
+	if (absf(lan - _longitude_ascending_node) > CHANGED_ANGLE_THRESHOLD
+			or absf(ap - _argument_periapsis) > CHANGED_ANGLE_THRESHOLD):
+		_longitude_ascending_node = lan
+		_argument_periapsis = ap
+		changed.emit(true, true)
+	
+	# Note: a double changed signal is possible here, but is only an edge-case
+	# (planet precession is sloooowwww and non-precession change is slower).
+	
+	# evolve orbit (non-precession)
 	var clamp_time := clampf(time, validity_begin, validity_end)
 	var a := _semi_major_axis_at_epoch + _semi_major_axis_rate * clamp_time
 	var e := _eccentricity_at_epoch + _eccentricity_rate * clamp_time
@@ -226,27 +240,18 @@ func update(time: float, rotate_to_ecliptic := true) -> Vector3:
 		correction += m_correction_c * cos(ft) + m_correction_s * sin(ft)
 		t0 = _time_periapsis_at_epoch - correction / _mean_motion
 	
-	# evolve orbit (base class)
-	var lan := fposmod(_longitude_ascending_node_at_epoch + _longitude_ascending_node_rate * time, TAU)
-	var ap := fposmod(_argument_periapsis_at_epoch + _argument_periapsis_rate * time, TAU)
-	
-	# update & signal if accumulated change is significant
-	if (absf(lan - _longitude_ascending_node) > CHANGED_ANGLE_THRESHOLD
-			or absf(ap - _argument_periapsis) > CHANGED_ANGLE_THRESHOLD
-			or absf(i - _inclination) > CHANGED_ANGLE_THRESHOLD
-			or absf(a - _semi_major_axis) / a > CHANGED_THRESHOLD
+	# update & signal if accumulated change is significant (non-precession)
+	if (absf(a - _semi_major_axis) / a > CHANGED_THRESHOLD
 			or absf(e - _eccentricity) > CHANGED_THRESHOLD
+			or absf(i - _inclination) > CHANGED_ANGLE_THRESHOLD
 			or absf(p - _semi_parameter) / p > CHANGED_THRESHOLD
-			or absf(t0 - _time_periapsis) * _mean_motion > CHANGED_ANGLE_THRESHOLD
-			):
+			or absf(t0 - _time_periapsis) * _mean_motion > CHANGED_ANGLE_THRESHOLD):
 		_semi_major_axis = a
 		_eccentricity = e
 		_inclination = i
 		_semi_parameter = p
 		_time_periapsis = t0
-		_longitude_ascending_node = lan
-		_argument_periapsis = ap
-		changed.emit(true)
+		changed.emit(true, false)
 	
 	# BELOW COPIED FROM BASE W/ SUBSTITUTIONS
 	

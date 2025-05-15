@@ -147,7 +147,7 @@ var wikipedia_locales: Array[String] = ["en"]
 ## and [IVTableSystemBuilder] (and possibly elsewhere).
 var body_tables: Array[StringName] = [&"stars", &"planets", &"asteroids", &"moons", &"spacecrafts"]
 
-## @depreciate: See comments in [IVDebug].
+## @deprecate: See comments in [IVDebug].
 var debug_log_path := "user://logs/debug.log" # modify or set "" to disable
 
 

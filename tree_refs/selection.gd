@@ -137,10 +137,10 @@ func get_up(time := NAN) -> Vector3:
 	return body.get_north_axis(time)
 
 
-func get_ground_tracking_basis(time := NAN) -> Basis:
+func get_orientation(time := NAN) -> Basis:
 	if !is_body:
 		return IDENTITY_BASIS
-	return body.get_ground_tracking_basis(time)
+	return body.get_orientation(time)
 
 
 func get_orbit_tracking_basis(time := NAN) -> Basis:

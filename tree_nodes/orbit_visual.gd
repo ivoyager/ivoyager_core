@@ -78,7 +78,7 @@ func _ready() -> void:
 	_on_global_huds_changed()
 
 
-func _on_orbit_changed(orbit: IVOrbit, _is_intrinsic := false) -> void:
+func _on_orbit_changed(orbit: IVOrbit, _is_intrinsic := false, _precession_only := false) -> void:
 	if !visible:
 		_dirty_orbit = true
 		return
