@@ -1428,3 +1428,69 @@ func get_unit_parabola_transform_at_time(time: float, rotate_to_ecliptic := true
 	var orbit_basis := get_basis_at_time(time, rotate_to_ecliptic)
 	var basis := orbit_basis * Basis().scaled(Vector3(_semi_parameter, _semi_parameter, 1.0))
 	return Transform3D(basis, Vector3.ZERO)
+
+
+# *****************************************************************************
+
+
+func serialize() -> PackedFloat64Array:
+	var data := PackedFloat64Array()
+	data.resize(27)
+	data[0] = float(_reference_plane_type)
+	data[1] = _reference_basis[0][0]
+	data[2] = _reference_basis[0][1]
+	data[3] = _reference_basis[0][2]
+	data[4] = _reference_basis[1][0]
+	data[5] = _reference_basis[1][1]
+	data[6] = _reference_basis[1][2]
+	data[7] = _reference_basis[2][0]
+	data[8] = _reference_basis[2][1]
+	data[9] = _reference_basis[2][2]
+	data[10] = _semi_parameter
+	data[11] = _eccentricity
+	data[12] = _inclination
+	data[13] = _longitude_ascending_node
+	data[14] = _argument_periapsis
+	data[15] = _time_periapsis
+	data[16] = _gravitational_parameter
+	data[17] = _semi_major_axis
+	data[18] = _mean_motion
+	data[19] = _specific_energy
+	data[20] = _specific_angular_momentum
+	data[21] = _longitude_ascending_node_at_epoch
+	data[22] = _longitude_ascending_node_rate
+	data[23] = _argument_periapsis_at_epoch
+	data[24] = _argument_periapsis_rate
+	data[25] = _mean_anomaly
+	data[26] = _true_anomaly
+	return data
+
+
+func deserialize(data: PackedFloat64Array) -> void:
+	_reference_plane_type = int(data[0]) as ReferencePlane
+	_reference_basis[0][0] = data[1]
+	_reference_basis[0][1] = data[2]
+	_reference_basis[0][2] = data[3]
+	_reference_basis[1][0] = data[4]
+	_reference_basis[1][1] = data[5]
+	_reference_basis[1][2] = data[6]
+	_reference_basis[2][0] = data[7]
+	_reference_basis[2][1] = data[8]
+	_reference_basis[2][2] = data[9]
+	_semi_parameter = data[10]
+	_eccentricity = data[11]
+	_inclination = data[12]
+	_longitude_ascending_node = data[13]
+	_argument_periapsis = data[14]
+	_time_periapsis = data[15]
+	_gravitational_parameter = data[16]
+	_semi_major_axis = data[17]
+	_mean_motion = data[18]
+	_specific_energy = data[19]
+	_specific_angular_momentum = data[20]
+	_longitude_ascending_node_at_epoch = data[21]
+	_longitude_ascending_node_rate = data[22]
+	_argument_periapsis_at_epoch = data[23]
+	_argument_periapsis_rate = data[24]
+	_mean_anomaly = data[25]
+	_true_anomaly = data[26]
