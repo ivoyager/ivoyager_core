@@ -45,7 +45,7 @@ func _init() -> void:
 
 func _on_node_added(node: Node) -> void:
 	var body := node as IVBody
-	if !body:
+	if !body or body.is_node_ready(): # skip if body is just changing parent
 		return
 	IVGlobal.add_system_tree_item_started.emit(body) # increments IVStateManager counter
 	

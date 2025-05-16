@@ -211,8 +211,8 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"_true_anomaly",
 ]
 
-# Public properties are all "dummy" vars. They redirect via getters and setters
-# so we can implement side-effects or force alternative set methods.
+# Public properties are all "redirect" vars so we can implement side-effects or
+# force alternative set methods.
 
 ## One of [enum ReferencePlane] types.
 var reference_plane_type: ReferencePlane: get = get_reference_plane_type

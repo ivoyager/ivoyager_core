@@ -65,7 +65,7 @@ const PERSIST_PROPERTIES2: Array[StringName] = [
 	&"_time_periapsis_at_epoch",
 ]
 
-# dummy vars
+# redirect public
 ## a₀ for orbit evolution.
 var semi_major_axis_at_epoch: float: get = get_semi_major_axis_at_epoch
 ## da/dt.
@@ -98,8 +98,6 @@ var _inclination_at_epoch: float
 var _inclination_rate: float
 var _time_periapsis_at_epoch: float
 
-
-# TODO: setters, getters attacments above
 
 
 ## Generator signature matches planet specification in data table planets.tsv.

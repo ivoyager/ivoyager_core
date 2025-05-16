@@ -36,12 +36,12 @@ extends Node3D
 ##                |- IVBody (a spacecraft orbiting the Moon)
 ## [/codeblock]
 ##
-## IVBody nodes are NEVER scaled or rotated. Hence, local distances and
-## directions are always in the ecliptic basis at any level of the "body tree".[br][br]
-##
 ## Note that current core mechanics [i]should[/i] handle a multi-star system,
 ## but this has not been tested yet. (Also, there is no GUI widget to display
 ## such a system in a Navigation Panel.)[br][br]
+##
+## IVBody nodes are NEVER scaled or rotated. Hence, local distances and
+## directions are always in the ecliptic basis at any level of the "body tree".[br][br]
 ##
 ## This node adds its own [IVModelSpace] if needed.
 ## IVBody maintains orientation and rotation of IVModelSpace. IVModelSpace
@@ -55,12 +55,10 @@ extends Node3D
 ## Some bodies (particularly moons and spacecrafts) have table value
 ## [param can_sleep] = TRUE. If [IVSleepManager] is present, these bodies will
 ## only [code]_process()[/code] when the camera is in the same planet system.
-## Note that IVBody API methods will return current values even if the body is
-## not currently processing (but [code]position[/code] will not be current).[br][br]
-##
-## Many body-associated "graphic" nodes are added by [IVBodyFinisher] including
-## rings, lights and HUD elements. The IVBody class has no references to these
-## nodes.[br][br]
+## Note that IVBody API methods such as [method get_position_vector] and
+## [method get_state_vectors] will provide current values even if the body is
+## not currently processing, but [param postion] will not. These methods also
+## take an optional [param time] argument to allow projected results.[br][br]
 ##
 ## IVBody properties are core information required for all bodies. Specialized
 ## information is contained in dictionary [member characteristics]. For
@@ -68,6 +66,10 @@ extends Node3D
 ## (most planets and stars) also have characteristics keys [param equatorial_radius]
 ## and [param polar_radius]. API methods provide access to many of these
 ## characteristics with sensible fallbacks for missing keys.[br][br]
+##
+## Many body-associated "graphic" nodes are added by [IVBodyFinisher] including
+## rings, lights and HUD elements. The IVBody class has no references to these
+## nodes.[br][br]
 ## 
 ## See also [IVSmallBodiesGroup] for handling 1000s or 100000s of orbiting bodies
 ## without individual instantiation (e.g., asteroids).[br][br]
@@ -174,35 +176,45 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"rotation_at_epoch",
 	&"characteristics",
 	&"components",
-	&"orbit",
 	
+	&"_orbit",
 	&"_system_radius",
 	&"_hill_sphere",
 ]
 
 
 # persisted
-var flags := 0 ## See [member BodyFlags].
+## See [member BodyFlags].
+var flags := 0
+## Mean radius. Must be >0.0 for camera and model mechanics.
 var mean_radius := 0.0
-var gravitational_parameter := 0.0 # GM; G x Mass (often more accurate than mass)
+## Standard gravitaional parameter (GM) is the gravitational constant (G) x mass.
+## It's often more precisely known than mass due to G imprecission. A value of
+## 0.0 is allowed for unknown (presumably small) or too-small-to-orbit bodies.
+var gravitational_parameter := 0.0
+## Orientation at epoch if the current rotation is unwound by time * rotation_rate.
 var orientation_at_epoch := Basis.IDENTITY
+## Rotation axis that always points toward north or "north" equivalant.
 var rotation_axis := Vector3(0, 0, 1)
+## Rotation rate. If negative, this body has retrograde rotation.
 var rotation_rate := 0.0
 var rotation_at_epoch := 0.0
 var characteristics: Dictionary[StringName, Variant] = {} # non-object values
 var components: Dictionary[StringName, RefCounted] = {} # objects (persisted only)
-var orbit: IVOrbit
 
+# redirect
+## This body's [IVOrbit]; null if galaxy orbiter.
+var orbit: IVOrbit: get = get_orbit, set = set_orbit
 
 # read-only!
-## Parent IVBody; [code]null[/code] if [code]flags == BodyFlags.BODYFLAGS_GALAXY_ORBITER[/code].
+## Parent IVBody; null if this is the top star in a system. Read-only!
 var parent: IVBody
 ## This body (if star) or star above. Read-only!
 var star: IVBody
 ## This body (if star-orbiter) or star-orbiter above or null (if none). Read-only!
 var star_orbiter: IVBody
 ## Bodies in orbit around this body (child IVBody instances of this IVBody). Read-only!
-var satellites: Array[IVBody] = []
+var satellites: Array[IVBody] = [] # TODO: Change to Dictionary to support 1000s
 ## If present, the IVModelSpace instance that has this body's visual
 ## representation (model). If data table value [param lazy_model] == TRUE, then
 ## this value will be null until needed. Read-only!
@@ -212,12 +224,10 @@ var model_space: IVModelSpace
 var huds_visible := false
 ## Current visibility state of this body's model. Read-only!
 var model_visible := false
-## 2D graphic representation of this body for GUI. Read-only!
+## GUI graphic representation of this body. Read-only!
 var texture_2d: Texture2D
-## 2D graphic representation of this body as a "slice" for GUI. Used for the system star. Read-only!
+## GUI graphic representation of this body as a "slice" for a system star. Read-only!
 var texture_slice_2d: Texture2D
-
-
 
 
 ## Static class setting. Set this Script to generate a subclass in place of
@@ -228,11 +238,11 @@ static var default_symbol := "\u25CC"
 ## Static class setting.
 static var system_mean_radius_multiplier := 15.0
 ## Static class setting.
-static var max_hud_dist_orbit_radius_multiplier := 100.0 ## class setting
+static var max_hud_dist_orbit_radius_multiplier := 100.0
 ## Static class setting.
-static var min_hud_dist_radius_multiplier := 500.0 ## class setting
+static var min_hud_dist_radius_multiplier := 500.0
 ## Static class setting.
-static var min_hud_dist_star_multiplier := 20.0 ## class setting
+static var min_hud_dist_star_multiplier := 20.0
 
 ## A static class dictionary that contains all added IVBody instances.
 static var bodies: Dictionary[StringName, IVBody] = {}
@@ -242,10 +252,11 @@ static var galaxy_orbiters: Array[IVBody] = [] # TODO: Make dictionary to future
 
 
 # private persisted
+var _orbit: IVOrbit
 var _system_radius: float
 var _hill_sphere: float
 
-# private
+# private non-persisted
 var _lazy_model_uninited := false
 var _sleeping := false
 var _max_model_dist := 0.0
@@ -254,41 +265,47 @@ var _times: Array[float] = IVGlobal.times
 var _world_controller: IVWorldController = IVGlobal.program[&"WorldController"]
 
 
-
-
-
 func _enter_tree() -> void:
-	const BODYFLAGS_LAZY_MODEL := BodyFlags.BODYFLAGS_LAZY_MODEL
-	_set_resources()
+	# Happens:
+	# 1) During system build from data tables.
+	# 2) During system build from game save.
+	# 3) When a body changes parent, e.g., in a spacecraft trajectory. 
+	const LAZY_MODEL := BodyFlags.BODYFLAGS_LAZY_MODEL
 	_set_relative_bodies()
-	if flags & BODYFLAGS_LAZY_MODEL and IVGlobal.program.has(&"LazyManager"):
+	if is_node_ready(): # existing ready body has changed parent
+		return
+	if _orbit:
+		_orbit.changed.connect(_on_orbit_changed)
+	if flags & LAZY_MODEL and IVGlobal.program.has(&"LazyManager"):
 		_lazy_model_uninited = true
 	else:
 		_add_model_space()
-	if orbit:
-		orbit.changed.connect(_on_orbit_changed)
-	hide()
-
-
-func _ready() -> void:
-	const BODYFLAGS_GALAXY_ORBITER := BodyFlags.BODYFLAGS_GALAXY_ORBITER
-	process_mode = PROCESS_MODE_ALWAYS # time will stop, but allow pointy finger on mouseover
-	IVGlobal.system_tree_built_or_loaded.connect(_on_system_tree_built_or_loaded, CONNECT_ONE_SHOT)
-	IVGlobal.about_to_free_procedural_nodes.connect(_prepare_to_free, CONNECT_ONE_SHOT)
-	IVGlobal.setting_changed.connect(_settings_listener)
-	assert(!bodies.has(name))
-	bodies[name] = self
-	if flags & BODYFLAGS_GALAXY_ORBITER:
-		galaxy_orbiters.append(self)
-	_set_min_hud_dist()
 
 
 func _exit_tree() -> void:
-	const BODYFLAGS_GALAXY_ORBITER := BodyFlags.BODYFLAGS_GALAXY_ORBITER
-	bodies.erase(name)
-	if flags & BODYFLAGS_GALAXY_ORBITER:
-		galaxy_orbiters.erase(self)
 	_clear_relative_bodies()
+
+
+func _ready() -> void:
+	# Happens once only, but could be during or after whole system build.
+	const GALAXY_ORBITER := BodyFlags.BODYFLAGS_GALAXY_ORBITER
+	process_mode = PROCESS_MODE_ALWAYS # time will stop, but allows mouseover interaction
+	IVGlobal.system_tree_built_or_loaded.connect(_on_system_tree_built_or_loaded, CONNECT_ONE_SHOT)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_for_tree_destruction, CONNECT_ONE_SHOT)
+	IVGlobal.setting_changed.connect(_settings_listener)
+	assert(!bodies.has(name))
+	bodies[name] = self
+	if flags & GALAXY_ORBITER:
+		galaxy_orbiters.append(self)
+	_set_resources()
+	_set_min_hud_dist()
+	hide()
+	
+	if !IVGlobal.state[&"is_system_built"]: # currently building from tables or savefile
+		return
+	
+	_set_system_radius()
+	_set_hill_sphere()
 
 
 func _process(_delta: float) -> void:
@@ -298,8 +315,8 @@ func _process(_delta: float) -> void:
 	
 	var time := _times[0]
 	
-	if orbit:
-		position = orbit.update(time)
+	if _orbit:
+		position = _orbit.update(time)
 	
 	var camera_dist := _world_controller.update_world_target(self, mean_radius)
 	
@@ -311,7 +328,7 @@ func _process(_delta: float) -> void:
 	
 	# set HUDs visibility
 	var show_huds := camera_dist > _min_hud_dist # Is camera far enough?
-	if show_huds and orbit:
+	if show_huds and _orbit:
 		# Is body far enough from it parent?
 		var orbit_radius := position.length()
 		show_huds = orbit_radius * max_hud_dist_orbit_radius_multiplier > camera_dist
@@ -323,9 +340,11 @@ func _process(_delta: float) -> void:
 
 
 # *****************************************************************************
-# create methods
+# create & remove methods
 
 
+## Creates new [IVOrbit] instance (or specified [member replacement_subclass])
+## from specified parameters. See also [method create_from_astronomy_specs].
 @warning_ignore("shadowed_variable", "shadowed_variable_base_class")
 static func create(name: StringName, flags: int, mean_radius: float, gravitational_parameter: float,
 		orientation_at_epoch: Basis, rotation_axis: Vector3, rotation_at_epoch: float,
@@ -362,7 +381,7 @@ static func create(name: StringName, flags: int, mean_radius: float, gravitation
 	body.rotation_at_epoch = rotation_at_epoch
 	body.characteristics = characteristics
 	body.components = components
-	body.orbit = orbit
+	body._orbit = orbit
 	body.flags = flags
 	
 	body.rotation_axis = rotation_axis
@@ -375,16 +394,12 @@ static func create(name: StringName, flags: int, mean_radius: float, gravitation
 	return body
 
 
-
-## Creates new IVOrbit instance (or specified [member replacement_subclass]).
-## [param right_ascension] and [param declination] define "North" for this body.
-## If [param rotation_period] is negative, then this body has retrograde
-## rotation (e.g., Venus). If [param flags] & BODYFLAGS_TIDALLY_LOCKED, then
-## [param rotation_period] doesn't matter. If [param flags] & BODYFLAGS_AXIS_LOCKED,
-## then [param right_ascension] and [param declination] don't matter. (In our
-## solar system, only the Moon is tidally locked but not "axis locked". All
-## other moons that are tidally locked have axis of rotation that varies within
-## 1° of their orbit normal.)
+## Creates new [IVOrbit] instance (or specified [member replacement_subclass]).
+## from specified parameters [param right_ascension] and [param declination]
+## define "North" for this body. If [param rotation_period] is negative, then
+## this body has retrograde rotation (e.g., Venus). If [param flags] & BODYFLAGS_TIDALLY_LOCKED,
+## then [param rotation_period] doesn't matter. If [param flags] & BODYFLAGS_AXIS_LOCKED,
+## then [param right_ascension] and [param declination] don't matter.
 @warning_ignore("shadowed_variable", "shadowed_variable_base_class")
 static func create_from_astronomy_specs(
 		name: StringName,
@@ -432,7 +447,7 @@ static func create_from_astronomy_specs(
 	body.rotation_at_epoch = rotation_at_epoch
 	body.characteristics = characteristics
 	body.components = components
-	body.orbit = orbit
+	body._orbit = orbit
 	body.flags = flags
 	
 	# Rotations will be updated if tidally or axis locked, so these might not matter...
@@ -451,117 +466,124 @@ static func create_from_astronomy_specs(
 	return body
 
 
+func remove() -> void:
+	const GALAXY_ORBITER := BodyFlags.BODYFLAGS_GALAXY_ORBITER
+	for satellite in satellites:
+		satellite.remove()
+	bodies.erase(name)
+	if flags & GALAXY_ORBITER:
+		galaxy_orbiters.erase(self)
+	if _orbit:
+		_orbit.changed.disconnect(_on_orbit_changed)
+	_clear_relative_bodies()
+	queue_free()
+
+
 # *****************************************************************************
-# properties API and simple derivations...
+# properties API
 
 
+## Sets specified flag(s) in [member flags].
+func set_flag(flag: int) -> void:
+	flags |= flag
+
+
+## Unsets specified flag(s) in [member flags].
+func unset_flag(flag: int) -> void:
+	flags &= ~flag
+
+
+## Returns [member mean_radius].
 func get_mean_radius() -> float:
 	return mean_radius
 
 
+## Sets [member mean_radius].
 func set_mean_radius(value: float) -> void:
 	mean_radius = value
 
 
-func get_rotation_period() -> float:
-	return TAU / rotation_rate if rotation_rate else INF
-
-
-## Returns north in equatorial coordinates as Vector2(right_ascention, declination).
-func get_equatorial_north() -> Vector2:
-	var eq_coord := IVAstronomy.get_equatorial_coordinates_from_ecliptic_vector(rotation_axis)
-	return Vector2(eq_coord[0], eq_coord[1])
-
-
+## Returns [member gravitational_parameter] (GM).
 func get_gravitational_parameter() -> float:
 	return gravitational_parameter
 
 
-## Returns this body's north in ecliptic coordinates. This is messy because
-## IAU defines "north" only for true planets and their satellites, defined
-## as the pole pointing above the invariable plane. Other bodies technically
-## don't have north and are supposed to use "positive pole", which has a
-## precise definition. See 
-## [url]https://en.wikipedia.org/wiki/Poles_of_astronomical_bodies[/url].[br][br]
-##
-## However, it is common usage to assign north to Pluto and Charon's positive
-## poles, which is flipped from above if Pluto were a planet (which it is
-## not, of course). Also, we want a "north" for all bodies for camera
-## orientation. We attempt to sort this out as follows:[br][br]
-##
-##  * Star - Same as true planet.[br]
-##  * True planets and their satellites - Use pole in the same hemisphere as
-##    ecliptic north. This is almost per IAU, 
-##    except for use of ecliptic rather than invarient plane (the
-##    difference is ~1° and will affect very few if any objects).[br]
-##  * Other star-orbiting bodies - Use positive pole, following Pluto.[br]
-##  * All others (e.g., satellites of dwarf planets) - Use pole in same
-##    hemisphere as parent positive pole.[br][br]
-##
-## Note that [member rotation_axis] and [member rotation_rate] will be flipped
-## if needed during system build so that rotation_axis is always north, following
-## rules above.[br][br]
-##
-## Note: [param _time] is present in anticipation of rotation precession.
-func get_north_axis(_time := NAN) -> Vector3:
+## Sets [member gravitational_parameter] (GM). This method does
+## [b]NOT[/b] update GM for the orbits of satellites. (But that might be
+## implemented in the future.)
+func set_gravitational_parameter(value: float) -> void:
+	gravitational_parameter = value
+
+
+## Returns [member orientation_at_epoch].
+func get_orientation_at_epoch() -> Basis:
+	return orientation_at_epoch
+
+
+## Sets [member orientation_at_epoch].
+func set_orientation_at_epoch(value: Basis) -> void:
+	orientation_at_epoch = value
+
+
+## Returns [member rotation_axis].
+func get_rotation_axis() -> Vector3:
 	return rotation_axis
 
 
-## Returns an axis of rotation that points in the direction of the positive pole
-## (using the right-hand-rule).[br][br]
-##
-## Note: [param _time] is present in anticipation of rotation precession.
-func get_positive_axis(_time := NAN) -> Vector3:
-	if rotation_rate < 0.0:
-		return -rotation_axis
-	return rotation_axis
+## Sets [member rotation_axis].
+func set_rotation_axis(value: Vector3) -> void:
+	rotation_axis = value
 
 
-## Note: [param _time] is present in anticipation of more complex rotations
-## (i.e., tumbling).
-func is_rotation_retrograde(_time := NAN) -> bool:
-	return rotation_rate < 0.0
+## Returns [member rotation_rate].
+func get_rotation_rate() -> float:
+	return rotation_rate
+
+
+## Sets [member rotation_rate].
+func set_rotation_rate(value: float) -> void:
+	rotation_rate = value
+
+
+## Returns [member rotation_at_epoch].
+func get_rotation_at_epoch() -> float:
+	return rotation_at_epoch
+
+
+## Sets [member rotation_at_epoch].
+func set_rotation_at_epoch(value: float) -> void:
+	rotation_at_epoch = value
+
+
+func set_component(key: StringName, value: RefCounted) -> void:
+	if value == null:
+		components.erase(key)
+		return
+	assert(&"PERSIST_MODE" in value)
+	assert(value[&"PERSIST_MODE"] == IVGlobal.PERSIST_PROCEDURAL)
+	components[key] = value
+
+
+func get_component(key: StringName) -> RefCounted:
+	return components.get(key)
 
 
 func has_orbit() -> bool:
-	return orbit != null
+	return _orbit != null
 
 
 func get_orbit() -> IVOrbit:
-	return orbit
+	return _orbit
 
 
 func set_orbit(new_orbit: IVOrbit) -> void:
-	if orbit:
-		orbit.changed.disconnect(_on_orbit_changed)
-	orbit = new_orbit
+	if _orbit:
+		_orbit.changed.disconnect(_on_orbit_changed)
+	_orbit = new_orbit
 	if is_inside_tree(): # otherwise, connected on _enter_tree()
 		new_orbit.changed.connect(_on_orbit_changed)
 
 
-## Returns the "system" radius for this body. This value is the maximum of
-## a) semi-major axis of the outermost body orbiting this body (if any),
-## b) [member mean_radius] times a multiplier, or
-## c) a value set in data table using field name [param system_radius].
-func get_system_radius() -> float:
-	return _system_radius
-
-
-## See [url]https://en.wikipedia.org/wiki/Hill_sphere[/url].
-## Returns INF if this body is a galaxy orbiter.
-func get_hill_sphere() -> float:
-	return _hill_sphere
-
-
-## Returns a basis that rotates with the ground (i.e, with the body model).
-## Supply [param time] only if you don't want the current value.
-func get_orientation(time := NAN) -> Basis:
-	if is_nan(time):
-		if model_space and !_sleeping:
-			return model_space.basis
-		time = _times[0]
-	var rotation_angle := wrapf(time * rotation_rate, 0.0, TAU)
-	return orientation_at_epoch.rotated(rotation_axis, rotation_angle)
 
 
 # *****************************************************************************
@@ -569,6 +591,7 @@ func get_orientation(time := NAN) -> Basis:
 
 
 func set_characteristic(key: StringName, value: Variant) -> void:
+	assert(not value is Object)
 	if value == null:
 		characteristics.erase(key)
 		return
@@ -635,7 +658,7 @@ func get_hud_name() -> String:
 	return characteristics.get(&"hud_name", name)
 
 
-## Returns the symbol for this body used by [IVBodyLabel].
+## Returns the symbol used by [IVBodyLabel].
 func get_symbol() -> String:
 	return characteristics.get(&"symbol", default_symbol) # default is dashed circle
 
@@ -645,7 +668,7 @@ func get_body_class() -> int: # body_classes.tsv
 	return characteristics.get(&"body_class", -1)
 
 
-## Returns a "perspective" radius for this body, used for camera distancing.
+## Returns a "perspective" radius used for camera distancing.
 ## Same as [member mean_radius] unless something different is needed.
 func get_perspective_radius() -> float:
 	var perspective_radius: float = characteristics.get(&"perspective_radius", 0.0)
@@ -689,126 +712,212 @@ func get_float_precision(path: String) -> int:
 ## Returns this body's orbital mean longitude (L). Supply [param time] only if
 ## you don't want the current value. 
 func get_orbit_mean_longitude(time := NAN) -> float:
-	if !orbit:
+	if !_orbit:
 		return 0.0
 	if is_nan(time):
 		if !_sleeping:
-			return orbit.get_mean_longitude_at_update()
+			return _orbit.get_mean_longitude_at_update()
 		time = _times[0]
-	return orbit.get_mean_longitude(time)
+	return _orbit.get_mean_longitude(time)
 
 
 ## Returns this body's orbital true longitude (l). Supply [param time] only if
 ## you don't want the current value. 
 func get_orbit_true_longitude(time := NAN) -> float:
-	if !orbit:
+	if !_orbit:
 		return 0.0
 	if is_nan(time):
 		if !_sleeping:
-			return orbit.get_true_longitude_at_update()
+			return _orbit.get_true_longitude_at_update()
 		time = _times[0]
-	return orbit.get_true_longitude(time)
+	return _orbit.get_true_longitude(time)
 
 
 ## Returns true if this body's orbit is retrograde. Supply [param time] only if
 ## you don't want the current value. 
 func is_orbit_retrograde(time := NAN) -> bool:
-	if !orbit:
+	if !_orbit:
 		return false
 	if is_nan(time):
 		if !_sleeping:
-			return orbit.is_retrograde()
+			return _orbit.is_retrograde()
 		time = _times[0]
-	return orbit.is_retrograde_at_time(time)
+	return _orbit.is_retrograde_at_time(time)
 
 
 ## Returns this body's orbital semi-parameter (p). Supply [param time] only if
 ## you don't want the current value. 
 func get_orbit_semi_parameter(time := NAN) -> float:
-	if !orbit:
+	if !_orbit:
 		return 0.0
 	if is_nan(time):
 		if !_sleeping:
-			return orbit.get_semi_parameter()
+			return _orbit.get_semi_parameter()
 		time = _times[0]
-	return orbit.get_semi_parameter_at_time(time)
+	return _orbit.get_semi_parameter_at_time(time)
 
 
 ## Returns this body's orbital semi-major axis (a). Supply [param time] only if
 ## you don't want the current value. 
 func get_orbit_semi_major_axis(time := NAN) -> float:
-	if !orbit:
+	if !_orbit:
 		return 0.0
 	if is_nan(time):
 		if !_sleeping:
-			return orbit.get_semi_major_axis()
+			return _orbit.get_semi_major_axis()
 		time = _times[0]
-	return orbit.get_semi_major_axis_at_time(time)
+	return _orbit.get_semi_major_axis_at_time(time)
 
 
 ## Returns this body's orbital eccentricity. Supply [param time] only if you
 ## don't want the current value. 
 func get_orbit_eccentricity(time := NAN) -> float:
-	if !orbit:
+	if !_orbit:
 		return 0.0
 	if is_nan(time):
 		if !_sleeping:
-			return orbit.get_eccentricity()
+			return _orbit.get_eccentricity()
 		time = _times[0]
-	return orbit.get_eccentricity_at_time(time)
+	return _orbit.get_eccentricity_at_time(time)
 
 
 ## Returns this body's orbital inclination. Supply [param time] only if you
 ## don't want the current value. 
 func get_orbit_inclination(time := NAN) -> float:
-	if !orbit:
+	if !_orbit:
 		return 0.0
 	if is_nan(time):
 		if !_sleeping:
-			return orbit.get_inclination()
+			return _orbit.get_inclination()
 		time = _times[0]
-	return orbit.get_inclination_at_time(time)
+	return _orbit.get_inclination_at_time(time)
 
 
 ## Returns a unit vector normal to this body's orbit. Supply [param time] only
 ## if you don't want the current value. 
 func get_orbit_normal(time := NAN, flip_retrograde := false) -> Vector3:
 	const ECLIPTIC_NORTH := Vector3(0, 0, 1)
-	if !orbit:
+	if !_orbit:
 		return ECLIPTIC_NORTH
 	if is_nan(time):
 		if !_sleeping:
-			return orbit.get_normal(flip_retrograde)
+			return _orbit.get_normal(flip_retrograde)
 		time = _times[0]
-	return orbit.get_normal_at_time(time, flip_retrograde)
+	return _orbit.get_normal_at_time(time, flip_retrograde)
 
 
 # *****************************************************************************
-# misc useful
+# general API...
 
 
-## Returns postion for this body. Unlike [member Node3D.position], return is
-## valid even if the IVBody instance is sleeping.
+## Returns the rotation period of this body. Negative if this body has
+## retrograde rotation. INF if this body has [member rotation_rate] == 0.0.
+func get_rotation_period() -> float:
+	return TAU / rotation_rate if rotation_rate else INF
+
+
+## Returns north in equatorial coordinates as Vector2(right_ascention, declination).
+func get_equatorial_north() -> Vector2:
+	var eq_coord := IVAstronomy.get_equatorial_coordinates_from_ecliptic_vector(rotation_axis)
+	return Vector2(eq_coord[0], eq_coord[1])
+
+
+## Returns this body's north in ecliptic coordinates. This is messy because
+## IAU defines "north" only for true planets and their satellites, defined
+## as the pole pointing above the invariable plane. Other bodies technically
+## don't have north and are supposed to use "positive pole", which has a
+## precise definition. See 
+## [url]https://en.wikipedia.org/wiki/Poles_of_astronomical_bodies[/url].[br][br]
+##
+## However, it is common usage to assign north to Pluto and Charon's positive
+## poles, which is flipped from above if Pluto were a planet (which it is
+## not, of course). Also, we want a "north" for all bodies for camera
+## orientation. We attempt to sort this out as follows:[br][br]
+##
+##  * Star - Same as true planet.[br]
+##  * True planets and their satellites - Use pole in the same hemisphere as
+##    ecliptic north. This is almost per IAU, 
+##    except for use of ecliptic rather than invarient plane (the
+##    difference is ~1° and will affect very few if any objects).[br]
+##  * Other star-orbiting bodies - Use positive pole, following Pluto.[br]
+##  * All others (e.g., satellites of dwarf planets) - Use pole in same
+##    hemisphere as parent positive pole.[br][br]
+##
+## Note that [member rotation_axis] and [member rotation_rate] will be flipped
+## if needed during system build so that rotation_axis is always north, following
+## rules above.[br][br]
+##
+## Note: [param _time] is present in anticipation of rotation precession.
+func get_north_axis(_time := NAN) -> Vector3:
+	return rotation_axis
+
+
+## Returns an axis of rotation that points in the direction of the positive pole
+## (using the right-hand-rule).[br][br]
+##
+## Note: [param _time] is present in anticipation of rotation precession.
+func get_positive_axis(_time := NAN) -> Vector3:
+	if rotation_rate < 0.0:
+		return -rotation_axis
+	return rotation_axis
+
+
+## Note: [param _time] is present in anticipation of more complex rotations
+## (i.e., tumbling).
+func is_rotation_retrograde(_time := NAN) -> bool:
+	return rotation_rate < 0.0
+
+
+## Returns the "system" radius. This value is the maximum of:
+## a) semi-major axis of the outermost body orbiting this body (if any),
+## b) [member mean_radius] times a multiplier, or
+## c) a value set in data table using field name [param system_radius].
+func get_system_radius() -> float:
+	return _system_radius
+
+
+## See [url]https://en.wikipedia.org/wiki/Hill_sphere[/url].
+## Returns INF if this body is a galaxy orbiter.
+func get_hill_sphere() -> float:
+	return _hill_sphere
+
+
+## Returns a basis that rotates with the ground (i.e, with the body model).
 ## Supply [param time] only if you don't want the current value.
+func get_orientation(time := NAN) -> Basis:
+	if is_nan(time):
+		if model_space and !_sleeping:
+			return model_space.basis
+		time = _times[0]
+	var rotation_angle := wrapf(time * rotation_rate, 0.0, TAU)
+	return orientation_at_epoch.rotated(rotation_axis, rotation_angle)
+
+
+## Returns a valid current "postion" or projected position at specified time.
+## Return is valid even if this instance is currently sleeping (unlike
+## [member Node3D.position]). Supply [param time] only if you don't want the
+## current value.
 func get_position_vector(time := NAN) -> Vector3:
 	if is_nan(time):
 		if !_sleeping:
 			return position
 		time = _times[0]
-	if orbit:
-		return orbit.get_position(time)
+	if _orbit:
+		return _orbit.get_position(time)
 	# TODO: galaxy-orbiters will have position and velocity eventually,
 	# probably as fixed values relative to galaxy center.
 	return Vector3.ZERO
 
 
-## Returns [position, velocity] as a Vector3 array.
-## Supply [param time] only if you don't want the current value.
+## Returns current [position, velocity] or projected [position, velocity] at
+## specified time as a Vector3 array. Return is valid even if this instance is
+## currently sleeping. Supply [param time] only if you don't want the current
+## value.
 func get_state_vectors(time := NAN) -> Array[Vector3]:
 	if is_nan(time):
 		time = _times[0]
-	if orbit:
-		return orbit.get_state_vectors(time)
+	if _orbit:
+		return _orbit.get_state_vectors(time)
 	# TODO: galaxy-orbiters will have position and velocity eventually,
 	# probably as fixed values relative to galaxy center.
 	return [Vector3.ZERO, Vector3.ZERO]
@@ -827,17 +936,17 @@ func get_latitude_longitude(vector: Vector3, time := NAN) -> Vector2:
 ## Returns this body's axial tilt relative to its orbit normal. Supply [param time]
 ## only if you don't want the current value. 
 func get_axial_tilt_to_orbit(time := NAN) -> float:
-	if !orbit:
+	if !_orbit:
 		return NAN
 	var orbit_normal: Vector3
 	if is_nan(time):
 		if !_sleeping:
-			orbit_normal = orbit.get_normal()
+			orbit_normal = _orbit.get_normal()
 		else:
 			time = _times[0]
-			orbit_normal = orbit.get_normal_at_time(time)
+			orbit_normal = _orbit.get_normal_at_time(time)
 	else:
-		orbit_normal = orbit.get_normal_at_time(time)
+		orbit_normal = _orbit.get_normal_at_time(time)
 	var positive_axis := get_positive_axis(time)
 	return positive_axis.angle_to(orbit_normal)
 
@@ -857,7 +966,7 @@ func get_axial_tilt_to_ecliptic(time := NAN) -> float:
 ## Supply [param time] only if you don't want the current value.
 func get_orbit_tracking_basis(time := NAN) -> Basis:
 	const ECLIPTIC_BASIS := Basis.IDENTITY
-	if !orbit:
+	if !_orbit:
 		return ECLIPTIC_BASIS
 	var x_axis: Vector3
 	var y_axis: Vector3
@@ -865,30 +974,43 @@ func get_orbit_tracking_basis(time := NAN) -> Basis:
 	if is_nan(time):
 		if !_sleeping:
 			x_axis = -position.normalized()
-			z_axis = orbit.get_normal(true, true)
+			z_axis = _orbit.get_normal(true, true)
 			y_axis = z_axis.cross(x_axis)
 			return Basis(x_axis, y_axis, z_axis)
 		time = _times[0]
-	x_axis = -orbit.get_position(time).normalized()
-	z_axis = orbit.get_normal_at_time(time, true, true)
+	x_axis = -_orbit.get_position(time).normalized()
+	z_axis = _orbit.get_normal_at_time(time, true, true)
 	y_axis = z_axis.cross(x_axis)
 	return Basis(x_axis, y_axis, z_axis)
 
 
 # *****************************************************************************
-# specific ivoyager_core mechanics...
+# core mechanics...
 
 
-## Adds a child Node3D to this body's IVModelSpace. Use for nodes that need to
+## Adds [param satellite] to this body's [member satellites]. Does [b]NOT[/b]
+## add [param satellite] to the tree!
+func add_satellite(satellite: IVBody) -> void:
+	assert(!satellites.has(satellite))
+	satellites.append(satellite)
+
+
+## Removes [param satellite] from this body's [member satellites]. Does [b]NOT[/b]
+## remove [param satellite] from the tree!
+func remove_satellite(satellite: IVBody) -> void:
+	satellites.erase(satellite)
+
+
+## Adds a child Node3D to this body's [IVModelSpace]. Use for nodes that need to
 ## share the model's orientation and rotation in space, but not its scale. Used
-## by IVRings (i.e., for Saturn Rings).
+## by [IVRings] (e.g., Saturn's Rings).
 func add_child_to_model_space(node3d: Node3D) -> void:
 	if !model_space:
 		_add_model_space()
 	model_space.add_child(node3d)
 
 
-## Removes a child Node3D from this body's IVModelSpace. See [method add_child_to_model_space].
+## Removes a child Node3D from this body's [IVModelSpace]. See [method add_child_to_model_space].
 func remove_child_from_model_space(node3d: Node3D) -> void:
 	model_space.remove_child(node3d)
 
@@ -922,8 +1044,8 @@ func is_sleeping() -> bool:
 
 ## Set sleeping state. Only [IVSleepManager] should call this.
 func set_sleeping(is_asleep: bool) -> void:
-	const BODYFLAGS_CAN_SLEEP := BodyFlags.BODYFLAGS_CAN_SLEEP
-	if _sleeping == is_asleep or not flags & BODYFLAGS_CAN_SLEEP:
+	const CAN_SLEEP := BodyFlags.BODYFLAGS_CAN_SLEEP
+	if _sleeping == is_asleep or !(flags & CAN_SLEEP):
 		return
 	_sleeping = is_asleep
 	if is_asleep:
@@ -950,16 +1072,63 @@ func get_fragment_text(_data: Array) -> String:
 # private
 
 
-func _prepare_to_free() -> void:
-	# Only down-tree needed to remove circular references.
+func _clear_for_tree_destruction() -> void:
+	if _orbit:
+		_orbit.changed.disconnect(_on_orbit_changed)
+	parent = null
+	star = null
+	star_orbiter = null
 	satellites.clear()
 
 
 func _on_system_tree_built_or_loaded(is_new_game: bool) -> void:
 	if !is_new_game:
 		return
+	# persisted data needed for new game only...
 	_set_system_radius()
 	_set_hill_sphere()
+
+
+func _set_relative_bodies() -> void:
+	# For multi-star system, a star could be a star orbiter.
+	const STAR := BodyFlags.BODYFLAGS_STAR
+	const STAR_ORBITER := BodyFlags.BODYFLAGS_STAR_ORBITER
+	parent = get_parent_node_3d() as IVBody # null only for galaxy orbiter
+	star = null
+	star_orbiter = null
+	var ascending_body := self
+	while ascending_body:
+		if !star_orbiter and ascending_body.flags & STAR_ORBITER:
+			star_orbiter = ascending_body
+		if ascending_body.flags & STAR:
+			star = ascending_body
+			break
+		ascending_body = ascending_body.get_parent_node_3d() as IVBody
+	if parent:
+		parent.add_satellite(self)
+
+
+func _clear_relative_bodies() -> void:
+	if parent:
+		parent.remove_satellite(self)
+		parent = null
+	star = null
+	star_orbiter = null
+
+
+func _set_resources() -> void:
+	var asset_preloader: IVAssetPreloader = IVGlobal.program[&"AssetPreloader"]
+	texture_2d = asset_preloader.get_body_texture_2d(name)
+	texture_slice_2d = asset_preloader.get_body_texture_slice_2d(name) # usually null
+
+
+func _set_min_hud_dist() -> void:
+	if !IVGlobal.settings[&"hide_hud_when_close"]:
+		_min_hud_dist = 0.0
+		return
+	_min_hud_dist = mean_radius * min_hud_dist_radius_multiplier
+	if flags & BodyFlags.BODYFLAGS_STAR:
+		_min_hud_dist *= min_hud_dist_star_multiplier # star grows at distance
 
 
 func _set_system_radius() -> void:
@@ -974,7 +1143,6 @@ func _set_system_radius() -> void:
 
 
 func _set_hill_sphere() -> void:
-	# TODO: We need a too-small-don't-bother check.
 	if !parent:
 		_hill_sphere = INF
 		return
@@ -986,57 +1154,15 @@ func _set_hill_sphere() -> void:
 	if !parent_mass:
 		_hill_sphere = 0.0
 		return
-	var a := orbit.get_semi_major_axis()
-	var e := orbit.get_eccentricity()
+	var a := _orbit.get_semi_major_axis()
+	var e := _orbit.get_eccentricity()
 	_hill_sphere = a * (1.0 - e) * pow(mass / (3.0 * parent_mass), 0.3333333333333333)
-
-
-func _set_resources() -> void:
-	var asset_preloader: IVAssetPreloader = IVGlobal.program[&"AssetPreloader"]
-	texture_2d = asset_preloader.get_body_texture_2d(name)
-	texture_slice_2d = asset_preloader.get_body_texture_slice_2d(name) # usually null
-
-
-func _set_relative_bodies() -> void:
-	# For multi-star system, a star could be a star orbiter.
-	const BODYFLAGS_STAR := BodyFlags.BODYFLAGS_STAR
-	const BODYFLAGS_STAR_ORBITER := BodyFlags.BODYFLAGS_STAR_ORBITER
-	parent = get_parent_node_3d() as IVBody
-	star = null
-	star_orbiter = null
-	var up_tree := self
-	while up_tree:
-		if !star_orbiter and up_tree.flags & BODYFLAGS_STAR_ORBITER:
-			star_orbiter = up_tree
-		if up_tree.flags & BODYFLAGS_STAR:
-			star = up_tree
-			break
-		up_tree = up_tree.get_parent_node_3d() as IVBody
-	if parent:
-		assert(!parent.satellites.has(self))
-		parent.satellites.append(self)
-
-
-func _clear_relative_bodies() -> void:
-	if parent:
-		parent.satellites.erase(self)
-		parent = null
-	star = null
-	star_orbiter = null
-
-
-func _set_min_hud_dist() -> void:
-	if !IVGlobal.settings[&"hide_hud_when_close"]:
-		_min_hud_dist = 0.0
-		return
-	_min_hud_dist = mean_radius * min_hud_dist_radius_multiplier
-	if flags & BodyFlags.BODYFLAGS_STAR:
-		_min_hud_dist *= min_hud_dist_star_multiplier # star grows at distance
 
 
 func _on_orbit_changed(is_intrinsic: bool, precession_only: bool) -> void:
 	const TIDALLY_LOCKED := BodyFlags.BODYFLAGS_TIDALLY_LOCKED
-	orbit_changed.emit(orbit, is_intrinsic, precession_only)
+	assert(is_inside_tree(), "A body's orbit should change only when processing in the tree!")
+	orbit_changed.emit(_orbit, is_intrinsic, precession_only)
 	if !precession_only:
 		_set_hill_sphere()
 	if flags & TIDALLY_LOCKED:
@@ -1050,15 +1176,15 @@ func _update_rotations(is_intrinsic: bool) -> void:
 	assert(flags & TIDALLY_LOCKED)
 	
 	# rotation
-	var new_rotation_rate := orbit.get_mean_longitude_rate()
+	var new_rotation_rate := _orbit.get_mean_longitude_rate()
 	var locked_rotation_at_epoch: float = characteristics[&"locked_rotation_at_epoch"]
 	var new_rotation_at_epoch := fposmod(locked_rotation_at_epoch
-			+ orbit.get_mean_longitude_at_epoch() - PI, TAU)
+			+ _orbit.get_mean_longitude_at_epoch() - PI, TAU)
 	
 	# axis
 	var new_rotation_axis := rotation_axis
 	if flags & AXIS_LOCKED:
-		new_rotation_axis = orbit.get_normal()
+		new_rotation_axis = _orbit.get_normal()
 		# Possible polarity reversal. See comments under get_north_axis().
 		# For any body that is axis-locked, "north" follows parent north,
 		# whatever that is. Note that rotation_axis defines "north".
@@ -1077,10 +1203,10 @@ func _update_rotations(is_intrinsic: bool) -> void:
 
 
 func _add_model_space() -> void:
-	const BODYFLAGS_DISABLE_MODEL_SPACE := BodyFlags.BODYFLAGS_DISABLE_MODEL_SPACE
+	const DISABLE_MODEL_SPACE := BodyFlags.BODYFLAGS_DISABLE_MODEL_SPACE
 	assert(!model_space)
 	_lazy_model_uninited = false
-	if flags & BODYFLAGS_DISABLE_MODEL_SPACE:
+	if flags & DISABLE_MODEL_SPACE:
 		return
 	var model_space_script: Script = IVGlobal.procedural_classes[&"ModelSpace"]
 	@warning_ignore("unsafe_method_access")
