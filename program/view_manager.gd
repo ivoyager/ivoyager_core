@@ -41,7 +41,6 @@ var gamesave_views: Dictionary[StringName, IVView] = {}
 var cached_views: Dictionary[StringName, IVView] = {}
 
 var _missing_or_bad_cache_file := true
-var _view_script: Script = IVGlobal.procedural_classes[&"View"]
 
 
 func _init() -> void:
@@ -84,8 +83,7 @@ func save_view(view_name: StringName, collection_name: StringName, is_cached: bo
 	if view:
 		view.reset()
 	else:
-		@warning_ignore("unsafe_method_access")
-		view = _view_script.new()
+		view = IVView.create()
 	view.save_state(flags)
 	if is_cached:
 		cached_views[key] = view
@@ -174,8 +172,7 @@ func _read_cache() -> void:
 	var bad_cache_data := false
 	for key: StringName in file_dict:
 		var data: Array = file_dict[key]
-		@warning_ignore("unsafe_method_access") # possible replacement class
-		var view: IVView = _view_script.new()
+		var view := IVView.create()
 		if !view.set_data_from_cache(data): # may be prior version
 			bad_cache_data = true
 			continue

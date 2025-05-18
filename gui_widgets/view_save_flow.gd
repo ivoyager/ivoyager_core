@@ -40,7 +40,7 @@ var is_cached := true
 
 func _ready() -> void:
 	IVGlobal.about_to_start_simulator.connect(_build_view_buttons)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 
 
 func init(view_save_button: IVViewSaveButton, default_view_name_ := &"LABEL_CUSTOM1",
@@ -60,7 +60,7 @@ func init(view_save_button: IVViewSaveButton, default_view_name_ := &"LABEL_CUST
 		_build_view_buttons()
 
 
-func _clear() -> void:
+func _clear_procedural() -> void:
 	for child in get_children():
 		if child is RemovableViewButton:
 			child.queue_free()

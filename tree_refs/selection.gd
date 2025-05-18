@@ -55,7 +55,6 @@ var name: StringName
 var gui_name: String # name for GUI display (already translated)
 var is_body: bool
 var up_selection_name := "" # top selection (only) doesn't have one
-
 var spatial: Node3D # for camera; same as 'body' if is_body
 var body: IVBody # = spatial if is_body else null
 
@@ -63,27 +62,36 @@ var body: IVBody # = spatial if is_body else null
 var texture_2d: Texture2D
 var texture_slice_2d: Texture2D # stars only
 
+
+static var replacement_subclass: Script # replace w/ subclass only
+
 ## Contains all existing IVSelection instances.
 static var selections: Dictionary[StringName, IVSelection] = {}
 
 
 func _init() -> void:
 	IVGlobal.system_tree_ready.connect(_init_after_system, CONNECT_ONE_SHOT)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 
 
-func _init_after_system(_dummy: bool) -> void:
-	# Called for gameload; dynamically created must set these
-	if is_body:
-		texture_2d = body.texture_2d
-		texture_slice_2d = body.texture_slice_2d
-
-
-func _clear() -> void:
-	if IVGlobal.system_tree_ready.is_connected(_init_after_system):
-		IVGlobal.system_tree_ready.disconnect(_init_after_system)
-	spatial = null
-	body = null
+@warning_ignore("shadowed_variable")
+static func create_for_body(body: IVBody) -> IVSelection:
+	var selection: IVSelection
+	if replacement_subclass:
+		@warning_ignore("unsafe_method_access")
+		selection = replacement_subclass.new()
+	else:
+		selection = IVSelection.new()
+	selection.is_body = true
+	selection.spatial = body
+	selection.body = body
+	selection.name = body.name
+	selection.gui_name = IVGlobal.tr(body.name)
+	selection.texture_2d = body.texture_2d
+	selection.texture_slice_2d = body.texture_slice_2d
+	var parent := body.get_parent() as IVBody
+	selection.up_selection_name = parent.name if parent else &""
+	return selection
 
 
 func get_gui_name() -> String:
@@ -170,3 +178,17 @@ func get_star_orbiter() -> IVBody:
 	if !is_body:
 		return null
 	return body.star_orbiter
+
+
+func _init_after_system(_dummy: bool) -> void:
+	# Called for gameload; dynamically created must set these
+	if is_body:
+		texture_2d = body.texture_2d
+		texture_slice_2d = body.texture_slice_2d
+
+
+func _clear_procedural() -> void:
+	if IVGlobal.system_tree_ready.is_connected(_init_after_system):
+		IVGlobal.system_tree_ready.disconnect(_init_after_system)
+	spatial = null
+	body = null

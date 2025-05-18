@@ -40,13 +40,13 @@ var _is_reversed := false
 
 func _ready() -> void:
 	process_mode = PROCESS_MODE_ALWAYS
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	_timekeeper.time_altered.connect(_on_time_altered)
 	if IVCoreSettings.allow_time_reversal:
 		_timekeeper.speed_changed.connect(_update_for_time_reversal)
 
 
-func _clear() -> void:
+func _clear_procedural() -> void:
 	_ordered_signal_infos.clear()
 	_signal_intervals.clear()
 	_available_signals.clear()

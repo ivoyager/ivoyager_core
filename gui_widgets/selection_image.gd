@@ -30,12 +30,12 @@ var _selection_manager: IVSelectionManager
 func _ready() -> void:
 	IVGlobal.about_to_start_simulator.connect(_connect_selection_manager)
 	IVGlobal.update_gui_requested.connect(_update_image)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	set_default_cursor_shape(CURSOR_POINTING_HAND)
 	_connect_selection_manager()
 
 
-func _clear() -> void:
+func _clear_procedural() -> void:
 	_selection_manager = null
 
 

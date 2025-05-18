@@ -38,7 +38,7 @@ var _button_size := 0.0 # scales with widget height
 
 func _ready() -> void:
 	IVGlobal.system_tree_ready.connect(_on_system_tree_ready)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	resized.connect(_on_resized)
 	if IVGlobal.state.is_system_ready:
 		_on_system_tree_ready()
@@ -66,7 +66,7 @@ func add_body(body: IVBody) -> void:
 	_hbox.add_child(button)
 
 
-func _clear() -> void:
+func _clear_procedural() -> void:
 	for child in _hbox.get_children():
 		child.queue_free()
 

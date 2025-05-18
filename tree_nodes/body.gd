@@ -215,10 +215,10 @@ var star: IVBody
 var star_orbiter: IVBody
 ## Bodies in orbit around this body (child IVBody instances of this IVBody). Read-only!
 var satellites: Array[IVBody] = [] # TODO: Change to Dictionary to support 1000s
-## If present, the IVModelSpace instance that has this body's visual
+## If present, the Node3D that has this body's visual
 ## representation (model). If data table value [param lazy_model] == TRUE, then
 ## this value will be null until needed. Read-only!
-var model_space: IVModelSpace
+var model_space: Node3D
 ## Current visibility state for associated HUD elements, including IVBodyLabel
 ## and IVOrbitVisual. Read-only!
 var huds_visible := false
@@ -230,9 +230,12 @@ var texture_2d: Texture2D
 var texture_slice_2d: Texture2D
 
 
-## Static class setting. Set this Script to generate a subclass in place of
+## Static class setting. Set this script to generate a subclass in place of
 ## IVBody in all create methods. Assigned Script must be a subclass of IVBody!
 static var replacement_subclass: Script
+## Static class setting. Set this script to replace the IVModelSpace class.
+static var replacement_model_space_class: Script
+
 ## Static class setting. Default value is a dashed circle.
 static var default_symbol := "\u25CC"
 ## Static class setting.
@@ -276,7 +279,7 @@ func _enter_tree() -> void:
 		return
 	if _orbit:
 		_orbit.changed.connect(_on_orbit_changed)
-	if flags & LAZY_MODEL and IVGlobal.program.has(&"LazyManager"):
+	if flags & LAZY_MODEL and IVGlobal.program.has(&"LazyModelInitializer"):
 		_lazy_model_uninited = true
 	else:
 		_add_model_space()
@@ -291,7 +294,7 @@ func _ready() -> void:
 	const GALAXY_ORBITER := BodyFlags.BODYFLAGS_GALAXY_ORBITER
 	process_mode = PROCESS_MODE_ALWAYS # time will stop, but allows mouseover interaction
 	IVGlobal.system_tree_built_or_loaded.connect(_on_system_tree_built_or_loaded, CONNECT_ONE_SHOT)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear_for_tree_destruction, CONNECT_ONE_SHOT)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural, CONNECT_ONE_SHOT)
 	IVGlobal.setting_changed.connect(_settings_listener)
 	assert(!bodies.has(name))
 	bodies[name] = self
@@ -1072,13 +1075,16 @@ func get_fragment_text(_data: Array) -> String:
 # private
 
 
-func _clear_for_tree_destruction() -> void:
+func _clear_procedural() -> void:
 	if _orbit:
 		_orbit.changed.disconnect(_on_orbit_changed)
 	parent = null
 	star = null
 	star_orbiter = null
 	satellites.clear()
+	model_space = null
+	bodies.clear()
+	galaxy_orbiters.clear()
 
 
 func _on_system_tree_built_or_loaded(is_new_game: bool) -> void:
@@ -1208,10 +1214,14 @@ func _add_model_space() -> void:
 	_lazy_model_uninited = false
 	if flags & DISABLE_MODEL_SPACE:
 		return
-	var model_space_script: Script = IVGlobal.procedural_classes[&"ModelSpace"]
-	@warning_ignore("unsafe_method_access")
-	model_space = model_space_script.new(name, mean_radius, get_equatorial_radius())
-	_max_model_dist = model_space.max_distance
+	var e_radius := get_equatorial_radius()
+	if replacement_model_space_class:
+		@warning_ignore("unsafe_method_access")
+		model_space = replacement_model_space_class.new(name, mean_radius, e_radius)
+	else:
+		model_space = IVModelSpace.new(name, mean_radius, e_radius)
+	@warning_ignore("unsafe_property_access")
+	_max_model_dist = model_space.max_distance # FIXME: Use Node3D visual distance parameters
 	add_child(model_space)
 
 

@@ -34,12 +34,12 @@ var _current_star_orbiter: IVBody
 
 
 func _init() -> void:
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	IVGlobal.system_tree_ready.connect(_on_system_tree_ready)
 	IVGlobal.camera_tree_changed.connect(_on_camera_tree_changed)
 
 
-func _clear() -> void:
+func _clear_procedural() -> void:
 	_current_star_orbiter = null
 
 

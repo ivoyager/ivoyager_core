@@ -37,11 +37,6 @@ static func dprint(arg: Variant, arg2: Variant = "", arg3: Variant = "", arg4: V
 	return true
 
 
-static func dprint_orphan_nodes() -> bool:
-	IVGlobal.print_orphan_nodes()
-	return true
-
-
 static func dlog(arg: Variant) -> bool:
 	var file := IVGlobal.debug_log
 	if !file:
@@ -49,6 +44,37 @@ static func dlog(arg: Variant) -> bool:
 	var line := str(arg)
 	file.store_line(line)
 	return true
+
+
+static func dprint_orphan_nodes() -> bool:
+	IVGlobal.print_orphan_nodes()
+	return true
+
+
+static func dprint_tree_pretty(node: Node = null) -> bool:
+	if !node:
+		node = IVGlobal.get_viewport()
+	node.print_tree_pretty()
+	return true
+
+
+static func dprint_nodes_recursive(node: Node = null, include_internal: bool = true) -> bool:
+	if !node:
+		node = IVGlobal.get_viewport()
+	print(node)
+	for child in node.get_children(include_internal):
+		dprint_nodes_recursive(child, include_internal)
+	return true
+
+
+static func dlog_nodes_recursive(node: Node = null, include_internal: bool = true) -> bool:
+	if !node:
+		node = IVGlobal.get_viewport()
+	dlog(node)
+	for child in node.get_children(include_internal):
+		dlog_nodes_recursive(child, include_internal)
+	return true
+
 
 
 static func signal_verbosely(object: Object, signal_name: String, prefix: String) -> void:

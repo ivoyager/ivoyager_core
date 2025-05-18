@@ -40,11 +40,6 @@ var as_is_fields: Array[StringName] = [
 	&"is_reversed",
 ]
 
-var _view_script: Script
-
-
-func _init() -> void:
-	_view_script = IVGlobal.procedural_classes[&"View"]
 
 
 func build_all() -> Dictionary[StringName, IVView]:
@@ -58,7 +53,7 @@ func build_all() -> Dictionary[StringName, IVView]:
 
 func build(row: int) -> IVView:
 	@warning_ignore("unsafe_method_access")
-	var view: IVView = _view_script.new()
+	var view := IVView.create()
 	IVTableData.db_build_object(view, &"views", row, as_is_fields)
 	var view_position_xy := IVTableData.get_db_vector2(&"views", &"view_position_xy", row)
 	var view_position_z := IVTableData.get_db_float(&"views", &"view_position_z", row)

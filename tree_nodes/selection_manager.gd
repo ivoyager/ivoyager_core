@@ -66,6 +66,9 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 var is_action_listener := true
 var selection: IVSelection
 
+static var replacement_subclass: Script
+
+
 # private
 var _selections: Dictionary[StringName, IVSelection] = IVSelection.selections
 var _history: Array[WeakRef] = []
@@ -75,11 +78,11 @@ var _supress_history := false
 
 func _init() -> void:
 	name = &"SelectionManager"
-	
+
 
 func _ready() -> void:
 	IVGlobal.system_tree_ready.connect(_on_system_tree_ready)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear_selections)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	set_process_unhandled_key_input(is_action_listener)
 
 
@@ -129,6 +132,13 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	get_window().set_input_as_handled()
 
 
+static func create() -> IVSelectionManager:
+	if replacement_subclass:
+		@warning_ignore("unsafe_method_access")
+		return replacement_subclass.new()
+	return IVSelectionManager.new()
+
+
 static func get_selection_manager(control: Control) -> IVSelectionManager:
 	var ancestor: Node = control.get_parent()
 	while ancestor is Control:
@@ -154,8 +164,8 @@ static func get_or_make_selection(selection_name: StringName) -> IVSelection:
 static func make_selection_for_body(body_name: StringName) -> IVSelection:
 	assert(!IVSelection.selections.has(body_name))
 	var body: IVBody = IVBody.bodies[body_name] # must exist
-	var selection_builder: IVSelectionBuilder = IVGlobal.program[&"SelectionBuilder"]
-	var selection_ := selection_builder.build_body_selection(body)
+	#var selection_builder: IVSelectionBuilder = IVGlobal.program[&"SelectionBuilder"]
+	var selection_ := IVSelection.create_for_body(body)
 	if selection_:
 		IVSelection.selections[body_name] = selection_
 	return selection_
@@ -390,5 +400,5 @@ func _add_history() -> void:
 	_history.append(wr)
 
 
-func _clear_selections() -> void:
+func _clear_procedural() -> void:
 	_selections.clear() # may be >1 SelectionManager clearing but that's ok

@@ -34,7 +34,12 @@ extends Node3D
 const MODEL_MAX_DISTANCE_MULTIPLIER := 3e3
 
 var reference_basis: Basis
+
+## FIXME: Use VisualInstance3D properties!
 var max_distance: float
+
+var replacement_spheroid_model_class: Script
+
 
 var _body_name: StringName
 var _m_radius: float
@@ -49,7 +54,6 @@ func _init(body_name: StringName, mean_radius: float, equatorial_radius: float) 
 	_m_radius = mean_radius
 	_e_radius = equatorial_radius
 	name = &"ModelSpace"
-
 	# Always use PackedScene model if there is one. Otherwise, generate
 	# a spheroid model w/ maps or use a fallback.
 	var asset_preloader: IVAssetPreloader = IVGlobal.program[&"AssetPreloader"]
@@ -107,9 +111,11 @@ func _build_spheroid_model(asset_preloader: IVAssetPreloader) -> void:
 	reference_basis = reference_basis.rotated(Vector3(0.0, 1.0, 0.0), -longitude_offset)
 	reference_basis = reference_basis.rotated(Vector3(1.0, 0.0, 0.0), RIGHT_ANGLE) # z-up in astronomy!
 	
-	var spheroid_model_script: Script = IVGlobal.procedural_classes[&"SpheroidModel"]
-	@warning_ignore("unsafe_method_access")
-	_model = spheroid_model_script.new(_model_type, reference_basis, albedo_map, emission_map)
+	if replacement_spheroid_model_class:
+		@warning_ignore("unsafe_method_access")
+		_model = replacement_spheroid_model_class.new(_model_type, reference_basis, albedo_map, emission_map)
+	else:
+		_model = IVSpheroidModel.new(_model_type, reference_basis, albedo_map, emission_map)
 	_set_max_distance()
 	_set_layers()
 

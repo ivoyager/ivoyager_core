@@ -30,7 +30,7 @@ extends Control
 # 'system_tree_ready'.
 #
 # 'PERSIST_' constants are needed here for save/load persistence of the
-# SelectionManager instance.
+# IVSelectionManager instance.
 #
 # IVThemeManager (prog_refs/theme_manager.gd) sets the 'main' Theme in IVGlobal
 # dictionary 'themes', which is applied here. Some Theme changes are needed for
@@ -39,6 +39,7 @@ extends Control
 const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY # don't free on load
 const PERSIST_PROPERTIES: Array[StringName] = [&"selection_manager"]
 
+var selection_manager_script: Script = IVSelectionManager
 var selection_manager: IVSelectionManager
 
 
@@ -62,7 +63,5 @@ func _on_project_builder_finished() -> void:
 
 func _on_system_tree_built_or_loaded(is_new_game: bool) -> void:
 	if is_new_game:
-		var SelectionManagerScript: Script = IVGlobal.procedural_classes[&"SelectionManager"]
-		@warning_ignore("unsafe_method_access")
-		selection_manager = SelectionManagerScript.new()
+		selection_manager = IVSelectionManager.create()
 		add_child(selection_manager)

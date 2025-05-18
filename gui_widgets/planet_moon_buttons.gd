@@ -56,7 +56,7 @@ var _is_built := false
 
 func _ready() -> void:
 	IVGlobal.about_to_start_simulator.connect(_build)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	resized.connect(_resize)
 	IVGlobal.setting_changed.connect(_settings_listener)
 	_build()
@@ -134,7 +134,7 @@ func _build(_dummy := false) -> void:
 		column += 1
 
 
-func _clear() -> void:
+func _clear_procedural() -> void:
 	_is_built = false
 	_selection_manager = null
 	_currently_selected = null

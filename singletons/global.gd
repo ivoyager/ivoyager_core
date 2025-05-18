@@ -50,7 +50,7 @@ signal update_gui_requested() # send signals with GUI info now!
 signal simulator_started()
 signal pause_changed(is_paused: bool)
 signal user_pause_changed(is_paused: bool) # ignores pause from sim stop
-signal about_to_free_procedural_nodes() # on exit and game load
+signal about_to_free_procedural_nodes() # on exit, game load starting, and quit
 signal about_to_stop_before_quit()
 signal about_to_quit()
 signal about_to_exit()
@@ -176,8 +176,6 @@ var date: Array[int] = []
 var clock: Array[int] = []
 ## Populated by [IVCoreInitializer]. Holds instantiated program objects (base or override classes).
 var program: Dictionary[StringName, Object] = {}
-## Populated by [IVCoreInitializer]. Holds script classes for procedural objects (base or override).
-var procedural_classes: Dictionary[StringName, Resource] = {}
 ## Populated by [IVResourceInitializer].
 var resources: Dictionary[StringName, Resource] = {}
 ## Maintained by [IVSettingsManager].

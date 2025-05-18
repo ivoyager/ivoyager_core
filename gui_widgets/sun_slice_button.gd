@@ -43,7 +43,7 @@ var _has_mouse := false
 func _ready() -> void:
 	IVGlobal.about_to_start_simulator.connect(_build)
 	IVGlobal.update_gui_requested.connect(_update_selection)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	mouse_entered.connect(_on_mouse_entered)
 	mouse_exited.connect(_on_mouse_exited)
 	set_default_cursor_shape(CURSOR_POINTING_HAND)
@@ -72,7 +72,7 @@ func _build(_dummy := false) -> void:
 	_update_selection()
 
 
-func _clear() -> void:
+func _clear_procedural() -> void:
 	_selection_manager = null
 	_body = null
 	_is_built = false

@@ -20,27 +20,42 @@
 class_name IVBodyFinisher
 extends RefCounted
 
-## Adds non-persistant nodes to IVBody instances including a model, rings,
-## lights, and HUD elements (as applicable).
+## Adds non-persistant [IVBody]-associated nodes including a label, an orbit
+## visual graphic, lights, and rings (as applicable).
+##
+## Graphic nodes added here are not referenced anywhere else so can be fully
+## replaced by modifying script members here. Replacement classes must have
+## compatable _init() signatures. (Or, to change that, extend this class in
+## [member IVCoreInitializer.program_refcounteds] and override its generator
+## methods.)[br][br]
 ##
 ## All work here is the same whether this is a new game built from data tables
 ## or a loaded game built from file. Most of the work is done on threads if
-## IVCoreSettings.use_threads == true.[br][br]
-##
-## All nodes instantiated here are either base Godot class or class defined in
-## IVCoreInitializer.procedural_classes. Procedural class replacements are ok
-## as long as init signature is compatible.
+## [member IVCoreSettings.use_threads] == true and [member disable_threads]
+## == false.[br][br]
 
-const files := preload("res://addons/ivoyager_core/static/files.gd")
-const BodyFlags := IVBody.BodyFlags
 
-var _use_threads := IVCoreSettings.use_threads
+## Overrides [member IVCoreSettings.use_threads] for this object.
+var disable_threads := false
+
+var replacement_body_label_class: Script
+var replacement_orbit_visual_class: Script
+var replacement_dynamic_light_class: Script
+var replacement_rings_class: Script
+
+
 var _tree: SceneTree
+var _use_threads: bool
 
 
 func _init() -> void:
+	IVGlobal.project_builder_finished.connect(_on_project_builder_finished)
 	_tree = IVGlobal.get_tree()
 	_tree.node_added.connect(_on_node_added)
+
+
+func _on_project_builder_finished() -> void:
+	_use_threads = IVCoreSettings.use_threads and !disable_threads
 
 
 func _on_node_added(node: Node) -> void:
@@ -92,17 +107,24 @@ func _deffered_finish(body: IVBody, children: Array[Node], siblings: Array[Node]
 
 
 func _get_body_label(body: IVBody, children: Array[Node]) -> void:
-	var body_label_script: Script = IVGlobal.procedural_classes[&"BodyLabel"]
-	@warning_ignore("unsafe_method_access")
-	var body_label: Label3D = body_label_script.new(body, IVCoreSettings.body_labels_color,
+	var body_label: Node
+	if replacement_body_label_class:
+		@warning_ignore("unsafe_method_access")
+		body_label = replacement_body_label_class.new(body, IVCoreSettings.body_labels_color,
+			IVCoreSettings.body_labels_use_orbit_color)
+	else:
+		body_label = IVBodyLabel.new(body, IVCoreSettings.body_labels_color,
 			IVCoreSettings.body_labels_use_orbit_color)
 	children.append(body_label)
 
 
 func _get_orbit_visual(body: IVBody, siblings: Array[Node]) -> void:
-	var orbit_visual_script: Script = IVGlobal.procedural_classes[&"OrbitVisual"]
-	@warning_ignore("unsafe_method_access")
-	var orbit_visual: Node = orbit_visual_script.new(body)
+	var orbit_visual: Node
+	if replacement_orbit_visual_class:
+		@warning_ignore("unsafe_method_access")
+		orbit_visual = replacement_orbit_visual_class.new(body)
+	else:
+		orbit_visual = IVOrbitVisual.new(body)
 	siblings.append(orbit_visual)
 
 
@@ -112,9 +134,12 @@ func _get_dynamic_light(body: IVBody, children: Array[Node]) -> void:
 	if !IVCoreSettings.dynamic_lights:
 		return
 	var body_name := body.name
-	var dynamic_light_script: Script = IVGlobal.procedural_classes[&"DynamicLight"]
-	@warning_ignore("unsafe_method_access")
-	var dynamic_light: Node = dynamic_light_script.new(body_name)
+	var dynamic_light: Node
+	if replacement_dynamic_light_class:
+		@warning_ignore("unsafe_method_access")
+		dynamic_light = replacement_dynamic_light_class.new(body_name)
+	else:
+		dynamic_light = IVDynamicLight.new(body_name)
 	children.append(dynamic_light)
 
 
@@ -137,8 +162,10 @@ func _get_omni_lights(body: IVBody, children: Array[Node]) -> void:
 
 
 func _get_rings(body: IVBody, model_space_nodes: Array[Node3D]) -> void:
-	# See IVRings for resource requirements.
-	var rings_script: Script = IVGlobal.procedural_classes[&"Rings"]
-	@warning_ignore("unsafe_method_access")
-	var rings: Node3D = rings_script.new(body)
+	var rings: Node3D
+	if replacement_rings_class:
+		@warning_ignore("unsafe_method_access")
+		rings = replacement_rings_class.new(body)
+	else:
+		rings = IVRings.new(body)
 	model_space_nodes.append(rings)

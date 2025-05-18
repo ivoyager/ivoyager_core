@@ -39,13 +39,13 @@ var _selection_manager: IVSelectionManager
 func _ready() -> void:
 	IVGlobal.about_to_start_simulator.connect(_connect_selection_manager)
 	IVGlobal.update_gui_requested.connect(_update_selection)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	meta_clicked.connect(_on_wiki_clicked)
 	size_flags_horizontal = SIZE_EXPAND_FILL
 	_connect_selection_manager()
 
 
-func _clear() -> void:
+func _clear_procedural() -> void:
 	_selection_manager = null
 
 

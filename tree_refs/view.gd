@@ -93,6 +93,9 @@ var speed_index := 0
 var is_reversed := false
 
 
+static var replacement_subclass: Script = IVView # subclass only
+
+
 # private
 static var _version_hash := PERSIST_PROPERTIES.hash() + 4 # test for cache is 'bad'
 static var _camera_handler: IVCameraHandler
@@ -113,6 +116,11 @@ func _init() -> void:
 
 
 # public API
+
+static func create() -> IVView:
+	@warning_ignore("unsafe_method_access")
+	return replacement_subclass.new()
+
 
 func save_state(save_flags: int) -> void:
 	flags = save_flags

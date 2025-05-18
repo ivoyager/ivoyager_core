@@ -73,7 +73,7 @@ func _ready() -> void:
 	set_process(is_dynamic_star)
 	if !is_dynamic_star:
 		return
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	IVGlobal.camera_ready.connect(_connect_camera)
 	_connect_camera(get_viewport().get_camera_3d())
 
@@ -91,7 +91,7 @@ func _process(_delta: float) -> void:
 	transform.basis = _reference_basis.scaled(Vector3(factor, factor, factor))
 
 
-func _clear() -> void:
+func _clear_procedural() -> void:
 	_camera = null
 
 

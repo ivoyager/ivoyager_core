@@ -99,10 +99,11 @@ var _adj_values: Array[float] = []
 func _ready() -> void:
 	process_mode = PROCESS_MODE_ALWAYS
 	assert(fragment_range % 3 == 0)
+	_node2d.name = &"FISamplerNode2D"
 	add_child(_node2d)
 	_node2d.draw.connect(_on_node2d_draw)
 	RenderingServer.frame_post_draw.connect(_on_frame_post_draw)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	_init_rects_and_arrays()
 	disable_3d = true
 	render_target_update_mode = UPDATE_ALWAYS
@@ -223,7 +224,7 @@ static func encode_vec3(id: int) -> Vector3:
 
 # private
 
-func _clear() -> void:
+func _clear_procedural() -> void:
 	fragment_data.clear()
 
 
