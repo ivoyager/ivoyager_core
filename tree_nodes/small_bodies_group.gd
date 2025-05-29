@@ -85,6 +85,7 @@ static var null_pf32_array := PackedFloat32Array()
 
 
 func _ready() -> void:
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	assert(!small_bodies_groups.has(name))
 	small_bodies_groups[name] = self
 
@@ -248,3 +249,11 @@ func get_fragment_text(data: Array) -> String:
 	if fragment_type == IVFragmentIdentifier.FRAGMENT_SBG_ORBIT:
 		text += " (" + tr("LABEL_ORBIT").to_lower() + ")"
 	return text
+
+
+# *****************************************************************************
+
+
+func _clear_procedural() -> void:
+	secondary_body = null
+	small_bodies_groups.clear()

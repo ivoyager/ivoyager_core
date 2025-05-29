@@ -184,7 +184,7 @@ func _ready() -> void:
 	name = &"IVCamera"
 	IVGlobal.system_tree_ready.connect(_on_system_tree_ready, CONNECT_ONE_SHOT)
 	IVGlobal.simulator_started.connect(_on_simulator_started, CONNECT_ONE_SHOT)
-	IVGlobal.about_to_free_procedural_nodes.connect(_prepare_to_free, CONNECT_ONE_SHOT)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural, CONNECT_ONE_SHOT)
 	IVGlobal.update_gui_requested.connect(_send_gui_refresh)
 	IVGlobal.move_camera_requested.connect(move_to)
 	IVGlobal.setting_changed.connect(_settings_listener)
@@ -397,8 +397,7 @@ func _on_simulator_started() -> void:
 	set_process(true)
 
 
-func _prepare_to_free() -> void:
-	# Some deconstruction needed to prevent freeing object signalling errors (Godot3.x)
+func _clear_procedural() -> void:
 	set_process(false)
 	IVGlobal.update_gui_requested.disconnect(_send_gui_refresh)
 	IVGlobal.move_camera_requested.disconnect(move_to)
@@ -407,8 +406,8 @@ func _prepare_to_free() -> void:
 	parent = null
 	_to_spatial = null
 	_trasfer_spatial = null
-	_from_selection = null
 	_from_spatial = null
+	_from_selection = null
 
 
 func _process_move_to(delta: float) -> void:

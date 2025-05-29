@@ -29,9 +29,6 @@ extends RefCounted
 ## and maintains selection history. In `ivoyager_core` we only select [IVBody]
 ## instances, but this class could be extended to wrap anything.
 
-
-const math := preload("uid://csb570a3u1x1k")
-
 const CameraFlags := IVCamera.CameraFlags
 const BodyFlags := IVBody.BodyFlags
 const IDENTITY_BASIS := Basis.IDENTITY
@@ -65,7 +62,7 @@ var texture_slice_2d: Texture2D # stars only
 
 static var replacement_subclass: Script # replace w/ subclass only
 
-## Contains all existing IVSelection instances.
+## Contains all existing IVSelection instances. FIXME: Move to IVSelectionManager?
 static var selections: Dictionary[StringName, IVSelection] = {}
 
 
@@ -192,3 +189,4 @@ func _clear_procedural() -> void:
 		IVGlobal.system_tree_ready.disconnect(_init_after_system)
 	spatial = null
 	body = null
+	selections.clear()

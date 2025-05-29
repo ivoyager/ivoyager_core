@@ -26,7 +26,13 @@ extends Node
 ## An application may have one or more instances of this class, which are
 ## each associated with an individual [Control]. GUI widgets can call static
 ## function `get_selection_manager()` to obtain the first instance of this
-## class searching up their ancestor tree.
+## class searching up their ancestor tree.[br][br]
+##
+## This node may or may not be a "persist" node for game save/load, depending
+## on how it is used in the scene tree. If it is a descendent of persist nodes,
+## it will be be persisted and freed/rebuilt on game load. In either case,
+## all IVSelection references will be cleared on
+## [signal IVGlobal.about_to_free_procedural_nodes].
 
 signal selection_changed(suppress_camera_move: bool)
 signal selection_reselected(suppress_camera_move: bool)
@@ -70,7 +76,6 @@ static var replacement_subclass: Script
 
 
 # private
-var _selections: Dictionary[StringName, IVSelection] = IVSelection.selections
 var _history: Array[WeakRef] = []
 var _history_index := -1
 var _supress_history := false
@@ -384,6 +389,10 @@ func set_selection_and_history(array: Array) -> void:
 	_history_index = array[2]
 
 
+func _clear_procedural() -> void:
+	selection = null
+
+
 func _add_history() -> void:
 	if _supress_history:
 		_supress_history = false
@@ -398,7 +407,3 @@ func _add_history() -> void:
 		_history.resize(_history_index)
 	var wr: WeakRef = weakref(selection) # weakref() is untyped in Godot4.1.1. Open issue? 
 	_history.append(wr)
-
-
-func _clear_procedural() -> void:
-	_selections.clear() # may be >1 SelectionManager clearing but that's ok

@@ -44,24 +44,9 @@ var _missing_or_bad_cache_file := true
 
 
 func _init() -> void:
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	IVGlobal.project_objects_instantiated.connect(_on_project_objects_instantiated)
 	IVGlobal.about_to_start_simulator.connect(_on_about_to_start_simulator)
-
-
-func _on_project_objects_instantiated() -> void:
-	# table read
-	var table_view_builder: IVTableViewBuilder = IVGlobal.program[&"TableViewBuilder"]
-	table_views = table_view_builder.build_all()
-	# caching
-	DirAccess.make_dir_recursive_absolute(IVCoreSettings.cache_dir)
-	_read_cache()
-	if _missing_or_bad_cache_file:
-		_write_cache()
-
-
-func _on_about_to_start_simulator(is_new_game: bool) -> void:
-	if is_new_game and move_home_at_start:
-		set_table_view(&"VIEW_HOME", true)
 
 # public
 
@@ -149,6 +134,26 @@ func get_names_in_collection(collection_name: StringName, is_cached: bool) -> Ar
 
 
 # private
+
+func _clear_procedural() -> void:
+	gamesave_views.clear()
+
+
+func _on_project_objects_instantiated() -> void:
+	# table read
+	var table_view_builder: IVTableViewBuilder = IVGlobal.program[&"TableViewBuilder"]
+	table_views = table_view_builder.build_all()
+	# caching
+	DirAccess.make_dir_recursive_absolute(IVCoreSettings.cache_dir)
+	_read_cache()
+	if _missing_or_bad_cache_file:
+		_write_cache()
+
+
+func _on_about_to_start_simulator(is_new_game: bool) -> void:
+	if is_new_game and move_home_at_start:
+		set_table_view(&"VIEW_HOME", true)
+
 
 # This replicates some IVCacheHandler code, but it's really hard to generalize
 # that class to handle objects.

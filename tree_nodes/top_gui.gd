@@ -39,14 +39,16 @@ extends Control
 const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY # don't free on load
 const PERSIST_PROPERTIES: Array[StringName] = [&"selection_manager"]
 
-var selection_manager_script: Script = IVSelectionManager
+
 var selection_manager: IVSelectionManager
+
 
 
 func _init() -> void:
 	name = &"TopGUI"
 	anchor_right = 1.0
 	anchor_bottom = 1.0
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	IVGlobal.project_builder_finished.connect(_on_project_builder_finished)
 	IVGlobal.system_tree_built_or_loaded.connect(_on_system_tree_built_or_loaded)
 
@@ -54,6 +56,10 @@ func _init() -> void:
 func _ready() -> void:
 	if IVCoreSettings.pause_only_stops_time:
 		process_mode = PROCESS_MODE_ALWAYS
+
+
+func _clear_procedural() -> void:
+	selection_manager = null
 
 
 func _on_project_builder_finished() -> void:

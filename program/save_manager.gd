@@ -93,8 +93,8 @@ func _ready() -> void:
 	@warning_ignore("unsafe_property_access", "unsafe_method_access")
 	_save_singleton.load_started.connect(_on_load_started)
 	@warning_ignore("unsafe_property_access", "unsafe_method_access")
-	_save_singleton.about_to_free_procedural_tree_for_load.connect(
-			_on_about_to_free_procedural_tree_for_load)
+	_save_singleton.about_to_free_procedural_nodes.connect(
+			_on_about_to_free_procedural_nodes)
 	@warning_ignore("unsafe_property_access", "unsafe_method_access")
 	_save_singleton.about_to_build_procedural_tree_for_load.connect(
 			_on_about_to_build_procedural_tree_for_load)
@@ -188,7 +188,7 @@ func _on_load_started() -> void:
 	_state_manager.set_game_loading()
 
 
-func _on_about_to_free_procedural_tree_for_load() -> void:
+func _on_about_to_free_procedural_nodes() -> void:
 	IVGlobal.about_to_free_procedural_nodes.emit()
 
 
@@ -213,7 +213,6 @@ func _warn_if_versions_mismatch() -> void:
 
 func _print_node_count() -> void:
 	print("Nodes in tree after load & sim started: ", get_tree().get_node_count())
-	print("If unexpected relative to pre-save, set DEBUG_PRINT_NODES in ivoyager_save/save.gd.")
 
 
 func _settings_listener(setting: StringName, _value: Variant) -> void:

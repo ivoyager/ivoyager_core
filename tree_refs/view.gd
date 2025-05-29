@@ -23,7 +23,8 @@ extends RefCounted
 ## A representation of a solar system view, optionally including camera
 ## state, HUDs state, and/or time state.
 ##
-## This class is designed to be persisted via gamesave or cache.
+## This class is designed to be persisted via gamesave or cache. There are no
+## references to objects.
 ##
 ## TODO: Hotkey bindings!
 
@@ -93,7 +94,7 @@ var speed_index := 0
 var is_reversed := false
 
 
-static var replacement_subclass: Script = IVView # subclass only
+static var replacement_subclass: Script # subclass only
 
 
 # private
@@ -118,8 +119,10 @@ func _init() -> void:
 # public API
 
 static func create() -> IVView:
-	@warning_ignore("unsafe_method_access")
-	return replacement_subclass.new()
+	if replacement_subclass:
+		@warning_ignore("unsafe_method_access")
+		return replacement_subclass.new()
+	return IVView.new()
 
 
 func save_state(save_flags: int) -> void:

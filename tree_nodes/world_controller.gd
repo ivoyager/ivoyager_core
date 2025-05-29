@@ -57,7 +57,7 @@ var _current_target_dist := INF
 
 
 func _init() -> void:
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
+	IVGlobal.about_to_free_procedural_nodes.connect(_restore_init_state)
 	IVGlobal.camera_ready.connect(_connect_camera)
 	IVGlobal.pause_changed.connect(_on_pause_changed)
 
@@ -169,7 +169,7 @@ func remove_world_target(node3d: Node3D) -> void:
 		_current_target_dist = INF
 
 
-func _clear_procedural() -> void:
+func _restore_init_state() -> void:
 	camera = null
 	current_target = null
 	_current_target_dist = INF
