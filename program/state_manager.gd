@@ -314,18 +314,13 @@ func quit(force_quit := false) -> void:
 	_state.is_ok_to_start = false
 	_state.is_quitting = true
 	IVGlobal.state_changed.emit(_state)
-	
-	#print("\n\nOrphans before quit...")
-	#IVDebug.dprint_orphan_nodes()
-	#print("\n\nSceneTree before quit...")
-	#IVDebug.dprint_nodes_recursive()
-	#print("\n\n")
-	
-	IVDebug.dlog_nodes_recursive()
-	
 	IVGlobal.about_to_stop_before_quit.emit()
 	require_stop(self, NetworkStopSync.QUIT, true)
 	await threads_finished
+	
+	# debugging leaked objects...
+	#IVDebug.register_all_objects(get_viewport())
+	
 	IVGlobal.about_to_quit.emit()
 	IVGlobal.about_to_free_procedural_nodes.emit()
 	var universe: Node3D = IVGlobal.program.Universe
