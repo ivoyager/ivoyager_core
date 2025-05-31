@@ -82,7 +82,9 @@ func _build(_dummy := false) -> void:
 	var column_widths: Array[float] = [] # index 0, 1, 2,... will be planet/moon columns
 	var planet_sizes: Array[float] = []
 	var n_planets := 0
-	for planet in star.satellites:
+	var star_satellites := star.satellites
+	for planet_name in star_satellites:
+		var planet := star_satellites[planet_name]
 		if not planet.flags & BODYFLAGS_PLANET_OR_DWARF_PLANET:
 			continue
 		base_size = planet.get_mean_radius() ** size_exponent
@@ -107,7 +109,8 @@ func _build(_dummy := false) -> void:
 			max_planet_size = planet_sizes[column]
 	# build the system button tree
 	var column := 0
-	for planet in star.satellites: # vertical box for each planet w/ its moons
+	for planet_name in star_satellites: # vertical box for each planet w/ its moons
+		var planet := star_satellites[planet_name]
 		if not planet.flags & BODYFLAGS_PLANET_OR_DWARF_PLANET or not planet.flags & BODYFLAGS_SHOW_IN_NAVIGATION_PANEL:
 			continue
 		# For each planet column, column_widths[column] sets the top Spacer
@@ -124,7 +127,8 @@ func _build(_dummy := false) -> void:
 		_resize_multipliers[spacer] = Vector2(0.0, spacer_height / INIT_WIDTH)
 		planet_vbox.add_child(spacer)
 		_add_nav_button(planet_vbox, planet, planet_sizes[column])
-		for moon in planet.satellites:
+		for moon_name in planet.satellites:
+			var moon := planet.satellites[moon_name]
 			if not moon.flags & BODYFLAGS_MOON or not moon.flags & BODYFLAGS_SHOW_IN_NAVIGATION_PANEL:
 				continue
 			base_size = roundf(pow(moon.get_mean_radius(), size_exponent) * widget_scale)

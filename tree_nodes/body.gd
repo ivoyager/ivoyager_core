@@ -213,8 +213,8 @@ var parent: IVBody
 var star: IVBody
 ## This body (if star-orbiter) or star-orbiter above or null (if none). Read-only!
 var star_orbiter: IVBody
-## Bodies in orbit around this body (child IVBody instances of this IVBody). Read-only!
-var satellites: Array[IVBody] = [] # TODO: Change to Dictionary to support 1000s
+## Bodies in orbit around (children of) this body. Read-only!
+var satellites: Dictionary[StringName, IVBody]
 ## If present, the Node3D that has this body's visual
 ## representation (model). If data table value [param lazy_model] == TRUE, then
 ## this value will be null until needed. Read-only!
@@ -471,8 +471,8 @@ static func create_from_astronomy_specs(
 
 func remove() -> void:
 	const GALAXY_ORBITER := BodyFlags.BODYFLAGS_GALAXY_ORBITER
-	for satellite in satellites:
-		satellite.remove()
+	for satellite_name in satellites:
+		satellites[satellite_name].remove()
 	bodies.erase(name)
 	if flags & GALAXY_ORBITER:
 		galaxy_orbiters.erase(self)
@@ -994,14 +994,14 @@ func get_orbit_tracking_basis(time := NAN) -> Basis:
 ## Adds [param satellite] to this body's [member satellites]. Does [b]NOT[/b]
 ## add [param satellite] to the tree!
 func add_satellite(satellite: IVBody) -> void:
-	assert(!satellites.has(satellite))
-	satellites.append(satellite)
+	assert(!satellites.has(satellite.name))
+	satellites[satellite.name] = satellite
 
 
 ## Removes [param satellite] from this body's [member satellites]. Does [b]NOT[/b]
 ## remove [param satellite] from the tree!
 func remove_satellite(satellite: IVBody) -> void:
-	satellites.erase(satellite)
+	satellites.erase(satellite.name)
 
 
 ## Adds a child Node3D to this body's [IVModelSpace]. Use for nodes that need to
@@ -1141,8 +1141,8 @@ func _set_system_radius() -> void:
 	var system_radius := mean_radius * system_mean_radius_multiplier
 	if characteristics.get(&"system_radius", 0.0) > system_radius:
 		system_radius = characteristics[&"system_radius"]
-	for satellite in satellites:
-		var a: float = satellite.get_orbit_semi_major_axis()
+	for satellite_name in satellites:
+		var a: float = satellites[satellite_name].get_orbit_semi_major_axis()
 		if system_radius < a:
 			system_radius = a
 	_system_radius = system_radius

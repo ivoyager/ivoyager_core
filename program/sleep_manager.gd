@@ -61,6 +61,7 @@ func _on_camera_tree_changed(_camera: Camera3D, _parent: Node3D, star_orbiter: N
 
 
 func _set_sleeping_recursive(body: IVBody, is_asleep: bool) -> void:
-	for satellite in body.satellites:
+	for satellite_name in body.satellites:
+		var satellite := body.satellites[satellite_name]
 		satellite.set_sleeping(is_asleep) # does nothing if can_sleep == false
 		_set_sleeping_recursive(satellite, is_asleep)

@@ -299,7 +299,8 @@ func can_go_up() -> bool:
 func down() -> void:
 	var body: IVBody = selection.body
 	if body and body.satellites:
-		select_body(body.satellites[0])
+		var satellite: IVBody = body.satellites.values()[0]
+		select_body(satellite)
 
 
 func next_last(incr: int, selection_type := -1, _alt_selection_type := -1) -> void:
@@ -309,7 +310,7 @@ func next_last(incr: int, selection_type := -1, _alt_selection_type := -1) -> vo
 	match selection_type:
 		-1:
 			var up_body := IVSelectionManager.get_body_above_selection(selection)
-			iteration_array = up_body.satellites
+			iteration_array = up_body.satellites.values()
 			index = iteration_array.find(current_body)
 		SELECTION_STAR:
 			# TODO: code for multistar systems
@@ -320,7 +321,7 @@ func next_last(incr: int, selection_type := -1, _alt_selection_type := -1) -> vo
 			var star := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.BODYFLAGS_STAR)
 			if !star:
 				return
-			iteration_array = star.satellites
+			iteration_array = star.satellites.values()
 			var planet := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.BODYFLAGS_PLANET_OR_DWARF_PLANET)
 			if planet:
 				index = iteration_array.find(planet)
@@ -330,7 +331,7 @@ func next_last(incr: int, selection_type := -1, _alt_selection_type := -1) -> vo
 			var planet := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.BODYFLAGS_PLANET_OR_DWARF_PLANET)
 			if !planet:
 				return
-			iteration_array = planet.satellites
+			iteration_array = planet.satellites.values()
 			var moon := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.BODYFLAGS_MOON)
 			if moon:
 				index = iteration_array.find(moon)
@@ -338,10 +339,10 @@ func next_last(incr: int, selection_type := -1, _alt_selection_type := -1) -> vo
 					index -= 1
 		SELECTION_SPACECRAFT:
 			if current_body:
-				iteration_array = current_body.satellites
+				iteration_array = current_body.satellites.values()
 			else:
 				var up_body := IVSelectionManager.get_body_above_selection(selection)
-				iteration_array = up_body.satellites
+				iteration_array = up_body.satellites.values()
 	if !iteration_array:
 		return
 	var array_size := iteration_array.size()

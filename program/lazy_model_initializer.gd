@@ -55,7 +55,8 @@ func _on_camera_tree_changed(_camera: Camera3D, parent: Node3D, _star_orbiter: N
 
 
 func _lazy_init_down(body: IVBody) -> void:
-	for satellite in body.satellites:
+	for satellite_name in body.satellites:
+		var satellite := body.satellites[satellite_name]
 		if satellite.is_lazy_model_uninited():
 			satellite.lazy_model_init()
 			_lazy_init_down(satellite)
