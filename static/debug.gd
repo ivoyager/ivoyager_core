@@ -109,7 +109,12 @@ static func _on_verbose_signal(arg: Variant, arg2: Variant = null, arg3: Variant
 static var _object_register: Dictionary[int, WeakRef] = {}
 
 
-static func register_all_objects(root: Node, log_name := "objects.log") -> bool:
+static func register_objects_on_nodes_added() -> bool:
+	IVGlobal.get_tree().node_added.connect(_on_node_added)
+	return true
+
+
+static func register_all_objects_now(root: Node, log_name := "objects.log") -> bool:
 	_register_object_recursive(root)
 	if log_name:
 		dlog_object_register(log_name)
@@ -127,6 +132,10 @@ static func dlog_object_register(log_name := "objects.log") -> bool:
 		var line := str(object) + " " + class_file
 		file.store_line(line)
 	return true
+
+
+static func _on_node_added(node: Node) -> void:
+	_register_object_recursive.call_deferred(node)
 
 
 static func _register_object_recursive(object: Object) -> void:
