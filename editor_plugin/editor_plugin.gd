@@ -34,8 +34,8 @@ extends EditorPlugin
 const REQUIRED_PLUGINS: Array[String] = ["ivoyager_units", "ivoyager_tables"]
 
 var _config: ConfigFile # with overrides
-var _autoloads := {}
-var _shader_globals := {}
+var _autoloads: Dictionary[String, String] = {}
+var _shader_globals: Dictionary[String, Dictionary] = {}
 
 
 func _enter_tree() -> void:
@@ -107,9 +107,9 @@ func _add_autoloads() -> void:
 			assert(typeof(value) == TYPE_STRING,
 					"'%s' must specify a path as String" % autoload_name)
 			_autoloads[autoload_name] = value
-	for autoload_name: String in _autoloads:
+	for autoload_name in _autoloads:
 #		await get_tree().process_frame
-		var path: String = _autoloads[autoload_name]
+		var path := _autoloads[autoload_name]
 		add_autoload_singleton(autoload_name, path)
 
 
@@ -123,8 +123,7 @@ func _add_shader_globals() -> void:
 	for global_name in _config.get_section_keys("core_shader_globals"):
 		var value: Variant = _config.get_value("core_shader_globals", global_name)
 		if value: # could be null or {} to negate
-			assert(typeof(value) == TYPE_DICTIONARY,
-				"'%s' must specify a Dictionary" % global_name)
+			assert(typeof(value) == TYPE_DICTIONARY, "'%s' must specify a Dictionary" % global_name)
 			_shader_globals[global_name] = value
 	for global_name: String in _shader_globals:
 		var dict: Dictionary = _shader_globals[global_name]
