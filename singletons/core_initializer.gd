@@ -103,7 +103,6 @@ var initializers: Dictionary[StringName, Variant] = {
 	# 'preinitializers'. Some of these classes may erase themselves from
 	# dictionary 'IVGlobal.program' after init, thereby freeing themselves.
 	# Path to RefCounted class ok.
-	LogInitializer = IVLogInitializer, # self-removes
 	ResourceInitializer = IVResourceInitializer, # self-removes
 	WikiInitializer = IVWikiInitializer, # self-removes
 	TranslationImporter = IVTranslationImporter, # self-removes

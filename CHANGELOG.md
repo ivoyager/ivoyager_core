@@ -24,6 +24,7 @@ Developed using Godot 4.4.1
 * [API breaking] Removed procedural class dictionaries from IVGlobal and IVCoreInitializer. These classes can still be subclassed or replaced, but this happens in the class itself (member "replacement_subclass") or in "builder" classes.
 * Unabbreviated field names in body tables for orbit parameters.
 * De-cluttered code in various TableXxxxBuilder classes.
+* Consolidated debug code in various places into IVDebug (static/debug.gd).
 
 ### Fixed
 * Fixed errors caused by loading resources simultaneously on different threads.
