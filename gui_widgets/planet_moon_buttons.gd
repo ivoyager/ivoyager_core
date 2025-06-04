@@ -39,11 +39,12 @@ const BODYFLAGS_SHOW_IN_NAVIGATION_PANEL := IVBody.BodyFlags.BODYFLAGS_SHOW_IN_N
 const STAR_SLICE_MULTIPLIER := 0.05 # what fraction of star is in image "slice"?
 const INIT_WIDTH := 560.0
 
-# project vars
-var size_exponent := 0.4 # smaller values reduce differences in object sizes
-var min_button_width_proportion := 0.05 # as proportion of total (roughly)
-var min_body_size_ratio := 0.008929 # proportion of widget width, rounded
-var column_separation_ratio := 0.007143 # proportion of widget width, rounded
+# widget settings
+@export var star_name := &"STAR_SUN"
+@export var size_exponent := 0.4 # smaller values reduce differences in object sizes
+@export var min_button_width_proportion := 0.05 # as proportion of total (roughly)
+@export var min_body_size_ratio := 0.008929 # proportion of widget width, rounded
+@export var column_separation_ratio := 0.007143 # proportion of widget width, rounded
 
 # private
 var _selection_manager: IVSelectionManager # get from ancestor selection_manager
@@ -74,7 +75,7 @@ func _build(_dummy := false) -> void:
 	var column_separation := int(INIT_WIDTH * column_separation_ratio + 0.5)
 	set(&"theme_override_constants/separation", column_separation)
 	# calculate star "slice" relative size
-	var star: IVBody = IVBody.galaxy_orbiters[0]
+	var star := IVBody.bodies[star_name]
 	var min_body_size := roundf(INIT_WIDTH * min_body_size_ratio)
 	# count & calcultate planet relative sizes
 	var base_size := 0.0

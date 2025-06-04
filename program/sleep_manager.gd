@@ -44,8 +44,8 @@ func _clear_procedural() -> void:
 
 
 func _on_system_tree_ready(_is_new_game: bool) -> void:
-	for body in IVBody.galaxy_orbiters:
-		_set_sleeping_recursive(body, true)
+	for body_name in IVBody.galaxy_orbiters:
+		_set_sleeping_recursive(IVBody.galaxy_orbiters[body_name], true)
 
 
 func _on_camera_tree_changed(_camera: Camera3D, _parent: Node3D, star_orbiter: Node3D, _star: Node3D

@@ -93,7 +93,7 @@ func _ready() -> void:
 
 func _on_system_tree_ready(is_new_game: bool) -> void:
 	if is_new_game:
-		var selection_ := IVSelectionManager.get_or_make_selection(IVCoreSettings.home_name)
+		var selection_ := get_or_make_selection(IVCoreSettings.home_name)
 		select(selection_, true)
 	else:
 		_add_history()
@@ -145,13 +145,12 @@ static func create() -> IVSelectionManager:
 
 
 static func get_selection_manager(control: Control) -> IVSelectionManager:
-	var ancestor: Node = control.get_parent()
-	while ancestor is Control:
-		if &"selection_manager" in ancestor:
-			var selection_manager: IVSelectionManager = ancestor.get(&"selection_manager")
+	while control:
+		if &"selection_manager" in control:
+			var selection_manager: IVSelectionManager = control.get(&"selection_manager")
 			if selection_manager:
 				return selection_manager
-		ancestor = ancestor.get_parent()
+		control = control.get_parent() as Control
 	return null
 
 
@@ -181,7 +180,7 @@ static func get_body_above_selection(selection_: IVSelection) -> IVBody:
 		selection_ = get_or_make_selection(selection_.up_selection_name)
 		if selection_.body:
 			return selection_.body
-	return IVBody.galaxy_orbiters[0]
+	return IVBody.galaxy_orbiters.values()[0]
 
 
 static func get_body_at_above_selection_w_flags(selection_: IVSelection, flags: int) -> IVBody:
@@ -207,13 +206,13 @@ func select(selection_: IVSelection, suppress_camera_move := false) -> void:
 
 
 func select_body(body: IVBody, suppress_camera_move := false) -> void:
-	var selection_ := IVSelectionManager.get_or_make_selection(body.name)
+	var selection_ := get_or_make_selection(body.name)
 	if selection_:
 		select(selection_, suppress_camera_move)
 
 
 func select_by_name(selection_name: StringName, suppress_camera_move := false) -> void:
-	var selection_ := IVSelectionManager.get_or_make_selection(selection_name)
+	var selection_ := get_or_make_selection(selection_name)
 	if selection_:
 		select(selection_, suppress_camera_move)
 
@@ -280,7 +279,7 @@ func forward() -> void:
 func up() -> void:
 	var up_name := selection.up_selection_name
 	if up_name:
-		var new_selection := IVSelectionManager.get_or_make_selection(up_name)
+		var new_selection := get_or_make_selection(up_name)
 		select(new_selection)
 
 
@@ -304,35 +303,41 @@ func down() -> void:
 
 
 func next_last(incr: int, selection_type := -1, _alt_selection_type := -1) -> void:
+	const BODYFLAGS_STAR := IVBody.BodyFlags.BODYFLAGS_STAR
+	const BODYFLAGS_PLANET_OR_DWARF_PLANET := IVBody.BodyFlags.BODYFLAGS_PLANET_OR_DWARF_PLANET
+	const BODYFLAGS_MOON := IVBody.BodyFlags.BODYFLAGS_MOON
+	
 	var current_body := selection.body # could be null
 	var iteration_array: Array
 	var index := -1
 	match selection_type:
 		-1:
-			var up_body := IVSelectionManager.get_body_above_selection(selection)
+			var up_body := get_body_above_selection(selection)
 			iteration_array = up_body.satellites.values()
 			index = iteration_array.find(current_body)
 		SELECTION_STAR:
 			# TODO: code for multistar systems
-			var sun: IVBody = IVBody.galaxy_orbiters[0]
+			var sun: IVBody = IVBody.galaxy_orbiters.values()[0]
 			select_body(sun)
 			return
 		SELECTION_PLANET:
-			var star := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.BODYFLAGS_STAR)
+			var star := get_body_at_above_selection_w_flags(selection, BODYFLAGS_STAR)
 			if !star:
 				return
 			iteration_array = star.satellites.values()
-			var planet := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.BODYFLAGS_PLANET_OR_DWARF_PLANET)
+			var planet := get_body_at_above_selection_w_flags(selection,
+					BODYFLAGS_PLANET_OR_DWARF_PLANET)
 			if planet:
 				index = iteration_array.find(planet)
 				if planet != current_body and incr == 1:
 					index -= 1
 		SELECTION_NAVIGATOR_MOON, SELECTION_MOON:
-			var planet := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.BODYFLAGS_PLANET_OR_DWARF_PLANET)
+			var planet := get_body_at_above_selection_w_flags(selection,
+					BODYFLAGS_PLANET_OR_DWARF_PLANET)
 			if !planet:
 				return
 			iteration_array = planet.satellites.values()
-			var moon := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.BODYFLAGS_MOON)
+			var moon := get_body_at_above_selection_w_flags(selection, BODYFLAGS_MOON)
 			if moon:
 				index = iteration_array.find(moon)
 				if moon != current_body and incr == 1:
@@ -341,7 +346,7 @@ func next_last(incr: int, selection_type := -1, _alt_selection_type := -1) -> vo
 			if current_body:
 				iteration_array = current_body.satellites.values()
 			else:
-				var up_body := IVSelectionManager.get_body_above_selection(selection)
+				var up_body := get_body_above_selection(selection)
 				iteration_array = up_body.satellites.values()
 	if !iteration_array:
 		return

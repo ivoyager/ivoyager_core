@@ -250,8 +250,8 @@ static var min_hud_dist_star_multiplier := 20.0
 ## A static class dictionary that contains all added IVBody instances.
 static var bodies: Dictionary[StringName, IVBody] = {}
 ## A static class dictionary that contains IVBody instances that are at the top
-## of the tree, i.e., the system star or the primary star for a multi-star system.
-static var galaxy_orbiters: Array[IVBody] = [] # TODO: Make dictionary to future-proof
+## of a system (i.e., the primary star for every star system).
+static var galaxy_orbiters: Dictionary[StringName, IVBody] = {}
 
 
 # private persisted
@@ -299,7 +299,7 @@ func _ready() -> void:
 	assert(!bodies.has(name))
 	bodies[name] = self
 	if flags & GALAXY_ORBITER:
-		galaxy_orbiters.append(self)
+		galaxy_orbiters[name] = self
 	_set_resources()
 	_set_min_hud_dist()
 	hide()
@@ -475,7 +475,7 @@ func remove() -> void:
 		satellites[satellite_name].remove()
 	bodies.erase(name)
 	if flags & GALAXY_ORBITER:
-		galaxy_orbiters.erase(self)
+		galaxy_orbiters.erase(name)
 	if _orbit:
 		_orbit.changed.disconnect(_on_orbit_changed)
 	_clear_relative_bodies()
