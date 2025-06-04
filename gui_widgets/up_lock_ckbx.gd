@@ -20,11 +20,13 @@
 class_name IVUpLockCkbx
 extends CheckBox
 
-# GUI Widget. Requires IVCamera.
+## GUI Widget.
+##
+## Requires [IVCamera].
 
-const CameraFlags := IVCamera.CameraFlags
 
 var _camera: IVCamera
+
 
 
 func _ready() -> void:
@@ -42,7 +44,8 @@ func _connect_camera(camera: IVCamera) -> void:
 
 
 func _update_ckbx(flags: int, _disable_flags: int) -> void:
-	button_pressed = bool(flags & CameraFlags.CAMERAFLAGS_UP_LOCKED)
+	const CAMERAFLAGS_UP_LOCKED := IVCamera.CameraFlags.CAMERAFLAGS_UP_LOCKED
+	button_pressed = bool(flags & CAMERAFLAGS_UP_LOCKED)
 
 
 func _on_pressed() -> void:

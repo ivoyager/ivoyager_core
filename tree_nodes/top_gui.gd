@@ -40,6 +40,7 @@ const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY # don't free on load
 const PERSIST_PROPERTIES: Array[StringName] = [&"selection_manager"]
 
 
+
 var selection_manager: IVSelectionManager
 
 
@@ -56,6 +57,7 @@ func _init() -> void:
 func _ready() -> void:
 	if IVCoreSettings.pause_only_stops_time:
 		process_mode = PROCESS_MODE_ALWAYS
+
 
 
 func _clear_procedural() -> void:

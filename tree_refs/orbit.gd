@@ -177,11 +177,10 @@ enum ReferencePlane {
 	REFERENCE_PLANE_LAPLACE, ## A specified intermediate Laplace plane.
 }
 
+
 const ECLIPTIC_SPACE := Basis.IDENTITY
 ## Minimum accumulated element change for update and [signal changed] signal.
 const CHANGED_THRESHOLD := 0.005
-
-
 
 ## Just under 0.0 so Earth doesn't cause error. (Earth i = -9.48517e-06 at epoch.)
 const MIN_INCLINATION := -0.001
@@ -210,6 +209,7 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"_mean_anomaly",
 	&"_true_anomaly",
 ]
+
 
 # Public properties are all "redirect" vars so we can implement side-effects or
 # force alternative set methods.
@@ -426,7 +426,6 @@ static func create_from_state_vectors_and_environment(
 	# For a Moon-orbiter, the Earth is the main effect, then maybe the Sun. (Moon isn't oblate.)
 	
 	return null
-
 
 
 ## Static method returns mean anomaly (M) for an elliptic orbit (e < 1). 0 ≤ M < 2π.
@@ -1431,6 +1430,7 @@ func get_unit_parabola_transform_at_time(time: float, rotate_to_ecliptic := true
 
 
 # *****************************************************************************
+# serialize/deserialize
 
 
 func serialize() -> PackedFloat64Array:

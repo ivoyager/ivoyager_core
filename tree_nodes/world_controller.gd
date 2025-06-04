@@ -26,10 +26,8 @@ extends Control
 ## mouse drags, clicks and wheel turn. Potential mouse target Node3Ds must
 ## call [method update_world_target] each frame to be available for mouse-over
 ## identification and selection.
-
-
-#  The single instance of this node is added by IVCoreInitializer.
-
+##
+## The single instance of this node is added by [IVCoreInitializer].
 
 signal mouse_target_changed(target: Object)
 signal mouse_target_clicked(target: Object, button_mask: int, key_modifier_mask: int)
@@ -125,6 +123,7 @@ func _gui_input(input_event: InputEvent) -> void:
 				_drag_segment_start = Vector2.ZERO
 
 
+
 ## Potential mouse targets must call this every frame to be available for
 ## mouse-over identification and selection. Return value is distance from
 ## target to the camera.
@@ -167,6 +166,7 @@ func remove_world_target(node3d: Node3D) -> void:
 	if node3d == current_target:
 		current_target = null
 		_current_target_dist = INF
+
 
 
 func _restore_init_state() -> void:

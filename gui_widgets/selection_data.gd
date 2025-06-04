@@ -20,23 +20,21 @@
 class_name IVSelectionData
 extends VBoxContainer
 
-# GUI widget.
-# An ancestor Control node must have property 'selection_manager'
-# set to an IVSelectionManager before signal IVGlobal.about_to_start_simulator.
-#
-# Typed values interpreted as n/a; widget skips row and doesn't display:
-#   NAN
-#   -1
-#   ""
-#
-# Typed values interpreted as unknown; widget displays as "?":
-#   INF or -INF
-#   -99999999
-#
-# For most applicatios, you'll want to put this widget in a ScrollContainer.
-#
-# TODO: tooltips.
-#
+## GUI widget.
+##
+## An ancestor Control node must have property [param selection_manager]
+## set to an [IVSelectionManager] before [signal IVGlobal.about_to_start_simulator].[br][br]
+##
+## Typed values interpreted as n/a; widget skips row and doesn't display:
+## NAN, -1, "".[br][br]
+##
+## Typed values interpreted as unknown; widget displays as "?": INF or -INF,
+## -99999999.[br][br]
+##
+## For most applications, you'll want to put this widget in a ScrollContainer.[br][br]
+##
+## TODO: tooltips.
+
 
 
 enum { # data_type

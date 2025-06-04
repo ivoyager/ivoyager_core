@@ -20,6 +20,10 @@
 class_name IVStartButton
 extends Button
 
+## Button that emits [signal IVGlobal.start_requested].
+##
+## This button enables/disables itself following changes in
+## [member IVGlobal.state].is_ok_to_start.
 
 
 func _ready() -> void:

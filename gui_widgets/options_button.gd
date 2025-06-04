@@ -20,6 +20,8 @@
 class_name IVOptionsButton
 extends Button
 
+## GUI Button that emits [signal IVGlobal.options_requested].
+
 
 
 func _pressed() -> void:

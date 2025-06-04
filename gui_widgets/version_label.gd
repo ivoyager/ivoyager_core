@@ -20,9 +20,9 @@
 class_name IVVersionLabel
 extends Label
 
-# GUI widget.
-#
-# If IVCoreSettings.project_name == "", will show ivoyager_core version.
+## GUI widget.
+##
+## If [member IVCoreSettings.project_name] == "", will show ivoyager_core version.
 
 
 var use_name := false

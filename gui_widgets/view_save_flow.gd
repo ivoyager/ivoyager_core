@@ -20,14 +20,16 @@
 class_name IVViewSaveFlow
 extends HFlowContainer
 
-# GUI widget that contains its own RemovableViewButton (inner class) instances
-# and potentially other buttons. Requires IVViewSaveButton and IVViewManager.
-#
-# IVViewSaveButton can be added inside this container or elsewhere. IVViewButton
-# instances also can be added to this container.
-# 
-# Call init() to populate the saved view buttons and to init IVViewSaveButton
-# and IVViewSaver.
+## GUI widget that contains its own RemovableViewButton (inner class) instances
+## and potentially other buttons.
+##
+## Requires [IVViewSaveButton] and [IVViewManager].[br][br]
+##
+## [IVViewSaveButton] can be added inside this container or elsewhere. [IVViewButton]
+## instances also can be added to this container.[br][br]
+## 
+## Call init() to populate the saved view buttons and to init [IVViewSaveButton]
+## and [IVViewSaver].
 
 @onready var _view_manager: IVViewManager = IVGlobal.program[&"ViewManager"]
 

@@ -19,6 +19,8 @@
 # *****************************************************************************
 class_name IVHotkeysPopup
 extends PopupPanel
+
+
 const SCENE := "res://addons/ivoyager_core/gui_popups/hotkeys_popup.tscn"
 
 
@@ -166,7 +168,6 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		_on_cancel()
 
 
-# public
 
 func open() -> void:
 	if visible:
@@ -251,7 +252,6 @@ func remove_item(item: StringName) -> void:
 			dict_index += 1
 
 
-# private
 
 func _build_content() -> void:
 	for child in _content_container.get_children():

@@ -20,8 +20,8 @@
 class_name IVThemeManager
 extends RefCounted
 
-## Maintains [code]themes[/code] dictionary in IVGlobal
-## (["addons/ivoyager_core/singletons/global.gd"]).
+## Populates [member IVGlobal.themes].
+
 
 # project vars
 var global_font := &"gui_main" # these are defined in IVFontManager
@@ -32,8 +32,10 @@ var _themes: Dictionary[StringName, Theme] = IVGlobal.themes
 var _fonts: Dictionary[StringName, FontFile] = IVGlobal.fonts
 
 
+
 func _init() -> void:
 	IVGlobal.project_objects_instantiated.connect(_on_project_objects_instantiated)
+
 
 
 func _on_project_objects_instantiated() -> void:

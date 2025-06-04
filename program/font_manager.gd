@@ -20,8 +20,7 @@
 class_name IVFontManager
 extends RefCounted
 
-## Maintains [code]fonts[/code] dictionary in IVGlobal
-## (["addons/ivoyager_core/singletons/global.gd"]).
+## Maintains fixed and dynamic fonts in dictionary [member IVGlobal.fonts].
 
 # project vars - modify on signal project_objects_instantiated
 
@@ -42,8 +41,10 @@ var _settings: Dictionary[StringName, Variant] = IVGlobal.settings
 var _primary_font: FontFile
 
 
+
 func _init() -> void:
 	IVGlobal.project_objects_instantiated.connect(_on_project_objects_instantiated)
+
 
 
 func _on_project_objects_instantiated() -> void:

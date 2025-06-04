@@ -42,9 +42,8 @@ extends Node
 ]
 @export var max_default_screen_proportions := Vector2(0.45, 0.45) # can override above
 
-# private
-@onready var _settings: Dictionary[StringName, Variant] = IVGlobal.settings
 
+@onready var _settings: Dictionary[StringName, Variant] = IVGlobal.settings
 @onready var _viewport := get_viewport()
 @onready var _parent: Control = get_parent()
 
@@ -54,6 +53,7 @@ func _ready() -> void:
 	IVGlobal.simulator_started.connect(resize_and_position_to_anchor)
 	_parent.resized.connect(resize_and_position_to_anchor)
 	resize_and_position_to_anchor()
+
 
 
 func init_min_size(gui_size: int, size: Vector2) -> void:
@@ -79,6 +79,7 @@ func resize_and_position_to_anchor() -> void:
 	var viewport_size := _viewport.get_visible_rect().size
 	_parent.position.x = _parent.anchor_left * (viewport_size.x - _parent.size.x)
 	_parent.position.y = _parent.anchor_top * (viewport_size.y - _parent.size.y)
+
 
 
 func _get_default_size() -> Vector2:

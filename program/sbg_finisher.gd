@@ -38,19 +38,21 @@ extends RefCounted
 ## Overrides [member IVCoreSettings.use_threads] for this object. THREADS NOT
 ## IMPLEMENTED FOR THIS CLASS (YET).
 var disable_threads := false
-
-var replacement_sbg_orbits_class: Script # replace with any Node3D
+## replace with any Node3D.
+var replacement_sbg_orbits_class: Script
+## replace with any Node3D.
 var replacement_sbg_points_class: Script # replace with any Node3D
-
 
 var _tree: SceneTree
 var _use_threads: bool
+
 
 
 func _init() -> void:
 	IVGlobal.project_builder_finished.connect(_on_project_builder_finished)
 	_tree = IVGlobal.get_tree()
 	_tree.node_added.connect(_on_node_added)
+
 
 
 func _on_project_builder_finished() -> void:

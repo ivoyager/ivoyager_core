@@ -36,7 +36,8 @@ extends Control
 enum {TL, T, TR, R, BR, B, BL, L}
 enum {UP, DOWN, LEFT, RIGHT}
 
-# project vars
+
+
 @export var avoid_overlap := true
 @export var screen_edge_snap := 100.0
 @export var panel_edge_snap := 40.0
@@ -48,8 +49,7 @@ enum {UP, DOWN, LEFT, RIGHT}
 ]
 @export var max_default_screen_proportions := Vector2(0.45, 0.45) # can override above
 
-# private
-static var _settings: Dictionary[StringName, Variant] = IVGlobal.settings
+
 var _margin_drag_x := 0.0
 var _margin_drag_y := 0.0
 var _drag_point := Vector2.ZERO
@@ -57,6 +57,7 @@ var _custom_size := Vector2.ZERO
 
 @onready var _viewport := get_viewport()
 @onready var _parent: Control = get_parent()
+
 
 
 func _ready():
@@ -80,6 +81,7 @@ func _input(event):
 		if !event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 			finish_move()
 			_parent.set_default_cursor_shape(CURSOR_ARROW)
+
 
 
 func init_min_size(gui_size: int, size_: Vector2) -> void:
@@ -116,6 +118,7 @@ func finish_move() -> void:
 	if avoid_overlap:
 		_fix_overlap()
 	_set_anchors_to_position()
+
 
 
 func _on_parent_input(event: InputEvent) -> void:
@@ -378,7 +381,7 @@ func _set_anchors_to_position() -> void:
 
 
 func _get_default_size() -> Vector2:
-	var gui_size: int = _settings.gui_size
+	var gui_size: int = IVGlobal.settings.gui_size
 	var default_size: Vector2 = min_sizes[gui_size]
 	var viewport_size := _viewport.get_visible_rect().size
 	var max_x := roundf(viewport_size.x * max_default_screen_proportions.x)

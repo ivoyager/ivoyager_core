@@ -23,7 +23,7 @@ extends RefCounted
 ## Program component for handling cached items like options, hotkeys and similar
 ## data.
 ##
-## Cache data must be in the form [code]Dictionary[StringName, Variant][/code]. 
+## Cache data must be in the form [code]Dictionary[StringName, Variant][/code].[br][br]
 ##
 ## All public methods are reference-safe in case cache values include arrays
 ## or dictionaries (this is likely the case for hotkeys).[br][br]
@@ -56,6 +56,7 @@ var _version_key: StringName
 
 # *****************************************************************************
 
+
 ## Dictionary [param defaults] must have keys for all data to be cached.
 ## Dictionary [param current] is expected to be empty; it will be filled with file
 ## cached values or (where these don't exist) default values for all keys in
@@ -80,6 +81,9 @@ func _init(defaults: Dictionary[StringName, Variant], current: Dictionary[String
 		_current[key] = _get_reference_safe(_defaults[key])
 	if !_read_cache():
 		_write_cache.call_deferred()
+
+
+# *****************************************************************************
 
 
 ## If [param suppress_caching] == true, be sure to call [method cache_now] later.

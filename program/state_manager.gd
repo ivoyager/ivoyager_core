@@ -67,6 +67,7 @@ signal client_is_dropping_out(is_exit: bool)
 signal server_about_to_stop(network_sync_type: int) # IVGlobal.NetworkStopSync; server only
 signal server_about_to_run() # server only
 
+
 const NO_NETWORK = IVGlobal.NetworkState.NO_NETWORK
 const IS_SERVER = IVGlobal.NetworkState.IS_SERVER
 const IS_CLIENT = IVGlobal.NetworkState.IS_CLIENT
@@ -77,8 +78,6 @@ const DPRINT := false
 const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY
 const PERSIST_PROPERTIES: Array[StringName] = [&"is_user_paused"]
 
-# project setting
-#var use_tree_saver_deconstruction_if_present := true
 
 # persisted - read-only!
 var is_user_paused := false # ignores pause from sim stop
@@ -419,4 +418,3 @@ func _run_simulator() -> void:
 	assert(!DPRINT or IVDebug.dprint("signal run_threads_allowed"))
 	allow_threads = true
 	run_threads_allowed.emit()
-	

@@ -90,7 +90,6 @@ static func get_equatorial_coordinates_from_ecliptic_vector(vector3: Vector3) ->
 	return Vector3(right_ascension, declination, r)
 
 
-
 ## Returns a basis that has z-axis in the specified direction and x-axis
 ## in the plane of z-axis and vernal equinox. I.e., the x-axis will be at
 ## longitude 0. Works in ecliptic or equatorial coordinates, where the resuting

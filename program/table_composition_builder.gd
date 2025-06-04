@@ -26,8 +26,10 @@ extends RefCounted
 var _regex := RegEx.new()
 
 
+
 func _init() -> void:
 	_regex.compile("(?:([~\\d\\.]+%|trace) )?(.+)")
+
 
 
 func add_compositions_from_table(components: Dictionary[StringName, RefCounted],

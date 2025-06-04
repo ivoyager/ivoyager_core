@@ -34,6 +34,7 @@ var _symbols_visible := false
 var _body_huds_visible := false # too close / too far
 
 
+
 func _init(body: IVBody, color := Color.WHITE, use_orbit_color := false) -> void:
 	_body = body
 	_color = color
@@ -59,6 +60,7 @@ func _ready() -> void:
 	
 	_body_huds_visible = _body.huds_visible
 	_on_global_huds_changed()
+
 
 
 func _on_global_huds_changed() -> void:

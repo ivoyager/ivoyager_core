@@ -34,10 +34,11 @@ extends RefCounted
 ## See also [IVSleepManager] for reduction of IVBody._process() calls where not
 ## needed.
 
-# TOTO: Rename IVLazyModelInitializer
+
 
 func _init() -> void:
 	IVGlobal.camera_tree_changed.connect(_on_camera_tree_changed)
+
 
 
 func _on_camera_tree_changed(_camera: Camera3D, parent: Node3D, _star_orbiter: Node3D, _star: Node3D

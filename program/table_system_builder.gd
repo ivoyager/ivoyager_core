@@ -36,13 +36,12 @@ extends RefCounted
 
 const BodyFlags := IVBody.BodyFlags
 
+
 # project vars
 var add_to_universe := true
 var add_small_bodies_groups := true
 var add_camera := true
-
 var replacement_camera_class: Script
-
 
 # private
 var _bodies := IVBody.bodies
@@ -59,6 +58,7 @@ func build_system_tree() -> void:
 		_add_small_bodies_groups()
 	if add_camera:
 		_add_camera()
+
 
 
 func _add_bodies() -> void:

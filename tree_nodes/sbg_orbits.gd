@@ -46,6 +46,7 @@ var _multimesh_use_colors := false # default is to set as a group
 var _suppress_set_custom_data := false
 
 
+
 func _init(sbg: IVSmallBodiesGroup) -> void:
 	name = "SBGOrbit" + sbg.sbg_alias
 	if !_is_class_instanced:
@@ -111,6 +112,7 @@ func _init(sbg: IVSmallBodiesGroup) -> void:
 func _ready() -> void:
 	_set_visibility()
 	_set_color()
+
 
 
 func _hide_and_free() -> void:

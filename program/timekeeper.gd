@@ -59,6 +59,7 @@ enum { # date_format; first three are alwyas Year, Month, Day
 	DATE_FORMAT_Y_M_D_Q_YQ_YM, # YM, increasing month ticker = Y * 12 + (M - 1)
 }
 
+
 const SECOND := IVUnits.SECOND # sim_time conversion
 const MINUTE := IVUnits.MINUTE
 const HOUR := IVUnits.HOUR
@@ -75,6 +76,13 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"speed_index",
 	&"is_reversed",
 ]
+
+
+# persisted - read-only!
+var time: float # seconds from J2000 epoch
+var solar_day: float # calculate UT from the fractional part
+var speed_index: int
+var is_reversed := false
 
 # project vars
 var sync_tolerance := 0.2 # engine time; NOT MAINTAINED! (waiting for Gotot 4.0)
@@ -110,12 +118,6 @@ var show_clock_speed := 2 # this index and lower
 var show_seconds_speed := 1 # this index and lower
 var date_format_for_file := "%02d-%02d-%02d" # keep safe for file name!
 
-# persisted - read-only!
-var time: float # seconds from J2000 epoch
-var solar_day: float # calculate UT from the fractional part
-var speed_index: int
-var is_reversed := false
-
 # public - read only!
 var times: Array[float] = IVGlobal.times # [0] time (s, J2000) [1] engine_time [2] UT1 (floats)
 var date: Array[int] = IVGlobal.date # Gregorian (ints); see DATE_FORMAT_ enums
@@ -141,99 +143,8 @@ var _prev_whole_solar_day := NAN
 @onready var _tree := get_tree()
 
 
-
 # *****************************************************************************
-# virtual functions, inits & destructors
 
-func _init() -> void:
-	IVGlobal.project_objects_instantiated.connect(_on_project_objects_instantiated)
-
-
-func _on_project_objects_instantiated() -> void:
-	IVGlobal.about_to_start_simulator.connect(_on_about_to_start_simulator)
-	IVGlobal.about_to_free_procedural_nodes.connect(_set_init_state)
-	IVGlobal.system_tree_ready.connect(_set_ready_state)
-	IVGlobal.simulator_exited.connect(_set_ready_state)
-	IVGlobal.network_state_changed.connect(_on_network_state_changed)
-	IVGlobal.run_state_changed.connect(_on_run_state_changed) # starts/stops
-	IVGlobal.user_pause_changed.connect(_on_user_pause_changed)
-	IVGlobal.update_gui_requested.connect(_refresh_gui)
-	speed_changed.connect(_on_speed_changed)
-	times.resize(3)
-	clock.resize(3)
-	match date_format:
-		DATE_FORMAT_Y_M_D:
-			date.resize(3)
-		DATE_FORMAT_Y_M_D_Q:
-			date.resize(4)
-		DATE_FORMAT_Y_M_D_Q_YQ:
-			date.resize(5)
-		DATE_FORMAT_Y_M_D_Q_YQ_YM:
-			date.resize(6)
-	_set_init_state()
-
-
-func _ready() -> void:
-	process_mode = PROCESS_MODE_PAUSABLE
-	_set_ready_state()
-	set_process(false) # changes with "run_state_changed" signal
-	set_process_priority(-100) # always first!
-
-
-func _process(delta: float) -> void:
-	if !_is_sync:
-		engine_time += delta
-	times[1] = engine_time
-	var is_date_change := false
-	if !_is_sync:
-		time += delta * speed_multiplier
-	solar_day = get_solar_day(time)
-	var whole_solar_day := floorf(solar_day)
-	if _prev_whole_solar_day != whole_solar_day:
-		var jdn := get_jdn_for_solar_day(solar_day)
-		set_gregorian_date_array(jdn, date, date_format)
-		is_date_change = true
-		_prev_whole_solar_day = whole_solar_day
-	set_clock_array(solar_day - whole_solar_day, clock)
-	times[0] = time
-	times[2] = solar_day
-	RenderingServer.global_shader_parameter_set("iv_time", time)
-	
-	# network sync
-#	if _network_state == IS_SERVER:
-#		rpc_unreliable("_time_sync", time, engine_time, speed_multiplier)
-	_is_sync = false
-	# signal time and date
-	if is_date_change:
-		date_changed.emit()
-
-
-func _unhandled_key_input(event: InputEvent) -> void:
-	if !event.is_action_type() or !event.is_pressed():
-		return
-	if event.is_action_pressed(&"incr_speed"):
-		change_speed(1)
-	elif event.is_action_pressed(&"decr_speed"):
-		change_speed(-1)
-	elif _allow_time_reversal and event.is_action_pressed(&"reverse_time"):
-		set_time_reversed(!is_reversed)
-	else:
-		return # input NOT handled!
-	get_window().set_input_as_handled()
-
-
-func _notification(what: int) -> void:
-	if what == NOTIFICATION_PAUSED:
-		IVGlobal.pause_changed.emit(true)
-	elif what == NOTIFICATION_UNPAUSED:
-		IVGlobal.pause_changed.emit(false)
-	elif what == NOTIFICATION_APPLICATION_FOCUS_IN:
-		if is_now:
-			set_now_from_operating_system()
-
-
-# *****************************************************************************
-# public functions
 
 static func get_sim_time(Y: int, M: int, D: int, h := 12, m := 0, s := 0) -> float:
 	# Simulator "time" is seconds since J2000 epoch; see details above.
@@ -319,6 +230,75 @@ static func set_clock_array(fractional_day: float, clock_array: Array[int]) -> v
 	clock_array[0] = h
 	clock_array[1] = m
 	clock_array[2] = total_seconds - h * 3600 - m * 60
+
+
+# *****************************************************************************
+
+
+func _init() -> void:
+	IVGlobal.project_objects_instantiated.connect(_on_project_objects_instantiated)
+
+
+func _ready() -> void:
+	process_mode = PROCESS_MODE_PAUSABLE
+	_set_ready_state()
+	set_process(false) # changes with "run_state_changed" signal
+	set_process_priority(-100) # always first!
+
+
+func _process(delta: float) -> void:
+	if !_is_sync:
+		engine_time += delta
+	times[1] = engine_time
+	var is_date_change := false
+	if !_is_sync:
+		time += delta * speed_multiplier
+	solar_day = get_solar_day(time)
+	var whole_solar_day := floorf(solar_day)
+	if _prev_whole_solar_day != whole_solar_day:
+		var jdn := get_jdn_for_solar_day(solar_day)
+		set_gregorian_date_array(jdn, date, date_format)
+		is_date_change = true
+		_prev_whole_solar_day = whole_solar_day
+	set_clock_array(solar_day - whole_solar_day, clock)
+	times[0] = time
+	times[2] = solar_day
+	RenderingServer.global_shader_parameter_set("iv_time", time)
+	
+	# network sync
+#	if _network_state == IS_SERVER:
+#		rpc_unreliable("_time_sync", time, engine_time, speed_multiplier)
+	_is_sync = false
+	# signal time and date
+	if is_date_change:
+		date_changed.emit()
+
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if !event.is_action_type() or !event.is_pressed():
+		return
+	if event.is_action_pressed(&"incr_speed"):
+		change_speed(1)
+	elif event.is_action_pressed(&"decr_speed"):
+		change_speed(-1)
+	elif _allow_time_reversal and event.is_action_pressed(&"reverse_time"):
+		set_time_reversed(!is_reversed)
+	else:
+		return # input NOT handled!
+	get_window().set_input_as_handled()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PAUSED:
+		IVGlobal.pause_changed.emit(true)
+	elif what == NOTIFICATION_UNPAUSED:
+		IVGlobal.pause_changed.emit(false)
+	elif what == NOTIFICATION_APPLICATION_FOCUS_IN:
+		if is_now:
+			set_now_from_operating_system()
+
+
+# *****************************************************************************
 
 
 func get_gregorian_date(sim_time := NAN) -> Array[int]:
@@ -450,7 +430,31 @@ func can_decr_speed() -> bool:
 
 
 # *****************************************************************************
-# private functions
+
+
+func _on_project_objects_instantiated() -> void:
+	IVGlobal.about_to_start_simulator.connect(_on_about_to_start_simulator)
+	IVGlobal.about_to_free_procedural_nodes.connect(_set_init_state)
+	IVGlobal.system_tree_ready.connect(_set_ready_state)
+	IVGlobal.simulator_exited.connect(_set_ready_state)
+	IVGlobal.network_state_changed.connect(_on_network_state_changed)
+	IVGlobal.run_state_changed.connect(_on_run_state_changed) # starts/stops
+	IVGlobal.user_pause_changed.connect(_on_user_pause_changed)
+	IVGlobal.update_gui_requested.connect(_refresh_gui)
+	speed_changed.connect(_on_speed_changed)
+	times.resize(3)
+	clock.resize(3)
+	match date_format:
+		DATE_FORMAT_Y_M_D:
+			date.resize(3)
+		DATE_FORMAT_Y_M_D_Q:
+			date.resize(4)
+		DATE_FORMAT_Y_M_D_Q_YQ:
+			date.resize(5)
+		DATE_FORMAT_Y_M_D_Q_YQ_YM:
+			date.resize(6)
+	_set_init_state()
+
 
 func _on_about_to_start_simulator(_is_new_game: bool) -> void:
 	pass
@@ -515,6 +519,13 @@ func _on_network_state_changed(network_state: IVGlobal.NetworkState) -> void:
 	_network_state = network_state
 
 
+func _on_speed_changed() -> void:
+	if _network_state != IS_SERVER:
+		return
+#	rpc("_speed_changed_sync", speed_index, is_reversed, show_clock,
+#			show_seconds, is_now)
+
+
 #@rpc("any_peer") func _time_sync(time_: float, engine_time_: float, speed_multiplier_: float) -> void:
 #	# client-side network game only
 #	if _tree.get_remote_sender_id() != 1:
@@ -548,10 +559,3 @@ func _on_network_state_changed(network_state: IVGlobal.NetworkState) -> void:
 #	show_seconds = show_seconds_
 #	is_now = is_real_world_time_
 #	speed_changed.emit()
-
-
-func _on_speed_changed() -> void:
-	if _network_state != IS_SERVER:
-		return
-#	rpc("_speed_changed_sync", speed_index, is_reversed, show_clock,
-#			show_seconds, is_now)

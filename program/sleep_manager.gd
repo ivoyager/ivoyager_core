@@ -24,11 +24,12 @@ extends RefCounted
 ## [IVBody] instances that we don't need to process at a given time.
 ##
 ## If present, this manager modifies process state for bodies that have
-## property `can_sleep == true` (mainly moons and spacecrafts). These bodies
-## are processed only when the camera is in their star_orbiter system. ("Planet" in
-## this context means star orbiting body.)
+## [member IVBody.flags] == BODYFLAGS_CAN_SLEEP (mainly moons and spacecrafts).
+## These bodies are processed only when the camera is in their local "star
+## orbiter" system (e.g., at a planet or its moons).[br][br]
 ##
 ## If this manager is removed, bodies will never sleep.
+
 
 var _current_star_orbiter: IVBody
 
@@ -37,6 +38,7 @@ func _init() -> void:
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	IVGlobal.system_tree_ready.connect(_on_system_tree_ready)
 	IVGlobal.camera_tree_changed.connect(_on_camera_tree_changed)
+
 
 
 func _clear_procedural() -> void:

@@ -29,6 +29,7 @@ signal orbits_visibility_changed()
 signal points_color_changed()
 signal orbits_color_changed()
 
+
 const utils := preload("uid://bdoygriurgvtc")
 
 const NULL_COLOR := Color.BLACK
@@ -40,6 +41,7 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"points_colors",
 	&"orbits_colors",
 ]
+
 
 # persisted - read-only!
 var points_visibilities: Dictionary[StringName, bool] = {} # indexed by sbg_alias; missing same as false
@@ -63,6 +65,7 @@ func _init() -> void:
 	IVGlobal.project_objects_instantiated.connect(_on_project_objects_instantiated)
 	IVGlobal.simulator_exited.connect(_set_current_to_default)
 	IVGlobal.update_gui_requested.connect(_signal_all_changed)
+
 
 
 func _on_project_objects_instantiated() -> void:

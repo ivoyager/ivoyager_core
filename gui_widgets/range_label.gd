@@ -20,18 +20,19 @@
 class_name IVRangeLabel
 extends Label
 
-# GUI widget. Requires IVCamera.
+## GUI widget.
+##
+## Requires [IVCamera].
 
-const LENGTH_M_KM_AU := IVQFormat.DynamicUnitType.LENGTH_M_KM_AU
-
-var qformat := IVQFormat # TODO: Change to const when Godot allows
 
 var _camera: IVCamera
+
 
 
 func _ready() -> void:
 	IVGlobal.camera_ready.connect(_connect_camera)
 	_connect_camera(get_viewport().get_camera_3d() as IVCamera) # null ok
+
 
 
 func _connect_camera(camera: IVCamera) -> void:
@@ -46,7 +47,8 @@ func _connect_camera(camera: IVCamera) -> void:
 
 
 func _on_range_changed(new_range: float) -> void:
-	text = qformat.dynamic_unit(new_range, LENGTH_M_KM_AU, 3)
+	const LENGTH_M_KM_AU := IVQFormat.DynamicUnitType.LENGTH_M_KM_AU
+	text = IVQFormat.dynamic_unit(new_range, LENGTH_M_KM_AU, 3)
 
 
 func _on_camera_lock_changed(is_camera_lock: bool) -> void:

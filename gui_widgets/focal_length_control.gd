@@ -20,8 +20,13 @@
 class_name IVFocalLengthControl
 extends HBoxContainer
 
-# GUI widget. Requires IVCamera. Plus/minus buttons jump to levels set in
-# 'big_steps'. The first and last array values determine min and max settable. 
+## GUI widget.
+##
+## Allows fine and step control of focal length.
+## Plus/minus buttons jump to focal lengths set in [member big_steps].
+## The first and last array values determine min and max settable.
+##
+## Requires [IVCamera].
 
 
 var big_steps: Array[float] = [6.0, 15.0, 24.0, 35.0, 50.0] # FOV 125.6, 75.8, 51.9, 36.9, 26.3
@@ -33,6 +38,7 @@ var _camera: IVCamera
 @onready var _plus: Button = $Plus
 
 
+
 func _ready() -> void:
 	IVGlobal.camera_ready.connect(_connect_camera)
 	_spinbox.value_changed.connect(_on_spinbox_value_changed)
@@ -41,6 +47,7 @@ func _ready() -> void:
 	_spinbox.min_value = big_steps[0]
 	_spinbox.max_value = big_steps[-1]
 	_connect_camera(get_viewport().get_camera_3d() as IVCamera) # null ok
+
 
 
 func _connect_camera(camera: IVCamera) -> void:

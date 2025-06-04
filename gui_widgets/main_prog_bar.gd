@@ -19,7 +19,11 @@
 # *****************************************************************************
 class_name IVMainProgBar
 extends ProgressBar
-const SCENE := "res://addons/ivoyager_core/gui_widgets/main_prog_bar.tscn"
+
+
+# ALERT: This hasn't been used for a while and hasn't been maintained. It may
+# need some work to re-implement...
+
 
 # TODO: Clarify usage: Is this a widget or a program object? (It's currently
 # added in IVCoreInitializer as a program object.)
@@ -32,6 +36,9 @@ const SCENE := "res://addons/ivoyager_core/gui_widgets/main_prog_bar.tscn"
 #
 # delay_start_frames can be useful to allow target object to reset it's
 # progress when called on another thread.
+
+const SCENE := "res://addons/ivoyager_core/gui_widgets/main_prog_bar.tscn"
+
 
 var delay_start_frames := 0
 

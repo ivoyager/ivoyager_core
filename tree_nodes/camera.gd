@@ -113,22 +113,16 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"_transform",
 ]
 
-# ******************************* PERSISTED ***********************************
 
-# public - read only except project init
+# public persisted - read only except project init
 var flags: int = CameraFlags.CAMERAFLAGS_UP_LOCKED | CameraFlags.CAMERAFLAGS_TRACK_ORBIT
 var is_camera_lock := true
 
-# public - read only! (use move methods to set; these are "to" during transfer)
+# public persisted - read only!
 var selection: IVSelection
 var perspective_radius := KM
 var view_position := Vector3(0.5, 2.5, 3.0) # spherical, relative to ref frame; r is 'perspective'
 var view_rotations := Vector3.ZERO # euler, relative to looking_at(-origin, 'up')
-
-# private
-var _transform := Transform3D(Basis(), Vector3(0, 0, KM)) # working value
-
-# *****************************************************************************
 
 # public - project init vars
 var ease_exponent := 5.0 # DEPRECATE: Make dynamic for distance / size
@@ -136,7 +130,6 @@ var gui_ecliptic_coordinates_dist := 1e6 * KM
 var action_immediacy := 10.0 # how fast we use up the accumulators
 var min_action := 0.002 # use all below this
 var size_ratio_exponent := 0.9 # 0.0, none; 1.0 moves to same visual size
-# 'perspective' settings
 var perspective_close_radii := 500.0 # full perspective adjustment inside this
 var perspective_far_dist := 1e9 * KM # no perspective adjustment outside this
 var max_perspective_radii_meters := 1e9 * METER # really target radii; see 'perspective distance'
@@ -146,6 +139,10 @@ var min_perspective_radii_meters := 2.0 * METER # really target radii; see 'pers
 var parent: Node3D # actual Node3D parent at this time
 var is_moving := false # body to body move in progress
 var disabled_flags := 0 # CameraDisabledFlags
+
+
+# private persisted
+var _transform := Transform3D(Basis(), Vector3(0, 0, KM)) # working value
 
 # private
 var _universe: Node3D = IVGlobal.program.Universe

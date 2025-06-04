@@ -36,6 +36,7 @@ extends RefCounted
 
 const BodyFlags := IVBody.BodyFlags
 
+
 ## Set IVBody property if non-missing value in table.
 var create_fields: Array[StringName] = [
 	&"name",
@@ -137,13 +138,9 @@ var _orbit_builder: IVTableOrbitBuilder
 var _composition_builder: RefCounted
 
 
+
 func _init() -> void:
 	IVGlobal.project_objects_instantiated.connect(_on_project_objects_instantiated)
-
-
-func _on_project_objects_instantiated() -> void:
-	_orbit_builder = IVGlobal.program[&"TableOrbitBuilder"]
-	_composition_builder = IVGlobal.program.get(&"TableCompositionBuilder") # remove to skip
 
 
 
@@ -225,6 +222,12 @@ func build_body(table_name: String, row: int, parent: IVBody) -> IVBody:
 	
 	
 	return body
+
+
+
+func _on_project_objects_instantiated() -> void:
+	_orbit_builder = IVGlobal.program[&"TableOrbitBuilder"]
+	_composition_builder = IVGlobal.program.get(&"TableCompositionBuilder") # remove to skip
 
 
 func _set_table_data_precisions(table_name: StringName, row: int,

@@ -21,9 +21,9 @@ class_name IVMouseTargetLabel
 extends Label
 
 ## A label that identifies screen items at the mouse position.
-
-# Uses IVWorldController and (if present) IVFragmentIdentifier. The single
-# instance of this node is added by IVCoreInitializer.
+##
+## Uses [IVWorldController] and (if present) [IVFragmentIdentifier]. The single
+## instance of this node is added by [IVCoreInitializer].
 
 var offset := Vector2(0.0, -7.0) # offset to not interfere w/ FragmentIdentifier
 
@@ -79,7 +79,7 @@ func _on_fragment_changed(id: int) -> void:
 	if id == -1:
 		_fragment_text = ""
 		return
-	var data: Array = _fragment_data.get(id, []) # rarely missing key while quiting the application
+	var data: Array = _fragment_data.get(id, []) # sometimes missing key while quiting the app
 	if !data:
 		_fragment_text = ""
 		return

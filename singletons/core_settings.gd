@@ -27,6 +27,7 @@ extends Node
 ##
 ## With very few exceptions, these should not be modified after program start!
 
+
 ## External project should set.
 var project_name := ""
 ## External project should set. Useful for gamesave debuging.
@@ -128,7 +129,6 @@ var size_layers: Array[float] = [
 	0.1 * IVUnits.KM, # smaller mean_radius gets mask 0b0100
 ]
 
-
 ## Use this dictionary to set GUI text color meanings globally.
 var text_colors: Dictionary[StringName, Color] = {
 	great = Color.CYAN,
@@ -148,16 +148,14 @@ var wikipedia_locales: Array[String] = ["en"]
 var body_tables: Array[StringName] = [&"stars", &"planets", &"asteroids", &"moons", &"spacecrafts"]
 
 
-var debug_log_path := "user://logs/debug.log" # modify or set "" to disable
-
-
 
 func _enter_tree() -> void:
 	IVFiles.init_from_config(self, IVGlobal.ivoyager_config, "core_settings")
 
 
-## Return is the appropriate layers mask for [param mean_radius] specified by [member size_layers].
-## Returns 1 if [member apply_size_layers] == false.
+
+## Return is the appropriate layers mask for [param mean_radius] specified
+## by [member size_layers]. Returns 1 if [member apply_size_layers] == false.
 func get_visualinstance3d_layers_for_size(mean_radius: float) -> int:
 	if !apply_size_layers:
 		return 1

@@ -20,9 +20,12 @@
 class_name IVSpeedButtons
 extends HBoxContainer
 
-# UI widget. Requires IVTimekeeper and IVStateManager.
+## UI widget.
+##
+## Requires [IVTimekeeper] and [IVStateManager].
 
 const IS_CLIENT := IVGlobal.NetworkState.IS_CLIENT
+
 
 var _state: Dictionary[StringName, Variant] = IVGlobal.state
 
@@ -32,6 +35,7 @@ var _state: Dictionary[StringName, Variant] = IVGlobal.state
 @onready var _plus: Button = $Plus
 @onready var _pause: Button = $Pause
 @onready var _reverse: Button = $Reverse
+
 
 
 func _ready() -> void:
@@ -54,6 +58,7 @@ func _ready() -> void:
 	_update_buttons()
 
 
+
 func remove_pause_button() -> void:
 	# not nessessary to call if IVCoreSettings.disable_pause
 	if _pause:
@@ -66,6 +71,7 @@ func remove_reverse_button() -> void:
 	if _reverse:
 		_reverse.queue_free()
 		_reverse = null
+
 
 
 func _update_buttons(_dummy := false) -> void:

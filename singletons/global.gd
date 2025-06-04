@@ -19,10 +19,10 @@
 # *****************************************************************************
 extends Node
 
-## Added as singleton 'IVGlobal'.
+## Added as singleton "IVGlobal".
 ##
-## Array and dictionary references are never overwritten, so it is safe to keep
-## local references in class files.
+## Array and dictionary references are never overwritten, so it is safe (and
+## faster) to keep local references to these containers to in class files.
 
 # Developer note: Don't add any non-Godot dependencies in this file! That
 # messes up static class dependencies on this global.
@@ -162,9 +162,6 @@ const PERSIST_PROPERTIES_ONLY := PersistMode.PERSIST_PROPERTIES_ONLY
 const PERSIST_PROCEDURAL := PersistMode.PERSIST_PROCEDURAL
 
 
-
-# containers - write authority indicated; safe to localize container reference
-
 ## Maintained by [IVStateManager]. Mostly boolean keys: is_inited, is_running, etc.
 var state: Dictionary[StringName, Variant] = {}
 ## Maintained by [IVTimekeeper]. Holds [time (s, J2000), engine_time (s), solar_day (d)]
@@ -199,7 +196,8 @@ var wiki: String
 ## with possible overrides in res://ivoyager_override.cfg and res://ivoyager_override2.cfg.
 var ivoyager_config: ConfigFile = IVPluginUtils.get_config_with_override(
 		"res://addons/ivoyager_core/ivoyager_core.cfg",
-		"res://ivoyager_override.cfg", "res://ivoyager_override2.cfg")
+		"res://ivoyager_override.cfg",
+		"res://ivoyager_override2.cfg")
 ## Read-only! Indicates project running with Compatibility renderer.
 var is_gl_compatibility := RenderingServer.get_current_rendering_method() == "gl_compatibility"
 

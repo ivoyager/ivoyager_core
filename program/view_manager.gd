@@ -23,12 +23,11 @@ extends Node
 ## Builds [IVView] instances from table data (default views), and provides API
 ## for user-created views that are persisted via gamesave or cache.
 
-const files := preload("res://addons/ivoyager_core/static/files.gd")
-
 const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"gamesave_views",
 ]
+
 
 ## If true, manager will set view &"VIEW_HOME" at simulator start.
 var move_home_at_start := true
@@ -43,12 +42,13 @@ var cached_views: Dictionary[StringName, IVView] = {}
 var _missing_or_bad_cache_file := true
 
 
+
 func _init() -> void:
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	IVGlobal.project_objects_instantiated.connect(_on_project_objects_instantiated)
 	IVGlobal.about_to_start_simulator.connect(_on_about_to_start_simulator)
 
-# public
+
 
 func set_table_view(view_name: StringName, is_camera_instant_move := false) -> void:
 	if !table_views.has(view_name):
@@ -133,7 +133,6 @@ func get_names_in_collection(collection_name: StringName, is_cached: bool) -> Ar
 	return group
 
 
-# private
 
 func _clear_procedural() -> void:
 	gamesave_views.clear()

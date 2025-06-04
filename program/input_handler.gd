@@ -22,8 +22,9 @@ extends Node
 
 ## Handles input not handled in class files.
 ##
-## This is mainly for closed Popups and Dialogs that don't recieve input passed
-## in the root Window.
+## This is for closed Popups and Dialogs that don't recieve input passed in the
+## root Window, or anything else that can't be handled in a class file.
+
 
 
 func _ready() -> void:

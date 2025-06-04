@@ -20,20 +20,27 @@
 class_name IVBodyHUDs
 extends GridContainer
 
-# GUI widget. Requires IVBodyHUDsState.
-#
-# Class properties must be set before _ready(). See widget IVAllHUDs for complex
-# row construction, setting up multiple grids, and aligning their columns.
-#
-# To display correctly, ColorPickerButton needs a StyleBoxTexture with no
-# margins.
-#
-# IMPORTANT! For correct visibility control, BodyFlags used in rows must be a
-# subset of IVBodyHUDsState.all_flags.
+## GUI widget.
+##
+## Class properties must be set before _ready(). See widget [IVAllHUDs] for complex
+## row construction, setting up multiple grids, and aligning their columns.[br][br]
+##
+## To display correctly, ColorPickerButton needs a StyleBoxTexture with no
+## margins.[br][br]
+##
+## IMPORTANT! For correct visibility control, BodyFlags used in rows must be a
+## subset of [member IVBodyHUDsState.all_flags].[br][br]
+
 
 const NULL_COLOR := Color.BLACK
 const BodyFlags := IVBody.BodyFlags
 
+
+
+static var _wiki_titles: Dictionary = IVTableData.wiki_lookup
+static var _enable_wiki: bool
+static var _body_huds_state: IVBodyHUDsState
+static var _is_class_instanced := false
 
 
 var has_headers := true
@@ -54,11 +61,6 @@ var disable_orbits_rows: Array[int] = [] # e.g., no orbit for Sun
 
 var headers: Array[StringName] = [&"LABEL_NAMES_SLASH_SYMBOLS", &"LABEL_ORBITS"]
 var header_hints: Array[StringName] = [&"HINT_NAMES_SYMBOLS_CKBXS", &"HINT_ORBITS_CKBX_COLOR"]
-
-static var _wiki_titles: Dictionary = IVTableData.wiki_lookup
-static var _enable_wiki: bool
-static var _body_huds_state: IVBodyHUDsState
-static var _is_class_instanced := false
 
 var _all_flags := 0 # generated from all rows
 var _names_ckbxs: Array[CheckBox] = []
@@ -168,6 +170,7 @@ func _ready() -> void:
 		_resize_columns()
 	else:
 		IVGlobal.about_to_start_simulator.connect(_resize_columns, CONNECT_ONE_SHOT)
+
 
 
 func _make_checkbox() -> CheckBox:

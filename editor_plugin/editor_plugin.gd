@@ -38,6 +38,7 @@ var _autoloads: Dictionary[String, String] = {}
 var _shader_globals: Dictionary[String, Dictionary] = {}
 
 
+
 func _enter_tree() -> void:
 	
 	# Wait for required plugins...
@@ -64,6 +65,7 @@ func _exit_tree() -> void:
 	print("Removing I, Voyager - Core (plugin)")
 	_config = null
 	_remove_autoloads()
+
 
 
 func _is_required_plugins_enabled() -> bool:

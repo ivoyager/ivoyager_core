@@ -20,16 +20,20 @@
 class_name IVPlanetMoonButtons
 extends HBoxContainer
 
-# GUI widget. An ancestor Control node must have property 'selection_manager'
-# set to an IVSelectionManager before signal IVGlobal.system_tree_ready.
-#
-# This widget builds itself from an existing solar system!
-#
-# To use in conjuction with SunSliceButton, make both SIZE_FILL_EXPAND and give
-# strech ratios: 1.0 (SunSliceButton) and 10.0 (this widget or container that
-# contains this widget).
-
-# TODO: This class needs to provide a 'widget_resized' signal for parent useage.
+## GUI widget.
+##
+## This widget builds itself from an existing planetary system specified by
+## [member star_name]. It arranges planets horizontally with moons vertically
+## below.[br][br]
+##
+## An ancestor Control node must have property [param selection_manager] set
+## to an [IVSelectionManager] before [signal IVGlobal.system_tree_ready].[br][br]
+##
+## To use in conjuction with [IVSunSliceButton], make both SIZE_FILL_EXPAND and give
+## strech ratios: 1.0 (SunSliceButton) and 10.0 (this widget or container that
+## contains this widget).[br][br]
+##
+## TODO: This class needs to provide a 'widget_resized' signal for parent useage.
 
 const BODYFLAGS_PLANET_OR_DWARF_PLANET := IVBody.BodyFlags.BODYFLAGS_PLANET_OR_DWARF_PLANET
 const BODYFLAGS_MOON := IVBody.BodyFlags.BODYFLAGS_MOON
@@ -38,6 +42,7 @@ const BODYFLAGS_SHOW_IN_NAVIGATION_PANEL := IVBody.BodyFlags.BODYFLAGS_SHOW_IN_N
 
 const STAR_SLICE_MULTIPLIER := 0.05 # what fraction of star is in image "slice"?
 const INIT_WIDTH := 560.0
+
 
 # widget settings
 @export var star_name := &"STAR_SUN"
@@ -55,12 +60,14 @@ var _is_built := false
 @onready var _mouse_only_gui_nav: bool = false # IVGlobal.settings.mouse_only_gui_nav
 
 
+
 func _ready() -> void:
 	IVGlobal.about_to_start_simulator.connect(_build)
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	resized.connect(_resize)
 	IVGlobal.setting_changed.connect(_settings_listener)
 	_build()
+
 
 
 func _build(_dummy := false) -> void:

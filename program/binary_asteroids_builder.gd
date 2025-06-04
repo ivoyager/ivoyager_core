@@ -1,4 +1,4 @@
-# binary_asteroids_builders.gd
+# binary_asteroids_builder.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -20,6 +20,10 @@
 class_name IVBinaryAsteroidsBuilder
 extends RefCounted
 
+## Builds an [IVSmallBodiesGroup] instance from asteroid binary data.
+##
+## Binary asteroid data is in ivoyager_assets and is created by
+## [url=https://github.com/ivoyager/ivbinary_maker]ivbinary_maker[/url].
 
 const VPRINT = false # print verbose asteroid summary on load
 const DPRINT = false

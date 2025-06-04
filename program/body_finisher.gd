@@ -43,15 +43,16 @@ var replacement_orbit_visual_class: Script
 var replacement_dynamic_light_class: Script
 var replacement_rings_class: Script
 
-
 var _tree: SceneTree
 var _use_threads: bool
+
 
 
 func _init() -> void:
 	IVGlobal.project_builder_finished.connect(_on_project_builder_finished)
 	_tree = IVGlobal.get_tree()
 	_tree.node_added.connect(_on_node_added)
+
 
 
 func _on_project_builder_finished() -> void:

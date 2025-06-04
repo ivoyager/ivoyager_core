@@ -26,14 +26,14 @@ extends RefCounted
 ## Otherwise, all orbits are created as [IVOrbit] instances with evolution of
 ## precessing elements only.
 
-const MIN_INCLINATION_FOR_NODAL_PERIOD := 0.001 # ~0.06 deg
-const MIN_ECCENTRICITY_FOR_APSIDAL_PERIOD := 0.001
+var min_inclination_for_nodal_period := 0.001 # ~0.06 deg
+var min_eccentricity_for_apsidal_period := 0.001
 
-
+## Set true to implement [IVRealPlanetOrbit] subclass for planets with data
+## table [param real_planet_orbit] == TRUE.
 var use_real_planet_orbits := false
 
-
-var _orbit_fields: Array[StringName] = [
+var orbit_fields: Array[StringName] = [
 	# Missing table fields or values will be absent in the data dictionary.
 	
 	# alternative epoch (IVAstronomy.EPOCH_JULIAN_DAY if missing)
@@ -97,7 +97,7 @@ func make_orbit(table: String, row: int, parent: IVBody) -> IVOrbit:
 	const MIN_INCLINATION := IVOrbit.MIN_INCLINATION
 	
 	var data: Dictionary[StringName, Variant] = {}
-	IVTableData.db_build_dictionary(data, table, row, _orbit_fields)
+	IVTableData.db_build_dictionary(data, table, row, orbit_fields)
 	
 	if use_real_planet_orbits and data.get(&"real_planet_orbit"):
 		return _make_real_planet_orbit(data)
@@ -214,9 +214,9 @@ func make_orbit(table: String, row: int, parent: IVBody) -> IVOrbit:
 		assert(!data.has(&"longitude_periapsis_rate"))
 		var nodal_period: float = data[&"nodal_period"] # zeros ok (disables rate)
 		var apsidal_period: float = data[&"apsidal_period"] # zeros ok (disables rate)
-		if inclination < MIN_INCLINATION_FOR_NODAL_PERIOD:
+		if inclination < min_inclination_for_nodal_period:
 			nodal_period = 0.0 # disables
-		if eccentricity < MIN_ECCENTRICITY_FOR_APSIDAL_PERIOD:
+		if eccentricity < min_eccentricity_for_apsidal_period:
 			apsidal_period = 0.0 # disables
 		var retrograde := inclination > RIGHT_ANGLE
 		var rates := _get_precession_rates_from_periods(nodal_period, apsidal_period, retrograde)

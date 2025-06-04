@@ -20,6 +20,7 @@
 class_name IVHotkeysButton
 extends Button
 
+## GUI Button that emits [signal IVGlobal.hotkeys_requested].
 
 
 func _pressed() -> void:

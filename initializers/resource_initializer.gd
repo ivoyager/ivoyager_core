@@ -51,10 +51,12 @@ var constructors: Dictionary[StringName, Callable]= {
 var _resources: Dictionary = IVGlobal.resources
 
 
+
 func _init() -> void:
 	_add_preloads()
 	_make_shared_resources()
 	IVGlobal.project_objects_instantiated.connect(_remove_self)
+
 
 
 func _remove_self() -> void:

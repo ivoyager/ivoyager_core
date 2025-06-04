@@ -20,13 +20,18 @@
 class_name IVNavigationButton
 extends Button
 
-# This widget must be instantiated and added by code. See IVPlanetMoonButtons.
+## GUI widget.
+##
+## WARNING! This button is currently added by code only. See [IVPlanetMoonButtons].
+## It is supposed to be addible via editor but I don't know if that works correctly.
 
 signal selected()
+
 
 var _selection_manager: IVSelectionManager
 var _body: IVBody # this button
 var _has_mouse := false
+
 
 
 func _init(body: IVBody, image_size: float, selection_manager: IVSelectionManager) -> void:
@@ -56,6 +61,7 @@ func _ready() -> void:
 
 func _pressed() -> void:
 	_selection_manager.select_body(_body)
+
 
 
 func _update_selection(_dummy := false) -> void:

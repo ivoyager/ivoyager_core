@@ -29,6 +29,7 @@ extends RefCounted
 ##
 ## This node and [IVHotkeysPopup] are unaware of actions defined in project.godot.
 
+
 static var defaults: Dictionary[StringName, Variant] = {
 	# Each "event_dict" must have event_class; all other keys are properties
 	# to be set on the InputEvent. Don't remove an action -- just give it an
@@ -265,21 +266,15 @@ var event_classes: Dictionary[StringName, Object] = { # we'll expand this as nee
 var actions_by_scancode_w_mods: Dictionary[int, StringName]= {}
 
 
+
 func _init() -> void:
 	cache_handler = IVCacheHandler.new(defaults, current, file_name, file_version)
 	cache_handler.current_changed.connect(_reset_scancodes_and_input_map)
 	IVGlobal.project_objects_instantiated.connect(_init_actions)
 
 
-func _init_actions() -> void:
-	for action: StringName in current:
-		var scancodes := get_scancodes_w_mods_for_action(action)
-		for scancode_w_mods in scancodes:
-			actions_by_scancode_w_mods[scancode_w_mods] = action
-		_reset_input_map(action)
-
-
 # *****************************************************************************
+
 
 ## If [param suppress_caching] == true, be sure to call [method cache_now] later.
 func set_action_event_dict(action: StringName, event_dict: Dictionary, index: int,
@@ -446,6 +441,14 @@ static func strip_scancode_mods(keycode: int) -> int:
 
 
 # *****************************************************************************
+
+
+func _init_actions() -> void:
+	for action: StringName in current:
+		var scancodes := get_scancodes_w_mods_for_action(action)
+		for scancode_w_mods in scancodes:
+			actions_by_scancode_w_mods[scancode_w_mods] = action
+		_reset_input_map(action)
 
 
 func _reset_scancodes_and_input_map(action: StringName, _dummy: Variant = null) -> void:

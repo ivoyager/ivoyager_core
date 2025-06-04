@@ -179,7 +179,7 @@ var gui_nodes: Dictionary[StringName, Variant] = {
 
 # ***************************** PRIVATE VARS **********************************
 
-var _program: Dictionary[StringName, Object] = IVGlobal.program
+var _program := IVGlobal.program
 
 
 # ****************************** PROJECT BUILD ********************************
@@ -199,6 +199,7 @@ func _ready() -> void:
 
 # **************************** PUBLIC FUNCTIONS *******************************
 # These should be called only by extension init file!
+
 
 func reindex_universe_child(node_name: StringName, new_index: int) -> void:
 	# Call at 'project_nodes_added' signal.
@@ -250,6 +251,7 @@ func build_project(override := false) -> void:
 
 
 # ************************ 'init_sequence' FUNCTIONS **************************
+
 
 func _instantiate_preinitializers() -> void:
 	for key: StringName in preinitializers:

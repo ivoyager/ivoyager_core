@@ -39,6 +39,7 @@ const MATERIAL_FIELDS: Array[StringName] = [
 const DYNAMIC_STAR_GROW_DIST := 2.0 * IVUnits.AU
 const DYNAMIC_STAR_GROW_FACTOR := 0.3
 
+
 var is_dynamic_star := false
 
 var _reference_basis: Basis
@@ -89,6 +90,7 @@ func _process(_delta: float) -> void:
 	var excess := camera_dist / DYNAMIC_STAR_GROW_DIST - 1.0
 	var factor := DYNAMIC_STAR_GROW_FACTOR * excess + 1.0
 	transform.basis = _reference_basis.scaled(Vector3(factor, factor, factor))
+
 
 
 func _clear_procedural() -> void:

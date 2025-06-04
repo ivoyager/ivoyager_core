@@ -43,6 +43,7 @@ func _ready() -> void:
 	IVGlobal.asset_preloader_finished.connect(_on_asset_preloader_finished)
 
 
+
 func _on_asset_preloader_finished() -> void:
 	if IVCoreSettings.camera_attributes:
 		var row := IVTableData.get_row(IVCoreSettings.camera_attributes)

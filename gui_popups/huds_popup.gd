@@ -19,13 +19,16 @@
 # *****************************************************************************
 class_name IVHUDsPopup
 extends PopupPanel
+
+## Instanced by [IVHUDsPopupButton].
+
 const SCENE := "res://addons/ivoyager_core/gui_popups/huds_popup.tscn"
 
-# Instanced by IVHUDsPopupButton. (Not added in IVCoreInitializer.)
 
 func _ready() -> void:
 	var view_save_flow: IVViewSaveFlow = $AllHUDs.find_child(&"ViewSaveFlow")
 	view_save_flow.resized.connect(_reset_size)
+
 
 
 func _reset_size() -> void:

@@ -20,12 +20,15 @@
 class_name IVAllHUDs
 extends VBoxContainer
 
-# GUI widget that holds all the HUD widgets. The scene is composed of widget
-# classes: IVBodyHUDs, IVSBGHUDs, IVViewButton, IVViewSaveFlow and
-# IVViewSaveButton.
+## GUI widget that holds HUD widgets.
+##
+## The scene is composed of widget classes:
+## [IVBodyHUDs], [IVSBGHUDs], [IVViewButton], [IVViewSaveFlow] and
+## [IVViewSaveButton].
 
 const BodyFlags: Dictionary = IVBody.BodyFlags
 const ViewFlags := IVView.ViewFlags
+
 
 var default_view_name := &"LABEL_CUSTOM1" # will increment if taken
 var collection_name := &"AH"
@@ -41,6 +44,7 @@ var reserved_view_names: Array[StringName] = [
 var _column_master: GridContainer
 
 
+
 func _enter_tree() -> void:
 	child_entered_tree.connect(_on_child_entered_tree)
 
@@ -50,6 +54,7 @@ func _ready() -> void:
 	view_save_button.tooltip_text = &"HINT_SAVE_VISIBILITIES_AND_COLORS"
 	($ViewSaveFlow as IVViewSaveFlow).init(view_save_button, default_view_name, collection_name,
 			is_cached, view_flags, view_flags, reserved_view_names)
+
 
 
 func _on_child_entered_tree(control: Control) -> void:

@@ -20,7 +20,9 @@
 class_name IVLatLongLabel
 extends Label
 
-# GUI widget. Requires IVCamera.
+## GUI widget.
+##
+## Requires [IVCamera].
 
 var _camera: IVCamera
 
@@ -28,6 +30,7 @@ var _camera: IVCamera
 func _ready() -> void:
 	IVGlobal.camera_ready.connect(_connect_camera)
 	_connect_camera(get_viewport().get_camera_3d() as IVCamera) # null ok
+
 
 
 func _connect_camera(camera: IVCamera) -> void:

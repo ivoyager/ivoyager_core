@@ -37,9 +37,6 @@ func _init() -> void:
 	IVGlobal.project_objects_instantiated.connect(_on_project_objects_instantiated)
 
 
-func _on_project_objects_instantiated() -> void:
-	_binary_asteroids_builder = IVGlobal.program[&"BinaryAsteroidsBuilder"]
-
 
 func build_sbg(table_name: StringName, row: int) -> IVSmallBodiesGroup:
 	const SBGClass := IVSmallBodiesGroup.SBGClass
@@ -75,3 +72,8 @@ func build_asteroids_sbg(table_name: StringName, row: int, name: StringName, sbg
 	#sbg.init(name, sbg_alias, sbg_class, lp_integer, secondary)
 	_binary_asteroids_builder.build_sbg_from_binaries(sbg, binary_dir, mag_cutoff)
 	return sbg
+
+
+
+func _on_project_objects_instantiated() -> void:
+	_binary_asteroids_builder = IVGlobal.program[&"BinaryAsteroidsBuilder"]

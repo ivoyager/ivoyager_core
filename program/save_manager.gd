@@ -26,11 +26,6 @@ extends Node
 ##
 ## This manager does nothing if the Save plugin is not present or is disabled. 
 
-const NO_NETWORK = IVGlobal.NetworkState.NO_NETWORK
-const IS_SERVER = IVGlobal.NetworkState.IS_SERVER
-const IS_CLIENT = IVGlobal.NetworkState.IS_CLIENT
-const NetworkStopSync = IVGlobal.NetworkStopSync
-
 const DPRINT := false
 
 const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY
@@ -42,13 +37,13 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 
 
 # persisted - values will be replaced by file values on game load!
-var save_project_version: String = IVCoreSettings.project_version
-var save_ivoyager_version: String = IVGlobal.ivoyager_version
-var is_modded: bool = IVCoreSettings.is_modded
+var save_project_version := IVCoreSettings.project_version
+var save_ivoyager_version := IVGlobal.ivoyager_version
+var is_modded := IVCoreSettings.is_modded
 
 # private
-var _state: Dictionary[StringName, Variant] = IVGlobal.state
-var _settings: Dictionary[StringName, Variant] = IVGlobal.settings
+var _state := IVGlobal.state
+var _settings := IVGlobal.settings
 var _save_singleton: Node
 
 @onready var _state_manager: IVStateManager = IVGlobal.program[&"StateManager"]
@@ -94,6 +89,7 @@ func _ready() -> void:
 	@warning_ignore_restore("unsafe_property_access", "unsafe_method_access")
 
 
+
 func _start_autosave_timer() -> void:
 	var autosave_time_min: float = _settings[&"autosave_time_min"]
 	@warning_ignore("unsafe_method_access")
@@ -117,6 +113,7 @@ func _suffix_generator() -> String:
 
 
 func _save_permit() -> bool:
+	const IS_CLIENT = IVGlobal.NetworkState.IS_CLIENT
 	if !_state.is_system_built:
 		return false
 	if _state.network_state == IS_CLIENT:
@@ -125,6 +122,7 @@ func _save_permit() -> bool:
 
 
 func _load_permit() -> bool:
+	const IS_CLIENT = IVGlobal.NetworkState.IS_CLIENT
 	if !(_state.is_splash_screen or _state.is_system_built):
 		return false
 	if _state.network_state == IS_CLIENT:
@@ -133,17 +131,19 @@ func _load_permit() -> bool:
 
 
 func _save_checkpoint() -> bool:
+	const SAVE = IVGlobal.NetworkStopSync.SAVE
 	if !_save_permit():
 		return false
-	_state_manager.require_stop(self, NetworkStopSync.SAVE, true)
+	_state_manager.require_stop(self, SAVE, true)
 	await _state_manager.threads_finished
 	return true
 
 
 func _load_checkpoint() -> bool:
+	const LOAD = IVGlobal.NetworkStopSync.LOAD
 	if !_load_permit():
 		return false
-	_state_manager.require_stop(self, NetworkStopSync.LOAD, true)
+	_state_manager.require_stop(self, LOAD, true)
 	await _state_manager.threads_finished
 	return true
 

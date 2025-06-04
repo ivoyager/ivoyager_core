@@ -23,9 +23,10 @@ extends SubViewport
 ## Decodes unique id from on-screen shader fragment (e.g., an orbit line or
 ## asteroid point) at the mouse position.
 ##
-## This is a hack. It won't be necessary when Compositors is implemented:
-## https://github.com/godotengine/godot-proposals/issues/7916
-## Although it might still be needed for Compatibility renderer for HTML5.
+## This is a hack. It won't be necessary when Compositors is fully implemented
+## ([url]https://github.com/godotengine/godot-proposals/issues/7916[/url])
+## which will allow shaders to talk back via buffers. However, it might
+## still be needed for Compatibility renderer for HTML5.[br][br]
 ##
 ## The system works well, but not under all settings. It's a little iffy when
 ## using camera auto exposure. Rendering/TAA (and probably other settings)
@@ -43,11 +44,13 @@ extends SubViewport
 
 signal fragment_changed(id: int) # -1 on target loss; get data from 'fragment_data'
 
+
 enum { # fragment_type
 	FRAGMENT_BODY_ORBIT,
 	FRAGMENT_SBG_POINT,
 	FRAGMENT_SBG_ORBIT,
 }
+
 
 const CALIBRATION: Array[float] = [0.25, 0.375, 0.5, 0.625, 0.75] # >=1.0 will break shader logic!
 const COLOR_HALF_STEP := Color(0.015625, 0.015625, 0.015625, 0.0)
@@ -62,7 +65,6 @@ var fragment_range := 9 # multiple of 3! Going big is expensive!
 var current_id := -1
 ## Data arrays indexed by 36-bit id integer; [name, fragment_type, maybe more...].
 var fragment_data: Dictionary[int, Array] = {}
-
 
 # private
 var _node2d := Node2D.new()
@@ -95,66 +97,15 @@ var _adj_values: Array[float] = []
 @onready var _picker_texture: ViewportTexture = get_texture()
 
 
-
-func _ready() -> void:
-	process_mode = PROCESS_MODE_ALWAYS
-	assert(fragment_range % 3 == 0)
-	_node2d.name = &"FISamplerNode2D"
-	add_child(_node2d)
-	_node2d.draw.connect(_on_node2d_draw)
-	RenderingServer.frame_post_draw.connect(_on_frame_post_draw)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
-	_init_rects_and_arrays()
-	disable_3d = true
-	render_target_update_mode = UPDATE_ALWAYS
-	size = _picker_rect.size
-	RenderingServer.global_shader_parameter_set("iv_fragment_id_range", float(fragment_range))
+# *****************************************************************************
 
 
-func _process(_delta: float) -> void:
-	# 'fragment_cycler' drives the calibration/value cycle of fragment shaders
-	_cycle_step += 1
-	if _cycle_step == _n_cycle_steps:
-		_cycle_step = 0
-	var fragment_id_cycler: float
-	if _cycle_step < _n_calibration_steps:
-		fragment_id_cycler = CALIBRATION[_cycle_step] # calibration values (0.25..0.75)
-	else:
-		fragment_id_cycler = float(_cycle_step - _n_calibration_steps + 1) # 1.0, 2.0, 3.0
-	
-	RenderingServer.global_shader_parameter_set("iv_fragment_id_cycler", fragment_id_cycler)
-	RenderingServer.global_shader_parameter_set("iv_mouse_fragcoord",
-			_world_controller.mouse_position + Vector2(0.5, 0.5)) # see shader comment
-	
-
-
-# public
-
-func get_new_id(data: Array) -> int:
-	# Assigns random id from interval 0 to 68_719_476_735 (36 bits).
-	# data[0] is target instance_id; target assigns additional indexes as needed
-	var id := (randi() << 4) | (randi() & 15) # randi() is only 32 bits
-	while fragment_data.has(id):
-		id = (randi() << 4) | (randi() & 15)
-	fragment_data[id] = data
-	return id
-
-
-func get_new_id_as_vec3(data: Array) -> Vector3:
-	var id := get_new_id(data)
-	return encode_vec3(id)
-
-
-func remove_id(id: int) -> void:
-	fragment_data.erase(id)
-
-
+## Here for reference; this is the color encode logic used by shaders.
+## We only use 4 bits of info per 8-bit color channel. All colors are
+## generated in the range 0.25-0.75 (losing 1 bit) and we ignore the least
+## significant 3 bits. So we read 1/16 color steps from the midrange after
+## calibration. Three colors encode giving valid id from 0 to 2^36-1.
 static func encode_color_channels(id: int) -> Array:
-	# Here for reference; this is the color encode logic used by shaders.
-	# We only use 4 bits of info per 8-bit color channel. All colors are
-	# generated in the range 0.25-0.75 (losing 1 bit) and we ignore the least
-	# significant 3 bits. So we read 1/16 color steps from the midrange after
-	# calibration. Three colors encode giving valid id from 0 to 2^36-1.
 	assert(id >= 0 and id < (1 << 36))
 	var r1 := (id & 15) / 32.0 + 0.25
 	id >>= 4
@@ -222,7 +173,67 @@ static func encode_vec3(id: int) -> Vector3:
 	return Vector3(float(int1), float(int2), float(int3))
 
 
+# *****************************************************************************
+
+
+func _ready() -> void:
+	process_mode = PROCESS_MODE_ALWAYS
+	assert(fragment_range % 3 == 0)
+	_node2d.name = &"FISamplerNode2D"
+	add_child(_node2d)
+	_node2d.draw.connect(_on_node2d_draw)
+	RenderingServer.frame_post_draw.connect(_on_frame_post_draw)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
+	_init_rects_and_arrays()
+	disable_3d = true
+	render_target_update_mode = UPDATE_ALWAYS
+	size = _picker_rect.size
+	RenderingServer.global_shader_parameter_set("iv_fragment_id_range", float(fragment_range))
+
+
+func _process(_delta: float) -> void:
+	# 'fragment_cycler' drives the calibration/value cycle of fragment shaders
+	_cycle_step += 1
+	if _cycle_step == _n_cycle_steps:
+		_cycle_step = 0
+	var fragment_id_cycler: float
+	if _cycle_step < _n_calibration_steps:
+		fragment_id_cycler = CALIBRATION[_cycle_step] # calibration values (0.25..0.75)
+	else:
+		fragment_id_cycler = float(_cycle_step - _n_calibration_steps + 1) # 1.0, 2.0, 3.0
+	
+	RenderingServer.global_shader_parameter_set("iv_fragment_id_cycler", fragment_id_cycler)
+	RenderingServer.global_shader_parameter_set("iv_mouse_fragcoord",
+			_world_controller.mouse_position + Vector2(0.5, 0.5)) # see shader comment
+
+
+
+# *****************************************************************************
+# public
+
+
+func get_new_id(data: Array) -> int:
+	# Assigns random id from interval 0 to 68_719_476_735 (36 bits).
+	# data[0] is target instance_id; target assigns additional indexes as needed
+	var id := (randi() << 4) | (randi() & 15) # randi() is only 32 bits
+	while fragment_data.has(id):
+		id = (randi() << 4) | (randi() & 15)
+	fragment_data[id] = data
+	return id
+
+
+func get_new_id_as_vec3(data: Array) -> Vector3:
+	var id := get_new_id(data)
+	return encode_vec3(id)
+
+
+func remove_id(id: int) -> void:
+	fragment_data.erase(id)
+
+
+# *****************************************************************************
 # private
+
 
 func _clear_procedural() -> void:
 	fragment_data.clear()

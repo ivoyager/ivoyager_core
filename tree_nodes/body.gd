@@ -164,6 +164,7 @@ enum BodyFlags {
 	
 }
 
+
 const PERSIST_MODE := IVGlobal.PERSIST_PROCEDURAL # free & rebuild on load
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"name",
@@ -181,6 +182,30 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"_system_radius",
 	&"_hill_sphere",
 ]
+
+
+## Static class setting. Set this script to generate a subclass in place of
+## IVBody in all create methods. Assigned Script must be a subclass of IVBody!
+static var replacement_subclass: Script
+## Static class setting. Set this script to replace the IVModelSpace class.
+static var replacement_model_space_class: Script
+
+## Static class setting. Default value is a dashed circle.
+static var default_symbol := "\u25CC"
+## Static class setting.
+static var system_mean_radius_multiplier := 15.0
+## Static class setting.
+static var max_hud_dist_orbit_radius_multiplier := 100.0
+## Static class setting.
+static var min_hud_dist_radius_multiplier := 500.0
+## Static class setting.
+static var min_hud_dist_star_multiplier := 20.0
+
+## A static class dictionary that contains all added IVBody instances.
+static var bodies: Dictionary[StringName, IVBody] = {}
+## A static class dictionary that contains IVBody instances that are at the top
+## of a system (i.e., the primary star for every star system).
+static var galaxy_orbiters: Dictionary[StringName, IVBody] = {}
 
 
 # persisted
@@ -230,30 +255,6 @@ var texture_2d: Texture2D
 var texture_slice_2d: Texture2D
 
 
-## Static class setting. Set this script to generate a subclass in place of
-## IVBody in all create methods. Assigned Script must be a subclass of IVBody!
-static var replacement_subclass: Script
-## Static class setting. Set this script to replace the IVModelSpace class.
-static var replacement_model_space_class: Script
-
-## Static class setting. Default value is a dashed circle.
-static var default_symbol := "\u25CC"
-## Static class setting.
-static var system_mean_radius_multiplier := 15.0
-## Static class setting.
-static var max_hud_dist_orbit_radius_multiplier := 100.0
-## Static class setting.
-static var min_hud_dist_radius_multiplier := 500.0
-## Static class setting.
-static var min_hud_dist_star_multiplier := 20.0
-
-## A static class dictionary that contains all added IVBody instances.
-static var bodies: Dictionary[StringName, IVBody] = {}
-## A static class dictionary that contains IVBody instances that are at the top
-## of a system (i.e., the primary star for every star system).
-static var galaxy_orbiters: Dictionary[StringName, IVBody] = {}
-
-
 # private persisted
 var _orbit: IVOrbit
 var _system_radius: float
@@ -268,83 +269,8 @@ var _times: Array[float] = IVGlobal.times
 var _world_controller: IVWorldController = IVGlobal.program[&"WorldController"]
 
 
-func _enter_tree() -> void:
-	# Happens:
-	# 1) During system build from data tables.
-	# 2) During system build from game save.
-	# 3) When a body changes parent, e.g., in a spacecraft trajectory. 
-	const LAZY_MODEL := BodyFlags.BODYFLAGS_LAZY_MODEL
-	_set_relative_bodies()
-	if is_node_ready(): # existing ready body has changed parent
-		return
-	if _orbit:
-		_orbit.changed.connect(_on_orbit_changed)
-	if flags & LAZY_MODEL and IVGlobal.program.has(&"LazyModelInitializer"):
-		_lazy_model_uninited = true
-	else:
-		_add_model_space()
-
-
-func _exit_tree() -> void:
-	_clear_relative_bodies()
-
-
-func _ready() -> void:
-	# Happens once only, but could be during or after whole system build.
-	const GALAXY_ORBITER := BodyFlags.BODYFLAGS_GALAXY_ORBITER
-	process_mode = PROCESS_MODE_ALWAYS # time will stop, but allows mouseover interaction
-	IVGlobal.system_tree_built_or_loaded.connect(_on_system_tree_built_or_loaded, CONNECT_ONE_SHOT)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural, CONNECT_ONE_SHOT)
-	IVGlobal.setting_changed.connect(_settings_listener)
-	assert(!bodies.has(name))
-	bodies[name] = self
-	if flags & GALAXY_ORBITER:
-		galaxy_orbiters[name] = self
-	_set_resources()
-	_set_min_hud_dist()
-	hide()
-	
-	if !IVGlobal.state[&"is_system_built"]: # currently building from tables or savefile
-		return
-	
-	_set_system_radius()
-	_set_hill_sphere()
-
-
-func _process(_delta: float) -> void:
-	# _process() is disabled while in sleep mode (_sleeping == true). When in
-	# sleep mode, API assumes that any properties updated here are stale and
-	# must be calculated.
-	
-	var time := _times[0]
-	
-	if _orbit:
-		position = _orbit.update(time)
-	
-	var camera_dist := _world_controller.update_world_target(self, mean_radius)
-	
-	# update model space
-	if model_space:
-		var rotation_angle := wrapf(time * rotation_rate, 0.0, TAU)
-		model_space.basis = orientation_at_epoch.rotated(rotation_axis, rotation_angle)
-		model_space.visible = camera_dist < _max_model_dist
-	
-	# set HUDs visibility
-	var show_huds := camera_dist > _min_hud_dist # Is camera far enough?
-	if show_huds and _orbit:
-		# Is body far enough from it parent?
-		var orbit_radius := position.length()
-		show_huds = orbit_radius * max_hud_dist_orbit_radius_multiplier > camera_dist
-	if huds_visible != show_huds:
-		huds_visible = show_huds
-		huds_visibility_changed.emit(huds_visible)
-	
-	show()
-
-
 # *****************************************************************************
-# create & remove methods
-
+# create methods
 
 ## Creates new [IVOrbit] instance (or specified [member replacement_subclass])
 ## from specified parameters. See also [method create_from_astronomy_specs].
@@ -469,6 +395,88 @@ static func create_from_astronomy_specs(
 	return body
 
 
+# *****************************************************************************
+# virtual
+
+
+func _enter_tree() -> void:
+	# Happens:
+	# 1) During system build from data tables.
+	# 2) During system build from game save.
+	# 3) When a body changes parent, e.g., in a spacecraft trajectory. 
+	const LAZY_MODEL := BodyFlags.BODYFLAGS_LAZY_MODEL
+	_set_relative_bodies()
+	if is_node_ready(): # existing ready body has changed parent
+		return
+	if _orbit:
+		_orbit.changed.connect(_on_orbit_changed)
+	if flags & LAZY_MODEL and IVGlobal.program.has(&"LazyModelInitializer"):
+		_lazy_model_uninited = true
+	else:
+		_add_model_space()
+
+
+func _exit_tree() -> void:
+	_clear_relative_bodies()
+
+
+func _ready() -> void:
+	# Happens once only, but could be during or after whole system build.
+	const GALAXY_ORBITER := BodyFlags.BODYFLAGS_GALAXY_ORBITER
+	process_mode = PROCESS_MODE_ALWAYS # time will stop, but allows mouseover interaction
+	IVGlobal.system_tree_built_or_loaded.connect(_on_system_tree_built_or_loaded, CONNECT_ONE_SHOT)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural, CONNECT_ONE_SHOT)
+	IVGlobal.setting_changed.connect(_settings_listener)
+	assert(!bodies.has(name))
+	bodies[name] = self
+	if flags & GALAXY_ORBITER:
+		galaxy_orbiters[name] = self
+	_set_resources()
+	_set_min_hud_dist()
+	hide()
+	
+	if !IVGlobal.state[&"is_system_built"]: # currently building from tables or savefile
+		return
+	
+	_set_system_radius()
+	_set_hill_sphere()
+
+
+func _process(_delta: float) -> void:
+	# _process() is disabled while in sleep mode (_sleeping == true). When in
+	# sleep mode, API assumes that any properties updated here are stale and
+	# must be calculated.
+	
+	var time := _times[0]
+	
+	if _orbit:
+		position = _orbit.update(time)
+	
+	var camera_dist := _world_controller.update_world_target(self, mean_radius)
+	
+	# update model space
+	if model_space:
+		var rotation_angle := wrapf(time * rotation_rate, 0.0, TAU)
+		model_space.basis = orientation_at_epoch.rotated(rotation_axis, rotation_angle)
+		model_space.visible = camera_dist < _max_model_dist
+	
+	# set HUDs visibility
+	var show_huds := camera_dist > _min_hud_dist # Is camera far enough?
+	if show_huds and _orbit:
+		# Is body far enough from it parent?
+		var orbit_radius := position.length()
+		show_huds = orbit_radius * max_hud_dist_orbit_radius_multiplier > camera_dist
+	if huds_visible != show_huds:
+		huds_visible = show_huds
+		huds_visibility_changed.emit(huds_visible)
+	
+	show()
+
+
+# *****************************************************************************
+# remove
+
+
 func remove() -> void:
 	const GALAXY_ORBITER := BodyFlags.BODYFLAGS_GALAXY_ORBITER
 	for satellite_name in satellites:
@@ -585,8 +593,6 @@ func set_orbit(new_orbit: IVOrbit) -> void:
 	_orbit = new_orbit
 	if is_inside_tree(): # otherwise, connected on _enter_tree()
 		new_orbit.changed.connect(_on_orbit_changed)
-
-
 
 
 # *****************************************************************************

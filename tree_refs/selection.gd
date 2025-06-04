@@ -47,6 +47,11 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"body",
 ]
 
+
+static var replacement_subclass: Script # replace w/ subclass only
+## Contains all existing IVSelection instances. FIXME: Move to IVSelectionManager?
+static var selections: Dictionary[StringName, IVSelection] = {}
+
 # persisted - read only
 var name: StringName
 var gui_name: String # name for GUI display (already translated)
@@ -59,16 +64,6 @@ var body: IVBody # = spatial if is_body else null
 var texture_2d: Texture2D
 var texture_slice_2d: Texture2D # stars only
 
-
-static var replacement_subclass: Script # replace w/ subclass only
-
-## Contains all existing IVSelection instances. FIXME: Move to IVSelectionManager?
-static var selections: Dictionary[StringName, IVSelection] = {}
-
-
-func _init() -> void:
-	IVGlobal.system_tree_ready.connect(_init_after_system, CONNECT_ONE_SHOT)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 
 
 @warning_ignore("shadowed_variable")
@@ -89,6 +84,13 @@ static func create_for_body(body: IVBody) -> IVSelection:
 	var parent := body.get_parent() as IVBody
 	selection.up_selection_name = parent.name if parent else &""
 	return selection
+
+
+
+func _init() -> void:
+	IVGlobal.system_tree_ready.connect(_init_after_system, CONNECT_ONE_SHOT)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
+
 
 
 func get_gui_name() -> String:

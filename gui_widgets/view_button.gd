@@ -24,10 +24,10 @@ extends Button
 ##
 ## Pre-built (default) buttons must have pre-set text that is a key in
 ## IVViewManager.table_views, e.g., "VIEW_HOME", "VIEW_ZOOM", etc. (not the
-## translated name).
+## translated name).[br][br]
 ##
 ## TODO: Make this class work as user-added too. (Those are presently a
-## subclass in IVViewSaveFlow.)
+## subclass in [IVViewSaveFlow].)
 
 var _is_default_button: bool
 

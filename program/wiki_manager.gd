@@ -29,9 +29,11 @@ extends RefCounted
 ## 2) hook up directly to IVGlobal signal "open_wiki_requested". If the latter,
 ## you can safely erase this class from IVCoreInitializer.prog_refs.
 
+
 #var _wiki_titles: Dictionary = IVTableData.wiki_lookup
 var _wiki: String = IVGlobal.wiki # "wiki" (internal), "en.wikipedia", etc.
 var _wiki_url: String 
+
 
 
 func _init() -> void:
@@ -40,6 +42,7 @@ func _init() -> void:
 	IVGlobal.open_wiki_requested.connect(_open_wiki)
 	if !IVCoreSettings.use_internal_wiki:
 		_wiki_url = "https://" + _wiki + ".org/wiki/"
+
 
 
 func _open_wiki(wiki_title: String) -> void:

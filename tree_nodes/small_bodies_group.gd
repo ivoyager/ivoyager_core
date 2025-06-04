@@ -63,6 +63,12 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 ]
 
 
+static var replacement_subclass: Script
+## Contains all IVSmallBodiesGroup instances currently in the tree.
+static var small_bodies_groups: Dictionary[StringName, IVSmallBodiesGroup] = {}
+static var null_pf32_array := PackedFloat32Array()
+
+
 var sbg_alias: StringName
 var sbg_class: SBGClass # SBGClass
 var secondary_body: IVBody # e.g., Jupiter for Trojans; usually null
@@ -75,27 +81,6 @@ var a_m0_n := PackedFloat32Array() # librating in l-point objects
 var s_g_mag_de := PackedFloat32Array() # orbit precessions, magnitude, & e amplitude (sec res only)
 var da_d_f_th0 := PackedFloat32Array() # Trojans only
 
-
-static var replacement_subclass: Script
-
-## Contains all IVSmallBodiesGroup instances currently in the tree.
-static var small_bodies_groups: Dictionary[StringName, IVSmallBodiesGroup] = {}
-static var null_pf32_array := PackedFloat32Array()
-
-
-
-func _ready() -> void:
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
-	assert(!small_bodies_groups.has(name))
-	small_bodies_groups[name] = self
-
-
-func _exit_tree() -> void:
-	small_bodies_groups.erase(name)
-
-
-# *****************************************************************************
-# public API
 
 
 ## Last 2 args only if these are Lagrange point objects. This node creation MUST
@@ -121,14 +106,16 @@ static func create(name: StringName, sbg_alias: StringName, sbg_class: SBGClass,
 	return sbg
 
 
-#func init(name_: StringName, sbg_alias_: StringName, sbg_class_: SBGClass,
-		#lp_integer_ := -1, secondary_body_: IVBody = null) -> void:
-	## Last 2 args only if these are Lagrange point objects.
-	#name = name_
-	#sbg_alias = sbg_alias_
-	#sbg_class = sbg_class_
-	#lp_integer = lp_integer_
-	#secondary_body = secondary_body_
+
+func _ready() -> void:
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
+	assert(!small_bodies_groups.has(name))
+	small_bodies_groups[name] = self
+
+
+func _exit_tree() -> void:
+	small_bodies_groups.erase(name)
+
 
 
 ## Append all data before adding this node to the tree.
@@ -250,8 +237,6 @@ func get_fragment_text(data: Array) -> String:
 		text += " (" + tr("LABEL_ORBIT").to_lower() + ")"
 	return text
 
-
-# *****************************************************************************
 
 
 func _clear_procedural() -> void:
