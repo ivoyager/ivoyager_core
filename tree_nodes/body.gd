@@ -43,18 +43,21 @@ extends Node3D
 ## IVBody nodes are NEVER scaled or rotated. Hence, local distances and
 ## directions are always in the ecliptic basis at any level of the "body tree".[br][br]
 ##
-## This node adds its own [IVModelSpace] if needed.
-## IVBody maintains orientation and rotation of IVModelSpace. IVModelSpace
-## instantiates and scales a model (visual representation) for this body.
-## If this body has table value [param lazy_model] = TRUE, then IVModelSpace
-## won't be added until the camera visits this body or a closely associated
-## lazy body. This is generally set for spacecrafts (with large models) and for
-## the 100s of small outer moons of the gas giants (but not inner moons, as
-## these might be visible from nearby). See [IVLazyModelInitializer].[br][br]
+## This node adds its own [IVModelSpace] if needed. IVBody maintains orientation
+## and rotation of IVModelSpace. IVModelSpace instantiates and scales a model
+## (visual representation) for this body. If [member flags] &
+## [member BodyFlags.BODYFLAGS_LAZY_MODEL] (from table field
+## [param lazy_model] == TRUE), then IVModelSpace won't be added until the
+## camera visits this body or a closely associated lazy body.
+## This is generally set for spacecrafts (with large models) and for the 100s
+## of small outer moons of the gas giants (but for not inner moons, as these
+## can be seen from nearby). See [IVLazyModelInitializer].[br][br]
 ##
-## Some bodies (particularly moons and spacecrafts) have table value
-## [param can_sleep] = TRUE. If [IVSleepManager] is present, these bodies will
-## only [code]_process()[/code] when the camera is in the same planet system.
+## Some bodies (particularly moons and spacecrafts) have
+## [member BodyFlags.BODYFLAGS_CAN_SLEEP] set (from table field
+## [param can_sleep] == TRUE). If [IVSleepManager] is present, these bodies will
+## only [code]_process()[/code] when the camera is at or under the same planet
+## or asteroid or other star orbiter.
 ## Note that IVBody API methods such as [method get_position_vector] and
 ## [method get_state_vectors] will provide current values even if the body is
 ## not currently processing, but [param postion] will not. These methods also
@@ -63,9 +66,9 @@ extends Node3D
 ## IVBody properties are core information required for all bodies. Specialized
 ## information is contained in dictionary [member characteristics]. For
 ## example all bodies have [member mean_radius], but oblate spheroid bodies
-## (most planets and stars) also have characteristics keys [param equatorial_radius]
-## and [param polar_radius]. API methods provide access to many of these
-## characteristics with sensible fallbacks for missing keys.[br][br]
+## (stars, planets, and large moons) also have [param equatorial_radius] and
+## [param polar_radius] as keys in characteristics. API methods provide access
+## to many of these characteristics with sensible fallbacks for missing keys.[br][br]
 ##
 ## Many body-associated "graphic" nodes are added by [IVBodyFinisher] including
 ## rings, lights and HUD elements. The IVBody class has no references to these
@@ -121,7 +124,7 @@ signal huds_visibility_changed(is_visible: bool)
 enum BodyFlags {
 	
 	# orbit context & identity
-	BODYFLAGS_GALAXY_ORBITER = 1, ## If set, IVBody instance has no IVOrbit.
+	BODYFLAGS_GALAXY_ORBITER = 1, ## "Top" IVBody; has no IVOrbit.
 	BODYFLAGS_STAR_ORBITER = 1 << 1,
 	BODYFLAGS_BARYCENTER = 1 << 2, ## NOT IMPLEMENTED YET.
 	BODYFLAGS_PLANETARY_MASS_OBJECT = 1 << 3, ## Includes dwarf planet and larger spheroid moon.
