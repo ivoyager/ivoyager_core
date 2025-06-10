@@ -20,23 +20,21 @@
 class_name IVSelectionData
 extends VBoxContainer
 
-# GUI widget.
-# An ancestor Control node must have property 'selection_manager'
-# set to an IVSelectionManager before signal IVGlobal.about_to_start_simulator.
-#
-# Typed values interpreted as n/a; widget skips row and doesn't display:
-#   NAN
-#   -1
-#   ""
-#
-# Typed values interpreted as unknown; widget displays as "?":
-#   INF or -INF
-#   -99999999
-#
-# For most applicatios, you'll want to put this widget in a ScrollContainer.
-#
-# TODO: tooltips.
-#
+## GUI widget.
+##
+## An ancestor Control node must have property [param selection_manager]
+## set to an [IVSelectionManager] before [signal IVGlobal.about_to_start_simulator].[br][br]
+##
+## Typed values interpreted as n/a; widget skips row and doesn't display:
+## NAN, -1, "".[br][br]
+##
+## Typed values interpreted as unknown; widget displays as "?": INF or -INF,
+## -99999999.[br][br]
+##
+## For most applications, you'll want to put this widget in a ScrollContainer.[br][br]
+##
+## TODO: tooltips.
+
 
 
 enum { # data_type
@@ -216,17 +214,16 @@ var value_postprocessors := {
 	"body/characteristics/n_kn_dwf_planets" : mod_n_kn_dwf_planets,
 }
 
-var _state: Dictionary[StringName, Variant] = IVGlobal.state
-var _wiki_titles: Dictionary = IVTableData.wiki_lookup
+var _state := IVGlobal.state
+var _wiki_titles := IVTableData.wiki_lookup
 var _header_buttons: Array[Button] = []
 var _grids: Array[GridContainer] = []
-var _meta_lookup := {} # translate link text to wiki key
+var _meta_lookup: Dictionary[String, StringName] = {} # translate link text to wiki key
 var _recycled_labels: Array[Label] = []
 var _recycled_rtlabels: Array[RichTextLabel] = []
 var _selection_manager: IVSelectionManager
 var _selection: IVSelection
 var _body: IVBody
-#var path: String
 var _is_running := false
 
 @onready var _timer: Timer = $Timer
@@ -235,7 +232,7 @@ var _is_running := false
 func _ready() -> void:
 	IVGlobal.about_to_start_simulator.connect(_configure)
 	IVGlobal.update_gui_requested.connect(_update_selection)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	IVGlobal.about_to_stop_before_quit.connect(_clear_recycled)
 	_configure()
 	_start_timer_coroutine()
@@ -421,7 +418,8 @@ func _configure(_dummy := false) -> void:
 	_update_selection()
 
 
-func _clear() -> void:
+func _clear_procedural() -> void:
+	_clear_recycled()
 	if _selection_manager:
 		_selection_manager.selection_changed.disconnect(_update_selection)
 		_selection_manager = null
@@ -432,7 +430,6 @@ func _clear() -> void:
 	_meta_lookup.clear()
 	for child in get_children():
 		child.queue_free()
-	_clear_recycled()
 
 
 func _clear_recycled() -> void:
@@ -665,6 +662,6 @@ func _get_rtlabel(is_value: bool) -> RichTextLabel:
 
 
 func _on_meta_clicked(meta: String) -> void:
-	var wiki_key: String = _meta_lookup[meta]
-	var wiki_title: String = _wiki_titles[wiki_key]
+	var wiki_key := _meta_lookup[meta]
+	var wiki_title := _wiki_titles[wiki_key]
 	IVGlobal.open_wiki_requested.emit(wiki_title)

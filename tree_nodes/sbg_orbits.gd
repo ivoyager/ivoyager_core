@@ -28,8 +28,6 @@ extends MultiMeshInstance3D
 ## Several subclass _init() overrides are provided to override above behavior,
 ## supply a different shader, or change other aspects of the MultiMesh.
 
-const math := preload("uid://csb570a3u1x1k")
-
 const FRAGMENT_SBG_ORBIT := IVFragmentIdentifier.FRAGMENT_SBG_ORBIT
 
 static var _fragment_identifier: IVFragmentIdentifier # optional
@@ -46,6 +44,7 @@ var _bypass_fragment_identifier := false
 var _multimesh_use_custom_data := true # forced true if base shader used w/ fragment ids
 var _multimesh_use_colors := false # default is to set as a group
 var _suppress_set_custom_data := false
+
 
 
 func _init(sbg: IVSmallBodiesGroup) -> void:
@@ -113,6 +112,7 @@ func _init(sbg: IVSmallBodiesGroup) -> void:
 func _ready() -> void:
 	_set_visibility()
 	_set_color()
+
 
 
 func _hide_and_free() -> void:

@@ -20,9 +20,22 @@
 class_name IVTableBodyBuilder
 extends RefCounted
 
-## Builds [IVBody] instances from data tables.
+## Builds [IVBody] (or subclass) instances from data tables.
+##
+## To use a subclass in place of [IVBody], set static [member IVBody.replacement_subclass]
+## before sytem build.[br][br]
+##
+## The generator class [IVTableOrbitBuilder] can be replaced with another
+## generator class in [IVCoreInitializer]. The replacement class must have
+## method compatible with [method IVTableOrbitBuilder.make_orbit].[br][br]
+##
+## The generator class [IVTableCompositionBuilder] can be removed or replaced
+## with another generator class in [IVCoreInitializer]. If replaced, the
+## replacement class must have method compatible with
+## [method IVCoreInitializer.add_compositions_from_table].
 
 const BodyFlags := IVBody.BodyFlags
+
 
 ## Set IVBody property if non-missing value in table.
 var create_fields: Array[StringName] = [
@@ -122,16 +135,12 @@ var flag_fields: Dictionary[StringName, int] = {
 
 var _enable_precisions := IVCoreSettings.enable_precisions
 var _orbit_builder: IVTableOrbitBuilder
-var _composition_builder: IVCompositionBuilder
+var _composition_builder: RefCounted
+
 
 
 func _init() -> void:
 	IVGlobal.project_objects_instantiated.connect(_on_project_objects_instantiated)
-
-
-func _on_project_objects_instantiated() -> void:
-	_orbit_builder = IVGlobal.program[&"TableOrbitBuilder"]
-	_composition_builder = IVGlobal.program.get(&"CompositionBuilder")
 
 
 
@@ -153,6 +162,9 @@ func build_body(table_name: String, row: int, parent: IVBody) -> IVBody:
 		characteristics[&"float_precisions"] = precisions
 		
 	var components: Dictionary[StringName, RefCounted] = {}
+	if _composition_builder:
+		@warning_ignore("unsafe_method_access")
+		_composition_builder.add_compositions_from_table(components, table_name, row)
 	
 	var create_parameters: Dictionary[StringName, Variant] = {}
 	IVTableData.db_build_dictionary(create_parameters, table_name, row, create_fields)
@@ -208,12 +220,14 @@ func build_body(table_name: String, row: int, parent: IVBody) -> IVBody:
 		flags
 	)
 	
-	# TODO: Recode to take a dictionary...
-	if _composition_builder:
-		_composition_builder.add_compositions_from_table(body, table_name, row)
-	
 	
 	return body
+
+
+
+func _on_project_objects_instantiated() -> void:
+	_orbit_builder = IVGlobal.program[&"TableOrbitBuilder"]
+	_composition_builder = IVGlobal.program.get(&"TableCompositionBuilder") # remove to skip
 
 
 func _set_table_data_precisions(table_name: StringName, row: int,

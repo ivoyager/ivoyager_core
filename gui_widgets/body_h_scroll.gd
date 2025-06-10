@@ -20,12 +20,15 @@
 class_name IVBodyHScroll
 extends ScrollContainer
 
-# GUI widget. An ancestor Control node must have property 'selection_manager'
-# set to an IVSelectionManager before signal IVGlobal.system_tree_ready.
-#
-# Parent GUI should add bodies by calling add methods.
+## GUI widget.
+##
+## An ancestor Control node must have property [param selection_manager]
+## set to an [IVSelectionManager] before [signal IVGlobal.system_tree_ready].
+##
+## Parent GUI should add bodies by calling add methods.
 
 const BODYFLAGS_SHOW_IN_NAVIGATION_PANEL := IVBody.BodyFlags.BODYFLAGS_SHOW_IN_NAVIGATION_PANEL
+
 
 var _selection_manager: IVSelectionManager
 var _currently_selected: Button
@@ -36,18 +39,14 @@ var _button_size := 0.0 # scales with widget height
 @onready var _hbox: HBoxContainer = $HBox
 
 
+
 func _ready() -> void:
 	IVGlobal.system_tree_ready.connect(_on_system_tree_ready)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	resized.connect(_on_resized)
 	if IVGlobal.state.is_system_ready:
 		_on_system_tree_ready()
 
-
-func _on_system_tree_ready(_dummy := false) -> void:
-	_selection_manager = IVSelectionManager.get_selection_manager(self)
-	for table_name in _body_tables:
-		_add_bodies_from_table(table_name)
 
 
 func add_bodies_from_table(table_name: StringName) -> void:
@@ -66,7 +65,14 @@ func add_body(body: IVBody) -> void:
 	_hbox.add_child(button)
 
 
-func _clear() -> void:
+
+func _on_system_tree_ready(_dummy := false) -> void:
+	_selection_manager = IVSelectionManager.get_selection_manager(self)
+	for table_name in _body_tables:
+		_add_bodies_from_table(table_name)
+
+
+func _clear_procedural() -> void:
 	for child in _hbox.get_children():
 		child.queue_free()
 

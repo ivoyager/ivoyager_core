@@ -23,8 +23,8 @@ extends Node
 
 ## Handles full screen / minimize toggles.
 ##
-## This node is not added in IVCoreInitializer by default, and its function is
-## completely duplicated by IVFullScreenButton. Add this node only if you want
+## This node is not added in [IVCoreInitializer] by default, and its function is
+## completely duplicated by [IVFullScreenButton]. Add this node only if you want
 ## full screen toggle via hotkey but don't need the GUI button.
 
 
@@ -36,6 +36,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"toggle_fullscreen"):
 		_change_fullscreen()
 		get_viewport().set_input_as_handled()
+
 
 
 func _change_fullscreen() -> void:

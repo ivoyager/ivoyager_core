@@ -19,12 +19,15 @@
 # *****************************************************************************
 class_name IVHotkeyDialog
 extends ConfirmationDialog
+
+## Used by [IVHotkeysPopup].
+
 const SCENE := "res://addons/ivoyager_core/gui_popups/hotkey_dialog.tscn"
 
-# Used by IVHotkeysPopup.
 
 signal hotkey_confirmed(action: StringName, index: int, keycode: int,
 		control: bool, alt: bool, shift: bool, meta: bool)
+
 
 var _in_use_color: Color = IVCoreSettings.text_colors[&"danger"]
 var _ok_color: Color = IVCoreSettings.text_colors[&"base"]
@@ -38,6 +41,7 @@ var _layout: Array
 @onready var _key_delete: Button = %KeyDelete
 @onready var _ok_button: Button = get_ok_button()
 @onready var _input_map_manager: IVInputMapManager = IVGlobal.program[&"InputMapManager"]
+
 
 
 func _ready() -> void:
@@ -92,6 +96,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		_key_delete.hide()
 
 
+
 func open(action: StringName, index: int, action_label_str: StringName, key_as_text: StringName,
 		layout: Array) -> void:
 	_action = action
@@ -110,6 +115,7 @@ func open(action: StringName, index: int, action_label_str: StringName, key_as_t
 	_key_label.set(&"theme_override_colors/font_color", _ok_color)
 	popup_centered()
 	_keep_focus()
+
 
 
 func _on_key_delete() -> void:

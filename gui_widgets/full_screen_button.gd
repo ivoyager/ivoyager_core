@@ -20,10 +20,9 @@
 class_name IVFullScreenButton
 extends Button
 
-## Button that handles full screen / minimize toggles.
+## GUI Button that handles full screen / minimize toggles.
 ##
-## Note: You don't need to add IVFullScreenManager if this node is present.
-
+## Use [IVFullScreenManager] instead if you want hotkey control without a button.
 
 
 var full_screen_text := &"BUTTON_FULL_SCREEN"
@@ -51,6 +50,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"toggle_fullscreen"):
 		_change_fullscreen()
 		get_viewport().set_input_as_handled()
+
 
 
 func _change_fullscreen() -> void:

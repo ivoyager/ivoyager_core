@@ -19,8 +19,9 @@
 # *****************************************************************************
 class_name IVOptionsPopup
 extends PopupPanel
-const SCENE := "res://addons/ivoyager_core/gui_popups/options_popup.tscn"
 
+
+const SCENE := "res://addons/ivoyager_core/gui_popups/options_popup.tscn"
 
 const DPRINT := true
 
@@ -114,8 +115,6 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		_on_cancel()
 
 
-# *****************************************************************************
-# public
 
 func open() -> void:
 	if visible:
@@ -199,7 +198,6 @@ func remove_item(item: StringName) -> void:
 			dict_index += 1
 
 
-# *****************************************************************************
 
 func _build_content() -> void:
 	for child in _content_container.get_children():
@@ -223,7 +221,6 @@ func _build_content() -> void:
 					var setting_hbox := _build_item(item, label_name)
 					subpanel_vbox.add_child(setting_hbox)
 	_on_content_built()
-
 
 
 func _build_item(setting: StringName, setting_label_str: StringName) -> HBoxContainer:
@@ -352,7 +349,6 @@ func _on_cancel() -> void:
 		return
 	IVGlobal.confirmation_requested.emit(&"LABEL_Q_CANCEL_OPTION_CHANGES", _cancel_changes, true,
 			&"LABEL_PLEASE_CONFIRM", &"BUTTON_CANCEL_CHANGES", &"BUTTON_BACK")
-
 
 
 func _on_close_requested() -> void:

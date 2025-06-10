@@ -22,7 +22,7 @@ extends Button
 
 ## Botton that emits [signal IVGlobal.quit_requested].
 
-@export var force_quit := false ## Force quit without warning diologs.
+@export var force_quit := false ## Force quit without warning dialog.
 
 
 func _pressed() -> void:

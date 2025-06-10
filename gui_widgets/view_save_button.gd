@@ -20,17 +20,21 @@
 class_name IVViewSaveButton
 extends Button
 
-# GUI button widget that opens its own IVViewSavePopup. Requires IVViewSavePopup
-# and IVViewSaver.
-#
-# Can be placed inside an IVViewSaveFlow.
+## GUI button that opens its own [IVViewSavePopup].
+##
+## Requires [IVViewSavePopup] and [IVViewSaver].[br][br]
+##
+## Can be placed inside an [IVViewSaveFlow].
 
 signal view_saved(view_name: StringName)
 
+
 const ViewFlags := IVView.ViewFlags
+
 
 var _view_save_popup: IVViewSavePopup
 var _view_saver: IVViewSaver
+
 
 
 func _ready() -> void:
@@ -41,6 +45,7 @@ func _ready() -> void:
 	top_gui.add_child(_view_save_popup)
 	toggled.connect(_on_toggled)
 	_view_save_popup.visibility_changed.connect(_on_visibility_changed)
+
 
 
 func init(default_view_name := &"LABEL_CUSTOM1", collection_name := &"", is_cached := true,

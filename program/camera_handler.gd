@@ -35,6 +35,7 @@ enum {
 const CameraFlags := IVCamera.CameraFlags
 const NULL_VECTOR3 := Vector3(-INF, -INF, -INF)
 
+
 # project vars
 # set _adj vars so user option can be close to 1.0
 var mouse_wheel_adj := 7.5
@@ -77,6 +78,9 @@ var _rotate_pressed := Vector3.ZERO
 @onready var _key_roll_rate: float = _settings[&"camera_key_roll_rate"] * key_roll_adj
 
 
+# *****************************************************************************
+
+
 func _ready() -> void:
 	IVGlobal.system_tree_ready.connect(_on_system_tree_ready)
 	IVGlobal.about_to_free_procedural_nodes.connect(_restore_init_state)
@@ -85,13 +89,6 @@ func _ready() -> void:
 	_world_controller.mouse_target_clicked.connect(_on_mouse_target_clicked)
 	_world_controller.mouse_dragged.connect(_on_mouse_dragged)
 	_world_controller.mouse_wheel_turned.connect(_on_mouse_wheel_turned)
-
-
-func _on_system_tree_ready(_is_new_game: bool) -> void:
-	@warning_ignore("unsafe_property_access")
-	_selection_manager = IVGlobal.program[&"TopGUI"].selection_manager
-	_selection_manager.selection_changed.connect(_on_selection_changed)
-	_selection_manager.selection_reselected.connect(_on_selection_reselected)
 
 
 func _process(delta: float) -> void:
@@ -195,6 +192,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		get_window().set_input_as_handled()
 
 
+# *****************************************************************************
 # public API
 
 func move_to(selection: IVSelection, camera_flags := 0, view_position := NULL_VECTOR3,
@@ -224,7 +222,16 @@ func get_camera_view_state() -> Array:
 		_camera.view_rotations,
 	]
 
+
+# *****************************************************************************
 # private
+
+func _on_system_tree_ready(_is_new_game: bool) -> void:
+	@warning_ignore("unsafe_property_access")
+	_selection_manager = IVGlobal.program[&"TopGUI"].selection_manager
+	_selection_manager.selection_changed.connect(_on_selection_changed)
+	_selection_manager.selection_reselected.connect(_on_selection_reselected)
+
 
 func _restore_init_state() -> void:
 	_disconnect_camera()

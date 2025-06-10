@@ -20,8 +20,10 @@
 class_name IVSelectionButtons
 extends HBoxContainer
 
-# GUI widget. An ancestor Control node must have property 'selection_manager'
-# set to an IVSelectionManager before signal IVGlobal.about_to_start_simulator.
+## GUI widget.
+##
+## An ancestor Control node must have property [param selection_manager]
+## set to an [IVSelectionManager] before [signal IVGlobal.about_to_start_simulator].
 
 var _selection_manager: IVSelectionManager
 
@@ -30,11 +32,13 @@ var _selection_manager: IVSelectionManager
 @onready var _up: Button = $Up
 
 
+
 func _ready() -> void:
 	IVGlobal.about_to_start_simulator.connect(_connect_selection_manager)
 	IVGlobal.update_gui_requested.connect(_update_buttons)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	_connect_selection_manager()
+
 
 
 func _connect_selection_manager(_dummy := false) -> void:
@@ -56,5 +60,5 @@ func _update_buttons(_dummy := false) -> void:
 	_up.disabled = !_selection_manager.can_go_up()
 
 
-func _clear() -> void:
+func _clear_procedural() -> void:
 	_selection_manager = null

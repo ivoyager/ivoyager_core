@@ -20,9 +20,10 @@
 class_name IVWikiInitializer
 extends RefCounted
 
-# FIXME or DEPRECIATE: IVCoreSettings 'wiki' settings don't do anything now. We need
+# FIXME or DEPRECATE: IVCoreSettings 'wiki' settings don't do anything now. We need
 # to figure out how to do localization.
 # Many loose ends after shift to Table Importer plugin...
+
 
 func _init() -> void:
 	if !IVCoreSettings.enable_wiki:
@@ -37,6 +38,7 @@ func _init() -> void:
 			IVGlobal.wiki = "en.wikipedia"
 	
 	IVGlobal.project_objects_instantiated.connect(_remove_self)
+
 
 
 func _remove_self() -> void:

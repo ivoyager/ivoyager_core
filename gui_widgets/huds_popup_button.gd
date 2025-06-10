@@ -20,7 +20,8 @@
 class_name IVHUDsPopupButton
 extends Button
 
-# GUI button widget that opens its own IVHUDsPopup. Requires IVHUDsPopup.
+## GUI Button that opens its own [IVHUDsPopup].
+
 
 var _huds_popup: PopupPanel
 
@@ -31,6 +32,7 @@ func _ready() -> void:
 	top_gui.add_child(_huds_popup)
 	toggled.connect(_on_toggled)
 	_huds_popup.visibility_changed.connect(_on_visibility_changed)
+
 
 
 func _on_toggled(toggle_pressed: bool) -> void:

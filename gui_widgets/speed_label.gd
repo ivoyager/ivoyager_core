@@ -20,7 +20,10 @@
 class_name IVSpeedLabel
 extends Label
 
-# UI widget. Requires IVTimekeeper.
+## UI widget.
+##
+## Requires [IVTimekeeper].
+
 
 var forward_color: Color = IVCoreSettings.text_colors[&"base"]
 var reverse_color: Color = IVCoreSettings.text_colors[&"danger"]
@@ -30,11 +33,13 @@ var _is_reversed := false
 @onready var _timekeeper: IVTimekeeper = IVGlobal.program[&"Timekeeper"]
 
 
+
 func _ready() -> void:
 	IVGlobal.update_gui_requested.connect(_update_speed)
 	_timekeeper.speed_changed.connect(_update_speed)
 	set(&"theme_override_colors/font_color", forward_color)
 	_update_speed()
+
 
 
 func _update_speed() -> void:

@@ -61,30 +61,12 @@ var default_orbit_visible_flags := 0
 var default_orbit_colors: Dictionary[int, Color] = {}
 
 
+# *****************************************************************************
+
 func _init() -> void:
 	IVGlobal.project_objects_instantiated.connect(_on_project_objects_instantiated)
 	IVGlobal.simulator_exited.connect(_set_current_to_default)
 	IVGlobal.update_gui_requested.connect(_signal_all_changed)
-
-
-func _on_project_objects_instantiated() -> void:
-	for row in IVTableData.get_n_rows(&"visual_groups"):
-		var body_flag := IVTableData.get_db_int(&"visual_groups", &"body_flag", row)
-		var name_visible := IVTableData.get_db_bool(&"visual_groups", &"default_name_visible", row)
-		var symbol_visible := IVTableData.get_db_bool(&"visual_groups", &"default_symbol_visible", row)
-		var orbit_visible := IVTableData.get_db_bool(&"visual_groups", &"default_orbit_visible", row)
-		var orbit_color := IVTableData.get_db_color(&"visual_groups", &"default_orbit_color", row)
-		
-		all_flags |= body_flag
-		if name_visible:
-			default_name_visible_flags |= body_flag
-		if symbol_visible:
-			default_symbol_visible_flags |= body_flag
-		if orbit_visible:
-			default_orbit_visible_flags |= body_flag
-		default_orbit_colors[body_flag] = orbit_color
-	
-	_set_current_to_default()
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -100,7 +82,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	get_window().set_input_as_handled()
 
 
-
+# *****************************************************************************
 # visibility
 
 func hide_all() -> void:
@@ -262,6 +244,7 @@ func set_orbit_visible_flags(orbit_visible_flags_: int) -> void:
 	visibility_changed.emit()
 
 
+# *****************************************************************************
 # color
 
 func set_default_colors() -> void:
@@ -343,7 +326,29 @@ func set_all_orbit_colors(dict: Dictionary[int, Color]) -> void:
 		color_changed.emit()
 
 
+# *****************************************************************************
 # private
+
+
+func _on_project_objects_instantiated() -> void:
+	for row in IVTableData.get_n_rows(&"visual_groups"):
+		var body_flag := IVTableData.get_db_int(&"visual_groups", &"body_flag", row)
+		var name_visible := IVTableData.get_db_bool(&"visual_groups", &"default_name_visible", row)
+		var symbol_visible := IVTableData.get_db_bool(&"visual_groups", &"default_symbol_visible", row)
+		var orbit_visible := IVTableData.get_db_bool(&"visual_groups", &"default_orbit_visible", row)
+		var orbit_color := IVTableData.get_db_color(&"visual_groups", &"default_orbit_color", row)
+		
+		all_flags |= body_flag
+		if name_visible:
+			default_name_visible_flags |= body_flag
+		if symbol_visible:
+			default_symbol_visible_flags |= body_flag
+		if orbit_visible:
+			default_orbit_visible_flags |= body_flag
+		default_orbit_colors[body_flag] = orbit_color
+	
+	_set_current_to_default()
+
 
 func _set_current_to_default() -> void:
 	set_default_visibilities()

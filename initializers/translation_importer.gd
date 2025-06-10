@@ -46,10 +46,12 @@ static var translations: Array[String] = [
 ]
 
 
+
 func _init() -> void:
 	_load_translations()
 	IVGlobal.translations_imported.emit()
 	IVGlobal.project_objects_instantiated.connect(_remove_self)
+
 
 
 func _remove_self() -> void:

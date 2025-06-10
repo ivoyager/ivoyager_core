@@ -26,7 +26,7 @@ extends Node
 ## and/or simulation speed is very fast. There is no save/load persistence,
 ## so all interval connections must be remade on game load.
 
-var _times: Array[float] = IVGlobal.times
+var _times := IVGlobal.times
 var _ordered_signal_infos := [] # array "top" is always the next signal
 var _counter := 0
 var _signal_intervals := []
@@ -40,46 +40,27 @@ var _is_reversed := false
 
 func _ready() -> void:
 	process_mode = PROCESS_MODE_ALWAYS
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	_timekeeper.time_altered.connect(_on_time_altered)
 	if IVCoreSettings.allow_time_reversal:
 		_timekeeper.speed_changed.connect(_update_for_time_reversal)
 
 
-func _clear() -> void:
-	_ordered_signal_infos.clear()
-	_signal_intervals.clear()
-	_available_signals.clear()
-	var i := 0
-	while i < _counter:
-		var signal_name := str(i)
-		_signal_intervals.append(0.0)
-		_available_signals.append(signal_name)
-		var connection_list := get_signal_connection_list(signal_name)
-		if connection_list:
-			assert(connection_list.size() == 1)
-			var dict: Dictionary = connection_list[0] # never >1
-			var signal_: Signal = dict.signal
-			var callable: Callable = dict.callable
-			signal_.disconnect(callable)
-		i += 1
-
-
 # *****************************************************************************
 
+## E.g., for 2-day repeating signal, use interval = 2.0 * IVUnits.DAY.
+## Note: IVScheduler will disconnet all interval signals on
+## [signal IVGlobal.about_to_free_procedural_nodes].
 func interval_connect(interval: float, callable: Callable, flags := 0) -> void:
-	# E.g., for 2-day repeating signal, use interval = 2.0 * IVUnits.DAY.
-	# Note: IVScheduler will disconnet all interval signals on IVGlobal signal
-	# "about_to_free_procedural_nodes".
 	assert(interval > 0.0)
 	var one_shot := bool(flags & CONNECT_ONE_SHOT)
 	var signal_name := _make_interval_signal(interval, one_shot)
 	connect(signal_name, callable, flags)
 
 
+## Note: IVScheduler will disconnet all interval signals on
+## [signal IVGlobal.about_to_free_procedural_nodes].
 func interval_disconnect(interval: float, callable: Callable) -> void:
-	# Note: IVScheduler will disconnet all interval signals on IVGlobal signal
-	# "about_to_free_procedural_nodes".
 	var i := 0
 	var signal_name := &""
 	while i < _counter:
@@ -99,6 +80,26 @@ func interval_disconnect(interval: float, callable: Callable) -> void:
 
 
 # *****************************************************************************
+
+
+func _clear_procedural() -> void:
+	_ordered_signal_infos.clear()
+	_signal_intervals.clear()
+	_available_signals.clear()
+	var i := 0
+	while i < _counter:
+		var signal_name := str(i)
+		_signal_intervals.append(0.0)
+		_available_signals.append(signal_name)
+		var connection_list := get_signal_connection_list(signal_name)
+		if connection_list:
+			assert(connection_list.size() == 1)
+			var dict: Dictionary = connection_list[0] # never >1
+			var signal_: Signal = dict.signal
+			var callable: Callable = dict.callable
+			signal_.disconnect(callable)
+		i += 1
+
 
 func _make_interval_signal(interval: float, one_shot := false) -> StringName:
 	var signal_name: StringName

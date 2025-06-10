@@ -20,7 +20,10 @@
 class_name IVCameraLockCkbx
 extends CheckBox
 
-# GUI widget. Requires IVCamera.
+## GUI widget.
+##
+## Requires [IVCamera].
+
 
 var _camera: IVCamera
 
@@ -33,6 +36,7 @@ func _ready() -> void:
 func _pressed() -> void:
 	if _camera:
 		_camera.change_camera_lock(button_pressed)
+
 
 
 func _connect_camera(camera: IVCamera) -> void:

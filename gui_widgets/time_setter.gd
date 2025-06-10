@@ -22,10 +22,11 @@ extends VBoxContainer
 
 ## GUI widget allowing user to set time.
 ##
-## Requires IVTimekeeper. For usage in a setter popup with a button, see
+## Requires [IVTimekeeper]. For usage in a setter popup with a button, see
 ## [IVTimeSetPopup] and [IVTimeSetButton].
 
 signal time_set(is_close: bool)
+
 
 @onready var _year: SpinBox = $SetterHBox/Year
 @onready var _month: SpinBox = $SetterHBox/Month
@@ -37,6 +38,7 @@ signal time_set(is_close: bool)
 @onready var _timekeeper: IVTimekeeper = IVGlobal.program[&"Timekeeper"]
 
 
+
 func _ready() -> void:
 	($SetterHBox/Set as Button).pressed.connect(_on_set.bind(false))
 	($SetterHBox/SetAndClose as Button).pressed.connect(_on_set.bind(true))
@@ -44,6 +46,7 @@ func _ready() -> void:
 	_year.value_changed.connect(_on_date_changed)
 	_month.value_changed.connect(_on_date_changed)
 	_day.value_changed.connect(_on_date_changed)
+
 
 
 func set_current() -> void:
@@ -56,6 +59,7 @@ func set_current() -> void:
 	_hour.value = time_array[0]
 	_minute.value = time_array[1]
 	_second.value = time_array[2]
+
 
 
 func _on_set(is_close: bool) -> void:

@@ -20,7 +20,7 @@
 class_name IVResumeButton
 extends Button
 
-## Botton that emits [signal IVGlobal.resume_requested].
+## Button that emits [signal IVGlobal.resume_requested].
 
 func _pressed() -> void:
 	IVGlobal.resume_requested.emit()

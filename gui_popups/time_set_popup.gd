@@ -19,9 +19,11 @@
 # *****************************************************************************
 class_name IVTimeSetPopup
 extends PopupPanel
+
+## Instanced by [IVTimeSetButton].
+
 const SCENE := "res://addons/ivoyager_core/gui_popups/time_set_popup.tscn"
 
-# Instanced by IVTimeSetButton.
 
 @onready var _time_setter: IVTimeSetter = $"%TimeSetter"
 
@@ -29,6 +31,7 @@ const SCENE := "res://addons/ivoyager_core/gui_popups/time_set_popup.tscn"
 func _ready() -> void:
 	about_to_popup.connect(_on_about_to_show)
 	_time_setter.time_set.connect(_on_time_set)
+
 
 
 func _on_about_to_show() -> void:

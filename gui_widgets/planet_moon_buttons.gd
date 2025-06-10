@@ -20,16 +20,20 @@
 class_name IVPlanetMoonButtons
 extends HBoxContainer
 
-# GUI widget. An ancestor Control node must have property 'selection_manager'
-# set to an IVSelectionManager before signal IVGlobal.system_tree_ready.
-#
-# This widget builds itself from an existing solar system!
-#
-# To use in conjuction with SunSliceButton, make both SIZE_FILL_EXPAND and give
-# strech ratios: 1.0 (SunSliceButton) and 10.0 (this widget or container that
-# contains this widget).
-
-# TODO: This class needs to provide a 'widget_resized' signal for parent useage.
+## GUI widget.
+##
+## This widget builds itself from an existing planetary system specified by
+## [member star_name]. It arranges planets horizontally with moons vertically
+## below.[br][br]
+##
+## An ancestor Control node must have property [param selection_manager] set
+## to an [IVSelectionManager] before [signal IVGlobal.system_tree_ready].[br][br]
+##
+## To use in conjuction with [IVSunSliceButton], make both SIZE_FILL_EXPAND and give
+## strech ratios: 1.0 (SunSliceButton) and 10.0 (this widget or container that
+## contains this widget).[br][br]
+##
+## TODO: This class needs to provide a 'widget_resized' signal for parent useage.
 
 const BODYFLAGS_PLANET_OR_DWARF_PLANET := IVBody.BodyFlags.BODYFLAGS_PLANET_OR_DWARF_PLANET
 const BODYFLAGS_MOON := IVBody.BodyFlags.BODYFLAGS_MOON
@@ -39,11 +43,13 @@ const BODYFLAGS_SHOW_IN_NAVIGATION_PANEL := IVBody.BodyFlags.BODYFLAGS_SHOW_IN_N
 const STAR_SLICE_MULTIPLIER := 0.05 # what fraction of star is in image "slice"?
 const INIT_WIDTH := 560.0
 
-# project vars
-var size_exponent := 0.4 # smaller values reduce differences in object sizes
-var min_button_width_proportion := 0.05 # as proportion of total (roughly)
-var min_body_size_ratio := 0.008929 # proportion of widget width, rounded
-var column_separation_ratio := 0.007143 # proportion of widget width, rounded
+
+# widget settings
+@export var star_name := &"STAR_SUN"
+@export var size_exponent := 0.4 # smaller values reduce differences in object sizes
+@export var min_button_width_proportion := 0.05 # as proportion of total (roughly)
+@export var min_body_size_ratio := 0.008929 # proportion of widget width, rounded
+@export var column_separation_ratio := 0.007143 # proportion of widget width, rounded
 
 # private
 var _selection_manager: IVSelectionManager # get from ancestor selection_manager
@@ -54,12 +60,14 @@ var _is_built := false
 @onready var _mouse_only_gui_nav: bool = false # IVGlobal.settings.mouse_only_gui_nav
 
 
+
 func _ready() -> void:
 	IVGlobal.about_to_start_simulator.connect(_build)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	resized.connect(_resize)
 	IVGlobal.setting_changed.connect(_settings_listener)
 	_build()
+
 
 
 func _build(_dummy := false) -> void:
@@ -74,7 +82,7 @@ func _build(_dummy := false) -> void:
 	var column_separation := int(INIT_WIDTH * column_separation_ratio + 0.5)
 	set(&"theme_override_constants/separation", column_separation)
 	# calculate star "slice" relative size
-	var star: IVBody = IVBody.galaxy_orbiters[0]
+	var star := IVBody.bodies[star_name]
 	var min_body_size := roundf(INIT_WIDTH * min_body_size_ratio)
 	# count & calcultate planet relative sizes
 	var base_size := 0.0
@@ -82,7 +90,9 @@ func _build(_dummy := false) -> void:
 	var column_widths: Array[float] = [] # index 0, 1, 2,... will be planet/moon columns
 	var planet_sizes: Array[float] = []
 	var n_planets := 0
-	for planet in star.satellites:
+	var star_satellites := star.satellites
+	for planet_name in star_satellites:
+		var planet := star_satellites[planet_name]
 		if not planet.flags & BODYFLAGS_PLANET_OR_DWARF_PLANET:
 			continue
 		base_size = planet.get_mean_radius() ** size_exponent
@@ -107,7 +117,8 @@ func _build(_dummy := false) -> void:
 			max_planet_size = planet_sizes[column]
 	# build the system button tree
 	var column := 0
-	for planet in star.satellites: # vertical box for each planet w/ its moons
+	for planet_name in star_satellites: # vertical box for each planet w/ its moons
+		var planet := star_satellites[planet_name]
 		if not planet.flags & BODYFLAGS_PLANET_OR_DWARF_PLANET or not planet.flags & BODYFLAGS_SHOW_IN_NAVIGATION_PANEL:
 			continue
 		# For each planet column, column_widths[column] sets the top Spacer
@@ -124,7 +135,8 @@ func _build(_dummy := false) -> void:
 		_resize_multipliers[spacer] = Vector2(0.0, spacer_height / INIT_WIDTH)
 		planet_vbox.add_child(spacer)
 		_add_nav_button(planet_vbox, planet, planet_sizes[column])
-		for moon in planet.satellites:
+		for moon_name in planet.satellites:
+			var moon := planet.satellites[moon_name]
 			if not moon.flags & BODYFLAGS_MOON or not moon.flags & BODYFLAGS_SHOW_IN_NAVIGATION_PANEL:
 				continue
 			base_size = roundf(pow(moon.get_mean_radius(), size_exponent) * widget_scale)
@@ -134,7 +146,7 @@ func _build(_dummy := false) -> void:
 		column += 1
 
 
-func _clear() -> void:
+func _clear_procedural() -> void:
 	_is_built = false
 	_selection_manager = null
 	_currently_selected = null

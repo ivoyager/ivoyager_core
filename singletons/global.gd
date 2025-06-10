@@ -19,10 +19,10 @@
 # *****************************************************************************
 extends Node
 
-## Added as singleton 'IVGlobal'.
+## Added as singleton "IVGlobal".
 ##
-## Array and dictionary references are never overwritten, so it is safe to keep
-## local references in class files.
+## Array and dictionary references are never overwritten, so it is safe (and
+## faster) to keep local references to these containers to in class files.
 
 # Developer note: Don't add any non-Godot dependencies in this file! That
 # messes up static class dependencies on this global.
@@ -50,7 +50,7 @@ signal update_gui_requested() # send signals with GUI info now!
 signal simulator_started()
 signal pause_changed(is_paused: bool)
 signal user_pause_changed(is_paused: bool) # ignores pause from sim stop
-signal about_to_free_procedural_nodes() # on exit and game load
+signal about_to_free_procedural_nodes() # on exit, game load starting, and quit
 signal about_to_stop_before_quit()
 signal about_to_quit()
 signal about_to_exit()
@@ -162,9 +162,6 @@ const PERSIST_PROPERTIES_ONLY := PersistMode.PERSIST_PROPERTIES_ONLY
 const PERSIST_PROCEDURAL := PersistMode.PERSIST_PROCEDURAL
 
 
-
-# containers - write authority indicated; safe to localize container reference
-
 ## Maintained by [IVStateManager]. Mostly boolean keys: is_inited, is_running, etc.
 var state: Dictionary[StringName, Variant] = {}
 ## Maintained by [IVTimekeeper]. Holds [time (s, J2000), engine_time (s), solar_day (d)]
@@ -176,8 +173,6 @@ var date: Array[int] = []
 var clock: Array[int] = []
 ## Populated by [IVCoreInitializer]. Holds instantiated program objects (base or override classes).
 var program: Dictionary[StringName, Object] = {}
-## Populated by [IVCoreInitializer]. Holds script classes for procedural objects (base or override).
-var procedural_classes: Dictionary[StringName, Resource] = {}
 ## Populated by [IVResourceInitializer].
 var resources: Dictionary[StringName, Resource] = {}
 ## Maintained by [IVSettingsManager].
@@ -197,13 +192,12 @@ var ivoyager_version: String
 var assets_version: String
 ## Read-only! [IVWikiInitializer] sets this to "wiki" (internal), "en.wiki", etc.
 var wiki: String
-## @depreciate: See comments in [IVDebug].
-var debug_log: FileAccess # IVLogInitializer sets if debug build and debug_log_path
 ## Read-only! The plugin ConfigFile generated from res://addons/ivoyager_core/ivoyager_core.cfg
 ## with possible overrides in res://ivoyager_override.cfg and res://ivoyager_override2.cfg.
 var ivoyager_config: ConfigFile = IVPluginUtils.get_config_with_override(
 		"res://addons/ivoyager_core/ivoyager_core.cfg",
-		"res://ivoyager_override.cfg", "res://ivoyager_override2.cfg")
+		"res://ivoyager_override.cfg",
+		"res://ivoyager_override2.cfg")
 ## Read-only! Indicates project running with Compatibility renderer.
 var is_gl_compatibility := RenderingServer.get_current_rendering_method() == "gl_compatibility"
 

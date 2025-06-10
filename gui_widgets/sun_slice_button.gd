@@ -20,15 +20,18 @@
 class_name IVSunSliceButton
 extends Button
 
-# GUI widget. An ancestor Control node must have property 'selection_manager'
-# set to an IVSelectionManager before signal IVGlobal.system_tree_ready.
-#
-# To use in conjuction with PlanetMoonButtons, make both SIZE_FILL_EXPAND and
-# give strech ratios: 1.0 (this widget) and 10.0 (PlanetMoonButtons or
-# container that contains PlanetMoonButtons).
-#
-# This button is coded to mimic buttons in PlanetMoonButtons (that's why it's
-# not a TextureButton).
+## GUI widget.
+##
+## An ancestor Control node must have property [param selection_manager]
+## set to an [IVSelectionManager] before [signal IVGlobal.about_to_start_simulator].[br][br]
+##
+## To use in conjuction with PlanetMoonButtons, make both SIZE_FILL_EXPAND and
+## give strech ratios: 1.0 (this widget) and 10.0 (PlanetMoonButtons or
+## container that contains PlanetMoonButtons).[br][br]
+##
+## This button is coded to mimic buttons in PlanetMoonButtons (that's why it's
+## not a TextureButton).
+
 
 var body_name := &"STAR_SUN"
 
@@ -40,10 +43,11 @@ var _has_mouse := false
 @onready var _texture_rect: TextureRect = $TextureRect
 
 
+
 func _ready() -> void:
 	IVGlobal.about_to_start_simulator.connect(_build)
 	IVGlobal.update_gui_requested.connect(_update_selection)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	mouse_entered.connect(_on_mouse_entered)
 	mouse_exited.connect(_on_mouse_exited)
 	set_default_cursor_shape(CURSOR_POINTING_HAND)
@@ -52,6 +56,7 @@ func _ready() -> void:
 
 func _pressed() -> void:
 	_selection_manager.select_body(_body)
+
 
 
 func _build(_dummy := false) -> void:
@@ -72,7 +77,7 @@ func _build(_dummy := false) -> void:
 	_update_selection()
 
 
-func _clear() -> void:
+func _clear_procedural() -> void:
 	_selection_manager = null
 	_body = null
 	_is_built = false

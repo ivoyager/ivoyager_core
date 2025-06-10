@@ -21,9 +21,10 @@ extends Node
 
 ## Added as singleton "IVAstronomy".
 ##
-## This singleton has astronomy specific constants and static functions. It's
-## an autoload so that it can be replaced, e.g., for a fictional universe with
-## a different gravitational constant (see ivoyager_core/override_template.cfg).[br][br]
+## This singleton has astronomy specific constants, static variables, and
+## static functions. It's an autoload so that it can be replaced, e.g., for
+## a fictional universe with a different gravitational constant (see
+## ivoyager_core/override_template.cfg).[br][br]
 ##
 ## Epoch time is J2000.0 (noon on Jan 1, 2000). Data table values specified
 ## otherwise are converted.[br][br]
@@ -37,7 +38,14 @@ extends Node
 ## always (I think) in equatorial coordinates, while most other things are
 ## ecliptic. Except moon orbits, of course. Unless it is The Moon...[br][br]
 ##
-## See also static methods in [IVOrbit].
+## See also static methods in [IVOrbit].[br][br]
+##
+## TODO: For games or sims spanning 10000s of years or more, the sim will need
+## a reset to a new "epoch" time. The problem is that [param time] in seconds
+## will lose precision if it gets too large. (Fortunatly, Godot uses double
+## precision for float, so we're good for quite a range...) Probably we need a
+## static var here "epoch_offset_j2000". To update to J10000, all "..._at_epoch"
+## and "..._time" members in all objects would need recalculation.
 
 const G := 6.67430e-11 * IVUnits.METER ** 3 / (IVUnits.KG * IVUnits.SECOND ** 2)
 const EPOCH_JULIAN_DAY := 2451545.0 # J2000; noon on Jan 1, 2000
@@ -80,7 +88,6 @@ static func get_equatorial_coordinates_from_ecliptic_vector(vector3: Vector3) ->
 	var right_ascension := fposmod(atan2(vector3.y, vector3.x), TAU) # 0,0 safe
 	var declination := asin(vector3.z / r)
 	return Vector3(right_ascension, declination, r)
-
 
 
 ## Returns a basis that has z-axis in the specified direction and x-axis

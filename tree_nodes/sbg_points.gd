@@ -36,13 +36,11 @@ extends MeshInstance3D
 
 const FRAGMENT_SBG_POINT := IVFragmentIdentifier.FRAGMENT_SBG_POINT
 
-
 const ARRAY_FLAGS = (
 	Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT
 	| Mesh.ARRAY_CUSTOM_RGB_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM1_SHIFT
 	| Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM2_SHIFT
 )
-
 
 const L4L5_ARRAY_FLAGS = (
 	Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT
@@ -54,6 +52,7 @@ const L4L5_ARRAY_FLAGS = (
 static var _fragment_identifier: IVFragmentIdentifier # optional
 static var _sbg_huds_state: IVSBGHUDsState
 static var _is_class_instanced := false
+
 
 var _sbg_alias: StringName
 var _color: Color
@@ -148,6 +147,7 @@ func _process(_delta: float) -> void:
 	var lp_longitude := _secondary_body.get_orbit_mean_longitude() + _longitude_offset
 	var shader_material: ShaderMaterial = material_override
 	shader_material.set_shader_parameter(&"lp_longitude", lp_longitude)
+
 
 
 func _hide_and_free() -> void:

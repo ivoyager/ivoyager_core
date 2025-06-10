@@ -22,9 +22,10 @@ extends RefCounted
 
 ## Base class representing the composition of something, e.g., a planet's
 ## atmosphere or a star's photosphere.
-
-# This object is designed for simple display. It could be extended to do more.
-# For I, Voyager, we keep amounts as strings to preserve significant digits.
+##
+## This object is designed for simple GUI display. It isn't referenced anywhere
+## so it is easy to replace. (GUI widget IVSelectionData does expect an object
+## with method "get_labels_values_display".)
 
 enum CompositionType {
 	BY_WEIGHT, 

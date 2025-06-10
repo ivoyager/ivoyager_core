@@ -58,6 +58,7 @@ func _process(_delta: float) -> void:
 		print("%s%% downloaded (%.1f MiB)" % [_percent_downloaded, bytes / 1048576.0])
 
 
+
 func _on_request_completed(result: int, response_code: int, _headers: PackedStringArray,
 		_body: PackedByteArray) -> void:
 	print("HTTPRequest completed; response_code = %s" % response_code)

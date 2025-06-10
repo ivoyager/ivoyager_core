@@ -24,28 +24,30 @@ extends RefCounted
 ## [IVBody] instances that we don't need to process at a given time.
 ##
 ## If present, this manager modifies process state for bodies that have
-## property `can_sleep == true` (mainly moons and spacecrafts). These bodies
-## are processed only when the camera is in their star_orbiter system. ("Planet" in
-## this context means star orbiting body.)
+## [member IVBody.flags] == BODYFLAGS_CAN_SLEEP (mainly moons and spacecrafts).
+## These bodies are processed only when the camera is in their local "star
+## orbiter" system (e.g., at a planet or its moons).[br][br]
 ##
 ## If this manager is removed, bodies will never sleep.
+
 
 var _current_star_orbiter: IVBody
 
 
 func _init() -> void:
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	IVGlobal.system_tree_ready.connect(_on_system_tree_ready)
 	IVGlobal.camera_tree_changed.connect(_on_camera_tree_changed)
 
 
-func _clear() -> void:
+
+func _clear_procedural() -> void:
 	_current_star_orbiter = null
 
 
 func _on_system_tree_ready(_is_new_game: bool) -> void:
-	for body in IVBody.galaxy_orbiters:
-		_set_sleep_recursive(body, true)
+	for body_name in IVBody.galaxy_orbiters:
+		_set_sleeping_recursive(IVBody.galaxy_orbiters[body_name], true)
 
 
 func _on_camera_tree_changed(_camera: Camera3D, _parent: Node3D, star_orbiter: Node3D, _star: Node3D
@@ -54,13 +56,14 @@ func _on_camera_tree_changed(_camera: Camera3D, _parent: Node3D, star_orbiter: N
 	if _current_star_orbiter == to_star_orbiter:
 		return
 	if _current_star_orbiter:
-		_set_sleep_recursive(_current_star_orbiter, true)
+		_set_sleeping_recursive(_current_star_orbiter, true)
 	if to_star_orbiter:
-		_set_sleep_recursive(to_star_orbiter, false)
+		_set_sleeping_recursive(to_star_orbiter, false)
 	_current_star_orbiter = to_star_orbiter
 
 
-func _set_sleep_recursive(body: IVBody, is_sleep: bool) -> void:
-	for satellite in body.satellites:
-		satellite.set_sleep(is_sleep) # does nothing if can_sleep == false
-		_set_sleep_recursive(satellite, is_sleep)
+func _set_sleeping_recursive(body: IVBody, is_asleep: bool) -> void:
+	for satellite_name in body.satellites:
+		var satellite := body.satellites[satellite_name]
+		satellite.set_sleeping(is_asleep) # does nothing if can_sleep == false
+		_set_sleeping_recursive(satellite, is_asleep)

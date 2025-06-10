@@ -23,20 +23,14 @@ extends Node
 ## Base class to represent a large number of orbiting small bodies that are not
 ## individually instantiated.
 ##
-## Data is packed for use by visual classes IVSBGOrbits and IVSBGPoints, which
-## are added when this node is added to the tree on _ready() or upon calling
-## rebuild_visuals().
-##
-## Note that visual nodes must be discarded and rebuilt if any data changes
-## (due to visual node use of Godot's MultiMesh and ArrayMesh). This happens
-## automatically when calling append_data().
+## Data is packed for use by visual classes [IVSBGOrbits] and [IVSBGPoints],
+## which are added by [IVSBGFinisher] when this node is added to the tree.[br][br]
 ##
 ## If modifying packed array data directly, it is necessary to ensure correct
-## 'max_apoapsis' (call either reset_max_apoapsis() or update_max_apoapsis())
-## and then call rebuild_visuals().
+## 'max_apoapsis' (call either reset_max_apoapsis() or update_max_apoapsis()).[br][br]
 ##
 ## TODO: It's possible to modify MultiMesh if it's not a resize. We could build
-## signals and modify API to allow for that.
+## signals and modify API to allow for that.[br][br]
 ##
 ## 'de' is not currently implemented (amplitude of e libration in secular
 ## resonence).
@@ -69,6 +63,12 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 ]
 
 
+static var replacement_subclass: Script
+## Contains all IVSmallBodiesGroup instances currently in the tree.
+static var small_bodies_groups: Dictionary[StringName, IVSmallBodiesGroup] = {}
+static var null_pf32_array := PackedFloat32Array()
+
+
 var sbg_alias: StringName
 var sbg_class: SBGClass # SBGClass
 var secondary_body: IVBody # e.g., Jupiter for Trojans; usually null
@@ -81,46 +81,47 @@ var a_m0_n := PackedFloat32Array() # librating in l-point objects
 var s_g_mag_de := PackedFloat32Array() # orbit precessions, magnitude, & e amplitude (sec res only)
 var da_d_f_th0 := PackedFloat32Array() # Trojans only
 
-## Contains all IVSmallBodiesGroup instances currently in the tree.
-static var small_bodies_groups: Dictionary[StringName, IVSmallBodiesGroup] = {}
-static var null_pf32_array := PackedFloat32Array()
 
 
-func _enter_tree() -> void:
-	IVGlobal.add_system_tree_item_started.emit(self)
+## Last 2 args only if these are Lagrange point objects. This node creation MUST
+## be followed by one or more calls to [method append_data] before adding to the
+## tree.
+@warning_ignore("shadowed_variable", "shadowed_variable_base_class")
+static func create(name: StringName, sbg_alias: StringName, sbg_class: SBGClass,
+		lp_integer := -1, secondary_body: IVBody = null) -> IVSmallBodiesGroup:
+	
+	var sbg: IVSmallBodiesGroup
+	if replacement_subclass:
+		@warning_ignore("unsafe_method_access")
+		sbg = replacement_subclass.new()
+	else:
+		sbg = IVSmallBodiesGroup.new()
+	
+	sbg.name = name
+	sbg.sbg_alias = sbg_alias
+	sbg.sbg_class = sbg_class
+	sbg.lp_integer = lp_integer
+	sbg.secondary_body = secondary_body
+	
+	return sbg
+
 
 
 func _ready() -> void:
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	assert(!small_bodies_groups.has(name))
 	small_bodies_groups[name] = self
-	_build_visuals()
-	IVGlobal.add_system_tree_item_finished.emit(self)
 
 
 func _exit_tree() -> void:
 	small_bodies_groups.erase(name)
 
 
-# *****************************************************************************
-# public API
 
-func init(name_: StringName, sbg_alias_: StringName, sbg_class_: SBGClass,
-		lp_integer_ := -1, secondary_body_: IVBody = null) -> void:
-	# Last 2 args only if these are Lagrange point objects.
-	name = name_
-	sbg_alias = sbg_alias_
-	sbg_class = sbg_class_
-	lp_integer = lp_integer_
-	secondary_body = secondary_body_
-
-
-## If possible, append all data before adding this node to the tree. If called
-## after tree add, existing visual nodes will be discarded and new ones will
-## be created.
+## Append all data before adding this node to the tree.
 func append_data(names_append: PackedStringArray, e_i_lan_aop_append: PackedFloat32Array,
 		a_m0_n_append: PackedFloat32Array, s_g_mag_de_append: PackedFloat32Array,
-		da_d_f_th0_append := null_pf32_array, suppress_max_apoapsis_update := false,
-		suppress_visuals_rebuild := false) -> void:
+		da_d_f_th0_append := null_pf32_array, suppress_max_apoapsis_update := false) -> void:
 	var n_bodies := names_append.size()
 	assert(e_i_lan_aop_append.size() == n_bodies * 4)
 	assert(a_m0_n_append.size() == n_bodies * 3)
@@ -157,15 +158,7 @@ func append_data(names_append: PackedStringArray, e_i_lan_aop_append: PackedFloa
 	var new_size := previous_size + n_bodies
 	if !suppress_max_apoapsis_update:
 		update_max_apoapsis(previous_size, new_size)
-	if !suppress_visuals_rebuild:
-		_build_visuals()
 	group_appended.emit(previous_size, new_size)
-
-
-## Required for visual update if any data changes not via append_data(). Be
-## sure to call update_max_apoapsis() first if that might be needed.
-func rebuild_visuals() -> void:
-	_build_visuals()
 
 
 func reset_max_apoapsis() -> void:
@@ -245,25 +238,7 @@ func get_fragment_text(data: Array) -> String:
 	return text
 
 
-# *****************************************************************************
-# private
 
-
-func _build_visuals() -> void:
-	# add non-persisted HUD elements
-	
-	# TODO: Implement in IVSBGFinisher similar to IVBodyFinisher.
-	
-	if !is_inside_tree():
-		return
-	adding_visuals.emit() # any pre-existing will queue_free
-	var sbg_points_script: Script = IVGlobal.procedural_classes[&"SBGPoints"]
-	@warning_ignore("unsafe_method_access")
-	var sbg_points: Node3D = sbg_points_script.new(self)
-	var sbg_orbits_script: Script = IVGlobal.procedural_classes[&"SBGOrbits"]
-	@warning_ignore("unsafe_method_access")
-	var sbg_orbits: Node3D = sbg_orbits_script.new(self)
-
-	var parent: Node3D = get_parent()
-	parent.add_child(sbg_points)
-	parent.add_child(sbg_orbits)
+func _clear_procedural() -> void:
+	secondary_body = null
+	small_bodies_groups.clear()

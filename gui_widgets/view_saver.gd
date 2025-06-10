@@ -20,15 +20,18 @@
 class_name IVViewSaver
 extends VBoxContainer
 
-# GUI widget that saves current view. This widget is contained in
-# IVViewSavePopup and works in conjunction with IVViewSaveFlow (which shows
-# the resultant saved view buttons).
-#
-# Note: Unused buttions will be removed!
+## GUI widget that saves current view.
+##
+## This widget is contained in [IVViewSavePopup] and works in conjunction with
+## [IVViewSaveFlow] (which shows the resultant saved view buttons).[br][br]
+##
+## Note: Unused buttions will be removed!
 
 signal view_saved(view_name: StringName)
 
+
 const ViewFlags := IVView.ViewFlags
+
 
 var default_view_name := &"LABEL_CUSTOM1" # will increment if taken
 var collection_name := &""
@@ -68,6 +71,7 @@ func _ready() -> void:
 		_time_ckbx.text = &"CKBX_GAME_SPEED" # this is the only 'time' element that can be modified
 
 
+
 func init(default_view_name_ := &"LABEL_CUSTOM1", collection_name_ := &"", is_cached_ := true,
 		show_flags_: int = ViewFlags.VIEWFLAGS_ALL, init_flags: int = ViewFlags.VIEWFLAGS_ALL,
 		reserved_names_: Array[StringName] = []) -> void:
@@ -103,6 +107,7 @@ func init(default_view_name_ := &"LABEL_CUSTOM1", collection_name_ := &"", is_ca
 	# initial pressed state
 	for flag in flag_ckbxs:
 		flag_ckbxs[flag].set_pressed_no_signal(bool(flag & init_flags))
+
 
 
 func _unset_exclusive(is_pressed: bool, exclusive_button: CheckBox) -> void:

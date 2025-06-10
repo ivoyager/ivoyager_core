@@ -67,6 +67,7 @@ signal client_is_dropping_out(is_exit: bool)
 signal server_about_to_stop(network_sync_type: int) # IVGlobal.NetworkStopSync; server only
 signal server_about_to_run() # server only
 
+
 const NO_NETWORK = IVGlobal.NetworkState.NO_NETWORK
 const IS_SERVER = IVGlobal.NetworkState.IS_SERVER
 const IS_CLIENT = IVGlobal.NetworkState.IS_CLIENT
@@ -77,8 +78,6 @@ const DPRINT := false
 const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY
 const PERSIST_PROPERTIES: Array[StringName] = [&"is_user_paused"]
 
-# project setting
-var use_tree_saver_deconstruction_if_present := true
 
 # persisted - read-only!
 var is_user_paused := false # ignores pause from sim stop
@@ -288,8 +287,9 @@ func exit(force_exit := false, following_server := false) -> void:
 	await self.threads_finished
 	IVGlobal.about_to_exit.emit()
 	IVGlobal.about_to_free_procedural_nodes.emit()
+	var universe: Node3D = IVGlobal.program.Universe
+	IVUtils.free_procedural_nodes_recursive(universe)
 	await _tree.process_frame
-	_deconstruct_system_tree()
 	IVGlobal.close_all_admin_popups_requested.emit()
 	await _tree.process_frame
 	_state.is_splash_screen = true
@@ -316,11 +316,18 @@ func quit(force_quit := false) -> void:
 	IVGlobal.about_to_stop_before_quit.emit()
 	require_stop(self, NetworkStopSync.QUIT, true)
 	await threads_finished
+	
+	# debugging leaked objects...
+	#IVDebug.register_all_objects(get_viewport())
+	
 	IVGlobal.about_to_quit.emit()
 	IVGlobal.about_to_free_procedural_nodes.emit()
+	var universe: Node3D = IVGlobal.program.Universe
+	IVUtils.free_procedural_nodes_recursive(universe)
 	await _tree.process_frame
-	_deconstruct_system_tree()
 	assert(IVDebug.dprint_orphan_nodes())
+	
+	
 	print("Quitting...")
 	_tree.quit()
 
@@ -389,16 +396,6 @@ func _on_simulator_exited() -> void:
 	is_user_paused = false
 
 
-func _deconstruct_system_tree() -> void:
-	var universe: Node3D = IVGlobal.program.Universe
-	if use_tree_saver_deconstruction_if_present and IVPluginUtils.is_plugin_enabled("ivoyager_save"):
-		var save_utils: Script = load("res://addons/ivoyager_save/save_utils.gd")
-		@warning_ignore("unsafe_method_access")
-		save_utils.free_procedural_objects_recursive(universe)
-	else:
-		IVUtils.free_procedural_nodes_recursive(universe)
-
-
 func _stop_simulator() -> void:
 	# Project must ensure that state does not change during stop (in
 	# particular, persist vars during save/load).
@@ -421,4 +418,3 @@ func _run_simulator() -> void:
 	assert(!DPRINT or IVDebug.dprint("signal run_threads_allowed"))
 	allow_threads = true
 	run_threads_allowed.emit()
-	

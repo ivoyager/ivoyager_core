@@ -23,12 +23,11 @@ extends Node
 ## Builds [IVView] instances from table data (default views), and provides API
 ## for user-created views that are persisted via gamesave or cache.
 
-const files := preload("res://addons/ivoyager_core/static/files.gd")
-
 const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"gamesave_views",
 ]
+
 
 ## If true, manager will set view &"VIEW_HOME" at simulator start.
 var move_home_at_start := true
@@ -41,30 +40,15 @@ var gamesave_views: Dictionary[StringName, IVView] = {}
 var cached_views: Dictionary[StringName, IVView] = {}
 
 var _missing_or_bad_cache_file := true
-var _view_script: Script = IVGlobal.procedural_classes[&"View"]
+
 
 
 func _init() -> void:
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	IVGlobal.project_objects_instantiated.connect(_on_project_objects_instantiated)
 	IVGlobal.about_to_start_simulator.connect(_on_about_to_start_simulator)
 
 
-func _on_project_objects_instantiated() -> void:
-	# table read
-	var table_view_builder: IVTableViewBuilder = IVGlobal.program[&"TableViewBuilder"]
-	table_views = table_view_builder.build_all()
-	# caching
-	DirAccess.make_dir_recursive_absolute(IVCoreSettings.cache_dir)
-	_read_cache()
-	if _missing_or_bad_cache_file:
-		_write_cache()
-
-
-func _on_about_to_start_simulator(is_new_game: bool) -> void:
-	if is_new_game and move_home_at_start:
-		set_table_view(&"VIEW_HOME", true)
-
-# public
 
 func set_table_view(view_name: StringName, is_camera_instant_move := false) -> void:
 	if !table_views.has(view_name):
@@ -84,8 +68,7 @@ func save_view(view_name: StringName, collection_name: StringName, is_cached: bo
 	if view:
 		view.reset()
 	else:
-		@warning_ignore("unsafe_method_access")
-		view = _view_script.new()
+		view = IVView.create()
 	view.save_state(flags)
 	if is_cached:
 		cached_views[key] = view
@@ -150,7 +133,26 @@ func get_names_in_collection(collection_name: StringName, is_cached: bool) -> Ar
 	return group
 
 
-# private
+
+func _clear_procedural() -> void:
+	gamesave_views.clear()
+
+
+func _on_project_objects_instantiated() -> void:
+	# table read
+	var table_view_builder: IVTableViewBuilder = IVGlobal.program[&"TableViewBuilder"]
+	table_views = table_view_builder.build_all()
+	# caching
+	DirAccess.make_dir_recursive_absolute(IVCoreSettings.cache_dir)
+	_read_cache()
+	if _missing_or_bad_cache_file:
+		_write_cache()
+
+
+func _on_about_to_start_simulator(is_new_game: bool) -> void:
+	if is_new_game and move_home_at_start:
+		set_table_view(&"VIEW_HOME", true)
+
 
 # This replicates some IVCacheHandler code, but it's really hard to generalize
 # that class to handle objects.
@@ -174,8 +176,7 @@ func _read_cache() -> void:
 	var bad_cache_data := false
 	for key: StringName in file_dict:
 		var data: Array = file_dict[key]
-		@warning_ignore("unsafe_method_access") # possible replacement class
-		var view: IVView = _view_script.new()
+		var view := IVView.create()
 		if !view.set_data_from_cache(data): # may be prior version
 			bad_cache_data = true
 			continue

@@ -20,14 +20,17 @@
 class_name IVSelectionWikiLink
 extends RichTextLabel
 
-# GUI widget. An ancestor Control node must have property 'selection_manager'
-# set to an IVSelectionManager before signal IVGlobal.about_to_start_simulator.
-#
-# TODO: Recode all hyperlinks with an IVHyperlinkManager.
-#
-# Note: RichTextLabel seems unable to set its own size. You have to set this
-# node's rect_min_size for it to show (as of Godot 3.2.1).
-# Note 2: Set IVCoreSettings.enable_wiki = true
+## GUI widget.
+##
+## An ancestor Control node must have property [param selection_manager]
+## set to an [IVSelectionManager] before [signal IVGlobal.about_to_start_simulator].[br][br]
+##
+## TODO: Recode all hyperlinks with an IVHyperlinkManager.[br][br]
+##
+## Note: RichTextLabel seems unable to set its own size. You have to set this
+## node's rect_min_size for it to show (as of Godot 3.2.1).
+## Note 2: Set IVCoreSettings.enable_wiki = true
+
 
 var use_selection_as_text := true # otherwise, "Wikipedia"
 var fallback_text := &"LABEL_WIKIPEDIA"
@@ -36,16 +39,18 @@ var _wiki_titles: Dictionary = IVTableData.wiki_lookup
 var _selection_manager: IVSelectionManager
 
 
+
 func _ready() -> void:
 	IVGlobal.about_to_start_simulator.connect(_connect_selection_manager)
 	IVGlobal.update_gui_requested.connect(_update_selection)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	meta_clicked.connect(_on_wiki_clicked)
 	size_flags_horizontal = SIZE_EXPAND_FILL
 	_connect_selection_manager()
 
 
-func _clear() -> void:
+
+func _clear_procedural() -> void:
 	_selection_manager = null
 
 

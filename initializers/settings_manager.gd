@@ -78,6 +78,7 @@ func _init() -> void:
 	cache_handler.current_changed.connect(_on_current_changed)
 
 
+
 ## If [param suppress_caching] == true, be sure to call [method cache_now] later.
 func change_current(key: StringName, value: Variant, suppress_caching := false) -> void:
 	cache_handler.change_current(key, value, suppress_caching)
@@ -111,6 +112,7 @@ func is_cache_current() -> bool:
 
 func restore_from_cache() -> void:
 	cache_handler.restore_from_cache()
+
 
 
 func _on_current_changed(key: StringName, new_value: Variant) -> void:

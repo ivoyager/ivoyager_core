@@ -20,9 +20,10 @@
 class_name IVExitButton
 extends Button
 
-## Botton that emits [signal IVGlobal.exit_requested].
+## GUI Button that emits [signal IVGlobal.exit_requested].
 
-@export var force_exit := false ## Force exit without warning diologs.
+
+@export var force_exit := false ## Force exit without warning dialogs.
 
 
 func _pressed() -> void:

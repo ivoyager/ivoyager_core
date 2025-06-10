@@ -24,11 +24,12 @@ extends RefCounted
 ## specification in data tables.
 ##
 ## In typical setup, loading will commence right after splash screen is shown,
-## on signal IVGlobal.project_builder_finished. When finished, emits signal
-## IVGlobal.asset_preloader_finished.
+## on [signal IVGlobal.project_builder_finished]. When finished, emits [signal
+## IVGlobal.asset_preloader_finished].
 
 const files := preload("res://addons/ivoyager_core/static/files.gd")
 const RINGS_LOD_LEVELS := 9 # must agree w/ assets, body.gd and rings.shader
+
 
 ## This setting AND IVCoreSettings.use_threads must be true for loading to
 ## occur on thread.
@@ -58,15 +59,16 @@ var asset_paths: Dictionary[StringName, String] = {
 var fallback_starmap := &"starmap_8k" # starmap_16k possibly removed for size reduction
 
 
-
 var _blue_noise_1024: Texture2D
 var _starmap: Texture2D
 var _body_resources: Dictionary[StringName, Array] = {}
 var _rings_resources: Dictionary[String, Array] = {}
 
 
+
 func _init() -> void:
 	IVGlobal.project_builder_finished.connect(_on_project_builder_finished)
+
 
 
 func get_blue_noise_1024() -> Texture2D:

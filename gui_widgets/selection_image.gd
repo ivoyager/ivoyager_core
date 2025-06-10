@@ -20,33 +20,23 @@
 class_name IVSelectionImage
 extends TextureRect
 
-# GUI widget. An ancestor Control node must have property 'selection_manager'
-# set to an IVSelectionManager before signal IVGlobal.about_to_start_simulator.
+## GUI widget.
+##
+## An ancestor Control node must have property [param selection_manager]
+## set to an [IVSelectionManager] before [signal IVGlobal.about_to_start_simulator].[br][br]
+
 
 var _hint_extension := "\n\n" + tr(&"HINT_SELECTION_IMAGE")
 var _selection_manager: IVSelectionManager
 
 
+
 func _ready() -> void:
 	IVGlobal.about_to_start_simulator.connect(_connect_selection_manager)
 	IVGlobal.update_gui_requested.connect(_update_image)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	set_default_cursor_shape(CURSOR_POINTING_HAND)
 	_connect_selection_manager()
-
-
-func _clear() -> void:
-	_selection_manager = null
-
-
-func _connect_selection_manager(_dummy := false) -> void:
-	if _selection_manager:
-		return
-	_selection_manager = IVSelectionManager.get_selection_manager(self)
-	if !_selection_manager:
-		return
-	_selection_manager.selection_changed.connect(_update_image)
-	_update_image()
 
 
 func _gui_input(event: InputEvent) -> void:
@@ -60,6 +50,21 @@ func _gui_input(event: InputEvent) -> void:
 		return
 	IVGlobal.move_camera_requested.emit(_selection_manager.selection, 0,
 			Vector3(-INF, -INF, -INF), Vector3.ZERO)
+
+
+
+func _clear_procedural() -> void:
+	_selection_manager = null
+
+
+func _connect_selection_manager(_dummy := false) -> void:
+	if _selection_manager:
+		return
+	_selection_manager = IVSelectionManager.get_selection_manager(self)
+	if !_selection_manager:
+		return
+	_selection_manager.selection_changed.connect(_update_image)
+	_update_image()
 
 
 func _update_image(_dummy := false) -> void:

@@ -66,6 +66,7 @@ func _init() -> void:
 	IVGlobal.project_initializers_instantiated.connect(_on_project_initializers_instantiated)
 
 
+
 func _on_project_initializers_instantiated() -> void:
 	IVTableData.postprocess_tables(
 			tables.values(),

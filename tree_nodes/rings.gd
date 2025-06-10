@@ -84,7 +84,7 @@ func _init(body: IVBody) -> void:
 
 
 func _ready() -> void:
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	IVGlobal.camera_ready.connect(_connect_camera)
 	_connect_camera(get_viewport().get_camera_3d())
 	
@@ -154,8 +154,9 @@ func _process(_delta: float) -> void:
 			+ shadow_radial_noise_b * dist_ratio + shadow_radial_noise_c) # radial_noise_multiplier
 
 
-func _clear() -> void:
+func _clear_procedural() -> void:
 	_body = null
+	_illuminating_star = null
 	_camera = null
 
 

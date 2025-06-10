@@ -20,13 +20,15 @@
 class_name IVSBGHUDs
 extends GridContainer
 
-# GUI widget. Requires IVSBGHUDsState.
-#
-# Class properties must be set before _ready(). See widget IVAllHUDs for complex
-# row construction, setting up multiple grids, and aligning their columns.
-#
-# To display correctly, ColorPickerButton needs a StyleBoxTexture with no
-# margins.
+## GUI widget.
+##
+## Requires [IVSBGHUDsState].[br][br]
+##
+## Class properties must be set before _ready(). See widget [IVAllHUDs] for complex
+## row construction, setting up multiple grids, and aligning their columns.[br][br]
+##
+## To display correctly, ColorPickerButton needs a StyleBoxTexture with no
+## margins.[br][br]
 
 const NULL_COLOR := Color.BLACK
 
@@ -57,6 +59,7 @@ var _suppress_update := false
 
 @onready var _sbg_huds_state: IVSBGHUDsState = IVGlobal.program[&"SBGHUDsState"]
 @onready var _n_rows := rows.size()
+
 
 
 func _ready() -> void:
@@ -134,6 +137,7 @@ func _ready() -> void:
 		_resize_columns()
 	else:
 		IVGlobal.about_to_start_simulator.connect(_resize_columns, CONNECT_ONE_SHOT)
+
 
 
 func _make_checkbox() -> CheckBox:

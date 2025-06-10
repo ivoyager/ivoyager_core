@@ -103,7 +103,6 @@ var initializers: Dictionary[StringName, Variant] = {
 	# 'preinitializers'. Some of these classes may erase themselves from
 	# dictionary 'IVGlobal.program' after init, thereby freeing themselves.
 	# Path to RefCounted class ok.
-	LogInitializer = IVLogInitializer, # self-removes
 	ResourceInitializer = IVResourceInitializer, # self-removes
 	WikiInitializer = IVWikiInitializer, # self-removes
 	TranslationImporter = IVTranslationImporter, # self-removes
@@ -125,10 +124,10 @@ var program_refcounteds: Dictionary[StringName, Variant] = {
 	TableOrbitBuilder = IVTableOrbitBuilder,
 	TableSBGBuilder = IVTableSBGBuilder,
 	TableViewBuilder = IVTableViewBuilder,
+	TableCompositionBuilder = IVTableCompositionBuilder, # ok to remove
 	BinaryAsteroidsBuilder = IVBinaryAsteroidsBuilder,
-	SelectionBuilder = IVSelectionBuilder,
-	CompositionBuilder = IVCompositionBuilder, # remove or subclass
 	BodyFinisher = IVBodyFinisher,
+	SBGFinisher = IVSBGFinisher,
 	
 	# managers, etc.
 	FontManager = IVFontManager, # ok to replace
@@ -177,43 +176,10 @@ var gui_nodes: Dictionary[StringName, Variant] = {
 }
 
 
-# FIXME: Procedural classes is a pain in the ass. If a generator class is used,
-# then the generator should specify the exact class. User can replace the generator.
-# This applies to IVBodyFinisher for HUDs and IVRings generation.
-# That should be the plugin standard. Not sure what to do in the case where
-# IVBody calls for a procedural class directly. Perhaps where convenient
-# (even in some generators) we can have static vars defining the script classes.
-
-# DEPRECIATE
-var procedural_objects: Dictionary[StringName, Variant] = {
-	# Nodes and RefCounteds NOT instantiated by IVCoreInitializer. These class
-	# scripts plus all above can be accessed from IVGlobal.procedural_classes.
-	# Path to scene, Node class, or RefCounted class ok.
-	# Nodes...
-	Body = IVBody, # many dependencies, best to subclass
-	Camera = IVCamera, # replaceable, but look for dependencies
-	BodyLabel = IVBodyLabel, # replace w/ Node3D
-	OrbitVisual = IVOrbitVisual, # replace w/ Node3D
-	SBGOrbits = IVSBGOrbits, # replace w/ Node3D
-	SBGPoints = IVSBGPoints, # replace w/ Node3D
-	DynamicLight = IVDynamicLight, # replace w/ Node3D
-	ModelSpace = IVModelSpace, # replace w/ Node3D
-	Rings = IVRings, # replace w/ Node3D
-	SpheroidModel = IVSpheroidModel, # replace w/ Node3D
-	SelectionManager = IVSelectionManager, # replace w/ Node3D
-	# RefCounteds...
-	SmallBodiesGroup = IVSmallBodiesGroup,
-	Orbit = IVOrbit,
-	Selection = IVSelection,
-	View = IVView,
-	Composition = IVComposition, # replaceable, but look for dependencies	
-}
-
 
 # ***************************** PRIVATE VARS **********************************
 
-var _program: Dictionary[StringName, Object] = IVGlobal.program
-var _procedural_classes: Dictionary[StringName, Resource] = IVGlobal.procedural_classes
+var _program := IVGlobal.program
 
 
 # ****************************** PROJECT BUILD ********************************
@@ -233,6 +199,7 @@ func _ready() -> void:
 
 # **************************** PUBLIC FUNCTIONS *******************************
 # These should be called only by extension init file!
+
 
 func reindex_universe_child(node_name: StringName, new_index: int) -> void:
 	# Call at 'project_nodes_added' signal.
@@ -284,6 +251,7 @@ func build_project(override := false) -> void:
 
 
 # ************************ 'init_sequence' FUNCTIONS **************************
+
 
 func _instantiate_preinitializers() -> void:
 	for key: StringName in preinitializers:
@@ -370,18 +338,6 @@ func _index_core_nodes() -> void:
 
 
 func _instantiate_and_index_program_objects() -> void:
-	
-	# Procedural classes will be available at program object inits.
-	for key: StringName in procedural_objects:
-		if !procedural_objects[key]:
-			continue
-		assert(!_procedural_classes.has(key))
-		if procedural_objects[key] is Resource:
-			_procedural_classes[key] = procedural_objects[key]
-		else:
-			var path: String = procedural_objects[key]
-			_procedural_classes[key] = IVFiles.get_script_or_packedscene(path)
-	
 	for dict: Dictionary in [program_refcounteds, program_nodes, gui_nodes]:
 		for key: StringName in dict:
 			if !dict[key]:

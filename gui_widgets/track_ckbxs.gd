@@ -20,15 +20,17 @@
 class_name IVTrackCkbxs
 extends HBoxContainer
 
-# GUI Widget. Requires IVCamera.
+## GUI Widget.
+##
+## Requires [IVCamera].
 
-const CameraFlags := IVCamera.CameraFlags
 
 var _camera: IVCamera
 
 @onready var _ground_checkbox: CheckBox = $Ground
 @onready var _orbit_checkbox: CheckBox = $Orbit
 @onready var _ecliptic_checkbox: CheckBox = $Ecliptic
+
 
 
 func _ready() -> void:
@@ -41,6 +43,7 @@ func _ready() -> void:
 	_ground_checkbox.button_group = button_group
 
 
+
 func _connect_camera(camera: IVCamera) -> void:
 	if _camera and is_instance_valid(_camera):
 		_camera.tracking_changed.disconnect(_update_tracking)
@@ -50,6 +53,7 @@ func _connect_camera(camera: IVCamera) -> void:
 
 
 func _on_pressed(button: CheckBox) -> void:
+	const CameraFlags := IVCamera.CameraFlags
 	if !_camera:
 		return
 	match button.name:
@@ -62,6 +66,7 @@ func _on_pressed(button: CheckBox) -> void:
 
 
 func _update_tracking(flags: int, _disable_flags: int) -> void:
+	const CameraFlags := IVCamera.CameraFlags
 	_ground_checkbox.set_pressed_no_signal(flags & CameraFlags.CAMERAFLAGS_TRACK_GROUND)
 	_orbit_checkbox.set_pressed_no_signal(flags & CameraFlags.CAMERAFLAGS_TRACK_ORBIT)
 	_ecliptic_checkbox.set_pressed_no_signal(flags & CameraFlags.CAMERAFLAGS_TRACK_ECLIPTIC)

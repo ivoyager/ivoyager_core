@@ -113,30 +113,23 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"_transform",
 ]
 
-# ******************************* PERSISTED ***********************************
 
-# public - read only except project init
+# public persisted - read only except project init
 var flags: int = CameraFlags.CAMERAFLAGS_UP_LOCKED | CameraFlags.CAMERAFLAGS_TRACK_ORBIT
 var is_camera_lock := true
 
-# public - read only! (use move methods to set; these are "to" during transfer)
+# public persisted - read only!
 var selection: IVSelection
 var perspective_radius := KM
 var view_position := Vector3(0.5, 2.5, 3.0) # spherical, relative to ref frame; r is 'perspective'
 var view_rotations := Vector3.ZERO # euler, relative to looking_at(-origin, 'up')
 
-# private
-var _transform := Transform3D(Basis(), Vector3(0, 0, KM)) # working value
-
-# *****************************************************************************
-
 # public - project init vars
-var ease_exponent := 5.0 # DEPRECIATE: Make dynamic for distance / size
+var ease_exponent := 5.0 # DEPRECATE: Make dynamic for distance / size
 var gui_ecliptic_coordinates_dist := 1e6 * KM
 var action_immediacy := 10.0 # how fast we use up the accumulators
 var min_action := 0.002 # use all below this
 var size_ratio_exponent := 0.9 # 0.0, none; 1.0 moves to same visual size
-# 'perspective' settings
 var perspective_close_radii := 500.0 # full perspective adjustment inside this
 var perspective_far_dist := 1e9 * KM # no perspective adjustment outside this
 var max_perspective_radii_meters := 1e9 * METER # really target radii; see 'perspective distance'
@@ -146,6 +139,10 @@ var min_perspective_radii_meters := 2.0 * METER # really target radii; see 'pers
 var parent: Node3D # actual Node3D parent at this time
 var is_moving := false # body to body move in progress
 var disabled_flags := 0 # CameraDisabledFlags
+
+
+# private persisted
+var _transform := Transform3D(Basis(), Vector3(0, 0, KM)) # working value
 
 # private
 var _universe: Node3D = IVGlobal.program.Universe
@@ -184,7 +181,7 @@ func _ready() -> void:
 	name = &"IVCamera"
 	IVGlobal.system_tree_ready.connect(_on_system_tree_ready, CONNECT_ONE_SHOT)
 	IVGlobal.simulator_started.connect(_on_simulator_started, CONNECT_ONE_SHOT)
-	IVGlobal.about_to_free_procedural_nodes.connect(_prepare_to_free, CONNECT_ONE_SHOT)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural, CONNECT_ONE_SHOT)
 	IVGlobal.update_gui_requested.connect(_send_gui_refresh)
 	IVGlobal.move_camera_requested.connect(move_to)
 	IVGlobal.setting_changed.connect(_settings_listener)
@@ -385,9 +382,7 @@ func _on_system_tree_ready(_is_new_game: bool) -> void:
 	_to_spatial = parent
 	_from_spatial = parent
 	if !selection: # new game
-		var SelectionManagerScript: Script = IVGlobal.procedural_classes[&"SelectionManager"]
-		@warning_ignore("unsafe_method_access")
-		selection = SelectionManagerScript.get_or_make_selection(parent.name)
+		selection = IVSelectionManager.get_or_make_selection(parent.name)
 		assert(selection)
 		perspective_radius = selection.get_perspective_radius()
 	_from_selection = selection
@@ -399,8 +394,7 @@ func _on_simulator_started() -> void:
 	set_process(true)
 
 
-func _prepare_to_free() -> void:
-	# Some deconstruction needed to prevent freeing object signalling errors (Godot3.x)
+func _clear_procedural() -> void:
 	set_process(false)
 	IVGlobal.update_gui_requested.disconnect(_send_gui_refresh)
 	IVGlobal.move_camera_requested.disconnect(move_to)
@@ -409,8 +403,8 @@ func _prepare_to_free() -> void:
 	parent = null
 	_to_spatial = null
 	_trasfer_spatial = null
-	_from_selection = null
 	_from_spatial = null
+	_from_selection = null
 
 
 func _process_move_to(delta: float) -> void:
@@ -660,7 +654,7 @@ func _get_view_transform(view_position_: Vector3, view_rotations_: Vector3,
 
 static func _get_reference_basis(selection_: IVSelection, flags_: int) -> Basis:
 	if flags_ & CameraFlags.CAMERAFLAGS_TRACK_GROUND:
-		return selection_.get_ground_tracking_basis()
+		return selection_.get_orientation()
 	if flags_ & CameraFlags.CAMERAFLAGS_TRACK_ORBIT:
 		return selection_.get_orbit_tracking_basis()
 	return Basis.IDENTITY # identity basis for any IVBody

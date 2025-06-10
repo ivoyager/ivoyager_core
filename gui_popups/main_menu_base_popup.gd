@@ -19,7 +19,6 @@
 # *****************************************************************************
 class_name IVMainMenuBasePopup
 extends PopupPanel
-const SCENE := "res://addons/ivoyager_core/gui_popups/main_menu_base_popup.tscn"
 
 ## An empty Main Menu popup (base control only) that opens/closes on
 ## "ui_cancel" action event and "main menu" IVGlobal signals.
@@ -32,6 +31,8 @@ const SCENE := "res://addons/ivoyager_core/gui_popups/main_menu_base_popup.tscn"
 ## Plugin [url=https://github.com/ivoyager/ivoyager_save]I, Voyager - Save[/url]
 ## has additional save/load related buttons.
 
+const SCENE := "res://addons/ivoyager_core/gui_popups/main_menu_base_popup.tscn"
+
 
 @export var sim_started_only := true
 @export var use_theme_manager_setting := true
@@ -41,6 +42,7 @@ const SCENE := "res://addons/ivoyager_core/gui_popups/main_menu_base_popup.tscn"
 
 
 var _is_explicit_close := false
+
 
 
 func _ready() -> void:
@@ -57,6 +59,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"ui_cancel"):
 		close()
 		set_input_as_handled()
+
 
 
 func open() -> void:
@@ -76,6 +79,7 @@ func open() -> void:
 func close() -> void:
 	_is_explicit_close = true
 	hide()
+
 
 
 func _on_popup_hide() -> void:

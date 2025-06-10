@@ -20,11 +20,12 @@
 class_name IVLinkLabel
 extends RichTextLabel
 
-# GUI widget. A hyperlink!
-#
-# TODO: Rename IVHyperlink.
-# TODO: Add IVHyperlinkManager to generalize all hyperlinks. We should be able
-# to evoke internal game pages or actions.
+## GUI widget. A hyperlink!
+##
+## TODO: Rename IVHyperlink.
+## TODO: Add IVHyperlinkManager to generalize all hyperlinks. We should be able
+## to evoke internal game pages or actions.
+
 
 var _link_url := "https://ivoyager.dev"
 
@@ -33,9 +34,11 @@ func _ready() -> void:
 	meta_clicked.connect(_on_meta_clicked)
 
 
+
 func set_hyperlink(link_text: String, link_url: String) -> void:
 	text = "[url]" + link_text + "[/url]"
 	_link_url = link_url
+
 
 
 func _on_meta_clicked(_meta: String) -> void:

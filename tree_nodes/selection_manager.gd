@@ -26,10 +26,17 @@ extends Node
 ## An application may have one or more instances of this class, which are
 ## each associated with an individual [Control]. GUI widgets can call static
 ## function `get_selection_manager()` to obtain the first instance of this
-## class searching up their ancestor tree.
+## class searching up their ancestor tree.[br][br]
+##
+## This node may or may not be a "persist" node for game save/load, depending
+## on how it is used in the scene tree. If it is a descendent of persist nodes,
+## it will be be persisted and freed/rebuilt on game load. In either case,
+## all IVSelection references will be cleared on
+## [signal IVGlobal.about_to_free_procedural_nodes].
 
 signal selection_changed(suppress_camera_move: bool)
 signal selection_reselected(suppress_camera_move: bool)
+
 
 enum {
 	# not all of these are implemented yet...
@@ -54,6 +61,7 @@ enum {
 	SELECTION_LAGRANGE_POINT,
 }
 
+
 const BodyFlags := IVBody.BodyFlags
 
 const PERSIST_MODE := IVGlobal.PERSIST_PROCEDURAL
@@ -62,30 +70,90 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"selection",
 ]
 
+
+static var replacement_subclass: Script
+
 # persisted
 var is_action_listener := true
 var selection: IVSelection
 
 # private
-var _selections: Dictionary[StringName, IVSelection] = IVSelection.selections
 var _history: Array[WeakRef] = []
 var _history_index := -1
 var _supress_history := false
 
 
+
+static func create() -> IVSelectionManager:
+	if replacement_subclass:
+		@warning_ignore("unsafe_method_access")
+		return replacement_subclass.new()
+	return IVSelectionManager.new()
+
+
+static func get_selection_manager(control: Control) -> IVSelectionManager:
+	while control:
+		if &"selection_manager" in control:
+			var selection_manager: IVSelectionManager = control.get(&"selection_manager")
+			if selection_manager:
+				return selection_manager
+		control = control.get_parent() as Control
+	return null
+
+
+static func get_or_make_selection(selection_name: StringName) -> IVSelection:
+	# I, Voyager supports IVBody selection only! Override for others.
+	var selection_: IVSelection = IVSelection.selections.get(selection_name)
+	if selection_:
+		return selection_
+	if IVBody.bodies.has(selection_name):
+		return make_selection_for_body(selection_name)
+	assert(false, "Unsupported selection type")
+	return null
+
+
+static func make_selection_for_body(body_name: StringName) -> IVSelection:
+	assert(!IVSelection.selections.has(body_name))
+	var body: IVBody = IVBody.bodies[body_name] # must exist
+	#var selection_builder: IVSelectionBuilder = IVGlobal.program[&"SelectionBuilder"]
+	var selection_ := IVSelection.create_for_body(body)
+	if selection_:
+		IVSelection.selections[body_name] = selection_
+	return selection_
+
+
+static func get_body_above_selection(selection_: IVSelection) -> IVBody:
+	while selection_.up_selection_name:
+		selection_ = get_or_make_selection(selection_.up_selection_name)
+		if selection_.body:
+			return selection_.body
+	return IVBody.galaxy_orbiters.values()[0]
+
+
+static func get_body_at_above_selection_w_flags(selection_: IVSelection, flags: int) -> IVBody:
+	if selection_.get_flags() & flags:
+		return selection_.body
+	while selection_.up_selection_name:
+		selection_ = get_or_make_selection(selection_.up_selection_name)
+		if selection_.get_flags() & flags:
+			return selection_.body
+	return null
+
+
+
 func _init() -> void:
 	name = &"SelectionManager"
-	
+
 
 func _ready() -> void:
 	IVGlobal.system_tree_ready.connect(_on_system_tree_ready)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear_selections)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	set_process_unhandled_key_input(is_action_listener)
 
 
 func _on_system_tree_ready(is_new_game: bool) -> void:
 	if is_new_game:
-		var selection_ := IVSelectionManager.get_or_make_selection(IVCoreSettings.home_name)
+		var selection_ := get_or_make_selection(IVCoreSettings.home_name)
 		select(selection_, true)
 	else:
 		_add_history()
@@ -129,58 +197,6 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	get_window().set_input_as_handled()
 
 
-static func get_selection_manager(control: Control) -> IVSelectionManager:
-	var ancestor: Node = control.get_parent()
-	while ancestor is Control:
-		if &"selection_manager" in ancestor:
-			var selection_manager: IVSelectionManager = ancestor.get(&"selection_manager")
-			if selection_manager:
-				return selection_manager
-		ancestor = ancestor.get_parent()
-	return null
-
-
-static func get_or_make_selection(selection_name: StringName) -> IVSelection:
-	# I, Voyager supports IVBody selection only! Override for others.
-	var selection_: IVSelection = IVSelection.selections.get(selection_name)
-	if selection_:
-		return selection_
-	if IVBody.bodies.has(selection_name):
-		return make_selection_for_body(selection_name)
-	assert(false, "Unsupported selection type")
-	return null
-
-
-static func make_selection_for_body(body_name: StringName) -> IVSelection:
-	assert(!IVSelection.selections.has(body_name))
-	var body: IVBody = IVBody.bodies[body_name] # must exist
-	var selection_builder: IVSelectionBuilder = IVGlobal.program[&"SelectionBuilder"]
-	var selection_ := selection_builder.build_body_selection(body)
-	if selection_:
-		IVSelection.selections[body_name] = selection_
-	return selection_
-
-
-static func get_body_above_selection(selection_: IVSelection) -> IVBody:
-	while selection_.up_selection_name:
-		selection_ = get_or_make_selection(selection_.up_selection_name)
-		if selection_.body:
-			return selection_.body
-	return IVBody.galaxy_orbiters[0]
-
-
-static func get_body_at_above_selection_w_flags(selection_: IVSelection, flags: int) -> IVBody:
-	if selection_.get_flags() & flags:
-		return selection_.body
-	while selection_.up_selection_name:
-		selection_ = get_or_make_selection(selection_.up_selection_name)
-		if selection_.get_flags() & flags:
-			return selection_.body
-	return null
-
-
-# Non-static methods for this manager's selection or history
-
 
 func select(selection_: IVSelection, suppress_camera_move := false) -> void:
 	if selection == selection_:
@@ -192,13 +208,13 @@ func select(selection_: IVSelection, suppress_camera_move := false) -> void:
 
 
 func select_body(body: IVBody, suppress_camera_move := false) -> void:
-	var selection_ := IVSelectionManager.get_or_make_selection(body.name)
+	var selection_ := get_or_make_selection(body.name)
 	if selection_:
 		select(selection_, suppress_camera_move)
 
 
 func select_by_name(selection_name: StringName, suppress_camera_move := false) -> void:
-	var selection_ := IVSelectionManager.get_or_make_selection(selection_name)
+	var selection_ := get_or_make_selection(selection_name)
 	if selection_:
 		select(selection_, suppress_camera_move)
 
@@ -265,7 +281,7 @@ func forward() -> void:
 func up() -> void:
 	var up_name := selection.up_selection_name
 	if up_name:
-		var new_selection := IVSelectionManager.get_or_make_selection(up_name)
+		var new_selection := get_or_make_selection(up_name)
 		select(new_selection)
 
 
@@ -284,49 +300,56 @@ func can_go_up() -> bool:
 func down() -> void:
 	var body: IVBody = selection.body
 	if body and body.satellites:
-		select_body(body.satellites[0])
+		var satellite: IVBody = body.satellites.values()[0]
+		select_body(satellite)
 
 
 func next_last(incr: int, selection_type := -1, _alt_selection_type := -1) -> void:
+	const BODYFLAGS_STAR := IVBody.BodyFlags.BODYFLAGS_STAR
+	const BODYFLAGS_PLANET_OR_DWARF_PLANET := IVBody.BodyFlags.BODYFLAGS_PLANET_OR_DWARF_PLANET
+	const BODYFLAGS_MOON := IVBody.BodyFlags.BODYFLAGS_MOON
+	
 	var current_body := selection.body # could be null
 	var iteration_array: Array
 	var index := -1
 	match selection_type:
 		-1:
-			var up_body := IVSelectionManager.get_body_above_selection(selection)
-			iteration_array = up_body.satellites
+			var up_body := get_body_above_selection(selection)
+			iteration_array = up_body.satellites.values()
 			index = iteration_array.find(current_body)
 		SELECTION_STAR:
 			# TODO: code for multistar systems
-			var sun: IVBody = IVBody.galaxy_orbiters[0]
+			var sun: IVBody = IVBody.galaxy_orbiters.values()[0]
 			select_body(sun)
 			return
 		SELECTION_PLANET:
-			var star := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.BODYFLAGS_STAR)
+			var star := get_body_at_above_selection_w_flags(selection, BODYFLAGS_STAR)
 			if !star:
 				return
-			iteration_array = star.satellites
-			var planet := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.BODYFLAGS_PLANET_OR_DWARF_PLANET)
+			iteration_array = star.satellites.values()
+			var planet := get_body_at_above_selection_w_flags(selection,
+					BODYFLAGS_PLANET_OR_DWARF_PLANET)
 			if planet:
 				index = iteration_array.find(planet)
 				if planet != current_body and incr == 1:
 					index -= 1
 		SELECTION_NAVIGATOR_MOON, SELECTION_MOON:
-			var planet := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.BODYFLAGS_PLANET_OR_DWARF_PLANET)
+			var planet := get_body_at_above_selection_w_flags(selection,
+					BODYFLAGS_PLANET_OR_DWARF_PLANET)
 			if !planet:
 				return
-			iteration_array = planet.satellites
-			var moon := IVSelectionManager.get_body_at_above_selection_w_flags(selection, BodyFlags.BODYFLAGS_MOON)
+			iteration_array = planet.satellites.values()
+			var moon := get_body_at_above_selection_w_flags(selection, BODYFLAGS_MOON)
 			if moon:
 				index = iteration_array.find(moon)
 				if moon != current_body and incr == 1:
 					index -= 1
 		SELECTION_SPACECRAFT:
 			if current_body:
-				iteration_array = current_body.satellites
+				iteration_array = current_body.satellites.values()
 			else:
-				var up_body := IVSelectionManager.get_body_above_selection(selection)
-				iteration_array = up_body.satellites
+				var up_body := get_body_above_selection(selection)
+				iteration_array = up_body.satellites.values()
 	if !iteration_array:
 		return
 	var array_size := iteration_array.size()
@@ -374,6 +397,11 @@ func set_selection_and_history(array: Array) -> void:
 	_history_index = array[2]
 
 
+
+func _clear_procedural() -> void:
+	selection = null
+
+
 func _add_history() -> void:
 	if _supress_history:
 		_supress_history = false
@@ -388,7 +416,3 @@ func _add_history() -> void:
 		_history.resize(_history_index)
 	var wr: WeakRef = weakref(selection) # weakref() is untyped in Godot4.1.1. Open issue? 
 	_history.append(wr)
-
-
-func _clear_selections() -> void:
-	_selections.clear() # may be >1 SelectionManager clearing but that's ok

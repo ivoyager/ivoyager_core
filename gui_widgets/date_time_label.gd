@@ -20,7 +20,9 @@
 class_name IVDateTimeLabel
 extends Label
 
-# GUI widget. Requires IVTimekeeper and IVStateManager.
+## GUI widget.
+##
+## Requires [IVTimekeeper] and [IVStateManager].
 
 var show_pause := !IVCoreSettings.disable_pause
 var date_format := "%02d/%02d/%02d"
@@ -41,6 +43,7 @@ var _hm: Array[int] = [0, 0]
 
 @onready var _timekeeper: IVTimekeeper = IVGlobal.program[&"Timekeeper"]
 @onready var _state_manager: IVStateManager = IVGlobal.program[&"StateManager"]
+
 
 
 func _ready() -> void:
@@ -68,6 +71,7 @@ func _process(_delta: float) -> void:
 	if show_pause and _state_manager.is_user_paused:
 		new_text += " " + tr(&"LABEL_PAUSED")
 	text = new_text
+
 
 
 func _update_display() -> void:

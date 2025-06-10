@@ -20,9 +20,11 @@
 class_name IVTimeSetButton
 extends Button
 
-# GUI button widget that opens its own IVTimeSetPopup.
+## GUI button widget that opens its own [IVTimeSetPopup].
+
 
 var _time_set_popup: IVTimeSetPopup
+
 
 
 func _ready() -> void:
@@ -31,6 +33,7 @@ func _ready() -> void:
 	top_gui.add_child(_time_set_popup)
 	toggled.connect(_on_toggled)
 	_time_set_popup.visibility_changed.connect(_on_visibility_changed)
+
 
 
 func _on_toggled(toggle_pressed: bool) -> void:

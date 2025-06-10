@@ -20,47 +20,45 @@
 class_name IVTableSystemBuilder
 extends RefCounted
 
-## Builds the star system(s) from data tables and (if applicable)
-## table-referenced binaries.
+## Builds the star system(s) from data tables, calling other table-object
+## "builders" as needed.
 ##
-## Builds [IVBody] instances and attaches each to its parent. 
+## All procedural classes can be replaced with subclasses (usually this can be
+## specified in the class itself via member "replacement_subclass"). IVCamera
+## can be replaced here with a subclass (easy) or a non-subclass Camera3D
+## (that's more work; watch out for IVCamera-associated GUI widgets).[br][br]
 ##
-## Unless disabled in project vars below,[br]
-## * adds top bodies of the body tree to Universe.[br]
-## * adds IVSmallBodiesGroup instances.[br]
-## * adds camera at Body defined by IVCoreSettings.home_name.[br]
-##
-## Scripts for IVBody, IVSmallBodiesGroup, and Camera3D are defined in
-## IVCoreInitializer.procedural_objects. These can be overriden by subclasses.
+## This class assembles the "IVBody tree" from data tables. Unless disabled in
+## member vars, it will also:[br]
+## * add top bodies of the body tree to Universe.[br]
+## * add IVSmallBodiesGroup instances.[br]
+## * add camera at Body defined by IVCoreSettings.home_name.[br]
 
 const BodyFlags := IVBody.BodyFlags
+
 
 # project vars
 var add_to_universe := true
 var add_small_bodies_groups := true
 var add_camera := true
+var replacement_camera_class: Script
 
 # private
-var _bodies: Dictionary[StringName, IVBody] = IVBody.bodies
+var _bodies := IVBody.bodies
 var _body_builder: IVTableBodyBuilder
 var _sbg_builder: IVTableSBGBuilder
-var _body_script: Script
-var _small_bodies_group_script: Script
-var _camera_script: Script
 
 
 
 func build_system_tree() -> void:
 	_body_builder = IVGlobal.program[&"TableBodyBuilder"]
-	_body_script = IVGlobal.procedural_classes[&"Body"]
 	_add_bodies()
 	if add_small_bodies_groups:
 		_sbg_builder = IVGlobal.program[&"TableSBGBuilder"]
-		_small_bodies_group_script = IVGlobal.procedural_classes[&"SmallBodiesGroup"]
 		_add_small_bodies_groups()
 	if add_camera:
-		_camera_script = IVGlobal.procedural_classes[&"Camera"]
 		_add_camera()
+
 
 
 func _add_bodies() -> void:
@@ -100,9 +98,7 @@ func _add_small_bodies_groups() -> void:
 	for row in IVTableData.get_n_rows(&"small_bodies_groups"):
 		if IVTableData.get_db_bool(&"small_bodies_groups", &"skip", row):
 			continue
-		@warning_ignore("unsafe_method_access")
-		var sbg: IVSmallBodiesGroup = _small_bodies_group_script.new()
-		_sbg_builder.build_sbg(sbg, &"small_bodies_groups", row)
+		var sbg := _sbg_builder.build_sbg(&"small_bodies_groups", row)
 		var primary_name := IVTableData.get_db_string_name(&"small_bodies_groups", &"primary", row)
 		var primary: IVBody = _bodies.get(primary_name)
 		assert(primary, "Primary body missing for SmallBodiesGroup")
@@ -110,7 +106,11 @@ func _add_small_bodies_groups() -> void:
 
 
 func _add_camera() -> void:
-	@warning_ignore("unsafe_method_access")
-	var camera: Camera3D = _camera_script.new()
+	var camera: Camera3D
+	if replacement_camera_class:
+		@warning_ignore("unsafe_method_access")
+		camera = replacement_camera_class.new()
+	else:
+		camera = IVCamera.new()
 	var start_body: IVBody = _bodies[IVCoreSettings.home_name]
 	start_body.add_child(camera)

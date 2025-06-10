@@ -34,16 +34,17 @@ extends RefCounted
 ## See also [IVSleepManager] for reduction of IVBody._process() calls where not
 ## needed.
 
-# TOTO: Rename IVLazyModelInitializer
+
 
 func _init() -> void:
 	IVGlobal.camera_tree_changed.connect(_on_camera_tree_changed)
 
 
+
 func _on_camera_tree_changed(_camera: Camera3D, parent: Node3D, _star_orbiter: Node3D, _star: Node3D
 		) -> void:
 	var body := parent as IVBody
-	if !body or !body.lazy_model_uninited:
+	if !body or !body.is_lazy_model_uninited():
 		return
 	body.lazy_model_init()
 	
@@ -55,15 +56,16 @@ func _on_camera_tree_changed(_camera: Camera3D, parent: Node3D, _star_orbiter: N
 
 
 func _lazy_init_down(body: IVBody) -> void:
-	for satellite in body.satellites:
-		if satellite.lazy_model_uninited:
+	for satellite_name in body.satellites:
+		var satellite := body.satellites[satellite_name]
+		if satellite.is_lazy_model_uninited():
 			satellite.lazy_model_init()
 			_lazy_init_down(satellite)
 
 
 func _lazy_init_up(body: IVBody) -> void:
 	var parent := body.get_parent_node_3d() as IVBody
-	if parent and parent.lazy_model_uninited:
+	if parent and parent.is_lazy_model_uninited():
 		parent.lazy_model_init()
 		_lazy_init_down(parent) # cousins?
 		_lazy_init_up(parent)

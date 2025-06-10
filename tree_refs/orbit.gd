@@ -82,7 +82,11 @@ extends RefCounted
 ## around at editor runtime. The setters generally hold e and GM fixed and
 ## update other elements as needed, but see methods for specific cases. Code
 ## based changes to elements should be implemented in a subclass (see Roadmap
-## below).[br][br][br]
+## below).[br][br]
+##
+## Get methods are generally threadsafe, but element values may be inconsistant
+## if an orbit change is being set concurently. Set methods cause [signal changed]
+## signal so are NOT threadsafe.[br][br][br]
 ##
 ## [b]Method naming conventions (gets/sets)[/b][br][br]
 ##
@@ -158,11 +162,11 @@ extends RefCounted
 ## isn't ready yet).[br][br]
 
 
-## Signal emitted when orbital elements change by a threshold amount.
+## Signal emitted when orbital elements are set or evolve by a threshold amount.
 ## [param is_intrinsic] is true if the cause is internally specified (e.g.,
 ## precessions) and is false if external (e.g., due to thrust in an IVOrbit
 ## subclass).
-signal changed(is_intrinsic: bool)
+signal changed(is_intrinsic: bool, precession_only: bool)
 
 
 ## Type of orbit reference plane. (An orbit's specific reference plane is
@@ -173,11 +177,10 @@ enum ReferencePlane {
 	REFERENCE_PLANE_LAPLACE, ## A specified intermediate Laplace plane.
 }
 
+
 const ECLIPTIC_SPACE := Basis.IDENTITY
 ## Minimum accumulated element change for update and [signal changed] signal.
 const CHANGED_THRESHOLD := 0.005
-
-
 
 ## Just under 0.0 so Earth doesn't cause error. (Earth i = -9.48517e-06 at epoch.)
 const MIN_INCLINATION := -0.001
@@ -207,8 +210,9 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"_true_anomaly",
 ]
 
-# Public properties are all "dummy" vars. They redirect via getters and setters
-# so we can implement side-effects or force alternative set methods.
+
+# Public properties are all "redirect" vars so we can implement side-effects or
+# force alternative set methods.
 
 ## One of [enum ReferencePlane] types.
 var reference_plane_type: ReferencePlane: get = get_reference_plane_type
@@ -422,7 +426,6 @@ static func create_from_state_vectors_and_environment(
 	# For a Moon-orbiter, the Earth is the main effect, then maybe the Sun. (Moon isn't oblate.)
 	
 	return null
-
 
 
 ## Static method returns mean anomaly (M) for an elliptic orbit (e < 1). 0 ≤ M < 2π.
@@ -669,7 +672,7 @@ func update(time: float, rotate_to_ecliptic := true) -> Vector3:
 			or absf(ap - _argument_periapsis) > CHANGED_ANGLE_THRESHOLD):
 		_longitude_ascending_node = lan
 		_argument_periapsis = ap
-		changed.emit(true)
+		changed.emit(true, true)
 	
 	# some inline static methods below...
 	if _eccentricity < 1.0:
@@ -861,7 +864,7 @@ func set_reference_plane_and_basis(plane_type: ReferencePlane, basis: Basis) -> 
 	assert(basis.is_conformal() and basis.x.is_normalized())
 	_reference_plane_type = plane_type
 	_reference_basis = basis
-	changed.emit(false)
+	changed.emit(false, false)
 
 
 func get_semi_parameter() -> float:
@@ -897,7 +900,7 @@ func set_semi_parameter(value: float) -> void:
 		_mean_motion = 0.0
 		_specific_energy = 0.0
 	_specific_angular_momentum = sqrt(_gravitational_parameter * _semi_parameter)
-	changed.emit(false)
+	changed.emit(false, false)
 
 
 func get_eccentricity() -> float:
@@ -931,7 +934,7 @@ func set_eccentricity(value: float) -> void:
 		_semi_major_axis = INF
 		_mean_motion = 0.0
 		_specific_energy = 0.0
-	changed.emit(false)
+	changed.emit(false, false)
 
 
 func get_inclination() -> float:
@@ -960,7 +963,7 @@ func set_inclination(value: float) -> void:
 	if absf(value - RIGHT_ANGLE) < INCLINATION_RIGHT_ANGLE_BUMP:
 		value = RIGHT_ANGLE - INCLINATION_RIGHT_ANGLE_BUMP
 	_inclination = value
-	changed.emit(false)
+	changed.emit(false, false)
 
 
 # Subclass overrides:
@@ -988,7 +991,7 @@ func set_longitude_ascending_node(value: float) -> void:
 
 func set_longitude_ascending_node_at_epoch(value: float) -> void:
 	_longitude_ascending_node_at_epoch = fposmod(value, TAU)
-	changed.emit(false)
+	changed.emit(false, false)
 
 
 func set_longitude_ascending_node_rate(value: float) -> void:
@@ -1000,7 +1003,7 @@ func set_longitude_ascending_node_rate(value: float) -> void:
 func set_longitude_ascending_node_rate_at_time(value: float, time: float) -> void:
 	_longitude_ascending_node_rate = value
 	if !time:
-		changed.emit(false)
+		changed.emit(false, false)
 		return
 	set_longitude_ascending_node_at_epoch(_longitude_ascending_node - value * time)
 
@@ -1027,7 +1030,7 @@ func set_argument_periapsis(value: float) -> void:
 
 func set_argument_periapsis_at_epoch(value: float) -> void:
 	_argument_periapsis_at_epoch = fposmod(value, TAU)
-	changed.emit(false)
+	changed.emit(false, false)
 
 
 func set_argument_periapsis_rate(value: float) -> void:
@@ -1039,7 +1042,7 @@ func set_argument_periapsis_rate(value: float) -> void:
 func set_argument_periapsis_rate_at_time(value: float, time: float) -> void:
 	_argument_periapsis_rate = value
 	if !time:
-		changed.emit(false)
+		changed.emit(false, false)
 		return
 	set_argument_periapsis_at_epoch(_argument_periapsis - value * time)
 
@@ -1068,7 +1071,7 @@ func set_time_periapsis(value: float) -> void:
 	if _eccentricity < 1.0:
 		value = modulo_time_periapsis_elliptic(value, _mean_motion)
 	_time_periapsis = value
-	changed.emit(false)
+	changed.emit(false, false)
 
 
 func get_gravitational_parameter() -> float:
@@ -1104,7 +1107,7 @@ func set_gravitational_parameter(value: float) -> void:
 		_mean_motion = 0.0
 		_specific_energy = 0.0
 	_specific_angular_momentum = sqrt(_gravitational_parameter * _semi_parameter)
-	changed.emit(false)
+	changed.emit(false, false)
 
 
 func get_semi_major_axis() -> float:
@@ -1138,7 +1141,7 @@ func set_semi_major_axis(value: float) -> void:
 	_mean_motion = sqrt(_gravitational_parameter / absf(_semi_major_axis) ** 3)
 	_specific_energy = -0.5 * _gravitational_parameter / _semi_major_axis
 	_specific_angular_momentum = sqrt(_gravitational_parameter * _semi_parameter)
-	changed.emit(false)
+	changed.emit(false, false)
 
 
 func get_mean_motion() -> float:
@@ -1171,7 +1174,7 @@ func set_mean_motion(value: float) -> void:
 	_semi_parameter = _semi_major_axis * (1.0 - _eccentricity * _eccentricity)
 	_specific_energy = -0.5 * _gravitational_parameter / _semi_major_axis
 	_specific_angular_momentum = sqrt(_gravitational_parameter * _semi_parameter)
-	changed.emit(false)
+	changed.emit(false, false)
 
 
 func get_specific_energy() -> float:
@@ -1198,7 +1201,7 @@ func set_specific_energy(value: float) -> void:
 	
 	# TODO: Energy!
 	
-	changed.emit(false)
+	changed.emit(false, false)
 
 
 func get_specific_angular_momentum() -> float:
@@ -1237,7 +1240,7 @@ func set_specific_angular_momentum(value: float) -> void:
 		_semi_major_axis = INF
 		_mean_motion = 0.0
 		_specific_energy = 0.0
-	changed.emit(false)
+	changed.emit(false, false)
 
 
 # *****************************************************************************
@@ -1424,3 +1427,70 @@ func get_unit_parabola_transform_at_time(time: float, rotate_to_ecliptic := true
 	var orbit_basis := get_basis_at_time(time, rotate_to_ecliptic)
 	var basis := orbit_basis * Basis().scaled(Vector3(_semi_parameter, _semi_parameter, 1.0))
 	return Transform3D(basis, Vector3.ZERO)
+
+
+# *****************************************************************************
+# serialize/deserialize
+
+
+func serialize() -> PackedFloat64Array:
+	var data := PackedFloat64Array()
+	data.resize(27)
+	data[0] = float(_reference_plane_type)
+	data[1] = _reference_basis[0][0]
+	data[2] = _reference_basis[0][1]
+	data[3] = _reference_basis[0][2]
+	data[4] = _reference_basis[1][0]
+	data[5] = _reference_basis[1][1]
+	data[6] = _reference_basis[1][2]
+	data[7] = _reference_basis[2][0]
+	data[8] = _reference_basis[2][1]
+	data[9] = _reference_basis[2][2]
+	data[10] = _semi_parameter
+	data[11] = _eccentricity
+	data[12] = _inclination
+	data[13] = _longitude_ascending_node
+	data[14] = _argument_periapsis
+	data[15] = _time_periapsis
+	data[16] = _gravitational_parameter
+	data[17] = _semi_major_axis
+	data[18] = _mean_motion
+	data[19] = _specific_energy
+	data[20] = _specific_angular_momentum
+	data[21] = _longitude_ascending_node_at_epoch
+	data[22] = _longitude_ascending_node_rate
+	data[23] = _argument_periapsis_at_epoch
+	data[24] = _argument_periapsis_rate
+	data[25] = _mean_anomaly
+	data[26] = _true_anomaly
+	return data
+
+
+func deserialize(data: PackedFloat64Array) -> void:
+	_reference_plane_type = int(data[0]) as ReferencePlane
+	_reference_basis[0][0] = data[1]
+	_reference_basis[0][1] = data[2]
+	_reference_basis[0][2] = data[3]
+	_reference_basis[1][0] = data[4]
+	_reference_basis[1][1] = data[5]
+	_reference_basis[1][2] = data[6]
+	_reference_basis[2][0] = data[7]
+	_reference_basis[2][1] = data[8]
+	_reference_basis[2][2] = data[9]
+	_semi_parameter = data[10]
+	_eccentricity = data[11]
+	_inclination = data[12]
+	_longitude_ascending_node = data[13]
+	_argument_periapsis = data[14]
+	_time_periapsis = data[15]
+	_gravitational_parameter = data[16]
+	_semi_major_axis = data[17]
+	_mean_motion = data[18]
+	_specific_energy = data[19]
+	_specific_angular_momentum = data[20]
+	_longitude_ascending_node_at_epoch = data[21]
+	_longitude_ascending_node_rate = data[22]
+	_argument_periapsis_at_epoch = data[23]
+	_argument_periapsis_rate = data[24]
+	_mean_anomaly = data[25]
+	_true_anomaly = data[26]

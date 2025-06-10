@@ -27,6 +27,7 @@ var _stop_sim: bool
 var _confirm_action: Callable
 
 
+
 func _ready() -> void:
 	IVGlobal.confirmation_requested.connect(_on_confirmation_requested)
 	confirmed.connect(_on_confirmed)
@@ -38,6 +39,7 @@ func _ready() -> void:
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"ui_cancel"):
 		set_input_as_handled()
+
 
 
 func _on_confirmation_requested(text: StringName, confirm_action: Callable, stop_sim := true,

@@ -20,14 +20,16 @@
 class_name IVViewSaveFlow
 extends HFlowContainer
 
-# GUI widget that contains its own RemovableViewButton (inner class) instances
-# and potentially other buttons. Requires IVViewSaveButton and IVViewManager.
-#
-# IVViewSaveButton can be added inside this container or elsewhere. IVViewButton
-# instances also can be added to this container.
-# 
-# Call init() to populate the saved view buttons and to init IVViewSaveButton
-# and IVViewSaver.
+## GUI widget that contains its own RemovableViewButton (inner class) instances
+## and potentially other buttons.
+##
+## Requires [IVViewSaveButton] and [IVViewManager].[br][br]
+##
+## [IVViewSaveButton] can be added inside this container or elsewhere. [IVViewButton]
+## instances also can be added to this container.[br][br]
+## 
+## Call init() to populate the saved view buttons and to init [IVViewSaveButton]
+## and [IVViewSaver].
 
 @onready var _view_manager: IVViewManager = IVGlobal.program[&"ViewManager"]
 
@@ -40,7 +42,7 @@ var is_cached := true
 
 func _ready() -> void:
 	IVGlobal.about_to_start_simulator.connect(_build_view_buttons)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 
 
 func init(view_save_button: IVViewSaveButton, default_view_name_ := &"LABEL_CUSTOM1",
@@ -60,7 +62,7 @@ func init(view_save_button: IVViewSaveButton, default_view_name_ := &"LABEL_CUST
 		_build_view_buttons()
 
 
-func _clear() -> void:
+func _clear_procedural() -> void:
 	for child in get_children():
 		if child is RemovableViewButton:
 			child.queue_free()

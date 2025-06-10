@@ -23,7 +23,8 @@ extends RefCounted
 ## A representation of a solar system view, optionally including camera
 ## state, HUDs state, and/or time state.
 ##
-## This class is designed to be persisted via gamesave or cache.
+## This class is designed to be persisted via gamesave or cache. There are no
+## references to objects.
 ##
 ## TODO: Hotkey bindings!
 
@@ -51,12 +52,10 @@ const NULL_VECTOR3 := Vector3(-INF, -INF, -INF)
 const PERSIST_MODE := IVGlobal.PERSIST_PROCEDURAL
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"flags",
-	
 	&"selection_name",
 	&"camera_flags",
 	&"view_position",
 	&"view_rotations",
-	
 	&"name_visible_flags",
 	&"symbol_visible_flags",
 	&"orbit_visible_flags",
@@ -65,20 +64,28 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"body_orbit_colors",
 	&"sbg_points_colors",
 	&"sbg_orbits_colors",
-	
 	&"time",
 	&"speed_index",
 	&"is_reversed",
 ]
 
+
+static var replacement_subclass: Script # subclass only
+
+static var _version_hash := PERSIST_PROPERTIES.hash() + 4 # test for cache is 'bad'
+static var _camera_handler: IVCameraHandler
+static var _body_huds_state: IVBodyHUDsState
+static var _sbg_huds_state: IVSBGHUDsState
+static var _timekeeper: IVTimekeeper
+static var _is_class_instanced := false
+
+
 # persisted
 var flags := 0 # what state does this View have?
-
 var selection_name := &""
 var camera_flags := 0 # IVCamera.CameraFlags
 var view_position := NULL_VECTOR3
 var view_rotations := NULL_VECTOR3
-
 var name_visible_flags := 0 # exclusive w/ symbol_visible_flags
 var symbol_visible_flags := 0 # exclusive w/ name_visible_flags
 var orbit_visible_flags := 0
@@ -87,19 +94,17 @@ var visible_orbits_groups: Array[StringName] = []
 var body_orbit_colors: Dictionary[int, Color] = {} # has non-default only
 var sbg_points_colors: Dictionary[StringName, Color] = {} # has non-default only
 var sbg_orbits_colors: Dictionary[StringName, Color] = {} # has non-default only
-
 var time := 0.0
 var speed_index := 0
 var is_reversed := false
 
 
-# private
-static var _version_hash := PERSIST_PROPERTIES.hash() + 4 # test for cache is 'bad'
-static var _camera_handler: IVCameraHandler
-static var _body_huds_state: IVBodyHUDsState
-static var _sbg_huds_state: IVSBGHUDsState
-static var _timekeeper: IVTimekeeper
-static var _is_class_instanced := false
+
+static func create() -> IVView:
+	if replacement_subclass:
+		@warning_ignore("unsafe_method_access")
+		return replacement_subclass.new()
+	return IVView.new()
 
 
 
@@ -112,7 +117,6 @@ func _init() -> void:
 		_timekeeper = IVGlobal.program[&"Timekeeper"]
 
 
-# public API
 
 func save_state(save_flags: int) -> void:
 	flags = save_flags
@@ -129,7 +133,6 @@ func set_state(is_camera_instant_move := false) -> void:
 
 
 # IVViewManager functions
-
 
 func reset() -> void:
 	# back to init state
