@@ -6,6 +6,14 @@ File format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 See cloning and downloading instructions [here](https://www.ivoyager.dev/developers/).
 
+## [v0.0.26] - UNRELEASED
+
+Developed using Godot 4.4.1
+
+### Changed
+* Removed BodyFlags.EXISTS.
+
+
 ## [v0.0.25] - 2025-06-12
 
 Developed using Godot 4.4.1
@@ -33,6 +41,7 @@ Developed using Godot 4.4.1
 * Hilda asteroids now maintain aphelion inside Jupiter's L3, L4, L5 points from 3000 BC - 3000 AD. (Due to precessions implementation.)
 * Tadpole orbits for Jupiter Trojans now have propper distal "tails".
 
+
 ## [v0.0.24] - 2025-03-31
 
 Developed using Godot 4.4.
@@ -54,6 +63,7 @@ good quality shadows you also need ProjectSettings:
 ### Fixed
 * v0.0.23 regression where IVMouseTargetLabel failed to display shader targets (asteroids and orbit lines).
 
+
 ## [v0.0.23] - 2025-03-20
 
 Developed using Godot 4.4.
@@ -73,6 +83,7 @@ Developed using Godot 4.4.
 ### Fixed
 * Nav button and view save bugs related to 'pressed', 'button_pressed' misuse.
 
+
 ## [v0.0.22] - 2025-03-07
 
 Developed using Godot 4.3. **We will update to 4.4 in the next release!**
@@ -87,13 +98,15 @@ Developed using Godot 4.3.
 
 ### Changed
 * Now requires plugins 'ivoyager_tables' and 'ivoyager_units'. (These resulted from splitting the now-depreciated 'ivoyager_table_importer' plugin.)
-  
+
+
 ## [v0.0.20] - 2024-12-20
 
 Developed using Godot 4.3.
 
 ### Fixed
 * Export breaking reference to EditorInterface outside of EditorPlugin.
+
 
 ## [v0.0.19] - 2024-12-16
 
@@ -128,7 +141,6 @@ Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_tab
 
 Requires **ivoyager_assets-0.0.18**. **_NEW! The plugin will update this for you! Just press 'Download' at the dialog prompt._** (Alternatively, download [here](https://github.com/ivoyager/non_release_assets/releases/tag/2024-01-29).)
 
-
 ### Added
 * Assets download & version management! The editor plugin checks presence and version of ivoyager_assets, and offers to download and add (or replace) as appropriate.
 * Class documentation using Godot ## tags (work-in-progress).
@@ -153,6 +165,7 @@ Requires **ivoyager_assets-0.0.18**. **_NEW! The plugin will update this for you
 ### Fixed
 * [Migration regression] Fixed array type error causing crash in `IVTimekeeper.is_valid_gregorian_date()`.
 
+
 ## v0.0.17 - 2023-10-03
 
 Developed using Godot 4.1.1.
@@ -173,6 +186,7 @@ Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_tab
 ##
 I, Voyager projects v0.0.16 and earlier used a different core submodule [ivoyager](https://github.com/ivoyager/ivoyager) (now depreciated); see previous changelog [here](https://github.com/ivoyager/ivoyager/blob/master/CHANGELOG.md).
 
+[v0.0.26]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.25...HEAD
 [v0.0.25]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.24...v0.0.25
 [v0.0.24]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.23...v0.0.24
 [v0.0.23]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.22...v0.0.23

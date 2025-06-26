@@ -156,8 +156,7 @@ enum BodyFlags {
 	# program mechanics
 	BODYFLAGS_LAZY_MODEL = 1 << 23,
 	BODYFLAGS_CAN_SLEEP = 1 << 24,
-	BODYFLAGS_DISABLE_MODEL_SPACE = 1 << 25, ## @deprecate
-	BODYFLAGS_EXISTS = 1 << 26, ## @deprecate
+	BODYFLAGS_DISABLE_MODEL_SPACE = 1 << 25,
 	
 	# GUI
 	BODYFLAGS_SHOW_IN_NAVIGATION_PANEL = 1 << 29, ## Show in GUI "Navigation" panel.
@@ -293,7 +292,6 @@ static func create(name: StringName, flags: int, mean_radius: float, gravitation
 	assert(flags > 0, "IVBody requires non-zero flags")
 	
 	rotation_at_epoch = fposmod(rotation_at_epoch, TAU)
-	flags |= BodyFlags.BODYFLAGS_EXISTS
 	
 	assert(bool(flags & BodyFlags.BODYFLAGS_GALAXY_ORBITER) == (orbit == null))
 	assert(!(flags & BodyFlags.BODYFLAGS_AXIS_LOCKED) or flags & BodyFlags.BODYFLAGS_TIDALLY_LOCKED,
@@ -358,7 +356,6 @@ static func create_from_astronomy_specs(
 	assert(flags > 0, "IVBody requires non-zero flags")
 	
 	rotation_at_epoch = fposmod(rotation_at_epoch, TAU)
-	flags |= BodyFlags.BODYFLAGS_EXISTS
 	
 	assert(bool(flags & BodyFlags.BODYFLAGS_GALAXY_ORBITER) == (orbit == null))
 	assert(!(flags & BodyFlags.BODYFLAGS_AXIS_LOCKED) or flags & BodyFlags.BODYFLAGS_TIDALLY_LOCKED,
@@ -1027,12 +1024,9 @@ func remove_child_from_model_space(node3d: Node3D) -> void:
 	model_space.remove_child(node3d)
 
 
-## @deprecated
+## Removes model(s) but everything else remains (label & orbit HUDs, etc.).
 func remove_and_disable_model_space() -> void:
-	# Removes model(s) but everything else remains (label & orbit HUDs, etc.).
-	# Unsets BodyFlags.BODYFLAGS_EXISTS.
 	flags |= BodyFlags.BODYFLAGS_DISABLE_MODEL_SPACE
-	flags &= ~BodyFlags.BODYFLAGS_EXISTS
 	if model_space:
 		model_space.queue_free()
 	model_space = null
