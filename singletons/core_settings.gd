@@ -106,8 +106,13 @@ var body_labels_use_orbit_color := false
 ## See [IVCacheHandler].
 var cache_dir := "user://cache"
 
-## [IVTableInitializer] sends this value to the 
-## [url=https://github.com/ivoyager/ivoyager_tables]Tables plugin[/url].
+## Table field used to build [member IVTableData.wiki_lookup].
+## Disabled (&"") by default. Set to &"wiki.en" to use English Wikipedia
+## page titles present in base I, Voyager tables. The actual value used by
+## [IVTableInitializer] is overridden if [IVGlobal.settings] has &"wiki_table_field".
+var wiki_table_field := &"" # e.g., &"en.wiki" (&"" for disabled)
+
+## @depricate
 var enable_wiki := false
 ## [IVTableInitializer] sends this value to the 
 ## [url=https://github.com/ivoyager/ivoyager_tables]Tables plugin[/url].

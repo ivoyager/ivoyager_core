@@ -66,12 +66,16 @@ func _init() -> void:
 	IVGlobal.project_initializers_instantiated.connect(_on_project_initializers_instantiated)
 
 
-
 func _on_project_initializers_instantiated() -> void:
+	
+	var wiki_table_field := IVCoreSettings.wiki_table_field
+	if IVGlobal.settings.has(&"wiki_table_field"):
+		wiki_table_field = IVGlobal.settings[&"wiki_table_field"]
+	
 	IVTableData.postprocess_tables(
 			tables.values(),
 			IVQConvert.convert_quantity,
-			IVCoreSettings.enable_wiki,
+			wiki_table_field,
 			IVCoreSettings.enable_precisions,
 			merge_overwrite_table_constants,
 			merge_overwrite_missing_values,

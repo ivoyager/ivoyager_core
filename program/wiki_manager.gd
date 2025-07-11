@@ -20,39 +20,65 @@
 class_name IVWikiManager
 extends RefCounted
 
-## Manages response to [code]open_wiki_requested[/code] signal from IVGlobal.
+## Centralizes wiki page requests and (if enabled) opens external wiki pages.
 ##
-## FIXME: Many loose ends after shift to Table Importer plugin...
+## To enable external wiki, set [member open_external_page] = true. Set other
+## properties for target url and default language (Wikipedia.org and "en" by default).
+## Or connect to [signal wiki_requested] to manage an internal wiki.[br][br]
 ##
-## For internal wiki, set IVCoreSettings.enable_wiki and IVCoreSettings.use_internal_wiki. You
-## can then either 1) extend this class and override _open_internal_wiki(), or
-## 2) hook up directly to IVGlobal signal "open_wiki_requested". If the latter,
-## you can safely erase this class from IVCoreInitializer.prog_refs.
+## [member default_language] will be overriden if there is a setting "wiki_language"
+## that differs (requires restart).[br][br]
+##
+##
+## WIP - Depricate [signal IVGlobal.wiki_requested]. All GUI must call API directly.
+
+
+
+signal wiki_requested(page_title: String)
+
+
+var open_external_page := false
+var url_format := "https://%s.wikipedia.org/wiki/%s"
+var default_language := "en" ## Overridden by setting "wiki_language", if present.
+
+var _wiki_lookup := IVTableData.wiki_lookup
+var _language: String
+
 
 
 #var _wiki_titles: Dictionary = IVTableData.wiki_lookup
-var _wiki: String = IVGlobal.wiki # "wiki" (internal), "en.wikipedia", etc.
-var _wiki_url: String 
+#var _wiki: String = IVGlobal.wiki # "wiki" (internal), "en.wikipedia", etc.
+#var _wiki_url: String 
 
 
 
 func _init() -> void:
 	if !IVCoreSettings.enable_wiki:
 		return
-	IVGlobal.open_wiki_requested.connect(_open_wiki)
-	if !IVCoreSettings.use_internal_wiki:
-		_wiki_url = "https://" + _wiki + ".org/wiki/"
+	IVGlobal.project_inited.connect(_on_project_inited)
+	IVGlobal.wiki_requested.connect(_open)
 
 
-
-func _open_wiki(wiki_title: String) -> void:
-	if _wiki_url:
-		var url := _wiki_url + wiki_title
-		prints("Opening external link:", url)
-		OS.shell_open(url)
-	else:
-		_open_internal_wiki(wiki_title)
+func _on_project_inited() -> void:
+	_language = default_language
+	if IVGlobal.settings.has(&"wiki_language"):
+		_language = IVGlobal.settings[&"wiki_language"]
 
 
-func _open_internal_wiki(_wiki_title: String) -> void:
-	pass
+func has_page(entity_name: StringName) -> bool:
+	return _wiki_lookup.has(entity_name)
+
+
+func open_page(entity_name: StringName) -> void:
+	if !_wiki_lookup.has(entity_name):
+		return
+	var page_title := _wiki_lookup[entity_name]
+	wiki_requested.emit(page_title)
+	if open_external_page:
+		OS.shell_open(url_format % [_language, page_title])
+
+
+# DEPRICATE: Use function calls
+func _open(page_title: String) -> void:
+	wiki_requested.emit(page_title)
+	OS.shell_open(url_format % [_language, page_title])

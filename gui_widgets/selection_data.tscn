@@ -1,11 +1,37 @@
-[gd_scene load_steps=2 format=3 uid="uid://b58glkdlp7x1i"]
+[gd_scene load_steps=3 format=3 uid="uid://dcy30ki8dt6lw"]
 
-[ext_resource type="Script" uid="uid://cyqe41v8qidsw" path="res://addons/ivoyager_core/gui_widgets/selection_data.gd" id="1"]
+[ext_resource type="Script" uid="uid://nt75w2ax2vnq" path="res://addons/ivoyager_core/gui_widgets/selection_data.gd" id="1_6f12g"]
+[ext_resource type="PackedScene" uid="uid://7qlw5d0aln6u" path="res://addons/ivoyager_core/gui_widgets/selection_data_foldable.tscn" id="2_52mjq"]
 
 [node name="SelectionData" type="VBoxContainer"]
 offset_right = 40.0
 offset_bottom = 40.0
 size_flags_horizontal = 3
-script = ExtResource("1")
+script = ExtResource("1_6f12g")
 
-[node name="Timer" type="Timer" parent="."]
+[node name="OrbitalCharacteristics" parent="." instance=ExtResource("2_52mjq")]
+layout_mode = 2
+title = "LABEL_ORBITAL_CHARACTERISTICS"
+wiki_labels = true
+
+[node name="PhysicalCharacteristics" parent="." instance=ExtResource("2_52mjq")]
+layout_mode = 2
+title = "LABEL_PHYSICAL_CHARACTERISTICS"
+wiki_labels = true
+wiki_values = true
+
+[node name="Atmosphere" parent="." instance=ExtResource("2_52mjq")]
+layout_mode = 2
+title = "LABEL_ATMOSPHERE"
+
+[node name="AtmosphereComposition" parent="Atmosphere" instance=ExtResource("2_52mjq")]
+layout_mode = 2
+title = "LABEL_ATMOSPHERE_COMPOSITION_BY_VOLUME"
+
+[node name="TraceAtmosphereComposition" parent="Atmosphere" instance=ExtResource("2_52mjq")]
+layout_mode = 2
+title = "LABEL_TRACE_ATMOSPHERE_COMPOSITION_BY_VOLUME"
+
+[node name="PhotosphereComposition" parent="." instance=ExtResource("2_52mjq")]
+layout_mode = 2
+title = "LABEL_PHOTOSPHERE_COMPOSITON_BY_WEIGHT"

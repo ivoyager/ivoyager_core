@@ -20,12 +20,11 @@
 class_name IVSelectionWikiLink
 extends RichTextLabel
 
-## GUI widget.
+## GUI widget that displays the selection name as a wiki link.
 ##
-## An ancestor Control node must have property [param selection_manager]
-## set to an [IVSelectionManager] before [signal IVGlobal.about_to_start_simulator].[br][br]
-##
-## TODO: Recode all hyperlinks with an IVHyperlinkManager.[br][br]
+## This node needs to connect to an [IVSelectionManager]. At sim start it will
+## attempt to find one by searching up the ancestry tree for a Control with property
+## [param selection_manager].[br][br]
 ##
 ## Note: RichTextLabel seems unable to set its own size. You have to set this
 ## node's rect_min_size for it to show (as of Godot 3.2.1).
@@ -78,5 +77,5 @@ func _on_wiki_clicked(_meta: String) -> void:
 	var object_name: String = _selection_manager.get_selection_name()
 	if !_wiki_titles.has(object_name):
 		return
-	var wiki_title: String = _wiki_titles[object_name]
-	IVGlobal.open_wiki_requested.emit(wiki_title)
+	var page_title: String = _wiki_titles[object_name]
+	IVGlobal.wiki_requested.emit(page_title)

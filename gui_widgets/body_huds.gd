@@ -283,8 +283,8 @@ func _resize_columns_to_en_width(delay_frames := 0) -> void:
 
 
 func _on_meta_clicked(_meta: String, row_name: StringName) -> void:
-	var wiki_title: String = _wiki_titles[row_name]
-	IVGlobal.open_wiki_requested.emit(wiki_title)
+	var page_title: String = _wiki_titles[row_name]
+	IVGlobal.wiki_requested.emit(page_title)
 
 
 func _settings_listener(setting: StringName, _value: Variant) -> void:

@@ -8,9 +8,13 @@ See cloning and downloading instructions [here](https://www.ivoyager.dev/develop
 
 ## [v0.0.26] - UNRELEASED
 
-Developed using Godot 4.4.1
+Developed using Godot 4.5.beta7
+
+### Added
+* GUI widget IVSelectionDataFoldable using the new FoldableContainer.
 
 ### Changed
+* GUI widget IVSelectionData recoded to use with IVSelectionDataFoldable.
 * Removed BodyFlags.EXISTS.
 
 

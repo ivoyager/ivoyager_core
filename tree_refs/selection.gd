@@ -132,7 +132,7 @@ func get_global_origin() -> Vector3:
 	return spatial.global_position
 
 
-func get_flags() -> int:
+func get_body_flags() -> int:
 	if !is_body:
 		return 0
 	return body.flags
@@ -177,6 +177,35 @@ func get_star_orbiter() -> IVBody:
 	if !is_body:
 		return null
 	return body.star_orbiter
+
+
+func get_periapsis_label() -> StringName:
+	if is_body:
+		var parent := body.parent
+		if parent:
+			if parent.name == &"PLANET_EARTH":
+				return &"LABEL_PERIGEE"
+			if parent.name == &"STAR_SUN":
+				return &"LABEL_PERIHELION"
+	return &"LABEL_PERIAPSIS"
+
+
+func get_apoapsis_label() -> StringName:
+	if is_body:
+		var parent := body.parent
+		if parent:
+			if parent.name == &"PLANET_EARTH":
+				return &"LABEL_APOGEE"
+			if parent.name == &"STAR_SUN":
+				return &"LABEL_APHELION"
+	return &"LABEL_APOAPSIS"
+
+
+func get_characteristic(key: StringName) -> Variant:
+	if !is_body:
+		return null
+	return body.get_characteristic(key)
+
 
 
 func _init_after_system(_dummy: bool) -> void:

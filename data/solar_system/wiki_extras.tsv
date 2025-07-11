@@ -45,4 +45,4 @@ LABEL_TEMP_CORONA	Stellar_corona
 LABEL_TEMP_PHOTOSPHERE	Photosphere
 LABEL_VELOCITY_VS_CMB	Cosmic_microwave_background
 SYSTEM_SOLAR_SYSTEM	Solar_System
-@WIKI_LOOKUP	
+@WIKI_ONLY	
