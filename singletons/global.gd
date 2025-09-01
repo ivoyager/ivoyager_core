@@ -89,7 +89,6 @@ signal hotkeys_requested()
 signal credits_requested()
 signal help_requested() # hooked up in Planetarium
 signal close_all_admin_popups_requested() # main menu, options, etc.
-signal wiki_requested(page_title: String) ## @depricate: Use function calls in IVWikiManager.
 signal show_hide_gui_requested(is_toggle: bool, is_show: bool) # 2nd arg ignored if is_toggle
 
 

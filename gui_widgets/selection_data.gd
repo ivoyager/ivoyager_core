@@ -91,7 +91,7 @@ var selection_content: Dictionary[StringName, Array] = {
 		[&"LABEL_NAT_SATELLITES", "body/characteristics/n_nat_satellites"],
 		[&"LABEL_KN_NAT_SATELLITES", "body/characteristics/n_kn_nat_satellites"],
 		[&"LABEL_KN_QUASI_SATELLITES", "body/characteristics/n_kn_quasi_satellites"],
-	],
+	] as Array[Array],
 	PhysicalCharacteristics = [
 		[&"LABEL_CLASSIFICATION", "body/characteristics/body_class",
 			table_row_name.bind(&"body_classes")],
@@ -123,7 +123,7 @@ var selection_content: Dictionary[StringName, Array] = {
 		[&"LABEL_ROTATION_PERIOD", "body/get_rotation_period", fixed_unit.bind(&"d", true, 5)],
 		[&"LABEL_AXIAL_TILT_TO_ORBIT", "body/get_axial_tilt_to_orbit", axial_tilt_to_orbit],
 		[&"LABEL_AXIAL_TILT_TO_ECLIPTIC", "body/get_axial_tilt_to_ecliptic", axial_tilt_to_ecliptic],
-	],
+	] as Array[Array],
 	Atmosphere = [
 		[&"LABEL_SURFACE_PRESSURE", "body/characteristics/surf_pres", prefixed_unit.bind(&"bar")],
 		[&"LABEL_TRACE_PRESSURE", "body/characteristics/trace_pres", prefixed_unit.bind(&"Pa")],
@@ -134,16 +134,16 @@ var selection_content: Dictionary[StringName, Array] = {
 		[&"LABEL_TEMP_AT_1_BAR", "body/characteristics/one_bar_t", fixed_unit.bind(&"degC")],
 		[&"LABEL_TEMP_AT_HALF_BAR", "body/characteristics/half_bar_t", fixed_unit.bind(&"degC")],
 		[&"LABEL_TEMP_AT_10TH_BAR", "body/characteristics/tenth_bar_t", fixed_unit.bind(&"degC")],
-	],
+	] as Array[Array],
 	AtmosphereComposition = [
 		[null, "body/components/atmosphere", mulitline_labels_values]
-	],
+	] as Array[Array],
 	TraceAtmosphereComposition = [
 		[null, "body/components/trace_atmosphere", mulitline_labels_values]
-	],
+	] as Array[Array],
 	PhotosphereComposition = [
 		[null, "body/components/photosphere", mulitline_labels_values]
-	]
+	] as Array[Array]
 }
 
 

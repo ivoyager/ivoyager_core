@@ -37,10 +37,9 @@ const BodyFlags := IVBody.BodyFlags
 
 
 
-static var _wiki_titles: Dictionary = IVTableData.wiki_lookup
-static var _enable_wiki: bool
-static var _body_huds_state: IVBodyHUDsState
-static var _is_class_instanced := false
+## Allows row lables to be wiki links, but only if [IVWikiManager] exists and
+## [method IVWikiManager.has_page] returns true.
+@export var allow_wiki_links := false
 
 
 var has_headers := true
@@ -69,14 +68,9 @@ var _orbits_ckbxs: Array[CheckBox] = []
 var _orbits_color_pkrs: Array[ColorPickerButton] = []
 
 @onready var _n_rows := rows.size()
+@onready var _body_huds_state: IVBodyHUDsState = IVGlobal.program[&"BodyHUDsState"]
+@onready var _wiki_manager: IVWikiManager = IVGlobal.program.get(&"WikiManager")
 
-
-
-func _init() -> void:
-	if !_is_class_instanced:
-		_is_class_instanced = true
-		_enable_wiki = IVCoreSettings.enable_wiki
-		_body_huds_state = IVGlobal.program[&"BodyHUDsState"]
 
 
 func _ready() -> void:
@@ -113,19 +107,18 @@ func _ready() -> void:
 		# row label
 		var row_name: StringName = rows[i][0]
 		var is_indent: bool = rows[i][2]
-		if _enable_wiki and _wiki_titles.has(row_name):
+		var row_indent := indent if is_indent else ""
+		if allow_wiki_links and _wiki_manager and _wiki_manager.has_page(row_name):
 			var rtlabel := RichTextLabel.new()
-			rtlabel.meta_clicked.connect(_on_meta_clicked.bind(row_name))
+			rtlabel.meta_clicked.connect(_on_meta_clicked)
 			rtlabel.bbcode_enabled = true
 			rtlabel.fit_content = true
 			rtlabel.scroll_active = false
-			if is_indent:
-				rtlabel.text = indent
-			rtlabel.text += "[url]" + tr(row_name) + "[/url]"
+			rtlabel.parse_bbcode('%s[url="%s"]%s[/url]' % [row_indent, row_name, tr(row_name)])
 			add_child(rtlabel)
 		else:
 			var label := Label.new()
-			label.text = indent + tr(row_name) if is_indent else tr(row_name)
+			label.text = row_indent + tr(row_name)
 			add_child(label)
 		
 		# names/symbols
@@ -282,9 +275,8 @@ func _resize_columns_to_en_width(delay_frames := 0) -> void:
 		child.size.x = min_width
 
 
-func _on_meta_clicked(_meta: String, row_name: StringName) -> void:
-	var page_title: String = _wiki_titles[row_name]
-	IVGlobal.wiki_requested.emit(page_title)
+func _on_meta_clicked(meta: String) -> void:
+	_wiki_manager.open_page(meta)
 
 
 func _settings_listener(setting: StringName, _value: Variant) -> void:

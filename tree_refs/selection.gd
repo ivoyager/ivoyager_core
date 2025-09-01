@@ -22,12 +22,14 @@ extends RefCounted
 
 ## Wrapper class for anything that can be selected.
 ##
-## TODO: Restructure so that this is a component. Any object can then be
-## selectable by having this component.
-##
 ## [IVSelectionManager] keeps an instance of this class as current selection
 ## and maintains selection history. In `ivoyager_core` we only select [IVBody]
-## instances, but this class could be extended to wrap anything.
+## instances, but this class could be extended to wrap anything.[br][br]
+##
+## FIXME: [member gui_name] needs setter check to ensure no bbcode. Currently,
+## if user were allowed to rename something (e.g., a spaceship), they could
+## crash certain GUI widgets by entering bbcode if wiki is enabled.
+
 
 const CameraFlags := IVCamera.CameraFlags
 const BodyFlags := IVBody.BodyFlags

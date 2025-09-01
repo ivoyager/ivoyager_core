@@ -32,8 +32,8 @@ extends FoldableContainer
 ## key. See [IVSelectionData] for format details and example dictionaries.[br][br]
 ##
 ## This node needs to connect to an [IVSelectionManager]. At sim start it will
-## attempt to find one by searching up the ancestry tree for a Control with property
-## [param selection_manager].[br][br]
+## attempt to find one by searching up the ancestry tree for a Control with
+## property [param selection_manager].[br][br]
 ##
 ## [IVSelectionDataFoldable] instances can be nested or include other Controls
 ## as children with this scene's GridContainer child. If >1 Control children
@@ -77,7 +77,6 @@ var _is_content_control_visible: bool
 
 func _ready() -> void:
 	assert(_wiki_manager or !(wiki_labels or wiki_values))
-	IVGlobal.setting_changed.connect(_settings_listener)
 	if update_interval > 0.0:
 		_timer = Timer.new()
 		add_child(_timer)
@@ -87,7 +86,10 @@ func _ready() -> void:
 	IVGlobal.about_to_start_simulator.connect(_configure)
 	if IVGlobal.state[&"is_started_or_about_to_start"]:
 		_configure()
+	IVGlobal.update_gui_requested.connect(_update_selection)
 	_arrange_child_controls()
+	IVGlobal.setting_changed.connect(_settings_listener)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 
 
 func _arrange_child_controls() -> void:
@@ -109,7 +111,6 @@ func _configure(_dummy := false) -> void:
 	_reset_column_widths()
 	_connect_content_control()
 	_connect_selection_manager()
-	_update_selection()
 
 
 func _connect_content_control() -> void:
@@ -120,7 +121,7 @@ func _connect_content_control() -> void:
 	_is_content_control_visible = _content_control.is_visible_in_tree()
 	var selection_content: Dictionary[StringName, Array] = _content_control.get(&"selection_content")
 	assert(selection_content.has(name), "Expected this node's name as key in 'selection_content'")
-	_content = Array(selection_content[name], TYPE_ARRAY, &"", null)
+	_content = selection_content[name]
 	if &"valid_tests" in _content_control:
 		var valid_tests: Dictionary[StringName, Callable] = _content_control.get(&"valid_tests")
 		if valid_tests.has(name):
@@ -133,6 +134,10 @@ func _connect_selection_manager() -> void:
 	_selection_manager = IVSelectionManager.get_selection_manager(self)
 	assert(_selection_manager, "Did not find valid 'selection_manager' above this node")
 	_selection_manager.selection_changed.connect(_update_selection)
+
+
+func _clear_procedural() -> void:
+	_selection_manager = null
 
 
 func _on_content_control_visibility_changed() -> void:
@@ -150,7 +155,7 @@ func _update_selection(_dummy := false) -> void:
 		_dirty = true
 		return
 	_dirty = false
-	var selection := _selection_manager.selection
+	var selection := _selection_manager.get_selection()
 	if !selection:
 		hide()
 		return
@@ -322,7 +327,6 @@ func _set_top_row_cell_widths() -> void:
 
 
 func _on_meta_clicked(meta: String) -> void:
-	assert(meta)
 	_wiki_manager.open_page(meta)
 
 
