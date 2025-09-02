@@ -52,6 +52,13 @@ static var tables: Dictionary[StringName, String] = {
 	wiki_extras = table_base_path % "wiki_extras",
 }
 
+## Table fields used to build [member IVTableData.wiki_page_titles_by_field].
+## Empty by default. Append &"wiki.en" to use English Wikipedia
+## page titles present in base I, Voyager tables (these are target page titles
+## for English language Wikipedia.org).
+static var wiki_page_title_fields: Array[StringName] = []
+
+
 static var merge_overwrite_table_constants: Dictionary[StringName, Variant] = {
 	&"3000_BC" : -50.0 * IVUnits.CENTURY,
 	&"3000_AD" : +10.0 * IVUnits.CENTURY,
@@ -68,14 +75,10 @@ func _init() -> void:
 
 func _on_project_initializers_instantiated() -> void:
 	
-	var wiki_table_field := IVCoreSettings.wiki_table_field
-	if IVGlobal.settings.has(&"wiki_table_field"):
-		wiki_table_field = IVGlobal.settings[&"wiki_table_field"]
-	
 	IVTableData.postprocess_tables(
 			tables.values(),
 			IVQConvert.convert_quantity,
-			wiki_table_field,
+			wiki_page_title_fields,
 			IVCoreSettings.enable_precisions,
 			merge_overwrite_table_constants,
 			merge_overwrite_missing_values,

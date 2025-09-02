@@ -22,49 +22,67 @@ extends RefCounted
 
 ## Centralizes wiki page requests and (if enabled) opens external wiki pages.
 ##
+## This manager can be removed if external project does not use a wiki.[br][br]
+##
+## This manager uses language-specific "page title" dictionaries in
+## [member IVTableData.wiki_page_titles_by_field]. To populate these,
+## append wiki field names to [member IVTableInitializer.wiki_page_title_fields].[br][br]
+##
 ## To enable external wiki, set [member open_external_page] = true. Set other
 ## properties for target url and default language as needed (by default, these
 ## are Wikipedia.org and English). To open an internal wiki, connect to
 ## [signal wiki_requested].[br][br]
 ##
-## [member default_language] will be overriden if there is a setting "wiki_language"
-## that differs (requires restart).[br][br]
+## [member external_default_language] will be overriden if there is a setting
+## "external_wiki_language".[br][br]
+##
+## TODO: IVLanguageManager and setting "language". Changing the language setting
+## changes external url here from dictionary.
+##
 
 signal wiki_requested(page_title: String)
 
 
-var open_external_page := false
-var url_format := "https://%s.wikipedia.org/wiki/%s"
-var default_language := "en" ## Manager uses setting "wiki_language", if present.
+var page_title_table_field := &"en.wiki"
 
-var _wiki_page_lookup: Dictionary[StringName, String]
-var _language: String
+var open_external_page := false
+var external_url_format := "https://%s.wikipedia.org/wiki/%s"
+var external_default_language := "en" ## Manager uses setting "external_wiki_language" if present.
+
+
+var _wiki_page_titles: Dictionary[StringName, String]
+var _external_language: String
 
 
 
 func _init() -> void:
-	if !IVCoreSettings.enable_wiki:
-		return
 	IVGlobal.project_inited.connect(_on_project_inited)
 
 
 
 func has_page(entity_name: StringName) -> bool:
-	return _wiki_page_lookup.has(entity_name)
+	return _wiki_page_titles.has(entity_name)
 
 
 func open_page(entity_name: StringName) -> void:
-	if !_wiki_page_lookup.has(entity_name):
+	if !_wiki_page_titles.has(entity_name):
 		return
-	var page_title := _wiki_page_lookup[entity_name]
+	var page_title := _wiki_page_titles[entity_name]
 	wiki_requested.emit(page_title)
 	if open_external_page:
-		OS.shell_open(url_format % [_language, page_title])
+		OS.shell_open(external_url_format % [_external_language, page_title])
 
 
 
 func _on_project_inited() -> void:
-	_wiki_page_lookup = IVTableData.wiki_lookup
-	_language = default_language
-	if IVGlobal.settings.has(&"wiki_language"):
-		_language = IVGlobal.settings[&"wiki_language"]
+	if IVTableData.wiki_page_titles_by_field.has(page_title_table_field):
+		_wiki_page_titles = IVTableData.wiki_page_titles_by_field[page_title_table_field]
+	_external_language = external_default_language
+	if IVGlobal.settings.has(&"external_wiki_language"):
+		_external_language = IVGlobal.settings[&"external_wiki_language"]
+	IVGlobal.setting_changed.connect(_settings_listener)
+
+
+func _settings_listener(setting: StringName, value: Variant) -> void:
+	if setting == &"external_wiki_language":
+		_external_language = value

@@ -105,7 +105,6 @@ var initializers: Dictionary[StringName, Variant] = {
 	# Path to RefCounted class ok.
 	SettingsManager = IVSettingsManager, # "initializer" so IVGlobal.settings are valid
 	ResourceInitializer = IVResourceInitializer, # self-removes
-	WikiInitializer = IVWikiInitializer, # self-removes
 	TranslationImporter = IVTranslationImporter, # self-removes
 	TableInitializer = IVTableInitializer, # self-removes
 	InputMapManager = IVInputMapManager,

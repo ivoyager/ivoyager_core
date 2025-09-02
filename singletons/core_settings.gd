@@ -19,7 +19,7 @@
 # *****************************************************************************
 extends Node
 
-## Added as singleton 'IVCoreSettings'.
+## Added as singleton "IVCoreSettings".
 ##
 ## Modify properties or dictionary classes using res://ivoyager_override.cfg.
 ## Alternatively, you can modify values here using an initializer script. (See
@@ -79,9 +79,6 @@ var disable_exit := false
 ## See [IVStateManager].
 var disable_quit := false
 
-## @experimental: Not implemented yet, but see [IVWikiManager].
-var use_internal_wiki := false
-
 ## From J2000 epoch.
 var start_time: float = 22.0 * IVUnits.YEAR
 var start_camera_fov: float = IVMath.get_fov_from_focal_length(24.0)
@@ -98,22 +95,11 @@ var vertecies_per_orbit: int = 500
 var vertecies_per_orbit_low_res: int = 100 # for 10000s of small bodies like asteroids
 var open_conic_max_radius := 1000.0 # for unit conic (p = 1.0)
 var max_camera_distance: float = 5e3 * IVUnits.AU
-
 var body_labels_color := Color.WHITE
 ## If true, overrides [member body_labels_color].
 var body_labels_use_orbit_color := false
-
 ## See [IVCacheHandler].
 var cache_dir := "user://cache"
-
-## Table field used to build [member IVTableData.wiki_lookup].
-## Disabled (&"") by default. Set to &"wiki.en" to use English Wikipedia
-## page titles present in base I, Voyager tables. The actual value used by
-## [IVTableInitializer] is overridden if [IVGlobal.settings] has &"wiki_table_field".
-var wiki_table_field := &"" # e.g., &"en.wiki" (&"" for disabled)
-
-## @depricate
-var enable_wiki := false
 ## [IVTableInitializer] sends this value to the 
 ## [url=https://github.com/ivoyager/ivoyager_tables]Tables plugin[/url].
 var enable_precisions := false
@@ -145,8 +131,6 @@ var text_colors: Dictionary[StringName, Color] = {
 	flag = Color.FUCHSIA,
 }
 
-## @experimental: See [IVWikiManager].
-var wikipedia_locales: Array[String] = ["en"]
 
 ## Holds all data tables that specify IVBody instances. Used by [IVAssetPreloader]
 ## and [IVTableSystemBuilder] (and possibly elsewhere).

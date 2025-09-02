@@ -30,9 +30,8 @@ extends RichTextLabel
 ## with underline. It will display non-underlined plain text if any of these
 ## conditions occur:[br][br]
 ##
-## 1. IVCoreSettings.enable_wiki == false.[br]
-## 2. IVWikiManager doesn't exist.[br]
-## 3. IVWikiManager.has_page() returns false for the selection name.
+## 1. IVWikiManager doesn't exist.[br]
+## 2. IVWikiManager.has_page() returns false for the selection name.
 
 
 var _selection_manager: IVSelectionManager

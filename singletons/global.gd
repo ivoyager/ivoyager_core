@@ -189,8 +189,8 @@ var project := {}
 var ivoyager_version: String
 ## Read-only!
 var assets_version: String
-## Read-only! [IVWikiInitializer] sets this to "wiki" (internal), "en.wiki", etc.
-var wiki: String
+
+
 ## Read-only! The plugin ConfigFile generated from res://addons/ivoyager_core/ivoyager_core.cfg
 ## with possible overrides in res://ivoyager_override.cfg and res://ivoyager_override2.cfg.
 var ivoyager_config: ConfigFile = IVPluginUtils.get_config_with_override(
