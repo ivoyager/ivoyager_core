@@ -55,6 +55,7 @@ const DPRINT := true
 	[
 		{
 			&"header" : &"LABEL_GUI_AND_HUD",
+			&"language" : &"LABEL_LANGUAGE",
 			&"gui_size" : &"LABEL_GUI_SIZE",
 			&"viewport_names_size" : &"LABEL_NAMES_SIZE",
 			&"viewport_symbols_size" : &"LABEL_SYMBOLS_SIZE",
@@ -68,7 +69,9 @@ const DPRINT := true
 	],
 ]
 
+# These can be enums or enum-like static dictionaries.
 @export var setting_enums := {
+	language = IVLanguageManager.language_settings,
 	gui_size = IVGlobal.GUISize,
 	starmap = IVGlobal.StarmapSize,
 }

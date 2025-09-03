@@ -46,6 +46,7 @@ static var defaults: Dictionary[StringName, Variant] = {
 	&"camera_key_roll_rate" : 1.0,
 
 	# UI & HUD display
+	&"language" : 0,
 	&"gui_size" : IVGlobal.GUISize.GUI_MEDIUM,
 	&"viewport_names_size" : 15,
 	&"viewport_symbols_size" : 25,
