@@ -12,7 +12,7 @@ Developed using Godot 4.5.beta7.
 
 ### Added
 * GUI widget IVSelectionDataFoldable using the new FoldableContainer.
-* IVLanguageManager and "Language" as a user option. [b]But we need translations![/b]
+* IVLanguageManager and "Language" as a user option. [b]We're ready for translations![/b]
 
 ### Changed
 * GUI widget IVSelectionData recoded to use with IVSelectionDataFoldable.

@@ -22,41 +22,49 @@ extends RefCounted
 
 ## Centralizes wiki page requests and (if enabled) opens external wiki pages.
 ##
-## This manager can be removed if external project does not use a wiki.[br][br]
+## This manager can be removed if project does not use an internal or external
+## wiki.[br][br]
 ##
-## This manager uses language-specific "page title" dictionaries in
-## [member IVTableData.wiki_page_titles_by_field]. To populate these,
-## append wiki field names to [member IVTableInitializer.wiki_page_title_fields].[br][br]
+## This manager uses language-specific "page titles" that are specified in .tsv
+## data tables for table entities or wiki-linked text keys. Relevant dictionaries
+## are in [IVTableData]. To populate these dictionaries, wiki field names must
+## be specified in the call to [method IVTableData.postprocess_tables] by
+## appending to [member IVTableInitializer.wiki_page_title_fields].[br][br]
 ##
-## To enable external wiki, set [member open_external_page] = true. Set other
-## properties for target url and default language as needed (by default, these
-## are Wikipedia.org and English). To open an internal wiki, connect to
-## [signal wiki_requested].[br][br]
+## To enable external wiki pages (e.g., Wikipedia.org), set [member open_external_page]
+## = true and [member external_url_formats] for supported languages.[br][br]
 ##
-## [member external_default_language] will be overriden if there is a setting
-## "external_wiki_language".[br][br]
-##
-## TODO: IVLanguageManager and setting "language". Changing the language setting
-## changes external url here from dictionary.
-##
+## To implement an internal wiki, connect to [signal wiki_requested].
 
+
+## Connect to implement an internal wiki mechanic. (I, Voyager Core emits but
+## does not connect to this signal.)
 signal wiki_requested(page_title: String)
 
 
-var page_title_table_field := &"en.wiki"
-
+## Set true to open external URL specified in [member external_url_formats].
 var open_external_page := false
-var external_url_format := "https://%s.wikipedia.org/wiki/%s"
-var external_default_language := "en" ## Manager uses setting "external_wiki_language" if present.
+## Table column field names indexed by language codes.
+var table_fields: Dictionary[StringName, StringName] = {
+	en = &"en.wiki"
+}
+## External URL format strings indexed by language codes. Only used if
+## [member open_external_page] == true.
+var external_url_formats: Dictionary[StringName, String] = {
+	en = "https://en.wikipedia.org/wiki/%s"
+}
+## Fallback if the current language code is not in [member table_fields].
+var fallback_language_code := &"en"
 
 
 var _wiki_page_titles: Dictionary[StringName, String]
-var _external_language: String
+var _external_url_format: String
 
 
 
 func _init() -> void:
-	IVGlobal.project_inited.connect(_on_project_inited)
+	IVGlobal.project_inited.connect(_set_language)
+	IVGlobal.setting_changed.connect(_settings_listener)
 
 
 
@@ -70,19 +78,24 @@ func open_page(entity_name: StringName) -> void:
 	var page_title := _wiki_page_titles[entity_name]
 	wiki_requested.emit(page_title)
 	if open_external_page:
-		OS.shell_open(external_url_format % [_external_language, page_title])
+		OS.shell_open(_external_url_format % page_title)
 
 
 
-func _on_project_inited() -> void:
-	if IVTableData.wiki_page_titles_by_field.has(page_title_table_field):
-		_wiki_page_titles = IVTableData.wiki_page_titles_by_field[page_title_table_field]
-	_external_language = external_default_language
-	if IVGlobal.settings.has(&"external_wiki_language"):
-		_external_language = IVGlobal.settings[&"external_wiki_language"]
-	IVGlobal.setting_changed.connect(_settings_listener)
+func _set_language() -> void:
+	var language_setting: int = IVGlobal.settings[&"language"]
+	var code := IVLanguageManager.get_code_for_setting(language_setting)
+	if !table_fields.has(code):
+		code = fallback_language_code
+	var table_field := table_fields[code]
+	assert(IVTableData.has_wiki_page_titles(table_field))
+	_wiki_page_titles = IVTableData.get_wiki_page_titles(table_field)
+	if !open_external_page:
+		return
+	assert(external_url_formats.has(code))
+	_external_url_format = external_url_formats[code]
 
 
-func _settings_listener(setting: StringName, value: Variant) -> void:
-	if setting == &"external_wiki_language":
-		_external_language = value
+func _settings_listener(setting: StringName, _value: Variant) -> void:
+	if setting == &"language":
+		_set_language()
