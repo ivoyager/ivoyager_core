@@ -53,7 +53,7 @@ static var tables: Dictionary[StringName, String] = {
 }
 
 ## Table fields used to build [member IVTableData.wiki_page_titles_by_field].
-## Empty by default. Append &"wiki.en" to use English Wikipedia
+## Empty by default. Append &"wikipedia.en" to use English Wikipedia
 ## page titles present in base I, Voyager tables (these are target page titles
 ## for English language Wikipedia.org).
 static var wiki_page_title_fields: Array[StringName] = []

@@ -25,16 +25,18 @@ extends RefCounted
 ## This manager is not added in base configuration! Add it to
 ## [member IVCoreInitializer.program_refcounteds] if needed.[br][br]
 ##
-## This manager uses language-specific "page titles" that are specified in .tsv
+## This manager uses language-specific "page titles" that are specified in *.tsv
 ## data tables for table entities or wiki-linked text keys. Relevant dictionaries
 ## are in [IVTableData]. To populate these dictionaries, wiki field names must
 ## be specified in the call to [method IVTableData.postprocess_tables] by
 ## appending to [member IVTableInitializer.wiki_page_title_fields].[br][br]
 ##
 ## To enable external wiki pages (e.g., Wikipedia.org), set [member open_external_page]
-## = true and [member external_url_formats] for supported languages.[br][br]
+## to [code]true[/code] and add to or modify [member external_url_formats] for
+## supported languages.[br][br]
 ##
-## To implement an internal wiki, connect to [signal wiki_requested].
+## To implement an internal wiki, connect to [signal wiki_requested]. You'll
+## likely want to create and specify new page title field(s) in your data tables.
 
 
 ## Connect to implement an internal wiki mechanic. (I, Voyager Core emits but
@@ -48,9 +50,9 @@ var open_external_page := false
 var table_fields: Dictionary[StringName, StringName] = {
 	en = &"en.wikipedia"
 }
-## External URL format strings indexed by language codes. Used only if
-## [member open_external_page] == true. If used, this dictionary should have
-## the same keys as [member table_fields].
+## External URL format strings indexed by language codes. Page title will be
+## inserted at "%s". Used only if [member open_external_page] == true. If used,
+## this dictionary must have the same keys as [member table_fields].
 var external_url_formats: Dictionary[StringName, String] = {
 	en = "https://en.wikipedia.org/wiki/%s"
 }
