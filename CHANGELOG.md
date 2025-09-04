@@ -15,9 +15,10 @@ Developed using Godot 4.5.beta7.
 * IVLanguageManager and "Language" as a user option. [b]We're ready for translations![/b]
 
 ### Changed
-* GUI widget IVSelectionData recoded to use with IVSelectionDataFoldable.
-* Removed BodyFlags.EXISTS.
+* Recoded GUI widget IVSelectionData to work with the new IVSelectionDataFoldable.
 * [API breaking] Removed IVGlobal signal "wiki_requested" (all GUI uses IVWikiManager API instead).
+* Renamed table field "en.wiki" to "en.wikipedia" (these are Wikipedia.org page titles).
+* Removed BodyFlags.EXISTS.
 
 
 ## [v0.0.25] - 2025-06-12

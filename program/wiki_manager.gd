@@ -22,8 +22,8 @@ extends RefCounted
 
 ## Centralizes wiki page requests and (if enabled) opens external wiki pages.
 ##
-## This manager can be removed if project does not use an internal or external
-## wiki.[br][br]
+## This manager is not added in base configuration! Add it to
+## [member IVCoreInitializer.program_refcounteds] if needed.[br][br]
 ##
 ## This manager uses language-specific "page titles" that are specified in .tsv
 ## data tables for table entities or wiki-linked text keys. Relevant dictionaries
@@ -46,10 +46,11 @@ signal wiki_requested(page_title: String)
 var open_external_page := false
 ## Table column field names indexed by language codes.
 var table_fields: Dictionary[StringName, StringName] = {
-	en = &"en.wiki"
+	en = &"en.wikipedia"
 }
-## External URL format strings indexed by language codes. Only used if
-## [member open_external_page] == true.
+## External URL format strings indexed by language codes. Used only if
+## [member open_external_page] == true. If used, this dictionary should have
+## the same keys as [member table_fields].
 var external_url_formats: Dictionary[StringName, String] = {
 	en = "https://en.wikipedia.org/wiki/%s"
 }
@@ -63,8 +64,7 @@ var _external_url_format: String
 
 
 func _init() -> void:
-	IVGlobal.project_inited.connect(_set_language)
-	IVGlobal.setting_changed.connect(_settings_listener)
+	IVGlobal.project_inited.connect(_on_project_inited)
 
 
 
@@ -80,6 +80,16 @@ func open_page(entity_name: StringName) -> void:
 	if open_external_page:
 		OS.shell_open(_external_url_format % page_title)
 
+
+func _on_project_inited() -> void:
+	if IVTableData.wiki_page_titles_by_field.is_empty():
+		push_warning("IVWikiManager is present but no page title fields were set in IVTableData")
+		# Bail out here: has_page() will always return false & open_page() does nothing.
+		return
+	var fallback_table_field := table_fields[fallback_language_code]
+	assert(IVTableData.has_wiki_page_titles(fallback_table_field), "Fallback table field not found")
+	IVGlobal.setting_changed.connect(_settings_listener)
+	_set_language()
 
 
 func _set_language() -> void:

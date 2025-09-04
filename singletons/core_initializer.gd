@@ -133,7 +133,6 @@ var program_refcounteds: Dictionary[StringName, Variant] = {
 	SleepManager = IVSleepManager,
 	LazyModelInitializer = IVLazyModelInitializer,
 	LanguageManager = IVLanguageManager,
-	WikiManager = IVWikiManager,
 }
 
 var program_nodes: Dictionary[StringName, Variant] = {
