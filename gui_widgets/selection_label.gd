@@ -20,10 +20,11 @@
 class_name IVSelectionLabel
 extends Label
 
-## GUI widget.
+## GUI widget that displays the selection name as plain text.
 ##
-## An ancestor Control node must have property [param selection_manager]
-## set to an [IVSelectionManager] before [signal IVGlobal.about_to_start_simulator].[br][br]
+## This node needs to connect to an [IVSelectionManager]. At sim start it will
+## attempt to find one by searching up the ancestry tree for a Control with
+## property [param selection_manager].
 
 
 var _selection_manager: IVSelectionManager
@@ -32,9 +33,10 @@ var _selection_manager: IVSelectionManager
 
 func _ready() -> void:
 	IVGlobal.about_to_start_simulator.connect(_connect_selection_manager)
+	if IVGlobal.state[&"is_started_or_about_to_start"]:
+		_connect_selection_manager()
 	IVGlobal.update_gui_requested.connect(_update_selection)
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
-	_connect_selection_manager()
 
 
 
@@ -44,15 +46,11 @@ func _clear_procedural() -> void:
 
 func _connect_selection_manager(_dummy := false) -> void:
 	if _selection_manager:
-		return
+		_selection_manager.selection_changed.disconnect(_update_selection)
 	_selection_manager = IVSelectionManager.get_selection_manager(self)
-	if !_selection_manager:
-		return
+	assert(_selection_manager, "Did not find valid 'selection_manager' above this node")
 	_selection_manager.selection_changed.connect(_update_selection)
-	_update_selection()
 
 
 func _update_selection(_dummy := false) -> void:
-	if !_selection_manager.has_selection():
-		return
 	text = _selection_manager.get_gui_name()

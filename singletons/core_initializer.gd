@@ -100,15 +100,13 @@ var preinitializers: Dictionary[StringName, Variant] = {
 
 var initializers: Dictionary[StringName, Variant] = {
 	# RefCounted classes. IVCoreInitializer instances these after
-	# 'preinitializers'. Some of these classes may erase themselves from
+	# 'preinitializers'. Many of these instances may erase themselves from
 	# dictionary 'IVGlobal.program' after init, thereby freeing themselves.
 	# Path to RefCounted class ok.
+	SettingsManager = IVSettingsManager, # "initializer" so IVGlobal.settings are valid
 	ResourceInitializer = IVResourceInitializer, # self-removes
-	WikiInitializer = IVWikiInitializer, # self-removes
 	TranslationImporter = IVTranslationImporter, # self-removes
 	TableInitializer = IVTableInitializer, # self-removes
-	
-	SettingsManager = IVSettingsManager, # "initializer" so IVGlobal.settings are valid
 	InputMapManager = IVInputMapManager,
 	AssetPreloader = IVAssetPreloader,
 }
@@ -134,7 +132,7 @@ var program_refcounteds: Dictionary[StringName, Variant] = {
 	ThemeManager = IVThemeManager, # after IVFontManager; ok to replace
 	SleepManager = IVSleepManager,
 	LazyModelInitializer = IVLazyModelInitializer,
-	WikiManager = IVWikiManager,
+	LanguageManager = IVLanguageManager,
 }
 
 var program_nodes: Dictionary[StringName, Variant] = {

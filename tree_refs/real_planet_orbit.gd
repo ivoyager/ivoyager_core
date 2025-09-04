@@ -593,6 +593,19 @@ func get_mean_longitude_at_epoch() -> float:
 # *****************************************************************************
 # Orbit spatial derivations
 
+## Periapsis may evolve in this subclass.
+func get_periapsis_at_time(time: float) -> float:
+	var a := get_semi_major_axis_at_time(time)
+	var e := get_eccentricity_at_time(time) # always < 1.0 in this subclass
+	return a * (1.0 - e)
+
+
+## Apoapsis may evolve in this subclass.
+func get_apoapsis_at_time(time: float) -> float:
+	var a := get_semi_major_axis_at_time(time)
+	var e := get_eccentricity_at_time(time) # always < 1.0 in this subclass
+	return a * (1.0 + e)
+
 
 ## See [method IVOrbit.get_normal_at_time].
 func get_normal_at_time(time: float, rotate_to_ecliptic := true, flip_retrograde := false) -> Vector3:

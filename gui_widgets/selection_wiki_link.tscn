@@ -10,4 +10,5 @@ bbcode_enabled = true
 text = "Wikipedia"
 fit_content = true
 scroll_active = false
+autowrap_mode = 0
 script = ExtResource("1")

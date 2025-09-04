@@ -89,7 +89,6 @@ signal hotkeys_requested()
 signal credits_requested()
 signal help_requested() # hooked up in Planetarium
 signal close_all_admin_popups_requested() # main menu, options, etc.
-signal open_wiki_requested(wiki_title: String)
 signal show_hide_gui_requested(is_toggle: bool, is_show: bool) # 2nd arg ignored if is_toggle
 
 
@@ -190,8 +189,8 @@ var project := {}
 var ivoyager_version: String
 ## Read-only!
 var assets_version: String
-## Read-only! [IVWikiInitializer] sets this to "wiki" (internal), "en.wiki", etc.
-var wiki: String
+
+
 ## Read-only! The plugin ConfigFile generated from res://addons/ivoyager_core/ivoyager_core.cfg
 ## with possible overrides in res://ivoyager_override.cfg and res://ivoyager_override2.cfg.
 var ivoyager_config: ConfigFile = IVPluginUtils.get_config_with_override(

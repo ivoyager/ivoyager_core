@@ -54,7 +54,7 @@ func _on_latitude_longitude_changed(lat_long: Vector2, is_ecliptic: bool, select
 	const PITCH_YAW := IVQFormat.LatitudeLongitudeType.PITCH_YAW
 	var lat_long_type := N_S_E_W
 	if !is_ecliptic:
-		var flags := selection.get_flags()
+		var flags := selection.get_body_flags()
 		if flags & BODYFLAGS_USE_CARDINAL_DIRECTIONS:
 			lat_long_type = N_S_E_W
 		elif flags & BODYFLAGS_USE_PITCH_YAW:

@@ -20,39 +20,94 @@
 class_name IVWikiManager
 extends RefCounted
 
-## Manages response to [code]open_wiki_requested[/code] signal from IVGlobal.
+## Centralizes wiki page requests and (if enabled) opens external wiki pages.
 ##
-## FIXME: Many loose ends after shift to Table Importer plugin...
+## This manager is not added in base configuration! Add it to
+## [member IVCoreInitializer.program_refcounteds] if needed.[br][br]
 ##
-## For internal wiki, set IVCoreSettings.enable_wiki and IVCoreSettings.use_internal_wiki. You
-## can then either 1) extend this class and override _open_internal_wiki(), or
-## 2) hook up directly to IVGlobal signal "open_wiki_requested". If the latter,
-## you can safely erase this class from IVCoreInitializer.prog_refs.
+## This manager uses language-specific "page titles" that are specified in *.tsv
+## data tables for table entities or wiki-linked text keys. Relevant dictionaries
+## are in [IVTableData]. To populate these dictionaries, wiki field names must
+## be specified in the call to [method IVTableData.postprocess_tables] by
+## appending to [member IVTableInitializer.wiki_page_title_fields].[br][br]
+##
+## To enable external wiki pages (e.g., Wikipedia.org), set [member open_external_page]
+## to [code]true[/code] and add to or modify [member external_url_formats] for
+## supported languages.[br][br]
+##
+## To implement an internal wiki, connect to [signal wiki_requested]. You'll
+## likely want to create and specify new page title field(s) in your data tables.
 
 
-#var _wiki_titles: Dictionary = IVTableData.wiki_lookup
-var _wiki: String = IVGlobal.wiki # "wiki" (internal), "en.wikipedia", etc.
-var _wiki_url: String 
+## Connect to implement an internal wiki mechanic. (I, Voyager Core emits but
+## does not connect to this signal.)
+signal wiki_requested(page_title: String)
+
+
+## Set true to open external URL specified in [member external_url_formats].
+var open_external_page := false
+## Table column field names indexed by language codes.
+var table_fields: Dictionary[StringName, StringName] = {
+	en = &"en.wikipedia"
+}
+## External URL format strings indexed by language codes. Page title will be
+## inserted at "%s". Used only if [member open_external_page] == true. If used,
+## this dictionary must have the same keys as [member table_fields].
+var external_url_formats: Dictionary[StringName, String] = {
+	en = "https://en.wikipedia.org/wiki/%s"
+}
+## Fallback if the current language code is not in [member table_fields].
+var fallback_language_code := &"en"
+
+
+var _wiki_page_titles: Dictionary[StringName, String]
+var _external_url_format: String
 
 
 
 func _init() -> void:
-	if !IVCoreSettings.enable_wiki:
+	IVGlobal.project_inited.connect(_on_project_inited)
+
+
+
+func has_page(entity_name: StringName) -> bool:
+	return _wiki_page_titles.has(entity_name)
+
+
+func open_page(entity_name: StringName) -> void:
+	if !_wiki_page_titles.has(entity_name):
 		return
-	IVGlobal.open_wiki_requested.connect(_open_wiki)
-	if !IVCoreSettings.use_internal_wiki:
-		_wiki_url = "https://" + _wiki + ".org/wiki/"
+	var page_title := _wiki_page_titles[entity_name]
+	wiki_requested.emit(page_title)
+	if open_external_page:
+		OS.shell_open(_external_url_format % page_title)
 
 
+func _on_project_inited() -> void:
+	if IVTableData.wiki_page_titles_by_field.is_empty():
+		push_warning("IVWikiManager is present but no page title fields were set in IVTableData")
+		# Bail out here: has_page() will always return false & open_page() does nothing.
+		return
+	var fallback_table_field := table_fields[fallback_language_code]
+	assert(IVTableData.has_wiki_page_titles(fallback_table_field), "Fallback table field not found")
+	IVGlobal.setting_changed.connect(_settings_listener)
+	_set_language()
 
-func _open_wiki(wiki_title: String) -> void:
-	if _wiki_url:
-		var url := _wiki_url + wiki_title
-		prints("Opening external link:", url)
-		OS.shell_open(url)
-	else:
-		_open_internal_wiki(wiki_title)
+
+func _set_language() -> void:
+	var language_setting: int = IVGlobal.settings[&"language"]
+	var code := IVLanguageManager.get_code_for_setting(language_setting)
+	if !table_fields.has(code):
+		code = fallback_language_code
+	var table_field := table_fields[code]
+	assert(IVTableData.has_wiki_page_titles(table_field))
+	_wiki_page_titles = IVTableData.get_wiki_page_titles(table_field)
+	if !open_external_page:
+		return
+	assert(external_url_formats.has(code))
+	_external_url_format = external_url_formats[code]
 
 
-func _open_internal_wiki(_wiki_title: String) -> void:
-	pass
+func _settings_listener(setting: StringName, _value: Variant) -> void:
+	if setting == &"language":
+		_set_language()

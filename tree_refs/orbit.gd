@@ -1299,7 +1299,7 @@ func get_mean_longitude_rate() -> float:
 
 
 # *****************************************************************************
-# Orbit spatial derivations
+# Derivable other
 
 
 func is_retrograde() -> bool:
@@ -1311,6 +1311,41 @@ func is_retrograde() -> bool:
 func is_retrograde_at_time(_time: float) -> bool:
 	const RIGHT_ANGLE := PI / 2
 	return _inclination > RIGHT_ANGLE
+
+
+func get_periapsis() -> float:
+	return _semi_parameter / (1.0 + _eccentricity)
+
+
+## Note: periapsis does not evolve in the base IVOrbit class, but it may in a subclass.
+func get_periapsis_at_time(_time: float) -> float:
+	return _semi_parameter / (1.0 + _eccentricity)
+
+
+func get_apoapsis() -> float:
+	if _eccentricity < 1.0:
+		return _semi_parameter / (1.0 - _eccentricity)
+	return INF
+
+
+## Note: periapsis does not evolve in the base IVOrbit class, but it may in a subclass.
+func get_apoapsis_at_time(_time: float) -> float:
+	if _eccentricity < 1.0:
+		return _semi_parameter / (1.0 - _eccentricity)
+	return INF
+
+
+func get_period() -> float:
+	if _eccentricity < 1.0:
+		return TAU / _mean_motion
+	return INF
+
+
+## Note: period does not evolve in the base IVOrbit class, but it may in a subclass.
+func get_period_at_time(_time: float) -> float:
+	if _eccentricity < 1.0:
+		return TAU / _mean_motion
+	return INF
 
 
 ## Returns the instantaneous orbit normal. Return can be in the ecliptic basis or the orbit

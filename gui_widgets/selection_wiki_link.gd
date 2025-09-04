@@ -20,33 +20,32 @@
 class_name IVSelectionWikiLink
 extends RichTextLabel
 
-## GUI widget.
+## GUI widget that displays the selection name as a wiki link.
 ##
-## An ancestor Control node must have property [param selection_manager]
-## set to an [IVSelectionManager] before [signal IVGlobal.about_to_start_simulator].[br][br]
+## This node needs to connect to an [IVSelectionManager]. At sim start it will
+## attempt to find one by searching up the ancestry tree for a Control with
+## property [param selection_manager].[br][br]
 ##
-## TODO: Recode all hyperlinks with an IVHyperlinkManager.[br][br]
+## This widget will attempt to display the current selection as a wiki link
+## with underline. It will display non-underlined plain text if any of these
+## conditions occur:[br][br]
 ##
-## Note: RichTextLabel seems unable to set its own size. You have to set this
-## node's rect_min_size for it to show (as of Godot 3.2.1).
-## Note 2: Set IVCoreSettings.enable_wiki = true
+## 1. IVWikiManager doesn't exist.[br]
+## 2. IVWikiManager.has_page() returns false for the selection name.
 
 
-var use_selection_as_text := true # otherwise, "Wikipedia"
-var fallback_text := &"LABEL_WIKIPEDIA"
-
-var _wiki_titles: Dictionary = IVTableData.wiki_lookup
 var _selection_manager: IVSelectionManager
 
+@onready var _wiki_manager: IVWikiManager = IVGlobal.program.get(&"WikiManager")
 
 
 func _ready() -> void:
 	IVGlobal.about_to_start_simulator.connect(_connect_selection_manager)
+	if IVGlobal.state[&"is_started_or_about_to_start"]:
+		_connect_selection_manager()
 	IVGlobal.update_gui_requested.connect(_update_selection)
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
-	meta_clicked.connect(_on_wiki_clicked)
-	size_flags_horizontal = SIZE_EXPAND_FILL
-	_connect_selection_manager()
+	meta_clicked.connect(_on_meta_clicked)
 
 
 
@@ -56,27 +55,20 @@ func _clear_procedural() -> void:
 
 func _connect_selection_manager(_dummy := false) -> void:
 	if _selection_manager:
-		return
+		_selection_manager.selection_changed.disconnect(_update_selection)
 	_selection_manager = IVSelectionManager.get_selection_manager(self)
-	if !_selection_manager:
-		return
-	if use_selection_as_text:
-		_selection_manager.selection_changed.connect(_update_selection)
-	else:
-		text = "[url]" + tr(fallback_text) + "[/url]"
-	_update_selection()
+	assert(_selection_manager, "Did not find valid 'selection_manager' above this node")
+	_selection_manager.selection_changed.connect(_update_selection)
 
 
 func _update_selection(_dummy := false) -> void:
-	if !_selection_manager.has_selection():
-		return
-	var object_name: String = _selection_manager.get_gui_name()
-	text = "[url]" + tr(object_name) + "[/url]"
+	var selection_name := _selection_manager.get_selection_name()
+	var gui_name := _selection_manager.get_gui_name()
+	if _wiki_manager and _wiki_manager.has_page(selection_name):
+		parse_bbcode('[url="%s"]%s[/url]' % [selection_name, gui_name])
+	else:
+		parse_bbcode(gui_name)
 
 
-func _on_wiki_clicked(_meta: String) -> void:
-	var object_name: String = _selection_manager.get_selection_name()
-	if !_wiki_titles.has(object_name):
-		return
-	var wiki_title: String = _wiki_titles[object_name]
-	IVGlobal.open_wiki_requested.emit(wiki_title)
+func _on_meta_clicked(meta: String) -> void:
+	_wiki_manager.open_page(meta)

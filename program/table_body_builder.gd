@@ -232,11 +232,11 @@ func _on_project_objects_instantiated() -> void:
 
 func _set_table_data_precisions(table_name: StringName, row: int,
 		precisions: Dictionary[String, int]) -> void:
-	var precision_array := IVTableData.get_db_float_precisions(create_fields, table_name, row)
+	var precision_array := IVTableData.get_db_float_precisions(table_name, create_fields, row)
 	for i in create_fields.size():
 		if precision_array[i] != -1:
 			precisions["body/" + create_fields[i]] = precision_array[i]
-	precision_array = IVTableData.get_db_float_precisions(characteristics_fields, table_name, row)
+	precision_array = IVTableData.get_db_float_precisions(table_name, characteristics_fields, row)
 	for i in characteristics_fields.size():
 		if precision_array[i] != -1:
 			precisions["body/characteristics/" + characteristics_fields[i]] = precision_array[i]

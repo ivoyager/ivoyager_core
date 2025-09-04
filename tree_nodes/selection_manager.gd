@@ -131,11 +131,11 @@ static func get_body_above_selection(selection_: IVSelection) -> IVBody:
 
 
 static func get_body_at_above_selection_w_flags(selection_: IVSelection, flags: int) -> IVBody:
-	if selection_.get_flags() & flags:
+	if selection_.get_body_flags() & flags:
 		return selection_.body
 	while selection_.up_selection_name:
 		selection_ = get_or_make_selection(selection_.up_selection_name)
-		if selection_.get_flags() & flags:
+		if selection_.get_body_flags() & flags:
 			return selection_.body
 	return null
 

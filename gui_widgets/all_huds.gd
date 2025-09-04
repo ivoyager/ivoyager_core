@@ -24,7 +24,9 @@ extends VBoxContainer
 ##
 ## The scene is composed of widget classes:
 ## [IVBodyHUDs], [IVSBGHUDs], [IVViewButton], [IVViewSaveFlow] and
-## [IVViewSaveButton].
+## [IVViewSaveButton].[br][br]
+##
+## TODO: Recode as a content-only node (as IVSelectionData). 
 
 const BodyFlags: Dictionary = IVBody.BodyFlags
 const ViewFlags := IVView.ViewFlags

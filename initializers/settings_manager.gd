@@ -46,6 +46,7 @@ static var defaults: Dictionary[StringName, Variant] = {
 	&"camera_key_roll_rate" : 1.0,
 
 	# UI & HUD display
+	&"language" : 0,
 	&"gui_size" : IVGlobal.GUISize.GUI_MEDIUM,
 	&"viewport_names_size" : 15,
 	&"viewport_symbols_size" : 25,
@@ -76,7 +77,6 @@ var _current := IVGlobal.settings
 func _init() -> void:
 	cache_handler = IVCacheHandler.new(defaults, _current, file_name, file_version)
 	cache_handler.current_changed.connect(_on_current_changed)
-
 
 
 ## If [param suppress_caching] == true, be sure to call [method cache_now] later.
@@ -112,7 +112,6 @@ func is_cache_current() -> bool:
 
 func restore_from_cache() -> void:
 	cache_handler.restore_from_cache()
-
 
 
 func _on_current_changed(key: StringName, new_value: Variant) -> void:

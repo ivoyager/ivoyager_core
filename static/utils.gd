@@ -150,6 +150,16 @@ static func get_bit_string(flags: int, bytes := 4) -> String:
 	return result
 
 
+# GUI
+
+## Returns the width of the current font's "en space" character.
+static func get_en_space_width(control: Control, name := &"normal", theme_type := &"Label"
+		) -> float:
+	var font: FontFile = control.get_theme_font(name, theme_type)
+	var font_size := font.fixed_size
+	return font.get_char_size("\u2000".unicode_at(0), font_size).x
+
+
 # Patches
 
 ## Patch method to handle "\u", which is not handled by Godot's [code]c_unescape()[/code].

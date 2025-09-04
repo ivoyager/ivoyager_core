@@ -8,9 +8,16 @@ See cloning and downloading instructions [here](https://www.ivoyager.dev/develop
 
 ## [v0.0.26] - UNRELEASED
 
-Developed using Godot 4.4.1
+Developed using Godot 4.5.beta7.
+
+### Added
+* GUI widget IVSelectionDataFoldable using the new FoldableContainer.
+* IVLanguageManager and "Language" as a user option. [b]We're ready for translations![/b]
 
 ### Changed
+* Recoded GUI widget IVSelectionData to work with the new IVSelectionDataFoldable.
+* [API breaking] Removed IVGlobal signal "wiki_requested" (all GUI uses IVWikiManager API instead).
+* Renamed table field "en.wiki" to "en.wikipedia" (these are Wikipedia.org page titles).
 * Removed BodyFlags.EXISTS.
 
 
