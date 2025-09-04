@@ -41,10 +41,12 @@ extends FoldableContainer
 
 
 ## If true, row labels will be wiki links if [method IVWikiManager.has_page]
-## evaluates as true.
+## evaluates as true. Note: this property does nothing if a WikiManager is not
+## present.
 @export var wiki_labels := false
 ## If true, row values will be wiki links if [method IVWikiManager.has_page]
-## evaluates as true.
+## evaluates as true. Note: this property does nothing if a WikiManager is not
+## present.
 @export var wiki_values := false
 ## Set > 0.0 for periodic updates in seconds.
 @export var update_interval := 0.0
@@ -76,7 +78,6 @@ var _is_content_control_visible: bool
 
 
 func _ready() -> void:
-	assert(_wiki_manager or !(wiki_labels or wiki_values))
 	if update_interval > 0.0:
 		_timer = Timer.new()
 		add_child(_timer)
@@ -114,6 +115,8 @@ func _configure(_dummy := false) -> void:
 
 
 func _connect_content_control() -> void:
+	if _content_control:
+		return
 	_content_control = find_parent(content_control_match_pattern) as Control
 	assert(_content_control, "Expected an ancestor Control name matching pattern %s" %
 			content_control_match_pattern)
@@ -137,7 +140,9 @@ func _connect_selection_manager() -> void:
 
 
 func _clear_procedural() -> void:
-	_selection_manager = null
+	if _selection_manager:
+		_selection_manager.selection_changed.disconnect(_update_selection)
+		_selection_manager = null
 
 
 func _on_content_control_visibility_changed() -> void:
@@ -253,7 +258,7 @@ func _set_row(row: int, row_label: StringName, value_text: String, value_key: St
 		is_new_row = true
 		_added_rows += 1
 	
-	if wiki_labels:
+	if wiki_labels and _wiki_manager:
 		var rtlabel: RichTextLabel
 		if is_new_row:
 			rtlabel = RichTextLabel.new()
@@ -280,7 +285,7 @@ func _set_row(row: int, row_label: StringName, value_text: String, value_key: St
 			label.show()
 		label.text = row_label
 	
-	if wiki_values:
+	if wiki_values and _wiki_manager:
 		var rtvalue: RichTextLabel
 		if is_new_row:
 			rtvalue = RichTextLabel.new()
