@@ -36,6 +36,7 @@ const NULL_COLOR := Color.BLACK
 ## Allows row lables to be wiki links, but only if [IVWikiManager] exists and
 ## [method IVWikiManager.has_page] returns true.
 @export var allow_wiki_links := false
+@export var color_picker_button_theme_type := &"BorderlessColorPickerButton"
 
 var has_headers := true
 var column_master: Control # if set, column widths follow master children
@@ -155,7 +156,7 @@ func _make_color_picker_button(default_color: Color) -> ColorPickerButton:
 	button.custom_minimum_size.x = 15
 	button.custom_minimum_size.y = 15
 	button.size_flags_vertical = SIZE_SHRINK_CENTER
-	button.set(&"theme_override_fonts/font", IVGlobal.fonts.two_pt) # allow short button hack
+	button.theme_type_variation = color_picker_button_theme_type
 	button.edit_alpha = false
 	button.action_mode = BaseButton.ACTION_MODE_BUTTON_PRESS
 	var color_picker := button.get_picker()
@@ -279,18 +280,12 @@ func _resize_columns_to_en_width(delay_frames := 0) -> void:
 	# 1 delay_frames needed for font size change.
 	for i in delay_frames:
 		await get_tree().process_frame
-	
-	
-	# FIXME34: Must be a better wat to get this
-	var font: FontFile = get_theme_font(&"normal", &"Label")
-	var font_size := font.fixed_size
-	var en_width := font.get_char_size("\u2000".unicode_at(0), font_size).x
-	
-	var min_width_col0 := en_width * column0_en_width
+	var en_width := get_theme_font_size(&"normal", &"Label") * 0.5
+	var min_width_col0 := column0_en_width * en_width
 	var child: Control = get_child(0)
 	child.custom_minimum_size.x = min_width_col0
 	child.size.x = min_width_col0
-	var min_width := en_width * columns_en_width
+	var min_width := columns_en_width * en_width
 	for i in range(1, columns):
 		child = get_child(i)
 		child.custom_minimum_size.x = min_width

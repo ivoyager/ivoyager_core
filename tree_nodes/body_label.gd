@@ -20,18 +20,19 @@
 extends Label3D
 class_name IVBodyLabel
 
-## Visual text name or symbol of an [IVBody] instance.
+## Visual name or symbol of an [IVBody] instance in the 3D world.
 
 var _color: Color
 var _use_orbit_color: bool
 
 var _body_huds_state: IVBodyHUDsState = IVGlobal.program[&"BodyHUDsState"]
 var _body: IVBody
-var _name_font: Font
-var _symbol_font: Font
 var _names_visible := false
 var _symbols_visible := false
 var _body_huds_visible := false # too close / too far
+
+var _names_font_size := 16 # will change w/ global signal update_gui_requested
+var _symbols_font_size := 16 # as above
 
 
 
@@ -39,28 +40,28 @@ func _init(body: IVBody, color := Color.WHITE, use_orbit_color := false) -> void
 	_body = body
 	_color = color
 	_use_orbit_color = use_orbit_color
-	_name_font = IVGlobal.fonts[&"hud_names"]
-	_symbol_font = IVGlobal.fonts[&"hud_symbols"]
 	name = &"BodyLabel"
 
 
 func _ready() -> void:
 	_body_huds_state.visibility_changed.connect(_on_global_huds_changed)
-	_body.huds_visibility_changed.connect(_on_body_huds_changed)
 	if _use_orbit_color:
 		_body_huds_state.color_changed.connect(_set_color)
 	else:
 		modulate = _color
+	_body.huds_visibility_changed.connect(_on_body_huds_changed)
+	_body_huds_visible = _body.huds_visible
+	var theme_manager: IVThemeManager = IVGlobal.program[&"ThemeManager"]
+	font = theme_manager.get_main_font()
+	theme_manager.label3d_font_size_changed.connect(_on_font_size_changed)
+	
+	pixel_size = 0.0007 # FIXME: This needs to change with camera fov...
+	
 	horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	billboard = StandardMaterial3D.BILLBOARD_ENABLED
-	
 	fixed_size = true
-	pixel_size = 0.0006 # FIXME: Check this!
-	
-	_body_huds_visible = _body.huds_visible
 	_on_global_huds_changed()
-
 
 
 func _on_global_huds_changed() -> void:
@@ -74,20 +75,26 @@ func _on_body_huds_changed(is_visible_: bool) -> void:
 	_set_visual_state()
 
 
+func _on_font_size_changed(name_size: int, symbol_size: int) -> void:
+	_names_font_size = name_size
+	_symbols_font_size = symbol_size
+	_set_visual_state()
+
+
 func _set_visual_state() -> void:
 	if !_body_huds_visible:
-		visible = false
+		hide()
 		return
 	if _names_visible:
 		text = _body.get_hud_name()
-		font = _name_font
-		visible = true
+		font_size = _names_font_size
+		show()
 	elif _symbols_visible:
 		text = _body.get_symbol()
-		font = _symbol_font
-		visible = true
+		font_size = _symbols_font_size
+		show()
 	else:
-		visible = false
+		hide()
 
 
 func _set_color() -> void:

@@ -48,8 +48,8 @@ static var defaults: Dictionary[StringName, Variant] = {
 	# UI & HUD display
 	&"language" : 0,
 	&"gui_size" : IVGlobal.GUISize.GUI_MEDIUM,
-	&"viewport_names_size" : 15,
-	&"viewport_symbols_size" : 25,
+	&"label3d_names_size_percent" : 100,
+	&"label3d_symbols_size_percent" : 100,
 	&"point_size" : 3,
 	&"hide_hud_when_close" : true, # restart or load required
 

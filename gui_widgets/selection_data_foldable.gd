@@ -319,7 +319,7 @@ func _set_row(row: int, row_label: StringName, value_text: String, value_key: St
 
 
 func _reset_column_widths() -> void:
-	_en_width = IVUtils.get_en_space_width(self)
+	_en_width = get_theme_font_size(&"normal", &"Label") * 0.5
 	if _added_rows > 0:
 		_set_top_row_cell_widths()
 
