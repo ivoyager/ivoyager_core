@@ -75,8 +75,8 @@ func _ready() -> void:
 	if !is_dynamic_star:
 		return
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
-	IVGlobal.camera_ready.connect(_connect_camera)
-	_connect_camera(get_viewport().get_camera_3d())
+	IVGlobal.camera_ready.connect(_set_camera)
+	_set_camera(get_viewport().get_camera_3d())
 
 
 func _process(_delta: float) -> void:
@@ -97,5 +97,5 @@ func _clear_procedural() -> void:
 	_camera = null
 
 
-func _connect_camera(camera: Camera3D) -> void:
+func _set_camera(camera: Camera3D) -> void:
 	_camera = camera

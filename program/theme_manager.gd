@@ -20,37 +20,151 @@
 class_name IVThemeManager
 extends RefCounted
 
-## Populates [member IVGlobal.themes].
+## Modifies the "main" Theme (specified here or by project) and manages dynamic
+## font sizing.
+##
+## This manager adds custom theme styles that are required by some GUI widgets
+## for correct appearence. These theme "mods" can be added to or changed by
+## modifying Callables in [member main_theme_mods].[br][br]
+##
+## For font sizing (dynamic and fixed), several theme type variations are
+## are defined and managed: "MediumFont" (dynamic), "LargeFont" (dynamic),
+## "MediumFixedFont", and "LargeFixedFont". The main theme's default_font_size
+## is also dynamically managed. Font sizes are determined by this class's
+## properties and (for dynamic) the global "gui_size" setting.[br][br]
 
 
-# project vars
-var global_font := &"gui_main" # these are defined in IVFontManager
-var main_menu_font := &"large"
-var splash_screen_font := &"medium"
+## Signal provided for managing Label3D font sizing. Name and symbol sizes are
+## the the main theme's default_font_size modified by global settings
+## "label3d_names_size_percent" and "label3d_symbols_size_percent", respectively.
+signal label3d_font_size_changed(name_size: int, symbol_size: int)
 
-var _themes: Dictionary[StringName, Theme] = IVGlobal.themes
-var _fonts: Dictionary[StringName, FontFile] = IVGlobal.fonts
 
+## If set, ignore ProjectSettings/gui/theme/custom and [member fallback_theme_path].
+static var override_theme_path := ""
+## Fallback theme if [member override_theme_path] and ProjectSettings/gui/theme/custom
+## are not set.
+static var fallback_theme_path := "res://addons/ivoyager_core/resources/ivoyager_theme.tres"
+static var override_font_path := ""
+static var fallback_font_path := "res://addons/ivoyager_assets/fonts/Roboto-NotoSansSymbols-merged.ttf"
+
+var set_default_font := true
+var main_theme_mods: Array[Callable] = [
+	add_gui_font_sizes,
+	add_borderless_color_picker_button,
+]
+
+var default_font_sizes: Array[int] = [12, 16, 20] # GUI_SMALL, GUI_MEDIUM, GUI_LARGE
+var medium_font_sizes: Array[int] = [15, 20, 25]
+var large_font_sizes: Array[int] = [18, 24, 31]
+var medium_font_fixed_size := 20
+var large_font_fixed_size := 24
+
+
+var _settings := IVGlobal.settings
+var _main_theme: Theme
+var _main_font: Font
+
+
+## Returns Theme specified by [member override_theme_path], ProjectSettings/gui/theme/custom,
+## or [member fallback_theme_path], in that order of precedence.
+static func get_main_theme() -> Theme:
+	var theme: Theme
+	if override_theme_path:
+		theme = load(override_theme_path)
+		assert(theme, "IVThemeInitializer.override_theme_path is not a valid theme path")
+		return theme
+	var project_theme_path: String = ProjectSettings.get_setting("gui/theme/custom")
+	if project_theme_path:
+		theme = load(project_theme_path)
+		assert(theme, "ProjectSettings/gui/theme/custom is not a valid theme path")
+		return theme
+	theme = load(fallback_theme_path)
+	assert(theme, "IVThemeInitializer.fallback_theme_path is not a valid theme path")
+	return theme
+
+
+## Returns Font specified by [member override_font_path], ProjectSettings/gui/theme/custom_font,
+## or [member fallback_font_path], in that order of precedence.
+static func get_main_font() -> Font:
+	var main_font: Font
+	if override_font_path:
+		main_font = load(override_font_path)
+		assert(main_font, "IVThemeInitializer.override_font_path is not a valid font file")
+		return main_font
+	var project_theme_path: String = ProjectSettings.get_setting("gui/theme/custom_font")
+	if project_theme_path:
+		main_font = load(project_theme_path)
+		assert(main_font, "ProjectSettings/gui/theme/custom_font is not a valid font file")
+		return main_font
+	main_font = load(fallback_font_path)
+	assert(main_font, "IVThemeInitializer.fallback_font_path is not a valid font file")
+	return main_font
 
 
 func _init() -> void:
-	IVGlobal.project_objects_instantiated.connect(_on_project_objects_instantiated)
+	IVGlobal.setting_changed.connect(_settings_listener)
+	_main_theme = get_main_theme()
+	_main_font = get_main_font()
+	if set_default_font:
+		_main_theme.default_font = _main_font
+	for mod in main_theme_mods:
+		mod.call(_main_theme)
+	var gui_size: int = _settings[&"gui_size"]
+	_set_gui_font_sizes(gui_size)
 
 
 
-func _on_project_objects_instantiated() -> void:
-	# Make themes available in IVGlobal dictionary
-	
-	var main := Theme.new()
-	_themes[&"main"] = main
-	main.default_font = _fonts[global_font]
-	var color_picker_button_stylebox := StyleBoxTexture.new()
-	main.set_stylebox("normal", "ColorPickerButton", color_picker_button_stylebox) # remove border
-	
-	var main_menu := Theme.new()
-	_themes[&"main_menu"] = main_menu
-	main_menu.default_font = _fonts[main_menu_font]
-	
-	var splash_screen := Theme.new()
-	_themes[&"splash_screen"] = splash_screen
-	splash_screen.default_font = _fonts[splash_screen_font]
+func add_gui_font_sizes(theme: Theme) -> void:
+	theme.set_type_variation(&"MediumFont", &"Control")
+	theme.set_type_variation(&"LargeFont", &"Control")
+	theme.set_type_variation(&"MediumFixedFont", &"Control")
+	theme.set_type_variation(&"LargeFixedFont", &"Control")
+	theme.set_font_size(&"font_size", &"MediumFixedFont", medium_font_fixed_size)
+	theme.set_font_size(&"font_size", &"LargeFixedFont", large_font_fixed_size)
+
+
+func add_borderless_color_picker_button(theme: Theme) -> void:
+	var empty_stylebox := StyleBoxTexture.new()
+	theme.set_stylebox(&"normal", &"BorderlessColorPickerButton", empty_stylebox)
+	theme.set_type_variation(&"BorderlessColorPickerButton", &"ColorPickerButton")
+
+
+func get_label3d_names_font_size() -> int:
+	var gui_size: int = _settings[&"gui_size"]
+	var names_percent: int = _settings[&"label3d_names_size_percent"]
+	var default_font_size := default_font_sizes[gui_size]
+	return roundi(default_font_size * names_percent / 100.0)
+
+
+func get_label3d_symbols_font_size() -> int:
+	var gui_size: int = _settings[&"gui_size"]
+	var symbols_percent: int = _settings[&"label3d_symbols_size_percent"]
+	var default_font_size := default_font_sizes[gui_size]
+	return roundi(default_font_size * symbols_percent / 100.0)
+
+
+func _set_gui_font_sizes(gui_size: int) -> void:
+	_main_theme.default_font_size = default_font_sizes[gui_size]
+	_main_theme.set_font_size(&"font_size", &"MediumFont", medium_font_sizes[gui_size])
+	_main_theme.set_font_size(&"font_size", &"LargeFont", large_font_sizes[gui_size])
+	_set_label3d_sizes()
+
+
+func _set_label3d_sizes() -> void:
+	var gui_size: int = _settings[&"gui_size"]
+	var names_percent: int = _settings[&"label3d_names_size_percent"]
+	var symbols_percent: int = _settings[&"label3d_symbols_size_percent"]
+	var default_font_size := default_font_sizes[gui_size]
+	var names_size := roundi(default_font_size * names_percent / 100.0)
+	var symbols_size := roundi(default_font_size * symbols_percent / 100.0)
+	label3d_font_size_changed.emit(names_size, symbols_size)
+
+
+func _settings_listener(setting: StringName, value: Variant) -> void:
+	match setting:
+		&"gui_size":
+			var gui_size: int = value
+			_set_gui_font_sizes(gui_size)
+		&"label3d_names_size_percent", &"label3d_symbols_size_percent":
+			_set_label3d_sizes()

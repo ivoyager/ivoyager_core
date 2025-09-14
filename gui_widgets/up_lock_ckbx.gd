@@ -31,16 +31,22 @@ var _camera: IVCamera
 
 func _ready() -> void:
 	IVGlobal.camera_ready.connect(_connect_camera)
-	_connect_camera(get_viewport().get_camera_3d() as IVCamera)
+	IVGlobal.about_to_free_procedural_nodes.connect(_disconnect_camera)
+	_connect_camera(get_viewport().get_camera_3d())
 	pressed.connect(_on_pressed)
 
 
-func _connect_camera(camera: IVCamera) -> void:
+func _connect_camera(camera: Camera3D) -> void:
+	_disconnect_camera()
+	_camera = camera as IVCamera
+	if _camera:
+		_camera.up_lock_changed.connect(_update_ckbx)
+
+
+func _disconnect_camera() -> void:
 	if _camera and is_instance_valid(_camera):
 		_camera.up_lock_changed.disconnect(_update_ckbx)
-	_camera = camera
-	if camera:
-		camera.up_lock_changed.connect(_update_ckbx)
+		_camera = null
 
 
 func _update_ckbx(flags: int, _disable_flags: int) -> void:
@@ -49,6 +55,5 @@ func _update_ckbx(flags: int, _disable_flags: int) -> void:
 
 
 func _on_pressed() -> void:
-	if !_camera:
-		return
-	_camera.set_up_lock(button_pressed)
+	if _camera:
+		_camera.set_up_lock(button_pressed)

@@ -35,7 +35,8 @@ var _camera: IVCamera
 
 func _ready() -> void:
 	IVGlobal.camera_ready.connect(_connect_camera)
-	_connect_camera(get_viewport().get_camera_3d() as IVCamera)
+	IVGlobal.about_to_free_procedural_nodes.connect(_disconnect_camera)
+	_connect_camera(get_viewport().get_camera_3d())
 	var button_group := ButtonGroup.new()
 	button_group.pressed.connect(_on_pressed)
 	_ecliptic_checkbox.button_group = button_group
@@ -43,13 +44,17 @@ func _ready() -> void:
 	_ground_checkbox.button_group = button_group
 
 
+func _connect_camera(camera: Camera3D) -> void:
+	_disconnect_camera()
+	_camera = camera as IVCamera
+	if _camera:
+		_camera.tracking_changed.connect(_update_tracking)
 
-func _connect_camera(camera: IVCamera) -> void:
+
+func _disconnect_camera() -> void:
 	if _camera and is_instance_valid(_camera):
 		_camera.tracking_changed.disconnect(_update_tracking)
-	_camera = camera
-	if camera:
-		camera.tracking_changed.connect(_update_tracking)
+		_camera = null
 
 
 func _on_pressed(button: CheckBox) -> void:

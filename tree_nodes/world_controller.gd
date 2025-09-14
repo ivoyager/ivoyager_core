@@ -43,7 +43,8 @@ var camera: Camera3D
 var current_target: Node3D
 var cursor_shape := CURSOR_ARROW
 var mouse_position := Vector2.ZERO
-var veiwport_height := 0.0
+
+@onready var veiwport_height := get_viewport().get_visible_rect().size.y
 
 # private
 var _pause_only_stops_time: bool = IVCoreSettings.pause_only_stops_time
@@ -56,7 +57,7 @@ var _current_target_dist := INF
 
 func _init() -> void:
 	IVGlobal.about_to_free_procedural_nodes.connect(_restore_init_state)
-	IVGlobal.camera_ready.connect(_connect_camera)
+	IVGlobal.camera_ready.connect(_set_camera)
 	IVGlobal.pause_changed.connect(_on_pause_changed)
 
 
@@ -64,9 +65,7 @@ func _ready() -> void:
 	process_mode = PROCESS_MODE_ALWAYS # but some functionaly stops if !pause_only_stops_time
 	mouse_filter = MOUSE_FILTER_STOP
 	set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-	var viewport := get_viewport()
-	viewport.size_changed.connect(_on_viewport_size_changed)
-	veiwport_height = viewport.get_visible_rect().size.y
+	IVGlobal.viewport_size_changed.connect(_on_viewport_size_changed)
 
 
 func _process(_delta: float) -> void:
@@ -177,7 +176,7 @@ func _restore_init_state() -> void:
 	_drag_segment_start = Vector2.ZERO
 
 
-func _connect_camera(camera_: Camera3D) -> void:
+func _set_camera(camera_: Camera3D) -> void:
 	camera = camera_
 
 
@@ -191,7 +190,7 @@ func _get_key_modifier_mask(event: InputEventMouse) -> int:
 		mask |= KEY_MASK_CTRL
 	if event.meta_pressed:
 		mask |= KEY_MASK_META
-	# FIXME34: Mac Command
+	# FIXME: Mac Command
 #	if event.command:
 #		mask |= KEY_MASK_CMD
 	return mask
@@ -207,5 +206,5 @@ func _on_pause_changed(is_paused: bool) -> void:
 		_suppress_mouse_control = false
 
 
-func _on_viewport_size_changed() -> void:
-	veiwport_height = get_viewport().get_visible_rect().size.y
+func _on_viewport_size_changed(viewport_size: Vector2) -> void:
+	veiwport_height = viewport_size.y

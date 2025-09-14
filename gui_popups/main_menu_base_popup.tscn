@@ -3,4 +3,5 @@
 [ext_resource type="Script" uid="uid://bemxra84irc4p" path="res://addons/ivoyager_core/gui_popups/main_menu_base_popup.gd" id="1_bd2g2"]
 
 [node name="MainMenuBasePopup" type="PopupPanel"]
+oversampling_override = 1.0
 script = ExtResource("1_bd2g2")

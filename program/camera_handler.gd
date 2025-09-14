@@ -67,7 +67,6 @@ var _move_pressed := Vector3.ZERO
 var _rotate_pressed := Vector3.ZERO
 
 @onready var _world_controller: IVWorldController = IVGlobal.program[&"WorldController"]
-@onready var _viewport := get_viewport()
 @onready var _mouse_in_out_rate: float = _settings[&"camera_mouse_in_out_rate"] * mouse_wheel_adj
 @onready var _mouse_move_rate: float = _settings[&"camera_mouse_move_rate"] * mouse_move_adj
 @onready var _mouse_pitch_yaw_rate: float = _settings[&"camera_mouse_pitch_yaw_rate"] * mouse_pitch_yaw_adj
@@ -76,6 +75,7 @@ var _rotate_pressed := Vector3.ZERO
 @onready var _key_move_rate: float = _settings[&"camera_key_move_rate"] * key_move_adj
 @onready var _key_pitch_yaw_rate: float = _settings[&"camera_key_pitch_yaw_rate"] * key_pitch_yaw_adj
 @onready var _key_roll_rate: float = _settings[&"camera_key_roll_rate"] * key_roll_adj
+@onready var _viewport_size := get_viewport().get_visible_rect().size
 
 
 # *****************************************************************************
@@ -85,6 +85,7 @@ func _ready() -> void:
 	IVGlobal.system_tree_ready.connect(_on_system_tree_ready)
 	IVGlobal.about_to_free_procedural_nodes.connect(_restore_init_state)
 	IVGlobal.camera_ready.connect(_connect_camera)
+	IVGlobal.viewport_size_changed.connect(_on_viewport_size_changed)
 	IVGlobal.setting_changed.connect(_settings_listener)
 	_world_controller.mouse_target_clicked.connect(_on_mouse_target_clicked)
 	_world_controller.mouse_dragged.connect(_on_mouse_dragged)
@@ -102,20 +103,18 @@ func _process(delta: float) -> void:
 				_camera.add_rotation(Vector3(_drag_vector.y, _drag_vector.x, 0.0))
 			DRAG_ROLL:
 				var mouse_position := _world_controller.mouse_position
-				var viewport_rect_size := _viewport.get_visible_rect().size
-				var center_to_mouse := (mouse_position - viewport_rect_size / 2.0).normalized()
+				var center_to_mouse := (mouse_position - _viewport_size / 2.0).normalized()
 				_drag_vector *= delta * _mouse_roll_rate
 				_camera.add_rotation(Vector3(0.0, 0.0, center_to_mouse.cross(_drag_vector)))
 			DRAG_PITCH_YAW_ROLL_HYBRID:
 				# one or a mix of two above based on mouse position
 				var mouse_position: Vector2 = _world_controller.mouse_position
 				var mouse_rotate := _drag_vector * delta
-				var viewport_rect_size := _viewport.get_visible_rect().size
-				var z_proportion := (2.0 * mouse_position - viewport_rect_size).length() / viewport_rect_size.x
+				var z_proportion := (2.0 * mouse_position - _viewport_size).length() / _viewport_size.x
 				z_proportion -= hybrid_drag_center_zone
 				z_proportion /= hybrid_drag_outside_zone - hybrid_drag_center_zone
 				z_proportion = clamp(z_proportion, 0.0, 1.0)
-				var center_to_mouse := (mouse_position - viewport_rect_size / 2.0).normalized()
+				var center_to_mouse := (mouse_position - _viewport_size / 2.0).normalized()
 				var z_rotate := center_to_mouse.cross(mouse_rotate) * z_proportion * _mouse_roll_rate
 				mouse_rotate *= (1.0 - z_proportion) * _mouse_pitch_yaw_rate
 				_camera.add_rotation(Vector3(mouse_rotate.y, mouse_rotate.x, z_rotate))
@@ -240,17 +239,17 @@ func _restore_init_state() -> void:
 		_selection_manager = null
 
 
-func _connect_camera(camera: IVCamera) -> void:
+func _connect_camera(camera: Camera3D) -> void:
 	_disconnect_camera()
-	_camera = camera
-	_camera.camera_lock_changed.connect(_on_camera_lock_changed)
+	_camera = camera as IVCamera
+	if _camera:
+		_camera.camera_lock_changed.connect(_on_camera_lock_changed)
 
 
 func _disconnect_camera() -> void:
-	if !_camera:
-		return
-	_camera.camera_lock_changed.disconnect(_on_camera_lock_changed)
-	_camera = null
+	if _camera and is_instance_valid(_camera):
+		_camera.camera_lock_changed.disconnect(_on_camera_lock_changed)
+		_camera = null
 
 
 func _on_selection_changed(suppress_camera_move: bool) -> void:
@@ -303,6 +302,10 @@ func _on_mouse_dragged(drag_vector: Vector2, button_mask: int, key_modifier_mask
 
 func _on_mouse_wheel_turned(is_up: bool) -> void:
 	_mwheel_turning = _mouse_in_out_rate * (1.0 if is_up else -1.0)
+
+
+func _on_viewport_size_changed(viewport_size: Vector2) -> void:
+	_viewport_size = viewport_size
 
 
 func _settings_listener(setting: StringName, value: Variant) -> void:

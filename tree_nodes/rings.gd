@@ -85,8 +85,8 @@ func _init(body: IVBody) -> void:
 
 func _ready() -> void:
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
-	IVGlobal.camera_ready.connect(_connect_camera)
-	_connect_camera(get_viewport().get_camera_3d())
+	IVGlobal.camera_ready.connect(_set_camera)
+	_set_camera(get_viewport().get_camera_3d())
 	
 	_illuminating_star = IVBody.bodies.get(illuminating_star)
 	assert(_illuminating_star, "Could not find illuminating star '%s'" % illuminating_star)
@@ -160,7 +160,7 @@ func _clear_procedural() -> void:
 	_camera = null
 
 
-func _connect_camera(camera: Camera3D) -> void:
+func _set_camera(camera: Camera3D) -> void:
 	_camera = camera
 
 

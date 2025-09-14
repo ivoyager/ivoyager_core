@@ -57,8 +57,9 @@ const DPRINT := true
 			&"header" : &"LABEL_GUI_AND_HUD",
 			&"language" : &"LABEL_LANGUAGE",
 			&"gui_size" : &"LABEL_GUI_SIZE",
-			&"viewport_names_size" : &"LABEL_NAMES_SIZE",
-			&"viewport_symbols_size" : &"LABEL_SYMBOLS_SIZE",
+			
+			&"label3d_names_size_percent" : &"LABEL_NAMES_SIZE",
+			&"label3d_symbols_size_percent" : &"LABEL_SYMBOLS_SIZE",
 			&"point_size" : &"LABEL_POINT_SIZE",
 			&"hide_hud_when_close" : &"LABEL_HIDE_HUDS_WHEN_CLOSE",
 		},
@@ -76,10 +77,10 @@ const DPRINT := true
 	starmap = IVGlobal.StarmapSize,
 }
 @export var format_overrides := {
-	&"camera_transfer_time" : {&"max_value" : 10.0},
-	&"viewport_names_size" : {&"min_value" : 4.0, &"max_value" : 50.0},
-	&"viewport_symbols_size" : {&"min_value" : 4.0, &"max_value" : 50.0},
-	&"point_size" : {&"min_value" : 3, &"max_value" : 20},
+	camera_transfer_time = {max_value = 10.0},
+	label3d_names_size_percent = {min_value = 20, max_value = 500, step = 10, suffix = "%"},
+	label3d_symbols_size_percent = {min_value = 20, max_value = 500, step = 10, suffix = "%"},
+	point_size = {min_value = 3, max_value = 20},
 }
 
 

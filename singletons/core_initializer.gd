@@ -128,8 +128,7 @@ var program_refcounteds: Dictionary[StringName, Variant] = {
 	SBGFinisher = IVSBGFinisher,
 	
 	# managers, etc.
-	FontManager = IVFontManager, # ok to replace
-	ThemeManager = IVThemeManager, # after IVFontManager; ok to replace
+	ThemeManager = IVThemeManager,
 	SleepManager = IVSleepManager,
 	LazyModelInitializer = IVLazyModelInitializer,
 	LanguageManager = IVLanguageManager,

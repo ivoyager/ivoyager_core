@@ -35,11 +35,9 @@ const SCENE := "res://addons/ivoyager_core/gui_popups/main_menu_base_popup.tscn"
 
 
 @export var sim_started_only := true
-@export var use_theme_manager_setting := true
 @export var center := true
 @export var stop_sim := true
 @export var require_explicit_close := true
-
 
 var _is_explicit_close := false
 
@@ -51,8 +49,6 @@ func _ready() -> void:
 	IVGlobal.close_all_admin_popups_requested.connect(close)
 	IVGlobal.resume_requested.connect(close)
 	popup_hide.connect(_on_popup_hide)
-	if use_theme_manager_setting:
-		theme = IVGlobal.themes.main_menu
 
 
 func _unhandled_key_input(event: InputEvent) -> void:

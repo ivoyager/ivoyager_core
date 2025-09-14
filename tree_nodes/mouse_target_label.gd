@@ -28,7 +28,6 @@ extends Label
 var offset := Vector2(0.0, -7.0) # offset to not interfere w/ FragmentIdentifier
 
 var _fragment_data: Dictionary[int, Array]
-
 var _object_text := ""
 var _fragment_text := ""
 
@@ -44,8 +43,6 @@ func _ready() -> void:
 	if fragment_identifier:
 		fragment_identifier.fragment_changed.connect(_on_fragment_changed)
 		_fragment_data = fragment_identifier.fragment_data
-	if IVGlobal.fonts.has(&"hud_names"):
-		set(&"theme_override_fonts/font", IVGlobal.fonts.hud_names)
 	horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	grow_horizontal = GROW_DIRECTION_BOTH
 	size_flags_horizontal = SIZE_SHRINK_CENTER

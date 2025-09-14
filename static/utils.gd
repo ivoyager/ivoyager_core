@@ -51,6 +51,7 @@ static func get_common_node3d(node1: Node3D, node2: Node3D) -> Node3D:
 		node1 = node1.get_parent_node_3d()
 	return null
 
+
 ## Searches 'item/item/item/...' path starting from target, where 'item' can
 ## be object properties or dictionary keys.
 static func get_deep(target: Variant, path: String) -> Variant:
@@ -65,6 +66,7 @@ static func get_deep(target: Variant, path: String) -> Variant:
 		if target == null:
 			return null
 	return target
+
 
 ## Searches 'item/item/item/...' path starting from target, where 'item' can
 ## be object properties, dictionary keys, or method names.
@@ -148,16 +150,6 @@ static func get_bit_string(flags: int, bytes := 4) -> String:
 		flags >>= 1
 		index += 1
 	return result
-
-
-# GUI
-
-## Returns the width of the current font's "en space" character.
-static func get_en_space_width(control: Control, name := &"normal", theme_type := &"Label"
-		) -> float:
-	var font: FontFile = control.get_theme_font(name, theme_type)
-	var font_size := font.fixed_size
-	return font.get_char_size("\u2000".unicode_at(0), font_size).x
 
 
 # Patches
