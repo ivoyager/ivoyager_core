@@ -63,7 +63,7 @@ signal setting_changed(setting: StringName, value: Variant)
 signal camera_ready(camera: Camera3D)
 signal camera_tree_changed(camera: Camera3D, parent: Node3D, star_orbiter: Node3D, star: Node3D)
 signal camera_fov_changed(fov: float)
-#TODO: signal viewport_size_changed(size: Vector2)
+signal viewport_size_changed(size: Vector2)
 
 
 # requests for state change
@@ -89,8 +89,6 @@ signal confirmation_requested(text: StringName, confirm_action: Callable, stop_s
 		title_txt: StringName, ok_txt: StringName, cancel_txt: StringName)
 signal options_requested()
 signal hotkeys_requested()
-signal credits_requested()
-signal help_requested() # hooked up in Planetarium
 signal close_all_admin_popups_requested() # main menu, options, etc.
 signal show_hide_gui_requested(is_toggle: bool, is_show: bool) # 2nd arg ignored if is_toggle
 
@@ -130,6 +128,7 @@ enum NetworkStopSync {
 	DONT_SYNC,
 }
 
+## Shadow masking for semi-transparent shadows (from Saturn Rings).
 enum ShadowMask {
 	SHADOW_MASK_01 = 0b0001_0000_0000, # almost no shadow
 	SHADOW_MASK_02 = 0b0010_0000_0000,
@@ -209,3 +208,12 @@ func _enter_tree() -> void:
 	var assets_config := IVPluginUtils.get_config("res://addons/ivoyager_assets/assets.cfg")
 	if assets_config and assets_config.has_section("ivoyager_assets"):
 		assets_version = assets_config.get_value("ivoyager_assets", "version")
+
+
+func _ready() -> void:
+	get_viewport().size_changed.connect(_on_viewport_size_changed)
+	update_gui_requested.connect(_on_viewport_size_changed)
+
+
+func _on_viewport_size_changed() -> void:
+	viewport_size_changed.emit(get_viewport().get_visible_rect().size)
