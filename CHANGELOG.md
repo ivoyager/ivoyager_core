@@ -8,15 +8,20 @@ See cloning and downloading instructions [here](https://www.ivoyager.dev/develop
 
 ## [v0.0.26] - UNRELEASED
 
-Developed using Godot 4.5.beta7.
+Under development using Godot 4.5.rc2.
 
 ### Added
 * GUI widget IVSelectionDataFoldable using the new FoldableContainer.
 * IVLanguageManager and "Language" as a user option. [b]We're ready for translations![/b]
+* Signal IVGlobal.camera_fov_changed(fov: float).
+* Signal IVGlobal.viewport_size_changed(size: Vector2).
 
 ### Changed
-* Recoded GUI widget IVSelectionData to work with the new IVSelectionDataFoldable.
+* [API breaking] Removed IVFontManager and overhauled IVThemeManager to work correctly with Godot's theme system.
 * [API breaking] Removed IVGlobal signal "wiki_requested" (all GUI uses IVWikiManager API instead).
+* IVBodyLabel visual size now compensates for camera fov and viewport height.
+* Recoded GUI widget IVSelectionData to work with the new IVSelectionDataFoldable.
+* Removed unused IVGlobal signals.
 * Renamed table field "en.wiki" to "en.wikipedia" (these are Wikipedia.org page titles).
 * Removed BodyFlags.EXISTS.
 
