@@ -130,6 +130,19 @@ func add_borderless_color_picker_button(theme: Theme) -> void:
 	theme.set_type_variation(&"BorderlessColorPickerButton", &"ColorPickerButton")
 
 
+func get_label3d_names_font_size() -> int:
+	var gui_size: int = _settings[&"gui_size"]
+	var names_percent: int = _settings[&"label3d_names_size_percent"]
+	var default_font_size := default_font_sizes[gui_size]
+	return roundi(default_font_size * names_percent / 100.0)
+
+
+func get_label3d_symbols_font_size() -> int:
+	var gui_size: int = _settings[&"gui_size"]
+	var symbols_percent: int = _settings[&"label3d_symbols_size_percent"]
+	var default_font_size := default_font_sizes[gui_size]
+	return roundi(default_font_size * symbols_percent / 100.0)
+
 
 func _set_gui_font_sizes(gui_size: int) -> void:
 	_main_theme.default_font_size = default_font_sizes[gui_size]
@@ -142,9 +155,9 @@ func _set_label3d_sizes() -> void:
 	var gui_size: int = _settings[&"gui_size"]
 	var names_percent: int = _settings[&"label3d_names_size_percent"]
 	var symbols_percent: int = _settings[&"label3d_symbols_size_percent"]
-	var font_size := default_font_sizes[gui_size]
-	var names_size := roundi(font_size * names_percent / 100.0)
-	var symbols_size := roundi(font_size * symbols_percent / 100.0)
+	var default_font_size := default_font_sizes[gui_size]
+	var names_size := roundi(default_font_size * names_percent / 100.0)
+	var symbols_size := roundi(default_font_size * symbols_percent / 100.0)
 	label3d_font_size_changed.emit(names_size, symbols_size)
 
 
