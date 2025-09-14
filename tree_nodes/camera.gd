@@ -41,8 +41,7 @@ extends Camera3D
 signal move_started(to_spatial: Node3D, is_camera_lock: bool) # to_spatial is not parent yet
 signal range_changed(camera_range: float)
 signal latitude_longitude_changed(lat_long: Vector2, is_ecliptic: bool, selection: IVSelection)
-signal field_of_view_changed(fov_: float, focal_length: float)
-signal camera_lock_changed(is_camera_lock: bool)
+signal camera_lock_changed(is_camera_lock_: bool)
 signal up_lock_changed(flags: int, disabled_flags: int)
 signal tracking_changed(flags: int, disabled_flags: int)
 
@@ -76,8 +75,8 @@ enum CameraDisabledFlags {
 const math := preload("uid://csb570a3u1x1k")
 const utils := preload("uid://bdoygriurgvtc")
 
-const CAMERAFLAGS_UP_LOCKED_OR_UNLOCKED := CameraFlags.CAMERAFLAGS_UP_LOCKED_OR_UNLOCKED
-const CAMERAFLAGS_ANY_TRACKING := CameraFlags.CAMERAFLAGS_ANY_TRACKING
+
+
 
 const IDENTITY_BASIS := Basis.IDENTITY
 const ECLIPTIC_X := IDENTITY_BASIS.x # primary direction
@@ -238,6 +237,8 @@ func move_to(to_selection: IVSelection, to_flags := 0, to_view_position := NULL_
 	# For this purpose, individual -INF elements in to_view_position and
 	# to_view_rotations are treated as 'null' (ie, we can set 1 or 2 elements).
 	# Note: some flags may override elements of position or rotation.
+	const CAMERAFLAGS_UP_LOCKED_OR_UNLOCKED := CameraFlags.CAMERAFLAGS_UP_LOCKED_OR_UNLOCKED
+	const CAMERAFLAGS_ANY_TRACKING := CameraFlags.CAMERAFLAGS_ANY_TRACKING
 	assert(!DPRINT or IVDebug.dprint("move_to", [to_selection, to_flags, to_view_position,
 			to_view_rotations, is_instant_move]))
 	
@@ -361,12 +362,12 @@ func set_up_lock(is_locked: bool) -> void:
 func set_focal_length(focal_length: float) -> void:
 	var field_of_view := math.get_fov_from_focal_length(focal_length)
 	fov = field_of_view
-	field_of_view_changed.emit(field_of_view, focal_length)
+	IVGlobal.camera_fov_changed.emit(field_of_view)
 
 
 func set_field_of_view(field_of_view: float) -> void:
 	fov = field_of_view
-	field_of_view_changed.emit(field_of_view, math.get_focal_length_from_fov(field_of_view))
+	IVGlobal.camera_fov_changed.emit(field_of_view)
 
 
 func change_camera_lock(new_lock: bool) -> void:
@@ -733,7 +734,7 @@ func _signal_range_latitude_longitude(is_refresh := false) -> void:
 
 
 func _send_gui_refresh() -> void:
-	field_of_view_changed.emit(fov, math.get_focal_length_from_fov(fov))
+	IVGlobal.camera_fov_changed.emit(fov)
 	up_lock_changed.emit(flags, disabled_flags)
 	tracking_changed.emit(flags, disabled_flags)
 	_signal_range_latitude_longitude(true)

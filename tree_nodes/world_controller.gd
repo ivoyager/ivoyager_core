@@ -56,7 +56,7 @@ var _current_target_dist := INF
 
 func _init() -> void:
 	IVGlobal.about_to_free_procedural_nodes.connect(_restore_init_state)
-	IVGlobal.camera_ready.connect(_connect_camera)
+	IVGlobal.camera_ready.connect(_set_camera)
 	IVGlobal.pause_changed.connect(_on_pause_changed)
 
 
@@ -177,7 +177,7 @@ func _restore_init_state() -> void:
 	_drag_segment_start = Vector2.ZERO
 
 
-func _connect_camera(camera_: Camera3D) -> void:
+func _set_camera(camera_: Camera3D) -> void:
 	camera = camera_
 
 
@@ -191,7 +191,7 @@ func _get_key_modifier_mask(event: InputEventMouse) -> int:
 		mask |= KEY_MASK_CTRL
 	if event.meta_pressed:
 		mask |= KEY_MASK_META
-	# FIXME34: Mac Command
+	# FIXME: Mac Command
 #	if event.command:
 #		mask |= KEY_MASK_CMD
 	return mask

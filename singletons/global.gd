@@ -62,6 +62,9 @@ signal network_state_changed(network_state: bool) # IVGlobal.NetworkState
 signal setting_changed(setting: StringName, value: Variant)
 signal camera_ready(camera: Camera3D)
 signal camera_tree_changed(camera: Camera3D, parent: Node3D, star_orbiter: Node3D, star: Node3D)
+signal camera_fov_changed(fov: float)
+#TODO: signal viewport_size_changed(size: Vector2)
+
 
 # requests for state change
 signal start_requested()
@@ -187,7 +190,6 @@ var project := {}
 var ivoyager_version: String
 ## Read-only!
 var assets_version: String
-
 
 ## Read-only! The plugin ConfigFile generated from res://addons/ivoyager_core/ivoyager_core.cfg
 ## with possible overrides in res://ivoyager_override.cfg and res://ivoyager_override2.cfg.

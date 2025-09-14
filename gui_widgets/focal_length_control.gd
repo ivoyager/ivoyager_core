@@ -22,14 +22,15 @@ extends HBoxContainer
 
 ## GUI widget.
 ##
-## Allows fine and step control of focal length.
+## Allows fine and step control of camera focal length (a function of fov).
 ## Plus/minus buttons jump to focal lengths set in [member big_steps].
-## The first and last array values determine min and max settable.
+## The first and last array values determine min and max settable.[br][br]
 ##
 ## Requires [IVCamera].
 
+const math := preload("res://addons/ivoyager_core/static/math.gd")
 
-var big_steps: Array[float] = [6.0, 15.0, 24.0, 35.0, 50.0] # FOV 125.6, 75.8, 51.9, 36.9, 26.3
+var big_steps: Array[float] = [6.0, 15.0, 24.0, 35.0, 50.0] # FOVs ~125.6, 75.8, 51.9, 36.9, 26.3
 
 var _camera: IVCamera
 
@@ -40,38 +41,36 @@ var _camera: IVCamera
 
 
 func _ready() -> void:
-	IVGlobal.camera_ready.connect(_connect_camera)
+	IVGlobal.camera_ready.connect(_set_camera)
+	IVGlobal.about_to_free_procedural_nodes.connect(_free_procedural)
+	IVGlobal.camera_fov_changed.connect(_on_camera_fov_changed)
 	_spinbox.value_changed.connect(_on_spinbox_value_changed)
 	_minus.pressed.connect(_do_big_step.bind(false))
 	_plus.pressed.connect(_do_big_step.bind(true))
 	_spinbox.min_value = big_steps[0]
 	_spinbox.max_value = big_steps[-1]
-	_connect_camera(get_viewport().get_camera_3d() as IVCamera) # null ok
+	_set_camera(get_viewport().get_camera_3d())
 
 
-
-func _connect_camera(camera: IVCamera) -> void:
-	if _camera and is_instance_valid(_camera):
-		_camera.field_of_view_changed.disconnect(_on_field_of_view_changed)
-	_camera = camera
-	if !camera:
-		return
-	camera.field_of_view_changed.connect(_on_field_of_view_changed)
-	var focal_length := IVMath.get_focal_length_from_fov(camera.fov)
-	_on_field_of_view_changed(0.0, focal_length)
+func _set_camera(camera: Camera3D) -> void:
+	_camera = camera as IVCamera
 
 
-func _on_field_of_view_changed(_fov: float, focal_length: float) -> void:
-	await get_tree().process_frame # fixes signal(?!) sometimes after _do_big_step() 
+func _free_procedural() -> void:
+	_camera = null
+
+
+func _on_camera_fov_changed(fov: float) -> void:
+	await get_tree().process_frame # fixes signal(?!) sometimes after _do_big_step()
+	var focal_length := math.get_focal_length_from_fov(fov)
 	_spinbox.set_value_no_signal(roundf(focal_length))
 	_minus.disabled = _spinbox.value <= big_steps[0]
 	_plus.disabled = _spinbox.value >= big_steps[-1]
 
 
 func _on_spinbox_value_changed(focal_length: float) -> void:
-	if !_camera:
-		return
-	_camera.set_focal_length(focal_length)
+	if _camera:
+		_camera.set_focal_length(focal_length)
 
 
 func _do_big_step(is_increase: bool) -> void:

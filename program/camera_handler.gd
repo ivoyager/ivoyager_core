@@ -240,17 +240,17 @@ func _restore_init_state() -> void:
 		_selection_manager = null
 
 
-func _connect_camera(camera: IVCamera) -> void:
+func _connect_camera(camera: Camera3D) -> void:
 	_disconnect_camera()
-	_camera = camera
-	_camera.camera_lock_changed.connect(_on_camera_lock_changed)
+	_camera = camera as IVCamera
+	if _camera:
+		_camera.camera_lock_changed.connect(_on_camera_lock_changed)
 
 
 func _disconnect_camera() -> void:
-	if !_camera:
-		return
-	_camera.camera_lock_changed.disconnect(_on_camera_lock_changed)
-	_camera = null
+	if _camera and is_instance_valid(_camera):
+		_camera.camera_lock_changed.disconnect(_on_camera_lock_changed)
+		_camera = null
 
 
 func _on_selection_changed(suppress_camera_move: bool) -> void:

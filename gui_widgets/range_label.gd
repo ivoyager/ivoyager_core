@@ -31,19 +31,24 @@ var _camera: IVCamera
 
 func _ready() -> void:
 	IVGlobal.camera_ready.connect(_connect_camera)
-	_connect_camera(get_viewport().get_camera_3d() as IVCamera) # null ok
+	IVGlobal.about_to_free_procedural_nodes.connect(_disconnect_camera)
+	_connect_camera(get_viewport().get_camera_3d()) # null ok
 
 
+func _connect_camera(camera: Camera3D) -> void:
+	_disconnect_camera()
+	_camera = camera as IVCamera
+	if _camera:
+		_camera.range_changed.connect(_on_range_changed)
+		_camera.camera_lock_changed.connect(_on_camera_lock_changed)
+	visible = _camera and _camera.is_camera_lock
 
-func _connect_camera(camera: IVCamera) -> void:
+
+func _disconnect_camera() -> void:
 	if _camera and is_instance_valid(_camera):
 		_camera.range_changed.disconnect(_on_range_changed)
 		_camera.camera_lock_changed.disconnect(_on_camera_lock_changed)
-	_camera = camera
-	if camera:
-		camera.range_changed.connect(_on_range_changed)
-		camera.camera_lock_changed.connect(_on_camera_lock_changed)
-		visible = camera.is_camera_lock
+		_camera = null
 
 
 func _on_range_changed(new_range: float) -> void:
