@@ -151,10 +151,6 @@ The font file used is a merge of Roboto and Noto Sans Symbols, both [Google Font
 - **License:** [SIL OPEN FONT LICENSE Version 1.1](#sil-open-font-licence-version-10)
 
 
-### NOT 3rd party
-
-File `/maps/Titan.albedo.2048.jpg` is copyright 2024 Charlie Whitfield and is covered by I, Voyager's project license (Apache-2.0).
-
 ---
 
 ## Licenses in Detail
