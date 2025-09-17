@@ -8,7 +8,11 @@ See cloning and downloading instructions [here](https://www.ivoyager.dev/develop
 
 ## [v0.0.26] - UNRELEASED
 
-Under development using Godot 4.5.rc2.
+Under development using Godot 4.5.
+
+This release may become v0.1 "beta"! We'll see...
+
+Note: 3RD_PARTY.md currently referes to changed file names in the next asset release.
 
 ### Added
 * GUI widget IVSelectionDataFoldable using the new FoldableContainer.
@@ -17,6 +21,7 @@ Under development using Godot 4.5.rc2.
 * Signal IVGlobal.viewport_size_changed(size: Vector2).
 
 ### Changed
+* Replaced 3RD_PARTY.txt with updated and more human-readable 3RD_PARTY.md.
 * [API breaking] Removed IVFontManager and overhauled IVThemeManager to work correctly with Godot's theme system.
 * [API breaking] Removed IVGlobal signal "wiki_requested" (all GUI uses IVWikiManager API instead).
 * IVBodyLabel visual size now compensates for camera fov and viewport height.
