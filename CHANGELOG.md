@@ -21,6 +21,7 @@ Note: 3RD_PARTY.md currently referes to changed file names in the next asset rel
 * Signal IVGlobal.viewport_size_changed(size: Vector2).
 
 ### Changed
+* Improved the EditorPlugin's asset loader UI.
 * Replaced 3RD_PARTY.txt with updated and more human-readable 3RD_PARTY.md.
 * [API breaking] Removed IVFontManager and overhauled IVThemeManager to work correctly with Godot's theme system.
 * [API breaking] Removed IVGlobal signal "wiki_requested" (all GUI uses IVWikiManager API instead).
