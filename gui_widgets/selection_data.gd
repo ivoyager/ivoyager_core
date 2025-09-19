@@ -71,7 +71,7 @@ var selection_content: Dictionary[StringName, Array] = {
 		[&"LABEL_ECCENTRICITY", "body/orbit/get_eccentricity",
 			as_float.bind(false, 5)],
 		[&"LABEL_ORBITAL_PERIOD", "body/orbit/get_period",
-			dynamic_unit.bind(DynamicUnitType.TIME_D_Y, false, 5)],
+			dynamic_unit.bind(DynamicUnitType.TIME_H_D_Y, false, 5)],
 		[&"LABEL_INCLINATION", "body/orbit/get_inclination",
 			fixed_unit.bind(&"deg", false, 3, NumberType.DECIMAL_PLACES)],
 		[&"LABEL_DIST_GALACTIC_CORE", "body/characteristics/dist_galactic_core",

@@ -129,6 +129,16 @@ var flag_fields: Dictionary[StringName, int] = {
 	&"use_pitch_yaw" : BodyFlags.BODYFLAGS_USE_PITCH_YAW,
 }
 
+var add_precisions: Dictionary[String, StringName] = {
+	"body/orbit/get_semi_major_axis" : &"semi_major_axis",
+	"body/orbit/get_periapsis" : &"semi_major_axis", # roughly
+	"body/orbit/get_apoapsis" : &"semi_major_axis", # roughly
+	"body/orbit/get_eccentricity" : &"eccentricity",
+	"body/orbit/get_inclination" : &"inclination",
+	"body/orbit/get_period" : &"mean_motion",
+	"body/get_rotation_period" : &"rotation_period",
+}
+
 
 var _enable_precisions := IVCoreSettings.enable_precisions
 var _orbit_builder: RefCounted
@@ -238,3 +248,8 @@ func _set_table_data_precisions(table_name: StringName, row: int,
 	for i in characteristics_fields.size():
 		if precision_array[i] != -1:
 			precisions["body/characteristics/" + characteristics_fields[i]] = precision_array[i]
+	for key in add_precisions:
+		var field := add_precisions[key]
+		var precision := IVTableData.get_db_float_precision(table_name, field, row)
+		if precision != -1:
+			precisions[key] = precision
