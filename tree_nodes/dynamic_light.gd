@@ -104,7 +104,8 @@ func _process(_delta: float) -> void:
 		var source_dist_au := source_vector.length() / AU
 		var energy := _energy_at_1_au / (source_dist_au ** _attenuation_exponent)
 		# parent light sets for all
-		look_at(source_vector)
+		if !position.is_equal_approx(source_vector): # edge case observed once
+			look_at(source_vector)
 		_shared[0] = energy
 		
 		if _process_shadow_distances:
