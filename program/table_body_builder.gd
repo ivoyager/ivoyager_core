@@ -22,9 +22,6 @@ extends RefCounted
 
 ## Builds [IVBody] (or subclass) instances from data tables.
 ##
-## To use a subclass in place of [IVBody], set static [member IVBody.replacement_subclass]
-## before sytem build.[br][br]
-##
 ## The generator class [IVTableOrbitBuilder] can be replaced with another
 ## generator class in [IVCoreInitializer]. The replacement class must have
 ## method compatible with [method IVTableOrbitBuilder.make_orbit].[br][br]
@@ -32,7 +29,7 @@ extends RefCounted
 ## The generator class [IVTableCompositionBuilder] can be removed or replaced
 ## with another generator class in [IVCoreInitializer]. If replaced, the
 ## replacement class must have method compatible with
-## [method IVCoreInitializer.add_compositions_from_table].
+## [method IVTableCompositionBuilder.add_compositions_from_table].
 
 const BodyFlags := IVBody.BodyFlags
 
@@ -134,7 +131,7 @@ var flag_fields: Dictionary[StringName, int] = {
 
 
 var _enable_precisions := IVCoreSettings.enable_precisions
-var _orbit_builder: IVTableOrbitBuilder
+var _orbit_builder: RefCounted
 var _composition_builder: RefCounted
 
 
@@ -151,6 +148,7 @@ func build_body(table_name: String, row: int, parent: IVBody) -> IVBody:
 	
 	var orbit: IVOrbit = null
 	if parent:
+		@warning_ignore("unsafe_method_access")
 		orbit = _orbit_builder.make_orbit(table_name, row, parent)
 	
 	var characteristics: Dictionary[StringName, Variant] = {}
