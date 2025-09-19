@@ -36,7 +36,6 @@ extends Node
 ## resonence).
 
 signal group_appended(previous_size: int, new_size: int)
-signal adding_visuals() # existing visual nodes must free themselves
 
 
 enum SBGClass {

@@ -22,9 +22,6 @@ extends RefCounted
 
 ## Builds [IVBody] (or subclass) instances from data tables.
 ##
-## To use a subclass in place of [IVBody], set static [member IVBody.replacement_subclass]
-## before sytem build.[br][br]
-##
 ## The generator class [IVTableOrbitBuilder] can be replaced with another
 ## generator class in [IVCoreInitializer]. The replacement class must have
 ## method compatible with [method IVTableOrbitBuilder.make_orbit].[br][br]
@@ -32,7 +29,7 @@ extends RefCounted
 ## The generator class [IVTableCompositionBuilder] can be removed or replaced
 ## with another generator class in [IVCoreInitializer]. If replaced, the
 ## replacement class must have method compatible with
-## [method IVCoreInitializer.add_compositions_from_table].
+## [method IVTableCompositionBuilder.add_compositions_from_table].
 
 const BodyFlags := IVBody.BodyFlags
 
@@ -132,9 +129,19 @@ var flag_fields: Dictionary[StringName, int] = {
 	&"use_pitch_yaw" : BodyFlags.BODYFLAGS_USE_PITCH_YAW,
 }
 
+var add_precisions: Dictionary[String, StringName] = {
+	"body/orbit/get_semi_major_axis" : &"semi_major_axis",
+	"body/orbit/get_periapsis" : &"semi_major_axis", # roughly
+	"body/orbit/get_apoapsis" : &"semi_major_axis", # roughly
+	"body/orbit/get_eccentricity" : &"eccentricity",
+	"body/orbit/get_inclination" : &"inclination",
+	"body/orbit/get_period" : &"mean_motion",
+	"body/get_rotation_period" : &"rotation_period",
+}
+
 
 var _enable_precisions := IVCoreSettings.enable_precisions
-var _orbit_builder: IVTableOrbitBuilder
+var _orbit_builder: RefCounted
 var _composition_builder: RefCounted
 
 
@@ -151,6 +158,7 @@ func build_body(table_name: String, row: int, parent: IVBody) -> IVBody:
 	
 	var orbit: IVOrbit = null
 	if parent:
+		@warning_ignore("unsafe_method_access")
 		orbit = _orbit_builder.make_orbit(table_name, row, parent)
 	
 	var characteristics: Dictionary[StringName, Variant] = {}
@@ -240,3 +248,8 @@ func _set_table_data_precisions(table_name: StringName, row: int,
 	for i in characteristics_fields.size():
 		if precision_array[i] != -1:
 			precisions["body/characteristics/" + characteristics_fields[i]] = precision_array[i]
+	for key in add_precisions:
+		var field := add_precisions[key]
+		var precision := IVTableData.get_db_float_precision(table_name, field, row)
+		if precision != -1:
+			precisions[key] = precision

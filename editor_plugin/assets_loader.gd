@@ -20,16 +20,21 @@
 @tool
 extends HTTPRequest
 
-# Starts when added to the tree. Self-frees after completion or failure.
+# Self-starts when added to the tree. Self-frees after finished or failed.
+
+signal finished_or_failed()
+signal progress_changed(value: int)
 
 const ASSETS_DIR := "res://addons/ivoyager_assets"
 const TEMP_FILE := "ivoyager_assets.zip"
 const UNZIP_PREPEND := "res://addons/"
 
+
 var _source: String
 var _version: String
 var _size_bytes: float
 var _percent_downloaded := 0
+var _chunk_downloaded := 0
 
 
 func _init(source: String, version: String, size_mib: float) -> void:
@@ -47,15 +52,19 @@ func _ready() -> void:
 	var error := request(_source)
 	if error != HTTPRequest.RESULT_SUCCESS:
 		push_error("There was an error in the HTTPRequest! Error = ", error)
+		finished_or_failed.emit()
 		queue_free()
 
 
 func _process(_delta: float) -> void:
 	var bytes := get_downloaded_bytes()
 	var percent := roundi(100 * bytes / _size_bytes)
-	if percent >= _percent_downloaded + 10:
-		_percent_downloaded += 10
-		print("%s%% downloaded (%.1f MiB)" % [_percent_downloaded, bytes / 1048576.0])
+	if percent >= _chunk_downloaded + 10:
+		_chunk_downloaded += 10
+		print("%s%% downloaded (%.1f MiB)" % [_chunk_downloaded, bytes / 1048576.0])
+	if percent >= _percent_downloaded:
+		progress_changed.emit(percent)
+		_percent_downloaded = percent
 
 
 
@@ -66,6 +75,7 @@ func _on_request_completed(result: int, response_code: int, _headers: PackedStri
 	if result != HTTPRequest.RESULT_SUCCESS:
 		push_error("Could not download ivoyager_assets; result = %s, response_code = %s"
 				% [result, response_code])
+		finished_or_failed.emit()
 		queue_free()
 		return
 	_replace_assets.call_deferred()
@@ -76,6 +86,7 @@ func _replace_assets() -> void:
 	var error := zip_reader.open(download_file)
 	if error != OK:
 		push_error("Could not open zip archive at %s" % download_file)
+		finished_or_failed.emit()
 		queue_free()
 		return
 	
@@ -84,7 +95,7 @@ func _replace_assets() -> void:
 		OS.move_to_trash(ProjectSettings.globalize_path(ASSETS_DIR))
 	
 	print("Uncompressing new ivoyager_assets...")
-	await get_tree().process_frame
+	#await get_tree().process_frame
 	var count := 0
 	for zip_path in zip_reader.get_files():
 		if zip_path.get_extension() == "": # is directory
@@ -98,25 +109,19 @@ func _replace_assets() -> void:
 		var file := FileAccess.open(file_path, FileAccess.WRITE)
 		if !file:
 			push_error("Could not open file for write at %s" % file_path)
+			finished_or_failed.emit()
 			queue_free()
 			return
 		file.store_buffer(file_data)
 		count += 1
 	zip_reader.close()
 	print("Added %s files to %s" % [count, ASSETS_DIR])
-	await get_tree().process_frame
+	#await get_tree().process_frame
 	print("Removing temporary download file ", download_file)
 	DirAccess.remove_absolute(download_file)
-	print(
-"""
-
-*******************************************************************************
-New or updated assets have been added at res://addons/ivoyager_assets.
-It's sometimes necessesary restart the Editor to trigger (re)import of assets.
-Clicking off and then on the Editor window may also work.
-*******************************************************************************
-
-"""
-	)
-	
+	print("New or updated assets have been added at res://addons/ivoyager_assets.")
+	finished_or_failed.emit()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	EditorInterface.restart_editor()
 	queue_free()

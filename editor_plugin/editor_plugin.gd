@@ -152,63 +152,34 @@ func _handle_assets_update() -> void:
 		if assets_config.has_section("ivoyager_assets"):
 			present_version = assets_config.get_value("ivoyager_assets", "version")
 		if present_version == expected_version:
+			print("res://addons/ivoyager_assets %s is current...\n" % present_version)
 			return # We're good!
-	
-	var message := ""
-	if !present_version:
-		message = (
-"""
-Plugin 'ivoyager_core' requires assets to run!
-
-Press 'Download' to download assets %s and install at addons/ivoyager_assets.
-
-Press 'Cancel' to manage assets manually. See https://ivoyager.dev/developers.
-
-Check download progress in the Output window. You may need to restart the Editor
-to trigger asset import after download.
-"""
-		) % expected_version
-	else:
-		message = (
-"""
-'ivoyager_assets' version %s does not match expected %s.
-
-Press 'Download' to download assets %s and replace existing addons/ivoyager_assets.
-
-Press 'Cancel' to manage assets manually. See https://ivoyager.dev/developers.
-
-Check download progress in the Output window. You may need to restart the Editor
-to trigger asset import after download.
-"""
-		) % [present_version, expected_version, expected_version]
 	
 	# Don't popup download dialog while the plugins window or other exclusive
 	# window is open (e.g., progress bar if the Editor is working on someting).
 	var last_exclusive_window := get_last_exclusive_window()
-	if last_exclusive_window == get_window(): # no exclusive popup window now
-		_popup_download_confirmation(message)
-	else:
+	if last_exclusive_window != get_window(): # no exclusive popup window now
 		last_exclusive_window.visibility_changed.connect(
-				_popup_download_confirmation.bind(message), CONNECT_ONE_SHOT)
+				_popup_assets_dialog.bind(expected_version, present_version), CONNECT_ONE_SHOT)
+		return
+	
+	_popup_assets_dialog(expected_version, present_version)
 
 
-func _popup_download_confirmation(message: String) -> void:
-	# Create and destroy one-shot confirmation dialog.
+func _popup_assets_dialog(expected_version: String, present_version := "") -> void:
+	# Frame delay needed when opening after ProjectSettings/Plugins window closes...
 	await get_tree().process_frame
-	var confirm_dialog := ConfirmationDialog.new()
-	confirm_dialog.confirmed.connect(_init_assets_loader)
-	confirm_dialog.confirmed.connect(confirm_dialog.queue_free)
-	confirm_dialog.canceled.connect(confirm_dialog.queue_free)
-	confirm_dialog.dialog_text = message
-	confirm_dialog.ok_button_text = "Download"
-	var editor_gui := EditorInterface.get_base_control()
-	editor_gui.add_child(confirm_dialog)
-	confirm_dialog.popup_centered()
+	var assets_dialog: IVAssetsDialog = preload("assets_dialog.tscn").instantiate()
+	assets_dialog.confirmed.connect(_init_assets_loader.bind(assets_dialog))
+	assets_dialog.update_dialog(expected_version, present_version)
+	EditorInterface.popup_dialog_centered(assets_dialog)
 
 
-func _init_assets_loader() -> void:
-	var version: String = _config.get_value("ivoyager_assets", "version")
+func _init_assets_loader(assets_dialog: IVAssetsDialog) -> void:
 	var source: String = _config.get_value("ivoyager_assets", "source")
+	var version: String = _config.get_value("ivoyager_assets", "version")
 	var size_mib: float = _config.get_value("ivoyager_assets", "size_mib")
 	var assets_loader := preload("assets_loader.gd").new(source, version, size_mib)
+	assets_loader.progress_changed.connect(assets_dialog.update_progress)
+	assets_loader.finished_or_failed.connect(assets_dialog.queue_free)
 	add_child(assets_loader)

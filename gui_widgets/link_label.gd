@@ -20,27 +20,48 @@
 class_name IVLinkLabel
 extends RichTextLabel
 
-## GUI widget. A hyperlink!
+## GUI widget that facilitates hyperlinks
 ##
-## TODO: Rename IVHyperlink.
-## TODO: Add IVHyperlinkManager to generalize all hyperlinks. We should be able
-## to evoke internal game pages or actions.
+## If [member open_external_url] == false (default), the link "url" value
+## will be passed to [method IVWikiManager.open_page]. Set [param text] using
+## an entity_name that exist in your internal or external wiki. Example
+## [param text] value:
+##
+## [codeblock]
+## [url="PLANET_EARTH"]Earth[/url]
+## [/codeblock][br]
+##
+## If [member open_external_url] == true, this widget will open the specified
+## external URL. Example [param text] value:
+##
+## [codeblock]
+## [url="https://ivoyager.dev"]I, Voyager[/url]
+## [/codeblock][br]
+##
+## Note that [param text] can also be set to a translation key that resolves
+## to valid bbcode as above.[br][br]
+##
+## If changing text dynamically, it's sometimes better to call [method parse_bbcode]
+## than to set [member text] directly.[br][br]
+##
+## This widget is parameterized for "short" labels with [param scroll_active]
+## == false. But that can be edited. 
 
+## Set true to open external URL. Otherwise, bbcode "url" value will be passed
+## to [method IVWikiManager.open_page].
+@export var open_external_url := false
 
-var _link_url := "https://ivoyager.dev"
 
 
 func _ready() -> void:
 	meta_clicked.connect(_on_meta_clicked)
 
 
-
-func set_hyperlink(link_text: String, link_url: String) -> void:
-	text = "[url]" + link_text + "[/url]"
-	_link_url = link_url
-
-
-
-func _on_meta_clicked(_meta: String) -> void:
-	prints("Opening external link:", _link_url)
-	OS.shell_open(_link_url)
+func _on_meta_clicked(url: String) -> void:
+	if open_external_url:
+		prints("Opening external link:", url)
+		OS.shell_open(url)
+		return
+	var wiki_manager: IVWikiManager = IVGlobal.program.get(&"WikiManager")
+	if wiki_manager:
+		wiki_manager.open_page(url)

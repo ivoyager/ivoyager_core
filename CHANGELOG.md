@@ -6,9 +6,11 @@ File format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 See cloning and downloading instructions [here](https://www.ivoyager.dev/developers/).
 
-## [v0.0.26] - UNRELEASED
+## [v0.1] - UNRELEASED
 
-Under development using Godot 4.5.rc2.
+Now release candidate for I, Voyager "beta"!
+
+Under development using Godot 4.5.
 
 ### Added
 * GUI widget IVSelectionDataFoldable using the new FoldableContainer.
@@ -17,8 +19,12 @@ Under development using Godot 4.5.rc2.
 * Signal IVGlobal.viewport_size_changed(size: Vector2).
 
 ### Changed
+* Improved the EditorPlugin's asset loader UI.
+* Replaced 3RD_PARTY.txt with updated and more human-readable 3RD_PARTY.md, and updated CREDITS.md.
 * [API breaking] Removed IVFontManager and overhauled IVThemeManager to work correctly with Godot's theme system.
 * [API breaking] Removed IVGlobal signal "wiki_requested" (all GUI uses IVWikiManager API instead).
+* Recoded IVLinkLabel widget to either open external URL or pass to IVWikiManager.open_page().
+* Recoded IVWikiManager to facilitate use of external or internal wiki.
 * IVBodyLabel visual size now compensates for camera fov and viewport height.
 * Recoded GUI widget IVSelectionData to work with the new IVSelectionDataFoldable.
 * Removed unused IVGlobal signals.
@@ -198,7 +204,7 @@ Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_tab
 ##
 I, Voyager projects v0.0.16 and earlier used a different core submodule [ivoyager](https://github.com/ivoyager/ivoyager) (now depreciated); see previous changelog [here](https://github.com/ivoyager/ivoyager/blob/master/CHANGELOG.md).
 
-[v0.0.26]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.25...HEAD
+[v0.1]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.25...HEAD
 [v0.0.25]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.24...v0.0.25
 [v0.0.24]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.23...v0.0.24
 [v0.0.23]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.22...v0.0.23

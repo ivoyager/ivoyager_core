@@ -23,10 +23,11 @@ extends RefCounted
 ## Builds the star system(s) from data tables, calling other table-object
 ## "builders" as needed.
 ##
-## All procedural classes can be replaced with subclasses (usually this can be
-## specified in the class itself via member "replacement_subclass"). IVCamera
-## can be replaced here with a subclass (easy) or a non-subclass Camera3D
-## (that's more work; watch out for IVCamera-associated GUI widgets).[br][br]
+## Procedural classes can be replaced with subclasses by replacing or
+## subclassing generator classes in [IVCoreInitializer]. IVCamera can be
+## replaced via [member replacement_camera_class] with a subclass or a non-
+## subclass Camera3D (the latter is more work; watch out for IVCamera-associated
+## GUI widgets).[br][br]
 ##
 ## This class assembles the "IVBody tree" from data tables. Unless disabled in
 ## member vars, it will also:[br]

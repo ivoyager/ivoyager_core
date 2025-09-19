@@ -84,7 +84,6 @@ func _init(sbg: IVSmallBodiesGroup) -> void:
 	elif _lp_integer == 5:
 		_longitude_offset = -PI / 3
 	cast_shadow = SHADOW_CASTING_SETTING_OFF
-	sbg.adding_visuals.connect(_hide_and_free, CONNECT_ONE_SHOT)
 	_sbg_huds_state.points_visibility_changed.connect(_set_visibility)
 	_sbg_huds_state.points_color_changed.connect(_set_color)
 	IVGlobal.setting_changed.connect(_settings_listener)
@@ -148,12 +147,6 @@ func _process(_delta: float) -> void:
 	var shader_material: ShaderMaterial = material_override
 	shader_material.set_shader_parameter(&"lp_longitude", lp_longitude)
 
-
-
-func _hide_and_free() -> void:
-	hide()
-	queue_free()
-	
 
 func _set_visibility() -> void:
 	visible = _sbg_huds_state.is_points_visible(_sbg_alias)
