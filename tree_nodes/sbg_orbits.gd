@@ -56,7 +56,6 @@ func _init(sbg: IVSmallBodiesGroup) -> void:
 	_sbg_alias = sbg.sbg_alias
 	cast_shadow = SHADOW_CASTING_SETTING_OFF
 	process_mode = PROCESS_MODE_ALWAYS # FragmentIdentifier still processing
-	sbg.adding_visuals.connect(_hide_and_free, CONNECT_ONE_SHOT)
 	_sbg_huds_state.orbits_visibility_changed.connect(_set_visibility)
 	_sbg_huds_state.orbits_color_changed.connect(_set_color)
 	
@@ -113,11 +112,6 @@ func _ready() -> void:
 	_set_visibility()
 	_set_color()
 
-
-
-func _hide_and_free() -> void:
-	hide()
-	queue_free()
 
 
 func _set_visibility() -> void:
