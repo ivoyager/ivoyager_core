@@ -52,7 +52,7 @@ static func print_plugin_name_and_version(plugin: String, append := "") -> void:
 		return
 	var plugin_name: String = plugin_cfg.get_value("plugin", "name")
 	var version: String = plugin_cfg.get_value("plugin", "version")
-	print("%s (plugin) %s%s" % [plugin_name, version, append])
+	print("%s (plugin) v%s%s" % [plugin_name, version, append])
 
 
 ## WARNING: For this function to work in exported project, add "*.cfg" or specific cofig file to
