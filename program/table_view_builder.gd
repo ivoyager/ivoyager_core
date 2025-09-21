@@ -61,4 +61,10 @@ func build(row: int) -> IVView:
 	var view_position_xy := IVTableData.get_db_vector2(&"views", &"view_position_xy", row)
 	var view_position_z := IVTableData.get_db_float(&"views", &"view_position_z", row)
 	view.view_position = Vector3(view_position_xy.x, view_position_xy.y, view_position_z)
+	if IVTableData.get_db_bool(&"views", &"longitude_from_time_zone", row):
+		var timezone := Time.get_time_zone_from_system()
+		if timezone and timezone.has(&"bias"):
+			var bias: float = timezone.bias # minutes from UTC
+			# -60.0 below helps for me, but maybe that's DLT?
+			view.view_position.x = fposmod((bias - 60.0) * TAU / 1440.0, TAU)
 	return view

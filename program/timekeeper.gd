@@ -456,11 +456,10 @@ func _on_project_objects_instantiated() -> void:
 	_set_init_state()
 
 
-func _on_about_to_start_simulator(_is_new_game: bool) -> void:
-	pass
-#	if is_new_game:
-#		if start_real_world_time:
-#			set_now_from_operating_system()
+func _on_about_to_start_simulator(is_new_game: bool) -> void:
+	if is_new_game:
+		if start_real_world_time:
+			set_now_from_operating_system()
 
 
 func _set_init_state() -> void:
