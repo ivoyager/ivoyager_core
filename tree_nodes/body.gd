@@ -1091,11 +1091,14 @@ func _clear_procedural() -> void:
 
 
 func _on_system_tree_built_or_loaded(is_new_game: bool) -> void:
+	const TIDALLY_LOCKED := BodyFlags.BODYFLAGS_TIDALLY_LOCKED
 	if !is_new_game:
 		return
 	# persisted data needed for new game only...
 	_set_system_radius()
 	_set_hill_sphere()
+	if flags & TIDALLY_LOCKED:
+		_update_rotations(true)
 
 
 func _set_relative_bodies() -> void:
@@ -1172,6 +1175,7 @@ func _on_orbit_changed(is_intrinsic: bool, precession_only: bool) -> void:
 	const TIDALLY_LOCKED := BodyFlags.BODYFLAGS_TIDALLY_LOCKED
 	assert(is_inside_tree(), "A body's orbit should change only when processing in the tree!")
 	orbit_changed.emit(_orbit, is_intrinsic, precession_only)
+	
 	if !precession_only:
 		_set_hill_sphere()
 	if flags & TIDALLY_LOCKED:
@@ -1182,6 +1186,7 @@ func _update_rotations(is_intrinsic: bool) -> void:
 	# A body can only be axis-locked if it is also tidally locked.
 	const TIDALLY_LOCKED := BodyFlags.BODYFLAGS_TIDALLY_LOCKED
 	const AXIS_LOCKED := BodyFlags.BODYFLAGS_AXIS_LOCKED
+	
 	assert(flags & TIDALLY_LOCKED)
 	
 	# rotation

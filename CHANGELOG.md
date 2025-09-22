@@ -31,6 +31,9 @@ Under development using Godot 4.5.
 * Renamed table field "en.wiki" to "en.wikipedia" (these are Wikipedia.org page titles).
 * Removed BodyFlags.EXISTS.
 
+### Fixed
+* Tidally locked body not rotating w/out orbit update.
+
 
 ## [v0.0.25] - 2025-06-12
 
