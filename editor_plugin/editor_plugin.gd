@@ -152,7 +152,7 @@ func _handle_assets_update() -> void:
 		if assets_config.has_section("ivoyager_assets"):
 			present_version = assets_config.get_value("ivoyager_assets", "version")
 		if present_version == expected_version:
-			print("res://addons/ivoyager_assets %s is current...\n" % present_version)
+			print("res://addons/ivoyager_assets v%s is current...\n" % present_version)
 			return # We're good!
 	
 	# Don't popup download dialog while the plugins window or other exclusive

@@ -32,14 +32,19 @@ const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"save_project_version",
 	&"save_ivoyager_version",
-	&"is_modded"
+	&"save_game_mod"
 ]
 
 
-# persisted - values will be replaced by file values on game load!
-var save_project_version := IVCoreSettings.project_version
+## Init value from ProjectSettings. This value is persisted, so it will be saved
+## in the gamesave file and overwritten at game load.
+var save_project_version: String = ProjectSettings.get_setting("application/config/version")
+## Init value from ivoyager_core plugin config. This value is persisted, so it
+## will be saved in the gamesave file and overwritten at game load.
 var save_ivoyager_version := IVGlobal.ivoyager_version
-var is_modded := IVCoreSettings.is_modded
+## Init value from [member IVGlobal.game_mod]. This value is persisted, so it
+## will be saved in the gamesave file and overwritten at game load.
+var save_game_mod := IVGlobal.game_mod
 
 # private
 var _state := IVGlobal.state
@@ -177,12 +182,18 @@ func _on_load_finished() -> void:
 
 
 func _warn_version_mismatch() -> void:
-	if save_ivoyager_version != IVGlobal.ivoyager_version:
+	var ivoyager_version := IVGlobal.ivoyager_version
+	if save_ivoyager_version != ivoyager_version:
 		push_warning("I, Voyager - Core (plugin) version mismatch: runing %s, loaded %s" % [
-				IVGlobal.ivoyager_version, save_ivoyager_version])
-	if save_project_version != IVCoreSettings.project_version:
+				ivoyager_version, save_ivoyager_version])
+	var project_version: String = ProjectSettings.get_setting("application/config/version")
+	if save_project_version != project_version:
 		push_warning("Project version mismatch: runing %s, loaded %s" % [
-				IVCoreSettings.project_version, save_project_version])
+				project_version, save_project_version])
+	var game_mod := IVGlobal.game_mod
+	if save_game_mod != game_mod:
+		push_warning("Game mod mismatch: runing %s, loaded %s" % [
+				game_mod, save_game_mod])
 
 
 func _print_node_count() -> void:

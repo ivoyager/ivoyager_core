@@ -20,24 +20,14 @@
 class_name IVVersionLabel
 extends Label
 
-## GUI widget.
-##
-## If [member IVCoreSettings.project_name] == "", will show ivoyager_core version.
+## GUI Label widget that displays project version with prepended or appended
+## text.
 
-
-var use_name := false
-var multiline := true # <project_name>\n<version> or use space
+## Prepended text, e.g., "v" or "ProjectName v".
+@export var prepend := ""
+@export var append := ""
 
 
 func _ready() -> void:
-	set_label()
-
-
-func set_label() -> void:
-	# Call directly if properties changed after added to tree.
-	var sep := "\n" if multiline else " "
-	var is_project := IVCoreSettings.project_name != ""
-	text = ""
-	if use_name:
-		text += (IVCoreSettings.project_name if is_project else "I, Voyager") + sep
-	text += IVCoreSettings.project_version if is_project else IVGlobal.ivoyager_version
+	var version: String = ProjectSettings.get_setting("application/config/version")
+	text = prepend + version + append

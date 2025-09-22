@@ -185,6 +185,8 @@ var blocking_windows: Array[Window] = []
 ## For project use. Not used by I, Voyager.
 var project := {}
 
+## Project can set if needed. Persisted by IVSaveManager.
+var game_mod := ""
 ## Read-only!
 var ivoyager_version: String
 ## Read-only!

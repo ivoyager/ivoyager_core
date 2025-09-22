@@ -25,14 +25,14 @@ const ASSETS_REPOSITORY := "https://github.com/ivoyager/asset_downloads"
 
 const MISSING_FORMAT := """I, Voyager requires assets to run!
 
-Press "Download" to download assets %s and install at res://addons/ivoyager_assets.
+Press "Download" to download assets v%s and install at res://addons/ivoyager_assets.
 
 Press "Close" to manage assets manually.
 """
 
-const MISMATCH_FORMAT := """res://addons/ivoyager_assets version %s does not match expected %s.
+const MISMATCH_FORMAT := """res://addons/ivoyager_assets v%s does not match expected v%s.
 
-Press "Download" to download assets %s and replace existing ivoyager_assets.
+Press "Download" to download v%s and replace existing ivoyager_assets.
 
 Press "Close" to manage assets manually.
 """

@@ -28,18 +28,12 @@ extends Node
 ## With very few exceptions, these should not be modified after program start!
 
 
-## External project should set.
-var project_name := ""
-## External project should set. Useful for gamesave debuging.
-var project_version := ""
-## @experimental: Possible future implementation.
-var is_modded := false # this is aspirational
 
 ## Set false to disable thread use throughout the ivoyager_core plugin. This
 ## can be helpful for debugging. Some class files also have property
 ## [param use_threads]. In these classes, both this setting and the file
 ## setting must be true for threads to be used.
-var use_threads := true # false helps for debugging
+var use_threads := true
 
 ## Specifies [Environment] properties from data table environment.tsv that are
 ## applied by [IVWorldEnvironment]. I, Voyager's WorldEnvironment can be
