@@ -55,7 +55,7 @@ func _on_latitude_longitude_changed(lat_long: Vector2, is_ecliptic: bool, select
 	const BODYFLAGS_USE_PITCH_YAW := IVBody.BodyFlags.BODYFLAGS_USE_PITCH_YAW
 	const SHORT_LOWER_CASE := IVQFormat.TextFormat.SHORT_LOWER_CASE
 	const N_S_E_W := IVQFormat.LatitudeLongitudeType.N_S_E_W
-	const LAT_LONG := IVQFormat.LatitudeLongitudeType.LAT_LONG
+	const LAT_LON := IVQFormat.LatitudeLongitudeType.LAT_LON
 	const PITCH_YAW := IVQFormat.LatitudeLongitudeType.PITCH_YAW
 	var lat_long_type := N_S_E_W
 	if !is_ecliptic:
@@ -65,7 +65,7 @@ func _on_latitude_longitude_changed(lat_long: Vector2, is_ecliptic: bool, select
 		elif flags & BODYFLAGS_USE_PITCH_YAW:
 			lat_long_type = PITCH_YAW
 		else:
-			lat_long_type = LAT_LONG
+			lat_long_type = LAT_LON
 	var new_text := IVQFormat.latitude_longitude(lat_long, 1, lat_long_type, SHORT_LOWER_CASE)
 	if is_ecliptic:
 		new_text += " (" + tr(&"TXT_ECLIPTIC") + ")"

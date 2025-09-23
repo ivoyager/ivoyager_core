@@ -77,7 +77,7 @@ func _on_project_initializers_instantiated() -> void:
 	
 	IVTableData.postprocess_tables(
 			tables.values(),
-			IVQConvert.convert_quantity,
+			IVQConvert.to_internal,
 			wiki_page_title_fields,
 			IVCoreSettings.enable_precisions,
 			merge_overwrite_table_constants,

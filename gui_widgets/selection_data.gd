@@ -54,7 +54,6 @@ extends VBoxContainer
 ## For most applications, you'll want to put this widget in a ScrollContainer.[br][br]
 
 const NumberType := IVQFormat.NumberType
-const DynamicUnitType := IVQFormat.DynamicUnitType
 const BodyFlags := IVBody.BodyFlags
 
 
@@ -62,22 +61,20 @@ const BodyFlags := IVBody.BodyFlags
 ## names as keys. See class doc for content format.
 var selection_content: Dictionary[StringName, Array] = {
 	OrbitalCharacteristics = [
-		[get_periapsis_label, "body/orbit/get_periapsis",
-			dynamic_unit.bind(DynamicUnitType.LENGTH_KM_AU, false, 5)],
-		[get_apoapsis_label, "body/orbit/get_apoapsis",
-			dynamic_unit.bind(DynamicUnitType.LENGTH_KM_AU, false, 5)],
+		[get_periapsis_label, "body/orbit/get_periapsis", dynamic_unit.bind(&"length_km_au",
+			false, 5)],
+		[get_apoapsis_label, "body/orbit/get_apoapsis", dynamic_unit.bind(&"length_km_au",
+			false, 5)],
 		[&"LABEL_SEMI_MAJOR_AXIS", "body/orbit/get_semi_major_axis",
-			dynamic_unit.bind(DynamicUnitType.LENGTH_KM_AU, false, 5)],
-		[&"LABEL_ECCENTRICITY", "body/orbit/get_eccentricity",
-			as_float.bind(false, 5)],
-		[&"LABEL_ORBITAL_PERIOD", "body/orbit/get_period",
-			dynamic_unit.bind(DynamicUnitType.TIME_H_D_Y, false, 5)],
-		[&"LABEL_INCLINATION", "body/orbit/get_inclination",
-			fixed_unit.bind(&"deg", false, 3, NumberType.DECIMAL_PLACES)],
+			dynamic_unit.bind(&"length_km_au", false, 5)],
+		[&"LABEL_ECCENTRICITY", "body/orbit/get_eccentricity", as_float.bind(false, 5)],
+		[&"LABEL_ORBITAL_PERIOD", "body/orbit/get_period", dynamic_unit.bind(&"time_h_d_y",
+			false, 5)],
+		[&"LABEL_INCLINATION", "body/orbit/get_inclination", fixed_unit.bind(&"deg",
+			false, 3, NumberType.DECIMAL_PLACES)],
 		[&"LABEL_DIST_GALACTIC_CORE", "body/characteristics/dist_galactic_core",
-			dynamic_unit.bind(DynamicUnitType.LENGTH_KM_AU)],
-		[&"LABEL_GALACTIC_PERIOD", "body/characteristics/galactic_period",
-			fixed_unit.bind(&"yr")],
+			dynamic_unit.bind(&"length_km_au")],
+		[&"LABEL_GALACTIC_PERIOD", "body/characteristics/galactic_period", fixed_unit.bind(&"yr")],
 		[&"LABEL_AVERAGE_ORBITAL_SPEED", "body/characteristics/galactic_orbital_speed",
 			fixed_unit.bind(&"km/s")],
 		[&"LABEL_VELOCITY_VS_CMB", "body/characteristics/velocity_vs_cmb",
@@ -104,9 +101,9 @@ var selection_content: Dictionary[StringName, Array] = {
 		[&"LABEL_HYDROSTATIC_EQUILIBRIUM", "body/characteristics/hydrostatic_equilibrium",
 			enum_name.bind(IVGlobal.Confidence), hide_hydrostatic_equilibrium],
 		[&"LABEL_MASS", "body/characteristics/mass", fixed_unit.bind(&"kg")],
-		[&"LABEL_SURFACE_GRAVITY", "body/characteristics/surface_gravity", fixed_unit.bind(&"_g")],
+		[&"LABEL_SURFACE_GRAVITY", "body/characteristics/surface_gravity", fixed_unit.bind(&"g0")],
 		[&"LABEL_ESCAPE_VELOCITY", "body/characteristics/esc_vel",
-			dynamic_unit.bind(DynamicUnitType.VELOCITY_MPS_KMPS)],
+			dynamic_unit.bind(&"velocity_mps_kmps")],
 		[&"LABEL_MEAN_DENSITY", "body/characteristics/mean_density", fixed_unit.bind(&"g/cm^3")],
 		[&"LABEL_ALBEDO", "body/characteristics/albedo", as_float],
 		[&"LABEL_SURFACE_TEMP_MIN", "body/characteristics/min_t", fixed_unit.bind(&"degC")],
@@ -181,7 +178,7 @@ func get_apoapsis_label(selection: IVSelection) -> StringName:
 #  * Array - print as a list of labels/values
 
 func dynamic_unit(_selection: IVSelection, x: float, internal_precision: int,
-		dynamic_unit_type: int, override_internal_precision := false, precision := 3,
+		dynamic_key: StringName, override_internal_precision := false, precision := 3,
 		number_type := NumberType.DYNAMIC) -> String:
 	# args 0, 1 from loop code in IVSelectionDataFoldable
 	# internal_precision is -1 unless IVGlobal.enable_precisions == true
@@ -190,7 +187,7 @@ func dynamic_unit(_selection: IVSelection, x: float, internal_precision: int,
 		return "?"
 	if !override_internal_precision and internal_precision != -1:
 		precision = internal_precision
-	return IVQFormat.dynamic_unit(x, dynamic_unit_type, precision, number_type)
+	return IVQFormat.dynamic_unit(x, dynamic_key, precision, number_type)
 
 
 func fixed_unit(_selection: IVSelection, x: float, internal_precision: int, unit: StringName,
