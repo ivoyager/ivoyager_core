@@ -215,7 +215,7 @@ func _update_selection(_dummy := false) -> void:
 			else:
 				value_text = str(value_variant)
 		
-		if value_text == "":
+		if value_text == "" or value_text == "NAN":
 			content_row += 1
 			continue
 		
