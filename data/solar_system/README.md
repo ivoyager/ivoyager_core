@@ -1,87 +1,115 @@
-# README for I, Voyager tables
+# I, Voyager Data Tables
 
-For table construction rules, see [ivoyager_table_importer/README.md](https://github.com/ivoyager/ivoyager_table_importer/blob/master/README.md).
+For table construction rules, see [ivoyager_tables/README.md](https://github.com/ivoyager/ivoyager_tables/blob/master/README.md).
 
-WARNING! Do not use Excel for .tsv file editing! Excel will "interpret" and modify cell values. For example, the Sun's GM = "1.32712440018e20" will be be changed to "1.33E+20" in the display bar AND THE SAVED FILE VALUE! You can prevent this by prefixing with either single-quote (') or underscore (_). However, we don't want to have to prefix all REALs (or use other labor-intensive work-arounds) just to use Excel.
+Projects can add, remove or replace tables by modifying values in the "tables" dictionary in [IVTableInitializer](https://github.com/ivoyager/ivoyager_core/blob/master/initializers/table_initializer.gd). Alternatively, it's possible to modify existing table data by constructing ["mod" tables](https://github.com/ivoyager/ivoyager_tables/blob/master/README.md#db_entities_mod-format). 
 
-For a .csv/.tsv file editor that does not interpret and mangle data, we highly recommend [Rons Data Edit](https://www.ronsplace.eu/Products/RonsDataEdit/Download). It's free for files with up to 2500 rows with advertising banner or pay $35 for "pro" unlimited.
+#### Table Editor Warning!
+
+Most .csv/.tsv file editors will "interpret" and change (i.e., corrupt) table data without any warning, including numbers and text that looks even vaguely like dates (or perhaps other things). Excel is especially agressive in stripping out precision in large or small numbers, e.g., "1.32712440018E+20" converts to "1.33E+20" on saving. One editor that does NOT change data without your input is [Rons Data Edit](https://www.ronsplace.ca/Products/RonsDataEdit). There is a free version that will let you work with files with up to 1000 rows.
 
 *******************************************************************************
-## Specific Table Comments
 
-WIP, needs reformating for .md file
+## asset_adjustments.tsv
 
-asset_adjustments.tsv
-This table has atypical 'name' column (= asset file name).
-Maps are assumed to have prime meridian at center & longitude 180 at edge, as
-is typical for Earth maps; if different use 'longitude_offset'.
-Model scale is assumed to be in meters (1 meter), unless included here.
-Default values are hard-coded so we don't have to include all assets here.
+Default ("assumed") values are hard-coded so we don't have to include all assets here.
 
-asteroid_groups.tsv
-See Asteroid Importer addon for creation of asteroid binaries. (TODO! It needs
-update to work with current ivoyager.)
-Edit mag_cutoff to change how many asteroids are loaded. Number asteroids at
-'mag_cutoff': 15.0 ~94k; 14.0 ~31k, 13.0 ~9k, 12.0 ~3k.
-All other columns (and provided rows) are used to make binaries and should not
-be changed unless rebuilding binaries. 
-Groups are based on:
-https://en.wikipedia.org/wiki/List_of_minor_planets#Orbital_groups,
-with criteria modified so there are no excluded orbits.
-Asteroids are added to the first matching group. q, perihelion (closest); a,
-semimajor axis (peri- & apohelion average); q = (1 - e) * a.
-For each group, binaries were created representing half-integer ranges of
-magnitude. mag_cutoff determines which of these binaries are loaded.
-Rows here are currently hard-coded into navigation_panel.gd. This is something
-we try very hard not to do! To make this procedural rather than hard-coded, we
-would need columns here telling GUI where the asteroid group should be placed
-relative to planets.
-Totals shown in comments are from wiki, and I think include only numbered. We
-have multiopposition non-numbered, so add ~20%.
+Maps are assumed to have prime meridian at center and longitude 180° at edge, as is typical for maps of Earth and the Moon. If different, include here with `longitude_offset`.
 
-barycenters.tsv
-NOT IMPLEMENTED
+Model scale is assumed to be 1:1 (1 model unit = 1 meter). If different, include here with `model_scale`. Asteroids more commonly have a scale of 1:1000 (use 1000 here).
 
-classes.tsv
-Used only for GUI info display.
+## asteroids.tsv
 
-environments.tsv
-NOT IMPLEMENTED. The idea is to move internal environment settings to this data
-table, and possibly provide alternative settings.
+See [IVBody](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/body.gd) and [IVTableBodyBuilder](https://github.com/ivoyager/ivoyager_core/blob/master/program/table_body_builder.gd).
 
-lights.tsv
-OmniLight properties for stars (only Sun for now). Some internal settings may
-be moved here.
+This table includes only the individually instantiated asteroids, which are all of the "visited" asteroids that we have 3D models for. Our 70,000+ asteroids are defined in binary files and sorted into groups defined in [small_bodies_groups.tsv](#small_bodies_groupstsv).
 
-models.tsv
-Tells simulator how to implement model.
-Graphics attributes need attention! Columns can be added here, then implemented
-in program_refs/model_builder.gd. Our target aesthetic for base I, Voyager is
-"harsh realism". E.g., see videos of Musk's roadster in space. NOT cartoony!
+## body_classes.tsv
 
-moons.tsv
-Source: https://ssd.jpl.nasa.gov/?sat_elem
-Pw, Pnode are apsidal and nodal precession, ie, period of rotation of w and Om.
-Pw is in the direction of orbit; Pnode is in the opposite direction!
-Pw for the Moon from above source (5.997) is in conflict with other sources
-(eg, Wiki: 8.85). WTH?
-Sort each planet's moons by semi_major axis (a) for proper GUI selection order.
+Used only for GUI info display of "Classification". E.g., "Terrestrial Planet", "Gas Giant", "C-Type Asteroid", etc. See [models.tsv](#modelstsv) for types that affect 3D model representation.
 
-planets.tsv
-Keplarian elements and rates for approximate position calculation from 3000BC
-to 3000AD from https://ssd.jpl.nasa.gov/?planet_pos. Earth is really Earth-Moon
-barycenter.
-Physical characteristics mostly from https://ssd.jpl.nasa.gov/?planet_phys_par
-or Wikipedia.
-Ceres was added using AstDyS-2 proper elements a, e, sin(i), n and non-proper
-Om, w & M0.
-longitude_at_epoch is planetocentric longitude facing solar system barycenter
-at epoch.
+## camera_attributes.tsv
 
-stars.tsv
-We only have one! Data mostly from Wikipedia.
+Used by [IVWorldEnvironment](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/world_environment.gd) to set CameraAttributrutes parameters.
 
-wiki_extras.tsv
-Holds strings that we want associated with wiki page that are not row names in
-a table with en.wikipedia column.
+## dynamic_lights.tsv
 
+Used to create [IVDynamicLight](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/dynamic_light.gd) instances for shadow casting.
+
+## environments.tsv
+
+Used by [IVWorldEnvironment](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/world_environment.gd) to set Environment parameters.
+
+## models.tsv
+
+Fields are used by [IVModelSpace](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/model_space.gd) to build or modify 3D models for IVBody instances. All `spheroid` models share the same sphere mesh, scaled for size and oblateness.
+
+Many of the model types are meant to facilitate graphic differences for different kinds of worlds or bodies such as "icy", "thick atmosphere", "volcanic", etc. But we haven't implemented actual graphic differences yet. (We need help from someone competent in 3D visuals!)
+
+## moons.tsv
+
+See [IVBody](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/body.gd) and [IVTableBodyBuilder](https://github.com/ivoyager/ivoyager_core/blob/master/program/table_body_builder.gd).
+
+Source: https://ssd.jpl.nasa.gov/?sat_elem.
+
+P_apsidal (apsidal_period) for the Moon from above source (5.997) is in conflict with other sources (e.g., Wikipedia: 8.85). WTH?
+
+Sort each planet's moons by `semi_major_axis` for proper order in GUI display and selection.
+
+## omni_lights.tsv
+
+Used to build simple OmniLight instances. See light-building code in [IVBodyFinisher](https://github.com/ivoyager/ivoyager_core/blob/master/program/body_finisher.gd).
+
+if `disable_if_dynamic_enabled` is TRUE (default) and renderer mode allows, code will prefer to build an IVDynamicLight instance instead (this is necessary for shadows).
+
+## planets.tsv
+
+See [IVBody](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/body.gd) and [IVTableBodyBuilder](https://github.com/ivoyager/ivoyager_core/blob/master/program/table_body_builder.gd).
+
+Keplarian elements and rates are from https://ssd.jpl.nasa.gov/?planet_pos (data for 3000BC to 3000AD). Earth is really Earth-Moon barycenter. Note that an earlier version of this page had data for Pluto. Ceres was added using AstDyS-2 proper elements.
+
+Physical characteristics are mostly from https://ssd.jpl.nasa.gov/?planet_phys_par or Wikipedia.
+
+Sort planets by `semi_major_axis` for proper order in GUI display and selection.
+
+## rings.tsv
+
+Used by [IVRings](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/rings.gd) to build visual planetary rings and associated shadow casters.
+
+We only have Saturn's rings now.
+
+## small_bodies_groups.tsv
+
+See [IVSmallBodiesGroup](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/small_bodies_group.gd), [IVTableSBGBuilder](https://github.com/ivoyager/ivoyager_core/blob/master/program/table_sbg_builder.gd) and [IVBinaryAsteroidsBuilder](https://github.com/ivoyager/ivoyager_core/blob/master/program/binary_asteroids_builder.gd).
+
+This table defines groups instantiated as IVSmallBodiesGroup instances. At this time these are only asteroid groups, although the class is designed for other groupings of 1000s to 100,000s of bodies. For example, someday we may add 10000s of "Earth satellites".
+
+Table fields are used by the Core plugin and/or [ivbinary_maker](https://github.com/ivoyager/ivbinary_maker). The later generated the binary files present in ivoyager_assets/asteroid_binaries/. **Edit this table with care!** Most columns (except for colors and en.wikipedia) are used to make binaries and should not be changed unless rebuilding binaries. E.g., `sbg_alias` is used by Core but it needs to be consistent with existing binary files.  
+
+`mag_cutoff` is used by ivbinary_maker and the Core plugin. Core can reduce the number of asteroids loaded by reducing this number, but it can't add asteroids that are not already in the binary files.
+
+Asteroids were sorted into groups by ivbinary_maker based on criteria fields in this table (`min_q`, `max_q`, `min_a`, etc.). Groups are based on https://en.wikipedia.org/wiki/List_of_minor_planets#Orbital_groups with some modification so there are no excluded orbits. Each asteroid is added to the first group that does not exclude it based on table criteria. q, perihelion; a, semimajor axis; e, eccentricity; i, inclination. For each group, binaries are created representing half-integer ranges of magnitude (up to `mag_cutoff`).
+
+## spacecrafts.tsv
+
+See [IVBody](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/body.gd) and [IVTableBodyBuilder](https://github.com/ivoyager/ivoyager_core/blob/master/program/table_body_builder.gd).
+
+We only have a few at the moment. We would like to add more but [need 3D models!](https://github.com/ivoyager/ivoyager_core/issues/2)
+
+## stars.tsv
+
+See [IVBody](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/body.gd) and [IVTableBodyBuilder](https://github.com/ivoyager/ivoyager_core/blob/master/program/table_body_builder.gd).
+
+We only have one! Data is mostly from Wikipedia.
+
+## views.tsv
+
+Defines default [IVView](https://github.com/ivoyager/ivoyager_core/blob/master/tree_refs/view.gd) instances generated by [IVViewManager](https://github.com/ivoyager/ivoyager_core/blob/master/program/view_manager.gd). These optionally define a camera position (relative to specified body), camera "tracking" state (ground, orbit, eclipitc), HUDs state (color and visibility), and/or time state.
+
+## visual_groups.tsv
+
+Defines IVBody visual groups for [IVBodyHUDsState](https://github.com/ivoyager/ivoyager_core/blob/master/program/body_huds_state.gd) ("true planest", "dwarf planets", etc.). It specifies default values for HUD orbit colors and label visibilities.
+
+## wiki_extras.tsv
+
+This table has Wikipedia page titles for concepts (really text keys) like LABEL_ECCENTRICITY that are not entities in other tables. There is a field "en.wikipedia" in most other tables that has page titles for "entity" items like PLANET_MERCURY.
