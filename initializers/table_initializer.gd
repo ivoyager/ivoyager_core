@@ -31,7 +31,7 @@ extends RefCounted
 ## IVTableData.postprocess_tables() and then remove itself.
 
 
-static var table_base_path := "res://addons/ivoyager_core/data/solar_system/%s.tsv" 
+static var table_base_path := "res://addons/ivoyager_core/data/tables/%s.tsv" 
 static var tables: Dictionary[StringName, String] = {
 	file_adjustments = table_base_path % "file_adjustments",
 	asteroids = table_base_path % "asteroids",
