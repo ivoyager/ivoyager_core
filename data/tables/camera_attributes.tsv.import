@@ -1,0 +1,14 @@
+[remap]
+
+importer="ivoyager.tables"
+type="IVTableResource"
+uid="uid://c1a5gsdro1n17"
+path="res://.godot/imported/camera_attributes.tsv-3f76510d08024d9d75665a8616fbc0f6.tres"
+
+[deps]
+
+source_file="res://addons/ivoyager_core/data/tables/camera_attributes.tsv"
+dest_files=["res://.godot/imported/camera_attributes.tsv-3f76510d08024d9d75665a8616fbc0f6.tres"]
+
+[params]
+

@@ -52,8 +52,7 @@ func _disconnect_camera() -> void:
 
 
 func _on_range_changed(new_range: float) -> void:
-	const LENGTH_M_KM_AU := IVQFormat.DynamicUnitType.LENGTH_M_KM_AU
-	text = IVQFormat.dynamic_unit(new_range, LENGTH_M_KM_AU, 3)
+	text = IVQFormat.dynamic_unit(new_range, &"length_m_km_au", 3)
 
 
 func _on_camera_lock_changed(is_camera_lock: bool) -> void:

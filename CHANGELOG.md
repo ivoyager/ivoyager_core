@@ -14,7 +14,7 @@ Under development using Godot 4.5.
 
 ### Added
 * GUI widget IVSelectionDataFoldable using the new FoldableContainer.
-* IVLanguageManager and "Language" as a user option. [b]We're ready for translations![/b]
+* IVLanguageManager and "Language" as a user option. **We're ready for translations!**
 * Signal IVGlobal.camera_fov_changed(fov: float).
 * Signal IVGlobal.viewport_size_changed(size: Vector2).
 
@@ -32,6 +32,7 @@ Under development using Godot 4.5.
 * Removed BodyFlags.EXISTS.
 
 ### Fixed
+* Graphic glitch on the frame that IVCamera hands off to a new parent body.
 * Tidally locked body not rotating w/out orbit update.
 
 

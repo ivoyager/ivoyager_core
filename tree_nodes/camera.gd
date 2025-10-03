@@ -416,11 +416,16 @@ func _process_move_to(delta: float) -> void:
 		is_moving = false
 		_is_interupted_move = false
 		if parent != _to_spatial:
-			_do_handoff()
+			_do_handoff() # we get here in an instantanious move
 		_process_motions_and_rotations(delta)
 		return
 	
-	# Interpolate from where we would be (if move hadn't happened) to where
+	# Handoff at halfway point avoids imprecision shakes at either end.
+	var progress := ease(_move_time / _transfer_time, -ease_exponent)
+	if progress > 0.5 and parent != _to_spatial:
+		_do_handoff()
+	
+	# Interpolate from where we would be if we hadn't moved to where
 	# we are going. We continue to calculate were we would be so there isn't
 	# an abrupt velocity change (although that happens in an interupted move).
 	var from_transform: Transform3D
@@ -432,12 +437,7 @@ func _process_move_to(delta: float) -> void:
 				from_reference_basis, _from_perspective_radius)
 	var to_transform := _get_view_transform(view_position, view_rotations, _reference_basis,
 			perspective_radius)
-	var progress := ease(_move_time / _transfer_time, -ease_exponent)
 	_interpolate_path(from_transform, to_transform, progress)
-	
-	# Handoff at halfway point avoids precision shakes at either end.
-	if progress > 0.5 and parent != _to_spatial:
-		_do_handoff()
 
 
 func _do_handoff() -> void:

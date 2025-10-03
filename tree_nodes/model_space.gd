@@ -73,16 +73,10 @@ func _ready() -> void:
 
 
 func _build_packed_model(asset_preloader: IVAssetPreloader, packed_model: PackedScene) -> void:
-	const METER := IVUnits.METER
 	const RIGHT_ANGLE := PI / 2
-	var asset_row := asset_preloader.get_body_model_asset_row(_body_name)
-	var model_scale := METER
-	if asset_row != -1:
-		model_scale *= IVTableData.get_db_float(&"asset_adjustments", &"model_scale", asset_row)
-	
+	var model_scale := asset_preloader.get_body_model_scale(_body_name)
 	reference_basis = Basis().scaled(model_scale * Vector3.ONE)
-	reference_basis = reference_basis.rotated(Vector3(1.0, 0.0, 0.0), RIGHT_ANGLE) # z-up in astronomy!
-	
+	reference_basis = reference_basis.rotated(Vector3(1.0, 0.0, 0.0), RIGHT_ANGLE) # z-up!
 	_model = packed_model.instantiate()
 	_model.basis = reference_basis
 	_set_max_distance()
@@ -91,29 +85,17 @@ func _build_packed_model(asset_preloader: IVAssetPreloader, packed_model: Packed
 
 func _build_spheroid_model(asset_preloader: IVAssetPreloader) -> void:
 	const RIGHT_ANGLE := PI / 2
-	
-	# If albedo_map and emission_map both exist and both are in asset_adjustments.tsv,
-	# they are expected to have all the same table row values.
-	var asset_row := -1
-	var albedo_map := asset_preloader.get_body_albedo_map(_body_name)
-	if albedo_map:
-		asset_row = asset_preloader.get_body_albedo_asset_row(_body_name)
-	var emission_map := asset_preloader.get_body_emission_map(_body_name)
-	if emission_map:
-		asset_row = asset_preloader.get_body_emission_asset_row(_body_name)
-	
 	var polar_radius: = 3.0 * _m_radius - 2.0 * _e_radius
 	reference_basis = Basis().scaled(Vector3(_e_radius, polar_radius, _e_radius))
-	var longitude_offset := RIGHT_ANGLE # centered prime meridian
-	if asset_row != -1:
-		# longitude_offset same in albedo_map and emission_map, if both exist
-		longitude_offset += IVTableData.get_db_float(&"asset_adjustments", &"longitude_offset", asset_row)
-	reference_basis = reference_basis.rotated(Vector3(0.0, 1.0, 0.0), -longitude_offset)
-	reference_basis = reference_basis.rotated(Vector3(1.0, 0.0, 0.0), RIGHT_ANGLE) # z-up in astronomy!
-	
+	var albedo_map := asset_preloader.get_body_albedo_map(_body_name)
+	var emission_map := asset_preloader.get_body_emission_map(_body_name)
+	var map_offset := asset_preloader.get_body_map_offset(_body_name)
+	reference_basis = reference_basis.rotated(Vector3(0.0, 1.0, 0.0), RIGHT_ANGLE - map_offset)
+	reference_basis = reference_basis.rotated(Vector3(1.0, 0.0, 0.0), RIGHT_ANGLE) # z-up!
 	if replacement_spheroid_model_class:
 		@warning_ignore("unsafe_method_access")
-		_model = replacement_spheroid_model_class.new(_model_type, reference_basis, albedo_map, emission_map)
+		_model = replacement_spheroid_model_class.new(_model_type, reference_basis, albedo_map,
+				emission_map)
 	else:
 		_model = IVSpheroidModel.new(_model_type, reference_basis, albedo_map, emission_map)
 	_set_max_distance()

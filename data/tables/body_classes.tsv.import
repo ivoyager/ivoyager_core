@@ -1,0 +1,14 @@
+[remap]
+
+importer="ivoyager.tables"
+type="IVTableResource"
+uid="uid://dwbqp82b1l66r"
+path="res://.godot/imported/body_classes.tsv-b37576c90e2fe986972c7eae3ec8edbc.tres"
+
+[deps]
+
+source_file="res://addons/ivoyager_core/data/tables/body_classes.tsv"
+dest_files=["res://.godot/imported/body_classes.tsv-b37576c90e2fe986972c7eae3ec8edbc.tres"]
+
+[params]
+

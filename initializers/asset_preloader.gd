@@ -95,7 +95,7 @@ func get_body_packed_model(body_name: StringName) -> PackedScene:
 	return _body_resources[body_name][3]
 
 
-func get_body_model_asset_row(body_name: StringName) -> int:
+func get_body_model_scale(body_name: StringName) -> float:
 	return _body_resources[body_name][4]
 
 
@@ -103,16 +103,12 @@ func get_body_albedo_map(body_name: StringName) -> Texture2D:
 	return _body_resources[body_name][5]
 
 
-func get_body_albedo_asset_row(body_name: StringName) -> int:
+func get_body_emission_map(body_name: StringName) -> Texture2D:
 	return _body_resources[body_name][6]
 
 
-func get_body_emission_map(body_name: StringName) -> Texture2D:
+func get_body_map_offset(body_name: StringName) -> float:
 	return _body_resources[body_name][7]
-
-
-func get_body_emission_asset_row(body_name: StringName) -> int:
-	return _body_resources[body_name][8]
 
 
 func get_rings_texture_arrays(rings_name: StringName) -> Array[Texture2DArray]:
@@ -164,8 +160,8 @@ func _load_starmap() -> void:
 	_starmap = load(path)
 
 
-
 func _load_body_resources() -> void:
+	const METER := IVUnits.METER
 	
 	var fallback_texture_2d_path := asset_paths[&"fallback_body_texture_2d"]
 	assert(ResourceLoader.exists(fallback_texture_2d_path))
@@ -175,6 +171,11 @@ func _load_body_resources() -> void:
 	assert(ResourceLoader.exists(fallback_albedo_map_path))
 	var fallback_albedo_map: Texture2D = load(fallback_albedo_map_path)
 	
+	var file_adj_rows: Dictionary[String, int] = {}
+	var file_adj_files: Array[String] = IVTableData.get_db_field_array(&"file_adjustments", &"file")
+	for i in file_adj_files.size():
+		file_adj_rows[file_adj_files[i]] = i
+		
 	
 	for table in IVCoreSettings.body_tables:
 		for row in IVTableData.get_n_rows(table):
@@ -193,30 +194,37 @@ func _load_body_resources() -> void:
 						file_prefix + "_slice")
 			
 			var model_type := IVTableData.get_db_int(table, &"model_type", row)
-			
 			var packed_model: PackedScene = null
-			var model_asset_row := -1
+			var model_scale := METER
 			var model_path := files.find_resource_file(models_search, file_prefix)
 			if model_path:
 				packed_model = load(model_path)
-				model_asset_row = IVTableData.db_find(&"asset_adjustments", &"file_name",
-						model_path.get_file())
+				var model_file := model_path.get_file()
+				if file_adj_rows.has(model_file):
+					model_scale = IVTableData.get_db_float(&"file_adjustments", &"model_scale",
+							file_adj_rows[model_file])
 			
 			var albedo_map: Texture2D = null
-			var albedo_asset_row := -1
+			var emission_map: Texture2D = null
+			var map_offset := 0.0
 			var albedo_path := files.find_resource_file(maps_search, file_prefix + ".albedo")
 			if albedo_path:
 				albedo_map = load(albedo_path)
-				albedo_asset_row = IVTableData.db_find(&"asset_adjustments", &"file_name",
-						albedo_path.get_file())
-			
-			var emission_map: Texture2D = null
-			var emission_asset_row := -1
+				var albedo_file := albedo_path.get_file()
+				if file_adj_rows.has(albedo_file):
+					map_offset = IVTableData.get_db_float(&"file_adjustments", &"map_offset",
+							file_adj_rows[albedo_file])
 			var emission_path := files.find_resource_file(maps_search, file_prefix + ".emission")
 			if emission_path:
 				emission_map = load(emission_path)
-				emission_asset_row = IVTableData.db_find(&"asset_adjustments", &"file_name",
-						emission_path.get_file())
+				var emission_file := emission_path.get_file()
+				if file_adj_rows.has(emission_file):
+					var emission_offset := IVTableData.get_db_float(&"file_adjustments",
+							&"map_offset", file_adj_rows[emission_file])
+					assert(map_offset == 0.0 or map_offset == emission_offset,
+							"emission and albedo must have equal map_offset in file_adjustments.tsv"
+							+ " (only one needs to be specified)")
+					map_offset = emission_offset
 			
 			if !albedo_map and !emission_map:
 				albedo_map = fallback_albedo_map
@@ -226,11 +234,11 @@ func _load_body_resources() -> void:
 				texture_slice_2d,
 				model_type,
 				packed_model,
-				model_asset_row,
+				model_scale,
 				albedo_map,
-				albedo_asset_row,
 				emission_map,
-				emission_asset_row]
+				map_offset,
+			]
 			
 			_body_resources[body_name] = resources
 
