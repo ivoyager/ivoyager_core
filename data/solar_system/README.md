@@ -8,21 +8,13 @@ Projects can add, remove or replace tables by modifying values in the "tables" d
 
 Most .csv/.tsv file editors will "interpret" and change (i.e., corrupt) table data without any warning, including numbers and text that looks even vaguely like dates (or perhaps other things). Excel is especially agressive in stripping out precision in large or small numbers, e.g., "1.32712440018E+20" converts to "1.33E+20" on saving. One editor that does NOT change data without your input is [Rons Data Edit](https://www.ronsplace.ca/Products/RonsDataEdit). There is a free version that will let you work with files with up to 1000 rows.
 
-*******************************************************************************
-
-## asset_adjustments.tsv
-
-Default ("assumed") values are hard-coded so we don't have to include all assets here.
-
-Maps are assumed to have prime meridian at center and longitude 180° at edge, as is typical for maps of Earth and the Moon. If different, include here with `longitude_offset`.
-
-Model scale is assumed to be 1:1 (1 model unit = 1 meter). If different, include here with `model_scale`. Asteroids more commonly have a scale of 1:1000 (use 1000 here).
+*****
 
 ## asteroids.tsv
 
 See [IVBody](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/body.gd) and [IVTableBodyBuilder](https://github.com/ivoyager/ivoyager_core/blob/master/program/table_body_builder.gd).
 
-This table includes only the individually instantiated asteroids, which are all of the "visited" asteroids that we have 3D models for. Our 70,000+ asteroids are defined in binary files and sorted into groups defined in [small_bodies_groups.tsv](#small_bodies_groupstsv).
+This table includes only the individually instantiated asteroids, which are all of the "visited" asteroids that we have 3D models for. (Our 70,000+ asteroids are defined in binary files and sorted into groups defined in [small_bodies_groups.tsv](#small_bodies_groupstsv).)
 
 ## body_classes.tsv
 
@@ -39,6 +31,14 @@ Used to create [IVDynamicLight](https://github.com/ivoyager/ivoyager_core/blob/m
 ## environments.tsv
 
 Used by [IVWorldEnvironment](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/world_environment.gd) to set Environment parameters.
+
+## file_adjustments.tsv
+
+Asset file adjustments. Default ("assumed") values are hard-coded so we don't have to include all files here.
+
+Maps are assumed to have prime meridian at center and longitude 180° at edge, as is typical for maps of Earth and the Moon. If different, include here with `map_offset`. If a body has both albedo and emission maps, only one needs to be included here (if both are included, code will assert equal `map_offset`).
+
+Model scale is assumed to be 1 meter (1:1). If different, include here with `model_scale`. Asteroids more commonly have a scale of 1000 m (1:1000).
 
 ## models.tsv
 
