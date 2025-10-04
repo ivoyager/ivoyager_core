@@ -59,8 +59,6 @@ var characteristics_fields: Array[StringName] = [
 	&"n_kn_minor_planets",
 	&"n_kn_comets",
 	&"n_nat_satellites",
-	&"n_kn_nat_satellites",
-	&"n_kn_quasi_satellites",
 	&"substellar_longitude_at_epoch",
 	&"mass",
 	&"surface_gravity",

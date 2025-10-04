@@ -6,5 +6,5 @@
 offset_right = 24.0
 offset_bottom = 24.0
 tooltip_text = "HINT_CAMERA_LOCK"
-text = "CKBX_LOCK_CAMERA"
+text = "CKBX_CAMERA_LOCK"
 script = ExtResource("1")
