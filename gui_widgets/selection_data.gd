@@ -48,8 +48,9 @@ extends VBoxContainer
 ## [2, optional] Value format Callable.[br]
 ## [3, optional] A row hide Callable.[br][br]
 ##
-## Rows are hidden if value path can't be resolved or returns null, or if the
-## value format Callable returns "", or if the hide Callable returns true.[br][br]
+## Rows are hidden if value path can't be resolved or returns null or NAN, or
+## if the value format Callable returns "", or if the hide Callable returns
+## true.[br][br]
 ##
 ## For most applications, you'll want to put this widget in a ScrollContainer.[br][br]
 
@@ -85,9 +86,8 @@ var selection_content: Dictionary[StringName, Array] = {
 		[&"LABEL_KN_DWF_PLANETS", "body/characteristics/n_kn_dwf_planets"],
 		[&"LABEL_KN_MINOR_PLANETS", "body/characteristics/n_kn_minor_planets"],
 		[&"LABEL_KN_COMETS", "body/characteristics/n_kn_comets"],
-		[&"LABEL_NAT_SATELLITES", "body/characteristics/n_nat_satellites"],
-		[&"LABEL_KN_NAT_SATELLITES", "body/characteristics/n_kn_nat_satellites"],
-		[&"LABEL_KN_QUASI_SATELLITES", "body/characteristics/n_kn_quasi_satellites"],
+		[&"LABEL_NAT_SATELLITES", "body/characteristics/n_nat_satellites", natural_satellites],
+		
 	] as Array[Array],
 	PhysicalCharacteristics = [
 		[&"LABEL_CLASSIFICATION", "body/characteristics/body_class",
@@ -242,6 +242,7 @@ func mulitline_labels_values(_selection: IVSelection, object: Object) -> Array[S
 # specific
 
 func axial_tilt_to_orbit(selection: IVSelection, x: float, internal_precision: int) -> String:
+	# "~0°" if axis locked. Adds " (variable)" qualifier to chaotic tumblers.
 	const BODYFLAGS_AXIS_LOCKED := IVBody.BodyFlags.BODYFLAGS_AXIS_LOCKED
 	const BODYFLAGS_CHAOTIC_TUMBLER := IVBody.BodyFlags.BODYFLAGS_CHAOTIC_TUMBLER
 	var body_flags := selection.get_body_flags()
@@ -249,19 +250,26 @@ func axial_tilt_to_orbit(selection: IVSelection, x: float, internal_precision: i
 		return "~0°"
 	var text := fixed_unit(selection, x, internal_precision, &"deg", true, 4)
 	if body_flags & BODYFLAGS_CHAOTIC_TUMBLER:
-		return text + " " + tr(&"TXT_VARIABLE").to_lower()
+		return "%s (%s)" % [text, tr(&"TXT_VARIABLE").to_lower()]
 	return text
 
 
 func axial_tilt_to_ecliptic(selection: IVSelection, x: float, internal_precision: int) -> String:
-	
-	# WIP
-	
+	# Adds " (variable)" qualifier to chaotic tumblers.
 	const BODYFLAGS_CHAOTIC_TUMBLER := IVBody.BodyFlags.BODYFLAGS_CHAOTIC_TUMBLER
 	var body_flags := selection.get_body_flags()
+	var text := fixed_unit(selection, x, internal_precision, &"deg", true, 4)
 	if body_flags & BODYFLAGS_CHAOTIC_TUMBLER:
-		return tr(&"TXT_VARIABLE").to_lower()
-	return fixed_unit(selection, x, internal_precision, &"deg", true, 4)
+		return text + (" (%s)" % tr(&"TXT_VARIABLE").to_lower())
+	return text
+
+
+func natural_satellites(_selection: IVSelection, x: int) -> String:
+	# Adds " (known)" qualifier if many. Ad hoc solution for gas giants and Pluto.
+	const DISPLAY_KNOWN_QUALIFIER := 5
+	if x < DISPLAY_KNOWN_QUALIFIER:
+		return str(x)
+	return "%s (%s)" % [x, tr(&"TXT_KNOWN").to_lower()]
 
 
 # *****************************************************************************

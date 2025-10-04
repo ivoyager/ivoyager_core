@@ -40,6 +40,7 @@ extends FoldableContainer
 ## exist, they will be gathered into a VBoxContainer automatically at _ready().
 
 
+
 ## If true, row labels will be wiki links if [method IVWikiManager.has_page]
 ## evaluates as true. Note: this property does nothing if a WikiManager is not
 ## present.
@@ -182,13 +183,14 @@ func _update_selection(_dummy := false) -> void:
 		
 		var value_path: String = row_content[1]
 		var value: Variant = IVUtils.get_path_result(selection, value_path)
-		if value == null:
+		if value == null or is_same(value, NAN):
 			content_row += 1
 			continue
 		
 		var value_text: String
 		var value_key := &""
-		if row_content.size() < 3: # no value format callable
+		if row_content.size() < 3:
+			# No format callable. Convert it to string, whatever it is.
 			value_text = str(value)
 			if value is StringName:
 				value_key = value
@@ -201,21 +203,21 @@ func _update_selection(_dummy := false) -> void:
 			value_text = format.call(selection, value, internal_precision)
 		else:
 			var format: Callable = row_content[2]
-			var value_variant: Variant = format.call(selection, value)
-			if value_variant is Array:
+			var formatted_value: Variant = format.call(selection, value)
+			if formatted_value is Array:
 				# Set full row row_content here, not below!
-				var list_array: Array[String] = value_variant
+				var list_array: Array[String] = formatted_value
 				_set_row(grid_row, list_array[0], list_array[1], &"")
 				grid_row += 1
 				content_row += 1
 				continue
-			elif value_variant is StringName:
-				value_text = value_variant
-				value_key = value_variant
+			elif formatted_value is StringName:
+				value_text = formatted_value
+				value_key = formatted_value
 			else:
-				value_text = str(value_variant)
+				value_text = str(formatted_value)
 		
-		if value_text == "" or value_text == "NAN":
+		if value_text == "":
 			content_row += 1
 			continue
 		
