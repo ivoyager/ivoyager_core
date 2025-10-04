@@ -6,5 +6,5 @@
 offset_right = 24.0
 offset_bottom = 24.0
 tooltip_text = "HINT_UP_LOCK"
-text = "BUTTON_UP"
+text = "CKBX_UP"
 script = ExtResource("1")

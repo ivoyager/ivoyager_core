@@ -20,12 +20,18 @@
 class_name IVViewSaver
 extends VBoxContainer
 
-## GUI widget that saves current view.
+## GUI widget that saves current "view", where view may or may not include
+## position, orientation, HUDs state, and time state.
 ##
 ## This widget is contained in [IVViewSavePopup] and works in conjunction with
 ## [IVViewSaveFlow] (which shows the resultant saved view buttons).[br][br]
 ##
-## Note: Unused buttions will be removed!
+## Unused buttions will be removed.[br][br]
+##
+## In normal game usage where [member IVCoreSettings.allow_time_setting] == false,
+## TimeCkbx is still valid because "time state" includes game speed. This
+## check box will be relabled "CKBX_GAME_SPEED". NowCkbx is not valid and
+## will be removed.
 
 signal view_saved(view_name: StringName)
 
