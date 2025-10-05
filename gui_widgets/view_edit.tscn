@@ -1,13 +1,13 @@
-[gd_scene load_steps=2 format=3 uid="uid://ccm8cp7kb55s4"]
+[gd_scene load_steps=2 format=3 uid="uid://bmi5c7g8rwf3h"]
 
-[ext_resource type="Script" uid="uid://dfn7ckl0stohe" path="res://addons/ivoyager_core/gui_widgets/view_saver.gd" id="1"]
+[ext_resource type="Script" uid="uid://dw4kmnra12xw3" path="res://addons/ivoyager_core/gui_widgets/view_edit.gd" id="1_85xfe"]
 
-[node name="ViewSaver" type="VBoxContainer"]
+[node name="ViewEdit" type="VBoxContainer"]
 offset_left = 5.0
 offset_top = 5.0
 offset_right = 73.0
 offset_bottom = 27.0
-script = ExtResource("1")
+script = ExtResource("1_85xfe")
 
 [node name="SelectionCkbx" type="CheckBox" parent="."]
 unique_name_in_owner = true

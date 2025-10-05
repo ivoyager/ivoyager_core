@@ -32,17 +32,6 @@ const BodyFlags: Dictionary = IVBody.BodyFlags
 const ViewFlags := IVView.ViewFlags
 
 
-var default_view_name := &"LABEL_CUSTOM1" # will increment if taken
-var collection_name := &"AH"
-var is_cached := true
-var view_flags := ViewFlags.VIEWFLAGS_ALL_HUDS
-var reserved_view_names: Array[StringName] = [
-	&"VIEW_HIDE_ALL",
-	&"VIEW_PLANETS1",
-	&"VIEW_ASTEROIDS1",
-	&"VIEW_COLORS1",
-]
-
 var _column_master: GridContainer
 
 
@@ -52,11 +41,12 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
-	var view_save_button: IVViewSaveButton = $"%ViewSaveButton"
-	view_save_button.tooltip_text = &"HINT_SAVE_VISIBILITIES_AND_COLORS"
-	($ViewSaveFlow as IVViewSaveFlow).init(view_save_button, default_view_name, collection_name,
-			is_cached, view_flags, view_flags, reserved_view_names)
+	# Panal expands with ViewCollection but does not shrink. Needs reset.
+	(%ViewCollection as Control).resized.connect(_reset_size)
 
+
+func _reset_size() -> void:
+	size = Vector2.ZERO
 
 
 func _on_child_entered_tree(control: Control) -> void:

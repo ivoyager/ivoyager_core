@@ -20,74 +20,74 @@
 class_name IVViewSaveButton
 extends Button
 
-## GUI button that opens its own [IVViewSavePopup].
+## GUI button that opens its own [IVViewEditPopup].
 ##
-## Requires [IVViewSavePopup] and [IVViewSaver].[br][br]
+## Requires [IVViewCollection], [IVViewEditPopup] and [IVViewEdit].[br][br]
 ##
-## Can be placed inside an [IVViewSaveFlow].
-
-signal view_saved(view_name: StringName)
-
+## Can be placed inside or as a descendent of an [IVViewCollection]. If this is
+## not the case, then [member external_view_collection_path] must be set.
 
 const ViewFlags := IVView.ViewFlags
 
+## Only needs to be set if this button is not contained in its associated
+## [IVViewCollection].
+@export var external_view_collection_path: NodePath
 
-var _view_save_popup: IVViewSavePopup
-var _view_saver: IVViewSaver
+var _view_collection: IVViewCollection
+var _view_edit_popup: IVViewEditPopup
+var _view_edit: IVViewEdit
 
 
 
 func _ready() -> void:
-	var top_gui: Control = IVGlobal.program.TopGUI
-	_view_save_popup = IVFiles.make_object_or_scene(IVViewSavePopup)
-	_view_saver = _view_save_popup.find_child(&"ViewSaver")
-	_view_saver.view_saved.connect(_on_view_saved)
-	top_gui.add_child(_view_save_popup)
+	_deffered_connect_collection.call_deferred()
+
+
+func _deffered_connect_collection() -> void:
+	# deffered to ensure external collection is ready...
+	if external_view_collection_path:
+		_view_collection = get_node(external_view_collection_path)
+	else: # search up
+		var up_search: Control = self
+		while !_view_collection:
+			up_search = up_search.get_parent_control()
+			assert(up_search,
+					"No external_view_collection_path; expected ancestor IVViewCollection")
+			_view_collection = up_search as IVViewCollection
+	_view_edit_popup = _view_collection.view_edit_popup
+	_view_edit = _view_collection.view_edit
+	
+	# connections
 	toggled.connect(_on_toggled)
-	_view_save_popup.visibility_changed.connect(_on_visibility_changed)
+	_view_edit.view_saved.connect(_on_view_saved)
+	_view_edit_popup.visibility_changed.connect(_on_visibility_changed)
 
 
-
-func init(default_view_name := &"LABEL_CUSTOM1", collection_name := &"", is_cached := true,
-		show_flags: int = ViewFlags.VIEWFLAGS_ALL, init_flags: int = ViewFlags.VIEWFLAGS_ALL,
-		reserved_names: Array[StringName]= []) -> void:
-	# Called by IVViewCollection in standard setup.
-	# Make 'collection_name' unique to not share views with other GUI instances.
-	_view_saver.init(default_view_name, collection_name, is_cached, show_flags, init_flags,
-			reserved_names)
-
-
-func get_view_save_popup() -> IVViewSavePopup:
-	return _view_save_popup
-
-
-func get_view_saver() -> IVViewSaver:
-	return _view_saver
 
 
 func _on_view_saved(view_name: String) -> void:
-	_view_save_popup.hide()
-	view_saved.emit(view_name)
+	_view_edit_popup.hide()
+	_view_collection.add_user_button(view_name)
 
 
 func _on_toggled(toggle_pressed: bool) -> void:
-	if !_view_save_popup:
+	if !_view_edit_popup:
 		return
 	if toggle_pressed:
-		_view_save_popup.popup()
+		_view_edit_popup.popup()
 		await get_tree().process_frame # popup may not know its correct size yet
-		var popup_position := global_position - Vector2(_view_save_popup.size)
+		var popup_position := global_position - Vector2(_view_edit_popup.size)
 		popup_position.x += size.x / 2.0
 		if popup_position.x < 0.0:
 			popup_position.x = 0.0
 		if popup_position.y < 0.0:
 			popup_position.y = 0.0
-		_view_save_popup.position = popup_position
+		_view_edit_popup.position = popup_position
 	else:
-		_view_save_popup.hide()
+		_view_edit_popup.hide()
 
 
 func _on_visibility_changed() -> void:
 	await get_tree().process_frame
-	if !_view_save_popup.visible:
+	if !_view_edit_popup.visible:
 		button_pressed = false

@@ -1,4 +1,4 @@
-# view_saver.gd
+# view_edit.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -17,13 +17,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVViewSaver
+class_name IVViewEdit
 extends VBoxContainer
 
 ## GUI widget that saves current "view", where view may or may not include
 ## position, orientation, HUDs state, and time state.
 ##
-## This widget is contained in [IVViewSavePopup] and works in conjunction with
+## This widget is contained in [IVViewEditPopup] and works in conjunction with
 ## [IVViewSaveFlow] (which shows the resultant saved view buttons).[br][br]
 ##
 ## Unused buttions will be removed.[br][br]
@@ -81,13 +81,19 @@ func _ready() -> void:
 func init(default_view_name_ := &"LABEL_CUSTOM1", collection_name_ := &"", is_cached_ := true,
 		show_flags_: int = ViewFlags.VIEWFLAGS_ALL, init_flags: int = ViewFlags.VIEWFLAGS_ALL,
 		reserved_names_: Array[StringName] = []) -> void:
-	# Called by IVViewSaveButton in standard setup.
+	# Called by IVViewCollection in standard setup.
 	# Make 'collection_name_' unique to not share views with other GUI instances. 
 	default_view_name = default_view_name_
 	collection_name = collection_name_
 	is_cached = is_cached_
 	show_flags = show_flags_
 	reserved_names = reserved_names_
+	
+	# translate reserved names
+	for i in reserved_names.size():
+		reserved_names[i] = tr(reserved_names[i])
+		
+	
 	
 	# modify input flags as needed
 	if !IVCoreSettings.allow_time_setting:

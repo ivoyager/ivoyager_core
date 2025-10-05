@@ -3,8 +3,8 @@
 [ext_resource type="Script" uid="uid://dmae2kjgqgdu1" path="res://addons/ivoyager_core/gui_widgets/all_huds.gd" id="1"]
 [ext_resource type="PackedScene" uid="uid://b3hiqf4h71d6p" path="res://addons/ivoyager_core/gui_widgets/body_huds.tscn" id="2"]
 [ext_resource type="PackedScene" uid="uid://cjnmkmscbt4jl" path="res://addons/ivoyager_core/gui_widgets/sbg_huds.tscn" id="3"]
-[ext_resource type="PackedScene" uid="uid://bvs2mb8bj8gfn" path="res://addons/ivoyager_core/gui_widgets/view_save_flow.tscn" id="4"]
 [ext_resource type="PackedScene" uid="uid://do2jvg01jte0i" path="res://addons/ivoyager_core/gui_widgets/view_save_button.tscn" id="5"]
+[ext_resource type="PackedScene" uid="uid://cr2k471sfa7fd" path="res://addons/ivoyager_core/gui_widgets/view_collection.tscn" id="5_qs6ow"]
 [ext_resource type="PackedScene" uid="uid://bcl70ysl6yces" path="res://addons/ivoyager_core/gui_widgets/view_button.tscn" id="7"]
 
 [node name="AllHUDs" type="VBoxContainer"]
@@ -59,27 +59,35 @@ mouse_filter = 2
 [node name="HideAll" parent="HBox" instance=ExtResource("7")]
 layout_mode = 2
 text = "VIEW_HIDE_ALL"
+default_view = &"VIEW_HIDE_ALL"
 
 [node name="Planets1" parent="HBox" instance=ExtResource("7")]
 layout_mode = 2
 text = "VIEW_PLANETS1"
+default_view = &"VIEW_PLANETS1"
 
 [node name="Asteroids1" parent="HBox" instance=ExtResource("7")]
 layout_mode = 2
 text = "VIEW_ASTEROIDS1"
+default_view = &"VIEW_ASTEROIDS1"
 
 [node name="Colors1" parent="HBox" instance=ExtResource("7")]
 layout_mode = 2
 text = "VIEW_COLORS1"
+default_view = &"VIEW_COLORS1"
 
 [node name="Spacer3" type="Control" parent="."]
 custom_minimum_size = Vector2(0, 4)
 layout_mode = 2
 mouse_filter = 2
 
-[node name="ViewSaveFlow" parent="." instance=ExtResource("4")]
-layout_mode = 2
-
-[node name="ViewSaveButton" parent="ViewSaveFlow" instance=ExtResource("5")]
+[node name="ViewCollection" parent="." instance=ExtResource("5_qs6ow")]
 unique_name_in_owner = true
+layout_mode = 2
+collection_name = &"HUDs"
+show_flags = 24
+init_flags = 24
+reserved_names = Array[StringName]([&"VIEW_HIDE_ALL", &"VIEW_PLANETS1", &"VIEW_ASTEROIDS1", &"VIEW_COLORS1"])
+
+[node name="ViewSaveButton" parent="ViewCollection" instance=ExtResource("5")]
 layout_mode = 2

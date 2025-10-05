@@ -1,4 +1,4 @@
-# view_save_popup.gd
+# view_edit_popup.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -17,9 +17,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVViewSavePopup
+class_name IVViewEditPopup
 extends PopupPanel
 
-## Instanced by [IVViewSaveButton].
+## Instanced by [IVViewCollection].
 
-const SCENE := "res://addons/ivoyager_core/gui_popups/view_save_popup.tscn"
+const SCENE := "res://addons/ivoyager_core/gui_popups/view_edit_popup.tscn"
