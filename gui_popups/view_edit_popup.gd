@@ -23,3 +23,12 @@ extends PopupPanel
 ## Instanced by [IVViewCollection].
 
 const SCENE := "res://addons/ivoyager_core/gui_popups/view_edit_popup.tscn"
+
+
+func _ready() -> void:
+	# Popup expands but does not shrink. Needs reset.
+	(%ViewEdit as Control).resized.connect(_reset_size)
+
+
+func _reset_size() -> void:
+	size = Vector2.ZERO

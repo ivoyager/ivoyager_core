@@ -33,6 +33,7 @@ const ViewFlags := IVView.ViewFlags
 ## [IVViewCollection].
 @export var external_view_collection_path: NodePath
 
+
 var _view_collection: IVViewCollection
 var _view_edit_popup: IVViewEditPopup
 var _view_edit: IVViewEdit
@@ -59,32 +60,17 @@ func _deffered_connect_collection() -> void:
 	
 	# connections
 	toggled.connect(_on_toggled)
-	_view_edit.view_saved.connect(_on_view_saved)
 	_view_edit_popup.visibility_changed.connect(_on_visibility_changed)
 
 
 
-
-func _on_view_saved(view_name: String) -> void:
-	_view_edit_popup.hide()
-	_view_collection.add_user_button(view_name)
-
-
 func _on_toggled(toggle_pressed: bool) -> void:
-	if !_view_edit_popup:
+	if !_view_collection:
 		return
 	if toggle_pressed:
-		_view_edit_popup.popup()
-		await get_tree().process_frame # popup may not know its correct size yet
-		var popup_position := global_position - Vector2(_view_edit_popup.size)
-		popup_position.x += size.x / 2.0
-		if popup_position.x < 0.0:
-			popup_position.x = 0.0
-		if popup_position.y < 0.0:
-			popup_position.y = 0.0
-		_view_edit_popup.position = popup_position
+		_view_collection.open_view_edit(self)
 	else:
-		_view_edit_popup.hide()
+		_view_collection.close_view_edit()
 
 
 func _on_visibility_changed() -> void:

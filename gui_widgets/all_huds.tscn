@@ -84,10 +84,11 @@ mouse_filter = 2
 [node name="ViewCollection" parent="." instance=ExtResource("5_qs6ow")]
 unique_name_in_owner = true
 layout_mode = 2
-collection_name = &"HUDs"
-show_flags = 24
-init_flags = 24
-reserved_names = Array[StringName]([&"VIEW_HIDE_ALL", &"VIEW_PLANETS1", &"VIEW_ASTEROIDS1", &"VIEW_COLORS1"])
+collection_name = "HUD"
+allowed_flags = 24
+new_set_flags = 24
+reserved_names = Array[String](["VIEW_HIDE_ALL", "VIEW_PLANETS1", "VIEW_ASTEROIDS1", "VIEW_COLORS1"])
+new_button_name = &"LABEL_CUSTOM1"
 
 [node name="ViewSaveButton" parent="ViewCollection" instance=ExtResource("5")]
 layout_mode = 2

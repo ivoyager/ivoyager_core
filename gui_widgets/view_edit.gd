@@ -33,19 +33,31 @@ extends VBoxContainer
 ## check box will be relabled "CKBX_GAME_SPEED". NowCkbx is not valid and
 ## will be removed.
 
-signal view_saved(view_name: StringName)
+signal saved_new(view_name: String)
+signal saved_edit(editing_button: IVViewButton, view_name: String)
+signal restored_default(editing_button: IVViewButton)
+signal deleted(editing_button: IVViewButton)
+signal canceled()
 
 
 const ViewFlags := IVView.ViewFlags
 
 
-var default_view_name := &"LABEL_CUSTOM1" # will increment if taken
-var collection_name := &""
-var is_cached := true
-var show_flags: int = ViewFlags.VIEWFLAGS_ALL
-var reserved_names: Array[StringName] = []
+var _new_button_name: StringName
+var _collection_name: String
+var _is_cached := true
+var _allowed_flags: int
+var _new_set_flags: int
 
+var _reserved_names: Array[String] = []
+
+var _editing_button: IVViewButton
+
+
+# Note: ViewManager usage is a little confusing. IVViewEdit does all view_name
+# saves and removes. IVViewButton does all connects and disconnets.
 @onready var _view_manager: IVViewManager = IVGlobal.program[&"ViewManager"]
+
 @onready var _selection_ckbx: CheckBox = $"%SelectionCkbx"
 @onready var _longitude_ckbx: CheckBox = $"%LongitudeCkbx"
 @onready var _orientation_ckbx: CheckBox = $"%OrientationCkbx"
@@ -56,7 +68,7 @@ var reserved_names: Array[StringName] = []
 @onready var _line_edit: LineEdit = $"%LineEdit"
 
 # Unused buttons will be removed!
-@onready var flag_ckbxs : Dictionary[int, CheckBox] = {
+@onready var _flag_ckbxs: Dictionary[int, CheckBox] = {
 	ViewFlags.VIEWFLAGS_CAMERA_SELECTION : _selection_ckbx,
 	ViewFlags.VIEWFLAGS_CAMERA_LONGITUDE : _longitude_ckbx,
 	ViewFlags.VIEWFLAGS_CAMERA_ORIENTATION : _orientation_ckbx,
@@ -69,84 +81,129 @@ var reserved_names: Array[StringName] = []
 
 
 func _ready() -> void:
-	_line_edit.text = tr(default_view_name)
 	visibility_changed.connect(_on_visibility_changed)
-	($"%SaveButton" as Button).pressed.connect(_on_save)
+	($"%SaveCurrentButton" as Button).pressed.connect(_on_save)
+	(%RestoreDefaultButton as Button).pressed.connect(_on_restore_default)
+	(%DeleteButton as Button).pressed.connect(_on_delete)
+	(%CancelButton as Button).pressed.connect(canceled.emit)
 	_line_edit.text_submitted.connect(_on_save)
 	if !IVCoreSettings.allow_time_setting:
 		_time_ckbx.text = &"CKBX_GAME_SPEED" # this is the only 'time' element that can be modified
 
 
 
-func init(default_view_name_ := &"LABEL_CUSTOM1", collection_name_ := &"", is_cached_ := true,
-		show_flags_: int = ViewFlags.VIEWFLAGS_ALL, init_flags: int = ViewFlags.VIEWFLAGS_ALL,
-		reserved_names_: Array[StringName] = []) -> void:
+func init(new_button_name: StringName, collection_name: String, is_cached: bool,
+		allowed_flags: int, new_set_flags: int, reserved_names: Array[String] = []) -> void:
 	# Called by IVViewCollection in standard setup.
 	# Make 'collection_name_' unique to not share views with other GUI instances. 
-	default_view_name = default_view_name_
-	collection_name = collection_name_
-	is_cached = is_cached_
-	show_flags = show_flags_
-	reserved_names = reserved_names_
+	_new_button_name = new_button_name
+	_collection_name = collection_name
+	_is_cached = is_cached
+	_allowed_flags = allowed_flags
+	_new_set_flags = new_set_flags
+	_reserved_names = reserved_names
 	
 	# translate reserved names
-	for i in reserved_names.size():
-		reserved_names[i] = tr(reserved_names[i])
-		
-	
+	for i in _reserved_names.size():
+		_reserved_names[i] = tr(_reserved_names[i])
 	
 	# modify input flags as needed
 	if !IVCoreSettings.allow_time_setting:
-		show_flags &= ~ViewFlags.VIEWFLAGS_IS_NOW
-	init_flags &= show_flags # enforce subset
-	if init_flags & ViewFlags.VIEWFLAGS_TIME_STATE:
-		init_flags &= ~ViewFlags.VIEWFLAGS_IS_NOW # exclusive
+		_allowed_flags &= ~ViewFlags.VIEWFLAGS_IS_NOW
+	new_set_flags &= _allowed_flags # enforce subset
+	if new_set_flags & ViewFlags.VIEWFLAGS_TIME_STATE:
+		new_set_flags &= ~ViewFlags.VIEWFLAGS_IS_NOW # exclusive
 	
-	_line_edit.text = tr(default_view_name)
-	_increment_name_as_needed()
+	_line_edit.text = tr(_new_button_name)
+	_increment_suffix()
 	
 	# set button exclusivity if needed
-	if show_flags & ViewFlags.VIEWFLAGS_TIME_STATE and show_flags & ViewFlags.VIEWFLAGS_IS_NOW:
-		_time_ckbx.toggled.connect(_unset_exclusive.bind(_now_ckbx))
-		_now_ckbx.toggled.connect(_unset_exclusive.bind(_time_ckbx))
+	if _allowed_flags & ViewFlags.VIEWFLAGS_TIME_STATE and _allowed_flags & ViewFlags.VIEWFLAGS_IS_NOW:
+		_time_ckbx.toggled.connect(_unset_exclusive_ckbx.bind(_now_ckbx))
+		_now_ckbx.toggled.connect(_unset_exclusive_ckbx.bind(_time_ckbx))
 	
 	# remove buttons we'll never use
-	for flag: int in flag_ckbxs.keys(): # erase safe
-		if not flag & show_flags:
-			flag_ckbxs[flag].queue_free()
-			flag_ckbxs.erase(flag)
+	for flag: int in _flag_ckbxs.keys(): # erase safe
+		if not flag & _allowed_flags:
+			_flag_ckbxs[flag].queue_free()
+			_flag_ckbxs.erase(flag)
 	
-	# initial pressed state
-	for flag in flag_ckbxs:
-		flag_ckbxs[flag].set_pressed_no_signal(bool(flag & init_flags))
+	_set_ckbx_state(_new_set_flags)
 
 
 
-func _unset_exclusive(is_pressed: bool, exclusive_button: CheckBox) -> void:
+func set_editing_button(editing_button: IVViewButton) -> void:
+	_editing_button = editing_button # null if creating new button
+
+
+
+func _set_ckbx_state(flags: int) -> void:
+	for flag in _flag_ckbxs:
+		_flag_ckbxs[flag].set_pressed_no_signal(bool(flag & flags))
+
+
+func _unset_exclusive_ckbx(is_pressed: bool, exclusive_button: CheckBox) -> void:
 	if is_pressed:
 		exclusive_button.button_pressed = false
 
 
 func _on_visibility_changed() -> void:
-	if is_visible_in_tree():
-		_increment_name_as_needed()
+	
+	if !is_visible_in_tree():
+		_editing_button = null
+		return
+	
+	(%RestoreDefaultButton as Button).visible = (_editing_button
+			and _editing_button.is_edited_default_button())
+	(%DeleteButton as Button).visible = _editing_button and _editing_button.deletable
+	if _editing_button:
+		_set_ckbx_state(_editing_button.get_view_flags())
+		_line_edit.editable = _editing_button.renamable
+		_line_edit.text = tr(_editing_button.text)
+	else:
+		_set_ckbx_state(_new_set_flags)
+		_line_edit.editable = true
+		_line_edit.text = tr(_new_button_name)
+		_increment_suffix()
+	if _line_edit.editable:
 		_line_edit.select_all()
 		_line_edit.set_caret_column(100)
 		_line_edit.grab_focus.call_deferred()
+	size = Vector2.ZERO # triggers resize in popup
 
 
 func _on_save(_dummy := "") -> void:
-	_increment_name_as_needed()
+	_increment_suffix()
 	var flags := _get_view_flags()
-	_view_manager.save_view(_line_edit.text, collection_name, is_cached, flags)
-	view_saved.emit(_line_edit.text)
+	if !_editing_button:
+		_view_manager.save_view(_line_edit.text, _collection_name, _is_cached, flags)
+		saved_new.emit(_line_edit.text)
+		return
+	if _line_edit.text != tr(_editing_button.text):
+		_view_manager.remove_view(_editing_button.text, _collection_name, _is_cached)
+	_view_manager.save_view(_line_edit.text, _collection_name, _is_cached, flags)
+	saved_edit.emit(_editing_button, _line_edit.text)
 
 
-func _increment_name_as_needed() -> void:
+func _on_restore_default() -> void:
+	if _editing_button and _editing_button.default_view: # unavailable otherwise, but just in case
+		_view_manager.remove_view(_editing_button.text, _collection_name, _is_cached)
+		restored_default.emit(_editing_button)
+
+
+func _on_delete() -> void:
+	if _editing_button and _editing_button.deletable: # unavailable otherwise, but just in case
+		_view_manager.remove_view(_editing_button.text, _collection_name, _is_cached)
+		deleted.emit(_editing_button)
+
+
+func _increment_suffix() -> void:
+	if _editing_button and tr(_editing_button.text) == _line_edit.text:
+		return
 	if !_line_edit.text:
 		_line_edit.text = "1"
 	var text := _line_edit.text
-	if !_view_manager.has_view(text, collection_name, is_cached) and !reserved_names.has(text):
+	if !_view_manager.has_view(text, _collection_name, _is_cached) and !_reserved_names.has(text):
 		return
 	if !text[-1].is_valid_int():
 		_line_edit.text += "2"
@@ -155,12 +212,12 @@ func _increment_name_as_needed() -> void:
 		_line_edit.text += "0"
 	else:
 		_line_edit.text[-1] = str(int(text[-1]) + 1)
-	_increment_name_as_needed()
+	_increment_suffix()
 
 
 func _get_view_flags() -> int:
 	var flags := 0
-	for flag in flag_ckbxs:
-		if flag_ckbxs[flag].button_pressed:
+	for flag in _flag_ckbxs:
+		if _flag_ckbxs[flag].button_pressed:
 			flags |= flag
 	return flags

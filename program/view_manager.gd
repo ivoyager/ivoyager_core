@@ -61,7 +61,17 @@ func has_table_view(view_name: StringName) -> bool:
 	return table_views.has(view_name)
 
 
-func save_view(view_name: StringName, collection_name: StringName, is_cached: bool, flags: int,
+func get_table_view_object(view_name: StringName) -> IVView:
+	return table_views.get(view_name)
+
+
+func get_table_view_flags(view_name: StringName) -> int:
+	if table_views.has(view_name):
+		return table_views[view_name].flags
+	return 0
+
+
+func save_view(view_name: String, collection_name: String, is_cached: bool, flags: int,
 		allow_threaded_cache_write := true) -> void:
 	var key := view_name + "." + collection_name
 	var view := get_view_object(view_name, collection_name, is_cached)
@@ -77,7 +87,7 @@ func save_view(view_name: StringName, collection_name: StringName, is_cached: bo
 		gamesave_views[key] = view
 
 
-func set_view(view_name: StringName, collection_name: StringName, is_cached: bool,
+func set_view(view_name: String, collection_name: String, is_cached: bool,
 		is_camera_instant_move := false) -> void:
 	var key := view_name + "." + collection_name
 	var view: IVView
@@ -90,7 +100,7 @@ func set_view(view_name: StringName, collection_name: StringName, is_cached: boo
 	view.set_state(is_camera_instant_move)
 
 
-func save_view_object(view: IVView, view_name: StringName, collection_name: StringName, is_cached: bool,
+func save_view_object(view: IVView, view_name: String, collection_name: String, is_cached: bool,
 		allow_threaded_cache_write := true) -> void:
 	var key := view_name + "." + collection_name
 	if is_cached:
@@ -100,34 +110,61 @@ func save_view_object(view: IVView, view_name: StringName, collection_name: Stri
 		gamesave_views[key] = view
 
 
-func get_view_object(view_name: StringName, collection_name: StringName, is_cached: bool) -> IVView:
+func get_view_object(view_name: String, collection_name: String, is_cached: bool) -> IVView:
 	var key := view_name + "." + collection_name
 	if is_cached:
 		return cached_views.get(key)
 	return gamesave_views.get(key)
 
 
-func has_view(view_name: StringName, collection_name: StringName, is_cached: bool) -> bool:
+func get_view_flags(view_name: String, collection_name: String, is_cached: bool) -> int:
+	var key := view_name + "." + collection_name
+	var view: IVView = cached_views.get(key) if is_cached else gamesave_views.get(key)
+	if view:
+		return view.flags
+	return 0
+
+
+func get_view_edited_default(view_name: String, collection_name: String, is_cached: bool
+		) -> StringName:
+	var key := view_name + "." + collection_name
+	var view: IVView = cached_views.get(key) if is_cached else gamesave_views.get(key)
+	if view:
+		return view.edited_default
+	return &""
+
+
+func set_view_edited_default(view_name: String, collection_name: String, is_cached: bool,
+		edited_default: StringName) -> void:
+	var key := view_name + "." + collection_name
+	var view: IVView = cached_views.get(key) if is_cached else gamesave_views.get(key)
+	if view:
+		view.edited_default = edited_default
+
+
+func has_view(view_name: String, collection_name: String, is_cached: bool) -> bool:
 	var key := view_name + "." + collection_name
 	if is_cached:
 		return cached_views.has(key)
 	return gamesave_views.has(key)
 
 
-func remove_view(view_name: StringName, collection_name: StringName, is_cached: bool) -> void:
+func remove_view(view_name: String, collection_name: String, is_cached: bool) -> void:
+	# OK if doesn't exist
 	var key := view_name + "." + collection_name
 	if is_cached:
-		cached_views.erase(key)
-		_write_cache()
+		if cached_views.has(key):
+			cached_views.erase(key)
+			_write_cache()
 	else:
 		gamesave_views.erase(key)
 	
 
-func get_names_in_collection(collection_name: StringName, is_cached: bool) -> Array[StringName]:
-	var group: Array[StringName] = []
+func get_names_in_collection(collection_name: String, is_cached: bool) -> Array[String]:
+	var group: Array[String] = []
 	var suffix := "." + collection_name
 	var dict := cached_views if is_cached else gamesave_views
-	for key: StringName in dict:
+	for key: String in dict:
 		if key.ends_with(suffix):
 			group.append(key.trim_suffix(suffix))
 	return group
@@ -189,7 +226,7 @@ func _write_cache(allow_threaded_cache_write := true) -> void:
 	# Unless this is app exit, no one is waiting for this and we can do the
 	# file write on thread. At app exit, we want the main thread to wait.
 	var dict: Dictionary[StringName, Array] = {}
-	for key: StringName in cached_views:
+	for key in cached_views:
 		var view: IVView = cached_views[key]
 		var data := view.get_data_for_cache()
 		dict[key] = data

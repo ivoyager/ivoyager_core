@@ -35,61 +35,143 @@ extends HFlowContainer
 
 const ViewFlags := IVView.ViewFlags
 
-## A unique [param collection_name] is required for user-created 
-@export var collection_name: StringName
-## If true (default), user [IVViewButton] instances are cached. Otherwise, they
-## are persisted via gamesave.
-@export var cached := true
 
-@export var show_flags: int = ViewFlags.VIEWFLAGS_ALL
-@export var init_flags: int = ViewFlags.VIEWFLAGS_ALL
-## Names (or text keys for names) that won't be allowed. [IVViewEdit] will
-## append a sequential integer if user tries to enter a reserved name.
-@export var reserved_names: Array[StringName]= []
+## A unique [param collection_name] is required for user-created 
+@export var collection_name: String
+## If true (default), user [IVViewButton] instances are is_cached. Otherwise, they
+## are persisted via gamesave.
+@export var is_cached := true
+
+# FIXME: How do we export as bitfield?
+# @export_custom(PROPERTY_HINT_ENUM, "test", PROPERTY_USAGE_CLASS_IS_BITFIELD)
+@export var allowed_flags := ViewFlags.VIEWFLAGS_ALL
+
+
+@export var new_set_flags := ViewFlags.VIEWFLAGS_ALL_BUT_TIME
+## Names (or text keys for names) that won't be allowed as user added names.
+## [IVViewEdit] will append a sequential integer if user tries to enter a reserved name.
+@export var reserved_names: Array[String]= []
 ## This is the view name that appears in the [IVViewEdit] edit window.
-@export var edit_view_name := &"LABEL_CUSTOM1"
+@export var new_button_name := &"LABEL_VIEW1"
 
 
 @export var user_editable := true
 @export var user_renamable := true
 @export var user_deletable := true
 
-# TODO: Rename ViewEditPopup, ViewEdit
+@export var popup_corner := Corner.CORNER_TOP_LEFT
+
 var view_edit_popup: IVViewEditPopup
 var view_edit: IVViewEdit
 
+@onready var _view_manager: IVViewManager = IVGlobal.program[&"ViewManager"]
+
+static var _collection_names: Array[String]
 
 
 func _ready() -> void:
-	IVGlobal.about_to_start_simulator.connect(_rebuild_user_buttons)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear_user_buttons)
+	assert(collection_name, "IVViewCollection requires unique collection_name")
+	assert(!_collection_names.has(collection_name),
+			"'%s' is not a unique collection_name" % collection_name)
+	_collection_names.append(collection_name)
+	IVGlobal.about_to_start_simulator.connect(_configure_buttons)
+	IVGlobal.about_to_free_procedural_nodes.connect(_reset_buttons)
 	view_edit_popup = IVFiles.make_object_or_scene(IVViewEditPopup)
 	add_child(view_edit_popup)
 	view_edit = view_edit_popup.find_child(&"ViewEdit")
-	view_edit.init(edit_view_name, collection_name, cached, show_flags, init_flags,
+	view_edit.init(new_button_name, collection_name, is_cached, allowed_flags, new_set_flags,
 			reserved_names)
+	view_edit.saved_new.connect(_on_edit_saved_new)
+	view_edit.saved_edit.connect(_on_edit_saved_edit)
+	view_edit.restored_default.connect(_on_edit_restored_default)
+	view_edit.deleted.connect(_on_edit_deleted)
+	view_edit.canceled.connect(view_edit_popup.hide)
 	if IVGlobal.state.is_started_or_about_to_start:
-		_rebuild_user_buttons()
+		_configure_buttons()
 
 
-## Adds a non-default, user-added view button (cached or saved).
-## Normally called by [IVViewSaveButton].
-func add_user_button(view_name: StringName) -> void:
-	var button := IVViewButton.create_user_button(view_name, collection_name, cached,
+## Adds a non-default, user-added view button (is_cached or saved).
+func add_user_button(view_name: String) -> void:
+	var button := IVViewButton.create_user_button(view_name, collection_name, is_cached,
 			user_editable, user_renamable, user_deletable)
 	add_child(button)
+	button.edit_requested.connect(open_view_edit.bind(button, button))
 
 
+func open_view_edit(at_control: Control, editing_button: IVViewButton = null) -> void:
+	if view_edit.is_visible_in_tree():
+		return
+	view_edit.set_editing_button(editing_button) # null if new button creation
+	view_edit_popup.popup()
+	IVUtils.position_popup_at_corner.call_deferred(view_edit_popup, at_control, popup_corner)
 
-func _rebuild_user_buttons(_dummy := false) -> void:
+
+func close_view_edit() -> void:
+	view_edit_popup.hide()
+
+
+func _configure_buttons(_dummy := false) -> void:
+	# add user buttons and/or reconfigure default buttons
 	var view_manager: IVViewManager = IVGlobal.program[&"ViewManager"]
-	var view_names := view_manager.get_names_in_collection(collection_name, cached)
+	var view_names := view_manager.get_names_in_collection(collection_name, is_cached)
 	for view_name in view_names:
-		add_user_button(view_name)
-
-
-func _clear_user_buttons() -> void:
+		var edited_default := _view_manager.get_view_edited_default(view_name, collection_name,
+				is_cached)
+		if edited_default:
+			_reconfigure_default_button(edited_default, view_name)
+		else:
+			add_user_button(view_name)
+	# hookup editing
 	for child in get_children():
 		var view_button := child as IVViewButton
-		if view_button and view_button.default_view == &"":
+		if !view_button:
+			continue
+		if !view_button.edit_requested.is_connected(open_view_edit): # defaults aren't connected
+			view_button.edit_requested.connect(open_view_edit.bind(view_button, view_button))
+
+
+func _reset_buttons() -> void:
+	for child in get_children():
+		var view_button := child as IVViewButton
+		if !view_button:
+			continue
+		if view_button.default_view:
+			view_button.edit_requested.disconnect(open_view_edit)
+			view_button.restore_default()
+		else:
 			view_button.queue_free()
+
+
+func _reconfigure_default_button(default_view: StringName, view_name: String) -> void:
+	var default_button: IVViewButton
+	for child in get_children():
+		var button := child as IVViewButton
+		if button and button.default_view == default_view:
+			default_button = button
+			break
+	if !default_button:
+		# This could happen if GUI is changed (default button removed) but an
+		# older cache or gamesave had the button. Discard silently...
+		_view_manager.remove_view(view_name, collection_name, is_cached)
+		return
+	default_button.edit(view_name, collection_name, is_cached)
+
+
+func _on_edit_saved_new(view_name: String) -> void:
+	view_edit_popup.hide()
+	add_user_button(view_name)
+
+
+func _on_edit_saved_edit(view_button: IVViewButton, view_name: String) -> void:
+	view_edit_popup.hide()
+	view_button.edit(view_name, collection_name, is_cached) # user or default ok
+
+
+func _on_edit_restored_default(view_button: IVViewButton) -> void:
+	view_edit_popup.hide()
+	view_button.restore_default()
+
+
+func _on_edit_deleted(view_button: IVViewButton) -> void:
+	view_edit_popup.hide()
+	view_button.delete()

@@ -152,6 +152,26 @@ static func get_bit_string(flags: int, bytes := 4) -> String:
 	return result
 
 
+# GUI
+
+## Positions [param popup] at [param corner] of [param at_control].
+## Call deferred may be needed if popup changes size when shown.
+static func position_popup_at_corner(popup: Popup, at_control: Control, corner: Corner) -> void:
+	var popup_size := popup.size
+	var control_size := Vector2i(at_control.size)
+	var viewport_size := Vector2i(at_control.get_viewport().get_visible_rect().size)
+	var position := Vector2i(at_control.global_position)
+	if corner == Corner.CORNER_TOP_LEFT or corner == Corner.CORNER_BOTTOM_LEFT:
+		position.x = maxi(position.x - popup_size.x, 0)
+	else:
+		position.x = mini(position.x + control_size.x, viewport_size.x - popup_size.x)
+	if corner == Corner.CORNER_TOP_LEFT or corner == Corner.CORNER_TOP_RIGHT:
+		position.y = maxi(position.y - popup_size.y, 0)
+	else:
+		position.y = mini(position.y + control_size.y, viewport_size.y - popup_size.y)
+	popup.position = position
+
+
 # Patches
 
 ## Patch method to handle "\u", which is not handled by Godot's [code]c_unescape()[/code].
