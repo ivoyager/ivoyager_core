@@ -4,6 +4,7 @@
 [ext_resource type="PackedScene" uid="uid://bimgbyu0v7s1j" path="res://addons/ivoyager_core/gui_widgets/all_huds.tscn" id="2"]
 
 [node name="HUDsPopup" type="PopupPanel"]
+oversampling_override = 1.0
 size = Vector2i(661, 100)
 script = ExtResource("1")
 

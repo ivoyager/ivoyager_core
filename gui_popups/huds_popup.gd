@@ -26,11 +26,9 @@ const SCENE := "res://addons/ivoyager_core/gui_popups/huds_popup.tscn"
 
 
 func _ready() -> void:
-	var view_save_flow: IVViewSaveFlow = $AllHUDs.find_child(&"ViewSaveFlow")
-	view_save_flow.resized.connect(_reset_size)
+	($AllHUDs as Control).resized.connect(_reset_size)
 
 
 
 func _reset_size() -> void:
-	# Needed when FlowContainer loses a row (as of Godot 3.5.2).
 	size = Vector2.ZERO
