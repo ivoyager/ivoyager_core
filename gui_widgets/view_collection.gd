@@ -23,8 +23,8 @@ extends HFlowContainer
 ## HFlowContainer widget for containing a [IVViewSaveButton] and default and
 ## user-added [IVViewButton] instances.
 ##
-## [IVViewButton] instances are either default (defined in a data table, e.g.,
-## "VIEW_HOME" in views.tsv) or user-added (added at runtime by code and
+## [IVViewButton] instances are either default (defined in a data table like
+## "VIEW_HOME" in views.tsv) or user-saved (added at runtime by code and
 ## persisted via cache or gamesave).
 ## Build the GUI scene tree with a [IVViewSaveButton] and default [IVViewButton]
 ## instances (and other Controls if needed) as children. This node will add
@@ -77,6 +77,8 @@ func _ready() -> void:
 	IVGlobal.about_to_start_simulator.connect(_configure_buttons)
 	IVGlobal.about_to_free_procedural_nodes.connect(_reset_buttons)
 	view_edit_popup = IVFiles.make_object_or_scene(IVViewEditPopup)
+	# Note: It seems that Popups are always embeded in the root window, even if
+	# one is added as a descendent of another Popup (as might happen here). 
 	add_child(view_edit_popup)
 	view_edit = view_edit_popup.find_child(&"ViewEdit")
 	

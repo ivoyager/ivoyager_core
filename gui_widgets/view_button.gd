@@ -90,7 +90,8 @@ static func create_user_button(view_name: String, collection_name: String, is_ca
 	button._is_cached = is_cached
 	button._is_user_button = true
 	var view_manager: IVViewManager = IVGlobal.program[&"ViewManager"]
-	assert(view_manager.has_view(view_name, collection_name, is_cached))
+	assert(view_manager.has_view(view_name, collection_name, is_cached),
+			"Attempt to create user-IVViewButton but the view is missing")
 	button._view_flags = view_manager.get_view_flags(view_name, collection_name, is_cached)
 	button.pressed.connect(view_manager.set_view.bind(view_name, collection_name, is_cached))
 	return button
@@ -98,10 +99,12 @@ static func create_user_button(view_name: String, collection_name: String, is_ca
 
 func _ready() -> void:
 	if !default_view:
-		assert(_is_user_button, "Pre-added IVViewButton in scene tree must have default_view")
+		assert(_is_user_button,
+				"Pre-added IVViewButton must have default_view; text '%s' will be overwritten" %
+				text)
 		return
 	# Default table-defined views only!
-	assert(_view_manager.has_table_view(default_view), "No default view with name = " + default_view)
+	assert(_view_manager.has_table_view(default_view), "No default view '%s'" % default_view)
 	_view_flags = _view_manager.get_table_view_flags(default_view)
 	text = tr(default_view) # needs to be translated already for IVViewEdit code.
 	pressed.connect(_view_manager.set_table_view.bind(default_view))
@@ -136,6 +139,8 @@ func edit(view_name: String, collection_name: String, is_cached: bool) -> void:
 		return
 	text = view_name
 	pressed.disconnect(_view_manager.set_view)
+	assert(_view_manager.has_view(view_name, _collection_name, _is_cached),
+			"Attempt to edit user-IVViewButton but the new view is missing")
 	pressed.connect(_view_manager.set_view.bind(view_name, _collection_name, _is_cached))
 
 
@@ -166,4 +171,6 @@ func _reconfigure_default_button(view_name: String, collection_name: String, is_
 	_view_flags = _view_manager.get_view_flags(view_name, _collection_name, _is_cached)
 	_view_manager.set_view_edited_default(view_name, _collection_name, _is_cached, default_view)
 	pressed.disconnect(_view_manager.set_table_view)
+	assert(_view_manager.has_view(view_name, _collection_name, _is_cached),
+			"Attempt to edit IVViewButton but the new view is missing")
 	pressed.connect(_view_manager.set_view.bind(view_name, _collection_name, _is_cached))

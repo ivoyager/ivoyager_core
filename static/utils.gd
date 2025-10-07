@@ -157,10 +157,16 @@ static func get_bit_string(flags: int, bytes := 4) -> String:
 ## Positions [param popup] at [param corner] of [param at_control].
 ## Call deferred may be needed if popup changes size when shown.
 static func position_popup_at_corner(popup: Popup, at_control: Control, corner: Corner) -> void:
+	# Note: at_control may be in its own popup. However, popup seems to be always
+	# be in root window even if it was added as descendent of a popup.
 	var popup_size := popup.size
 	var control_size := Vector2i(at_control.size)
-	var viewport_size := Vector2i(at_control.get_viewport().get_visible_rect().size)
+	var root := at_control.get_tree().get_root()
+	var viewport_size := Vector2i(root.get_visible_rect().size)
 	var position := Vector2i(at_control.global_position)
+	var window := at_control.get_window()
+	if window != root: # at_control is in a popup
+		position += window.position
 	if corner == Corner.CORNER_TOP_LEFT or corner == Corner.CORNER_BOTTOM_LEFT:
 		position.x = maxi(position.x - popup_size.x, 0)
 	else:
