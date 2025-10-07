@@ -23,30 +23,40 @@ extends Button
 ## Button widget for selecting a "view".
 ##
 ## The button selects an [IVView], which may be a default view defined in a data
-## table (e.g., "VIEW_HOME" in views.tsv) or a user-saved view that is persisted
-## via cache or gamesave.[br][br]
+## table (e.g., "VIEW_HOME" in
+## [url=https://github.com/ivoyager/ivoyager_core/blob/master/data/tables/views.tsv]
+## views.tsv[/url]) or a user-saved view that is persisted via cache or gamesave.[br][br]
 ##
 ## For GUI scene building in the editor, only default views can be added. Be
-## sure to set [member default_view] ([param text] will be overwritten by code).
-## Default buttons should not be [member deletable] (the deletion will not be
-## persisted) but they can be [member editable] and [member renamable] (these
-## changes are persisted).[br][br]
+## sure to set [member default_view]. The [param text] property will be
+## overwritten by code. Default buttons probably should not be [member deletable]
+## (the deletion will not be persisted) but they can be [member editable] and
+## [member renamable] (these changes are persisted).[br][br]
 ##
-## User added IVViewButton instances are added by code by a parent [IVViewCollection].
-## These have default_view == &"" and are editable, renamable and/or deletable
+## Default view buttons can be added anywhere, but they are only editable (by user)
+## if they are inside of an [IVViewCollection].[br][br]
+##
+## User-saved IVViewButton instances are added by code by a parent [IVViewCollection].
+## These have no default_view and are editable, renamable and/or deletable
 ## according to [IVViewCollection] "user_" properties (all true by default).[br][br]
 ##
-## If editing is enabled for a default button, the [IVViewEdit] interface will
-## have a "Restore Default" option.
+## If enabled and user edits a default view button, the [IVViewEdit] interface
+## will have a "Restore Default" option.
 
 signal edit_requested()
 
 ## Set to view name for default (i.e., table defined) views like "VIEW_HOME".
 ## This is required for buttons added via GUI scene building in the editor.
-## For user saved buttons (code created), this will have value &"".
+## For user-saved buttons (code created), this will have value &"".
 @export var default_view:= &""
+## Set true to allow user to edit (resave) a view button. Only works for default
+## button if it is inside an [IVViewCollection].
 @export var editable := false
+## Set true to allow user to edit a view button name. [member editable] must
+## also be true. Only works for default button if it is inside an [IVViewCollection].
 @export var renamable := false
+## Set true to allow user to delete a view button. This isn't recomended for
+## default button because the deletion won't be persisted.
 @export var deletable := false
 
 
@@ -59,8 +69,10 @@ var _view_flags: int
 
 
 
-# Note: ViewManager usage is a little confusing. IVViewEdit does all view_name
-# saves and removes. IVViewButton does all connects and disconnets.
+# Note: ViewManager usage is confusing. To clarify: IVViewEdit does all view
+# saves and removes (because it has the edit info). IVViewButton does all
+# connects and disconnets (because it has the Button signals). The button
+# expects the view to already exist (if it doesn't, the button won't do anything).
 @onready var _view_manager: IVViewManager = IVGlobal.program[&"ViewManager"]
 
 

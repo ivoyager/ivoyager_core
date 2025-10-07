@@ -21,10 +21,11 @@ class_name IVViewCollection
 extends HFlowContainer
 
 ## HFlowContainer widget for containing a [IVViewSaveButton] and default and
-## user [IVViewButton] instances.
+## user-added [IVViewButton] instances.
 ##
-## [IVViewButton] instances are either "default" (defined in data table views.tsv)
-## or "user" (added at runtime by code and persisted via cache or gamesave).
+## [IVViewButton] instances are either default (defined in a data table, e.g.,
+## "VIEW_HOME" in views.tsv) or user-added (added at runtime by code and
+## persisted via cache or gamesave).
 ## Build the GUI scene tree with a [IVViewSaveButton] and default [IVViewButton]
 ## instances (and other Controls if needed) as children. This node will add
 ## user [IVViewButton] instances by code in coordination with [IVViewSaveButton]
@@ -35,25 +36,24 @@ extends HFlowContainer
 
 const ViewFlags := IVView.ViewFlags
 
-
-## A unique [param collection_name] is required for user-created 
+## A unique collection name (any unique string) is required for user-created
+## buttons. This is used for persisting buttons via cache or gamesave file.
 @export var collection_name: String
-## If true (default), user [IVViewButton] instances are is_cached. Otherwise, they
-## are persisted via gamesave.
+## If true (default), user [IVViewButton] instances in this collection are
+## cached. Otherwise, they are persisted via gamesave (requires Save plugin).
 @export var is_cached := true
-
-# FIXME: How do we export as bitfield?
-# @export_custom(PROPERTY_HINT_ENUM, "test", PROPERTY_USAGE_CLASS_IS_BITFIELD)
-@export var allowed_flags := ViewFlags.VIEWFLAGS_ALL
-
-
-@export var new_set_flags := ViewFlags.VIEWFLAGS_ALL_BUT_TIME
-## Names (or text keys for names) that won't be allowed as user added names.
-## [IVViewEdit] will append a sequential integer if user tries to enter a reserved name.
-@export var reserved_names: Array[String]= []
-## This is the view name that appears in the [IVViewEdit] edit window.
+## The name that appears in the line edit of the edit window for a new view button.
+## The translated text is incremented as needed. See [IVViewEdit].
 @export var new_button_name := &"LABEL_VIEW1"
-
+## [enum IVView.ViewFlags] available in the edit window.
+@export var allowed_flags: int = ViewFlags.VIEWFLAGS_ALL
+## [enum IVView.ViewFlags] that are set in the edit window for a new view button.
+@export var new_set_flags: int = ViewFlags.VIEWFLAGS_ALL_CAMERA
+## External GUI containers (Controls) that have buttons with names we want to
+## exclude from user button naming. E.g., a nearby GUI element may contain a
+## default "Home" button. Including its container here would cause user added
+## "Home" to increment to "Home2".
+@export var external_button_containers: Array[NodePath] = []
 
 @export var user_editable := true
 @export var user_renamable := true
@@ -64,9 +64,9 @@ const ViewFlags := IVView.ViewFlags
 var view_edit_popup: IVViewEditPopup
 var view_edit: IVViewEdit
 
-@onready var _view_manager: IVViewManager = IVGlobal.program[&"ViewManager"]
-
 static var _collection_names: Array[String]
+
+@onready var _view_manager: IVViewManager = IVGlobal.program[&"ViewManager"]
 
 
 func _ready() -> void:
@@ -79,8 +79,14 @@ func _ready() -> void:
 	view_edit_popup = IVFiles.make_object_or_scene(IVViewEditPopup)
 	add_child(view_edit_popup)
 	view_edit = view_edit_popup.find_child(&"ViewEdit")
+	
+	var button_containers: Array[Control] = [self]
+	for node_path in external_button_containers:
+		var container: Control = get_node_or_null(node_path)
+		if container:
+			button_containers.append(container)
 	view_edit.init(new_button_name, collection_name, is_cached, allowed_flags, new_set_flags,
-			reserved_names)
+			button_containers)
 	view_edit.saved_new.connect(_on_edit_saved_new)
 	view_edit.saved_edit.connect(_on_edit_saved_edit)
 	view_edit.restored_default.connect(_on_edit_restored_default)

@@ -13,6 +13,9 @@ script = ExtResource("1_85xfe")
 unique_name_in_owner = true
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
+deselect_on_focus_loss_enabled = false
+drag_and_drop_selection_enabled = false
+select_all_on_focus = true
 caret_blink = true
 caret_blink_interval = 0.5
 
