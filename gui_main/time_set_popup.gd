@@ -22,7 +22,7 @@ extends PopupPanel
 
 ## Instanced by [IVTimeSetButton].
 
-const SCENE := "res://addons/ivoyager_core/gui_popups/time_set_popup.tscn"
+const SCENE := "res://addons/ivoyager_core/gui_main/time_set_popup.tscn"
 
 
 @onready var _time_setter: IVTimeSetter = $"%TimeSetter"

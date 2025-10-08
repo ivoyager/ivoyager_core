@@ -31,7 +31,7 @@ extends PopupPanel
 ## Plugin [url=https://github.com/ivoyager/ivoyager_save]I, Voyager - Save[/url]
 ## has additional save/load related buttons.
 
-const SCENE := "res://addons/ivoyager_core/gui_popups/main_menu_base_popup.tscn"
+const SCENE := "res://addons/ivoyager_core/gui_main/main_menu_base_popup.tscn"
 
 
 @export var sim_started_only := true

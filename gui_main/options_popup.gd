@@ -21,7 +21,7 @@ class_name IVOptionsPopup
 extends PopupPanel
 
 
-const SCENE := "res://addons/ivoyager_core/gui_popups/options_popup.tscn"
+const SCENE := "res://addons/ivoyager_core/gui_main/options_popup.tscn"
 
 const DPRINT := true
 
