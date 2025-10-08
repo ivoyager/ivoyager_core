@@ -93,7 +93,6 @@ func _ready() -> void:
 	view_edit.saved_edit.connect(_on_edit_saved_edit)
 	view_edit.restored_default.connect(_on_edit_restored_default)
 	view_edit.deleted.connect(_on_edit_deleted)
-	view_edit.canceled.connect(view_edit_popup.hide)
 	if IVGlobal.state.is_started_or_about_to_start:
 		_configure_buttons()
 

@@ -30,5 +30,21 @@ func _ready() -> void:
 	(%ViewEdit as Control).resized.connect(_reset_size)
 
 
+func _unhandled_input(event: InputEvent) -> void:
+	# Hide on right-click or shift-Enter
+	var mouse_button_event := event as InputEventMouseButton
+	if mouse_button_event and mouse_button_event.pressed:
+		if mouse_button_event.button_index == MOUSE_BUTTON_RIGHT:
+			hide()
+			get_viewport().set_input_as_handled()
+		return
+	var key_event := event as InputEventKey
+	if key_event and key_event.pressed:
+		if key_event.keycode == KEY_ENTER and key_event.shift_pressed:
+			hide()
+			get_viewport().set_input_as_handled()
+
+
+
 func _reset_size() -> void:
 	size = Vector2.ZERO

@@ -19,6 +19,7 @@ Under development using Godot 4.5.
 * Signal IVGlobal.viewport_size_changed(size: Vector2).
 
 ### Changed
+* User can now edit "View" buttons.
 * Improved the EditorPlugin's asset loader UI.
 * Replaced 3RD_PARTY.txt with updated and more human-readable 3RD_PARTY.md, and updated CREDITS.md.
 * [API breaking] Removed IVFontManager and overhauled IVThemeManager to work correctly with Godot's theme system.

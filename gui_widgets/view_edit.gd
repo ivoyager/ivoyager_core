@@ -37,7 +37,6 @@ signal saved_new(view_name: String)
 signal saved_edit(editing_button: IVViewButton, view_name: String)
 signal restored_default(editing_button: IVViewButton)
 signal deleted(editing_button: IVViewButton)
-signal canceled()
 
 const ViewFlags := IVView.ViewFlags
 
@@ -55,6 +54,8 @@ var _reserved_names: Array[String] = []
 var _reserved_text := false
 var _view_flags := 0
 
+@onready var _header: Label = %Header
+@onready var _line_edit: LineEdit = $"%LineEdit"
 
 @onready var _selection_ckbx: CheckBox = $"%SelectionCkbx"
 @onready var _longitude_ckbx: CheckBox = $"%LongitudeCkbx"
@@ -78,7 +79,6 @@ var _view_flags := 0
 @onready var _save_current_button: Button = %SaveCurrentButton
 @onready var _restore_default_button: Button = %RestoreDefaultButton
 @onready var _delete_button: Button = %DeleteButton
-@onready var _line_edit: LineEdit = $"%LineEdit"
 
 # Note: ViewManager usage is confusing. To clarify: IVViewEdit does all view
 # saves and removes (because it has the edit info). IVViewButton does all
@@ -93,7 +93,6 @@ func _ready() -> void:
 	_save_current_button.pressed.connect(_on_save)
 	_restore_default_button.pressed.connect(_on_restore_default)
 	_delete_button.pressed.connect(_on_delete)
-	(%CancelButton as Button).pressed.connect(canceled.emit)
 	_line_edit.text_changed.connect(_on_line_edit_text_changed)
 	_line_edit.text_submitted.connect(_on_line_edit_text_submitted)
 	if !IVCoreSettings.allow_time_setting:
@@ -152,25 +151,28 @@ func _on_visibility_changed() -> void:
 func _configure_controls() -> void:
 	_reserved_text = false
 	if _editing_button:
+		_header.text = &"LABEL_EDIT_ELLIPSIS"
 		_set_ckbx_state(_editing_button.get_view_flags())
 		_restore_default_button.visible = _editing_button.is_edited_default_button()
 		_delete_button.visible = _editing_button.deletable
 		_line_edit.text = _editing_button.text
 		_line_edit.editable = _editing_button.renamable
 	else:
+		_header.text = &"LABEL_NEW_ELLIPSIS"
 		_set_ckbx_state(_new_set_flags)
 		_restore_default_button.hide()
 		_delete_button.hide()
 		_line_edit.text = tr(_new_button_name)
 		_line_edit.editable = true
+		
 	if _line_edit.editable:
 		_set_reserved_names()
 		_increment_line_edit_suffix()
 		_line_edit.select_all()
 		_line_edit.set_caret_column(100)
-		_line_edit.grab_focus.call_deferred()
 	_reset_view_flags()
 	_save_current_button.disabled = !_view_flags # text can't be reserved here
+	_line_edit.grab_focus.call_deferred()
 
 
 func _set_ckbx_state(flags: int) -> void:

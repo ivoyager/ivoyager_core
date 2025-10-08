@@ -9,17 +9,27 @@ offset_right = 73.0
 offset_bottom = 27.0
 script = ExtResource("1_85xfe")
 
+[node name="Header" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+text = "New..."
+
+[node name="Spacer" type="Control" parent="."]
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+
 [node name="LineEdit" type="LineEdit" parent="."]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
+theme_override_colors/font_uneditable_color = Color(0.8745098, 0.8745098, 0.8745098, 0.8235294)
 deselect_on_focus_loss_enabled = false
 drag_and_drop_selection_enabled = false
 select_all_on_focus = true
 caret_blink = true
 caret_blink_interval = 0.5
 
-[node name="Spacer" type="Control" parent="."]
+[node name="Spacer2" type="Control" parent="."]
 custom_minimum_size = Vector2(0, 10)
 layout_mode = 2
 
@@ -58,7 +68,7 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "CKBX_LOCK_PRESENT"
 
-[node name="Spacer2" type="Control" parent="."]
+[node name="Spacer3" type="Control" parent="."]
 custom_minimum_size = Vector2(0, 10)
 layout_mode = 2
 
@@ -76,8 +86,3 @@ text = "BUTTON_RESTORE_DEFAULT"
 unique_name_in_owner = true
 layout_mode = 2
 text = "BUTTON_DELETE"
-
-[node name="CancelButton" type="Button" parent="."]
-unique_name_in_owner = true
-layout_mode = 2
-text = "BUTTON_CANCEL"
