@@ -44,6 +44,7 @@ var _is_explicit_close := false
 
 
 func _ready() -> void:
+	hide() # Godot 4.5 editor keeps setting visibility == true !!!
 	IVGlobal.open_main_menu_requested.connect(open)
 	IVGlobal.close_main_menu_requested.connect(close)
 	IVGlobal.close_all_admin_popups_requested.connect(close)

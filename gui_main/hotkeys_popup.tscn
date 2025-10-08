@@ -11,6 +11,7 @@ process_mode = 3
 oversampling_override = 1.0
 size = Vector2i(426, 100)
 visible = true
+transient_to_focused = true
 exclusive = true
 theme_override_styles/panel = SubResource("StyleBoxFlat_fgwpm")
 script = ExtResource("1_f835g")

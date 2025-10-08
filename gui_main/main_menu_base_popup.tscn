@@ -4,4 +4,6 @@
 
 [node name="MainMenuBasePopup" type="PopupPanel"]
 oversampling_override = 1.0
+visible = true
+transient_to_focused = true
 script = ExtResource("1_bd2g2")
