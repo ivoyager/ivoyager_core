@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://bgk3lju7s35t"]
+[gd_scene load_steps=3 format=3 uid="uid://bgk3lju7s35t"]
 
 [ext_resource type="Script" uid="uid://kl2mc2esopbp" path="res://addons/ivoyager_core/gui_widgets/time_set_button.gd" id="1"]
+[ext_resource type="PackedScene" uid="uid://b1u2ok0pn2p1e" path="res://addons/ivoyager_core/gui_widgets/time_set_popup.tscn" id="2_ti8bo"]
 
 [node name="TimeSetButton" type="Button"]
 offset_left = 162.0
@@ -11,3 +12,6 @@ toggle_mode = true
 action_mode = 0
 text = "BUTTON_SET"
 script = ExtResource("1")
+
+[node name="TimeSetPopup" parent="." instance=ExtResource("2_ti8bo")]
+size = Vector2i(939, 497)

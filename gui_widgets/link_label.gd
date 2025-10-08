@@ -20,35 +20,37 @@
 class_name IVLinkLabel
 extends RichTextLabel
 
-## GUI widget that facilitates hyperlinks
+## A [RichTextLabel] widget that facilitates hyperlinks
 ##
-## If [member open_external_url] == false (default), the link "url" value
+## If [member open_external_url] is false (default), the link "url" value
 ## will be passed to [method IVWikiManager.open_page]. Set [param text] using
 ## an entity_name that exist in your internal or external wiki. Example
-## [param text] value:
+## [param text]:
 ##
 ## [codeblock]
-## [url="PLANET_EARTH"]Earth[/url]
+## [url=PLANET_EARTH]Earth[/url]
 ## [/codeblock][br]
 ##
-## If [member open_external_url] == true, this widget will open the specified
-## external URL. Example [param text] value:
+## If [member open_external_url] is true, this widget will open the specified
+## external URL directly. Example [param text]:
 ##
 ## [codeblock]
-## [url="https://ivoyager.dev"]I, Voyager[/url]
+## Visit our homepage at [url=https://ivoyager.dev]I, Voyager[/url]!
 ## [/codeblock][br]
 ##
-## Note that [param text] can also be set to a translation key that resolves
-## to valid bbcode as above.[br][br]
+## [param text] can also be set to a translation key that resolves to valid
+## bbcode as above.[br][br]
 ##
-## If changing text dynamically, it's sometimes better to call [method parse_bbcode]
+## If changing text dynamically, it's better to call [method parse_bbcode]
 ## than to set [member text] directly.[br][br]
 ##
-## This widget is parameterized for "short" labels with [param scroll_active]
-## == false. But that can be edited. 
+## By default, this widget is parameterized for "short" labels with
+## [member RichTextLabel.scroll_active] == false and [member RichTextLabel.fit_content] == true.
+## Edit [RichTextLabel] properties as needed. 
 
-## Set true to open external URL. Otherwise, bbcode "url" value will be passed
-## to [method IVWikiManager.open_page].
+
+## Set true to open an external URL directly. Otherwise, bbcode "url" value
+## will be passed to [method IVWikiManager.open_page].
 @export var open_external_url := false
 
 

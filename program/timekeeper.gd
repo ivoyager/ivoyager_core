@@ -146,10 +146,10 @@ var _prev_whole_solar_day := NAN
 # *****************************************************************************
 
 
+## Simulator "time" is seconds since J2000 epoch.
+## Return is not exact depending on input type (UT1, UTC, etc.) but very close.
+## Assumes valid input! To test valid date, use [method is_valid_gregorian_date].
 static func get_sim_time(Y: int, M: int, D: int, h := 12, m := 0, s := 0) -> float:
-	# Simulator "time" is seconds since J2000 epoch; see details above.
-	# Return not exact depending on input type (UT1, UTC, etc.) but very close.
-	# Assumes valid input! To test valid date, use is_valid_gregorian_date().
 	var jdn := gregorian2jdn(Y, M, D)
 	var j2000days := float(jdn - J2000_JDN)
 	var sim_time := (j2000days - 0.5) * DAY

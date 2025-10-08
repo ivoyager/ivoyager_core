@@ -129,12 +129,12 @@ var _allow_close := false
 
 
 func _ready() -> void:
+	exclusive = true # Godot 4.5 seems inconsistent about this
 	hide() # Godot 4.5 editor keeps setting visibility == true !!!
 	IVGlobal.hotkeys_requested.connect(open)
 	IVGlobal.close_all_admin_popups_requested.connect(hide)
 	close_requested.connect(_on_close_requested)
 	popup_hide.connect(_on_popup_hide)
-	#exclusive = false # Godot ISSUE? not editable in scene?
 	
 	_cancel.pressed.connect(_on_cancel)
 	_restore_defaults.pressed.connect(_on_restore_defaults)
@@ -369,12 +369,11 @@ func _on_popup_hide() -> void:
 
 
 func _on_close_requested() -> void:
-	# TODO Godot 4.1.1 ISSUE: This is basically useless. It is only called if
-	# exclusive == false and root viewport gui_embed_subwindows == false.
-	# But we want to keep gui_embed_subwindows == true.
+	# Godot 4.1.1 ... 4.5 ISSUE: close_requested signal is useless. See:
+	# https://github.com/godotengine/godot/issues/76896#issuecomment-1667027253
 	# Also, hide() is done by the engine, contrary to docs.
 	# If this is fixed we can remove the '_allow_close' hack.
-	print("close_requested signal works now! Use requirements were prohibitive in Godot 4.1.1")
+	print("Popup.close_requested signal works now! Maybe we can remove hack fixes...")
 
 
 func _is_blocking_popup() -> bool:

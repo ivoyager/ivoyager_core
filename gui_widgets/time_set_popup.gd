@@ -20,24 +20,13 @@
 class_name IVTimeSetPopup
 extends PopupPanel
 
-## Instanced by [IVTimeSetButton].
-
-const SCENE := "res://addons/ivoyager_core/gui_main/time_set_popup.tscn"
-
-
-@onready var _time_setter: IVTimeSetter = $"%TimeSetter"
+## Popup widget that has an [IVTimeSetter] and is child of and evoked by [IVTimeSetButton].
 
 
 func _ready() -> void:
-	about_to_popup.connect(_on_about_to_show)
-	_time_setter.time_set.connect(_on_time_set)
-
-
-
-func _on_about_to_show() -> void:
-	_time_setter.set_current()
-
-
-func _on_time_set(is_close: bool) -> void:
-	if is_close:
-		hide()
+	($"%TimeSetter" as IVTimeSetter).closed.connect(hide)
+	# Popup sizing is challenging. The easiest solution seems to be to have
+	# the popup visible initially and do delayed reset and hide here.
+	await get_tree().process_frame
+	size = Vector2.ZERO
+	hide()
