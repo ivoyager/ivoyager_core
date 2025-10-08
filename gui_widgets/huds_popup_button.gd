@@ -20,8 +20,9 @@
 class_name IVHUDsPopupButton
 extends Button
 
-## GUI Button that opens its own [IVHUDsPopup].
+## Button widget that opens its own [IVHUDsPopup].
 
+@export var popup_corner := Corner.CORNER_TOP_LEFT
 
 var _huds_popup: PopupPanel
 
@@ -40,14 +41,7 @@ func _on_toggled(toggle_pressed: bool) -> void:
 		return
 	if toggle_pressed:
 		_huds_popup.popup()
-		await get_tree().process_frame # popup may not know its correct size yet
-		var popup_position := global_position - Vector2(_huds_popup.size)
-		popup_position.x += size.x / 2.0
-		if popup_position.x < 0.0:
-			popup_position.x = 0.0
-		if popup_position.y < 0.0:
-			popup_position.y = 0.0
-		_huds_popup.position = popup_position
+		IVUtils.position_popup_at_corner.call_deferred(_huds_popup, self, popup_corner)
 	else:
 		_huds_popup.hide()
 
