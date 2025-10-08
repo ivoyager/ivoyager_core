@@ -98,12 +98,12 @@ var _allow_close := false
 
 
 func _ready() -> void:
+	hide()
 	IVGlobal.options_requested.connect(open)
 	IVGlobal.setting_changed.connect(_settings_listener)
 	IVGlobal.close_all_admin_popups_requested.connect(hide)
 	close_requested.connect(_on_close_requested)
 	popup_hide.connect(_on_popup_hide)
-	exclusive = false # Godot ISSUE? not editable in scene?
 	_cancel.pressed.connect(_on_cancel)
 	_restore_defaults.pressed.connect(_on_restore_defaults)
 	_confirm_changes.pressed.connect(_on_confirm_changes)

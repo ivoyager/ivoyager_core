@@ -48,11 +48,6 @@ const SCENE := "res://addons/ivoyager_core/gui_popups/hotkeys_popup.tscn"
 			&"toggle_names" : &"LABEL_SHOW_HIDE_NAMES",
 			&"toggle_symbols" : &"LABEL_SHOW_HIDE_SYMBOLS",
 			
-			# Below two should be added by extension add_item(), if used.
-			# See Planetarim project (planetarium/planetarium.gd).
-#				&"cycle_next_panel" : &"LABEL_CYCLE_NEXT_PANEL",
-#				&"cycle_prev_panel" : &"LABEL_CYCLE_LAST_PANEL",
-			
 			# Below UI controls have some engine hardcoding as of
 			# Godot 3.2.2, so can't be user defined.
 #				&"ui_up" : &"LABEL_GUI_UP",
@@ -120,11 +115,12 @@ const SCENE := "res://addons/ivoyager_core/gui_popups/hotkeys_popup.tscn"
 ]
 
 
-var _hotkey_dialog: IVHotkeyDialog
+
 var _blocking_windows: Array[Window] = IVGlobal.blocking_windows
 var _allow_close := false
 
 @onready var _input_map_manager: IVInputMapManager = IVGlobal.program[&"InputMapManager"]
+@onready var _hotkey_dialog: IVHotkeyDialog = $HotkeyDialog
 @onready var _content_container: HBoxContainer = $VBox/Content
 @onready var _cancel: Button = $VBox/BottomHBox/Cancel
 @onready var _confirm_changes: Button = $VBox/BottomHBox/ConfirmChanges
@@ -133,20 +129,19 @@ var _allow_close := false
 
 
 func _ready() -> void:
+	hide() # Godot 4.5 editor keeps setting visibility == true !!!
 	IVGlobal.hotkeys_requested.connect(open)
 	IVGlobal.close_all_admin_popups_requested.connect(hide)
 	close_requested.connect(_on_close_requested)
 	popup_hide.connect(_on_popup_hide)
-	exclusive = false # Godot ISSUE? not editable in scene?
+	#exclusive = false # Godot ISSUE? not editable in scene?
 	
 	_cancel.pressed.connect(_on_cancel)
 	_restore_defaults.pressed.connect(_on_restore_defaults)
 	_confirm_changes.pressed.connect(_on_confirm_changes)
 	_blocking_windows.append(self)
 
-	_hotkey_dialog = IVFiles.make_object_or_scene(IVHotkeyDialog)
 	_hotkey_dialog.hotkey_confirmed.connect(_on_hotkey_confirmed)
-	add_child(_hotkey_dialog)
 	
 	if IVCoreSettings.disable_pause:
 		remove_item(&"toggle_pause")

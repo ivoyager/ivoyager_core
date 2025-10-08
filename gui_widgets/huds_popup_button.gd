@@ -29,17 +29,12 @@ extends Button
 
 
 func _ready() -> void:
-	#var top_gui: Control = IVGlobal.program[&"TopGUI"]
-	#_huds_popup = IVFiles.make_object_or_scene(IVHUDsPopup)
-	#top_gui.add_child(_huds_popup)
 	toggled.connect(_on_toggled)
 	_huds_popup.visibility_changed.connect(_on_visibility_changed)
 
 
 
 func _on_toggled(toggle_pressed: bool) -> void:
-	#if !_huds_popup:
-		#return
 	if toggle_pressed:
 		_huds_popup.popup()
 		IVUtils.position_popup_at_corner.call_deferred(_huds_popup, self, popup_corner)

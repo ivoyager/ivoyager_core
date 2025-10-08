@@ -20,10 +20,7 @@
 class_name IVHotkeyDialog
 extends ConfirmationDialog
 
-## Used by [IVHotkeysPopup].
-
-const SCENE := "res://addons/ivoyager_core/gui_popups/hotkey_dialog.tscn"
-
+## Dialog widget used by [IVHotkeysPopup].
 
 signal hotkey_confirmed(action: StringName, index: int, keycode: int,
 		control: bool, alt: bool, shift: bool, meta: bool)
@@ -48,9 +45,6 @@ func _ready() -> void:
 	confirmed.connect(_on_confirmed)
 	_key_delete.pressed.connect(_on_key_delete)
 	focus_exited.connect(_keep_focus)
-#	process_mode = PROCESS_MODE_ALWAYS
-#	transient = false
-#	always_on_top = true
 	_ok_button.disabled = true
 
 

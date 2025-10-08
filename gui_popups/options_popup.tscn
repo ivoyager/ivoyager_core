@@ -1,18 +1,22 @@
-[gd_scene load_steps=2 format=3 uid="uid://do6i0el4c00jr"]
+[gd_scene load_steps=3 format=3 uid="uid://do6i0el4c00jr"]
 
 [ext_resource type="Script" uid="uid://busiu2jjkqnmv" path="res://addons/ivoyager_core/gui_popups/options_popup.gd" id="1_yhrw4"]
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_utqd8"]
+bg_color = Color(0, 0, 0, 1)
+
 [node name="OptionsPopup" type="PopupPanel"]
 process_mode = 3
+oversampling_override = 1.0
 size = Vector2i(426, 100)
+visible = true
 exclusive = true
+theme_override_styles/panel = SubResource("StyleBoxFlat_utqd8")
 script = ExtResource("1_yhrw4")
 
 [node name="VBox" type="VBoxContainer" parent="."]
-offset_left = 4.0
-offset_top = 4.0
-offset_right = 422.0
-offset_bottom = 96.0
+offset_right = 426.0
+offset_bottom = 100.0
 
 [node name="OptionsLabel" type="Label" parent="VBox"]
 layout_mode = 2
