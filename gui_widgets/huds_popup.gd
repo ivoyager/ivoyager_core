@@ -1,4 +1,4 @@
-# view_edit_popup.gd
+# huds_popup.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -17,33 +17,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVViewEditPopup
+class_name IVHUDsPopup
 extends PopupPanel
 
-## Instanced by [IVViewCollection].
+## A Popup widget containing HUD controls opened by [IVHUDsPopupButton].
 
-const SCENE := "res://addons/ivoyager_core/gui_popups/view_edit_popup.tscn"
+
+@export var focus_path := ^"AllHUDs/ViewCollection/ViewSaveButton"
+
+@onready var _all_huds: Control = $AllHUDs
+@onready var _focus_control: Control = get_node(focus_path)
 
 
 func _ready() -> void:
-	# Popup expands but does not shrink. Needs reset.
-	(%ViewEdit as Control).resized.connect(_reset_size)
+	_all_huds.resized.connect(_reset_size)
+	_all_huds.visibility_changed.connect(_on_visibility_changed)
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	# Hide on right-click or shift-Enter
-	var mouse_button_event := event as InputEventMouseButton
-	if mouse_button_event and mouse_button_event.pressed:
-		if mouse_button_event.button_index == MOUSE_BUTTON_RIGHT:
-			hide()
-			get_viewport().set_input_as_handled()
-		return
-	var key_event := event as InputEventKey
-	if key_event and key_event.pressed:
-		if key_event.keycode == KEY_ENTER and key_event.shift_pressed:
-			hide()
-			get_viewport().set_input_as_handled()
-
+func _on_visibility_changed() -> void:
+	if _all_huds.is_visible_in_tree():
+		_focus_control.grab_focus.call_deferred()
 
 
 func _reset_size() -> void:

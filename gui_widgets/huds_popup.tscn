@@ -1,11 +1,12 @@
 [gd_scene load_steps=3 format=3 uid="uid://cvw14ct22yocx"]
 
-[ext_resource type="Script" uid="uid://di8hniufn2hxp" path="res://addons/ivoyager_core/gui_popups/huds_popup.gd" id="1"]
+[ext_resource type="Script" uid="uid://di8hniufn2hxp" path="res://addons/ivoyager_core/gui_widgets/huds_popup.gd" id="1"]
 [ext_resource type="PackedScene" uid="uid://bimgbyu0v7s1j" path="res://addons/ivoyager_core/gui_widgets/all_huds.tscn" id="2"]
 
 [node name="HUDsPopup" type="PopupPanel"]
 oversampling_override = 1.0
 size = Vector2i(661, 100)
+visible = true
 script = ExtResource("1")
 
 [node name="AllHUDs" parent="." instance=ExtResource("2")]

@@ -115,13 +115,13 @@ func _ready() -> void:
 func _gui_input(event: InputEvent) -> void:
 	# Handle right-click or shift-Enter (edit or delete)
 	var mouse_button_event := event as InputEventMouseButton
-	if mouse_button_event and mouse_button_event.pressed:
-		if mouse_button_event.button_index == MOUSE_BUTTON_RIGHT:
+	if mouse_button_event:
+		if mouse_button_event.pressed and mouse_button_event.button_index == MOUSE_BUTTON_RIGHT:
 			_process_edit_or_delete_input()
 		return
 	var key_event := event as InputEventKey
-	if key_event and key_event.pressed:
-		if key_event.keycode == KEY_ENTER and key_event.shift_pressed:
+	if key_event:
+		if key_event.pressed and key_event.keycode == KEY_ENTER and key_event.shift_pressed:
 			_process_edit_or_delete_input()
 
 
@@ -166,9 +166,6 @@ func delete() -> void:
 
 
 func _process_edit_or_delete_input() -> void:
-	
-	print("_process_edit_or_delete_input")
-	
 	if editable:
 		edit_requested.emit()
 	elif deletable:

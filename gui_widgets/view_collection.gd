@@ -61,8 +61,8 @@ const ViewFlags := IVView.ViewFlags
 
 @export var popup_corner := Corner.CORNER_TOP_LEFT
 
-var view_edit_popup: IVViewEditPopup
-var view_edit: IVViewEdit
+@onready var view_edit_popup: IVViewEditPopup = $ViewEditPopup
+@onready var view_edit: IVViewEdit = $ViewEditPopup/%ViewEdit
 
 static var _collection_names: Array[String]
 
@@ -70,18 +70,12 @@ static var _collection_names: Array[String]
 
 
 func _ready() -> void:
-	assert(collection_name, "IVViewCollection requires unique collection_name")
+	assert(collection_name, "IVViewCollection requires a unique collection_name")
 	assert(!_collection_names.has(collection_name),
 			"'%s' is not a unique collection_name" % collection_name)
 	_collection_names.append(collection_name)
 	IVGlobal.about_to_start_simulator.connect(_configure_buttons)
 	IVGlobal.about_to_free_procedural_nodes.connect(_reset_buttons)
-	view_edit_popup = IVFiles.make_object_or_scene(IVViewEditPopup)
-	# Note: It seems that Popups are always embeded in the root window, even if
-	# one is added as a descendent of another Popup (as might happen here). 
-	add_child(view_edit_popup)
-	view_edit = view_edit_popup.find_child(&"ViewEdit")
-	
 	var button_containers: Array[Control] = [self]
 	for node_path in external_button_containers:
 		var container: Control = get_node_or_null(node_path)
