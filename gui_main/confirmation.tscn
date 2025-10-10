@@ -4,4 +4,6 @@
 
 [node name="Confirmation" type="ConfirmationDialog"]
 process_mode = 3
+transient = false
+always_on_top = true
 script = ExtResource("1_cfs87")

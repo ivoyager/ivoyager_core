@@ -19,9 +19,12 @@
 # *****************************************************************************
 class_name IVConfirmation
 extends ConfirmationDialog
-const SCENE := "res://addons/ivoyager_core/gui_main/confirmation.tscn"
 
-# Call using IVGlobal.confirmation_requested.emit(args).
+## A "main" ConfirmationDialog that can be reused for any purpose
+##
+## Call using [signal IVGlobal.confirmation_requested].
+
+const SCENE := "res://addons/ivoyager_core/gui_main/confirmation.tscn"
 
 var _stop_sim: bool
 var _confirm_action: Callable
