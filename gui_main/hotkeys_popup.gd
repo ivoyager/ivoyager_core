@@ -115,9 +115,7 @@ const SCENE := "res://addons/ivoyager_core/gui_main/hotkeys_popup.tscn"
 ]
 
 
-
-var _blocking_windows: Array[Window] = IVGlobal.blocking_windows
-var _allow_close := false
+var _suppress_close := true
 
 @onready var _input_map_manager: IVInputMapManager = IVGlobal.program[&"InputMapManager"]
 @onready var _hotkey_dialog: IVHotkeyDialog = $HotkeyDialog
@@ -129,18 +127,15 @@ var _allow_close := false
 
 
 func _ready() -> void:
-	exclusive = true # Godot 4.5 seems inconsistent about this
+	exclusive = true
 	hide() # Godot 4.5 editor keeps setting visibility == true !!!
 	IVGlobal.hotkeys_requested.connect(open)
 	IVGlobal.close_all_admin_popups_requested.connect(hide)
 	close_requested.connect(_on_close_requested)
 	popup_hide.connect(_on_popup_hide)
-	
 	_cancel.pressed.connect(_on_cancel)
 	_restore_defaults.pressed.connect(_on_restore_defaults)
 	_confirm_changes.pressed.connect(_on_confirm_changes)
-	_blocking_windows.append(self)
-
 	_hotkey_dialog.hotkey_confirmed.connect(_on_hotkey_confirmed)
 	
 	if IVCoreSettings.disable_pause:
@@ -167,8 +162,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 func open() -> void:
 	if visible:
 		return
-	if _is_blocking_popup():
-		return
+	#if _is_blocking_popup():
+		#return
 	if stop_sim:
 		IVGlobal.sim_stop_required.emit(self)
 	_build_content()
@@ -313,7 +308,7 @@ func _restore_default(action: StringName) -> void:
 
 func _cancel_changes() -> void:
 	_input_map_manager.restore_from_cache()
-	_allow_close = true
+	_suppress_close = false
 	hide()
 
 
@@ -343,13 +338,13 @@ func _on_restore_defaults() -> void:
 
 func _on_confirm_changes() -> void:
 	_input_map_manager.cache_now()
-	_allow_close = true
+	_suppress_close = false
 	hide()
 
 
 func _on_cancel() -> void:
 	if _input_map_manager.is_cache_current():
-		_allow_close = true
+		_suppress_close = false
 		hide()
 		return
 	IVGlobal.confirmation_requested.emit(&"LABEL_Q_CANCEL_HOTKEY_CHANGES", _cancel_changes, true,
@@ -357,10 +352,10 @@ func _on_cancel() -> void:
 
 
 func _on_popup_hide() -> void:
-	if !_allow_close:
+	if _suppress_close:
 		show.call_deferred()
 		return
-	_allow_close = false
+	_suppress_close = true
 	for child in _content_container.get_children():
 		_content_container.remove_child(child)
 		child.queue_free()
@@ -372,12 +367,5 @@ func _on_close_requested() -> void:
 	# Godot 4.1.1 ... 4.5 ISSUE: close_requested signal is useless. See:
 	# https://github.com/godotengine/godot/issues/76896#issuecomment-1667027253
 	# Also, hide() is done by the engine, contrary to docs.
-	# If this is fixed we can remove the '_allow_close' hack.
+	# If this is fixed we can remove the '_suppress_close' hack.
 	print("Popup.close_requested signal works now! Maybe we can remove hack fixes...")
-
-
-func _is_blocking_popup() -> bool:
-	for window in _blocking_windows:
-		if window.visible:
-			return true
-	return false

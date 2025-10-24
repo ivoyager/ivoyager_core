@@ -85,8 +85,7 @@ const DPRINT := true
 
 
 var _settings: Dictionary[StringName, Variant] = IVGlobal.settings
-var _blocking_windows: Array[Window] = IVGlobal.blocking_windows
-var _allow_close := false
+var _suppress_close := true
 
 
 @onready var _settings_manager: IVSettingsManager = IVGlobal.program[&"SettingsManager"]
@@ -98,7 +97,7 @@ var _allow_close := false
 
 
 func _ready() -> void:
-	exclusive = true # Godot 4.5 seems inconsistent about this
+	exclusive = true
 	hide() # Godot 4.5 editor keeps setting visibility == true !!!
 	IVGlobal.options_requested.connect(open)
 	IVGlobal.setting_changed.connect(_settings_listener)
@@ -108,8 +107,6 @@ func _ready() -> void:
 	_cancel.pressed.connect(_on_cancel)
 	_restore_defaults.pressed.connect(_on_restore_defaults)
 	_confirm_changes.pressed.connect(_on_confirm_changes)
-	_blocking_windows.append(self)
-	
 	if !IVPluginUtils.is_plugin_enabled("ivoyager_save"):
 		remove_subpanel(&"LABEL_SAVE_LOAD")
 
@@ -123,8 +120,6 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 func open() -> void:
 	if visible:
-		return
-	if _is_blocking_popup():
 		return
 	if stop_sim:
 		IVGlobal.sim_stop_required.emit(self)
@@ -320,7 +315,7 @@ func _restore_default(setting: StringName) -> void:
 
 func _cancel_changes() -> void:
 	_settings_manager.restore_from_cache()
-	_allow_close = true
+	_suppress_close = false
 	hide()
 
 
@@ -343,13 +338,13 @@ func _on_restore_defaults() -> void:
 
 func _on_confirm_changes() -> void:
 	_settings_manager.cache_now()
-	_allow_close = true
+	_suppress_close = false
 	hide()
 
 
 func _on_cancel() -> void:
 	if _settings_manager.is_cache_current():
-		_allow_close = true
+		_suppress_close = false
 		hide()
 		return
 	IVGlobal.confirmation_requested.emit(&"LABEL_Q_CANCEL_OPTION_CHANGES", _cancel_changes, true,
@@ -360,22 +355,15 @@ func _on_close_requested() -> void:
 	# Godot 4.1.1 ... 4.5 ISSUE: close_requested signal is useless. See:
 	# https://github.com/godotengine/godot/issues/76896#issuecomment-1667027253
 	# Also, hide() is done by the engine, contrary to docs.
-	# If this is fixed we can remove the '_allow_close' hack.
+	# If this is fixed we can remove the '_suppress_close' hack.
 	print("Popup.close_requested signal works now! Maybe we can remove hack fixes...")
 
 
-func _is_blocking_popup() -> bool:
-	for window in _blocking_windows:
-		if window.visible:
-			return true
-	return false
-
-
 func _on_popup_hide() -> void:
-	if !_allow_close:
+	if _suppress_close:
 		show.call_deferred()
 		return
-	_allow_close = false
+	_suppress_close = true
 	for child in _content_container.get_children():
 		_content_container.remove_child(child)
 		child.queue_free()

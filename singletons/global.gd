@@ -178,10 +178,6 @@ var program: Dictionary[StringName, Object] = {}
 var resources: Dictionary[StringName, Resource] = {}
 ## Maintained by [IVSettingsManager].
 var settings: Dictionary[StringName, Variant] = {}
-### Maintained by [IVFontManager].
-#var fonts: Dictionary[StringName, FontFile] = {}
-## Maintained by Windows instances that want & test for exclusivity.
-var blocking_windows: Array[Window] = []
 ## For project use. Not used by I, Voyager.
 var project := {}
 
