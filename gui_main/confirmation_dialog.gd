@@ -1,4 +1,4 @@
-# confirmation.gd
+# confirmation_dialog.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -17,17 +17,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVConfirmation
+class_name IVConfirmationDialog
 extends ConfirmationDialog
 
-## A "main" ConfirmationDialog that can be reused for any purpose
+## A single ConfirmationDialog for all user confirmations
 ##
-## Call using [signal IVGlobal.confirmation_requested].
+## Call using [signal IVGlobal.confirmation_requested]. Calling with
+## [param stop_sim] == true (default) means that the sim will stop while the
+## dialog is open. This can be suppressed by setting
+## [member IVCoreSettings.popops_can_stop_sim] to false. 
 
-const SCENE := "res://addons/ivoyager_core/gui_main/confirmation.tscn"
+const SCENE := "res://addons/ivoyager_core/gui_main/confirmation_dialog.tscn"
 
 var _stop_sim: bool
-var _confirm_action: Callable
+var _action: Callable
 
 
 
@@ -35,7 +38,7 @@ func _ready() -> void:
 	IVGlobal.confirmation_requested.connect(_on_confirmation_requested)
 	confirmed.connect(_on_confirmed)
 	canceled.connect(_on_canceled)
-	focus_exited.connect(_keep_focus)
+	focus_exited.connect(_retake_focus)
 	get_label().horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 
@@ -45,12 +48,16 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 
 
-func _on_confirmation_requested(text: StringName, confirm_action: Callable, stop_sim := true,
+func _on_confirmation_requested(text: StringName, action: Callable, stop_sim := true,
 		title_txt := &"LABEL_PLEASE_CONFIRM", ok_txt := &"BUTTON_OK", cancel_txt := &"BUTTON_CANCEL"
 		) -> void:
-	# stop_sim can be overridden by IVCoreSettings.popops_can_stop_sim == false
+	if visible:
+		push_warning("Confirmation requested when already open")
+		# Discard/overwrite existing dialog. Avoid edge case permanent stop.
+		if _stop_sim and !stop_sim:
+			IVGlobal.sim_run_allowed.emit(self)
 	_stop_sim = stop_sim and IVCoreSettings.popops_can_stop_sim
-	_confirm_action = confirm_action
+	_action = action
 	dialog_text = text
 	title = title_txt
 	ok_button_text = ok_txt
@@ -58,13 +65,13 @@ func _on_confirmation_requested(text: StringName, confirm_action: Callable, stop
 	if _stop_sim:
 		IVGlobal.sim_stop_required.emit(self)
 	popup_centered()
-	_keep_focus()
+	_retake_focus()
 
 
 func _on_confirmed() -> void:
 	if _stop_sim:
 		IVGlobal.sim_run_allowed.emit(self)
-	_confirm_action.call()
+	_action.call()
 
 
 func _on_canceled() -> void:
@@ -72,7 +79,7 @@ func _on_canceled() -> void:
 		IVGlobal.sim_run_allowed.emit(self)
 
 
-func _keep_focus() -> void:
+func _retake_focus() -> void:
 	await get_tree().process_frame
 	if !has_focus():
 		grab_focus()

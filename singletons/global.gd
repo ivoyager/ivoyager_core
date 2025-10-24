@@ -85,7 +85,7 @@ signal move_camera_requested(selection: Object, camera_flags: int, view_position
 # requests for GUI
 signal open_main_menu_requested()
 signal close_main_menu_requested()
-signal confirmation_requested(text: StringName, confirm_action: Callable, stop_sim: bool,
+signal confirmation_requested(text: StringName, action: Callable, stop_sim: bool,
 		title_txt: StringName, ok_txt: StringName, cancel_txt: StringName)
 signal options_requested()
 signal hotkeys_requested()

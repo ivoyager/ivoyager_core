@@ -1,9 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://c87vdfooqojd1"]
-
-[ext_resource type="Script" uid="uid://brtsl8nfd33hs" path="res://addons/ivoyager_core/gui_main/confirmation.gd" id="1_cfs87"]
-
-[node name="Confirmation" type="ConfirmationDialog"]
-process_mode = 3
-transient = false
-always_on_top = true
-script = ExtResource("1_cfs87")
