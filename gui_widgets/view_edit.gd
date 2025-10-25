@@ -20,18 +20,19 @@
 class_name IVViewEdit
 extends VBoxContainer
 
-## Widget that provides controls for view saving and view button editing.
+## Container widget that provides controls for [IVViewButton] editing and saving.
 ##
 ## This widget is contained in [IVViewEditPopup] and works in conjunction with
 ## [IVViewCollection], [IVViewSaveButton] and [IVViewButton] instances. In
 ## normal setup, all methods (including [method init]) are called by [IVViewCollection].
 ## Configuration of this node's controls happens when shown.[br][br]
 ##
-## Unused check boxes (not set in [param allowed_flags]) will be removed.[br][br]
+## Check boxes that are not specified in [method init] by [param allowed_flags]
+## (see [enum IVView.ViewFlags]) will be removed.[br][br]
 ##
 ## If [member IVCoreSettings.allow_time_setting] == false (default), NowCkbx
 ## will be removed. TimeCkbx is still valid because "time state" includes game
-## speed, but this checkbox will be displayed as "Game Speed".
+## speed, but this checkbox will be re-texted to display as "Game Speed".
 
 signal saved_new(view_name: String)
 signal saved_edit(editing_button: IVViewButton, view_name: String)

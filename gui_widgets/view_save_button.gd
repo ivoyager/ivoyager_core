@@ -35,8 +35,6 @@ const ViewFlags := IVView.ViewFlags
 
 
 var _view_collection: IVViewCollection
-var _view_edit_popup: IVViewEditPopup
-var _view_edit: IVViewEdit
 
 
 
@@ -55,12 +53,11 @@ func _deffered_connect_collection() -> void:
 			assert(up_search,
 					"No external_view_collection_path; expected ancestor IVViewCollection")
 			_view_collection = up_search as IVViewCollection
-	_view_edit_popup = _view_collection.view_edit_popup
-	_view_edit = _view_collection.view_edit
 	
 	# connections
 	toggled.connect(_on_toggled)
-	_view_edit_popup.visibility_changed.connect(_on_visibility_changed)
+	var view_edit_popup := _view_collection.get_view_edit_popup()
+	view_edit_popup.visibility_changed.connect(_on_popup_visibility_changed.bind(view_edit_popup))
 
 
 
@@ -73,7 +70,7 @@ func _on_toggled(toggle_pressed: bool) -> void:
 		_view_collection.close_view_edit()
 
 
-func _on_visibility_changed() -> void:
+func _on_popup_visibility_changed(popup: IVViewEditPopup) -> void:
 	await get_tree().process_frame
-	if !_view_edit_popup.visible:
+	if !popup.visible:
 		button_pressed = false

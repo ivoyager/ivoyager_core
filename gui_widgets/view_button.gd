@@ -20,7 +20,8 @@
 class_name IVViewButton
 extends Button
 
-## Button widget for selecting a "view".
+## Button widget for selecting an [IVView]. The button can be default or user-added,
+## and may be editable.
 ##
 ## The button selects an [IVView], which may be a default view defined in a data
 ## table (e.g., "VIEW_HOME" in
@@ -36,8 +37,8 @@ extends Button
 ## Default view buttons can be added anywhere, but they are only editable (by user)
 ## if they are inside of an [IVViewCollection].[br][br]
 ##
-## User-saved IVViewButton instances are added by code by a parent [IVViewCollection].
-## These have no default_view and are editable, renamable and/or deletable
+## User-saved [IVViewButton] instances are added by code by a parent [IVViewCollection].
+## These have [member default_view] == &"" and are editable, renamable and/or deletable
 ## according to [IVViewCollection] "user_" properties (all true by default).[br][br]
 ##
 ## If enabled and user edits a default view button, the [IVViewEdit] interface
@@ -47,7 +48,7 @@ signal edit_requested()
 
 ## Set to view name for default (i.e., table defined) views like "VIEW_HOME".
 ## This is required for buttons added via GUI scene building in the editor.
-## For user-saved buttons (code created), this will have value &"".
+## Always &"" for user-saved (code generated) buttons.
 @export var default_view:= &""
 ## Set true to allow user to edit (resave) a view button. Only works for default
 ## button if it is inside an [IVViewCollection].
