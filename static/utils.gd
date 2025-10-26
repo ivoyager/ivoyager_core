@@ -153,6 +153,20 @@ static func get_bit_string(flags: int, bytes := 4) -> String:
 
 
 # GUI
+## Gets [param property] value from provided [param control] or from an ancestor
+## Control. Searches up the tree until a non-Control node occurs; returns null
+## if the property does not exist. If [param skip_null] is set to true, keep
+## searching up the tree if a Control has the property but its value is null.
+static func get_control_tree_property(control: Control, property: StringName, skip_null := false
+		) -> Variant:
+	while control:
+		if property in control:
+			var value: Variant = control.get(property)
+			if !skip_null or value != null:
+				return value
+		control = control.get_parent_control()
+	return null
+
 
 ## Positions [param popup] at [param corner] of [param at_control].
 ## Call deferred may be needed if popup changes size when shown.
