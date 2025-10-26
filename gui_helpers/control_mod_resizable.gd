@@ -58,7 +58,7 @@ extends Node
 @export var resize_again_delay := 3
 
 
-var _is_in_container: bool
+var _in_container: bool
 var _suppress_resize := false
 
 
@@ -68,24 +68,25 @@ var _suppress_resize := false
 
 
 func _ready() -> void:
-	assert(sizes.size() == IVGlobal.GUISize.size())
-	assert(_control, "IVControlResizer requires a Control as parent")
+	assert(_control, "IVControlModResizable requires a Control as parent")
+	assert(sizes.size() == IVGlobal.GUISize.size(),
+			"'sizes' size does not match enum 'IVGlobal.GUISize' size")
 	IVGlobal.setting_changed.connect(_settings_listener)
 	IVGlobal.simulator_started.connect(_resize)
-	_control.resized.connect(_resize)
-	_is_in_container = _control.get_parent() is Container
+	_control.resized.connect(_resize) # code suppresses recursion
+	_in_container = _control.get_parent() is Container
 	_resize()
 
 
 func _resize() -> void:
 	if _suppress_resize:
-		return # bail out if recursion or during resize_again_delay
+		return # bail out if recursion or called during resize_again_delay
 	_suppress_resize = true
 	
 	var gui_size: int = _settings[&"gui_size"]
 	var size := sizes[gui_size]
 	
-	if _is_in_container:
+	if _in_container:
 		_control.custom_minimum_size = size
 		_suppress_resize = false
 		return
