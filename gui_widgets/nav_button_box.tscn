@@ -3,6 +3,4 @@
 [ext_resource type="Script" uid="uid://r6x5jnru5g3x" path="res://addons/ivoyager_core/gui_widgets/nav_button_box.gd" id="1_74l5q"]
 
 [node name="NavButtonBox" type="BoxContainer"]
-size_flags_horizontal = 3
-size_flags_vertical = 3
 script = ExtResource("1_74l5q")
