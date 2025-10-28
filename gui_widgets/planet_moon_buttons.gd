@@ -20,6 +20,8 @@
 class_name IVPlanetMoonButtons
 extends HBoxContainer
 
+# DEPRECATE
+
 ## GUI widget.
 ##
 ## This widget builds itself from an existing planetary system specified by
@@ -62,6 +64,9 @@ var _is_built := false
 
 
 func _ready() -> void:
+	
+	push_warning("DEPRECATED")
+	
 	IVGlobal.about_to_start_simulator.connect(_build)
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	resized.connect(_resize)

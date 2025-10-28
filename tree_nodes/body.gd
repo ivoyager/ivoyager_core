@@ -211,7 +211,7 @@ static var galaxy_orbiters: Dictionary[StringName, IVBody] = {}
 
 
 # persisted
-## See [member BodyFlags].
+## See [enum BodyFlags].
 var flags := 0
 ## Mean radius. Must be >0.0 for camera and model mechanics.
 var mean_radius := 0.0

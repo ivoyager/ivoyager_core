@@ -46,7 +46,7 @@ var _button_size := 0.0 # scales with widget height
 
 func _ready() -> void:
 	
-	push_warning("Depricate: Use IVNavButtonBox in ScrollContainer")
+	push_warning("Depricate: Use IVNavButtonsBox in ScrollContainer")
 	
 	IVGlobal.system_tree_ready.connect(_on_system_tree_ready)
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)

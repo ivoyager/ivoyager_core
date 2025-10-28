@@ -24,14 +24,15 @@ extends Button
 ##
 ## The widget is a flat toggle Button that is in the pressed state when the body
 ## is selected. The pressed state has a theme override outline. The child
-## TextureRect fits within the button keeping aspect. (Note: It's not a
-## TextureButton because we need to theme the button for state rather than
-## alter the image.)[br][br]
+## TextureRect fits within the button keeping aspect. (Note: TextureButton
+## doesn't allow theming of the button, hence the more complicated
+## Button/TextureRect construction.)
+## [br][br]
 ##
 ## The button is set to fill and expand by default, which works well, e.g.,
-## in a BoxContainer. It has a tiny default [param custom_minimum_size] mainly
-## for debugging purposes, so it will have some size if the container sizing
-## isn't correct.
+## in a [IVNavButtonsBox]. It has a tiny default [param custom_minimum_size]
+## mainly for debugging purposes (so it will have a tiny but visible size if
+## the container sizing isn't correct).
 
 const SCENE := "res://addons/ivoyager_core/gui_widgets/nav_button.tscn"
 
@@ -50,9 +51,9 @@ var _selection_manager: IVSelectionManager
 
 
 ## Creates and returns an [IVNavButton] instance. The button will be configured
-## (connected to [IVBody] and texture added) [i]after[/i] the button is added or
+## (connected to [IVBody] and given a texture) [i]after[/i] the button is added or
 ## the system is built, whichever comes later. If the button can't find its
-## corresponding [IVBody], it will generate a warning message and free itself.[br][br]
+## corresponding [IVBody], it will generate a warning message.[br][br]
 @warning_ignore("shadowed_variable", "shadowed_variable_base_class")
 static func create(body_name: StringName, custom_minimum_size := Vector2(10, 10),
 		use_texture_slice := false) -> IVNavButton:
@@ -68,7 +69,7 @@ func _ready() -> void:
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	IVGlobal.update_gui_requested.connect(_update_selection)
 	set_default_cursor_shape(CURSOR_POINTING_HAND)
-	if IVGlobal.state.is_system_built:
+	if IVGlobal.state[&"is_system_built"]:
 		_configure()
 
 
@@ -77,21 +78,24 @@ func _pressed() -> void:
 
 
 func _configure(_dummy := false) -> void:
+	if use_texture_slice:
+		_texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	else:
+		_texture_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH
+		_texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		
 	_body = IVBody.bodies.get(body_name)
 	if !_body:
 		push_warning("Did not find IVBody with name '%s'; freeing IVNavButton" % body_name)
-		queue_free()
+		disabled = true
 		return
 	
 	tooltip_text = _body.name
 	if use_texture_slice:
 		_texture_rect.texture = _body.texture_slice_2d
-		_texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		_texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	else:
 		_texture_rect.texture = _body.texture_2d
-		_texture_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH
-		_texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	
 	_selection_manager = IVSelectionManager.get_selection_manager(self)
 	_selection_manager.selection_changed.connect(_update_selection)

@@ -17,24 +17,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVNavButtonBox
+class_name IVNavButtonsBox
 extends BoxContainer
 
 ## BoxContainer widget that instantiates and holds [IVNavButton] instances for
 ## user [IVBody] selection
 ##
-## Bodies can be specified by adding to [member body_names], by adding
-## body-containing table names to [member body_tables] (e.g., "asteroids",
-## "spacecrafts", etc.), or by calling [method add_button].[br][br]
+## Bodies can be specified in [member body_names], in [member body_tables],
+## or by calling [method add_button].[br][br]
 ##
-## For most usage this widget should be inside a ScrollContainer that scrolls
-## in the corresponding direction.[br][br]
+## If many buttons are added or may be added, consider placing inside a
+## ScrollContainer that scrolls in the corresponding direction.[br][br]
 
 const SCENE := "res://addons/ivoyager_core/gui_widgets/nav_buttons_box.tscn"
 
 ## E.g., "PLANET_EARTH", "MOON_EUROPA", etc.
 @export var body_names: Array[StringName] = []
-## E.g., "asteroids", "spacecrafts", "planets", "moons", etc.
+## E.g., "asteroids", "spacecrafts", "planets", "moons", etc., corresponding to
+## data tables that define body instances.
 @export var body_tables: Array[StringName] = []
 ## Sets [member Button.custom_minimum_size] for buttons defined in [member
 ## body_names] and [member body_tables]. Does not affect buttons added via
@@ -45,8 +45,16 @@ const SCENE := "res://addons/ivoyager_core/gui_widgets/nav_buttons_box.tscn"
 ## widget width if vertical box. 
 @export var square_buttons := true
 
-
 var _suppress_resquaring := false
+
+
+## Creates an [IVNavButtonsBox] instance. Intended for procedural GUI
+## genereration using [method add_button].
+@warning_ignore("shadowed_variable")
+static func create(square_buttons := true) -> IVNavButtonsBox:
+	var box: IVNavButtonsBox = preload(SCENE).instantiate()
+	box.square_buttons = square_buttons
+	return box
 
 
 func _ready() -> void:
@@ -65,13 +73,13 @@ func _ready() -> void:
 func add_button(body_name: StringName, min_size := Vector2(10, 10)) -> void:
 	var button := IVNavButton.create(body_name, min_size)
 	add_child(button)
-	if square_buttons:
+	if square_buttons and is_inside_tree():
 		_resquare_buttons()
 
 
 func _resquare_buttons() -> void:
-	# Suppression needed for infinite recursion (e.g., if scroll bar appears
-	# and narrows the IVNavButtonBox) and to prevent excessive calling.
+	# Suppression prevents infinite recursion (e.g., if scroll bar appears and
+	# narrows the IVNavButtonsBox).
 	if _suppress_resquaring:
 		return
 	_suppress_resquaring = true
