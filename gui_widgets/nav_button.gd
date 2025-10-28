@@ -22,23 +22,29 @@ extends Button
 
 ## Button widget that provides user selection of an [IVBody]
 ##
+## The widget is a flat toggle Button that is in the pressed state when the body
+## is selected. The pressed state has a theme override outline. The child
+## TextureRect fits within the button keeping aspect. (Note: It's not a
+## TextureButton because we need to theme the button for state rather than
+## alter the image.)[br][br]
 ##
-## Note: This is a Button rather than a TextureButton so the whole button can
-## be themed to reflect state. TextureButton only allows the image to reflect
-## state (the image might be reduced inside the button).
+## The button is set to fill and expand by default, which works well, e.g.,
+## in a BoxContainer. It has a tiny default [param custom_minimum_size] mainly
+## for debugging purposes, so it will have some size if the container sizing
+## isn't correct.
 
 const SCENE := "res://addons/ivoyager_core/gui_widgets/nav_button.tscn"
 
-
-signal selected()
-
-
+## E.g., "PLANET_EARTH", "MOON_EUROPA", etc.
 @export var body_name: StringName
+## If true, use [member IVBody.texture_slice_2d] instead of [member
+## IVBody.texture_2d]. This is the non-square "slice" of the Sun (or
+## possibly other stars). Also changes texture expand and stretch modes.
+@export var use_texture_slice := false
 
 
 var _body: IVBody
 var _selection_manager: IVSelectionManager
-var _has_mouse := false
 
 @onready var _texture_rect: TextureRect = $TextureRect
 
@@ -46,12 +52,14 @@ var _has_mouse := false
 ## Creates and returns an [IVNavButton] instance. The button will be configured
 ## (connected to [IVBody] and texture added) [i]after[/i] the button is added or
 ## the system is built, whichever comes later. If the button can't find its
-## corresponding [IVBody], it will generate a warning message and free itself.
-@warning_ignore("shadowed_variable")
-static func create(body_name: StringName, min_size := Vector2(10, 10)) -> IVNavButton:
+## corresponding [IVBody], it will generate a warning message and free itself.[br][br]
+@warning_ignore("shadowed_variable", "shadowed_variable_base_class")
+static func create(body_name: StringName, custom_minimum_size := Vector2(10, 10),
+		use_texture_slice := false) -> IVNavButton:
 	var button: IVNavButton = preload(SCENE).instantiate()
 	button.body_name = body_name
-	button.custom_minimum_size = min_size
+	button.use_texture_slice = use_texture_slice
+	button.custom_minimum_size = custom_minimum_size
 	return button
 
 
@@ -62,7 +70,6 @@ func _ready() -> void:
 	set_default_cursor_shape(CURSOR_POINTING_HAND)
 	if IVGlobal.state.is_system_built:
 		_configure()
-
 
 
 func _pressed() -> void:
@@ -77,9 +84,15 @@ func _configure(_dummy := false) -> void:
 		return
 	
 	tooltip_text = _body.name
-	_texture_rect.texture = _body.texture_2d
-	mouse_entered.connect(_on_mouse_entered)
-	mouse_exited.connect(_on_mouse_exited)
+	if use_texture_slice:
+		_texture_rect.texture = _body.texture_slice_2d
+		_texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	else:
+		_texture_rect.texture = _body.texture_2d
+		_texture_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH
+		_texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	
 	_selection_manager = IVSelectionManager.get_selection_manager(self)
 	_selection_manager.selection_changed.connect(_update_selection)
 	_selection_manager.selection_reselected.connect(_update_selection)
@@ -95,17 +108,4 @@ func _clear_procedural() -> void:
 
 
 func _update_selection(_dummy := false) -> void:
-	var is_selected := _selection_manager.get_body() == _body
-	button_pressed = is_selected
-	if is_selected:
-		selected.emit()
-
-
-func _on_mouse_entered() -> void:
-	_has_mouse = true
-	flat = false
-
-
-func _on_mouse_exited() -> void:
-	_has_mouse = false
-	flat = !button_pressed
+	button_pressed = _selection_manager.get_body() == _body

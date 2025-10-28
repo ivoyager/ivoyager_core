@@ -20,6 +20,8 @@
 class_name IVSunSliceButton
 extends Button
 
+# DEPRICATE: Replace w/ IVNavButton
+
 ## GUI widget.
 ##
 ## An ancestor Control node must have property [param selection_manager]
@@ -45,6 +47,9 @@ var _has_mouse := false
 
 
 func _ready() -> void:
+	
+	push_warning("DEPRICATE: Replace w/ IVNavButton")
+	
 	IVGlobal.about_to_start_simulator.connect(_build)
 	IVGlobal.update_gui_requested.connect(_update_selection)
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)

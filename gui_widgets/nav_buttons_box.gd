@@ -1,4 +1,4 @@
-# nav_button_box.gd
+# nav_buttons_box.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -27,17 +27,22 @@ extends BoxContainer
 ## body-containing table names to [member body_tables] (e.g., "asteroids",
 ## "spacecrafts", etc.), or by calling [method add_button].[br][br]
 ##
-## If [member square_buttons] is true (default), all buttons will be square
-## with sides defined by the widget height if horizontal box (default) or width
-## if vertical box. For most usage this widget should be inside a ScrollContainer
-## that scrolls in the corresponding direction.[br][br]
+## For most usage this widget should be inside a ScrollContainer that scrolls
+## in the corresponding direction.[br][br]
 
-const SCENE := "res://addons/ivoyager_core/gui_widgets/nav_button_box.tscn"
-const BODYFLAGS_SHOW_IN_NAVIGATION_PANEL := IVBody.BodyFlags.BODYFLAGS_SHOW_IN_NAVIGATION_PANEL
+const SCENE := "res://addons/ivoyager_core/gui_widgets/nav_buttons_box.tscn"
 
-
+## E.g., "PLANET_EARTH", "MOON_EUROPA", etc.
 @export var body_names: Array[StringName] = []
+## E.g., "asteroids", "spacecrafts", "planets", "moons", etc.
 @export var body_tables: Array[StringName] = []
+## Sets [member Button.custom_minimum_size] for buttons defined in [member
+## body_names] and [member body_tables]. Does not affect buttons added via
+## [method add_button].
+@export var button_min_size := Vector2(10, 10)
+## If true (default), dynamically maintains all buttons as squares, where side
+## length is defined by the widget height if horizontal box (default) or the
+## widget width if vertical box. 
 @export var square_buttons := true
 
 
@@ -46,12 +51,12 @@ var _suppress_resquaring := false
 
 func _ready() -> void:
 	for body_name in body_names:
-		add_button(body_name)
+		add_button(body_name, button_min_size)
 	for table_name in body_tables:
 		assert(IVTableData.db_tables.has(table_name))
 		var names_field: Array[StringName] = IVTableData.db_tables[table_name][&"name"]
 		for body_name in names_field:
-			add_button(body_name)
+			add_button(body_name, button_min_size)
 	if square_buttons:
 		resized.connect(_resquare_buttons)
 		_resquare_buttons()
@@ -60,14 +65,6 @@ func _ready() -> void:
 func add_button(body_name: StringName, min_size := Vector2(10, 10)) -> void:
 	var button := IVNavButton.create(body_name, min_size)
 	add_child(button)
-	if square_buttons:
-		_resquare_buttons()
-
-
-func add_buttons(body_names_: Array[StringName], min_size := Vector2(10, 10)) -> void:
-	for body_name in body_names_:
-		var button := IVNavButton.create(body_name, min_size)
-		add_child(button)
 	if square_buttons:
 		_resquare_buttons()
 
