@@ -92,7 +92,7 @@ signal hotkeys_requested()
 signal close_all_admin_popups_requested() # main menu, options, etc.
 signal show_hide_gui_requested(is_toggle: bool, is_show: bool) # 2nd arg ignored if is_toggle
 
-
+## Sizes available for setting "gui_size". See also [member IVCoreSettings.gui_size_multipliers].
 enum GUISize {
 	GUI_SMALL,
 	GUI_MEDIUM,

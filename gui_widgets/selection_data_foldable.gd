@@ -339,4 +339,4 @@ func _on_meta_clicked(meta: String) -> void:
 
 func _settings_listener(setting: StringName, _value: Variant) -> void:
 	if setting == &"gui_size":
-		_reset_column_widths()
+		_reset_column_widths.call_deferred() # after font size change

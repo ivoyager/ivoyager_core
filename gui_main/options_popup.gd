@@ -373,8 +373,8 @@ func _on_popup_hide() -> void:
 
 func _settings_listener(setting: StringName, _value: Variant) -> void:
 	if setting == &"gui_size":
+		# Needs resize (if shrunk) and repositioning...
 		var center := position + size / 2
 		await get_tree().process_frame
-		#child_controls_changed() # Godot ISSUE4.2.dev2: does not resize
-		size = Vector2i.ZERO # hack fix above
+		size = Vector2i.ZERO
 		position = center - size / 2

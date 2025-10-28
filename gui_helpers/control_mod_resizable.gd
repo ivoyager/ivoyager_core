@@ -21,12 +21,13 @@ class_name IVControlModResizable
 extends Node
 
 ## Resizes parent Control to specified sizes with changes in setting "gui_size".
-## Maintains correct anchor position for Controls that resize for any reason
+## Maintains correct anchor position for Controls (not in a Container) that
+## resize for any reason
 ##
-## Set desired minimum size for each "gui_size" setting in [member sizes].
-## Implementation differs
+## Set either [member base_size] or [member sizes], or leave both as
+## default for the repositioning functionality only. Implementation differs
 ## depending on Container context (see below). In either case, the Control will
-## expand beyond specified [member sizes] to fit contents.[br][br]
+## expand beyond specified sizes to fit contents.[br][br]
 ##
 ## If parent Control is in a Container, this node sets [member Control.custom_minimum_size].
 ## For resize to happen, container sizing properties must be set to a "shrink"
@@ -34,27 +35,27 @@ extends Node
 ##
 ## If parent Control is [u]not[/u] in a Container, this node sets [member Control.size]
 ## and repositions to anchors after a resize happens for any reason (e.g., due
-## to content change). In this context, this node may be useful for maintaining
+## to content change). In this context, this node is useful for maintaining
 ## minimum size and correct screen position even if Control is intended only to
-## fit contents (if this is the case, leave all [member sizes] elements as
-## default Vector2.ZERO).
+## fit contents (if this is the case, leave [member base_size] and [member sizes]
+## as default values).
 
 
-
-
-## Control size for each setting of [enum IVGlobal.GUISize]. The array size must
-## match the enum size. Default array elements are all Vector2.ZERO, which will
-## result in the Control resizing to fit contents. 
-@export var sizes: Array[Vector2] = [
-	Vector2.ZERO, # GUI_SMALL
-	Vector2.ZERO, # GUI_MEDIUM
-	Vector2.ZERO, # GUI_LARGE
-]
+## Set only [member base_size] or [member sizes].
+## Base Control size multiplied by [member IVCoreSettings.gui_size_multipliers]
+## for each [enum IVGlobal.GUISize]. If set, the resulting sizes will overwrite
+## values in [member sizes].
+@export var base_size := Vector2.ZERO
+## Set only [member base_size] or [member sizes].
+## Control size for each setting of [enum IVGlobal.GUISize]. If
+## [member base_size] is set, this array will be filled (overwritten) using
+## [member base_size] × [member IVCoreSettings.gui_size_multipliers]. 
+@export var sizes: Array[Vector2] = []
 ## Not used if Control is in a Container. Frame delay before Control is resized
 ## a second time and then repositioned. Complex Control scene trees may require
-## a value >0 for correct resizing and repositioning when child Controls are
-## resizing for some reason (e.g., due to font resing). Set to 0 to skip the
-## delay and the second resize.
+## a value >2 for correct resizing and repositioning when child Controls are
+## resizing for some reason (some widgets have a frame delay for their own
+## resizing). Set to 0 to skip the delay and the second resize.
 @export var resize_again_delay := 3
 
 
@@ -69,12 +70,23 @@ var _suppress_resize := false
 
 func _ready() -> void:
 	assert(_control, "IVControlModResizable requires a Control as parent")
-	assert(sizes.size() == IVGlobal.GUISize.size(),
-			"'sizes' size does not match enum 'IVGlobal.GUISize' size")
 	IVGlobal.setting_changed.connect(_settings_listener)
 	IVGlobal.simulator_started.connect(_resize)
 	_control.resized.connect(_resize) # code suppresses recursion
 	_in_container = _control.get_parent() is Container
+	if base_size and sizes:
+		push_warning("Provided 'sizes' are overwritten using 'base_size'. Set only one of these!")
+	var n_sizes := IVGlobal.GUISize.size()
+	if base_size:
+		var multipliers := IVCoreSettings.gui_size_multipliers
+		sizes.resize(n_sizes)
+		for i in n_sizes:
+			sizes[i].x = roundf(base_size.x * multipliers[i])
+			sizes[i].y = roundf(base_size.y * multipliers[i])
+	elif sizes:
+		assert(sizes.size() == n_sizes, "'sizes' size does not match enum 'IVGlobal.GUISize' size")
+	else:
+		sizes.resize(n_sizes)
 	_resize()
 
 
