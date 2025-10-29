@@ -1,4 +1,4 @@
-[gd_scene load_steps=6 format=3 uid="uid://t13lvtablxvu"]
+[gd_scene load_steps=5 format=3 uid="uid://t13lvtablxvu"]
 
 [ext_resource type="Script" uid="uid://cqnbc2ohu5jx" path="res://addons/ivoyager_core/gui_widgets/nav_button.gd" id="1_tglot"]
 
@@ -19,9 +19,6 @@ corner_radius_bottom_left = 3
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_rq18b"]
 bg_color = Color(0.6, 0.6, 0.6, 0.27450982)
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hp6ai"]
-bg_color = Color(1.0039216, 0, 0, 1)
-
 [node name="NavButton" type="Button"]
 offset_right = 8.0
 offset_bottom = 8.0
@@ -30,7 +27,6 @@ size_flags_vertical = 3
 theme_override_styles/normal = SubResource("StyleBoxEmpty_tglot")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_tglot")
 theme_override_styles/hover = SubResource("StyleBoxFlat_rq18b")
-theme_override_styles/disabled = SubResource("StyleBoxFlat_hp6ai")
 toggle_mode = true
 action_mode = 0
 script = ExtResource("1_tglot")

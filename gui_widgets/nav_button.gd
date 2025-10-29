@@ -86,7 +86,7 @@ func _configure(_dummy := false) -> void:
 		
 	_body = IVBody.bodies.get(body_name)
 	if !_body:
-		push_warning("Did not find IVBody with name '%s'; freeing IVNavButton" % body_name)
+		push_warning("Did not find IVBody with name '%s'" % body_name)
 		disabled = true
 		return
 	
