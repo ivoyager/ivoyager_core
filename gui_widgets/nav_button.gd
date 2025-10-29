@@ -26,8 +26,7 @@ extends Button
 ## is selected. The pressed state has a theme override outline. The child
 ## TextureRect fits within the button keeping aspect. (Note: TextureButton
 ## doesn't allow theming of the button, hence the more complicated
-## Button/TextureRect construction.)
-## [br][br]
+## Button/TextureRect construction.)[br][br]
 ##
 ## The button is set to fill and expand by default, which works well, e.g.,
 ## in a [IVNavButtonsBox]. It has a tiny default [param custom_minimum_size]
