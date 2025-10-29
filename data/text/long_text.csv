@@ -12,4 +12,4 @@ TXT_PBD_LONG,"Pale Blue Dot\n\nEarth as seen by Voyager 1 from a distance of 6.4
 TXT_PBD_SHORT,Pale Blue Dot\n\nEarth as seen by Voyager 1 from a distance of 6.4 billion kilometers
 TXT_PBD_HTML5_BOOT,Pale Blue Dot\n\nEarth as seen by Voyager 1 from a distance of 6.4 billion kilometers
 TXT_PWA_UPDATE_AVAILABLE,\n   A Planetarium update is available!   \n\n   Press 'Update' to download and run the new version.   \n   Press 'Continue' to continue using the old version.   \n
-TXT_VALID_3000BC_3000AD,The simulation uses Keplerian elements and rates for planets [url='https://ssd.jpl.nasa.gov/planets/approx_pos.html']valid from 3000 BC to 3000 AD[/url].
+TXT_VALID_3000BC_3000AD,Approximate planet positions are [url=https://ssd.jpl.nasa.gov/planets/approx_pos.html]valid from 3000 BC to 3000 AD[/url].

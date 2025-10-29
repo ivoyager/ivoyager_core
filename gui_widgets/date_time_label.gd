@@ -20,20 +20,25 @@
 class_name IVDateTimeLabel
 extends Label
 
-## GUI widget.
+## GUI Label widget that shows current date and time.
 ##
 ## Requires [IVTimekeeper] and [IVStateManager].
 
-var show_pause := !IVCoreSettings.disable_pause
-var date_format := "%02d/%02d/%02d"
-var clock_hms_format := "  %02d:%02d:%02d" # to incl UT, "  %02d:%02d:%02d UT"
-var clock_hm_format := "  %02d:%02d" # to incl UT, "  %02d:%02d UT"
-var forward_color: Color = IVCoreSettings.text_colors[&"base"]
-var reverse_color: Color = IVCoreSettings.text_colors[&"danger"]
+## Format string for [year, month, day].
+@export var date_format := "%02d/%02d/%02d"
+## Format string for [hour, minute, second], including preceding spaces to separate from date.
+@export var clock_hms_format := "  %02d:%02d:%02d"
+## Format string for [hour, minute], including preceding spaces to separate from date.
+@export var clock_hm_format := "  %02d:%02d"
+## Time zone suffix, if needed. E.g., " UT"
+@export var time_zone_suffix := ""
+## If true, suffix the string with localized " (paused)" when paused.
+@export var show_pause := true
+## Override font color if time reversed (only used if time reversal enabled).
+@export var reverse_color := Color.RED
 
 var _date: Array[int] = IVGlobal.date
 var _clock: Array[int] = IVGlobal.clock
-
 var _show_clock := false
 var _show_seconds := false
 var _is_reversed := false
@@ -49,7 +54,6 @@ var _hm: Array[int] = [0, 0]
 func _ready() -> void:
 	IVGlobal.update_gui_requested.connect(_update_display)
 	_timekeeper.speed_changed.connect(_update_display)
-	set(&"theme_override_colors/font_color", forward_color)
 	_update_display()
 
 
@@ -68,6 +72,8 @@ func _process(_delta: float) -> void:
 			_hm[0] = _clock[0]
 			_hm[1] = _clock[1]
 			new_text += clock_hm_format % _hm
+	
+	new_text += time_zone_suffix
 	if show_pause and _state_manager.is_user_paused:
 		new_text += " " + tr(&"LABEL_PAUSED")
 	text = new_text
@@ -79,4 +85,7 @@ func _update_display() -> void:
 	_show_seconds = _timekeeper.show_seconds
 	if _is_reversed != _timekeeper.is_reversed:
 		_is_reversed = !_is_reversed
-		set(&"theme_override_colors/font_color", reverse_color if _is_reversed else forward_color)
+		if _is_reversed:
+			add_theme_color_override("font_color", reverse_color)
+		else:
+			remove_theme_color_override("font_color")

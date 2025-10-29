@@ -21,7 +21,7 @@ HINT_SELECTION_IMAGE,Click to center and orient
 HINT_SELECTION_BACK,Select last
 HINT_SELECTION_FORWARD,Select next
 HINT_SELECTION_UP,Select parent object
-HINT_SET_TIME,Set date & time
+HINT_SET_AND_CLOSE,Set and close
 HINT_SYMBOLS,Show symbols
 HINT_TIME_SLOW,Decrease speed
 HINT_TIME_SPEED,Increase speed
@@ -33,6 +33,7 @@ HINT_TRACK_ORBIT,Camera will track orbit of the target object
 HINT_TRACK_ECLIPTIC,Camera follows the target object but orients to the ecliptic plane
 HINT_TRANS_NEPTUNE,Show trans-Neptunian asteroids
 HINT_TROJANS,Show Jupiter Trojans
+HINT_UPDATE_W_CHANGES,Update with changes
 HINT_UP_LOCK,"Locks camera orientation with respect to reference frame: Ecliptic, Orbit or Ground"
 HINT_VIEW_45,View from 45\u00B0 above
 HINT_VIEW_OUTWARD,Look outward from current selection

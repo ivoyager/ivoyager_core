@@ -72,6 +72,10 @@ var disable_pause := false
 var disable_exit := false
 ## See [IVStateManager].
 var disable_quit := false
+## Size multipliers corresponding to [enum IVGlobal.GUISize]. Before adjusting,
+## consider effects on font sizing in [IVThemeManager] (font sizes are rounded
+## to the nearest integer after multiplication). See also [IVControlModResizable].
+var gui_size_multipliers: Array[float] = [0.75, 1.0, 1.25]
 
 ## From J2000 epoch.
 var start_time: float = 22.0 * IVUnits.YEAR
@@ -134,6 +138,7 @@ var body_tables: Array[StringName] = [&"stars", &"planets", &"asteroids", &"moon
 
 func _enter_tree() -> void:
 	IVFiles.init_from_config(self, IVGlobal.ivoyager_config, "core_settings")
+	assert(gui_size_multipliers.size() == IVGlobal.GUISize.size())
 
 
 

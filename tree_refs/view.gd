@@ -43,6 +43,7 @@ enum ViewFlags { # flags
 	VIEWFLAGS_ALL_CAMERA = (1 << 3) - 1,
 	VIEWFLAGS_ALL_HUDS = 1 << 3 | 1 << 4,
 	VIEWFLAGS_ALL_BUT_TIME = (1 << 5) - 1,
+	VIEWFLAGS_ALL_BUT_IS_NOW = (1 << 6) - 1,
 	VIEWFLAGS_ALL = (1 << 7) - 1,
 }
 
@@ -67,12 +68,13 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"time",
 	&"speed_index",
 	&"is_reversed",
+	&"edited_default",
 ]
 
 
 static var replacement_subclass: Script # subclass only
 
-static var _version_hash := PERSIST_PROPERTIES.hash() + 4 # test for cache is 'bad'
+static var _version_hash := PERSIST_PROPERTIES.hash() + 0 # test for obsolte cache
 static var _camera_handler: IVCameraHandler
 static var _body_huds_state: IVBodyHUDsState
 static var _sbg_huds_state: IVSBGHUDsState
@@ -97,6 +99,7 @@ var sbg_orbits_colors: Dictionary[StringName, Color] = {} # has non-default only
 var time := 0.0
 var speed_index := 0
 var is_reversed := false
+var edited_default := &"" # not part of view, but used by GUI managing code
 
 
 

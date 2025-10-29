@@ -24,7 +24,7 @@ extends Node3D
 ## instantiated asteroids, and spacecrafts (TODO: and barycenters).
 ##         
 ## [member Node.name] is always the data table row name: "PLANET_VENUS",
-## "MOON_EUROPA", "SPACECRAFT_ISS", etc.[br][br]
+## "MOON_EUROPA", "SPACECRAFT_JUNO", etc.[br][br]
 ##
 ## Using our Solar System as example, the structure of the scene tree is:
 ## [codeblock]
@@ -37,8 +37,7 @@ extends Node3D
 ## [/codeblock]
 ##
 ## Note that current core mechanics [i]should[/i] handle a multi-star system,
-## but this has not been tested yet. (Also, there is no GUI widget to display
-## such a system in a Navigation Panel.)[br][br]
+## but this has not been tested yet.[br][br]
 ##
 ## IVBody nodes are NEVER scaled or rotated. Hence, local distances and
 ## directions are always in the ecliptic basis at any level of the "body tree".[br][br]
@@ -60,7 +59,7 @@ extends Node3D
 ## or asteroid or other star orbiter.
 ## Note that IVBody API methods such as [method get_position_vector] and
 ## [method get_state_vectors] will provide current values even if the body is
-## not currently processing, but [param postion] will not. These methods also
+## not currently processing, but [member Node3D.postion] will not. These methods also
 ## take an optional [param time] argument to allow projected results.[br][br]
 ##
 ## IVBody properties are core information required for all bodies. Specialized
@@ -75,7 +74,8 @@ extends Node3D
 ## nodes.[br][br]
 ## 
 ## See also [IVSmallBodiesGroup] for handling 1000s or 100000s of orbiting bodies
-## without individual instantiation (e.g., asteroids).[br][br]
+## without individual instantiation (asteroids in particular; in the future we may add
+## Earth's artificial satellites).[br][br]
 ##
 ## [b]Roadmap[/b][br][br]
 ##
@@ -87,7 +87,7 @@ extends Node3D
 ## TODO: Mechanics for wobbling & tumbling asteroids and outer moons. There
 ## are 4 kinds of rotations with increasing implementation difficulty:[br]
 ## 1. Rotation around 1 axis (this is what we have now).[br]
-## 2. Axisymmetric wobbling (easy). I1 == I2 != I3. This may be a reasonable
+## 2. Axisymmetric wobbling (easy-ish). I1 == I2 != I3. This may be a reasonable
 ##    approximation for many elongated asteroids. (It's also applicable for north
 ##    precession in planets, but the time scale for that is very long.)[br]
 ## 3. Asymmetric tumbling (quasi-periodic, non-chaotic; hard). I1 != I2 != I3.
@@ -99,7 +99,8 @@ extends Node3D
 ## TODO: API for changing orbit context or "identity". E.g., a spacecraft
 ## becomes BODYFLAGS_STAR_ORBITER, or an asteroid is captured to become a moon.[br][br]
 ##
-## TODO: (Ongoing) Make this node more "drag-and_drop" and editable at editor runtime.[br][br]
+## TODO: (Ongoing) Make this node "drag-and_drop" and editable in the
+## editor. (While maintaining existing code-based generation.)[br][br]
 ##
 ## TODO: Barycenters! They orbit and are orbited. This will make Pluto system
 ## (especially) more accurate, and allow things like twin planets.[br][br]
@@ -111,8 +112,8 @@ extends Node3D
 ##
 ## TODO: We want to handle local stars out to some range. Each solitary star or
 ## system primary star will be a "galaxy orbiter" with some (relative) position
-## and velocity. (Any larger scope will require procedural system building and
-## scene loading -- that is not in CW's plans.)
+## and velocity in IVUniverse. (Any larger scope will require procedural system
+## building and scene loading, which is not in our plans.)
 
 signal orbit_changed(orbit: IVOrbit, is_intrinsic: bool, precession_only: bool)
 signal rotation_chaged(is_intrinsic: bool)
@@ -211,7 +212,7 @@ static var galaxy_orbiters: Dictionary[StringName, IVBody] = {}
 
 
 # persisted
-## See [member BodyFlags].
+## See [enum BodyFlags].
 var flags := 0
 ## Mean radius. Must be >0.0 for camera and model mechanics.
 var mean_radius := 0.0

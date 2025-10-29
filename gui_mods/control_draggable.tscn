@@ -1,6 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://bh05kj1lc1y01"]
-
-[ext_resource type="Script" uid="uid://b0oalbxw25ks5" path="res://addons/ivoyager_core/gui_mods/control_draggable.gd" id="1"]
-
-[node name="ControlDraggable" type="Node"]
-script = ExtResource("1")

@@ -20,34 +20,28 @@
 class_name IVTimeSetButton
 extends Button
 
-## GUI button widget that opens its own [IVTimeSetPopup].
+## Button widget that opens its own [IVTimeSetPopup].
 
 
-var _time_set_popup: IVTimeSetPopup
+@export var popup_corner := Corner.CORNER_TOP_LEFT
+@export var popup_stylebox_override: StyleBox
+
+@onready var _time_set_popup: IVTimeSetPopup = $TimeSetPopup
 
 
 
 func _ready() -> void:
-	var top_gui: Control = IVGlobal.program[&"TopGUI"]
-	_time_set_popup = IVFiles.make_object_or_scene(IVTimeSetPopup)
-	top_gui.add_child(_time_set_popup)
 	toggled.connect(_on_toggled)
 	_time_set_popup.visibility_changed.connect(_on_visibility_changed)
+	if popup_stylebox_override:
+		_time_set_popup.add_theme_stylebox_override(&"panel", popup_stylebox_override)
 
 
 
 func _on_toggled(toggle_pressed: bool) -> void:
 	if toggle_pressed:
 		_time_set_popup.popup()
-		await get_tree().process_frame # popup may not know its correct size yet
-		_time_set_popup.size = Vector2i(0, 0)
-		var popup_position := global_position - Vector2(_time_set_popup.size)
-		popup_position.x += size.x / 2.0
-		if popup_position.x < 0.0:
-			popup_position.x = 0.0
-		if popup_position.y < 0.0:
-			popup_position.y = 0.0
-		_time_set_popup.position = popup_position
+		IVUtils.position_popup_at_corner.call_deferred(_time_set_popup, self, popup_corner)
 	else:
 		_time_set_popup.hide()
 

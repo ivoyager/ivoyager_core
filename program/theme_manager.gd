@@ -21,7 +21,7 @@ class_name IVThemeManager
 extends RefCounted
 
 ## Modifies the "main" Theme (specified here or by project) and manages dynamic
-## font sizing.
+## font sizing
 ##
 ## This manager adds custom theme styles that are required by some GUI widgets
 ## for correct appearence. These theme "mods" can be added to or changed by
@@ -31,7 +31,8 @@ extends RefCounted
 ## are defined and managed: "MediumFont" (dynamic), "LargeFont" (dynamic),
 ## "MediumFixedFont", and "LargeFixedFont". The main theme's default_font_size
 ## is also dynamically managed. Font sizes are determined by this class's
-## properties and (for dynamic) the global "gui_size" setting.[br][br]
+## properties and (for dynamic) the global "gui_size" setting (one of
+## [enum IVGlobal.GUISize]).[br][br]
 
 
 ## Signal provided for managing Label3D font sizing. Name and symbol sizes are
@@ -54,16 +55,27 @@ var main_theme_mods: Array[Callable] = [
 	add_borderless_color_picker_button,
 ]
 
-var default_font_sizes: Array[int] = [12, 16, 20] # GUI_SMALL, GUI_MEDIUM, GUI_LARGE
-var medium_font_sizes: Array[int] = [15, 20, 25]
-var large_font_sizes: Array[int] = [18, 24, 31]
+## Value multiplied by [member IVCoreSettings.gui_size_multipliers] for the
+## default font.
+var default_font_base_size := 16
+## Value multiplied by [member IVCoreSettings.gui_size_multipliers] for type
+## variation "MediumFont".
+var medium_font_base_size := 20
+## Value multiplied by [member IVCoreSettings.gui_size_multipliers] for type
+## variation "LargeFont".
+var large_font_base_size := 24
+
 var medium_font_fixed_size := 20
 var large_font_fixed_size := 24
+
 
 
 var _settings := IVGlobal.settings
 var _main_theme: Theme
 var _main_font: Font
+var _default_font_sizes: Array[int] = []
+var _medium_font_sizes: Array[int] = []
+var _large_font_sizes: Array[int] = []
 
 
 ## Returns Theme specified by [member override_theme_path], ProjectSettings/gui/theme/custom,
@@ -106,6 +118,15 @@ func _init() -> void:
 	IVGlobal.setting_changed.connect(_settings_listener)
 	_main_theme = get_main_theme()
 	_main_font = get_main_font()
+	var multipliers := IVCoreSettings.gui_size_multipliers
+	var n_gui_sizes := multipliers.size()
+	_default_font_sizes.resize(n_gui_sizes)
+	_medium_font_sizes.resize(n_gui_sizes)
+	_large_font_sizes.resize(n_gui_sizes)
+	for i in n_gui_sizes:
+		_default_font_sizes[i] = roundi(multipliers[i] * default_font_base_size)
+		_medium_font_sizes[i] = roundi(multipliers[i] * medium_font_base_size)
+		_large_font_sizes[i] = roundi(multipliers[i] * large_font_base_size)
 	if set_default_font:
 		_main_theme.default_font = _main_font
 	for mod in main_theme_mods:
@@ -133,21 +154,21 @@ func add_borderless_color_picker_button(theme: Theme) -> void:
 func get_label3d_names_font_size() -> int:
 	var gui_size: int = _settings[&"gui_size"]
 	var names_percent: int = _settings[&"label3d_names_size_percent"]
-	var default_font_size := default_font_sizes[gui_size]
+	var default_font_size := _default_font_sizes[gui_size]
 	return roundi(default_font_size * names_percent / 100.0)
 
 
 func get_label3d_symbols_font_size() -> int:
 	var gui_size: int = _settings[&"gui_size"]
 	var symbols_percent: int = _settings[&"label3d_symbols_size_percent"]
-	var default_font_size := default_font_sizes[gui_size]
+	var default_font_size := _default_font_sizes[gui_size]
 	return roundi(default_font_size * symbols_percent / 100.0)
 
 
 func _set_gui_font_sizes(gui_size: int) -> void:
-	_main_theme.default_font_size = default_font_sizes[gui_size]
-	_main_theme.set_font_size(&"font_size", &"MediumFont", medium_font_sizes[gui_size])
-	_main_theme.set_font_size(&"font_size", &"LargeFont", large_font_sizes[gui_size])
+	_main_theme.default_font_size = _default_font_sizes[gui_size]
+	_main_theme.set_font_size(&"font_size", &"MediumFont", _medium_font_sizes[gui_size])
+	_main_theme.set_font_size(&"font_size", &"LargeFont", _large_font_sizes[gui_size])
 	_set_label3d_sizes()
 
 
@@ -155,7 +176,7 @@ func _set_label3d_sizes() -> void:
 	var gui_size: int = _settings[&"gui_size"]
 	var names_percent: int = _settings[&"label3d_names_size_percent"]
 	var symbols_percent: int = _settings[&"label3d_symbols_size_percent"]
-	var default_font_size := default_font_sizes[gui_size]
+	var default_font_size := _default_font_sizes[gui_size]
 	var names_size := roundi(default_font_size * names_percent / 100.0)
 	var symbols_size := roundi(default_font_size * symbols_percent / 100.0)
 	label3d_font_size_changed.emit(names_size, symbols_size)

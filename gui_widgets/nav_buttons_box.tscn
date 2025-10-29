@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://3ofokqme2067"]
+
+[ext_resource type="Script" uid="uid://r6x5jnru5g3x" path="res://addons/ivoyager_core/gui_widgets/nav_buttons_box.gd" id="1_74l5q"]
+
+[node name="NavButtonsBox" type="BoxContainer"]
+script = ExtResource("1_74l5q")

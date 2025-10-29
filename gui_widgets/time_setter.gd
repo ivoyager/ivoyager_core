@@ -20,12 +20,14 @@
 class_name IVTimeSetter
 extends VBoxContainer
 
-## GUI widget allowing user to set time.
+## Control widget allowing user to set time.
 ##
-## Requires [IVTimekeeper]. For usage in a setter popup with a button, see
-## [IVTimeSetPopup] and [IVTimeSetButton].
+## Requires [IVTimekeeper]. Updates date/time display when shown.[br][br]
+##
+## In typical setup, this control is in [IVTimeSetPopup] which is a child of
+## and evoked by [IVTimeSetButton]. (You only have to add the button!)
 
-signal time_set(is_close: bool)
+signal closed()
 
 
 @onready var _year: SpinBox = $SetterHBox/Year
@@ -34,56 +36,64 @@ signal time_set(is_close: bool)
 @onready var _hour: SpinBox = $SetterHBox/Hour
 @onready var _minute: SpinBox = $SetterHBox/Minute
 @onready var _second: SpinBox = $SetterHBox/Second
+@onready var _update_ckbx: CheckBox = %UpdateCkbx
 
 @onready var _timekeeper: IVTimekeeper = IVGlobal.program[&"Timekeeper"]
 
+var _updating_display := false
 
 
 func _ready() -> void:
-	($SetterHBox/Set as Button).pressed.connect(_on_set.bind(false))
-	($SetterHBox/SetAndClose as Button).pressed.connect(_on_set.bind(true))
-	($ValidRangeLabel as RichTextLabel).meta_clicked.connect(_on_meta_clicked)
-	_year.value_changed.connect(_on_date_changed)
-	_month.value_changed.connect(_on_date_changed)
-	_day.value_changed.connect(_on_date_changed)
+	visibility_changed.connect(_on_visibility_changed)
+	(%SetButton as Button).pressed.connect(_set_time.bind(true))
+	_year.value_changed.connect(_on_time_changed.bind(true))
+	_month.value_changed.connect(_on_time_changed.bind(true))
+	_day.value_changed.connect(_on_time_changed.bind(true))
+	_hour.value_changed.connect(_on_time_changed)
+	_minute.value_changed.connect(_on_time_changed)
+	_second.value_changed.connect(_on_time_changed)
 
 
-
-func set_current() -> void:
+func _on_visibility_changed() -> void:
+	if !is_visible_in_tree():
+		return
 	var date_time := _timekeeper.get_gregorian_date_time()
 	var date_array: Array[int] = date_time[0]
 	var time_array: Array[int] = date_time[1]
+	_updating_display = true
 	_year.value = date_array[0]
 	_month.value = date_array[1]
 	_day.value = date_array[2]
 	_hour.value = time_array[0]
 	_minute.value = time_array[1]
 	_second.value = time_array[2]
+	_updating_display = false
 
 
-
-func _on_set(is_close: bool) -> void:
-	var year := int(_year.value)
-	var month := int(_month.value)
-	var day := int(_day.value)
-	var hour := int(_hour.value)
-	var minute := int(_minute.value)
-	var second := int(_second.value)
-	var new_time := _timekeeper.get_sim_time(year, month, day, hour, minute, second)
-	_timekeeper.set_time(new_time)
-	time_set.emit(is_close)
-
-
-func _on_date_changed(_value: float) -> void:
-	var day := int(_day.value)
-	if day < 29:
+func _on_time_changed(_value: float, is_date := false) -> void:
+	# WARNING: Infinite recursion! We're here on user OR code change...
+	if _updating_display:
 		return
-	var year := int(_year.value)
-	var month := int(_month.value)
-	if !_timekeeper.is_valid_gregorian_date(year, month, day):
-		_day.value = day - 1
+	if is_date and _fix_invalid_day(): # recursive call if day fix!
+		return
+	if _update_ckbx.button_pressed:
+		_set_time(false)
 
 
-func _on_meta_clicked(meta: Variant) -> void:
-	var url: String = meta
-	OS.shell_open(url)
+func _set_time(set_and_close: bool) -> void:
+	@warning_ignore("narrowing_conversion")
+	var new_time := _timekeeper.get_sim_time(_year.value, _month.value, _day.value,
+			_hour.value, _minute.value, _second.value)
+	_timekeeper.set_time(new_time)
+	if set_and_close:
+		closed.emit()
+
+
+func _fix_invalid_day() -> bool:
+	if _day.value < 29.0:
+		return false
+	@warning_ignore("narrowing_conversion")
+	if !_timekeeper.is_valid_gregorian_date(_year.value, _month.value, _day.value):
+		_day.value -= 1.0
+		return true
+	return false

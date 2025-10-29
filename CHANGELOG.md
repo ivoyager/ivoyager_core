@@ -19,6 +19,9 @@ Under development using Godot 4.5.
 * Signal IVGlobal.viewport_size_changed(size: Vector2).
 
 ### Changed
+* [Project GUI breaking] Removed and replaced many obsoleted GUI widgets. New widgets: IVNavButton, IVNavButtonsBox, IVNavButtonsSystem, and others.
+* [Project GUI breaking] Removed "gui_mods/" directory and contents. These have been replaced by new "gui_helpers/": IVControlModResizable, IVControlModDraggable, etc.
+* User can now edit "View" buttons.
 * Improved the EditorPlugin's asset loader UI.
 * Replaced 3RD_PARTY.txt with updated and more human-readable 3RD_PARTY.md, and updated CREDITS.md.
 * [API breaking] Removed IVFontManager and overhauled IVThemeManager to work correctly with Godot's theme system.

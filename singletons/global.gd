@@ -85,14 +85,14 @@ signal move_camera_requested(selection: Object, camera_flags: int, view_position
 # requests for GUI
 signal open_main_menu_requested()
 signal close_main_menu_requested()
-signal confirmation_requested(text: StringName, confirm_action: Callable, stop_sim: bool,
+signal confirmation_requested(text: StringName, action: Callable, stop_sim: bool,
 		title_txt: StringName, ok_txt: StringName, cancel_txt: StringName)
 signal options_requested()
 signal hotkeys_requested()
 signal close_all_admin_popups_requested() # main menu, options, etc.
 signal show_hide_gui_requested(is_toggle: bool, is_show: bool) # 2nd arg ignored if is_toggle
 
-
+## Sizes available for setting "gui_size". See also [member IVCoreSettings.gui_size_multipliers].
 enum GUISize {
 	GUI_SMALL,
 	GUI_MEDIUM,
@@ -178,10 +178,6 @@ var program: Dictionary[StringName, Object] = {}
 var resources: Dictionary[StringName, Resource] = {}
 ## Maintained by [IVSettingsManager].
 var settings: Dictionary[StringName, Variant] = {}
-### Maintained by [IVFontManager].
-#var fonts: Dictionary[StringName, FontFile] = {}
-## Maintained by Windows instances that want & test for exclusivity.
-var blocking_windows: Array[Window] = []
 ## For project use. Not used by I, Voyager.
 var project := {}
 

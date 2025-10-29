@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://bh7hd3sdaohjd"]
+[gd_scene load_steps=3 format=3 uid="uid://bh7hd3sdaohjd"]
 
 [ext_resource type="Script" uid="uid://crm4ul2spji43" path="res://addons/ivoyager_core/gui_widgets/time_setter.gd" id="1"]
+[ext_resource type="PackedScene" uid="uid://dqwafuo72wscj" path="res://addons/ivoyager_core/gui_widgets/link_label.tscn" id="2_0bhrt"]
 
 [node name="TimeSetter" type="VBoxContainer"]
 offset_right = 40.0
@@ -8,6 +9,7 @@ offset_bottom = 40.0
 size_flags_horizontal = 0
 size_flags_vertical = 0
 mouse_filter = 2
+theme_override_constants/separation = 15
 script = ExtResource("1")
 
 [node name="SetterHBox" type="HBoxContainer" parent="."]
@@ -75,18 +77,20 @@ alignment = 1
 layout_mode = 2
 text = "UT  "
 
-[node name="Set" type="Button" parent="SetterHBox"]
+[node name="UpdateCkbx" type="CheckBox" parent="SetterHBox"]
+unique_name_in_owner = true
 layout_mode = 2
+tooltip_text = "HINT_UPDATE_W_CHANGES"
+button_pressed = true
+
+[node name="SetButton" type="Button" parent="SetterHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "HINT_SET_AND_CLOSE"
 text = "BUTTON_SET"
 
-[node name="SetAndClose" type="Button" parent="SetterHBox"]
+[node name="LinkLabel" parent="." instance=ExtResource("2_0bhrt")]
 layout_mode = 2
-text = "BUTTON_SET_AND_CLOSE"
-
-[node name="ValidRangeLabel" type="RichTextLabel" parent="."]
-layout_mode = 2
-bbcode_enabled = true
 text = "TXT_VALID_3000BC_3000AD"
-fit_content = true
-scroll_active = false
 horizontal_alignment = 1
+open_external_url = true
