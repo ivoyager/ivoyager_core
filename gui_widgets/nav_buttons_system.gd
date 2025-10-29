@@ -21,7 +21,7 @@ class_name IVNavButtonsSystem
 extends HBoxContainer
 
 ## HBoxContainer widget that procedurally generates planet and moon [IVNavButton]
-## instances that are sized and arranged as a navigable "solar system" (but not
+## instances that are sized and arranged as a navigable "solar system" (not
 ## including the root star)
 ##
 ## This widget builds itself from an existing [IVBody] tree with root defined by
@@ -30,8 +30,8 @@ extends HBoxContainer
 ## set in [member IVBody.flags] (this excludes the vast majority of small moons).[br][br]
 ##
 ## The widget fills available horizontal space, sizing body images and column
-## widths accordingly. It will have a resulting minimum vertical size.
-## TODO: Vertical size can be reduced using [member moon_number_scroll].[br][br]
+## widths accordingly. Minimum vertical size is determined by moon number, moon
+## sizes, and [member moon_scroll_proportion].[br][br]
 ##
 ## To use in conjuction with a Sun "slice" [IVNavButton], make both SIZE_FILL_EXPAND
 ## and give strech ratios: 1.0 (SunButton) and 10.0 (this widget or container that
@@ -50,10 +50,12 @@ extends HBoxContainer
 @export var min_body_size_proportion := 0.01
 ## Column separation as a proportion of the widget width.
 @export var column_separation_proportion := 0.01
-## This many or more moons will be placed in a vertical ScrollContainer.
-## This can be used to reduce the vertical size of the widget.
-## @experimental: NOT YET IMPLEMENTED
-@export var moon_number_scroll := 999
+## Place moons in a vertical scroll container if column length grows past this
+## proportion of the widget width. (Set 99.0 or greater to disable size test
+## and never use scroll container.)
+@export var moon_scroll_proportion := 0.4
+
+
 
 
 var _widget_width := 560.0 # init value; everything rescales on _resize()
@@ -136,23 +138,57 @@ func _build(_dummy := false) -> void:
 		planet_vbox.size_flags_stretch_ratio = column_widths[column]
 		add_child(planet_vbox)
 		
+		var column_height := 0.0
+		
 		var planet_size := planet_sizes[column]
 		var spacer := Control.new()
 		var spacer_height := roundf((max_planet_size - planet_sizes[column]) / 2.0)
+		column_height += spacer_height
+		
 		spacer.mouse_filter = MOUSE_FILTER_IGNORE
 		spacer.custom_minimum_size.y = spacer_height
 		_resize_height_multipliers[spacer] = spacer_height / _widget_width
 		
 		planet_vbox.add_child(spacer)
 		_add_nav_button(planet_vbox, planet_name, planet_size)
+		column_height += planet_size
+		
+		var use_moon_scroll := false
+		if moon_scroll_proportion < 99.0:
+			for moon_name in planet.satellites:
+				var moon := planet.satellites[moon_name]
+				if not moon.flags & BODYFLAGS_MOON or not moon.flags & BODYFLAGS_SHOW:
+					continue
+				var moon_size := roundf(pow(moon.get_mean_radius(), scale_exponent) * widget_scale)
+				if moon_size < min_body_size:
+					moon_size = min_body_size
+				column_height += moon_size
+				if column_height / _widget_width > moon_scroll_proportion:
+					use_moon_scroll = true
+					break
+		
+		var moon_container: Container = planet_vbox
+		if use_moon_scroll:
+			var moon_scroll := ScrollContainer.new()
+			moon_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+			moon_scroll.follow_focus = true
+			moon_scroll.draw_focus_border = true
+			moon_scroll.size_flags_vertical = SIZE_EXPAND_FILL
+			planet_vbox.add_child(moon_scroll)
+			var moon_vbox := VBoxContainer.new()
+			moon_vbox.size_flags_horizontal = SIZE_EXPAND_FILL
+			moon_scroll.add_child(moon_vbox)
+			moon_container = moon_vbox
+		
 		for moon_name in planet.satellites:
 			var moon := planet.satellites[moon_name]
 			if not moon.flags & BODYFLAGS_MOON or not moon.flags & BODYFLAGS_SHOW:
 				continue
-			base_size = roundf(pow(moon.get_mean_radius(), scale_exponent) * widget_scale)
-			if base_size < min_body_size:
-				base_size = min_body_size
-			_add_nav_button(planet_vbox, moon_name, base_size)
+			var moon_size := roundf(pow(moon.get_mean_radius(), scale_exponent) * widget_scale)
+			if moon_size < min_body_size:
+				moon_size = min_body_size
+			_add_nav_button(moon_container, moon_name, moon_size)
+		
 		column += 1
 	
 	_suppress_resize = false
@@ -166,11 +202,11 @@ func _clear_procedural() -> void:
 		child.queue_free()
 
 
-func _add_nav_button(box_container: BoxContainer, body_name: StringName, image_size: float) -> void:
+func _add_nav_button(container: Container, body_name: StringName, image_size: float) -> void:
 	var button := IVNavButton.create(body_name, Vector2(0.0, image_size))
 	button.size_flags_horizontal = Control.SIZE_FILL
 	button.size_flags_vertical = SIZE_SHRINK_BEGIN
-	box_container.add_child(button)
+	container.add_child(button)
 	_resize_height_multipliers[button] = image_size / _widget_width
 
 
