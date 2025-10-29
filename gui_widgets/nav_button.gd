@@ -56,7 +56,9 @@ var _selection_manager: IVSelectionManager
 @warning_ignore("shadowed_variable", "shadowed_variable_base_class")
 static func create(body_name: StringName, custom_minimum_size := Vector2(10, 10),
 		use_texture_slice := false) -> IVNavButton:
-	var button: IVNavButton = preload(SCENE).instantiate()
+	# Godot 4.5.1 ISSUE?: preload below causes editor start error spam
+	# referencing tscn line: 'script = ExtResource("xxxxxx")'. Circular ref?
+	var button: IVNavButton = (load(SCENE) as PackedScene).instantiate()
 	button.body_name = body_name
 	button.use_texture_slice = use_texture_slice
 	button.custom_minimum_size = custom_minimum_size

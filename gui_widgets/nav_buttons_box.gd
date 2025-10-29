@@ -52,7 +52,9 @@ var _suppress_resquaring := false
 ## genereration using [method add_button].
 @warning_ignore("shadowed_variable")
 static func create(square_buttons := true) -> IVNavButtonsBox:
-	var box: IVNavButtonsBox = preload(SCENE).instantiate()
+	# Godot 4.5.1 ISSUE?: preload below causes editor start error spam
+	# referencing tscn line: 'script = ExtResource("xxxxxx")'. Circular ref?
+	var box: IVNavButtonsBox = (load(SCENE) as PackedScene).instantiate()
 	box.square_buttons = square_buttons
 	return box
 
