@@ -9,4 +9,5 @@ offset_bottom = 19.0
 bbcode_enabled = true
 fit_content = true
 scroll_active = false
+autowrap_mode = 0
 script = ExtResource("1")

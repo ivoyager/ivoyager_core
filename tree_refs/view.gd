@@ -228,11 +228,9 @@ func _set_huds_state() -> void:
 		_body_huds_state.set_symbol_visible_flags(symbol_visible_flags)
 		_body_huds_state.set_orbit_visible_flags(orbit_visible_flags)
 		_sbg_huds_state.set_visible_points_groups(
-				Array(visible_points_groups, TYPE_STRING_NAME, &"", null)
-		)
+				Array(visible_points_groups, TYPE_STRING_NAME, &"", null), true, true)
 		_sbg_huds_state.set_visible_orbits_groups(
-				Array(visible_orbits_groups, TYPE_STRING_NAME, &"", null)
-		)
+				Array(visible_orbits_groups, TYPE_STRING_NAME, &"", null), true, true)
 	if flags & ViewFlags.VIEWFLAGS_HUDS_COLOR:
 		_body_huds_state.set_all_orbit_colors(body_orbit_colors) # ref safe
 		_sbg_huds_state.set_all_points_colors(sbg_points_colors)

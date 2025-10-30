@@ -22,13 +22,15 @@ extends RefCounted
 
 ## A group of Controls (all in Containers) that share the same size
 ##
-## This helper sets [member Control.custom_minimum_size] for all included
-## controls to the value of the greatest [method Control.get_minimum_size].[br][br]
+## This helper sets [member Control.custom_minimum_size] to the value of the
+## greatest [method Control.get_minimum_size] for all included controls. For
+## this to be the actual size, an included Control and its Container siblings
+## must have appropriate container sizing. E.g., a sibling could be set to
+## expand while the included Control is not.[br][br]
 ##
-## This is intended for simple Controls (e.g., Labels), not complex Control
-## scene trees. In particular, infinite recursion could occur if
-## [method Control.get_minimum_size()] changes in response to available
-## Container space.
+## This is intended for simple Controls (e.g., Labels or Control spacers), not
+## complex Control scene trees. In particular, infinite recursion could occur
+## if Control descendents change size in resoponse to available Container space.
 
 @export var horizontal := true
 @export var vertical := false
@@ -37,15 +39,6 @@ extends RefCounted
 var _controls: Array[Control] = []
 var _suppress_resize := false
 
-
-@warning_ignore("shadowed_variable")
-static func create(horizontal := true, vertical := false, frame_delay := true
-		) -> IVControlSizeGroup:
-	var group := IVControlSizeGroup.new()
-	group.horizontal = horizontal
-	group.vertical = vertical
-	group.frame_delay = frame_delay
-	return group
 
 
 func _init() -> void:

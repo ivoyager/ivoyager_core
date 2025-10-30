@@ -44,15 +44,26 @@ extends RichTextLabel
 ## If changing text dynamically, it's better to call [method parse_bbcode]
 ## than to set [member text] directly.[br][br]
 ##
-## By default, this widget is parameterized for "short" labels with
-## [member RichTextLabel.scroll_active] == false and [member RichTextLabel.fit_content] == true.
-## Edit [RichTextLabel] properties as needed. 
+## By default, this widget is parameterized for "short" texts without scroll
+## or autowrap and with fit_content == true (so it acts like a Label in a
+## Container context). Edit [RichTextLabel] properties if something different
+## is needed. 
+
+const SCENE := "res://addons/ivoyager_core/gui_widgets/link_label.tscn"
 
 
 ## Set true to open an external URL directly. Otherwise, bbcode "url" value
 ## will be passed to [method IVWikiManager.open_page].
 @export var open_external_url := false
 
+
+
+@warning_ignore("shadowed_variable_base_class", "shadowed_variable")
+static func create(text: String, open_external_url := false) -> IVLinkLabel:
+	var label: IVLinkLabel = (load(SCENE) as PackedScene).instantiate()
+	label.text = text
+	label.open_external_url = open_external_url
+	return label
 
 
 func _ready() -> void:

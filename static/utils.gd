@@ -111,6 +111,14 @@ static func init_array(size: int, fill: Variant = null, type := -1, class_name_ 
 	return array
 
 
+## Merges the contents of [param from] Array into the provided [param into]
+## Array [b]without[/b] duplication.
+static func merge_array(into: Array, from: Array) -> void:
+	for item: Variant in from:
+		if not into.has(item):
+			into.append(item)
+
+
 # Conversions
 
 static func srgb2linear(color: Color) -> Color:

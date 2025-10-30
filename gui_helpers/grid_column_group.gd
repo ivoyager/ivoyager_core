@@ -46,7 +46,7 @@ func add_grid_container(grid: GridContainer) -> void:
 	if _grids.is_empty():
 		_columns = grid.columns
 		for i in _columns:
-			var column_size_group := IVControlSizeGroup.create()
+			var column_size_group := IVControlSizeGroup.new()
 			_column_size_groups.append(column_size_group)
 	assert(grid.columns == _columns)
 	for i in grid.get_child_count():
