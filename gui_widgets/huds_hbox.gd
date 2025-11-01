@@ -23,7 +23,7 @@ extends HBoxContainer
 ## An HBoxContainer widget containing a row of HUDs widgets for a class of
 ## [IVBody] or [IVSmallBodiesGroup]
 ##
-## Specify either [member body_flags] or [sbg_alias], not both.[br][br]
+## Specify either [member body_flags] or [member sbg_aliases], not both.[br][br]
 ##
 ## The row is constructed according to properties set, in the order[br]
 ## [code]    [Label or IVLinkLabel]  [names/symbols OR points]  [orbits]  [/code],[br]
@@ -32,17 +32,17 @@ extends HBoxContainer
 
 const SCENE := "res://addons/ivoyager_core/gui_widgets/huds_hbox.tscn"
 
-## Add a [Label] with specified text.
-@export var label_text: StringName
-## Instead of a [Label], add an [IVLinkLabel] using the specified [member
+## Row label text. If not set, skip label.
+@export var label_text := &""
+## Use [IVLinkLabel] instead of a [Label] using the specified [member
 ## label_text] as text and this value as the wiki page title key. If set, two other
-## conditions must be met to have hyperlink lables: 1) [IVWikiManager] must
-## be present (not default!). 2) [member ancestor_enable_wiki_links] is set to
-## true OR an ancestor Control has property "enable_wiki_links" == true.
-@export var link_page_title_key: StringName
-## Require ancestor Control property "enable_wiki_links" before using link labels.
-## See [member link_label_bbcode].
-@export var require_ancestor_enable_wiki_links := true
+## conditions must be met to have link lables: 1) [IVWikiManager] must
+## be present (not default!). 2) [member require_links_enabled] is set to
+## false OR an ancestor node has property "enable_huds_hbox_links" == true.
+@export var link_label_key := &""
+## If true (default), require ancestor property "enable_huds_hbox_links" == true
+## to use IVLinkLabel. See [member link_label_key].
+@export var require_links_enabled := true
 ## Specify a class of body by [enum IVBody.BodyFlags]. In most cases this should
 ## be one of the exclusive flags defined in data table "visual_groups.tsv"
 ## field "body_flags" (only these have default colors and visibilities).
@@ -62,20 +62,20 @@ const SCENE := "res://addons/ivoyager_core/gui_widgets/huds_hbox.tscn"
 ## HBoxContainer.
 @export var orbits := true
 ## For coordinating "column" spacing among rows. If true, an ancestor Control is
-## expected to have properties "column_group_1" and "column_group_2"
-## (or at least one for each item here after the label), each specifying a
-## [IVControlSizeGroup]. 
+## expected to have properties "column_group_1" and/or "column_group_2" (as
+## needed), each specifying a [IVControlSizeGroup]. Column 1 is always
+## "names/symbols" or "points", and column 2 is always "orbits".
 @export var ancestor_column_groups := false
 
 
-var _enable_wiki_links := false
+var _enable_links := false
 
 
 @warning_ignore("shadowed_variable")
 static func create(
 		label_text := &"",
-		link_page_title_key := &"",
-		require_ancestor_enable_wiki_links := true,
+		link_label_key := &"",
+		require_links_enabled := true,
 		body_flags := 0,
 		sbg_aliases: Array[StringName] = [],
 		names_symbols := true,
@@ -85,8 +85,8 @@ static func create(
 	) -> IVHUDsHBox:
 	var hbox: IVHUDsHBox = (load(SCENE) as PackedScene).instantiate()
 	hbox.label_text = label_text
-	hbox.link_page_title_key = link_page_title_key
-	hbox.require_ancestor_enable_wiki_links = require_ancestor_enable_wiki_links
+	hbox.link_label_key = link_label_key
+	hbox.require_links_enabled = require_links_enabled
 	hbox.body_flags = body_flags
 	hbox.sbg_aliases = sbg_aliases
 	hbox.names_symbols = names_symbols
@@ -99,21 +99,22 @@ static func create(
 func _ready() -> void:
 	assert((!body_flags) != (!sbg_aliases), "Set either 'body_flags' or 'sbg_aliases', not both")
 	if IVGlobal.program.has(&"WikiManager"):
-		if (!require_ancestor_enable_wiki_links or
-				IVUtils.get_control_tree_property(get_parent_control(), &"enable_wiki_links")):
-			_enable_wiki_links = true
+		if (!require_links_enabled or
+				IVUtils.get_tree_property(get_parent_control(), &"enable_huds_hbox_links")):
+			_enable_links = true
 	
+	if label_text:
+		if _enable_links and link_label_key:
+			var bbcode := "[url=%s]%s[/url]" % [link_label_key, tr(label_text)]
+			var link_label := IVLinkLabel.create(bbcode)
+			link_label.size_flags_horizontal = SIZE_EXPAND_FILL
+			add_child(link_label)
+		else:
+			var label := Label.new()
+			label.text = label_text
+			label.size_flags_horizontal = SIZE_EXPAND_FILL
+			add_child(label)
 	var parent := get_parent_control()
-	if _enable_wiki_links and link_page_title_key:
-		var bbcode := "[url=%s]%s[/url]" % [link_page_title_key, tr(label_text)]
-		var link_label := IVLinkLabel.create(bbcode)
-		link_label.size_flags_horizontal = SIZE_EXPAND_FILL
-		add_child(link_label)
-	elif label_text:
-		var label := Label.new()
-		label.text = label_text
-		label.size_flags_horizontal = SIZE_EXPAND_FILL
-		add_child(label)
 	if body_flags:
 		if names_symbols:
 			var hbox := HBoxContainer.new()
@@ -129,7 +130,7 @@ func _ready() -> void:
 			var spacer := Control.new()
 			add_child(spacer)
 			_add_to_group(spacer, 1, parent)
-	else:
+	else: # SBGs
 		if points:
 			var hbox := HBoxContainer.new()
 			hbox.size_flags_horizontal = SIZE_SHRINK_CENTER

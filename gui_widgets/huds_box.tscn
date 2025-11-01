@@ -33,7 +33,7 @@ horizontal_alignment = 1
 [node name="Sun" parent="." instance=ExtResource("2_5wuu7")]
 layout_mode = 2
 label_text = &"STAR_SUN"
-link_page_title_key = &"STAR_SUN"
+link_label_key = &"STAR_SUN"
 body_flags = 16
 orbits = false
 ancestor_column_groups = true
@@ -50,21 +50,21 @@ layout_mode = 2
 [node name="Planets" parent="PMOsFoldable/VBoxContainer" instance=ExtResource("2_5wuu7")]
 layout_mode = 2
 label_text = &"LABEL_PLANETS"
-link_page_title_key = &"LABEL_PLANETS"
+link_label_key = &"LABEL_PLANETS"
 body_flags = 64
 ancestor_column_groups = true
 
 [node name="DwarfPlanets" parent="PMOsFoldable/VBoxContainer" instance=ExtResource("2_5wuu7")]
 layout_mode = 2
 label_text = &"LABEL_DWARF_PLANETS"
-link_page_title_key = &"LABEL_DWARF_PLANETS"
+link_label_key = &"LABEL_DWARF_PLANETS"
 body_flags = 128
 ancestor_column_groups = true
 
 [node name="PMOMoons" parent="PMOsFoldable/VBoxContainer" instance=ExtResource("2_5wuu7")]
 layout_mode = 2
 label_text = &"LABEL_MOONS_PMO"
-link_page_title_key = &"LABEL_MOONS_PMO"
+link_label_key = &"LABEL_MOONS_PMO"
 body_flags = 512
 ancestor_column_groups = true
 
@@ -79,21 +79,21 @@ layout_mode = 2
 [node name="NonPMOMoons" parent="NonPMOsFoldable/VBoxContainer" instance=ExtResource("2_5wuu7")]
 layout_mode = 2
 label_text = &"LABEL_MOONS_NON_PMO"
-link_page_title_key = &"LABEL_MOONS_NON_PMO"
+link_label_key = &"LABEL_MOONS_NON_PMO"
 body_flags = 1024
 ancestor_column_groups = true
 
 [node name="VisitedAsteroids" parent="NonPMOsFoldable/VBoxContainer" instance=ExtResource("2_5wuu7")]
 layout_mode = 2
 label_text = &"LABEL_ASTEROIDS_VISITED"
-link_page_title_key = &"LABEL_ASTEROIDS_VISITED"
+link_label_key = &"LABEL_ASTEROIDS_VISITED"
 body_flags = 2048
 ancestor_column_groups = true
 
 [node name="Spacecrafts" parent="NonPMOsFoldable/VBoxContainer" instance=ExtResource("2_5wuu7")]
 layout_mode = 2
 label_text = &"LABEL_SPACECRAFT"
-link_page_title_key = &"LABEL_SPACECRAFT"
+link_label_key = &"LABEL_SPACECRAFT"
 body_flags = 8192
 ancestor_column_groups = true
 
@@ -127,63 +127,63 @@ layout_mode = 2
 [node name="NearEarth" parent="AsteroidsFoldable/VBoxContainer" instance=ExtResource("2_5wuu7")]
 layout_mode = 2
 label_text = &"SBG_NEAR_EARTH"
-link_page_title_key = &"SBG_NEAR_EARTH"
+link_label_key = &"SBG_NEAR_EARTH"
 sbg_aliases = Array[StringName]([&"NE"])
 ancestor_column_groups = true
 
 [node name="MarsCrossers" parent="AsteroidsFoldable/VBoxContainer" instance=ExtResource("2_5wuu7")]
 layout_mode = 2
 label_text = &"SBG_MARS_CROSSERS"
-link_page_title_key = &"SBG_MARS_CROSSERS"
+link_label_key = &"SBG_MARS_CROSSERS"
 sbg_aliases = Array[StringName]([&"MC"])
 ancestor_column_groups = true
 
 [node name="InnerMB" parent="AsteroidsFoldable/VBoxContainer" instance=ExtResource("2_5wuu7")]
 layout_mode = 2
 label_text = &"SBG_INNER_MAIN_BELT"
-link_page_title_key = &"SBG_INNER_MAIN_BELT"
+link_label_key = &"SBG_INNER_MAIN_BELT"
 sbg_aliases = Array[StringName]([&"IMB"])
 ancestor_column_groups = true
 
 [node name="MiddleMB" parent="AsteroidsFoldable/VBoxContainer" instance=ExtResource("2_5wuu7")]
 layout_mode = 2
 label_text = &"SBG_MIDDLE_MAIN_BELT"
-link_page_title_key = &"SBG_MIDDLE_MAIN_BELT"
+link_label_key = &"SBG_MIDDLE_MAIN_BELT"
 sbg_aliases = Array[StringName]([&"MMB"])
 ancestor_column_groups = true
 
 [node name="OuterMB" parent="AsteroidsFoldable/VBoxContainer" instance=ExtResource("2_5wuu7")]
 layout_mode = 2
 label_text = &"SBG_OUTER_MAIN_BELT"
-link_page_title_key = &"SBG_OUTER_MAIN_BELT"
+link_label_key = &"SBG_OUTER_MAIN_BELT"
 sbg_aliases = Array[StringName]([&"OMB"])
 ancestor_column_groups = true
 
 [node name="Hildas" parent="AsteroidsFoldable/VBoxContainer" instance=ExtResource("2_5wuu7")]
 layout_mode = 2
 label_text = &"SBG_HILDAS"
-link_page_title_key = &"SBG_HILDAS"
+link_label_key = &"SBG_HILDAS"
 sbg_aliases = Array[StringName]([&"HI"])
 ancestor_column_groups = true
 
 [node name="Trojans" parent="AsteroidsFoldable/VBoxContainer" instance=ExtResource("2_5wuu7")]
 layout_mode = 2
 label_text = &"LABEL_JUPITER_TROJANS"
-link_page_title_key = &"LABEL_JUPITER_TROJANS"
+link_label_key = &"LABEL_JUPITER_TROJANS"
 sbg_aliases = Array[StringName]([&"JT4", &"JT5"])
 ancestor_column_groups = true
 
 [node name="Centaurs" parent="AsteroidsFoldable/VBoxContainer" instance=ExtResource("2_5wuu7")]
 layout_mode = 2
 label_text = &"SBG_CENTAURS"
-link_page_title_key = &"SBG_CENTAURS"
+link_label_key = &"SBG_CENTAURS"
 sbg_aliases = Array[StringName]([&"CE"])
 ancestor_column_groups = true
 
 [node name="TransNeptune" parent="AsteroidsFoldable/VBoxContainer" instance=ExtResource("2_5wuu7")]
 layout_mode = 2
 label_text = &"SBG_TRANS_NEPTUNE"
-link_page_title_key = &"SBG_TRANS_NEPTUNE"
+link_label_key = &"SBG_TRANS_NEPTUNE"
 sbg_aliases = Array[StringName]([&"TN"])
 ancestor_column_groups = true
 

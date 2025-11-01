@@ -93,6 +93,21 @@ static func get_path_result(target: Variant, path: String, args := []) -> Varian
 	return target
 
 
+## Gets [param property] value from provided [param node] or from an ancestor
+## Node. Returns null if the property does not exist. If [param skip_null] is 
+## true (default), keep searching up the tree if a Node has the property but
+## its value is null.
+static func get_tree_property(node: Node, property: StringName, skip_null := true
+		) -> Variant:
+	while node:
+		if property in node:
+			var value: Variant = node.get(property)
+			if !skip_null or value != null:
+				return value
+		node = node.get_parent()
+	return null
+
+
 # Arrays
 
 ## Init array of given size, fill content, and type. Will throw error if
@@ -161,10 +176,14 @@ static func get_bit_string(flags: int, bytes := 4) -> String:
 
 
 # GUI
+
 ## Gets [param property] value from provided [param control] or from an ancestor
 ## Control. Searches up the tree until a non-Control node occurs; returns null
 ## if the property does not exist. If [param skip_null] is set to true, keep
 ## searching up the tree if a Control has the property but its value is null.
+## WARNING: This method stops searching if it reaches a Popup node, which are
+## sometimes present in a "control tree". If needed, use [method get_tree_property]
+## instead.
 static func get_control_tree_property(control: Control, property: StringName, skip_null := false
 		) -> Variant:
 	while control:

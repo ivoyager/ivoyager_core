@@ -26,9 +26,6 @@ extends VBoxContainer
 ## row, set [member enable_wiki_links] to true. [IVWikiManager] must also be
 ## added in [IVCoreInitializer].
 
-## By default, [IVHUDsHBox] descendendts check their ancestor controls for this
-## property before using [IVLinkLabel]s in place of simple Labels.
-@export var enable_wiki_links := false
 
 ## "Column 1" size group available for descendent Controls.
 var column_group_1 := IVControlSizeGroup.new()
