@@ -25,18 +25,12 @@ extends VBoxContainer
 ##
 ## This is a content-only class that can be modified or replaced as parent to
 ## [IVSelectionDataFoldable] instances, which search up their ancestry tree for
-## this class's dictionaries. All functions here are
-## provided as content Callables for data formatting or show/hide logic.[br][br]
+## content and validity test dictionaries. All functions here are
+## provided as content Callables for data formatting and show/hide logic.[br][br]
 ##
 ## Two dictionaries are provided here for [IVSelectionDataFoldable] use:[br][br]
 ##
-## [member valid_tests] is optional and optionally contains keys that match
-## names of descendent [IVSelectionDataFoldable] instances. If dictionary and
-## key are present, the value will provide a Callable test for validity of the
-## entire foldable data section. The section will be hidden if this Callable
-## exists and returns true.[br][br]
-##
-## [member selection_content] is required and must contain keys that match the
+## [member selection_data_content] is required and must contain keys that match the
 ## names of all descendent [IVSelectionDataFoldable] instances. Each value
 ## is an array of arrays that specifies row data for a [IVSelectionDataFoldable].
 ## Each row array has the following elements:[br][br]
@@ -51,6 +45,12 @@ extends VBoxContainer
 ## Rows are hidden if value path can't be resolved or returns null or NAN, or
 ## if the value format Callable returns "", or if the hide Callable returns
 ## true.[br][br]
+##
+## [member selection_data_valid_tests] is optional and optionally contains keys that match
+## names of descendent [IVSelectionDataFoldable] instances. If dictionary and
+## key are present, the value will provide a Callable test for validity of the
+## entire foldable data section. The section will be hidden if this Callable
+## exists and returns true.[br][br]
 ##
 ## For most applications, you'll want to put this widget in a ScrollContainer.[br][br]
 

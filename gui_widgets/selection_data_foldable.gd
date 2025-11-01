@@ -273,22 +273,17 @@ func _set_row(row: int, row_label: StringName, value_text: String, value_key: St
 		_added_rows += 1
 	
 	if _use_label_links:
-		var rtlabel: RichTextLabel
+		var link_label: IVLinkLabel
 		if is_new_row:
-			rtlabel = RichTextLabel.new()
-			rtlabel.autowrap_mode = TextServer.AUTOWRAP_OFF
-			rtlabel.scroll_active = false
-			rtlabel.fit_content = true
-			rtlabel.bbcode_enabled = true
-			rtlabel.meta_clicked.connect(_on_meta_clicked)
-			_data_grid.add_child(rtlabel)
+			link_label = IVLinkLabel.create("")
+			_data_grid.add_child(link_label)
 		else:
-			rtlabel = _data_grid.get_child(row * 2)
-			rtlabel.show()
+			link_label = _data_grid.get_child(row * 2)
+			link_label.show()
 		if _wiki_manager.has_page(row_label):
-			rtlabel.parse_bbcode('[url="%s"]%s[/url]' % [row_label, tr(row_label)])
+			link_label.parse_bbcode('[url="%s"]%s[/url]' % [row_label, tr(row_label)])
 		else:
-			rtlabel.parse_bbcode(tr(row_label))
+			link_label.parse_bbcode(tr(row_label))
 	else:
 		var label: Label
 		if is_new_row:
@@ -300,24 +295,19 @@ func _set_row(row: int, row_label: StringName, value_text: String, value_key: St
 		label.text = row_label
 	
 	if _use_value_links:
-		var rtvalue: RichTextLabel
+		var link_value: IVLinkLabel
 		if is_new_row:
-			rtvalue = RichTextLabel.new()
-			rtvalue.autowrap_mode = TextServer.AUTOWRAP_OFF
-			rtvalue.scroll_active = false
-			rtvalue.fit_content = true
-			rtvalue.bbcode_enabled = true
-			rtvalue.meta_clicked.connect(_on_meta_clicked)
-			_data_grid.add_child(rtvalue)
+			link_value = IVLinkLabel.create("")
+			_data_grid.add_child(link_value)
 		else:
-			rtvalue = _data_grid.get_child(row * 2 + 1)
-			rtvalue.show()
+			link_value = _data_grid.get_child(row * 2 + 1)
+			link_value.show()
 		if !value_key:
-			rtvalue.parse_bbcode(value_text)
+			link_value.parse_bbcode(value_text)
 		elif _wiki_manager.has_page(value_key):
-			rtvalue.parse_bbcode('[url="%s"]%s[/url]' % [value_text, tr(value_key)])
+			link_value.parse_bbcode('[url="%s"]%s[/url]' % [value_text, tr(value_key)])
 		else:
-			rtvalue.parse_bbcode(tr(value_key))
+			link_value.parse_bbcode(tr(value_key))
 	else:
 		var value: Label
 		if is_new_row:
@@ -343,10 +333,6 @@ func _set_top_row_cell_widths() -> void:
 	label0.custom_minimum_size.x = _en_width * min_labels_en_width
 	var value0: Control = _data_grid.get_child(1)
 	value0.custom_minimum_size.x = _en_width * min_values_en_width
-
-
-func _on_meta_clicked(meta: String) -> void:
-	_wiki_manager.open_page(meta)
 
 
 func _settings_listener(setting: StringName, _value: Variant) -> void:
