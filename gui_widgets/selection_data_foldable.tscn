@@ -5,6 +5,6 @@
 [node name="SelectionDataFoldable" type="FoldableContainer"]
 script = ExtResource("1_kctdd")
 
-[node name="Grid" type="GridContainer" parent="."]
+[node name="DataGrid" type="GridContainer" parent="."]
 layout_mode = 2
 columns = 2

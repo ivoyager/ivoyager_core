@@ -21,81 +21,99 @@ class_name IVSelectionDataFoldable
 extends FoldableContainer
 
 ## GUI widget that displays formatted selection data in a foldable container.
-## Optionally includes wiki links.
+## Optionally displays wiki links for row labels and/or values.
 ##
-## This node expects to find its content in an ancestor Control similar to
-## [IVSelectionData]. Any ancestor Control can be specified as content holder
-## by setting [member content_control_match_pattern]. The content Control must
-## have a dictionary with name [param selection_content] with a key matching
-## this node's [param name]. The content Control may optionally have a
-## dictionary named [param valid_tests] with (optionally) this node's name as
-## key. See [IVSelectionData] for format details and example dictionaries.[br][br]
+## This node expects to find content, "enable" properties, and an [IVSelectionManager]
+## in ancestor node(s):[br][br]
 ##
-## This node needs to connect to an [IVSelectionManager]. At sim start it will
-## attempt to find one by searching up the ancestry tree for a Control with
-## property [param selection_manager].[br][br]
+## [code]selection_data_content: Dictionary[/code] (required). An ancestor node
+## must have this property with a dictionary, and the dictionary must have a key
+## matching this node's [member Node.name]. The dictionary value defines this
+## foldable's content. See [IVSelectionData] for content format and examples.[br][br]
+##
+## [code]selection_data_valid_tests: Dictionary[/code] (optional). An ancestor
+## node may have this property with a dictionary, which may have a key matching
+## this node's [member Node.name]. If the dictionary and key exists, the value
+## is expected to be a Callable that returns a "valid" result (bool) for this
+## foldable. This foldable is valid by default if the dictionary or key does not
+## exist. If not valid, the foldable and its title are hidden. See
+## [IVSelectionData] for the Callable signature and examples.[br][br]
+##
+## [code]enable_selection_data_label_links: bool[/code]. If property exists in
+## an ancestor and is true, row labels can be wiki page links. This also
+## requires [IVWikiManager] to exist (it does not by default) and
+## [method IVWikiManager.has_page] to evaluate true for the row label.[br][br]
+##
+## [code]enable_selection_data_value_links: bool[/code]. If property exists in
+## an ancestor and is true, row values can be wiki page links. This also
+## requires [IVWikiManager] to exist (it does not by default) and
+## [method IVWikiManager.has_page] to evaluate true for the row value. The
+## test only happens if row value is type StringName (not String!).[br][br]
+##
+## [code]selection_manager: IVSelectionManager[/code] (required). An ancestor
+## node must have this property with an [IVSelectionManager].[br][br]
 ##
 ## [IVSelectionDataFoldable] instances can be nested or include other Controls
 ## as children with this scene's GridContainer child. If >1 Control children
-## exist, they will be gathered into a VBoxContainer automatically at _ready().
+## exist, they all will be gathered into a VBoxContainer automatically with
+## this node's $DataGrid as first child.
 
 
-
-## If true, row labels will be wiki links if [method IVWikiManager.has_page]
-## evaluates as true. Note: this property does nothing if a WikiManager is not
-## present.
-@export var wiki_labels := false
-## If true, row values will be wiki links if [method IVWikiManager.has_page]
-## evaluates as true. Note: this property does nothing if a WikiManager is not
-## present.
-@export var wiki_values := false
-## Set > 0.0 for periodic updates in seconds.
-@export var update_interval := 0.0
+## Minimum label width in en units (an "n" character or half the font size).
+@export var min_labels_en_width := 22.0
+## Minimum value width in en units (an "n" character or half the font size).
+@export var min_values_en_width := 0.0
+## Set greater than 0.0 for time interval updates in seconds.
+@export var update_time_interval := 0.0
+## Used only if [member update_time_interval] > 0.0. Sets [member Timer.ignore_time_scale].
 @export var update_ignore_time_scale := true
 
-## Set min label width in units of the font 'EN QUAD' size
-@export var min_labels_en_width := 22.0 ## Width in units of the 'EN QUAD' character.
-@export var min_values_en_width := 0.0 ## Width in units of the 'EN QUAD' character.
 
-@export var content_control_match_pattern := "SelectionData"
-
-
-var _valid_test: Callable
+var _use_label_links := false
+var _use_value_links := false
+var _configured := false
+var _dirty := true
 var _content: Array[Array]
+var _valid_test: Callable
 var _selection_manager: IVSelectionManager
 var _timer: Timer
 var _added_rows := 0
-var _dirty := false
 var _en_width: float
-var _content_control: Control
-var _is_content_control_visible: bool
 
 
-@onready var _grid: GridContainer = $Grid # may move to VBoxContainer after this
+@onready var _data_grid: GridContainer = $DataGrid # may move to VBoxContainer after this
 @onready var _wiki_manager: IVWikiManager = IVGlobal.program.get(&"WikiManager")
 @onready var _enable_precisions := IVCoreSettings.enable_precisions
 
 
+func _enter_tree() -> void:
+	get_parent_control().visibility_changed.connect(_on_parent_visibility_changed)
+
+
+func _exit_tree() -> void:
+	get_parent_control().visibility_changed.disconnect(_on_parent_visibility_changed)
 
 
 func _ready() -> void:
-	if update_interval > 0.0:
+	if _wiki_manager:
+		_use_label_links = IVUtils.get_tree_bool(self, &"enable_selection_data_label_links")
+		_use_value_links = IVUtils.get_tree_bool(self, &"enable_selection_data_value_links")
+	if update_time_interval > 0.0:
 		_timer = Timer.new()
 		add_child(_timer)
 		_timer.timeout.connect(_update_selection)
-		_timer.wait_time = update_interval
+		_timer.wait_time = update_time_interval
 		_timer.ignore_time_scale = update_ignore_time_scale
 	IVGlobal.about_to_start_simulator.connect(_configure)
-	if IVGlobal.state[&"is_started_or_about_to_start"]:
-		_configure()
 	IVGlobal.update_gui_requested.connect(_update_selection)
-	_arrange_child_controls()
 	IVGlobal.setting_changed.connect(_settings_listener)
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
+	_arrange_child_controls()
+	_configure()
 
 
 func _arrange_child_controls() -> void:
-	# if >1 child Controls, put them in a VBoxContainer
+	# If >1 child Controls, put all of them in a VBoxContainer!
 	var child_controls: Array[Control] = []
 	for child in get_children():
 		if child is Control:
@@ -110,45 +128,39 @@ func _arrange_child_controls() -> void:
 
 
 func _configure(_dummy := false) -> void:
-	_reset_column_widths()
-	_connect_content_control()
-	_connect_selection_manager()
-
-
-func _connect_content_control() -> void:
-	if _content_control:
+	if _configured or !IVGlobal.state[&"is_started_or_about_to_start"]:
 		return
-	_content_control = find_parent(content_control_match_pattern) as Control
-	assert(_content_control, "Expected an ancestor Control name matching pattern %s" %
-			content_control_match_pattern)
-	_content_control.visibility_changed.connect(_on_content_control_visibility_changed)
-	_is_content_control_visible = _content_control.is_visible_in_tree()
-	var selection_content: Dictionary[StringName, Array] = _content_control.get(&"selection_content")
-	assert(selection_content.has(name), "Expected this node's name as key in 'selection_content'")
-	_content = selection_content[name]
-	if &"valid_tests" in _content_control:
-		var valid_tests: Dictionary[StringName, Callable] = _content_control.get(&"valid_tests")
-		if valid_tests.has(name):
-			_valid_test = valid_tests[name]
-
-
-func _connect_selection_manager() -> void:
-	if _selection_manager:
-		_selection_manager.selection_changed.disconnect(_update_selection)
-	_selection_manager = IVSelectionManager.get_selection_manager(self)
-	assert(_selection_manager, "Did not find valid 'selection_manager' above this node")
-	_selection_manager.selection_changed.connect(_update_selection)
+	_configured = true
+	_get_content()
+	_connect_selection_manager()
+	_reset_column_widths()
 
 
 func _clear_procedural() -> void:
+	_configured = false
 	if _selection_manager:
 		_selection_manager.selection_changed.disconnect(_update_selection)
 		_selection_manager = null
 
 
-func _on_content_control_visibility_changed() -> void:
-	_is_content_control_visible = _content_control.is_visible_in_tree()
-	if _dirty and _is_content_control_visible:
+func _get_content() -> void:
+	var selection_data_content := IVUtils.get_tree_dictionary(self, &"selection_data_content")
+	assert(selection_data_content.has(name),
+			"Expected this node's name as key in ancestor Dictionary 'selection_data_content'")
+	_content = selection_data_content[name]
+	var selection_data_valid_tests := IVUtils.get_tree_dictionary(self, &"selection_data_valid_tests")
+	if selection_data_valid_tests.has(name):
+		_valid_test = selection_data_valid_tests[name]
+
+
+func _connect_selection_manager() -> void:
+	_selection_manager = IVSelectionManager.get_selection_manager(self)
+	assert(_selection_manager, "Did not find valid 'selection_manager' above this node")
+	_selection_manager.selection_changed.connect(_update_selection)
+
+
+func _on_parent_visibility_changed() -> void:
+	if _dirty:
 		_update_selection()
 
 
@@ -157,7 +169,7 @@ func _update_selection(_dummy := false) -> void:
 	# (i.e., its title will be hidden). We need update even if folded so we can
 	# determine visibility of the title. We can deffer update if this part of
 	# the GUI tree is currently hidden.
-	if !_is_content_control_visible:
+	if !_configured or !get_parent_control().is_visible_in_tree():
 		_dirty = true
 		return
 	_dirty = false
@@ -240,9 +252,9 @@ func _update_selection(_dummy := false) -> void:
 	
 	# hide unused rows
 	while grid_row < _added_rows:
-		var label: Control = _grid.get_child(grid_row * 2)
+		var label: Control = _data_grid.get_child(grid_row * 2)
 		label.hide()
-		var value: Control = _grid.get_child(grid_row * 2 + 1)
+		var value: Control = _data_grid.get_child(grid_row * 2 + 1)
 		value.hide()
 		grid_row += 1
 	
@@ -260,7 +272,7 @@ func _set_row(row: int, row_label: StringName, value_text: String, value_key: St
 		is_new_row = true
 		_added_rows += 1
 	
-	if wiki_labels and _wiki_manager:
+	if _use_label_links:
 		var rtlabel: RichTextLabel
 		if is_new_row:
 			rtlabel = RichTextLabel.new()
@@ -269,9 +281,9 @@ func _set_row(row: int, row_label: StringName, value_text: String, value_key: St
 			rtlabel.fit_content = true
 			rtlabel.bbcode_enabled = true
 			rtlabel.meta_clicked.connect(_on_meta_clicked)
-			_grid.add_child(rtlabel)
+			_data_grid.add_child(rtlabel)
 		else:
-			rtlabel = _grid.get_child(row * 2)
+			rtlabel = _data_grid.get_child(row * 2)
 			rtlabel.show()
 		if _wiki_manager.has_page(row_label):
 			rtlabel.parse_bbcode('[url="%s"]%s[/url]' % [row_label, tr(row_label)])
@@ -281,13 +293,13 @@ func _set_row(row: int, row_label: StringName, value_text: String, value_key: St
 		var label: Label
 		if is_new_row:
 			label = Label.new()
-			_grid.add_child(label)
+			_data_grid.add_child(label)
 		else:
-			label = _grid.get_child(row * 2)
+			label = _data_grid.get_child(row * 2)
 			label.show()
 		label.text = row_label
 	
-	if wiki_values and _wiki_manager:
+	if _use_value_links:
 		var rtvalue: RichTextLabel
 		if is_new_row:
 			rtvalue = RichTextLabel.new()
@@ -296,9 +308,9 @@ func _set_row(row: int, row_label: StringName, value_text: String, value_key: St
 			rtvalue.fit_content = true
 			rtvalue.bbcode_enabled = true
 			rtvalue.meta_clicked.connect(_on_meta_clicked)
-			_grid.add_child(rtvalue)
+			_data_grid.add_child(rtvalue)
 		else:
-			rtvalue = _grid.get_child(row * 2 + 1)
+			rtvalue = _data_grid.get_child(row * 2 + 1)
 			rtvalue.show()
 		if !value_key:
 			rtvalue.parse_bbcode(value_text)
@@ -310,9 +322,9 @@ func _set_row(row: int, row_label: StringName, value_text: String, value_key: St
 		var value: Label
 		if is_new_row:
 			value = Label.new()
-			_grid.add_child(value)
+			_data_grid.add_child(value)
 		else:
-			value = _grid.get_child(row * 2 + 1)
+			value = _data_grid.get_child(row * 2 + 1)
 			value.show()
 		value.text = value_text
 	
@@ -327,9 +339,9 @@ func _reset_column_widths() -> void:
 
 
 func _set_top_row_cell_widths() -> void:
-	var label0: Control = _grid.get_child(0)
+	var label0: Control = _data_grid.get_child(0)
 	label0.custom_minimum_size.x = _en_width * min_labels_en_width
-	var value0: Control = _grid.get_child(1)
+	var value0: Control = _data_grid.get_child(1)
 	value0.custom_minimum_size.x = _en_width * min_values_en_width
 
 

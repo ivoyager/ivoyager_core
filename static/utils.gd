@@ -93,17 +93,56 @@ static func get_path_result(target: Variant, path: String, args := []) -> Varian
 	return target
 
 
-## Gets [param property] value from provided [param node] or from an ancestor
-## Node. Returns null if the property does not exist. If [param skip_null] is 
-## true (default), keep searching up the tree if a Node has the property but
-## its value is null.
-static func get_tree_property(node: Node, property: StringName, skip_null := true
-		) -> Variant:
+## Gets [param property] Variant from [param node] or from an ancestor
+## Node. Returns null if the property does not exist.
+static func get_tree_variant(node: Node, property: StringName) -> Variant:
 	while node:
 		if property in node:
-			var value: Variant = node.get(property)
-			if !skip_null or value != null:
-				return value
+			return node.get(property)
+		node = node.get_parent()
+	return null
+
+
+## Gets [param property] bool from [param node] or from an ancestor
+## Node. Returns false if the property does not exist.
+static func get_tree_bool(node: Node, property: StringName) -> bool:
+	while node:
+		if property in node:
+			return node.get(property)
+		node = node.get_parent()
+	return false
+
+
+## Gets [param property] Dictionary from [param node] or from an ancestor
+## Node. Returns an empty Dictionary if the property does not exist.
+static func get_tree_dictionary(node: Node, property: StringName) -> Dictionary:
+	while node:
+		if property in node:
+			return node.get(property)
+		node = node.get_parent()
+	return {}
+
+
+## Gets [param property] Array from [param node] or from an ancestor
+## Node. Returns an empty Array if the property does not exist.
+static func get_tree_array(node: Node, property: StringName) -> Array:
+	while node:
+		if property in node:
+			return node.get(property)
+		node = node.get_parent()
+	return []
+
+
+## Gets [param property] Object from [param node] or from an ancestor
+## Node. Returns null if the property does not exist. If [param skip_null_value] 
+## is set to true, keep searching up the tree if a Node has the property but its
+## value is null.
+static func get_tree_object(node: Node, property: StringName, skip_null_value := false) -> Object:
+	while node:
+		if property in node:
+			var object: Object = node.get(property)
+			if object or !skip_null_value:
+				return object
 		node = node.get_parent()
 	return null
 
@@ -176,23 +215,6 @@ static func get_bit_string(flags: int, bytes := 4) -> String:
 
 
 # GUI
-
-## Gets [param property] value from provided [param control] or from an ancestor
-## Control. Searches up the tree until a non-Control node occurs; returns null
-## if the property does not exist. If [param skip_null] is set to true, keep
-## searching up the tree if a Control has the property but its value is null.
-## WARNING: This method stops searching if it reaches a Popup node, which are
-## sometimes present in a "control tree". If needed, use [method get_tree_property]
-## instead.
-static func get_control_tree_property(control: Control, property: StringName, skip_null := false
-		) -> Variant:
-	while control:
-		if property in control:
-			var value: Variant = control.get(property)
-			if !skip_null or value != null:
-				return value
-		control = control.get_parent_control()
-	return null
 
 
 ## Positions [param popup] at [param corner] of [param at_control].

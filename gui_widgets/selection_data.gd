@@ -25,7 +25,7 @@ extends VBoxContainer
 ##
 ## This is a content-only class that can be modified or replaced as parent to
 ## [IVSelectionDataFoldable] instances, which search up their ancestry tree for
-## a Control node that matches a specified name pattern. All functions here are
+## this class's dictionaries. All functions here are
 ## provided as content Callables for data formatting or show/hide logic.[br][br]
 ##
 ## Two dictionaries are provided here for [IVSelectionDataFoldable] use:[br][br]
@@ -60,7 +60,7 @@ const BodyFlags := IVBody.BodyFlags
 
 ## Content dictionary. Must contain all descendent [IVSelectionDataFoldable]
 ## names as keys. See class doc for content format.
-var selection_content: Dictionary[StringName, Array] = {
+var selection_data_content: Dictionary[StringName, Array] = {
 	OrbitalCharacteristics = [
 		[get_periapsis_label, "body/orbit/get_periapsis", dynamic_unit.bind(&"length_km_au",
 			false, 5)],
@@ -145,7 +145,7 @@ var selection_content: Dictionary[StringName, Array] = {
 
 
 ## Optional valid tests for each foldable section.
-var valid_tests: Dictionary[StringName, Callable] = {
+var selection_data_valid_tests: Dictionary[StringName, Callable] = {
 	PhotosphereComposition = func(selection: IVSelection) -> bool:
 		const BODYFLAGS_STAR := IVBody.BodyFlags.BODYFLAGS_STAR
 		return bool(selection.get_body_flags() & BODYFLAGS_STAR)

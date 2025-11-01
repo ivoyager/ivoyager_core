@@ -33,10 +33,8 @@ var column_group_1 := IVControlSizeGroup.new()
 var column_group_2 := IVControlSizeGroup.new()
 
 
-
 func _ready() -> void:
 	column_group_1.add_control($BodiesHeaders/NamesSymbolsHeader as Control)
 	column_group_2.add_control($BodiesHeaders/OrbitsHeader as Control)
 	column_group_1.add_control($SBGsHeaders/PointsHeader as Control)
 	column_group_2.add_control($SBGsHeaders/OrbitsHeader as Control)
-	

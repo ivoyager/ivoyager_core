@@ -99,9 +99,8 @@ static func create(
 func _ready() -> void:
 	assert((!body_flags) != (!sbg_aliases), "Set either 'body_flags' or 'sbg_aliases', not both")
 	if IVGlobal.program.has(&"WikiManager"):
-		if (!require_links_enabled or
-				IVUtils.get_tree_property(get_parent_control(), &"enable_huds_hbox_links")):
-			_enable_links = true
+		_enable_links = (!require_links_enabled or
+				IVUtils.get_tree_bool(get_parent_control(), &"enable_huds_hbox_links"))
 	
 	if label_text:
 		if _enable_links and link_label_key:
@@ -114,7 +113,6 @@ func _ready() -> void:
 			label.text = label_text
 			label.size_flags_horizontal = SIZE_EXPAND_FILL
 			add_child(label)
-	var parent := get_parent_control()
 	if body_flags:
 		if names_symbols:
 			var hbox := HBoxContainer.new()
@@ -125,11 +123,11 @@ func _ready() -> void:
 			hbox.add_child(names_ckbx)
 			hbox.add_child(symbols_ckbx)
 			add_child(hbox)
-			_add_to_group(hbox, 1, parent)
+			_add_to_group(hbox, 1)
 		else:
 			var spacer := Control.new()
 			add_child(spacer)
-			_add_to_group(spacer, 1, parent)
+			_add_to_group(spacer, 1)
 	else: # SBGs
 		if points:
 			var hbox := HBoxContainer.new()
@@ -141,11 +139,11 @@ func _ready() -> void:
 			hbox.add_child(points_ckbx)
 			hbox.add_child(points_cpb)
 			add_child(hbox)
-			_add_to_group(hbox, 1, parent)
+			_add_to_group(hbox, 1)
 		else:
 			var spacer := Control.new()
 			add_child(spacer)
-			_add_to_group(spacer, 1, parent)
+			_add_to_group(spacer, 1)
 	if orbits:
 		var hbox := HBoxContainer.new()
 		hbox.size_flags_horizontal = SIZE_SHRINK_CENTER
@@ -157,18 +155,17 @@ func _ready() -> void:
 		hbox.add_child(orbits_ckbx)
 		hbox.add_child(orbits_cpb)
 		add_child(hbox)
-		_add_to_group(hbox, 2, parent)
+		_add_to_group(hbox, 2)
 	else:
 		var spacer := Control.new()
 		add_child(spacer)
-		_add_to_group(spacer, 2, parent)
+		_add_to_group(spacer, 2)
 
 
-func _add_to_group(control: Control, column: int, parent: Control) -> void:
+func _add_to_group(control: Control, column: int) -> void:
 	if !ancestor_column_groups:
 		return
-	var group_name := "column_group_%s" % column
-	var group: IVControlSizeGroup = IVUtils.get_control_tree_property(parent, group_name)
-	assert(group, "An ancestor Control must have property '%s' with an IVControlSizeGroup" %
-			group_name)
+	var group_name := StringName("column_group_%s" % column)
+	var group: IVControlSizeGroup = IVUtils.get_tree_object(self, group_name)
+	assert(group, "An ancestor must have property '%s' with an IVControlSizeGroup" % group_name)
 	group.add_control(control)
