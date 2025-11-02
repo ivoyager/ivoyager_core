@@ -54,6 +54,8 @@ extends HBoxContainer
 ## proportion of the widget width. (Set 99.0 or greater to disable size test
 ## and never use scroll container.)
 @export var moon_scroll_proportion := 0.4
+## If set, the currently selected body button will grab focus on sim start.
+@export var focus_selected_on_sim_start := false
 
 
 
@@ -203,7 +205,8 @@ func _clear_procedural() -> void:
 
 
 func _add_nav_button(container: Container, body_name: StringName, image_size: float) -> void:
-	var button := IVNavButton.create(body_name, Vector2(0.0, image_size))
+	var button := IVNavButton.create(body_name, false, focus_selected_on_sim_start,
+			Vector2(0.0, image_size))
 	button.size_flags_horizontal = Control.SIZE_FILL
 	button.size_flags_vertical = SIZE_SHRINK_BEGIN
 	container.add_child(button)

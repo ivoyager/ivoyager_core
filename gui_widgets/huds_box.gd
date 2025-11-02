@@ -1,4 +1,4 @@
-# huds_popup.gd
+# huds_box.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -17,28 +17,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVHUDsPopup
-extends PopupPanel
+class_name IVHUDsBox
+extends VBoxContainer
 
-## A Popup widget that contains an [IVHUDsBox]. Opened by [IVHUDsPopupButton].
+## A BoxContainer widget that has all user interface for HUDs
+##
+## To enable wiki link labels ([IVLinkLabel]) instead of plain [Label]s for each
+## row, set [member enable_wiki_links] to true. [IVWikiManager] must also be
+## added in [IVCoreInitializer].
 
 
-@export var focus_path := ^"HUDsBox/ViewCollection/ViewSaveButton"
-
-
-@onready var _huds_box: Control = $HUDsBox
-@onready var _focus_control: Control = get_node(focus_path)
+## "Column 1" size group available for descendent Controls.
+var column_group_1 := IVControlSizeGroup.new()
+## "Column 2" size group available for descendent Controls.
+var column_group_2 := IVControlSizeGroup.new()
 
 
 func _ready() -> void:
-	_huds_box.minimum_size_changed.connect(_reset_size)
-	_huds_box.visibility_changed.connect(_on_visibility_changed)
-
-
-func _on_visibility_changed() -> void:
-	if _huds_box.is_visible_in_tree():
-		_focus_control.grab_focus.call_deferred()
-
-
-func _reset_size() -> void:
-	size = Vector2.ZERO
+	column_group_1.add_control($BodiesHeaders/NamesSymbolsHeader as Control)
+	column_group_2.add_control($BodiesHeaders/OrbitsHeader as Control)
+	column_group_1.add_control($SBGsHeaders/PointsHeader as Control)
+	column_group_2.add_control($SBGsHeaders/OrbitsHeader as Control)

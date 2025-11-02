@@ -29,7 +29,7 @@ LABEL_LUMINOSITY	Luminosity
 LABEL_METALLICITY	Metallicity
 LABEL_MOONS	Natural_satellite
 LABEL_MOONS_NON_PMO	Natural_satellite
-LABEL_MOONS_WIKI_PMO	Planetary-mass_moon
+LABEL_MOONS_PMO	Planetary-mass_moon
 LABEL_NAT_SATELLITES	Natural_satellite
 LABEL_ORBITAL_PERIOD	Orbital_period
 LABEL_PERIAPSIS	Apsis
@@ -37,6 +37,7 @@ LABEL_PERIGEE	Apsis
 LABEL_PERIHELION	Apsis
 LABEL_PLANETS	Planet
 LABEL_PLANETARY_MASS_OBJECTS	Planetary-mass_object
+LABEL_PMO_MOONS	Planetary-mass_moon
 LABEL_ROTATION_PERIOD	Rotation_period
 LABEL_SEMI_MAJOR_AXIS	Semi-major_and_semi-minor_axes
 LABEL_SPACECRAFT	Spacecraft

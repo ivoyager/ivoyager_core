@@ -22,7 +22,7 @@ extends Button
 
 ## Button widget that opens its own [IVHUDsPopup].
 
-@export var popup_corner := Corner.CORNER_TOP_LEFT
+@export var popup_corner := Corner.CORNER_TOP_RIGHT
 
 
 @onready var _huds_popup: PopupPanel = $HUDsPopup
@@ -30,8 +30,8 @@ extends Button
 
 func _ready() -> void:
 	toggled.connect(_on_toggled)
-	_huds_popup.visibility_changed.connect(_on_visibility_changed)
-
+	_huds_popup.visibility_changed.connect(_on_popup_visibility_changed)
+	_huds_popup.size_changed.connect(_on_popup_size_changed)
 
 
 func _on_toggled(toggle_pressed: bool) -> void:
@@ -42,7 +42,11 @@ func _on_toggled(toggle_pressed: bool) -> void:
 		_huds_popup.hide()
 
 
-func _on_visibility_changed() -> void:
+func _on_popup_visibility_changed() -> void:
 	await get_tree().process_frame
 	if !_huds_popup.visible:
 		button_pressed = false
+
+
+func _on_popup_size_changed() -> void:
+	IVUtils.position_popup_at_corner(_huds_popup, self, popup_corner)

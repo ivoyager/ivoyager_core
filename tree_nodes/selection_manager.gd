@@ -92,7 +92,7 @@ static func create() -> IVSelectionManager:
 
 
 static func get_selection_manager(control: Control) -> IVSelectionManager:
-	return IVUtils.get_control_tree_property(control, &"selection_manager", true)
+	return IVUtils.get_tree_object(control, &"selection_manager", true)
 
 
 static func get_or_make_selection(selection_name: StringName) -> IVSelection:

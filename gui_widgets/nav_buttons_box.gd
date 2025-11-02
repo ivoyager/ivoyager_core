@@ -44,6 +44,9 @@ const SCENE := "res://addons/ivoyager_core/gui_widgets/nav_buttons_box.tscn"
 ## length is defined by the widget height if horizontal box (default) or the
 ## widget width if vertical box. 
 @export var square_buttons := true
+## If set, the currently selected body button will grab focus on sim start.
+@export var focus_selected_on_sim_start := false
+
 
 var _suppress_resquaring := false
 
@@ -73,7 +76,7 @@ func _ready() -> void:
 
 
 func add_button(body_name: StringName, min_size := Vector2(10, 10)) -> void:
-	var button := IVNavButton.create(body_name, min_size)
+	var button := IVNavButton.create(body_name, false, focus_selected_on_sim_start, min_size)
 	add_child(button)
 	if square_buttons and is_inside_tree():
 		_resquare_buttons()

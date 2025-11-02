@@ -10,16 +10,16 @@ See cloning and downloading instructions [here](https://www.ivoyager.dev/develop
 
 Now release candidate for I, Voyager "beta"!
 
-Under development using Godot 4.5.
+Under development using Godot 4.5.1.
 
 ### Added
-* GUI widget IVSelectionDataFoldable using the new FoldableContainer.
+* Many replacement GUI widgets that are much more modular than older widgets.
 * IVLanguageManager and "Language" as a user option. **We're ready for translations!**
 * Signal IVGlobal.camera_fov_changed(fov: float).
 * Signal IVGlobal.viewport_size_changed(size: Vector2).
 
 ### Changed
-* [Project GUI breaking] Removed and replaced many obsoleted GUI widgets. New widgets: IVNavButton, IVNavButtonsBox, IVNavButtonsSystem, and others.
+* [Project GUI breaking] Removed many obsoleted GUI widgets.
 * [Project GUI breaking] Removed "gui_mods/" directory and contents. These have been replaced by new "gui_helpers/": IVControlModResizable, IVControlModDraggable, etc.
 * User can now edit "View" buttons.
 * Improved the EditorPlugin's asset loader UI.
@@ -32,7 +32,7 @@ Under development using Godot 4.5.
 * Recoded GUI widget IVSelectionData to work with the new IVSelectionDataFoldable.
 * Removed unused IVGlobal signals.
 * Renamed table field "en.wiki" to "en.wikipedia" (these are Wikipedia.org page titles).
-* Removed BodyFlags.EXISTS.
+* Removed unused BodyFlags.EXISTS.
 
 ### Fixed
 * Graphic glitch on the frame that IVCamera hands off to a new parent body.

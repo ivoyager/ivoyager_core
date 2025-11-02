@@ -41,6 +41,8 @@ const SCENE := "res://addons/ivoyager_core/gui_widgets/nav_button.tscn"
 ## IVBody.texture_2d]. This is the non-square "slice" of the Sun (or
 ## possibly other stars). Also changes texture expand and stretch modes.
 @export var use_texture_slice := false
+## If set, the currently selected body button will grab focus on sim start.
+@export var focus_selected_on_sim_start := false
 
 
 var _body: IVBody
@@ -54,21 +56,27 @@ var _selection_manager: IVSelectionManager
 ## the system is built, whichever comes later. If the button can't find its
 ## corresponding [IVBody], it will generate a warning message.[br][br]
 @warning_ignore("shadowed_variable", "shadowed_variable_base_class")
-static func create(body_name: StringName, custom_minimum_size := Vector2(10, 10),
-		use_texture_slice := false) -> IVNavButton:
+static func create(body_name: StringName, use_texture_slice := false, 
+		focus_selected_on_sim_start := false, custom_minimum_size := Vector2(10, 10)
+		) -> IVNavButton:
 	# Godot 4.5.1 ISSUE?: preload below causes editor start error spam
 	# referencing tscn line: 'script = ExtResource("xxxxxx")'. Circular ref?
 	var button: IVNavButton = (load(SCENE) as PackedScene).instantiate()
 	button.body_name = body_name
 	button.use_texture_slice = use_texture_slice
+	button.focus_selected_on_sim_start = focus_selected_on_sim_start
 	button.custom_minimum_size = custom_minimum_size
 	return button
 
 
 func _ready() -> void:
 	IVGlobal.system_tree_built_or_loaded.connect(_configure)
+	IVGlobal.simulator_started.connect(_on_sim_started)
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
-	IVGlobal.update_gui_requested.connect(_update_selection)
+	
+	
+	
+	#IVGlobal.update_gui_requested.connect(_update_selection)
 	set_default_cursor_shape(CURSOR_POINTING_HAND)
 	if IVGlobal.state[&"is_system_built"]:
 		_configure()
@@ -76,6 +84,12 @@ func _ready() -> void:
 
 func _pressed() -> void:
 	_selection_manager.select_body(_body)
+
+
+func _on_sim_started() -> void:
+	_update_selection()
+	if focus_selected_on_sim_start and button_pressed:
+		grab_focus()
 
 
 func _configure(_dummy := false) -> void:

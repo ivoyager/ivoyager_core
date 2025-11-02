@@ -93,6 +93,63 @@ static func get_path_result(target: Variant, path: String, args := []) -> Varian
 	return target
 
 
+## Gets [param property] Variant from [param node] or from an ancestor
+## Node. Returns null if the property does not exist up the node tree.
+static func get_tree_variant(node: Node, property: StringName) -> Variant:
+	while node:
+		if property in node:
+			return node.get(property)
+		node = node.get_parent()
+	return null
+
+
+## Gets [param bool_property] bool from [param node] or from an ancestor
+## Node. Returns false if bool_property does not exist up the node tree.
+static func get_tree_bool(node: Node, bool_property: StringName) -> bool:
+	while node:
+		if bool_property in node:
+			return node.get(bool_property)
+		node = node.get_parent()
+	return false
+
+
+## Gets [param dict_property] Dictionary from [param node] or from an ancestor
+## Node. Returns an empty Dictionary if dict_property does not exist up the node
+## tree.
+static func get_tree_dictionary(node: Node, dict_property: StringName
+		) -> Dictionary:
+	while node:
+		if dict_property in node:
+			return node.get(dict_property)
+		node = node.get_parent()
+	return {}
+
+
+## Gets [param array_property] Array from [param node] or from an ancestor
+## Node. Returns an empty Array if array_property does not exist up the node
+## tree.
+static func get_tree_array(node: Node, array_property: StringName) -> Array:
+	while node:
+		if array_property in node:
+			return node.get(array_property)
+		node = node.get_parent()
+	return []
+
+
+## Gets [param object_property] Object from [param node] or from an ancestor
+## Node. Returns null if object_property does not exist up the node tree. If
+## [param skip_null_value] is set to true, keep searching up the tree if a Node
+## has object_property but its value is null.
+static func get_tree_object(node: Node, object_property: StringName, skip_null_value := false
+		) -> Object:
+	while node:
+		if object_property in node:
+			var object: Object = node.get(object_property)
+			if object or !skip_null_value:
+				return object
+		node = node.get_parent()
+	return null
+
 # Arrays
 
 ## Init array of given size, fill content, and type. Will throw error if
@@ -109,6 +166,14 @@ static func init_array(size: int, fill: Variant = null, type := -1, class_name_ 
 		return array
 	array.fill(fill)
 	return array
+
+
+## Merges the contents of [param from] Array into the provided [param into]
+## Array [b]without[/b] duplication.
+static func merge_array(into: Array, from: Array) -> void:
+	for item: Variant in from:
+		if not into.has(item):
+			into.append(item)
 
 
 # Conversions
@@ -153,20 +218,6 @@ static func get_bit_string(flags: int, bytes := 4) -> String:
 
 
 # GUI
-## Gets [param property] value from provided [param control] or from an ancestor
-## Control. Searches up the tree until a non-Control node occurs; returns null
-## if the property does not exist. If [param skip_null] is set to true, keep
-## searching up the tree if a Control has the property but its value is null.
-static func get_control_tree_property(control: Control, property: StringName, skip_null := false
-		) -> Variant:
-	while control:
-		if property in control:
-			var value: Variant = control.get(property)
-			if !skip_null or value != null:
-				return value
-		control = control.get_parent_control()
-	return null
-
 
 ## Positions [param popup] at [param corner] of [param at_control].
 ## Call deferred may be needed if popup changes size when shown.

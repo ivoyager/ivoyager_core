@@ -25,18 +25,12 @@ extends VBoxContainer
 ##
 ## This is a content-only class that can be modified or replaced as parent to
 ## [IVSelectionDataFoldable] instances, which search up their ancestry tree for
-## a Control node that matches a specified name pattern. All functions here are
-## provided as content Callables for data formatting or show/hide logic.[br][br]
+## content and validity test dictionaries. All functions here are
+## provided as content Callables for data formatting and show/hide logic.[br][br]
 ##
 ## Two dictionaries are provided here for [IVSelectionDataFoldable] use:[br][br]
 ##
-## [member valid_tests] is optional and optionally contains keys that match
-## names of descendent [IVSelectionDataFoldable] instances. If dictionary and
-## key are present, the value will provide a Callable test for validity of the
-## entire foldable data section. The section will be hidden if this Callable
-## exists and returns true.[br][br]
-##
-## [member selection_content] is required and must contain keys that match the
+## [member selection_data_content] is required and must contain keys that match the
 ## names of all descendent [IVSelectionDataFoldable] instances. Each value
 ## is an array of arrays that specifies row data for a [IVSelectionDataFoldable].
 ## Each row array has the following elements:[br][br]
@@ -52,6 +46,12 @@ extends VBoxContainer
 ## if the value format Callable returns "", or if the hide Callable returns
 ## true.[br][br]
 ##
+## [member selection_data_valid_tests] is optional and optionally contains keys that match
+## names of descendent [IVSelectionDataFoldable] instances. If dictionary and
+## key are present, the value will provide a Callable test for validity of the
+## entire foldable data section. The section will be hidden if this Callable
+## exists and returns true.[br][br]
+##
 ## For most applications, you'll want to put this widget in a ScrollContainer.[br][br]
 
 const NumberType := IVQFormat.NumberType
@@ -60,7 +60,7 @@ const BodyFlags := IVBody.BodyFlags
 
 ## Content dictionary. Must contain all descendent [IVSelectionDataFoldable]
 ## names as keys. See class doc for content format.
-var selection_content: Dictionary[StringName, Array] = {
+var selection_data_content: Dictionary[StringName, Array] = {
 	OrbitalCharacteristics = [
 		[get_periapsis_label, "body/orbit/get_periapsis", dynamic_unit.bind(&"length_km_au",
 			false, 5)],
@@ -145,7 +145,7 @@ var selection_content: Dictionary[StringName, Array] = {
 
 
 ## Optional valid tests for each foldable section.
-var valid_tests: Dictionary[StringName, Callable] = {
+var selection_data_valid_tests: Dictionary[StringName, Callable] = {
 	PhotosphereComposition = func(selection: IVSelection) -> bool:
 		const BODYFLAGS_STAR := IVBody.BodyFlags.BODYFLAGS_STAR
 		return bool(selection.get_body_flags() & BODYFLAGS_STAR)

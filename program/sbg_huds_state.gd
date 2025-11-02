@@ -122,7 +122,7 @@ func change_orbits_visibility(group: StringName, is_show: bool) -> void:
 
 func get_visible_points_groups() -> Array[StringName]:
 	var array: Array[StringName] = []
-	for key: StringName in points_visibilities:
+	for key in points_visibilities:
 		if points_visibilities[key]:
 			array.append(key)
 	return array
@@ -130,23 +130,51 @@ func get_visible_points_groups() -> Array[StringName]:
 
 func get_visible_orbits_groups() -> Array[StringName]:
 	var array: Array[StringName] = []
-	for key: StringName in orbits_visibilities:
+	for key in orbits_visibilities:
 		if orbits_visibilities[key]:
 			array.append(key)
 	return array
 
 
-func set_visible_points_groups(array: Array[StringName]) -> void:
-	points_visibilities.clear()
-	for key in array:
-		points_visibilities[key] = true
+func is_visible_points_groups(groups: Array[StringName], all := true) -> bool:
+	if all:
+		for group in groups:
+			if not points_visibilities.get(group):
+				return false
+		return true
+	for group in groups:
+		if points_visibilities.get(group):
+			return true
+	return false
+
+
+func is_visible_orbits_groups(groups: Array[StringName], all := true) -> bool:
+	if all:
+		for group in groups:
+			if not orbits_visibilities.get(group):
+				return false
+		return true
+	for group in groups:
+		if orbits_visibilities.get(group):
+			return true
+	return false
+
+
+func set_visible_points_groups(groups: Array[StringName], is_show := true, hide_others := false
+		) -> void:
+	if hide_others:
+		points_visibilities.clear()
+	for key in groups:
+		points_visibilities[key] = is_show
 	points_visibility_changed.emit()
 
 
-func set_visible_orbits_groups(array: Array[StringName]) -> void:
-	orbits_visibilities.clear()
-	for key in array:
-		orbits_visibilities[key] = true
+func set_visible_orbits_groups(groups: Array[StringName], is_show := true, hide_others := false
+		) -> void:
+	if hide_others:
+		orbits_visibilities.clear()
+	for key in groups:
+		orbits_visibilities[key] = is_show
 	orbits_visibility_changed.emit()
 
 

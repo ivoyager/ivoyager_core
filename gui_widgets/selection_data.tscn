@@ -12,13 +12,10 @@ script = ExtResource("1_6f12g")
 [node name="OrbitalCharacteristics" parent="." instance=ExtResource("2_52mjq")]
 layout_mode = 2
 title = "LABEL_ORBITAL_CHARACTERISTICS"
-wiki_labels = true
 
 [node name="PhysicalCharacteristics" parent="." instance=ExtResource("2_52mjq")]
 layout_mode = 2
 title = "LABEL_PHYSICAL_CHARACTERISTICS"
-wiki_labels = true
-wiki_values = true
 
 [node name="Atmosphere" parent="." instance=ExtResource("2_52mjq")]
 layout_mode = 2
