@@ -1,13 +1,9 @@
-[gd_scene load_steps=3 format=3 uid="uid://csvlw3mc4uvoc"]
+[gd_scene load_steps=2 format=3 uid="uid://csvlw3mc4uvoc"]
 
 [ext_resource type="Script" uid="uid://bemxra84irc4p" path="res://addons/ivoyager_core/gui_main/main_menu_base_popup.gd" id="1_bd2g2"]
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_v6n70"]
-bg_color = Color(0, 0, 0, 1)
 
 [node name="MainMenuBasePopup" type="PopupPanel"]
 oversampling_override = 1.0
 visible = true
 transient_to_focused = true
-theme_override_styles/panel = SubResource("StyleBoxFlat_v6n70")
 script = ExtResource("1_bd2g2")
