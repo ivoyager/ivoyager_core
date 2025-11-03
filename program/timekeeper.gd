@@ -417,13 +417,13 @@ func change_speed(delta_index: int, new_index := -1) -> void:
 	speed_changed.emit()
 
 
-func can_incr_speed() -> bool:
+func can_increment_speed() -> bool:
 	if _network_state == IS_CLIENT:
 		return false
 	return speed_index < speeds.size() - 1
 
 
-func can_decr_speed() -> bool:
+func can_decrement_speed() -> bool:
 	if _network_state == IS_CLIENT:
 		return false
 	return speed_index > 0

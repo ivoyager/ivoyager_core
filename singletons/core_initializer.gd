@@ -36,12 +36,11 @@ extends Node
 ## has no child GUIs). You can either build on the existing IVTopGUI or provide
 ## your own by setting 'top_gui' or 'top_gui_path' here.[br][br]
 ##
-## For a game that needs a splash screen at startup, add the splash screen to
-## 'gui_nodes' here and set IVCoreSettings.skip_splash_screen = false.[br][br]
 
 
 signal init_step_finished() # for internal use only
 
+const CoreInitializerStep := IVStateManager.CoreInitializerStep
 
 # *************** PROJECT VARS - MODIFY THESE TO EXTEND !!!! ******************
 
@@ -58,7 +57,7 @@ var init_sequence: Array[Array] = [
 	[self, &"_do_presets_and_plugin_mods", false],
 	[self, &"_instantiate_initializers", false],
 	[self, &"_set_simulator_universe", false],
-	[self, &"_set_simulator_top_gui", false],
+	#[self, &"_set_simulator_top_gui", false],
 	[self, &"_index_core_nodes", false],
 	[self, &"_instantiate_and_index_program_objects", true],
 	[self, &"_signal_project_inited", true],
@@ -74,10 +73,10 @@ var init_sequence: Array[Array] = [
 # and IVGlobal.program[&"TopGUI"], irrespective of node names.
 
 var universe: Node3D
-var top_gui: Control
+#var top_gui: Control
 var universe_path: String # assign here if using ivoyager_override.cfg
-var top_gui_path: String # assign here if using ivoyager_override.cfg
-var add_top_gui_to_universe := true # if true, happens in add_program_nodes()
+#var top_gui_path: String # assign here if using ivoyager_override.cfg
+#var add_top_gui_to_universe := true # if true, happens in add_program_nodes()
 
 # You can replace any class below with a subclass of the original. In some
 # cases, you can replace with a base Godot class (e.g., Node3D) or erase
@@ -103,7 +102,6 @@ var initializers: Dictionary[StringName, Variant] = {
 	# 'preinitializers'. Many of these instances may erase themselves from
 	# dictionary 'IVGlobal.program' after init, thereby freeing themselves.
 	# Path to RefCounted class ok.
-	SettingsManager = IVSettingsManager, # "initializer" so IVGlobal.settings are valid
 	ResourceInitializer = IVResourceInitializer, # self-removes
 	TranslationImporter = IVTranslationImporter, # self-removes
 	TableInitializer = IVTableInitializer, # self-removes
@@ -141,7 +139,7 @@ var program_nodes: Dictionary[StringName, Variant] = {
 	# Path to scene or Node class ok.
 	Scheduler = IVScheduler,
 	ViewManager = IVViewManager,
-	FragmentIdentifier = IVFragmentIdentifier, # safe to remove
+	#FragmentIdentifier = IVFragmentIdentifier, # safe to remove
 	WorldEnvironment_ = IVWorldEnvironment, # safe to remove
 	
 	# Nodes below are ordered for input handling (last is first). We mainly
@@ -153,24 +151,26 @@ var program_nodes: Dictionary[StringName, Variant] = {
 	SBGHUDsState = IVSBGHUDsState, # (likely to have input in future)
 	BodyHUDsState = IVBodyHUDsState,
 	InputHandler = IVInputHandler,
-	StateManager = IVStateManager,
 	SaveManager = IVSaveManager, # auto removed if plugin missing or disabled
 }
 
-var gui_nodes: Dictionary[StringName, Variant] = {
-	# IVCoreInitializer instances one of each and adds as child to TopGUI (or
-	# substitute Control set in 'top_gui') and to dictionary IVGlobal.program.
-	# Order determines visual 'on top' and input event handling: last added
-	# is on top and 1st handled. TopGUI children can be reordered after
-	# 'project_nodes_added' signal using API below.
-	# Use PERSIST_MODE = PERSIST_PROPERTIES_ONLY for save/load persistence.
-	# Path to scene or Node class ok.
-	WorldController = IVWorldController, # Control ok
-	MouseTargetLabel = IVMouseTargetLabel, # safe to replace or remove
-	InGameGUI = null, # assign here if convenient (over MouseTargetLabel, under SplashScreen)
-	SplashScreen = null, # assign here if convenient (over InGameGUI)
-	AdminPopups = null, # assign here if convenient (over SplashScreen)
-}
+var tree_program_nodes: Array[StringName] = [&"FragmentIdentifier", &"TopUI", &"WorldController"]
+
+
+#var gui_nodes: Dictionary[StringName, Variant] = {
+	## IVCoreInitializer instances one of each and adds as child to TopGUI (or
+	## substitute Control set in 'top_gui') and to dictionary IVGlobal.program.
+	## Order determines visual 'on top' and input event handling: last added
+	## is on top and 1st handled. TopGUI children can be reordered after
+	## 'project_nodes_added' signal using API below.
+	## Use PERSIST_MODE = PERSIST_PROPERTIES_ONLY for save/load persistence.
+	## Path to scene or Node class ok.
+	##WorldController = IVWorldController, # Control ok
+	##MouseTargetLabel = IVMouseTargetLabel, # safe to replace or remove
+	##InGameGUI = null, # assign here if convenient (over MouseTargetLabel, under SplashScreen)
+	##SplashScreen = null, # assign here if convenient (over InGameGUI)
+	##AdminPopups = null, # assign here if convenient (over SplashScreen)
+#}
 
 
 
@@ -198,34 +198,34 @@ func _ready() -> void:
 # These should be called only by extension init file!
 
 
-func reindex_universe_child(node_name: StringName, new_index: int) -> void:
-	# Call at 'project_nodes_added' signal.
-	var node: Node = _program[node_name]
-	universe.move_child(node, new_index)
-
-
-func reindex_top_gui_child(node_name: StringName, new_index: int) -> void:
-	# Call at 'project_nodes_added' signal.
-	var node: Node = _program[node_name]
-	top_gui.move_child(node, new_index)
-
-
-func move_universe_child_to_sibling(node_name: StringName, sibling_name: StringName,
-		before_sibling: bool) -> void:
-	# Call at 'project_nodes_added' signal.
-	var node: Node = _program[node_name]
-	var sibling: Node = _program[sibling_name]
-	var sibling_index := sibling.get_index()
-	universe.move_child(node, sibling_index if before_sibling else sibling_index + 1)
-
-
-func move_top_gui_child_to_sibling(node_name: StringName, sibling_name: StringName,
-		before_sibling: bool) -> void:
-	# Call at 'project_nodes_added' signal.
-	var node: Node = _program[node_name]
-	var sibling: Node = _program[sibling_name]
-	var sibling_index := sibling.get_index()
-	top_gui.move_child(node, sibling_index if before_sibling else sibling_index + 1)
+#func reindex_universe_child(node_name: StringName, new_index: int) -> void:
+	## Call at 'project_nodes_added' signal.
+	#var node: Node = _program[node_name]
+	#universe.move_child(node, new_index)
+#
+#
+#func reindex_top_gui_child(node_name: StringName, new_index: int) -> void:
+	## Call at 'project_nodes_added' signal.
+	#var node: Node = _program[node_name]
+	#top_gui.move_child(node, new_index)
+#
+#
+#func move_universe_child_to_sibling(node_name: StringName, sibling_name: StringName,
+		#before_sibling: bool) -> void:
+	## Call at 'project_nodes_added' signal.
+	#var node: Node = _program[node_name]
+	#var sibling: Node = _program[sibling_name]
+	#var sibling_index := sibling.get_index()
+	#universe.move_child(node, sibling_index if before_sibling else sibling_index + 1)
+#
+#
+#func move_top_gui_child_to_sibling(node_name: StringName, sibling_name: StringName,
+		#before_sibling: bool) -> void:
+	## Call at 'project_nodes_added' signal.
+	#var node: Node = _program[node_name]
+	#var sibling: Node = _program[sibling_name]
+	#var sibling_index := sibling.get_index()
+	#top_gui.move_child(node, sibling_index if before_sibling else sibling_index + 1)
 
 
 func build_project(override := false) -> void:
@@ -257,7 +257,7 @@ func _instantiate_preinitializers() -> void:
 		assert(!_program.has(key))
 		var preinitializer: RefCounted = IVFiles.make_object_or_scene(preinitializers[key])
 		_program[key] = preinitializer
-	IVGlobal.preinitializers_inited.emit()
+	IVStateManager.set_core_initializer_step(CoreInitializerStep.PREINITIALIZERS_INITED)
 
 
 func _do_presets_and_plugin_mods() -> void:
@@ -275,7 +275,7 @@ func _instantiate_initializers() -> void:
 		var initializer: RefCounted = IVFiles.make_object_or_scene(initializers[key])
 		_program[key] = initializer
 		IVGlobal.project_object_instantiated.emit(initializer)
-	IVGlobal.project_initializers_instantiated.emit()
+	IVStateManager.set_core_initializer_step(CoreInitializerStep.PROJECT_INITIALIZERS_INSTANTIATED)
 
 
 func _set_simulator_universe() -> void:
@@ -298,32 +298,36 @@ func _set_simulator_universe() -> void:
 		return
 	var scenetree_root := get_tree().get_root()
 	universe = scenetree_root.find_child(&"Universe", true, false)
-	if universe:
-		return
-	universe = IVFiles.make_object_or_scene(IVUniverse)
-	universe.name = &"Universe"
+	assert(universe)
+	
+	#if universe:
+		#return
+	#universe = IVFiles.make_object_or_scene(IVUniverse)
+	#universe.name = &"Universe"
 
 
-func _set_simulator_top_gui() -> void:
-	# 'top_gui' is assigned in one of two ways:
-	# 1. External project assigns property 'top_gui' or 'top_gui_path' via
-	#    preinitializer script or res://ivoyager_override.cfg.
-	# 2. This method intantiates IVTopGUI (tree_nodes/top_gui.gd).
-	#
-	# Method add_program_nodes() will add TopGUI to Universe if
-	# add_top_gui_to_universe == true. Otherwise, external project must add it
-	# somewhere if it isn't already in the tree.
-	#
-	# Note: ivoyager_core always gets this node via IVGlobal.program.TopGUI,
-	# never by node name. The actual node name doesn't matter.
-	if top_gui:
-		return
-	if top_gui_path:
-		top_gui = IVFiles.make_object_or_scene(top_gui_path)
-		assert(top_gui)
-		return
-	top_gui = IVFiles.make_object_or_scene(IVTopGUI)
-	top_gui.name = &"TopGUI"
+#func _set_simulator_top_gui() -> void:
+	## 'top_gui' is assigned in one of two ways:
+	## 1. External project assigns property 'top_gui' or 'top_gui_path' via
+	##    preinitializer script or res://ivoyager_override.cfg.
+	## 2. This method intantiates IVTopGUI (tree_nodes/top_gui.gd).
+	##
+	## Method add_program_nodes() will add TopGUI to Universe if
+	## add_top_gui_to_universe == true. Otherwise, external project must add it
+	## somewhere if it isn't already in the tree.
+	##
+	## Note: ivoyager_core always gets this node via IVGlobal.program.TopGUI,
+	## never by node name. The actual node name doesn't matter.
+	#if top_gui:
+		#return
+	#if top_gui_path:
+		#top_gui = IVFiles.make_object_or_scene(top_gui_path)
+		#assert(top_gui)
+		#return
+	#top_gui = IVFiles.make_object_or_scene(IVTopGUI)
+	#top_gui.name = &"TopGUI"
+
+
 
 
 func _index_core_nodes() -> void:
@@ -331,11 +335,16 @@ func _index_core_nodes() -> void:
 	_program[&"Global"] = IVGlobal
 	_program[&"CoreSettings"] = IVCoreSettings
 	_program[&"Universe"] = universe
-	_program[&"TopGUI"] = top_gui
+	#_program[&"TopGUI"] = top_gui
+	
+	var scenetree_root := get_tree().get_root()
+	for node_name in tree_program_nodes:
+		var node := scenetree_root.find_child(node_name, true, false)
+		_program[node_name] = node
 
 
 func _instantiate_and_index_program_objects() -> void:
-	for dict: Dictionary in [program_refcounteds, program_nodes, gui_nodes]:
+	for dict: Dictionary in [program_refcounteds, program_nodes]:
 		for key: StringName in dict:
 			if !dict[key]:
 				continue
@@ -346,13 +355,13 @@ func _instantiate_and_index_program_objects() -> void:
 				@warning_ignore("unsafe_property_access")
 				object.name = key
 			IVGlobal.project_object_instantiated.emit(object)
-	IVGlobal.project_objects_instantiated.emit()
+	IVStateManager.set_core_initializer_step(CoreInitializerStep.PROJECT_OBJECTS_INSTANTIATED)
 	await get_tree().process_frame
 	init_step_finished.emit()
 
 
 func _signal_project_inited() -> void:
-	IVGlobal.project_inited.emit()
+	IVStateManager.set_core_initializer_step(CoreInitializerStep.PROJECT_INITED)
 	await get_tree().process_frame
 	init_step_finished.emit()
 
@@ -365,17 +374,17 @@ func _add_program_nodes() -> void:
 			continue
 		var node: Node = _program[key]
 		universe.add_child(node)
-	if add_top_gui_to_universe:
-		universe.add_child(top_gui)
-	for key: StringName in gui_nodes:
-		if !gui_nodes[key]:
-			continue
-		var node: Node = _program[key]
-		top_gui.add_child(node)
-	IVGlobal.project_nodes_added.emit()
+	#if add_top_gui_to_universe:
+		#universe.add_child(top_gui)
+	#for key: StringName in gui_nodes:
+		#if !gui_nodes[key]:
+			#continue
+		#var node: Node = _program[key]
+		#top_gui.add_child(node)
+	IVStateManager.set_core_initializer_step(CoreInitializerStep.PROJECT_NODES_ADDED)
 	await get_tree().process_frame
 	init_step_finished.emit()
 
 
 func _finish() -> void:
-	IVGlobal.project_builder_finished.emit()
+	IVStateManager.set_core_initializer_step(CoreInitializerStep.CORE_INITED)

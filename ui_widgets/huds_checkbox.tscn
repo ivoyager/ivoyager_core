@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3 uid="uid://dwqmiwqhoijb4"]
+
+[ext_resource type="Script" uid="uid://cgysfrqeej360" path="res://addons/ivoyager_core/ui_widgets/huds_checkbox.gd" id="1_vvv0d"]
+
+[node name="HUDsCheckBox" type="CheckBox"]
+offset_right = 24.0
+offset_bottom = 24.0
+script = ExtResource("1_vvv0d")

@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://d2iejayy6pr1j"]
+
+[ext_resource type="Script" uid="uid://bp0ril23lwuy3" path="res://addons/ivoyager_core/ui_widgets/huds_hbox.gd" id="1_3hkp4"]
+
+[node name="HUDsHBox" type="HBoxContainer"]
+script = ExtResource("1_3hkp4")

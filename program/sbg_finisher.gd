@@ -49,7 +49,7 @@ var _use_threads: bool
 
 
 func _init() -> void:
-	IVGlobal.project_builder_finished.connect(_on_project_builder_finished)
+	IVGlobal.core_inited.connect(_on_project_builder_finished)
 	_tree = IVGlobal.get_tree()
 	_tree.node_added.connect(_on_node_added)
 
@@ -64,10 +64,12 @@ func _on_node_added(node: Node) -> void:
 	if !sbg:
 		return
 	assert(!sbg.is_node_ready(), "Didn't expect IVSmallBodiesGroup to change parents in-game")
-	IVGlobal.add_system_tree_item_started.emit(sbg)
+	
+	# Count doesn't matter here, but might if we implement thread as for IVBody...
+	IVStateManager.increment_tree_building_counter(sbg)
 	_add_sbg_orbits(sbg)
 	_add_sbg_points(sbg)
-	IVGlobal.add_system_tree_item_finished.emit(sbg)
+	IVStateManager.decrement_tree_building_counter(sbg)
 
 
 func _add_sbg_orbits(sbg: IVSmallBodiesGroup) -> void:

@@ -24,7 +24,7 @@ extends RefCounted
 ## specification in data tables.
 ##
 ## In typical setup, loading will commence right after splash screen is shown,
-## on [signal IVGlobal.project_builder_finished]. When finished, emits [signal
+## on [signal IVGlobal.core_inited]. When finished, emits [signal
 ## IVGlobal.asset_preloader_finished].
 
 const files := preload("res://addons/ivoyager_core/static/files.gd")
@@ -67,7 +67,7 @@ var _rings_resources: Dictionary[String, Array] = {}
 
 
 func _init() -> void:
-	IVGlobal.project_builder_finished.connect(_on_project_builder_finished)
+	IVGlobal.core_inited.connect(_on_project_builder_finished)
 
 
 
@@ -134,11 +134,7 @@ func _load_resources(start_msec: int) -> void:
 	_load_body_resources()
 	_load_rings_resources()
 	print("Loaded assets in %s msec" % (Time.get_ticks_msec() - start_msec))
-	_signal_finished.call_deferred()
-
-
-func _signal_finished() -> void:
-	IVGlobal.asset_preloader_finished.emit()
+	IVStateManager.set_asset_preloader_finished.call_deferred()
 
 
 func _load_blue_noise_1024() -> void:

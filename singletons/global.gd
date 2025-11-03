@@ -27,7 +27,7 @@ extends Node
 # Developer note: Don't add any non-Godot dependencies in this file! That
 # messes up static class dependencies on this global.
 
-# simulator state broadcasts
+# TODO: Move all to IVStateManager
 signal preinitializers_inited() # IVTableImporter; plugins!
 signal about_to_run_initializers() # IVCoreInitializer; after plugin preinitializers
 signal project_object_instantiated(object: Object) # IVCoreInitializer; each object in that file
@@ -35,17 +35,27 @@ signal translations_imported() # IVTranslationImporter; useful for boot screen
 signal data_tables_imported() # IVTableInitializer
 signal project_initializers_instantiated() # IVCoreInitializer; all initializers
 signal project_objects_instantiated() # IVCoreInitializer; IVGlobal.program populated
-signal project_inited() # IVCoreInitializer; after above
+
+
+signal project_inited() # REMOVE
+
 signal project_nodes_added() # IVCoreInitializer; prog_nodes & gui_nodes added
-signal project_builder_finished() # IVCoreInitializer; 1 frame after above (splash screen showing)
+
+## Use this!!!
+signal core_inited() # IVCoreInitializer; 1 frame after above (splash screen showing)
+
 signal asset_preloader_finished() # IVAssetPreloader
-signal state_changed(state: Dictionary[StringName, Variant]) # see IVStateManager for keys
 signal about_to_build_system_tree() # new or loading game
-signal add_system_tree_item_started(item: Node) # new or loading game (Body or SmallBodiesGroup)
-signal add_system_tree_item_finished(item: Node) # after all I/O work has completed for item
-signal system_tree_built_or_loaded(is_new_game: bool) # still ongoing I/O tasks!
-signal system_tree_ready(is_new_game: bool) # I/O thread has finished
-signal about_to_start_simulator(is_new_game: bool) # delayed 1 frame after above
+## Procedural [IVBody] and [IVSmallBodiesGroup] instances have been added for
+## new game or after load, but non-procedural "finish" nodes (models, rings,
+## lights, HUD elements, etc.) are still being added, possibly on thread.
+signal system_tree_built_or_loaded(is_new_game: bool)
+## The solar system is built and ready including "finish" nodes added on thread.
+signal system_tree_ready(is_new_game: bool)
+
+## Emitted 1 frame after [signal system_tree_ready].
+signal about_to_start_simulator(is_new_game: bool)
+
 signal update_gui_requested() # send signals with GUI info now!
 signal simulator_started()
 signal pause_changed(is_paused: bool)
@@ -59,24 +69,26 @@ signal run_state_changed(is_running: bool) # is_system_built and !SceneTree.paus
 signal network_state_changed(network_state: bool) # IVGlobal.NetworkState
 
 # other broadcasts
-signal setting_changed(setting: StringName, value: Variant)
 signal camera_ready(camera: Camera3D)
 signal camera_tree_changed(camera: Camera3D, parent: Node3D, star_orbiter: Node3D, star: Node3D)
 signal camera_fov_changed(fov: float)
 signal viewport_size_changed(size: Vector2)
+signal resume_requested() # close the main menu
 
 
-# requests for state change
-signal start_requested()
+# MOVE TO IVSettingsManager
+signal setting_changed(setting: StringName, value: Variant)
+
+
+# DEPRICATE: Make all of these direct calls to IVStateManager
 signal sim_stop_required(who: Object, network_sync_type: int, bypass_checks: bool) # IVStateManager
 signal sim_run_allowed(who: Object) # all objects requiring stop must allow!
 signal change_pause_requested(is_toggle: bool, is_pause: bool) # 2nd arg ignored if is_toggle
 signal quit_requested(force_quit: bool) # force_quit bypasses dialog
 signal exit_requested(force_exit: bool) # force_exit bypasses dialog
-signal save_requested(path: String, is_quick_save: bool) # ["", false] will trigger dialog
-signal load_requested(path: String, is_quick_load: bool) # ["", false] will trigger dialog
-signal resume_requested() # user probably wants to close the main menu
-signal save_quit_requested()
+
+
+
 
 # requests for camera action
 signal move_camera_requested(selection: Object, camera_flags: int, view_position: Vector3,
@@ -91,6 +103,7 @@ signal options_requested()
 signal hotkeys_requested()
 signal close_all_admin_popups_requested() # main menu, options, etc.
 signal show_hide_gui_requested(is_toggle: bool, is_show: bool) # 2nd arg ignored if is_toggle
+
 
 ## Sizes available for setting "gui_size". See also [member IVCoreSettings.gui_size_multipliers].
 enum GUISize {
@@ -163,8 +176,10 @@ const PERSIST_PROPERTIES_ONLY := PersistMode.PERSIST_PROPERTIES_ONLY
 const PERSIST_PROCEDURAL := PersistMode.PERSIST_PROCEDURAL
 
 
-## Maintained by [IVStateManager]. Mostly boolean keys: is_inited, is_running, etc.
-var state: Dictionary[StringName, Variant] = {}
+# MOVE TO IVSettingsManager
+var settings: Dictionary[StringName, Variant] = {}
+
+
 ## Maintained by [IVTimekeeper]. Holds [time (s, J2000), engine_time (s), solar_day (d)]
 ## by default or possibly additional elements.
 var times: Array[float] = []
@@ -176,8 +191,6 @@ var clock: Array[int] = []
 var program: Dictionary[StringName, Object] = {}
 ## Populated by [IVResourceInitializer].
 var resources: Dictionary[StringName, Resource] = {}
-## Maintained by [IVSettingsManager].
-var settings: Dictionary[StringName, Variant] = {}
 ## For project use. Not used by I, Voyager.
 var project := {}
 

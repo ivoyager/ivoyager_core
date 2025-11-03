@@ -1,7 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://2yd54bjfmbri"]
-
-[ext_resource type="Script" uid="uid://bh0jpbmd43gcb" path="res://addons/ivoyager_core/gui_widgets/start_button.gd" id="1_e8vn6"]
-
-[node name="StartButton" type="Button"]
-text = "BUTTON_START"
-script = ExtResource("1_e8vn6")

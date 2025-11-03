@@ -1,0 +1,83 @@
+# selection_wiki_link.gd
+# This file is part of I, Voyager
+# https://ivoyager.dev
+# *****************************************************************************
+# Copyright 2017-2025 Charlie Whitfield
+# I, Voyager is a registered trademark of Charlie Whitfield in the US
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# *****************************************************************************
+class_name IVSelectionWikiLink
+extends RichTextLabel
+
+## RichTextLabel widget that displays the selection name as a wiki link.
+##
+## Expects an ancestor Control with property [param selection_manager] set
+## before [signal IVGlobal.system_tree_ready].[br][br]
+##
+## This widget attempts to display the current selection as a wiki link
+## with underline. It will display non-underlined plain text if any of these
+## conditions occur:[br][br]
+##
+## 1. IVWikiManager doesn't exist.[br]
+## 2. IVWikiManager.has_page() returns false for the selection name.
+
+var _wiki_manager: IVWikiManager
+var _selection_manager: IVSelectionManager
+
+
+func _ready() -> void:
+	IVGlobal.about_to_start_simulator.connect(_connect_selection_manager)
+	if IVStateManager.is_started_or_about_to_start:
+		_connect_selection_manager()
+	IVGlobal.update_gui_requested.connect(_update_selection)
+	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
+	meta_clicked.connect(_on_meta_clicked)
+	if IVStateManager.is_core_inited:
+		_configure_for_core()
+	else:
+		IVGlobal.core_inited.connect(_configure_for_core, CONNECT_ONE_SHOT)
+	IVGlobal.system_tree_ready.connect(_connect_selection_manager)
+	_connect_selection_manager()
+
+
+func _configure_for_core() -> void:
+	_wiki_manager = IVGlobal.program.get(&"WikiManager")
+
+
+func _connect_selection_manager(_dummy := false) -> void:
+	# once after every system_tree_ready
+	if _selection_manager or !IVStateManager.is_system_ready:
+		return
+	_selection_manager = IVSelectionManager.get_selection_manager(self)
+	assert(_selection_manager, "Did not find valid 'selection_manager' above this node")
+	_selection_manager.selection_changed.connect(_update_selection)
+
+
+func _clear_procedural() -> void:
+	if _selection_manager:
+		_selection_manager.selection_changed.disconnect(_update_selection)
+		_selection_manager = null
+
+
+func _update_selection(_dummy := false) -> void:
+	var selection_name := _selection_manager.get_selection_name()
+	var gui_name := _selection_manager.get_gui_name()
+	if _wiki_manager and _wiki_manager.has_page(selection_name):
+		parse_bbcode('[url="%s"]%s[/url]' % [selection_name, gui_name])
+	else:
+		parse_bbcode(gui_name)
+
+
+func _on_meta_clicked(meta: String) -> void:
+	_wiki_manager.open_page(meta)

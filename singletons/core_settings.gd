@@ -60,11 +60,13 @@ var nonphysical_energy_at_1_au := 1.2 # some blowout is good
 var nonphysical_attenuation_exponent := 0.5 # physical is 2.0
 ## If <INF, overrides magnitude cutoff specified in small_bodies_group.tsv.
 var sbg_mag_cutoff_override := INF
-## Starts simulation without waiting (e.g., as in the Planetarium). If using a
-## splash screen, set this value to false and start the simulation using
-## [signal IVGlobal.start_requested].
-var skip_splash_screen := true
+## By default, the simulator starts without waiting (as in the Planetarium).
+## If using a splash screen, set this value to true and start the simulation
+## using [method IVStateManager.start()] (e.g., via [IVStartButton] in the
+## splash screen menu).
+var wait_for_start_request := false
 ## if true, Universe is set to process_mode = PROCESS_MODE_ALWAYS. See [IVStateManager].
+## @depricate: figure it out from Universe?
 var pause_only_stops_time := false
 ## See [IVStateManager].
 var disable_pause := false

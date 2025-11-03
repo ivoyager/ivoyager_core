@@ -28,13 +28,13 @@ extends Node3D
 ##
 ## Using our Solar System as example, the structure of the scene tree is:
 ## [codeblock]
-## IVUniverse
+## Universe
 ##    |- IVBody (Sun)
 ##        |- IVBody (Earth)
 ##            |- IVBody (ISS)
 ##            |- IVBody (Moon)
 ##                |- IVBody (a spacecraft orbiting the Moon)
-## [/codeblock]
+## [/codeblock][br]
 ##
 ## Note that current core mechanics [i]should[/i] handle a multi-star system,
 ## but this has not been tested yet.[br][br]
@@ -436,7 +436,7 @@ func _ready() -> void:
 	_set_min_hud_dist()
 	hide()
 	
-	if !IVGlobal.state[&"is_system_built"]: # currently building from tables or savefile
+	if not IVStateManager.is_system_built: # currently building from tables or savefile
 		return
 	
 	_set_system_radius()

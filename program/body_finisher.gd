@@ -49,7 +49,7 @@ var _use_threads: bool
 
 
 func _init() -> void:
-	IVGlobal.project_builder_finished.connect(_on_project_builder_finished)
+	IVGlobal.core_inited.connect(_on_project_builder_finished)
 	_tree = IVGlobal.get_tree()
 	_tree.node_added.connect(_on_node_added)
 
@@ -63,7 +63,7 @@ func _on_node_added(node: Node) -> void:
 	var body := node as IVBody
 	if !body or body.is_node_ready(): # skip if body is just changing parent
 		return
-	IVGlobal.add_system_tree_item_started.emit(body) # increments IVStateManager counter
+	IVStateManager.increment_tree_building_counter(body)
 	
 	if _use_threads:
 		WorkerThreadPool.add_task(_finish.bind(body))
@@ -100,7 +100,7 @@ func _deffered_finish(body: IVBody, children: Array[Node], siblings: Array[Node]
 	for node3d in model_space_nodes:
 		body.add_child_to_model_space(node3d)
 	await _tree.process_frame
-	IVGlobal.add_system_tree_item_finished.emit(body) # decrements IVStateManager counter
+	IVStateManager.decrement_tree_building_counter(body)
 
 
 # *****************************************************************************

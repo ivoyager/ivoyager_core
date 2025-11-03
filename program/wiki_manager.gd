@@ -66,7 +66,7 @@ var _external_url_format: String
 
 
 func _init() -> void:
-	IVGlobal.project_inited.connect(_on_project_inited)
+	IVGlobal.core_inited.connect(_configure)
 
 
 
@@ -83,7 +83,7 @@ func open_page(entity_name: StringName) -> void:
 		OS.shell_open(_external_url_format % page_title)
 
 
-func _on_project_inited() -> void:
+func _configure() -> void:
 	if IVTableData.wiki_page_titles_by_field.is_empty():
 		push_warning("IVWikiManager is present but no page title fields were set in IVTableData")
 		# Bail out here: has_page() will always return false & open_page() does nothing.

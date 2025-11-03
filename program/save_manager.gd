@@ -47,11 +47,9 @@ var save_ivoyager_version := IVGlobal.ivoyager_version
 var save_game_mod := IVGlobal.game_mod
 
 # private
-var _state := IVGlobal.state
 var _settings := IVGlobal.settings
 var _save_singleton: Node
 
-@onready var _state_manager: IVStateManager = IVGlobal.program[&"StateManager"]
 @onready var _timekeeper: IVTimekeeper = IVGlobal.program[&"Timekeeper"]
 
 
@@ -88,8 +86,8 @@ func _ready() -> void:
 			_on_about_to_build_procedural_tree_for_load)
 	_save_singleton.load_finished.connect(_on_load_finished)
 	_save_singleton.status_changed.connect(_on_status_changed)
-	_save_singleton.dialog_opened.connect(_state_manager.require_stop)
-	_save_singleton.dialog_closed.connect(_state_manager.allow_run)
+	_save_singleton.dialog_opened.connect(IVStateManager.require_stop)
+	_save_singleton.dialog_closed.connect(IVStateManager.allow_run)
 	
 	@warning_ignore_restore("unsafe_property_access", "unsafe_method_access")
 
@@ -104,7 +102,7 @@ func _start_autosave_timer() -> void:
 func _on_status_changed(is_saving: bool, is_loading: bool) -> void:
 	if !is_saving and !is_loading:
 		IVGlobal.close_main_menu_requested.emit()
-		_state_manager.allow_run(self)
+		IVStateManager.allow_run(self)
 
 
 func _name_generator() -> String:
@@ -119,18 +117,18 @@ func _suffix_generator() -> String:
 
 func _save_permit() -> bool:
 	const IS_CLIENT = IVGlobal.NetworkState.IS_CLIENT
-	if !_state.is_system_built:
+	if not IVStateManager.is_system_built:
 		return false
-	if _state.network_state == IS_CLIENT:
+	if IVStateManager.network_state == IS_CLIENT:
 		return false
 	return true
 
 
 func _load_permit() -> bool:
 	const IS_CLIENT = IVGlobal.NetworkState.IS_CLIENT
-	if !(_state.is_splash_screen or _state.is_system_built):
+	if not (IVStateManager.is_splash_screen or IVStateManager.is_system_built):
 		return false
-	if _state.network_state == IS_CLIENT:
+	if IVStateManager.network_state == IS_CLIENT:
 		return false
 	return true
 
@@ -139,8 +137,8 @@ func _save_checkpoint() -> bool:
 	const SAVE = IVGlobal.NetworkStopSync.SAVE
 	if !_save_permit():
 		return false
-	_state_manager.require_stop(self, SAVE, true)
-	await _state_manager.threads_finished
+	IVStateManager.require_stop(self, SAVE, true)
+	await IVStateManager.threads_finished
 	return true
 
 
@@ -148,8 +146,8 @@ func _load_checkpoint() -> bool:
 	const LOAD = IVGlobal.NetworkStopSync.LOAD
 	if !_load_permit():
 		return false
-	_state_manager.require_stop(self, LOAD, true)
-	await _state_manager.threads_finished
+	IVStateManager.require_stop(self, LOAD, true)
+	await IVStateManager.threads_finished
 	return true
 
 
@@ -162,7 +160,7 @@ func _on_save_finished() -> void:
 
 
 func _on_load_started() -> void:
-	_state_manager.set_game_loading()
+	IVStateManager.set_game_loading()
 
 
 func _on_about_to_free_procedural_nodes() -> void:
@@ -174,7 +172,7 @@ func _on_about_to_build_procedural_tree_for_load() -> void:
 
 
 func _on_load_finished() -> void:
-	_state_manager.set_game_loaded()
+	IVStateManager.set_game_loaded()
 	if !OS.is_debug_build():
 		return
 	_warn_version_mismatch()

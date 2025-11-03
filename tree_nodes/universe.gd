@@ -20,34 +20,7 @@
 class_name IVUniverse
 extends Node3D
 
-# *****************************************************************************
-#
-#          Developers! Look in these files to get started:
-#             res://addons/ivoyager_core/singletons/core_initializer.gd
-#             res://addons/ivoyager_core/singletons/core_settings.gd
-#             res://ivoyager_override.cfg
-#
-# *****************************************************************************
-
-## Default simulator root node.
-##
-## An instance of this class named 'Universe' is the main scene and simulator
-## root node in [url=https://github.com/ivoyager]I, Voyager's Planetarium and
-## Project Template[/url]. To change this, have a Node3D named 'Universe' in
-## the scene tree or set member [code]universe[/code] or [code]universe_path[/code]
-## in IVCoreInitializer ["addons/ivoyager_core/singletons/core_initializer.gd"].[br][br]
-##
-## We use origin shifting to prevent 'imprecision shakes' caused by vast scale
-## differences, e.g, when viewing a small body at 1e9 km from the sun. To do
-## so, [IVCamera] adjusts the translation of this node (or substitute root
-## node) every frame.[br][br]
-##
-## If [code]pause_only_stops_time = true[/code] in IVCoreSettings
-## (["addons/ivoyager_core/singletons/core_settings.gd"]), then [IVStateManager]
-## will set [code]pause_mode = PAUSE_MODE_PROCESS[/code] in this node and in
-## [IVTopGUI]. In this mode, [IVCamera] can still move, visuals work (some are
-## responsve to camera) and user can interact with the world, and only
-## [IVTimekeeper] pauses to stop time.
+# DEPRICATE
 
 const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY ## Don't free on load.
 const PERSIST_PROPERTIES: Array[StringName] = [&"persist"]

@@ -93,6 +93,7 @@ func _add_bodies_from_top(name: StringName, table_dict: Dictionary[StringName, S
 	if add_to_universe:
 		var universe: Node3D = IVGlobal.program.Universe
 		universe.add_child(body)
+		universe.move_child(body, 0)
 
 
 func _add_small_bodies_groups() -> void:

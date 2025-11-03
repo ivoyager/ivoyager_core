@@ -35,8 +35,14 @@ enum {
 const CameraFlags := IVCamera.CameraFlags
 const NULL_VECTOR3 := Vector3(-INF, -INF, -INF)
 
+## Tells this node where to find an [IVSelectionManager] to listen to.
+## The named node is expected to have property "selection_manager" with a valid
+## [IVSelectionManager] and is also expected to be in [member IVGlobal.program]
+## (this should be the case if it is listed in [member IVCoreInitializer.tree_program_nodes]).
+var selection_manager_tree_program_node := &"TopUI"
 
-# project vars
+
+
 # set _adj vars so user option can be close to 1.0
 var mouse_wheel_adj := 7.5
 var mouse_move_adj := 0.3
@@ -226,8 +232,15 @@ func get_camera_view_state() -> Array:
 # private
 
 func _on_system_tree_ready(_is_new_game: bool) -> void:
-	@warning_ignore("unsafe_property_access")
-	_selection_manager = IVGlobal.program[&"TopGUI"].selection_manager
+	var selection_manager_node: Node = IVGlobal.program.get(selection_manager_tree_program_node)
+	assert(selection_manager_node,
+			"'%s' was not found in IVGlobal.program" % selection_manager_tree_program_node)
+	assert(&"selection_manager" in selection_manager_node,
+			"'%s' does not have property 'selection_manager'" % selection_manager_tree_program_node)
+	_selection_manager = selection_manager_node.get(&"selection_manager")
+	assert(_selection_manager,
+			"Member '%s.selection_manager' does not have an IVSelectonManager" %
+			 selection_manager_tree_program_node)
 	_selection_manager.selection_changed.connect(_on_selection_changed)
 	_selection_manager.selection_reselected.connect(_on_selection_reselected)
 

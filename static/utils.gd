@@ -219,6 +219,8 @@ static func get_bit_string(flags: int, bytes := 4) -> String:
 
 # GUI
 
+
+## TODO: Move to widgets.gd
 ## Positions [param popup] at [param corner] of [param at_control].
 ## Call deferred may be needed if popup changes size when shown.
 static func position_popup_at_corner(popup: Popup, at_control: Control, corner: Corner) -> void:
