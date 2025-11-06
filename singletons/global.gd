@@ -43,9 +43,11 @@ signal project_nodes_added() # IVCoreInitializer; prog_nodes & gui_nodes added
 
 ## Use this!!!
 signal core_inited() # IVCoreInitializer; 1 frame after above (splash screen showing)
-
-signal asset_preloader_finished() # IVAssetPreloader
-signal about_to_build_system_tree() # new or loading game
+## Emitted after [IVAssetPreloader] has finished loading assets, after [signal core_inited].
+signal asset_preloader_finished()
+## Emitted before a new system tree build begins (new or loaded game).
+signal about_to_build_system_tree(is_new_game: bool)
+## TODO: Remove "_or_loaded" w/ move to IVStateManager.
 ## Procedural [IVBody] and [IVSmallBodiesGroup] instances have been added for
 ## new game or after load, but non-procedural "finish" nodes (models, rings,
 ## lights, HUD elements, etc.) are still being added, possibly on thread.

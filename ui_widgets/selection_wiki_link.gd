@@ -44,14 +44,14 @@ func _ready() -> void:
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	meta_clicked.connect(_on_meta_clicked)
 	if IVStateManager.is_core_inited:
-		_configure_for_core()
+		_configure_after_core_inited()
 	else:
-		IVGlobal.core_inited.connect(_configure_for_core, CONNECT_ONE_SHOT)
+		IVGlobal.core_inited.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
 	IVGlobal.system_tree_ready.connect(_connect_selection_manager)
 	_connect_selection_manager()
 
 
-func _configure_for_core() -> void:
+func _configure_after_core_inited() -> void:
 	_wiki_manager = IVGlobal.program.get(&"WikiManager")
 
 

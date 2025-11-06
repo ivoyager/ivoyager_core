@@ -81,8 +81,14 @@ var _suppress_resize := false
 @onready var _control := get_parent() as Control
 
 
-
 func _ready() -> void:
+	if IVStateManager.is_core_inited:
+		_configure_after_core_inited()
+	else:
+		IVGlobal.core_inited.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
+
+
+func _configure_after_core_inited() -> void:
 	assert(_control, "IVControlModResizable requires a Control as parent")
 	IVGlobal.setting_changed.connect(_settings_listener)
 	IVGlobal.simulator_started.connect(_resize)
@@ -115,7 +121,6 @@ func _resize() -> void:
 	if _suppress_resize:
 		return
 	_suppress_resize = true
-	
 	var gui_size: int = _settings[&"gui_size"]
 	var size := sizes[gui_size]
 	
@@ -130,18 +135,15 @@ func _resize() -> void:
 		size.x = _control.size.x
 	if size.y < 0.0:
 		size.y = _control.size.y
-	
 	_control.size = size
 	if resize_again_delay:
 		for i in resize_again_delay:
 			await get_tree().process_frame
 		_control.size = size
-	
 	await get_tree().process_frame
 	var viewport_size := get_viewport().get_visible_rect().size
 	_control.position.x = _control.anchor_left * (viewport_size.x - _control.size.x)
 	_control.position.y = _control.anchor_top * (viewport_size.y - _control.size.y)
-	
 	_suppress_resize = false
 	_panel_under_truncate()
 
@@ -150,7 +152,6 @@ func _panel_under_truncate() -> void:
 	if panel_under_spacing < 0.0:
 		return
 	_suppress_resize = true
-	
 	var height := _control.size.y
 	var new_height := height
 	var rect := _control.get_rect()
@@ -168,12 +169,9 @@ func _panel_under_truncate() -> void:
 		var height_limit := other_top - _control.position.y - panel_under_spacing
 		if height_limit < new_height:
 			new_height = height_limit
-	
 	if new_height < height:
 		_control.size.y = new_height
-	
 	_suppress_resize = false
-
 
 
 func _settings_listener(setting: StringName, _value: Variant) -> void:

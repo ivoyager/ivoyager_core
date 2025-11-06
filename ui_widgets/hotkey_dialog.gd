@@ -47,12 +47,12 @@ func _ready() -> void:
 	focus_exited.connect(_keep_focus)
 	_ok_button.disabled = true
 	if IVStateManager.is_core_inited:
-		_configure_for_core()
+		_configure_after_core_inited()
 	else:
-		IVGlobal.core_inited.connect(_configure_for_core, CONNECT_ONE_SHOT)
+		IVGlobal.core_inited.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
 
 
-func _configure_for_core() -> void:
+func _configure_after_core_inited() -> void:
 	_input_map_manager = IVGlobal.program[&"InputMapManager"]
 	_ok_color = IVCoreSettings.text_colors[&"base"]
 	_in_use_color = IVCoreSettings.text_colors[&"danger"]

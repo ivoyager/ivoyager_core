@@ -5,7 +5,7 @@
 [ext_resource type="PackedScene" uid="uid://dd1xhk38f1jmf" path="res://addons/ivoyager_core/ui_main/top_ui.tscn" id="2_ufcjy"]
 [ext_resource type="PackedScene" uid="uid://cij2gsmtnwhcb" path="res://addons/ivoyager_core/ui_main/world_controller.tscn" id="3_u0sc2"]
 [ext_resource type="PackedScene" uid="uid://c6yqdxh0igm7a" path="res://addons/ivoyager_core/ui_main/mouse_target_label.tscn" id="4_u0sc2"]
-[ext_resource type="PackedScene" uid="uid://cgv7mkfok4nux" path="res://addons/ivoyager_core/ui_main/show_hide_gui.tscn" id="5_fxq6q"]
+[ext_resource type="PackedScene" uid="uid://cgv7mkfok4nux" path="res://addons/ivoyager_core/ui_main/show_hide_ui.tscn" id="5_fxq6q"]
 [ext_resource type="PackedScene" uid="uid://do6i0el4c00jr" path="res://addons/ivoyager_core/ui_main/options_popup.tscn" id="6_qnscx"]
 [ext_resource type="PackedScene" uid="uid://b2fdgq3tjd8wq" path="res://addons/ivoyager_core/ui_main/hotkeys_popup.tscn" id="7_g61p2"]
 [ext_resource type="PackedScene" uid="uid://csvlw3mc4uvoc" path="res://addons/ivoyager_core/ui_main/main_menu_base_popup.tscn" id="8_pkdd6"]

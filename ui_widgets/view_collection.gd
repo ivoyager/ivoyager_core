@@ -86,9 +86,9 @@ static var _collection_names: Array[String]
 
 func _ready() -> void:
 	if IVStateManager.is_core_inited:
-		_configure_for_core()
+		_configure_after_core_inited()
 	else:
-		IVGlobal.core_inited.connect(_configure_for_core, CONNECT_ONE_SHOT)
+		IVGlobal.core_inited.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
 
 
 ## Adds a non-default, user-added view button (is_cached or saved).
@@ -119,7 +119,7 @@ func get_view_edit() -> IVViewEdit:
 	return _view_edit
 
 
-func _configure_for_core() -> void:
+func _configure_after_core_inited() -> void:
 	assert(collection_name, "IVViewCollection requires a unique collection_name")
 	assert(!_collection_names.has(collection_name),
 			"'%s' is not a unique collection_name" % collection_name)

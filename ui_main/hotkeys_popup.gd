@@ -133,9 +133,9 @@ func _ready() -> void:
 	_confirm_changes.pressed.connect(_on_confirm_changes)
 	_hotkey_dialog.hotkey_confirmed.connect(_on_hotkey_confirmed)
 	if IVStateManager.is_core_inited:
-		_configure_for_core()
+		_configure_after_core_inited()
 	else:
-		IVGlobal.core_inited.connect(_configure_for_core, CONNECT_ONE_SHOT)
+		IVGlobal.core_inited.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -145,7 +145,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 
 
-func _configure_for_core() -> void:
+func _configure_after_core_inited() -> void:
 	_input_map_manager = IVGlobal.program[&"InputMapManager"]
 	if IVCoreSettings.disable_pause:
 		remove_item(&"toggle_pause")

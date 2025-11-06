@@ -64,7 +64,7 @@ var sbg_mag_cutoff_override := INF
 ## If using a splash screen, set this value to true and start the simulation
 ## using [method IVStateManager.start()] (e.g., via [IVStartButton] in the
 ## splash screen menu).
-var wait_for_start_request := false
+var wait_for_start := false
 ## if true, Universe is set to process_mode = PROCESS_MODE_ALWAYS. See [IVStateManager].
 ## @depricate: figure it out from Universe?
 var pause_only_stops_time := false

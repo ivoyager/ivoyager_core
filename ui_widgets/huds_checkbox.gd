@@ -72,12 +72,12 @@ func _ready() -> void:
 	assert(!sbg_aliases or [HUDsType.POINTS, HUDsType.ORBITS].has(hud_type),
 			"SBGs HUD must be either POINTS or ORBITS")
 	if IVStateManager.is_core_inited:
-		_configure_for_core()
+		_configure_after_core_inited()
 	else:
-		IVGlobal.core_inited.connect(_configure_for_core, CONNECT_ONE_SHOT)
+		IVGlobal.core_inited.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
 
 
-func _configure_for_core() -> void:
+func _configure_after_core_inited() -> void:
 	toggled.connect(_on_toggled)
 	if body_flags:
 		_configure_bodies()

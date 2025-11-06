@@ -33,12 +33,12 @@ var _timekeeper: IVTimekeeper
 
 func _ready() -> void:
 	if IVStateManager.is_core_inited:
-		_configure_for_core()
+		_configure_after_core_inited()
 	else:
-		IVGlobal.core_inited.connect(_configure_for_core, CONNECT_ONE_SHOT)
+		IVGlobal.core_inited.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
 
 
-func _configure_for_core() -> void:
+func _configure_after_core_inited() -> void:
 	_timekeeper = IVGlobal.program[&"Timekeeper"]
 	_timekeeper.speed_changed.connect(_update_ckbx)
 	_timekeeper.time_altered.connect(_update_ckbx)

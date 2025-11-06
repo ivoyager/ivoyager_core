@@ -154,7 +154,12 @@ var program_nodes: Dictionary[StringName, Variant] = {
 	SaveManager = IVSaveManager, # auto removed if plugin missing or disabled
 }
 
-var tree_program_nodes: Array[StringName] = [&"FragmentIdentifier", &"TopUI", &"WorldController"]
+var tree_program_nodes: Array[StringName] = [
+	&"FragmentIdentifier",
+	&"TopUI",
+	&"WorldController",
+	&"ShowHideGUI",
+]
 
 
 #var gui_nodes: Dictionary[StringName, Variant] = {

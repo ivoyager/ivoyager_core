@@ -69,8 +69,10 @@ extends FoldableContainer
 @export var update_ignore_time_scale := true
 
 
+var _wiki_manager: IVWikiManager
 var _use_label_links := false
 var _use_value_links := false
+var _enable_precisions := false
 var _dirty := true
 var _content: Array[Array]
 var _valid_test: Callable
@@ -81,8 +83,6 @@ var _en_width: float
 
 
 @onready var _data_grid: GridContainer = $DataGrid # may move to VBoxContainer after this
-@onready var _wiki_manager: IVWikiManager = IVGlobal.program.get(&"WikiManager")
-@onready var _enable_precisions := IVCoreSettings.enable_precisions
 
 
 func _enter_tree() -> void:
@@ -105,9 +105,9 @@ func _ready() -> void:
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	_arrange_child_controls()
 	if IVStateManager.is_core_inited:
-		_configure_for_core()
+		_configure_after_core_inited()
 	else:
-		IVGlobal.core_inited.connect(_configure_for_core, CONNECT_ONE_SHOT)
+		IVGlobal.core_inited.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
 	IVGlobal.system_tree_ready.connect(_connect_selection_manager)
 	_connect_selection_manager()
 
@@ -127,11 +127,13 @@ func _arrange_child_controls() -> void:
 		vbox.add_child(control)
 
 
-func _configure_for_core(_dummy := false) -> void:
+func _configure_after_core_inited(_dummy := false) -> void:
 	# once
+	_wiki_manager = IVGlobal.program.get(&"WikiManager")
 	if _wiki_manager:
 		_use_label_links = IVUtils.get_tree_bool(self, &"enable_selection_data_label_links")
 		_use_value_links = IVUtils.get_tree_bool(self, &"enable_selection_data_value_links")
+	_enable_precisions = IVCoreSettings.enable_precisions
 	_get_content()
 	_reset_column_widths()
 

@@ -64,12 +64,12 @@ static func create(square_buttons := true) -> IVNavButtonsBox:
 
 func _ready() -> void:
 	if IVStateManager.is_core_inited:
-		_configure_for_core()
+		_configure_after_core_inited()
 	else:
-		IVGlobal.core_inited.connect(_configure_for_core, CONNECT_ONE_SHOT)
+		IVGlobal.core_inited.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
 
 
-func _configure_for_core() -> void:
+func _configure_after_core_inited() -> void:
 	for body_name in body_names:
 		add_button(body_name, button_min_size)
 	for table_name in body_tables:

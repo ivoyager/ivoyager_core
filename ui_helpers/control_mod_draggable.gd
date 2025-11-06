@@ -56,12 +56,11 @@ var _drag_point := Vector2.ZERO
 
 
 func _ready() -> void:
-	assert(_control, "IVControlModDraggable requires a Control as parent")
-	assert(not _control.get_parent() is Container,
-			"IVControlModDraggable used for Control that is child of a Container")
 	set_process_input(false) # only during drag
-	if !disable_drag:
-		_control.gui_input.connect(_on_control_input)
+	if IVStateManager.is_core_inited:
+		_configure_after_core_inited()
+	else:
+		IVGlobal.core_inited.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
 
 
 func _input(event: InputEvent) -> void:
@@ -74,6 +73,14 @@ func _input(event: InputEvent) -> void:
 		if !mouse_button_event.pressed and mouse_button_event.button_index == MOUSE_BUTTON_LEFT:
 			finish_move()
 			_control.set_default_cursor_shape(Control.CURSOR_ARROW)
+
+
+func _configure_after_core_inited() -> void:
+	assert(_control, "IVControlModDraggable requires a Control as parent")
+	assert(not _control.get_parent() is Container,
+			"IVControlModDraggable used for Control that is child of a Container")
+	if !disable_drag:
+		_control.gui_input.connect(_on_control_input)
 
 
 func _on_control_input(event: InputEvent) -> void:

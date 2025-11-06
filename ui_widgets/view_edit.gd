@@ -92,12 +92,12 @@ var _view_flags := 0
 
 func _ready() -> void:
 	if IVStateManager.is_core_inited:
-		_configure_for_core()
+		_configure_after_core_inited()
 	else:
-		IVGlobal.core_inited.connect(_configure_for_core, CONNECT_ONE_SHOT)
+		IVGlobal.core_inited.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
 
 
-func _configure_for_core() -> void:
+func _configure_after_core_inited() -> void:
 	_view_manager = IVGlobal.program[&"ViewManager"]
 	visibility_changed.connect(_on_visibility_changed)
 	_save_current_button.pressed.connect(_on_save)

@@ -20,7 +20,7 @@
 class_name IVUniverseTemplate
 extends Node3D
 
-## Template-only root scene node.
+## Template-only root scene node. And Core plugin documentation!
 ##
 ## This "Universe" scene tree is provided as a template. It will work as a
 ## simulator root if made the main sceen, but shouldn't be edited since it is in
@@ -30,8 +30,8 @@ extends Node3D
 ## The schematic below shows one possible scene tree organization for a game.
 ## Note that much of the tree is built by code: specifically, the physical solar
 ## system (at child index 0) and "program" nodes added at the end. The part
-## constructed in the Godot Editor is almost only the UI tree. This template
-## tree has the Core plugin GUI nodes shown but lacks game panels, spash screen,
+## constructed in the Godot Editor is mostly only the UI tree. This template
+## tree has the Core plugin UI nodes shown but lacks game panels, spash screen,
 ## exit button, and nodes from the Save plugin.[br][br]
 ##
 ## (Note: It's in
@@ -55,10 +55,10 @@ extends Node3D
 ##    |- IVTopUI
 ##          |- IVWorldController
 ##          |- IVMouseTargetLabel
-##          |- IVShowHideGUI
+##          |- IVShowHideUI
 ##                 |- GamePanel1     #
 ##                 |- GamePanel2     #  compose with "ui_widgets"
-##                 |- ...            #  and "ui_helpers"
+##                 |- etc...         #  and "ui_helpers"
 ##          |- GameSplashScreen      #
 ##          |- IVMainMenuBasePopup
 ##                 |- IVSaveAsButton [from the Save plugin]
@@ -76,32 +76,41 @@ extends Node3D
 ##
 ##    |- IVCameraHandler             #
 ##    |- IVTimekeeper                #  "program" nodes are added by 
-##    |- IVBodyHUDsState             #  IVCoreInitializer (see that
-##    |- IVSBGHUDsState              #  class for options to modify)
+##    |- IVBodyHUDsState             #  IVCoreInitializer (these can
+##    |- IVSBGHUDsState              #  be modified)
 ##    |- IVInputHandler              #
-##    |- ...                         #
+##    |- etc...                      #
 ##
 ## [/codeblock][br][br]
 ##
-## There are several different options to specify the root node for the simulator:[br][br]
+## The simulator root node can be specified explicitly in [IVCoreInitializer] or
+## simply by naming it "Universe". If the former, the node name doesn't matter
+## (in any case, we call this root node "Universe" in plugin documentation).[br][br]
 ##
-##  1. Name the root node "Universe". [IVCoreInitializer] will find it by tree search.[br]
-##  2. Set [member IVCoreInitializer.universe] using a preinitializer script.[br]
-##  3. Set [member IVCoreInitializer.universe_path] using a preinitializer script.[br]
-##  4. Set [member IVCoreInitializer.universe_path] by editing the config file
-##     "res://ivoyager_override.cfg".[br][br]
+## UI classes above from the Core plugin are in directory "ui_main".
+## (See [IVFragmentIdentifier], [IVTopUI], [IVWorldController], [IVMouseTargetLabel],
+## [IVShowHideUI], [IVMainMenuBasePopup], [IVOptionsPopup], [IVHotkeysPopup],
+## [IVConfirmationDialog].)[br][br]
 ##
-## In all cases above, the root node is set in dictionary [member IVGlobal.program]
-## with key "Universe". The simulator always looks here subsequently, so the
-## actual node name doesn't matter except in option 1 above. Nevertheless, we
-## call this root simulator node "Universe" in documentation below and elsewhere.[br][br]
+## The "program" directory contains both [Node] and [RefCounted] program
+## classes, which are essentially "small s singletons" that support the
+## simulator. These are instantiated and added to dictionary [member IVGlobal.program]
+## (and the Nodes added to the scene tree) as specified in [IVCoreInitializer].
+## An external project can remove, replace, subclass, or add to these at project
+## init.[br][br]
 ##
-## [IVCoreInitializer] and [IVTableSystemBuilder] (with other "builder" classes)
-## build the code-generated parts of the tree above. [IVCoreInitializer] instantiates
-## classes in the "initializers" and "program" directories and adds them (Nodes
-## and RefCounteds) to dictionary [member IVGlobal.program] and adds the Nodes
-## as children to Universe. [IVTableSystemBuilder] will insert the physical
-## star(s) before any existing children of Universe.[br][br][br]
+## [IVTableSystemBuilder] (with other "builder" and "finisher" classes) builds
+## the physical star system(s) and inserts it (or them) before other children of
+## Universe. Shown above are the [IVBody] instances (stars, planets, moons,
+## spacecraft, etc.). This class and other components of the physical system
+## tree are in directories "tree_nodes" and "tree_refs".[br][br]
+##
+## By default, the physical system is built immediately after the program starts
+## and initializes. To implement a splash screen, set [member IVCoreSettings.wait_for_start]
+## = true and add the [IVStartButton] widget somewhere in your splash screen
+## (the widget calls [method IVStateManager.start]). Use [signal
+## IVStateManager.state_changed] and [member IVStateManager.is_splash_screen] to
+## manage splash screen visibility. See [IVStateManager] for details.[br][br][br]
 ##
 ##
 ## Additional notes regarding the root "Universe" node:[br][br]

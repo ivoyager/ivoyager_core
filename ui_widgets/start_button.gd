@@ -20,7 +20,10 @@
 class_name IVStartButton
 extends Button
 
-## Button widget that starts the simulator (probably from a splash screen).
+## Button widget that builds a new system (from data tables) and starts the
+## simulator.
+##
+## This is intended for starting a new game from a splash screen.[br][br]
 ##
 ## This button enables/disables itself following changes in
 ## [member IVStateManager.is_ok_to_start].

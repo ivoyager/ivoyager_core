@@ -26,7 +26,7 @@ extends SubViewport
 ## This is a hack. It won't be necessary when Compositors is fully implemented
 ## ([url]https://github.com/godotengine/godot-proposals/issues/7916[/url])
 ## which will allow shaders to talk back via buffers. However, it might
-## still be needed for Compatibility renderer for HTML5.[br][br]
+## still be needed for Compatibility renderer for HTML5 builds.[br][br]
 ##
 ## The system works well, but not under all settings. It's a little iffy when
 ## using camera auto exposure. Rendering/TAA (and probably other settings)
@@ -39,8 +39,7 @@ extends SubViewport
 ## fragment_range. This works well for orbit lines and points with
 ## point_size >= 3.[br][br]
 ##
-## This class can be safely removed from IVCoreInitializer.program_nodes if not
-## wanted.
+## This class can be safely omitted from scene tree construction if not wanted.
 
 signal fragment_changed(id: int) # -1 on target loss; get data from 'fragment_data'
 
@@ -102,11 +101,11 @@ var _adj_values: Array[float] = []
 # *****************************************************************************
 
 
-## Here for reference; this is the color encode logic used by shaders.
+## Here for reference. This is the color encode logic used by shaders.
 ## We only use 4 bits of info per 8-bit color channel. All colors are
-## generated in the range 0.25-0.75 (losing 1 bit) and we ignore the least
+## generated in the range 0.25-0.75 (giving up 1 bit) and we ignore the least
 ## significant 3 bits. So we read 1/16 color steps from the midrange after
-## calibration. Three colors encode giving valid id from 0 to 2^36-1.
+## calibration. ID is encoded in all three colors, giving valid id from 0 to 2^36-1.
 static func encode_color_channels(id: int) -> Array:
 	assert(id >= 0 and id < (1 << 36))
 	var r1 := (id & 15) / 32.0 + 0.25

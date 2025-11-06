@@ -64,12 +64,12 @@ static func create(hud_type: ColorHUDsType, body_flags: int, sbg_aliases: Array[
 
 func _ready() -> void:
 	if IVStateManager.is_core_inited:
-		_configure_for_core()
+		_configure_after_core_inited()
 	else:
-		IVGlobal.core_inited.connect(_configure_for_core, CONNECT_ONE_SHOT)
+		IVGlobal.core_inited.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
 
 
-func _configure_for_core() -> void:
+func _configure_after_core_inited() -> void:
 	color_changed.connect(_on_color_changed)
 	toggled.connect(_hack_fix_toggle_off)
 	if body_flags:

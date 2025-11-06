@@ -191,7 +191,7 @@ func set_asset_preloader_finished() -> void:
 	is_ok_to_start = true
 	state_changed.emit()
 	IVGlobal.asset_preloader_finished.emit()
-	if not IVCoreSettings.wait_for_start_request:
+	if not IVCoreSettings.wait_for_start:
 		start()
 
 
@@ -204,7 +204,7 @@ func set_game_loading() -> void:
 	is_loaded_game = true
 	state_changed.emit()
 	require_stop(self, IVGlobal.NetworkStopSync.BUILD_SYSTEM, true)
-	_set_about_to_build_system_tree()
+	_set_about_to_build_system_tree(false)
 
 
 ## IVSaveManager only.
@@ -308,7 +308,7 @@ func start() -> void:
 	is_loaded_game = false
 	state_changed.emit()
 	require_stop(self, IVGlobal.NetworkStopSync.BUILD_SYSTEM, true)
-	_set_about_to_build_system_tree()
+	_set_about_to_build_system_tree(true)
 	var table_system_builder: IVTableSystemBuilder = IVGlobal.program[&"TableSystemBuilder"]
 	table_system_builder.build_system_tree()
 	_set_system_tree_built_or_loaded(true)
@@ -391,11 +391,11 @@ func quit(force_quit := false) -> void:
 # private functions
 
 
-func _set_about_to_build_system_tree() -> void:
+func _set_about_to_build_system_tree(is_new_game: bool) -> void:
 	is_splash_screen = false
 	is_building_tree = true
 	state_changed.emit()
-	IVGlobal.about_to_build_system_tree.emit()
+	IVGlobal.about_to_build_system_tree.emit(is_new_game)
 
 
 func _set_system_tree_built_or_loaded(is_new_game: bool) -> void:

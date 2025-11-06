@@ -100,9 +100,9 @@ func _ready() -> void:
 	assert(default_view or _is_user_button,
 			"Pre-added IVViewButton must have default_view; text '%s' will be overwritten" % text)
 	if IVStateManager.is_core_inited:
-		_configure_for_core()
+		_configure_after_core_inited()
 	else:
-		IVGlobal.core_inited.connect(_configure_for_core, CONNECT_ONE_SHOT)
+		IVGlobal.core_inited.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
 
 
 func _gui_input(event: InputEvent) -> void:
@@ -157,7 +157,7 @@ func delete() -> void:
 	queue_free()
 
 
-func _configure_for_core() -> void:
+func _configure_after_core_inited() -> void:
 	_view_manager = IVGlobal.program[&"ViewManager"]
 	if default_view:
 		_configure_default_button()

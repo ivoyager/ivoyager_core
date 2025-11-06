@@ -46,7 +46,7 @@ func _ready() -> void:
 	horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	grow_horizontal = GROW_DIRECTION_BOTH
 	size_flags_horizontal = SIZE_SHRINK_CENTER
-	IVGlobal.core_inited.connect(_configure_for_core)
+	IVGlobal.core_inited.connect(_configure_after_core_inited)
 	IVGlobal.run_state_changed.connect(set_process)
 	set_process(false)
 	hide()
@@ -67,7 +67,7 @@ func _process(_delta: float) -> void:
 	position = _world_controller.mouse_position + offset + Vector2(-size.x / 2.0, -size.y)
 
 
-func _configure_for_core() -> void:
+func _configure_after_core_inited() -> void:
 	_world_controller = IVGlobal.program[&"WorldController"]
 	_world_controller.mouse_target_changed.connect(_on_mouse_target_changed)
 	var fragment_identifier: IVFragmentIdentifier = IVGlobal.program.get(&"FragmentIdentifier")

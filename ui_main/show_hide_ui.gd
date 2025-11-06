@@ -17,26 +17,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVShowHideGUI
+class_name IVShowHideUI
 extends Control
 
-## Parent "show/hide" Control for GUI scene tree construction.
+## A parent show/hide Control for UI scene tree construction.
 ##
 ## See [IVUniverseTemplate] for scene tree organization.[br][br]
 ##
-## This node hides GUI durring system build and system tear down (some widgets
-## are doing funny stuff then). It also can (optionally) show/hide all
-## descendent GUI on user toggle (action: "toggle_all_gui") or on
-## [signal IVGlobal.show_hide_gui_requested].[br][br]
+## This node hides descendent GUI durring procedural system build and tear-down.
+## This can be useful because some widgets build and un-build themselves
+## procedurally (e.g., [IVNavButtonsSystem]), which can be ugly during project
+## start, exit and quit.[br][br]
 ##
+## It also toggles visibility on [signal IVGlobal.show_hide_gui_requested]
+## (this signal isn't emitted by the Core plugin, but is available for project
+## use) and on direct call to [method show_hide_gui].[br][br]
+##
+## It also (optionally) toggles visibility on user key action. See [member
+## user_toggle_action].[br][br]
+
+signal visibility_toggled(is_show: bool)
+
 ## In most cases, the GUI tree probably shouldn't be persisted. But it might be
 ## in special cases. This node and [IVTopGUI] have [code]const PERSIST_MODE[/code]
-## to support GUI nodes that have save/load persistence.
+## set to support GUI nodes that have save/load persistence.
+const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY
 
-const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY ## Don't free on load.
 
-@export var on_global_request := true
-@export var user_toggle := false
+## Set to &"" to disable user key toggle.
+@export var user_toggle_action := &"toggle_all_gui"
 
 
 func _ready() -> void:
@@ -44,18 +53,21 @@ func _ready() -> void:
 	hide()
 	IVGlobal.simulator_started.connect(show)
 	IVGlobal.about_to_free_procedural_nodes.connect(hide) # on exit or game load
-	if on_global_request:
-		IVGlobal.show_hide_gui_requested.connect(show_hide_gui)
-	set_process_unhandled_key_input(user_toggle)
+	IVGlobal.show_hide_gui_requested.connect(show_hide_gui)
+	set_process_unhandled_key_input(user_toggle_action != &"")
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	if event.is_action_pressed("toggle_all_gui"):
+	if event.is_action_pressed(user_toggle_action):
 		show_hide_gui()
 		get_viewport().set_input_as_handled()
 
 
+## If [param is_toggle] == true (default), visibility is toggled and the second
+## arg [param is_show] is ignored. Use (false, true) to explicitly show or 
+## (false, false) to explicitly hide.
 func show_hide_gui(is_toggle := true, is_show := true) -> void:
 	if not IVStateManager.is_system_built:
 		return
 	visible = !visible if is_toggle else is_show
+	visibility_toggled.emit(visible)

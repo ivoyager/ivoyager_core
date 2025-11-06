@@ -40,12 +40,12 @@ var _view_collection: IVViewCollection
 
 func _ready() -> void:
 	if IVStateManager.is_core_inited:
-		_configure_for_core()
+		_configure_after_core_inited()
 	else:
-		IVGlobal.core_inited.connect(_configure_for_core, CONNECT_ONE_SHOT)
+		IVGlobal.core_inited.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
 
 
-func _configure_for_core() -> void:
+func _configure_after_core_inited() -> void:
 	# delayed to ensure external collection is ready...
 	if external_view_collection_path:
 		_view_collection = get_node(external_view_collection_path)

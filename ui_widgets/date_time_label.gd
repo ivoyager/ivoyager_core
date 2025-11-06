@@ -50,11 +50,11 @@ var _timekeeper: IVTimekeeper
 
 
 func _ready() -> void:
-	IVGlobal.update_gui_requested.connect(_update_display)
+	set_process(false)
 	if IVStateManager.is_core_inited:
-		_configure_for_core()
+		_configure_after_core_inited()
 	else:
-		IVGlobal.core_inited.connect(_configure_for_core, CONNECT_ONE_SHOT)
+		IVGlobal.core_inited.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
 
 
 func _process(_delta: float) -> void:
@@ -79,9 +79,11 @@ func _process(_delta: float) -> void:
 	text = new_text
 
 
-func _configure_for_core() -> void:
+func _configure_after_core_inited() -> void:
+	IVGlobal.update_gui_requested.connect(_update_display)
 	_timekeeper = IVGlobal.program[&"Timekeeper"]
 	_timekeeper.speed_changed.connect(_update_display)
+	set_process(true)
 	_update_display()
 
 
