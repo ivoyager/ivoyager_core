@@ -57,9 +57,6 @@ signal system_tree_ready(is_new_game: bool)
 signal about_to_start_simulator(is_new_game: bool)
 
 
-
-
-signal update_gui_requested() # send signals with GUI info now!
 signal simulator_started()
 signal pause_changed(is_paused: bool)
 signal user_pause_changed(is_paused: bool) # ignores pause from sim stop
@@ -71,6 +68,10 @@ signal simulator_exited()
 signal run_state_changed(is_running: bool) # is_system_built and !SceneTree.paused
 signal network_state_changed(network_state: bool) # IVGlobal.NetworkState
 
+
+
+signal update_gui_requested() # send signals with GUI info now!
+
 # other broadcasts
 signal camera_ready(camera: Camera3D)
 signal camera_tree_changed(camera: Camera3D, parent: Node3D, star_orbiter: Node3D, star: Node3D)
@@ -81,14 +82,6 @@ signal resume_requested() # close the main menu
 
 # MOVE TO IVSettingsManager
 signal setting_changed(setting: StringName, value: Variant)
-
-
-# DEPRICATE: Make all of these direct calls to IVStateManager
-signal sim_stop_required(who: Object, network_sync_type: int, bypass_checks: bool) # IVStateManager
-signal sim_run_allowed(who: Object) # all objects requiring stop must allow!
-signal change_pause_requested(is_toggle: bool, is_pause: bool) # 2nd arg ignored if is_toggle
-signal quit_requested(force_quit: bool) # force_quit bypasses dialog
-signal exit_requested(force_exit: bool) # force_exit bypasses dialog
 
 
 

@@ -132,19 +132,6 @@ var _tree_build_counter := 0
 
 
 
-
-
-func _init() -> void:
-	
-	# TODO: Remove all of these in all projects; make direct
-	IVGlobal.change_pause_requested.connect(change_pause)
-	IVGlobal.sim_stop_required.connect(require_stop)
-	IVGlobal.sim_run_allowed.connect(allow_run)
-	IVGlobal.quit_requested.connect(quit)
-	IVGlobal.exit_requested.connect(exit)
-
-
-
 func _ready() -> void:
 	process_mode = PROCESS_MODE_ALWAYS
 	_tree.paused = true
