@@ -37,8 +37,6 @@ signal project_initializers_instantiated() # IVCoreInitializer; all initializers
 signal project_objects_instantiated() # IVCoreInitializer; IVGlobal.program populated
 
 
-signal project_inited() # REMOVE
-
 signal project_nodes_added() # IVCoreInitializer; prog_nodes & gui_nodes added
 
 ## Use this!!!
@@ -57,6 +55,9 @@ signal system_tree_ready(is_new_game: bool)
 
 ## Emitted 1 frame after [signal system_tree_ready].
 signal about_to_start_simulator(is_new_game: bool)
+
+
+
 
 signal update_gui_requested() # send signals with GUI info now!
 signal simulator_started()

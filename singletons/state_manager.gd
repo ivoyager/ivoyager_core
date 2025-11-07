@@ -85,7 +85,6 @@ enum CoreInitializerStep {
 	PREINITIALIZERS_INITED,
 	PROJECT_INITIALIZERS_INSTANTIATED,
 	PROJECT_OBJECTS_INSTANTIATED,
-	PROJECT_INITED,
 	PROJECT_NODES_ADDED,
 	CORE_INITED,
 }
@@ -171,11 +170,6 @@ func set_core_initializer_step(step: CoreInitializerStep) -> void:
 			IVGlobal.project_initializers_instantiated.emit()
 		CoreInitializerStep.PROJECT_OBJECTS_INSTANTIATED:
 			IVGlobal.project_objects_instantiated.emit()
-		
-		# REMOVE
-		CoreInitializerStep.PROJECT_INITED:
-			IVGlobal.project_inited.emit()
-		
 		CoreInitializerStep.PROJECT_NODES_ADDED:
 			IVGlobal.project_nodes_added.emit()
 		CoreInitializerStep.CORE_INITED:
