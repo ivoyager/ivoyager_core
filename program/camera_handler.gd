@@ -61,26 +61,33 @@ var alt_drag := DRAG_ROLL
 var hybrid_drag_center_zone := 0.2 # for DRAG_PITCH_YAW_ROLL_HYBRID
 var hybrid_drag_outside_zone := 0.7 # for DRAG_PITCH_YAW_ROLL_HYBRID
 
-# private
-var _settings: Dictionary[StringName, Variant] = IVGlobal.settings
+
 var _camera: IVCamera
 var _selection_manager: IVSelectionManager
-
 var _drag_mode := -1 # one of DRAG_ enums when active
 var _drag_vector := Vector2.ZERO
 var _mwheel_turning := 0.0
 var _move_pressed := Vector3.ZERO
 var _rotate_pressed := Vector3.ZERO
 
+
 @onready var _world_controller: IVWorldController = IVGlobal.program[&"WorldController"]
-@onready var _mouse_in_out_rate: float = _settings[&"camera_mouse_in_out_rate"] * mouse_wheel_adj
-@onready var _mouse_move_rate: float = _settings[&"camera_mouse_move_rate"] * mouse_move_adj
-@onready var _mouse_pitch_yaw_rate: float = _settings[&"camera_mouse_pitch_yaw_rate"] * mouse_pitch_yaw_adj
-@onready var _mouse_roll_rate: float = _settings[&"camera_mouse_roll_rate"] * mouse_roll_adj
-@onready var _key_in_out_rate: float = _settings[&"camera_key_in_out_rate"] * key_in_out_adj
-@onready var _key_move_rate: float = _settings[&"camera_key_move_rate"] * key_move_adj
-@onready var _key_pitch_yaw_rate: float = _settings[&"camera_key_pitch_yaw_rate"] * key_pitch_yaw_adj
-@onready var _key_roll_rate: float = _settings[&"camera_key_roll_rate"] * key_roll_adj
+@onready var _mouse_in_out_rate: float = (IVSettingsManager.get_setting(&"camera_mouse_in_out_rate")
+		* mouse_wheel_adj)
+@onready var _mouse_move_rate: float = (IVSettingsManager.get_setting(&"camera_mouse_move_rate")
+		* mouse_move_adj)
+@onready var _mouse_pitch_yaw_rate: float = (IVSettingsManager.get_setting(&"camera_mouse_pitch_yaw_rate")
+		* mouse_pitch_yaw_adj)
+@onready var _mouse_roll_rate: float = (IVSettingsManager.get_setting(&"camera_mouse_roll_rate")
+		* mouse_roll_adj)
+@onready var _key_in_out_rate: float = (IVSettingsManager.get_setting(&"camera_key_in_out_rate")
+		* key_in_out_adj)
+@onready var _key_move_rate: float = (IVSettingsManager.get_setting(&"camera_key_move_rate")
+		* key_move_adj)
+@onready var _key_pitch_yaw_rate: float = (IVSettingsManager.get_setting(&"camera_key_pitch_yaw_rate")
+		* key_pitch_yaw_adj)
+@onready var _key_roll_rate: float = (IVSettingsManager.get_setting(&"camera_key_roll_rate")
+		* key_roll_adj)
 @onready var _viewport_size := get_viewport().get_visible_rect().size
 
 
@@ -92,7 +99,7 @@ func _ready() -> void:
 	IVGlobal.about_to_free_procedural_nodes.connect(_restore_init_state)
 	IVGlobal.camera_ready.connect(_connect_camera)
 	IVGlobal.viewport_size_changed.connect(_on_viewport_size_changed)
-	IVGlobal.setting_changed.connect(_settings_listener)
+	IVSettingsManager.changed.connect(_settings_listener)
 	_world_controller.mouse_target_clicked.connect(_on_mouse_target_clicked)
 	_world_controller.mouse_dragged.connect(_on_mouse_dragged)
 	_world_controller.mouse_wheel_turned.connect(_on_mouse_wheel_turned)

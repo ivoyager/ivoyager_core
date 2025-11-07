@@ -27,7 +27,10 @@ extends Node
 # Developer note: Don't add any non-Godot dependencies in this file! That
 # messes up static class dependencies on this global.
 
-# TODO: Move all to IVStateManager
+
+
+
+# REMOVE: Moved implementation to IVSettingsManager!!!!
 signal preinitializers_inited() # IVTableImporter; plugins!
 signal about_to_run_initializers() # IVCoreInitializer; after plugin preinitializers
 signal project_object_instantiated(object: Object) # IVCoreInitializer; each object in that file
@@ -35,10 +38,7 @@ signal translations_imported() # IVTranslationImporter; useful for boot screen
 signal data_tables_imported() # IVTableInitializer
 signal project_initializers_instantiated() # IVCoreInitializer; all initializers
 signal project_objects_instantiated() # IVCoreInitializer; IVGlobal.program populated
-
-
 signal project_nodes_added() # IVCoreInitializer; prog_nodes & gui_nodes added
-
 ## Use this!!!
 signal core_inited() # IVCoreInitializer; 1 frame after above (splash screen showing)
 ## Emitted after [IVAssetPreloader] has finished loading assets, after [signal core_inited].
@@ -52,11 +52,8 @@ signal about_to_build_system_tree(is_new_game: bool)
 signal system_tree_built_or_loaded(is_new_game: bool)
 ## The solar system is built and ready including "finish" nodes added on thread.
 signal system_tree_ready(is_new_game: bool)
-
 ## Emitted 1 frame after [signal system_tree_ready].
 signal about_to_start_simulator(is_new_game: bool)
-
-
 signal simulator_started()
 signal pause_changed(is_paused: bool)
 signal user_pause_changed(is_paused: bool) # ignores pause from sim stop
@@ -67,6 +64,12 @@ signal about_to_exit()
 signal simulator_exited()
 signal run_state_changed(is_running: bool) # is_system_built and !SceneTree.paused
 signal network_state_changed(network_state: bool) # IVGlobal.NetworkState
+
+
+# REMOVE: Moved implementation to IVSettingsManager!!!!
+signal setting_changed(setting: StringName, value: Variant)
+
+
 
 
 
@@ -80,8 +83,6 @@ signal viewport_size_changed(size: Vector2)
 signal resume_requested() # close the main menu
 
 
-# MOVE TO IVSettingsManager
-signal setting_changed(setting: StringName, value: Variant)
 
 
 
@@ -172,7 +173,7 @@ const PERSIST_PROPERTIES_ONLY := PersistMode.PERSIST_PROPERTIES_ONLY
 const PERSIST_PROCEDURAL := PersistMode.PERSIST_PROCEDURAL
 
 
-# MOVE TO IVSettingsManager
+# REMOVE: Moved implementation to IVSettingsManager!!!!
 var settings: Dictionary[StringName, Variant] = {}
 
 

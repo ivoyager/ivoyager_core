@@ -90,12 +90,12 @@ func _configure() -> void:
 		return
 	var fallback_table_field := table_fields[fallback_language_code]
 	assert(IVTableData.has_wiki_page_titles(fallback_table_field), "Fallback table field not found")
-	IVGlobal.setting_changed.connect(_settings_listener)
+	IVSettingsManager.changed.connect(_settings_listener)
 	_set_language()
 
 
 func _set_language() -> void:
-	var language_setting: int = IVGlobal.settings[&"language"]
+	var language_setting: int = IVSettingsManager.get_setting(&"language")
 	var code := IVLanguageManager.get_code_for_setting(language_setting)
 	if !table_fields.has(code):
 		code = fallback_language_code

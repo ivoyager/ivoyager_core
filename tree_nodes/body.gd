@@ -427,7 +427,7 @@ func _ready() -> void:
 	process_mode = PROCESS_MODE_ALWAYS # time will stop, but allows mouseover interaction
 	IVGlobal.system_tree_built_or_loaded.connect(_on_system_tree_built_or_loaded, CONNECT_ONE_SHOT)
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural, CONNECT_ONE_SHOT)
-	IVGlobal.setting_changed.connect(_settings_listener)
+	IVSettingsManager.changed.connect(_settings_listener)
 	assert(!bodies.has(name))
 	bodies[name] = self
 	if flags & GALAXY_ORBITER:
@@ -1136,7 +1136,7 @@ func _set_resources() -> void:
 
 
 func _set_min_hud_dist() -> void:
-	if !IVGlobal.settings[&"hide_hud_when_close"]:
+	if !IVSettingsManager.get_setting(&"hide_hud_when_close"):
 		_min_hud_dist = 0.0
 		return
 	_min_hud_dist = mean_radius * min_hud_dist_radius_multiplier

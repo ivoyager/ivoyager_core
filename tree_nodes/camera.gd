@@ -145,7 +145,6 @@ var _transform := Transform3D(Basis(), Vector3(0, 0, KM)) # working value
 
 # private
 var _universe: Node3D = IVGlobal.program.Universe
-var _settings: Dictionary[StringName, Variant] = IVGlobal.settings
 var _max_dist: float = IVCoreSettings.max_camera_distance
 
 # motions / rotations
@@ -171,7 +170,7 @@ var _gui_range := NAN
 var _gui_latitude_longitude := Vector2(NAN, NAN)
 
 # settings
-var _transfer_time: float = _settings[&"camera_transfer_time"]
+var _transfer_time: float = IVSettingsManager.get_setting(&"camera_transfer_time")
 
 
 # virtual functions
@@ -183,7 +182,7 @@ func _ready() -> void:
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural, CONNECT_ONE_SHOT)
 	IVGlobal.update_gui_requested.connect(_send_gui_refresh)
 	IVGlobal.move_camera_requested.connect(move_to)
-	IVGlobal.setting_changed.connect(_settings_listener)
+	IVSettingsManager.changed.connect(_settings_listener)
 	transform = _transform
 	if not IVStateManager.is_loaded_game:
 		fov = IVCoreSettings.start_camera_fov
@@ -399,7 +398,7 @@ func _clear_procedural() -> void:
 	set_process(false)
 	IVGlobal.update_gui_requested.disconnect(_send_gui_refresh)
 	IVGlobal.move_camera_requested.disconnect(move_to)
-	IVGlobal.setting_changed.disconnect(_settings_listener)
+	IVSettingsManager.changed.disconnect(_settings_listener)
 	selection = null
 	parent = null
 	_to_spatial = null

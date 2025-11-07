@@ -56,7 +56,7 @@ static var _is_class_instanced := false
 
 var _sbg_alias: StringName
 var _color: Color
-var _point_size: int = IVGlobal.settings.point_size
+var _point_size: int = IVSettingsManager.get_setting(&"point_size")
 var _vec3ids := PackedVector3Array() # point ids for FragmentIdentifier
 
 # Lagrange point
@@ -86,7 +86,7 @@ func _init(sbg: IVSmallBodiesGroup) -> void:
 	cast_shadow = SHADOW_CASTING_SETTING_OFF
 	_sbg_huds_state.points_visibility_changed.connect(_set_visibility)
 	_sbg_huds_state.points_color_changed.connect(_set_color)
-	IVGlobal.setting_changed.connect(_settings_listener)
+	IVSettingsManager.changed.connect(_settings_listener)
 	
 	var number := sbg.get_number()
 	

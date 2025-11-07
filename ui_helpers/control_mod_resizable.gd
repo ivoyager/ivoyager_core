@@ -77,7 +77,6 @@ var _in_container: bool
 var _suppress_resize := false
 
 
-@onready var _settings := IVGlobal.settings
 @onready var _control := get_parent() as Control
 
 
@@ -90,7 +89,7 @@ func _ready() -> void:
 
 func _configure_after_core_inited() -> void:
 	assert(_control, "IVControlModResizable requires a Control as parent")
-	IVGlobal.setting_changed.connect(_settings_listener)
+	IVSettingsManager.changed.connect(_settings_listener)
 	IVGlobal.simulator_started.connect(_resize)
 	_control.resized.connect(_resize) # code suppresses recursion
 	_in_container = _control.get_parent() is Container
@@ -121,7 +120,7 @@ func _resize() -> void:
 	if _suppress_resize:
 		return
 	_suppress_resize = true
-	var gui_size: int = _settings[&"gui_size"]
+	var gui_size: int = IVSettingsManager.get_setting(&"gui_size")
 	var size := sizes[gui_size]
 	
 	if _in_container:

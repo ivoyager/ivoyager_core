@@ -101,7 +101,7 @@ func _ready() -> void:
 		_timer.wait_time = update_time_interval
 		_timer.ignore_time_scale = update_ignore_time_scale
 	IVGlobal.update_gui_requested.connect(_update_selection)
-	IVGlobal.setting_changed.connect(_settings_listener)
+	IVSettingsManager.changed.connect(_settings_listener)
 	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
 	_arrange_child_controls()
 	if IVStateManager.is_core_inited:

@@ -82,7 +82,6 @@ const DPRINT := true
 }
 
 
-var _settings: Dictionary[StringName, Variant] = IVGlobal.settings
 var _suppress_close := true
 
 
@@ -96,7 +95,7 @@ var _suppress_close := true
 func _ready() -> void:
 	hide() # Godot 4.5 editor keeps setting visibility == true !!!
 	IVGlobal.options_requested.connect(open)
-	IVGlobal.setting_changed.connect(_settings_listener)
+	IVSettingsManager.changed.connect(_settings_listener)
 	IVGlobal.close_all_admin_popups_requested.connect(hide)
 	close_requested.connect(_on_close_requested)
 	popup_hide.connect(_on_popup_hide)
@@ -228,8 +227,8 @@ func _build_item(setting: StringName, setting_label_str: StringName) -> HBoxCont
 	default_button.text = "!"
 	default_button.disabled = IVSettingsManager.is_default(setting)
 	default_button.pressed.connect(_restore_default.bind(setting))
-	var value: Variant = _settings[setting]
-	var default_value: Variant = IVSettingsManager.defaults[setting]
+	var value: Variant = IVSettingsManager.get_setting(setting)
+	var default_value: Variant = IVSettingsManager.get_default(setting)
 	var type := typeof(default_value)
 	match type:
 		TYPE_BOOL:
@@ -320,7 +319,7 @@ func _on_change(value: Variant, setting: StringName, default_button: Button,
 		var float_value: float = value
 		value = int(float_value)
 	assert(!DPRINT or IVDebug.dprint("Set " + setting + " = " + str(value)))
-	IVSettingsManager.change_current(setting, value, true)
+	IVSettingsManager.change_setting(setting, value, true)
 	default_button.disabled = IVSettingsManager.is_default(setting)
 	_restore_defaults.disabled = IVSettingsManager.is_defaults()
 	_confirm_changes.disabled = IVSettingsManager.is_cache_current()

@@ -22,16 +22,32 @@ extends Node
 ## Singleton [IVSettingsManager] defines and manages user settings that are
 ## persisted in a cache file.
 ##
-## Make all changes to [member defaults] before [signal
-## IVGlobal.preinitializers_inited]. Settings are valid after this.[br][br]
+## A preinitializer script can make changes to default settings or add new
+## cached settings using [method set_default]. This must happen [i]before[/i]
+## cache init. Changes to public properties must also happen before cache init.[br][br]
 ##
-## Many (but not necessarily all) user settings are settable in [IVOptionsPopup].
+## Settings are initialized and valid before "program" objects are instantiated.[br][br]
+##
+## Many settings are settable in [IVOptionsPopup]. Other settings can be added
+## that are "hidden" from user Options and managed by code.[br][br]
 
 
-# TODO: Move 'settings' here from IVGlobal
+
+## Emitted when settings are initialized and valid. This happens before
+## "program" objects are instantiated.
+signal initialized()
+## Emitted after any setting change.
+signal changed(setting: StringName, value: Variant)
 
 
-var defaults: Dictionary[StringName, Variant] = {
+## Name of the settings cache file.
+var file_name := "settings.ivbinary"
+## A new value obsoletes existing cache files. Update only when old cache files
+## might be problematic.
+var file_version := "0.0.23"
+
+
+var _defaults: Dictionary[StringName, Variant] = {
 	# save/load (only matters if Save pluin is enabled)
 	&"save_base_name" : "I Voyager",
 	&"append_date_to_save" : true,
@@ -50,7 +66,7 @@ var defaults: Dictionary[StringName, Variant] = {
 	&"camera_key_roll_rate" : 1.0,
 
 	# UI & HUD display
-	&"language" : 0,
+	&"language" : 0, # see IVLanguageManager
 	&"gui_size" : IVGlobal.GUISize.GUI_MEDIUM,
 	&"label3d_names_size_percent" : 100,
 	&"label3d_symbols_size_percent" : 100,
@@ -59,71 +75,75 @@ var defaults: Dictionary[StringName, Variant] = {
 
 	# graphics/performance
 	&"starmap" : IVGlobal.StarmapSize.STARMAP_16K,
-
-	# misc
-	&"mouse_action_releases_gui_focus" : true,
-
-	# cached but not in IVOptionsPopup
-	# FIXME: Obsolete below?
-	&"save_dir" : "",
-	&"pbd_splash_caption_open" : false,
-	&"mouse_only_gui_nav" : false,
-
 }
 
-var file_name := "settings.ivbinary"
-## Updating will obsolete existing cache files. Update when old cache files
-## might be problematic.
-var file_version := "0.0.23"
-var cache_handler: IVCacheHandler
-
-var _current := IVGlobal.settings
+var _settings: Dictionary[StringName, Variant] = {}
+var _cache_handler: IVCacheHandler
 
 
-func _ready() -> void:
-	IVGlobal.preinitializers_inited.connect(_on_preinitializers_inited)
+
+## For "preinitializer" script only! Defaults become read-only at cache init.
+## Supply [param value] = null to remove a setting.
+func set_default(key: StringName, value: Variant) -> void:
+	assert(!_defaults.is_read_only(), "Call set_default() before cache init")
+	if value == null:
+		_defaults.erase(key)
+	else:
+		_defaults[key] = value
 
 
-## If [param suppress_caching] == true, be sure to call [method cache_now] later.
-func change_current(key: StringName, value: Variant, suppress_caching := false) -> void:
-	cache_handler.change_current(key, value, suppress_caching)
+## For IVStateManager only.
+func init_caching() -> void:
+	assert(!_cache_handler)
+	_defaults.make_read_only()
+	_cache_handler = IVCacheHandler.new(_defaults, _settings, file_name, file_version)
+	_cache_handler.current_changed.connect(_on_current_changed)
+	initialized.emit()
+
+
+## If calling with [param suppress_caching] = true, call [method cache_now]
+## after changes.
+func change_setting(key: StringName, value: Variant, suppress_caching := false) -> void:
+	_cache_handler.change_current(key, value, suppress_caching)
+
+
+func get_setting(key: StringName) -> Variant:
+	return _settings[key]
+
+
+func get_default(key: StringName) -> Variant:
+	return _defaults[key]
 
 
 func cache_now() -> void:
-	cache_handler.cache_now()
+	_cache_handler.cache_now()
 
 
 func is_default(key: StringName) -> bool:
-	return cache_handler.is_default(key)
+	return _cache_handler.is_default(key)
 
 
 func is_defaults() -> bool:
-	return cache_handler.is_defaults()
+	return _cache_handler.is_defaults()
 
 
 ## If [param suppress_caching] == true, be sure to call [method cache_now] later.
 func restore_default(key: StringName, suppress_caching := false) -> void:
-	cache_handler.restore_default(key, suppress_caching)
+	_cache_handler.restore_default(key, suppress_caching)
 
 
 ## If [param suppress_caching] == true, be sure to call [method cache_now] later.
 func restore_defaults(suppress_caching := false) -> void:
-	cache_handler.restore_defaults(suppress_caching)
+	_cache_handler.restore_defaults(suppress_caching)
 
 
 func is_cache_current() -> bool:
-	return cache_handler.is_cache_current()
+	return _cache_handler.is_cache_current()
 
 
 func restore_from_cache() -> void:
-	cache_handler.restore_from_cache()
-
-
-
-func _on_preinitializers_inited() -> void:
-	cache_handler = IVCacheHandler.new(defaults, _current, file_name, file_version)
-	cache_handler.current_changed.connect(_on_current_changed)
+	_cache_handler.restore_from_cache()
 
 
 func _on_current_changed(key: StringName, new_value: Variant) -> void:
-	IVGlobal.setting_changed.emit(key, new_value)
+	changed.emit(key, new_value)

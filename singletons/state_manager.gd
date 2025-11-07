@@ -64,6 +64,7 @@ extends Node
 
 
 
+
 signal state_changed()
 
 # TODO?: one signal threads_state_changed() and then query allow_threads
@@ -97,7 +98,6 @@ const NetworkStopSync = IVGlobal.NetworkStopSync
 const DPRINT := false
 
 
-
 # read-only!
 var is_user_paused := false # ignores pause from sim stop
 
@@ -123,7 +123,6 @@ var allow_threads := false
 var blocking_threads := []
 
 
-var _settings: Dictionary[StringName, Variant] = IVGlobal.settings
 var _nodes_requiring_stop := []
 var _signal_when_threads_finished := false
 var _tree_build_counter := 0
@@ -153,6 +152,7 @@ func set_core_initializer_step(step: CoreInitializerStep) -> void:
 	match step:
 		CoreInitializerStep.PREINITIALIZERS_INITED:
 			IVGlobal.preinitializers_inited.emit()
+			IVSettingsManager.init_caching()
 		CoreInitializerStep.PROJECT_INITIALIZERS_INSTANTIATED:
 			IVGlobal.project_initializers_instantiated.emit()
 		CoreInitializerStep.PROJECT_OBJECTS_INSTANTIATED:
@@ -406,7 +406,7 @@ func _set_system_tree_ready(is_new_game: bool) -> void:
 	is_started = true
 	state_changed.emit()
 	IVGlobal.simulator_started.emit()
-	if !is_new_game and _settings.pause_on_load:
+	if !is_new_game and IVSettingsManager.get_setting(&"pause_on_load"):
 		is_user_paused = true
 
 

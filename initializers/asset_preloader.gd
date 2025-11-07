@@ -145,7 +145,7 @@ func _load_blue_noise_1024() -> void:
 
 func _load_starmap() -> void:
 	var path: String
-	match IVGlobal.settings[&"starmap"]:
+	match IVSettingsManager.get_setting(&"starmap"):
 		IVGlobal.StarmapSize.STARMAP_8K:
 			path = asset_paths[&"starmap_8k"]
 		IVGlobal.StarmapSize.STARMAP_16K:

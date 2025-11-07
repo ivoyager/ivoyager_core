@@ -46,8 +46,7 @@ var save_ivoyager_version := IVGlobal.ivoyager_version
 ## will be saved in the gamesave file and overwritten at game load.
 var save_game_mod := IVGlobal.game_mod
 
-# private
-var _settings := IVGlobal.settings
+
 var _save_singleton: Node
 
 @onready var _timekeeper: IVTimekeeper = IVGlobal.program[&"Timekeeper"]
@@ -63,7 +62,7 @@ func _ready() -> void:
 		return
 
 	IVGlobal.simulator_started.connect(_start_autosave_timer)
-	IVGlobal.setting_changed.connect(_settings_listener)
+	IVSettingsManager.changed.connect(_settings_listener)
 	@warning_ignore("unsafe_call_argument", "unsafe_property_access")
 	IVGlobal.close_all_admin_popups_requested.connect(_save_singleton.close_dialogs)
 	
@@ -94,7 +93,7 @@ func _ready() -> void:
 
 
 func _start_autosave_timer() -> void:
-	var autosave_time_min: float = _settings[&"autosave_time_min"]
+	var autosave_time_min: float = IVSettingsManager.get_setting(&"autosave_time_min")
 	@warning_ignore("unsafe_method_access")
 	_save_singleton.start_autosave_timer(autosave_time_min) # 0.0 stops the timer
 
@@ -106,11 +105,11 @@ func _on_status_changed(is_saving: bool, is_loading: bool) -> void:
 
 
 func _name_generator() -> String:
-	return _settings[&"save_base_name"]
+	return IVSettingsManager.get_setting(&"save_base_name")
 
 
 func _suffix_generator() -> String:
-	if _settings[&"append_date_to_save"]:
+	if IVSettingsManager.get_setting(&"append_date_to_save"):
 		return "-" + _timekeeper.get_current_date_for_file()
 	return ""
 
