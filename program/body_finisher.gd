@@ -43,19 +43,17 @@ var replacement_orbit_visual_class: Script
 var replacement_dynamic_light_class: Script
 var replacement_rings_class: Script
 
-var _tree: SceneTree
 var _use_threads: bool
-
+var _tree := IVGlobal.get_tree()
+var _state_auxiliary: IVStateAuxiliary = IVGlobal.program[&"StateAuxiliary"]
 
 
 func _init() -> void:
-	IVStateManager.core_inited.connect(_on_project_builder_finished)
-	_tree = IVGlobal.get_tree()
+	IVStateManager.core_inited.connect(_on_core_inited)
 	_tree.node_added.connect(_on_node_added)
 
 
-
-func _on_project_builder_finished() -> void:
+func _on_core_inited() -> void:
 	_use_threads = IVCoreSettings.use_threads and !disable_threads
 
 
@@ -63,7 +61,7 @@ func _on_node_added(node: Node) -> void:
 	var body := node as IVBody
 	if !body or body.is_node_ready(): # skip if body is just changing parent
 		return
-	IVStateManager.increment_tree_building_counter(body)
+	_state_auxiliary.change_tree_building_count(1)
 	
 	if _use_threads:
 		WorkerThreadPool.add_task(_finish.bind(body))
@@ -100,7 +98,7 @@ func _deffered_finish(body: IVBody, children: Array[Node], siblings: Array[Node]
 	for node3d in model_space_nodes:
 		body.add_child_to_model_space(node3d)
 	await _tree.process_frame
-	IVStateManager.decrement_tree_building_counter(body)
+	_state_auxiliary.change_tree_building_count(-1)
 
 
 # *****************************************************************************

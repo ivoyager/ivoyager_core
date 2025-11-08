@@ -32,7 +32,8 @@ const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"save_project_version",
 	&"save_ivoyager_version",
-	&"save_game_mod"
+	&"save_game_mod",
+	&"_user_pause",
 ]
 
 
@@ -47,6 +48,7 @@ var save_ivoyager_version := IVGlobal.ivoyager_version
 var save_game_mod := IVGlobal.game_mod
 
 
+var _user_pause := false
 var _save_singleton: Node
 
 @onready var _timekeeper: IVTimekeeper = IVGlobal.program[&"Timekeeper"]
@@ -57,11 +59,13 @@ func _ready() -> void:
 	# The Core plugin needs to compile with or without the Save plugin, so we
 	# duck type the IVSave singleton here. The mess of warnings is unavoidable. 
 	_save_singleton = get_node_or_null(^"/root/IVSave")
-	
 	if !_save_singleton:
 		return
-
+	
+	process_mode = PROCESS_MODE_ALWAYS
+	
 	IVStateManager.simulator_started.connect(_start_autosave_timer)
+	IVStateManager.paused_changed.connect(_on_paused_changed)
 	IVSettingsManager.changed.connect(_settings_listener)
 	@warning_ignore("unsafe_call_argument", "unsafe_property_access")
 	IVGlobal.close_all_admin_popups_requested.connect(_save_singleton.close_dialogs)
@@ -90,6 +94,9 @@ func _ready() -> void:
 	
 	@warning_ignore_restore("unsafe_property_access", "unsafe_method_access")
 
+
+func _on_paused_changed(_is_engine_paused: bool, is_user_pause: bool) -> void:
+	_user_pause = is_user_pause
 
 
 func _start_autosave_timer() -> void:
@@ -159,11 +166,13 @@ func _on_save_finished() -> void:
 
 
 func _on_load_started() -> void:
-	IVStateManager.set_game_loading()
+	var state_auxiliary: IVStateAuxiliary = IVGlobal.program[&"StateAuxiliary"]
+	state_auxiliary.set_game_loading()
 
 
 func _on_about_to_free_procedural_nodes() -> void:
-	IVStateManager.about_to_free_procedural_nodes.emit()
+	var state_auxiliary: IVStateAuxiliary = IVGlobal.program[&"StateAuxiliary"]
+	state_auxiliary.set_about_to_free_procedural_nodes()
 
 
 func _on_about_to_build_procedural_tree_for_load() -> void:
@@ -171,7 +180,10 @@ func _on_about_to_build_procedural_tree_for_load() -> void:
 
 
 func _on_load_finished() -> void:
-	IVStateManager.set_game_loaded()
+	if IVSettingsManager.get_setting(&"pause_on_load"):
+		_user_pause = true
+	var state_auxiliary: IVStateAuxiliary = IVGlobal.program[&"StateAuxiliary"]
+	state_auxiliary.set_game_loaded(_user_pause)
 	if !OS.is_debug_build():
 		return
 	_warn_version_mismatch()

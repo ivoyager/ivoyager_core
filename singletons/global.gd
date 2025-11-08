@@ -21,11 +21,16 @@ extends Node
 
 ## Added as singleton "IVGlobal".
 ##
-## Array and dictionary references are never overwritten, so it is safe (and
-## faster) to keep local references to these containers to in class files.
+## Dev note: Don't add ANY non-Godot class dependencies! These could cause
+## circular reference issues.
+
+# Array and dictionary references are never overwritten, so it is safe (and
+# faster) to keep local references to these containers to in class files.
 
 # Developer note: Don't add any non-Godot dependencies in this file! That
 # messes up static class dependencies on this global.
+
+
 
 
 signal project_object_instantiated(object: Object) # IVCoreInitializer; each object in that file
@@ -42,10 +47,6 @@ signal camera_tree_changed(camera: Camera3D, parent: Node3D, star_orbiter: Node3
 signal camera_fov_changed(fov: float)
 signal viewport_size_changed(size: Vector2)
 signal resume_requested() # close the main menu
-
-
-
-
 
 
 # requests for camera action

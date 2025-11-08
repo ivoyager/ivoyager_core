@@ -67,7 +67,7 @@ var _rings_resources: Dictionary[String, Array] = {}
 
 
 func _init() -> void:
-	IVStateManager.core_inited.connect(_on_project_builder_finished)
+	IVStateManager.core_inited.connect(_on_core_inited)
 
 
 
@@ -120,7 +120,7 @@ func get_rings_shadow_caster_texture(rings_name: StringName) -> Texture2D:
 
 
 
-func _on_project_builder_finished() -> void:
+func _on_core_inited() -> void:
 	var start_msec := Time.get_ticks_msec()
 	if use_thread and IVCoreSettings.use_threads:
 		WorkerThreadPool.add_task(_load_resources.bind(start_msec))
@@ -134,7 +134,8 @@ func _load_resources(start_msec: int) -> void:
 	_load_body_resources()
 	_load_rings_resources()
 	print("Loaded assets in %s msec" % (Time.get_ticks_msec() - start_msec))
-	IVStateManager.set_asset_preloader_finished.call_deferred()
+	var state_auxiliary: IVStateAuxiliary = IVGlobal.program[&"StateAuxiliary"]
+	state_auxiliary.set_asset_preloader_finished.call_deferred()
 
 
 func _load_blue_noise_1024() -> void:

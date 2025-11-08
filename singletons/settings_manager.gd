@@ -81,8 +81,11 @@ var _settings: Dictionary[StringName, Variant] = {}
 var _cache_handler: IVCacheHandler
 
 
+func _ready() -> void:
+	IVStateManager.core_init_preinitialized.connect(_on_core_init_preinitialized)
 
-## For "preinitializer" script only! Defaults become read-only at cache init.
+
+## For preinitializer script only! Defaults become read-only at cache init.
 ## Supply [param value] = null to remove a setting.
 func set_default(key: StringName, value: Variant) -> void:
 	assert(!_defaults.is_read_only(), "Call set_default() before cache init")
@@ -90,15 +93,6 @@ func set_default(key: StringName, value: Variant) -> void:
 		_defaults.erase(key)
 	else:
 		_defaults[key] = value
-
-
-## For IVStateManager only.
-func init_caching() -> void:
-	assert(!_cache_handler)
-	_defaults.make_read_only()
-	_cache_handler = IVCacheHandler.new(_defaults, _settings, file_name, file_version)
-	_cache_handler.current_changed.connect(_on_current_changed)
-	initialized.emit()
 
 
 ## If calling with [param suppress_caching] = true, call [method cache_now]
@@ -143,6 +137,14 @@ func is_cache_current() -> bool:
 
 func restore_from_cache() -> void:
 	_cache_handler.restore_from_cache()
+
+
+func _on_core_init_preinitialized() -> void:
+	assert(!_cache_handler)
+	_defaults.make_read_only()
+	_cache_handler = IVCacheHandler.new(_defaults, _settings, file_name, file_version)
+	_cache_handler.current_changed.connect(_on_current_changed)
+	initialized.emit()
 
 
 func _on_current_changed(key: StringName, new_value: Variant) -> void:

@@ -64,6 +64,7 @@ func _ready() -> void:
 	IVGlobal.close_main_menu_requested.connect(close)
 	IVGlobal.close_all_admin_popups_requested.connect(close)
 	IVGlobal.resume_requested.connect(close)
+	IVStateManager.about_to_quit.connect(close)
 	popup_hide.connect(_on_popup_hide)
 	
 	# Add to VBoxContainer IF AND ONLY IF >1 Control child...

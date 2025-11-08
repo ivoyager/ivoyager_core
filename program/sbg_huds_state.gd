@@ -61,7 +61,8 @@ var default_orbits_colors: Dictionary[StringName, Color] = {}
 
 
 
-func _init() -> void:
+func _ready() -> void:
+	process_mode = PROCESS_MODE_ALWAYS # in anticipation of key input
 	IVStateManager.project_objects_instantiated.connect(_on_project_objects_instantiated)
 	IVStateManager.simulator_exited.connect(_set_current_to_default)
 	IVGlobal.update_gui_requested.connect(_signal_all_changed)

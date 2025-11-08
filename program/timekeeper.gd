@@ -141,6 +141,7 @@ var _is_sync := false
 var _prev_whole_solar_day := NAN
 
 @onready var _tree := get_tree()
+@onready var _state_auxiliary: IVStateAuxiliary = IVGlobal.program[&"StateAuxiliary"]
 
 
 # *****************************************************************************
@@ -290,9 +291,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_PAUSED:
-		IVStateManager.timekeeper_set_paused(true)
+		_state_auxiliary.set_engine_paused(true)
 	elif what == NOTIFICATION_UNPAUSED:
-		IVStateManager.timekeeper_set_paused(false)
+		_state_auxiliary.set_engine_paused(false)
 	elif what == NOTIFICATION_APPLICATION_FOCUS_IN:
 		if is_now:
 			set_now_from_operating_system()

@@ -21,43 +21,47 @@ extends Node
 
 ## Singleton [IVStateManager] maintains and exposes high-level simulator state.
 ##
-## General simulator state signals are emitted via IVGlobal, with more specific
-## emitted by this class. Much of simulator state can be queried via dictionary
-## [code]state[/code] in IVGlobal. This class defines certain expected keys
-## in [code]state[/code] and (together with [IVSaveManager] and possibly an
-## external NetworkLobby) manages these [code]state[/code] values.[br][br]
-##
-## IVGlobal [code]state[/code] keys inited here:[br][br]
-##   [code]is_core_inited: bool[/code]
-##   [code]is_splash_screen: bool[/code][br]
-##   [code]is_system_built: bool[/code][br]
-##   [code]is_system_ready: bool[/code][br]
-##   [code]is_started_or_about_to_start: bool[/code][br]
-##   [code]is_running: bool[/code] - _run/_stop_simulator(); not the same as pause![br]
-##   [code]is_quitting: bool[/code][br]
-##   [code]is_game_loading: bool[/code] - via method call[br]
-##   [code]is_loaded_game: bool[/code] - via method cal[br]
-##   [code]network_state: NetworkState[/code] - if exists, NetworkLobby also writes[br][br]
-##
-## If IVCoreSettings.pause_only_stops_time == true, then PAUSE_MODE_PROCESS is
-## set in Universe and TopGUI so IVCamera can still move, visuals work (some are
-## responsve to camera) and user can interact with the world. In this mode, only
-## IVTimekeeper pauses to stop time.[br][br]
-##
-## There is no NetworkLobby in base I, Voyager. It's is a very application-
-## specific manager that you'll have to code yourself, but see:
-## https://docs.godotengine.org/en/stable/tutorials/networking/high_level_multiplayer.html
-## Be sure to set IVStateManager.network_state and emit IVGlobal signal
-## "network_state_changed".[br][br]
-##
-## IMPORTANT! Non-main threads should coordinate with signals and functions here
-## for thread-safety. We wait for all threads to finish before proceding to save,
-## load, exit, quit, etc.[br][br]
-##
-## Multithreading note: Godot's SceneTree and almost all I, Voyager public
-## functions run in the main thread. Use call_defered() to invoke any function
-## from another thread unless the function is guaranteed to be thread-safe. Most
-## functions are NOT thread-safe![br][br]
+## Dev note: Don't add non-Godot class dependencies other than [IVGlobal] and
+## [IVStateAuxiliary]. These could cause circular reference issues.
+
+
+# General simulator state signals are emitted via IVGlobal, with more specific
+# emitted by this class. Much of simulator state can be queried via dictionary
+# [code]state[/code] in IVGlobal. This class defines certain expected keys
+# in [code]state[/code] and (together with [IVSaveManager] and possibly an
+# external NetworkLobby) manages these [code]state[/code] values.[br][br]
+#
+# IVGlobal [code]state[/code] keys inited here:[br][br]
+#   [code]is_core_inited: bool[/code]
+#   [code]is_splash_screen: bool[/code][br]
+#   [code]is_system_built: bool[/code][br]
+#   [code]is_system_ready: bool[/code][br]
+#   [code]is_started_or_about_to_start: bool[/code][br]
+#   [code]is_running: bool[/code] - _run/_stop_simulator(); not the same as pause![br]
+#   [code]is_quitting: bool[/code][br]
+#   [code]is_game_loading: bool[/code] - via method call[br]
+#   [code]is_loaded_game: bool[/code] - via method cal[br]
+#   [code]network_state: NetworkState[/code] - if exists, NetworkLobby also writes[br][br]
+#
+# If IVCoreSettings.pause_only_stops_time == true, then PAUSE_MODE_PROCESS is
+# set in Universe and TopGUI so IVCamera can still move, visuals work (some are
+# responsve to camera) and user can interact with the world. In this mode, only
+# IVTimekeeper pauses to stop time.[br][br]
+#
+# There is no NetworkLobby in base I, Voyager. It's is a very application-
+# specific manager that you'll have to code yourself, but see:
+# https://docs.godotengine.org/en/stable/tutorials/networking/high_level_multiplayer.html
+# Be sure to set IVStateManager.network_state and emit IVGlobal signal
+# "network_state_changed".[br][br]
+#
+# IMPORTANT! Non-main threads should coordinate with signals and functions here
+# for thread-safety. We wait for all threads to finish before proceding to save,
+# load, exit, quit, etc.[br][br]
+#
+# Multithreading note: Godot's SceneTree and almost all I, Voyager public
+# functions run in the main thread. Use call_defered() to invoke any function
+# from another thread unless the function is guaranteed to be thread-safe. Most
+# functions are NOT thread-safe![br][br]
 
 # FIXME: Non-splash screen dependencies on is_splash_screen. Keep that true
 # up until sim starts and when exiting.
@@ -65,11 +69,14 @@ extends Node
 # FIXME: Remove IVTableSystemBuilder and any other ivoyager classes. Signal for
 # build.
 
+# FIXME: Rename "core_init_preinitialized", "core_init_init_objects_initialized", ...
 
-signal preinitializers_inited() # IVTableImporter; plugins!
+signal core_init_preinitialized() # IVTableImporter; plugins!
 signal project_initializers_instantiated() # IVCoreInitializer; all initializers
 signal project_objects_instantiated() # IVCoreInitializer; IVGlobal.program populated
 signal project_nodes_added() # IVCoreInitializer; prog_nodes & gui_nodes added
+signal core_initializer_finished() # IVCoreInitializer
+
 ## Use this!!!
 signal core_inited() # IVCoreInitializer; 1 frame after above (splash screen showing)
 
@@ -97,7 +104,6 @@ signal run_state_changed(is_running: bool) # is_system_built and !SceneTree.paus
 signal network_state_changed(network_state: NetworkState)
 
 
-# WIP
 signal paused_changed(is_engine_paused: bool, is_user_pause: bool)
 
 signal state_changed()
@@ -111,15 +117,6 @@ signal threads_finished() # all blocking threads removed
 signal client_is_dropping_out(is_exit: bool)
 signal server_about_to_stop(network_sync_type: int) # NetworkStopSync; server only
 signal server_about_to_run() # server only
-
-
-enum CoreInitializerStep {
-	PREINITIALIZERS_INITED,
-	PROJECT_INITIALIZERS_INSTANTIATED,
-	PROJECT_OBJECTS_INSTANTIATED,
-	PROJECT_NODES_ADDED,
-	CORE_INITED,
-}
 
 
 enum NetworkState {
@@ -173,6 +170,7 @@ var allow_threads := false
 var blocking_threads := []
 
 
+var _state_auxiliary: IVStateAuxiliary
 var _nodes_requiring_stop := []
 var _signal_when_threads_finished := false
 var _tree_build_counter := 0
@@ -182,6 +180,8 @@ var _tree_build_counter := 0
 
 
 func _ready() -> void:
+	IVGlobal.project_object_instantiated.connect(_on_global_project_object_instantiated)
+	core_initializer_finished.connect(_on_core_initializer_finished)
 	process_mode = PROCESS_MODE_ALWAYS
 	_tree.paused = true
 	require_stop(self, -1, true)
@@ -197,72 +197,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	get_window().set_input_as_handled()
 
 
-# TODO: Hide some privlaged API away in an IVStateAccess
 
-## IVCoreInitializer only.
-func set_core_initializer_step(step: CoreInitializerStep) -> void:
-	match step:
-		CoreInitializerStep.PREINITIALIZERS_INITED:
-			preinitializers_inited.emit()
-			IVSettingsManager.init_caching()
-		CoreInitializerStep.PROJECT_INITIALIZERS_INSTANTIATED:
-			project_initializers_instantiated.emit()
-		CoreInitializerStep.PROJECT_OBJECTS_INSTANTIATED:
-			project_objects_instantiated.emit()
-		CoreInitializerStep.PROJECT_NODES_ADDED:
-			project_nodes_added.emit()
-		CoreInitializerStep.CORE_INITED:
-			is_core_inited = true
-			is_splash_screen = true
-			state_changed.emit()
-			core_inited.emit()
-
-
-## IVAssetPreloader only.
-func set_asset_preloader_finished() -> void:
-	is_assets_loaded = true
-	is_ok_to_start = true
-	state_changed.emit()
-	asset_preloader_finished.emit()
-	if not IVCoreSettings.wait_for_start:
-		start()
-
-
-## IVSaveManager only.
-func set_game_loading() -> void:
-	is_splash_screen = false
-	is_ok_to_start = false
-	is_system_built = false
-	is_game_loading = true
-	is_loaded_game = true
-	state_changed.emit()
-	require_stop(self, NetworkStopSync.BUILD_SYSTEM, true)
-	_set_about_to_build_system_tree(false)
-
-
-## IVSaveManager only.
-func set_game_loaded() -> void:
-	is_game_loading = false
-	state_changed.emit()
-	_set_system_tree_built(false)
-
-
-## IVTimekeeper only.
-func timekeeper_set_paused(engine_paused: bool) -> void:
-	if is_engine_paused == engine_paused:
-		return
-	is_engine_paused = engine_paused
-	paused_changed.emit(is_engine_paused, is_user_pause)
-
-
-func increment_tree_building_counter(_item: Node) -> void:
-	_tree_build_counter += 1
-
-
-func decrement_tree_building_counter(_item: Node) -> void:
-	_tree_build_counter -= 1
-	if _tree_build_counter == 0 and is_building_tree:
-		_set_system_tree_ready(not is_loaded_game)
 
 
 func add_blocking_thread(thread: Thread) -> void:
@@ -437,6 +372,73 @@ func quit(force_quit := false) -> void:
 # private functions
 
 
+
+func _on_core_initializer_finished() -> void:
+	assert(_state_auxiliary)
+	is_core_inited = true
+	is_splash_screen = true
+	state_changed.emit()
+	core_inited.emit()
+
+
+func _on_global_project_object_instantiated(object: Object) -> void:
+	if object is not IVStateAuxiliary:
+		return
+	_state_auxiliary = object
+	_state_auxiliary.asset_preloader_finished.connect(_on_aux_asset_preloader_finished)
+	_state_auxiliary.about_to_free_procedural_nodes.connect(_on_aux_about_to_free_procedural_nodes)
+	_state_auxiliary.game_loading.connect(_on_aux_game_loading)
+	_state_auxiliary.game_loaded.connect(_on_aux_game_loaded)
+	_state_auxiliary.engine_paused_changed.connect(_on_aux_engine_paused_changed)
+	_state_auxiliary.tree_building_count_changed.connect(_on_aux_tree_building_count_changed)
+
+
+func _on_aux_asset_preloader_finished() -> void:
+	is_assets_loaded = true
+	is_ok_to_start = true
+	state_changed.emit()
+	asset_preloader_finished.emit()
+	if not IVCoreSettings.wait_for_start:
+		start()
+
+
+func _on_aux_about_to_free_procedural_nodes() -> void:
+	about_to_free_procedural_nodes.emit()
+
+
+func _on_aux_game_loading() -> void:
+	is_splash_screen = false
+	is_ok_to_start = false
+	is_system_built = false
+	is_game_loading = true
+	is_loaded_game = true
+	state_changed.emit()
+	require_stop(self, NetworkStopSync.BUILD_SYSTEM, true)
+	_set_about_to_build_system_tree(false)
+
+
+func _on_aux_game_loaded(user_pause: bool) -> void:
+	is_user_pause = user_pause
+	is_game_loading = false
+	state_changed.emit()
+	_set_system_tree_built(false)
+
+
+func _on_aux_engine_paused_changed(engine_paused: bool) -> void:
+	if is_engine_paused == engine_paused:
+		return
+	is_engine_paused = engine_paused
+	paused_changed.emit(is_engine_paused, is_user_pause)
+
+
+func _on_aux_tree_building_count_changed(incr: int) -> void:
+	_tree_build_counter += incr
+	if incr > 0:
+		return
+	if _tree_build_counter == 0 and is_building_tree:
+		_set_system_tree_ready(not is_loaded_game)
+
+
 func _set_about_to_build_system_tree(is_new_game: bool) -> void:
 	is_splash_screen = false
 	is_building_tree = true
@@ -470,8 +472,6 @@ func _set_system_tree_ready(is_new_game: bool) -> void:
 	is_started = true
 	state_changed.emit()
 	simulator_started.emit()
-	if !is_new_game and IVSettingsManager.get_setting(&"pause_on_load"):
-		is_user_pause = true
 
 
 func _stop_simulator() -> void:

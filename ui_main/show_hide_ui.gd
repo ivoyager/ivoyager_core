@@ -51,10 +51,10 @@ const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY
 func _ready() -> void:
 	# hide during system build and tear down
 	hide()
-	IVStateManager.simulator_started.connect(show)
+	set_process_unhandled_key_input(false)
+	IVStateManager.simulator_started.connect(_on_simulator_started)
 	IVStateManager.about_to_free_procedural_nodes.connect(hide) # on exit or game load
 	IVGlobal.show_hide_gui_requested.connect(show_hide_gui)
-	set_process_unhandled_key_input(user_toggle_action != &"")
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -71,3 +71,8 @@ func show_hide_gui(is_toggle := true, is_show := true) -> void:
 		return
 	visible = !visible if is_toggle else is_show
 	visibility_toggled.emit(visible)
+
+
+func _on_simulator_started() -> void:
+	show()
+	set_process_unhandled_key_input(user_toggle_action != &"")

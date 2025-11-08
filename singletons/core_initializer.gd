@@ -92,11 +92,16 @@ var universe_path: String # assign here if using ivoyager_override.cfg
 ## want to de-reference your preinitializer so it will free itself).
 var preinitializers: Dictionary[StringName, Variant] = {}
 
+# TODO: Add ordered_xxx: Array[StringName] for each dict below.
+
+
+## TODO: Rename "init_refcounteds" and rename directory "init".
 ## RefCounted classes. IVCoreInitializer instances these after
 ## 'preinitializers'. Many of these instances may erase themselves from
 ## dictionary 'IVGlobal.program' after init, thereby freeing themselves.
 ## Path to RefCounted class ok.
 var initializers: Dictionary[StringName, Variant] = {
+	StateAuxiliary = IVStateAuxiliary,
 	ResourceInitializer = IVResourceInitializer, # self-removes
 	TranslationImporter = IVTranslationImporter, # self-removes
 	TableInitializer = IVTableInitializer, # self-removes
@@ -194,8 +199,7 @@ func _instantiate_preinitializers() -> void:
 		assert(!IVGlobal.program.has(key))
 		var preinitializer: RefCounted = IVFiles.make_object_or_scene(preinitializers[key])
 		IVGlobal.program[key] = preinitializer
-	IVStateManager.set_core_initializer_step(
-			IVStateManager.CoreInitializerStep.PREINITIALIZERS_INITED)
+	IVStateManager.core_init_preinitialized.emit()
 
 
 func _do_presets_and_plugin_mods() -> void:
@@ -212,8 +216,7 @@ func _instantiate_initializers() -> void:
 		var initializer: RefCounted = IVFiles.make_object_or_scene(initializers[key])
 		IVGlobal.program[key] = initializer
 		IVGlobal.project_object_instantiated.emit(initializer)
-	IVStateManager.set_core_initializer_step(
-			IVStateManager.CoreInitializerStep.PROJECT_INITIALIZERS_INSTANTIATED)
+	IVStateManager.project_initializers_instantiated.emit()
 
 
 func _set_simulator_universe() -> void:
@@ -255,8 +258,7 @@ func _instantiate_and_index_program_objects() -> void:
 				@warning_ignore("unsafe_property_access")
 				object.name = key
 			IVGlobal.project_object_instantiated.emit(object)
-	IVStateManager.set_core_initializer_step(
-			IVStateManager.CoreInitializerStep.PROJECT_OBJECTS_INSTANTIATED)
+	IVStateManager.project_objects_instantiated.emit()
 	await get_tree().process_frame
 	init_step_finished.emit()
 
@@ -267,10 +269,10 @@ func _add_program_nodes() -> void:
 			continue
 		var node: Node = IVGlobal.program[key]
 		universe.add_child(node)
-	IVStateManager.set_core_initializer_step(IVStateManager.CoreInitializerStep.PROJECT_NODES_ADDED)
+	IVStateManager.project_nodes_added.emit()
 	await get_tree().process_frame
 	init_step_finished.emit()
 
 
 func _finish() -> void:
-	IVStateManager.set_core_initializer_step(IVStateManager.CoreInitializerStep.CORE_INITED)
+	IVStateManager.core_initializer_finished.emit()
