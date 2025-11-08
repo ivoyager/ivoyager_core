@@ -70,11 +70,11 @@ static func create(body_name: StringName, use_texture_slice := false,
 
 
 func _ready() -> void:
-	IVGlobal.simulator_started.connect(_on_sim_started)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
+	IVStateManager.simulator_started.connect(_on_sim_started)
+	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
 	set_default_cursor_shape(CURSOR_POINTING_HAND)
 	# This widget needs configuration after every tree build!
-	IVGlobal.system_tree_built_or_loaded.connect(_configure_for_system_tree)
+	IVStateManager.system_tree_built.connect(_configure_for_system_tree)
 	if IVStateManager.is_system_built:
 		_configure_for_system_tree()
 

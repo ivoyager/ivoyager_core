@@ -19,7 +19,7 @@
 # *****************************************************************************
 extends Node
 
-## Singleton "IVStateManager" maintains and exposes high-level simulator state.
+## Singleton [IVStateManager] maintains and exposes high-level simulator state.
 ##
 ## General simulator state signals are emitted via IVGlobal, with more specific
 ## emitted by this class. Much of simulator state can be queried via dictionary
@@ -37,7 +37,7 @@ extends Node
 ##   [code]is_quitting: bool[/code][br]
 ##   [code]is_game_loading: bool[/code] - via method call[br]
 ##   [code]is_loaded_game: bool[/code] - via method cal[br]
-##   [code]network_state: IVGlobal.NetworkState[/code] - if exists, NetworkLobby also writes[br][br]
+##   [code]network_state: NetworkState[/code] - if exists, NetworkLobby also writes[br][br]
 ##
 ## If IVCoreSettings.pause_only_stops_time == true, then PAUSE_MODE_PROCESS is
 ## set in Universe and TopGUI so IVCamera can still move, visuals work (some are
@@ -59,10 +59,46 @@ extends Node
 ## from another thread unless the function is guaranteed to be thread-safe. Most
 ## functions are NOT thread-safe![br][br]
 
+# FIXME: Non-splash screen dependencies on is_splash_screen. Keep that true
+# up until sim starts and when exiting.
+
+# FIXME: Remove IVTableSystemBuilder and any other ivoyager classes. Signal for
+# build.
 
 
+signal preinitializers_inited() # IVTableImporter; plugins!
+signal project_initializers_instantiated() # IVCoreInitializer; all initializers
+signal project_objects_instantiated() # IVCoreInitializer; IVGlobal.program populated
+signal project_nodes_added() # IVCoreInitializer; prog_nodes & gui_nodes added
+## Use this!!!
+signal core_inited() # IVCoreInitializer; 1 frame after above (splash screen showing)
 
 
+## Emitted after [IVAssetPreloader] has finished loading assets, after [signal core_inited].
+signal asset_preloader_finished()
+## Emitted before a new system tree build begins (new or loaded game).
+signal about_to_build_system_tree(is_new_game: bool)
+## Procedural [IVBody] and [IVSmallBodiesGroup] instances have been added for
+## new game or after load, but non-procedural "finish" nodes (models, rings,
+## lights, HUD elements, etc.) are still being added, possibly on thread.
+signal system_tree_built(is_new_game: bool)
+## The solar system is built and ready including "finish" nodes added on thread.
+signal system_tree_ready(is_new_game: bool)
+## Emitted 1 frame after [signal system_tree_ready].
+signal about_to_start_simulator(is_new_game: bool)
+signal simulator_started()
+## Emitted on exit, game load starting, and quit.
+signal about_to_free_procedural_nodes()
+signal about_to_stop_before_quit()
+signal about_to_quit()
+signal about_to_exit()
+signal simulator_exited()
+signal run_state_changed(is_running: bool) # is_system_built and !SceneTree.paused
+signal network_state_changed(network_state: NetworkState)
+
+# WIP Move from IVGlobal
+#signal pause_changed(is_paused: bool)
+#signal user_pause_changed(is_paused: bool) # ignores pause from sim stop
 
 
 signal state_changed()
@@ -74,14 +110,10 @@ signal threads_finished() # all blocking threads removed
 
 # TODO?: one signal server_state_changed()
 signal client_is_dropping_out(is_exit: bool)
-signal server_about_to_stop(network_sync_type: int) # IVGlobal.NetworkStopSync; server only
+signal server_about_to_stop(network_sync_type: int) # NetworkStopSync; server only
 signal server_about_to_run() # server only
 
 
-# FIXME: Should be INITIALIZERS_INSTANTIATED, PROGRAM_OBJECTS_INSTANTIATED,
-# PROGRAM_NODES_ADDED.
-# FIXME: PROJECT_INITED is deceptive name & redundant w/ PROJECT_OBJECTS_INSTANTIATED.
-# FIXME: Last step should be CORE_INITED.
 enum CoreInitializerStep {
 	PREINITIALIZERS_INITED,
 	PROJECT_INITIALIZERS_INSTANTIATED,
@@ -90,10 +122,24 @@ enum CoreInitializerStep {
 	CORE_INITED,
 }
 
-const NO_NETWORK = IVGlobal.NetworkState.NO_NETWORK
-const IS_SERVER = IVGlobal.NetworkState.IS_SERVER
-const IS_CLIENT = IVGlobal.NetworkState.IS_CLIENT
-const NetworkStopSync = IVGlobal.NetworkStopSync
+
+enum NetworkState {
+	NO_NETWORK,
+	IS_SERVER,
+	IS_CLIENT,
+}
+
+enum NetworkStopSync {
+	BUILD_SYSTEM,
+	SAVE,
+	LOAD,
+	NEW_PLAYER, # needs save to enter in-progress game
+	EXIT,
+	QUIT,
+	DONT_SYNC,
+}
+
+
 
 const DPRINT := false
 
@@ -117,7 +163,7 @@ var is_running := false # SceneTree.pause set in IVCoreInitializer
 var is_quitting := false
 var is_game_loading := false
 var is_loaded_game := false
-var network_state := NO_NETWORK
+var network_state := NetworkState.NO_NETWORK
 
 var allow_threads := false
 var blocking_threads := []
@@ -151,19 +197,19 @@ func _unhandled_key_input(event: InputEvent) -> void:
 func set_core_initializer_step(step: CoreInitializerStep) -> void:
 	match step:
 		CoreInitializerStep.PREINITIALIZERS_INITED:
-			IVGlobal.preinitializers_inited.emit()
+			preinitializers_inited.emit()
 			IVSettingsManager.init_caching()
 		CoreInitializerStep.PROJECT_INITIALIZERS_INSTANTIATED:
-			IVGlobal.project_initializers_instantiated.emit()
+			project_initializers_instantiated.emit()
 		CoreInitializerStep.PROJECT_OBJECTS_INSTANTIATED:
-			IVGlobal.project_objects_instantiated.emit()
+			project_objects_instantiated.emit()
 		CoreInitializerStep.PROJECT_NODES_ADDED:
-			IVGlobal.project_nodes_added.emit()
+			project_nodes_added.emit()
 		CoreInitializerStep.CORE_INITED:
 			is_core_inited = true
 			is_splash_screen = true
 			state_changed.emit()
-			IVGlobal.core_inited.emit()
+			core_inited.emit()
 
 
 ## IVAssetPreloader only.
@@ -171,7 +217,7 @@ func set_asset_preloader_finished() -> void:
 	is_assets_loaded = true
 	is_ok_to_start = true
 	state_changed.emit()
-	IVGlobal.asset_preloader_finished.emit()
+	asset_preloader_finished.emit()
 	if not IVCoreSettings.wait_for_start:
 		start()
 
@@ -184,7 +230,7 @@ func set_game_loading() -> void:
 	is_game_loading = true
 	is_loaded_game = true
 	state_changed.emit()
-	require_stop(self, IVGlobal.NetworkStopSync.BUILD_SYSTEM, true)
+	require_stop(self, NetworkStopSync.BUILD_SYSTEM, true)
 	_set_about_to_build_system_tree(false)
 
 
@@ -192,7 +238,7 @@ func set_game_loading() -> void:
 func set_game_loaded() -> void:
 	is_game_loading = false
 	state_changed.emit()
-	_set_system_tree_built_or_loaded(false)
+	_set_system_tree_built(false)
 
 
 
@@ -234,7 +280,7 @@ func signal_threads_finished() -> void:
 
 func change_pause(is_toggle := true, is_pause := true) -> void:
 	# Only allowed if running and not otherwise prohibited.
-	if network_state == IS_CLIENT:
+	if network_state == NetworkState.IS_CLIENT:
 		return
 	if !is_running or IVCoreSettings.disable_pause:
 		return
@@ -254,12 +300,12 @@ func require_stop(who: Object, network_sync_type := -1, bypass_checks := false) 
 	if !bypass_checks:
 		if !IVCoreSettings.popops_can_stop_sim and who is Popup:
 			return false
-		if network_state == IS_CLIENT:
+		if network_state == NetworkState.IS_CLIENT:
 			return false
-		elif network_state == IS_SERVER:
+		elif network_state == NetworkState.IS_SERVER:
 			if IVCoreSettings.limit_stops_in_multiplayer:
 				return false
-	if network_state == IS_SERVER:
+	if network_state == NetworkState.IS_SERVER:
 		if network_sync_type != NetworkStopSync.DONT_SYNC:
 			server_about_to_stop.emit(network_sync_type)
 	assert(!DPRINT or IVDebug.dprint("require_stop", who, network_sync_type))
@@ -276,7 +322,7 @@ func allow_run(who: Object) -> void:
 	_nodes_requiring_stop.erase(who)
 	if is_running or _nodes_requiring_stop:
 		return
-	if network_state == IS_SERVER:
+	if network_state == NetworkState.IS_SERVER:
 		server_about_to_run.emit()
 	_run_simulator()
 
@@ -288,11 +334,11 @@ func start() -> void:
 	is_ok_to_start = false
 	is_loaded_game = false
 	state_changed.emit()
-	require_stop(self, IVGlobal.NetworkStopSync.BUILD_SYSTEM, true)
+	require_stop(self, NetworkStopSync.BUILD_SYSTEM, true)
 	_set_about_to_build_system_tree(true)
 	var table_system_builder: IVTableSystemBuilder = IVGlobal.program[&"TableSystemBuilder"]
 	table_system_builder.build_system_tree()
-	_set_system_tree_built_or_loaded(true)
+	_set_system_tree_built(true)
 
 
 ## Exit to splash screen
@@ -301,13 +347,13 @@ func exit(force_exit := false, following_server := false) -> void:
 	if !is_system_ready or IVCoreSettings.disable_exit:
 		return
 	if !force_exit:
-		if network_state == IS_CLIENT:
+		if network_state == NetworkState.IS_CLIENT:
 			IVGlobal.confirmation_requested.emit("Disconnect from multiplayer game?", exit.bind(true))
 			return
 		elif IVPluginUtils.is_plugin_enabled("ivoyager_save"): # single player or network server
 			IVGlobal.confirmation_requested.emit(&"LABEL_EXIT_WITHOUT_SAVING", exit.bind(true))
 			return
-	if network_state == IS_CLIENT:
+	if network_state == NetworkState.IS_CLIENT:
 		if !following_server:
 			client_is_dropping_out.emit(true)
 	is_system_built = false
@@ -320,8 +366,8 @@ func exit(force_exit := false, following_server := false) -> void:
 	state_changed.emit()
 	require_stop(self, NetworkStopSync.EXIT, true)
 	await self.threads_finished
-	IVGlobal.about_to_exit.emit()
-	IVGlobal.about_to_free_procedural_nodes.emit()
+	about_to_exit.emit()
+	about_to_free_procedural_nodes.emit()
 	var universe: Node3D = IVGlobal.program.Universe
 	IVUtils.free_procedural_nodes_recursive(universe)
 	await _tree.process_frame
@@ -331,34 +377,34 @@ func exit(force_exit := false, following_server := false) -> void:
 	is_ok_to_start = true
 	is_user_paused = false
 	state_changed.emit()
-	IVGlobal.simulator_exited.emit()
+	simulator_exited.emit()
 
 
 func quit(force_quit := false) -> void:
 	if !(is_splash_screen or is_system_ready) or IVCoreSettings.disable_quit:
 		return
 	if !force_quit:
-		if network_state == IS_CLIENT:
+		if network_state == NetworkState.IS_CLIENT:
 			IVGlobal.confirmation_requested.emit("Disconnect from multiplayer game?", exit.bind(true))
 			return
 		elif IVPluginUtils.is_plugin_enabled("ivoyager_save") and !is_splash_screen:
 			IVGlobal.confirmation_requested.emit(&"LABEL_QUIT_WITHOUT_SAVING", quit.bind(true))
 			return
-	if network_state == IS_CLIENT:
+	if network_state == NetworkState.IS_CLIENT:
 		client_is_dropping_out.emit(false)
 	is_ok_to_start = false
 	is_quitting = true
 	state_changed.emit()
-	IVGlobal.about_to_stop_before_quit.emit()
+	about_to_stop_before_quit.emit()
 	require_stop(self, NetworkStopSync.QUIT, true)
 	await threads_finished
 	
 	# debugging leaked objects...
 	#IVDebug.register_all_objects(get_viewport())
 	
-	IVGlobal.about_to_quit.emit()
-	IVGlobal.about_to_free_procedural_nodes.emit()
-	var universe: Node3D = IVGlobal.program.Universe
+	about_to_quit.emit()
+	about_to_free_procedural_nodes.emit()
+	var universe: Node3D = IVGlobal.program[&"Universe"]
 	IVUtils.free_procedural_nodes_recursive(universe)
 	await _tree.process_frame
 	assert(IVDebug.dprint_orphan_nodes())
@@ -376,13 +422,13 @@ func _set_about_to_build_system_tree(is_new_game: bool) -> void:
 	is_splash_screen = false
 	is_building_tree = true
 	state_changed.emit()
-	IVGlobal.about_to_build_system_tree.emit(is_new_game)
+	about_to_build_system_tree.emit(is_new_game)
 
 
-func _set_system_tree_built_or_loaded(is_new_game: bool) -> void:
+func _set_system_tree_built(is_new_game: bool) -> void:
 	is_system_built = true
 	state_changed.emit()
-	IVGlobal.system_tree_built_or_loaded.emit(is_new_game)
+	system_tree_built.emit(is_new_game)
 
 
 func _set_system_tree_ready(is_new_game: bool) -> void:
@@ -390,13 +436,12 @@ func _set_system_tree_ready(is_new_game: bool) -> void:
 	is_game_loading = false
 	is_system_ready = true
 	state_changed.emit()
-	IVGlobal.system_tree_ready.emit(is_new_game)
+	system_tree_ready.emit(is_new_game)
 	print("System tree ready...")
-	
 	await _tree.process_frame
 	is_started_or_about_to_start = true
 	state_changed.emit()
-	IVGlobal.about_to_start_simulator.emit(is_new_game)
+	about_to_start_simulator.emit(is_new_game)
 	IVGlobal.close_all_admin_popups_requested.emit() # main menu possible
 	await _tree.process_frame
 	allow_run(self)
@@ -405,7 +450,7 @@ func _set_system_tree_ready(is_new_game: bool) -> void:
 	await _tree.process_frame
 	is_started = true
 	state_changed.emit()
-	IVGlobal.simulator_started.emit()
+	simulator_started.emit()
 	if !is_new_game and IVSettingsManager.get_setting(&"pause_on_load"):
 		is_user_paused = true
 
@@ -420,7 +465,7 @@ func _stop_simulator() -> void:
 	is_running = false
 	_tree.paused = true
 	state_changed.emit()
-	IVGlobal.run_state_changed.emit(false)
+	run_state_changed.emit(false)
 
 
 func _run_simulator() -> void:
@@ -428,7 +473,7 @@ func _run_simulator() -> void:
 	is_running = true
 	_tree.paused = is_user_paused
 	state_changed.emit()
-	IVGlobal.run_state_changed.emit(true)
+	run_state_changed.emit(true)
 	assert(!DPRINT or IVDebug.dprint("signal run_threads_allowed"))
 	allow_threads = true
 	run_threads_allowed.emit()

@@ -55,8 +55,8 @@ func _ready() -> void:
 	anchor_right = 1.0
 	anchor_bottom = 1.0
 	theme = IVThemeManager.get_main_theme()
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
-	IVGlobal.about_to_build_system_tree.connect(_add_selection_manager)
+	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
+	IVStateManager.about_to_build_system_tree.connect(_add_selection_manager)
 	if IVCoreSettings.pause_only_stops_time:
 		process_mode = PROCESS_MODE_ALWAYS
 

@@ -102,13 +102,13 @@ func _ready() -> void:
 		_timer.ignore_time_scale = update_ignore_time_scale
 	IVGlobal.update_gui_requested.connect(_update_selection)
 	IVSettingsManager.changed.connect(_settings_listener)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
+	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
 	_arrange_child_controls()
 	if IVStateManager.is_core_inited:
 		_configure_after_core_inited()
 	else:
-		IVGlobal.core_inited.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
-	IVGlobal.system_tree_ready.connect(_connect_selection_manager)
+		IVStateManager.core_inited.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
+	IVStateManager.system_tree_ready.connect(_connect_selection_manager)
 	_connect_selection_manager()
 
 

@@ -23,7 +23,7 @@ extends RichTextLabel
 ## RichTextLabel widget that displays the selection name as a wiki link.
 ##
 ## Expects an ancestor Control with property [param selection_manager] set
-## before [signal IVGlobal.system_tree_ready].[br][br]
+## before [signal IVStateManager.system_tree_ready].[br][br]
 ##
 ## This widget attempts to display the current selection as a wiki link
 ## with underline. It will display non-underlined plain text if any of these
@@ -37,17 +37,17 @@ var _selection_manager: IVSelectionManager
 
 
 func _ready() -> void:
-	IVGlobal.about_to_start_simulator.connect(_connect_selection_manager)
+	IVStateManager.about_to_start_simulator.connect(_connect_selection_manager)
 	if IVStateManager.is_started_or_about_to_start:
 		_connect_selection_manager()
 	IVGlobal.update_gui_requested.connect(_update_selection)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
+	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
 	meta_clicked.connect(_on_meta_clicked)
 	if IVStateManager.is_core_inited:
 		_configure_after_core_inited()
 	else:
-		IVGlobal.core_inited.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
-	IVGlobal.system_tree_ready.connect(_connect_selection_manager)
+		IVStateManager.core_inited.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
+	IVStateManager.system_tree_ready.connect(_connect_selection_manager)
 	_connect_selection_manager()
 
 

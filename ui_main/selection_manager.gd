@@ -34,8 +34,8 @@ extends Node
 ## on how it is used in the scene tree. If it is child of a persist node,
 ## it will be be persisted. In either case, all IVSelectionManager references
 ## must be cleared (and nodes freed) on [signal
-## IVGlobal.about_to_free_procedural_nodes]. They can be set on or after
-## [signal IVGlobal.system_tree_built_or_loaded].
+## IVStateManager.about_to_free_procedural_nodes]. They can be set on or after
+## [signal IVStateManager.system_tree_built].
 
 signal selection_changed(suppress_camera_move: bool)
 signal selection_reselected(suppress_camera_move: bool)
@@ -144,8 +144,8 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	IVGlobal.system_tree_ready.connect(_on_system_tree_ready)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
+	IVStateManager.system_tree_ready.connect(_on_system_tree_ready)
+	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
 	set_process_unhandled_key_input(is_action_listener)
 
 

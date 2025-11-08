@@ -24,8 +24,8 @@ extends RefCounted
 ## specification in data tables.
 ##
 ## In typical setup, loading will commence right after splash screen is shown,
-## on [signal IVGlobal.core_inited]. When finished, emits [signal
-## IVGlobal.asset_preloader_finished].
+## on [signal IVStateManager.core_inited]. When finished, emits [signal
+## IVStateManager.asset_preloader_finished].
 
 const files := preload("res://addons/ivoyager_core/static/files.gd")
 const RINGS_LOD_LEVELS := 9 # must agree w/ assets, body.gd and rings.shader
@@ -67,7 +67,7 @@ var _rings_resources: Dictionary[String, Array] = {}
 
 
 func _init() -> void:
-	IVGlobal.core_inited.connect(_on_project_builder_finished)
+	IVStateManager.core_inited.connect(_on_project_builder_finished)
 
 
 

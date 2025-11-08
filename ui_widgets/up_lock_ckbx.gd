@@ -29,7 +29,7 @@ var _camera: IVCamera
 
 func _ready() -> void:
 	pressed.connect(_on_pressed)
-	IVGlobal.about_to_free_procedural_nodes.connect(_disconnect_camera)
+	IVStateManager.about_to_free_procedural_nodes.connect(_disconnect_camera)
 	# TODO: IVWidgets.connect_camera(self, &"_camera", [&"up_lock_changed", _update_ckbx])
 	IVGlobal.camera_ready.connect(_connect_camera)
 	_connect_camera(get_viewport().get_camera_3d() as IVCamera)

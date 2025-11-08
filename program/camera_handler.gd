@@ -95,8 +95,8 @@ var _rotate_pressed := Vector3.ZERO
 
 
 func _ready() -> void:
-	IVGlobal.system_tree_ready.connect(_on_system_tree_ready)
-	IVGlobal.about_to_free_procedural_nodes.connect(_restore_init_state)
+	IVStateManager.system_tree_ready.connect(_on_system_tree_ready)
+	IVStateManager.about_to_free_procedural_nodes.connect(_restore_init_state)
 	IVGlobal.camera_ready.connect(_connect_camera)
 	IVGlobal.viewport_size_changed.connect(_on_viewport_size_changed)
 	IVSettingsManager.changed.connect(_settings_listener)

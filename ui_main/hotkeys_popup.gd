@@ -135,7 +135,7 @@ func _ready() -> void:
 	if IVStateManager.is_core_inited:
 		_configure_after_core_inited()
 	else:
-		IVGlobal.core_inited.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
+		IVStateManager.core_inited.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
 
 
 func _unhandled_key_input(event: InputEvent) -> void:

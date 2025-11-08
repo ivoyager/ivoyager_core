@@ -42,7 +42,7 @@ var _suppress_resize := false
 
 
 func _init() -> void:
-	IVGlobal.about_to_quit.connect(_on_about_to_quit)
+	IVStateManager.about_to_quit.connect(_on_about_to_quit)
 
 
 func add_control(control: Control) -> void:

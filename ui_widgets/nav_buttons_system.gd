@@ -64,8 +64,8 @@ var _is_built := false
 
 
 func _ready() -> void:
-	IVGlobal.system_tree_ready.connect(_build)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
+	IVStateManager.system_tree_ready.connect(_build)
+	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
 	resized.connect(_resize)
 	_build()
 

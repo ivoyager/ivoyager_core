@@ -270,7 +270,7 @@ var actions_by_scancode_w_mods: Dictionary[int, StringName]= {}
 func _init() -> void:
 	cache_handler = IVCacheHandler.new(defaults, current, file_name, file_version)
 	cache_handler.current_changed.connect(_reset_scancodes_and_input_map)
-	IVGlobal.project_objects_instantiated.connect(_init_actions)
+	IVStateManager.project_objects_instantiated.connect(_init_actions)
 
 
 # *****************************************************************************

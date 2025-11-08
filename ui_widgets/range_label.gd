@@ -29,7 +29,7 @@ var _camera: IVCamera
 
 func _ready() -> void:
 	IVGlobal.camera_ready.connect(_connect_camera)
-	IVGlobal.about_to_free_procedural_nodes.connect(_disconnect_camera)
+	IVStateManager.about_to_free_procedural_nodes.connect(_disconnect_camera)
 	_connect_camera(get_viewport().get_camera_3d() as IVCamera) # null ok
 
 

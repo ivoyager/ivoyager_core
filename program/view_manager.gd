@@ -44,9 +44,9 @@ var _missing_or_bad_cache_file := true
 
 
 func _init() -> void:
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
-	IVGlobal.project_objects_instantiated.connect(_on_project_objects_instantiated)
-	IVGlobal.about_to_start_simulator.connect(_on_about_to_start_simulator)
+	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
+	IVStateManager.project_objects_instantiated.connect(_on_project_objects_instantiated)
+	IVStateManager.about_to_start_simulator.connect(_on_about_to_start_simulator)
 
 
 

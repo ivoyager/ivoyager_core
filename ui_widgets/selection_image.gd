@@ -24,7 +24,7 @@ extends TextureRect
 ## a button for "re-selection" (re-centers the selection).
 ##
 ## Expects an ancestor Control with property [param selection_manager] set
-## before [signal IVGlobal.system_tree_ready].
+## before [signal IVStateManager.system_tree_ready].
 ##
 ## FIXME: Needs focus state display. Make this an image in a Button like [IVNavButton].
 
@@ -35,8 +35,8 @@ var _selection_manager: IVSelectionManager
 func _ready() -> void:
 	set_default_cursor_shape(CURSOR_POINTING_HAND)
 	IVGlobal.update_gui_requested.connect(_update_selection)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
-	IVGlobal.system_tree_ready.connect(_connect_selection_manager)
+	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
+	IVStateManager.system_tree_ready.connect(_connect_selection_manager)
 	_connect_selection_manager()
 
 

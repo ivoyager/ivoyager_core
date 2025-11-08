@@ -425,8 +425,8 @@ func _ready() -> void:
 	# Happens once only, but could be during or after whole system build.
 	const GALAXY_ORBITER := BodyFlags.BODYFLAGS_GALAXY_ORBITER
 	process_mode = PROCESS_MODE_ALWAYS # time will stop, but allows mouseover interaction
-	IVGlobal.system_tree_built_or_loaded.connect(_on_system_tree_built_or_loaded, CONNECT_ONE_SHOT)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural, CONNECT_ONE_SHOT)
+	IVStateManager.system_tree_built.connect(_on_system_tree_built, CONNECT_ONE_SHOT)
+	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural, CONNECT_ONE_SHOT)
 	IVSettingsManager.changed.connect(_settings_listener)
 	assert(!bodies.has(name))
 	bodies[name] = self
@@ -1091,7 +1091,7 @@ func _clear_procedural() -> void:
 	galaxy_orbiters.clear()
 
 
-func _on_system_tree_built_or_loaded(is_new_game: bool) -> void:
+func _on_system_tree_built(is_new_game: bool) -> void:
 	const TIDALLY_LOCKED := BodyFlags.BODYFLAGS_TIDALLY_LOCKED
 	if !is_new_game:
 		return

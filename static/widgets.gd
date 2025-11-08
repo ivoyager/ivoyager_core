@@ -51,7 +51,7 @@ static func _connect_camera(camera3d: Camera3D, widget: Control, property: Strin
 		var camera_signal: StringName = connection_pairs[i]
 		var callable: Callable = connection_pairs[i + 1]
 		camera.connect(camera_signal, callable)
-	IVGlobal.about_to_free_procedural_nodes.connect(_disconnect_camera.bind(camera,
+	IVStateManager.about_to_free_procedural_nodes.connect(_disconnect_camera.bind(camera,
 			widget, property, connection_pairs))
 
 

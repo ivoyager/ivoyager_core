@@ -22,7 +22,8 @@ extends RefCounted
 
 ## Initializes tables using the ivoyager_tables plugin.
 ##
-## Static table parameters can be modified on signal IVGlobal.about_to_run_initializers.
+## FIXME: Static table parameters can be modified on [signal
+## IVStateManager.about_to_run_initializers].
 ##
 ## Alternatively, parameters can be modified by intercepting this object on signal
 ## IVGlobal.project_object_instantiated(object: Object).
@@ -70,7 +71,7 @@ static var merge_overwrite_missing_values: Dictionary[int, Variant] = {} # use i
 
 
 func _init() -> void:
-	IVGlobal.project_initializers_instantiated.connect(_on_project_initializers_instantiated)
+	IVStateManager.project_initializers_instantiated.connect(_on_project_initializers_instantiated)
 
 
 func _on_project_initializers_instantiated() -> void:
@@ -86,7 +87,7 @@ func _on_project_initializers_instantiated() -> void:
 	
 	# signal done
 	IVGlobal.data_tables_imported.emit()
-	IVGlobal.project_objects_instantiated.connect(_remove_self)
+	IVStateManager.project_objects_instantiated.connect(_remove_self)
 
 
 func _remove_self() -> void:

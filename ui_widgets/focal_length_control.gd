@@ -40,7 +40,7 @@ var _camera: IVCamera
 
 func _ready() -> void:
 	IVGlobal.camera_ready.connect(_set_camera)
-	IVGlobal.about_to_free_procedural_nodes.connect(_free_procedural)
+	IVStateManager.about_to_free_procedural_nodes.connect(_free_procedural)
 	IVGlobal.camera_fov_changed.connect(_on_camera_fov_changed)
 	_spinbox.value_changed.connect(_on_spinbox_value_changed)
 	_minus.pressed.connect(_do_big_step.bind(false))

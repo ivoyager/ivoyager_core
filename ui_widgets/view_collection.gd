@@ -88,7 +88,7 @@ func _ready() -> void:
 	if IVStateManager.is_core_inited:
 		_configure_after_core_inited()
 	else:
-		IVGlobal.core_inited.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
+		IVStateManager.core_inited.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
 
 
 ## Adds a non-default, user-added view button (is_cached or saved).
@@ -135,10 +135,10 @@ func _configure_after_core_inited() -> void:
 	_view_edit.saved_edit.connect(_on_edit_saved_edit)
 	_view_edit.restored_default.connect(_on_edit_restored_default)
 	_view_edit.deleted.connect(_on_edit_deleted)
-	IVGlobal.about_to_free_procedural_nodes.connect(_reset_buttons)
+	IVStateManager.about_to_free_procedural_nodes.connect(_reset_buttons)
 	
 	# TODO: TEST below now (on core_inited)
-	IVGlobal.about_to_start_simulator.connect(_configure_buttons)
+	IVStateManager.about_to_start_simulator.connect(_configure_buttons)
 	if IVStateManager.is_started_or_about_to_start:
 		_configure_buttons()
 

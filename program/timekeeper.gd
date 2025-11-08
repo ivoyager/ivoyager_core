@@ -60,14 +60,14 @@ enum { # date_format; first three are alwyas Year, Month, Day
 }
 
 
+const NetworkState = IVStateManager.NetworkState
+
 const SECOND := IVUnits.SECOND # sim_time conversion
 const MINUTE := IVUnits.MINUTE
 const HOUR := IVUnits.HOUR
 const DAY := IVUnits.DAY
 const J2000_JDN := 2451545 # Julian Day Number (JDN) of J2000 epoch time
-const NO_NETWORK := IVGlobal.NetworkState.NO_NETWORK
-const IS_SERVER := IVGlobal.NetworkState.IS_SERVER
-const IS_CLIENT := IVGlobal.NetworkState.IS_CLIENT
+
 
 const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY
 const PERSIST_PROPERTIES: Array[StringName] = [
@@ -134,7 +134,7 @@ var speed_symbol: StringName
 var _allow_time_setting := IVCoreSettings.allow_time_setting
 var _allow_time_reversal := IVCoreSettings.allow_time_reversal
 #var _disable_pause: bool = IVCoreSettings.disable_pause
-var _network_state := NO_NETWORK
+var _network_state := NetworkState.NO_NETWORK
 var _is_sync := false
 #var _sync_engine_time := -INF
 #var _adj_sync_tolerance := 0.0
@@ -236,7 +236,7 @@ static func set_clock_array(fractional_day: float, clock_array: Array[int]) -> v
 
 
 func _init() -> void:
-	IVGlobal.project_objects_instantiated.connect(_on_project_objects_instantiated)
+	IVStateManager.project_objects_instantiated.connect(_on_project_objects_instantiated)
 
 
 func _ready() -> void:
@@ -363,7 +363,7 @@ func get_current_date_for_file() -> String:
 func set_time(new_time: float) -> void:
 	if !_allow_time_setting:
 		return
-	if _network_state == IS_CLIENT:
+	if _network_state == NetworkState.IS_CLIENT:
 		return
 	var previous_time := time
 	time = new_time
@@ -375,7 +375,7 @@ func set_time(new_time: float) -> void:
 func set_now_from_operating_system() -> void:
 	if !_allow_time_setting:
 		return
-	if _network_state == IS_CLIENT:
+	if _network_state == NetworkState.IS_CLIENT:
 		return
 	if !is_now:
 		set_time_reversed(false)
@@ -391,7 +391,7 @@ func set_now_from_operating_system() -> void:
 func set_time_reversed(new_is_reversed: bool) -> void:
 	if !_allow_time_setting or !_allow_time_reversal or is_reversed == new_is_reversed:
 		return
-	if _network_state == IS_CLIENT:
+	if _network_state == NetworkState.IS_CLIENT:
 		return
 	is_reversed = new_is_reversed
 	speed_multiplier *= -1.0
@@ -400,7 +400,7 @@ func set_time_reversed(new_is_reversed: bool) -> void:
 
 
 func change_speed(delta_index: int, new_index := -1) -> void:
-	if _network_state == IS_CLIENT:
+	if _network_state == NetworkState.IS_CLIENT:
 		return
 	# Supply [0, new_index] to set a specific index
 	if new_index == -1:
@@ -418,13 +418,13 @@ func change_speed(delta_index: int, new_index := -1) -> void:
 
 
 func can_increment_speed() -> bool:
-	if _network_state == IS_CLIENT:
+	if _network_state == NetworkState.IS_CLIENT:
 		return false
 	return speed_index < speeds.size() - 1
 
 
 func can_decrement_speed() -> bool:
-	if _network_state == IS_CLIENT:
+	if _network_state == NetworkState.IS_CLIENT:
 		return false
 	return speed_index > 0
 
@@ -433,12 +433,12 @@ func can_decrement_speed() -> bool:
 
 
 func _on_project_objects_instantiated() -> void:
-	IVGlobal.about_to_start_simulator.connect(_on_about_to_start_simulator)
-	IVGlobal.about_to_free_procedural_nodes.connect(_set_init_state)
-	IVGlobal.system_tree_ready.connect(_set_ready_state)
-	IVGlobal.simulator_exited.connect(_set_ready_state)
-	IVGlobal.network_state_changed.connect(_on_network_state_changed)
-	IVGlobal.run_state_changed.connect(_on_run_state_changed) # starts/stops
+	IVStateManager.about_to_start_simulator.connect(_on_about_to_start_simulator)
+	IVStateManager.about_to_free_procedural_nodes.connect(_set_init_state)
+	IVStateManager.system_tree_ready.connect(_set_ready_state)
+	IVStateManager.simulator_exited.connect(_set_ready_state)
+	IVStateManager.network_state_changed.connect(_on_network_state_changed)
+	IVStateManager.run_state_changed.connect(_on_run_state_changed) # starts/stops
 	IVGlobal.user_pause_changed.connect(_on_user_pause_changed)
 	IVGlobal.update_gui_requested.connect(_refresh_gui)
 	speed_changed.connect(_on_speed_changed)
@@ -514,12 +514,12 @@ func _on_run_state_changed(is_running: bool) -> void:
 		set_now_from_operating_system()
 
 
-func _on_network_state_changed(network_state: IVGlobal.NetworkState) -> void:
+func _on_network_state_changed(network_state: NetworkState) -> void:
 	_network_state = network_state
 
 
 func _on_speed_changed() -> void:
-	if _network_state != IS_SERVER:
+	if _network_state != NetworkState.IS_SERVER:
 		return
 #	rpc("_speed_changed_sync", speed_index, is_reversed, show_clock,
 #			show_seconds, is_now)

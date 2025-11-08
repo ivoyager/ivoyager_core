@@ -61,7 +61,7 @@ func _ready() -> void:
 	if !_save_singleton:
 		return
 
-	IVGlobal.simulator_started.connect(_start_autosave_timer)
+	IVStateManager.simulator_started.connect(_start_autosave_timer)
 	IVSettingsManager.changed.connect(_settings_listener)
 	@warning_ignore("unsafe_call_argument", "unsafe_property_access")
 	IVGlobal.close_all_admin_popups_requested.connect(_save_singleton.close_dialogs)
@@ -115,7 +115,7 @@ func _suffix_generator() -> String:
 
 
 func _save_permit() -> bool:
-	const IS_CLIENT = IVGlobal.NetworkState.IS_CLIENT
+	const IS_CLIENT = IVStateManager.NetworkState.IS_CLIENT
 	if not IVStateManager.is_system_built:
 		return false
 	if IVStateManager.network_state == IS_CLIENT:
@@ -124,7 +124,7 @@ func _save_permit() -> bool:
 
 
 func _load_permit() -> bool:
-	const IS_CLIENT = IVGlobal.NetworkState.IS_CLIENT
+	const IS_CLIENT = IVStateManager.NetworkState.IS_CLIENT
 	if not (IVStateManager.is_splash_screen or IVStateManager.is_system_built):
 		return false
 	if IVStateManager.network_state == IS_CLIENT:
@@ -133,7 +133,7 @@ func _load_permit() -> bool:
 
 
 func _save_checkpoint() -> bool:
-	const SAVE = IVGlobal.NetworkStopSync.SAVE
+	const SAVE = IVStateManager.NetworkStopSync.SAVE
 	if !_save_permit():
 		return false
 	IVStateManager.require_stop(self, SAVE, true)
@@ -142,7 +142,7 @@ func _save_checkpoint() -> bool:
 
 
 func _load_checkpoint() -> bool:
-	const LOAD = IVGlobal.NetworkStopSync.LOAD
+	const LOAD = IVStateManager.NetworkStopSync.LOAD
 	if !_load_permit():
 		return false
 	IVStateManager.require_stop(self, LOAD, true)
@@ -163,7 +163,7 @@ func _on_load_started() -> void:
 
 
 func _on_about_to_free_procedural_nodes() -> void:
-	IVGlobal.about_to_free_procedural_nodes.emit()
+	IVStateManager.about_to_free_procedural_nodes.emit()
 
 
 func _on_about_to_build_procedural_tree_for_load() -> void:
@@ -175,7 +175,7 @@ func _on_load_finished() -> void:
 	if !OS.is_debug_build():
 		return
 	_warn_version_mismatch()
-	IVGlobal.simulator_started.connect(_print_node_count, CONNECT_ONE_SHOT)
+	IVStateManager.simulator_started.connect(_print_node_count, CONNECT_ONE_SHOT)
 
 
 func _warn_version_mismatch() -> void:

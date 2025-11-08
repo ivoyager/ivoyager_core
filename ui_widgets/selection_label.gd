@@ -23,15 +23,15 @@ extends Label
 ## Label widget that displays the selection name as plain text.
 ##
 ## Expects an ancestor Control with property [param selection_manager] set
-## before [signal IVGlobal.system_tree_ready].
+## before [signal IVStateManager.system_tree_ready].
 
 var _selection_manager: IVSelectionManager
 
 
 func _ready() -> void:
 	IVGlobal.update_gui_requested.connect(_update_selection)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
-	IVGlobal.system_tree_ready.connect(_connect_selection_manager)
+	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
+	IVStateManager.system_tree_ready.connect(_connect_selection_manager)
 	_connect_selection_manager()
 
 

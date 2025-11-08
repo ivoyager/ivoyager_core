@@ -34,7 +34,7 @@ extends Object
 ## [/codeblock]
 ##
 ## A debug log is opened only in debug builds. It is flushed on
-## [signal IVGlobal.run_state_changed], which happens whenever the sim stops
+## [signal IVStateManager.run_state_changed], which happens whenever the sim stops
 ## for a popup (e.g., on [param esc] for the main menu) and closed when project
 ## autoloads exit the tree. To prevent log file opening, set
 ## [member dlog_name] = ""[br][br]
@@ -59,7 +59,7 @@ static func _static_init() -> void:
 		return
 	_dlog = FileAccess.open(log_directory.path_join(dlog_name), FileAccess.WRITE)
 	assert(_dlog, "Failed to open %s" % log_directory.path_join(dlog_name))
-	IVGlobal.run_state_changed.connect(_dlog_flush) # e.g., main menu opened/closed
+	#IVStateManager.run_state_changed.connect(_dlog_flush) # e.g., main menu opened/closed
 	IVGlobal.tree_exited.connect(_dlog_destroy)
 
 

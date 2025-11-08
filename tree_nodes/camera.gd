@@ -177,9 +177,9 @@ var _transfer_time: float = IVSettingsManager.get_setting(&"camera_transfer_time
 
 func _ready() -> void:
 	name = &"IVCamera"
-	IVGlobal.system_tree_ready.connect(_on_system_tree_ready, CONNECT_ONE_SHOT)
-	IVGlobal.simulator_started.connect(_on_simulator_started, CONNECT_ONE_SHOT)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural, CONNECT_ONE_SHOT)
+	IVStateManager.system_tree_ready.connect(_on_system_tree_ready, CONNECT_ONE_SHOT)
+	IVStateManager.simulator_started.connect(_on_simulator_started, CONNECT_ONE_SHOT)
+	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural, CONNECT_ONE_SHOT)
 	IVGlobal.update_gui_requested.connect(_send_gui_refresh)
 	IVGlobal.move_camera_requested.connect(move_to)
 	IVSettingsManager.changed.connect(_settings_listener)

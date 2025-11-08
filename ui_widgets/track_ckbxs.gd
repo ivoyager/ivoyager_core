@@ -33,7 +33,7 @@ var _camera: IVCamera
 
 
 func _ready() -> void:
-	IVGlobal.about_to_free_procedural_nodes.connect(_disconnect_camera)
+	IVStateManager.about_to_free_procedural_nodes.connect(_disconnect_camera)
 	
 	# FIXME: ButtonGroup is redundant with our button logic, but it also
 	# changes styling. Can we do the styling without the group?

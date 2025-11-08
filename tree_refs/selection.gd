@@ -90,8 +90,8 @@ static func create_for_body(body: IVBody) -> IVSelection:
 
 
 func _init() -> void:
-	IVGlobal.system_tree_ready.connect(_init_after_system, CONNECT_ONE_SHOT)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
+	IVStateManager.system_tree_ready.connect(_init_after_system, CONNECT_ONE_SHOT)
+	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
 
 
 
@@ -218,8 +218,8 @@ func _init_after_system(_dummy: bool) -> void:
 
 
 func _clear_procedural() -> void:
-	if IVGlobal.system_tree_ready.is_connected(_init_after_system):
-		IVGlobal.system_tree_ready.disconnect(_init_after_system)
+	if IVStateManager.system_tree_ready.is_connected(_init_after_system):
+		IVStateManager.system_tree_ready.disconnect(_init_after_system)
 	spatial = null
 	body = null
 	selections.clear()

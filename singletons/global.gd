@@ -28,48 +28,15 @@ extends Node
 # messes up static class dependencies on this global.
 
 
-
-
-# REMOVE: Moved implementation to IVSettingsManager!!!!
-signal preinitializers_inited() # IVTableImporter; plugins!
-signal about_to_run_initializers() # IVCoreInitializer; after plugin preinitializers
 signal project_object_instantiated(object: Object) # IVCoreInitializer; each object in that file
 signal translations_imported() # IVTranslationImporter; useful for boot screen
 signal data_tables_imported() # IVTableInitializer
-signal project_initializers_instantiated() # IVCoreInitializer; all initializers
-signal project_objects_instantiated() # IVCoreInitializer; IVGlobal.program populated
-signal project_nodes_added() # IVCoreInitializer; prog_nodes & gui_nodes added
-## Use this!!!
-signal core_inited() # IVCoreInitializer; 1 frame after above (splash screen showing)
-## Emitted after [IVAssetPreloader] has finished loading assets, after [signal core_inited].
-signal asset_preloader_finished()
-## Emitted before a new system tree build begins (new or loaded game).
-signal about_to_build_system_tree(is_new_game: bool)
-## TODO: Remove "_or_loaded" w/ move to IVStateManager.
-## Procedural [IVBody] and [IVSmallBodiesGroup] instances have been added for
-## new game or after load, but non-procedural "finish" nodes (models, rings,
-## lights, HUD elements, etc.) are still being added, possibly on thread.
-signal system_tree_built_or_loaded(is_new_game: bool)
-## The solar system is built and ready including "finish" nodes added on thread.
-signal system_tree_ready(is_new_game: bool)
-## Emitted 1 frame after [signal system_tree_ready].
-signal about_to_start_simulator(is_new_game: bool)
-signal simulator_started()
+
+
+
+# FIXME: Move to IVStateManager
 signal pause_changed(is_paused: bool)
 signal user_pause_changed(is_paused: bool) # ignores pause from sim stop
-signal about_to_free_procedural_nodes() # on exit, game load starting, and quit
-signal about_to_stop_before_quit()
-signal about_to_quit()
-signal about_to_exit()
-signal simulator_exited()
-signal run_state_changed(is_running: bool) # is_system_built and !SceneTree.paused
-signal network_state_changed(network_state: bool) # IVGlobal.NetworkState
-
-
-# REMOVE: Moved implementation to IVSettingsManager!!!!
-signal setting_changed(setting: StringName, value: Variant)
-
-
 
 
 
@@ -122,21 +89,6 @@ enum Confidence {
 	CONFIDENCE_YES,
 }
 
-enum NetworkState {
-	NO_NETWORK,
-	IS_SERVER,
-	IS_CLIENT,
-}
-
-enum NetworkStopSync {
-	BUILD_SYSTEM,
-	SAVE,
-	LOAD,
-	NEW_PLAYER, # needs save to enter in-progress game
-	EXIT,
-	QUIT,
-	DONT_SYNC,
-}
 
 ## Shadow masking for semi-transparent shadows (from Saturn Rings).
 enum ShadowMask {
@@ -172,9 +124,6 @@ const PERSIST_PROPERTIES_ONLY := PersistMode.PERSIST_PROPERTIES_ONLY
 ## Persist mode for the ivoyager_save plugin. Safe to use if plugin is not present.
 const PERSIST_PROCEDURAL := PersistMode.PERSIST_PROCEDURAL
 
-
-# REMOVE: Moved implementation to IVSettingsManager!!!!
-var settings: Dictionary[StringName, Variant] = {}
 
 
 ## Maintained by [IVTimekeeper]. Holds [time (s, J2000), engine_time (s), solar_day (d)]

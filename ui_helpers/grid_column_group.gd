@@ -40,7 +40,7 @@ var _control_columns: Dictionary[Control, int] = {}
 
 
 func _init() -> void:
-	IVGlobal.about_to_quit.connect(_on_about_to_quit)
+	IVStateManager.about_to_quit.connect(_on_about_to_quit)
 
 
 func add_grid_container(grid: GridContainer) -> void:

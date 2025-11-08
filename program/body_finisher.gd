@@ -49,7 +49,7 @@ var _use_threads: bool
 
 
 func _init() -> void:
-	IVGlobal.core_inited.connect(_on_project_builder_finished)
+	IVStateManager.core_inited.connect(_on_project_builder_finished)
 	_tree = IVGlobal.get_tree()
 	_tree.node_added.connect(_on_node_added)
 
