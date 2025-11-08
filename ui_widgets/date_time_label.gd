@@ -74,7 +74,7 @@ func _process(_delta: float) -> void:
 			new_text += clock_hm_format % _hm
 	
 	new_text += time_zone_suffix
-	if show_pause and IVStateManager.is_user_paused:
+	if show_pause and IVStateManager.is_user_pause:
 		new_text += " " + tr(&"LABEL_PAUSED")
 	text = new_text
 

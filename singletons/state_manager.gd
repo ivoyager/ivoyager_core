@@ -96,10 +96,9 @@ signal simulator_exited()
 signal run_state_changed(is_running: bool) # is_system_built and !SceneTree.paused
 signal network_state_changed(network_state: NetworkState)
 
-# WIP Move from IVGlobal
-#signal pause_changed(is_paused: bool)
-#signal user_pause_changed(is_paused: bool) # ignores pause from sim stop
 
+# WIP
+signal paused_changed(is_engine_paused: bool, is_user_pause: bool)
 
 signal state_changed()
 
@@ -145,7 +144,12 @@ const DPRINT := false
 
 
 # read-only!
-var is_user_paused := false # ignores pause from sim stop
+
+var is_engine_paused := true
+
+
+# TODO: Persist, maybe in IVSaveManager...
+var is_user_pause := false # ignores pause from sim stop
 
 
 var is_core_inited := false
@@ -185,13 +189,15 @@ func _ready() -> void:
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"toggle_pause"):
-		change_pause()
+		change_user_pause()
 	elif event.is_action_pressed(&"quit"):
 		quit(false)
 	else:
 		return
 	get_window().set_input_as_handled()
 
+
+# TODO: Hide some privlaged API away in an IVStateAccess
 
 ## IVCoreInitializer only.
 func set_core_initializer_step(step: CoreInitializerStep) -> void:
@@ -241,6 +247,13 @@ func set_game_loaded() -> void:
 	_set_system_tree_built(false)
 
 
+## IVTimekeeper only.
+func timekeeper_set_paused(engine_paused: bool) -> void:
+	if is_engine_paused == engine_paused:
+		return
+	is_engine_paused = engine_paused
+	paused_changed.emit(is_engine_paused, is_user_pause)
+
 
 func increment_tree_building_counter(_item: Node) -> void:
 	_tree_build_counter += 1
@@ -278,15 +291,21 @@ func signal_threads_finished() -> void:
 		remove_blocking_thread(null)
 
 
-func change_pause(is_toggle := true, is_pause := true) -> void:
+## Toggle or set user pause. If [param toggle] is true (default) the second
+## arg is ignored.
+func change_user_pause(toggle := true, pause := true) -> void:
 	# Only allowed if running and not otherwise prohibited.
 	if network_state == NetworkState.IS_CLIENT:
 		return
 	if !is_running or IVCoreSettings.disable_pause:
 		return
-	is_user_paused = !_tree.paused if is_toggle else is_pause
-	_tree.paused = is_user_paused
-	IVGlobal.user_pause_changed.emit(is_user_paused)
+	if !toggle and pause == is_user_pause:
+		return
+	is_user_pause = !is_user_pause if toggle else pause
+	if is_user_pause == _tree.paused:
+		paused_changed.emit(is_user_pause, is_user_pause)
+	else:
+		_tree.paused = is_user_pause # will emit paused_changed via IVTimekeeper
 
 
 func require_stop(who: Object, network_sync_type := -1, bypass_checks := false) -> bool:
@@ -375,7 +394,7 @@ func exit(force_exit := false, following_server := false) -> void:
 	await _tree.process_frame
 	is_splash_screen = true
 	is_ok_to_start = true
-	is_user_paused = false
+	is_user_pause = false
 	state_changed.emit()
 	simulator_exited.emit()
 
@@ -452,7 +471,7 @@ func _set_system_tree_ready(is_new_game: bool) -> void:
 	state_changed.emit()
 	simulator_started.emit()
 	if !is_new_game and IVSettingsManager.get_setting(&"pause_on_load"):
-		is_user_paused = true
+		is_user_pause = true
 
 
 func _stop_simulator() -> void:
@@ -463,7 +482,10 @@ func _stop_simulator() -> void:
 	allow_threads = false
 	run_threads_must_stop.emit()
 	is_running = false
-	_tree.paused = true
+	if _tree.paused:
+		paused_changed.emit(true, is_user_pause)
+	else:
+		_tree.paused = true # will emit paused_changed via IVTimekeeper
 	state_changed.emit()
 	run_state_changed.emit(false)
 
@@ -471,7 +493,10 @@ func _stop_simulator() -> void:
 func _run_simulator() -> void:
 	print("Run simulator")
 	is_running = true
-	_tree.paused = is_user_paused
+	if is_user_pause == _tree.paused:
+		paused_changed.emit(is_user_pause, is_user_pause)
+	else:
+		_tree.paused = is_user_pause # will emit paused_changed via IVTimekeeper
 	state_changed.emit()
 	run_state_changed.emit(true)
 	assert(!DPRINT or IVDebug.dprint("signal run_threads_allowed"))

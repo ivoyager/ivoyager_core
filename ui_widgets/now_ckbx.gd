@@ -42,7 +42,7 @@ func _configure_after_core_inited() -> void:
 	_timekeeper = IVGlobal.program[&"Timekeeper"]
 	_timekeeper.speed_changed.connect(_update_ckbx)
 	_timekeeper.time_altered.connect(_update_ckbx)
-	IVGlobal.user_pause_changed.connect(_update_ckbx)
+	#IVStateManager.paused_changed.connect(_update_ckbx)
 	pressed.connect(_set_real_world)
 
 

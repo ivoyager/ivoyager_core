@@ -34,12 +34,6 @@ signal data_tables_imported() # IVTableInitializer
 
 
 
-# FIXME: Move to IVStateManager
-signal pause_changed(is_paused: bool)
-signal user_pause_changed(is_paused: bool) # ignores pause from sim stop
-
-
-
 signal update_gui_requested() # send signals with GUI info now!
 
 # other broadcasts

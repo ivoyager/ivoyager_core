@@ -45,8 +45,8 @@ var _timekeeper: IVTimekeeper
 
 func _ready() -> void:
 	process_mode = PROCESS_MODE_ALWAYS
+	IVStateManager.paused_changed.connect(_update_buttons)
 	IVGlobal.update_gui_requested.connect(_update_buttons)
-	IVGlobal.user_pause_changed.connect(_update_buttons)
 	_minus.pressed.connect(_increment_speed.bind(-1))
 	_plus.pressed.connect(_increment_speed.bind(1))
 	if pause_button and !IVCoreSettings.disable_pause:
@@ -76,14 +76,14 @@ func _increment_speed(increment: int) -> void:
 
 
 func _change_paused() -> void:
-	IVStateManager.change_pause(false, _pause.button_pressed)
+	IVStateManager.change_user_pause(false, _pause.button_pressed)
 
 
 func _change_reversed() -> void:
 	_timekeeper.set_time_reversed(_reverse.button_pressed)
 
 
-func _update_buttons(_dummy := false) -> void:
+func _update_buttons(_dummy := false, _dummy2 := false) -> void:
 	if IVStateManager.network_state == IS_CLIENT:
 		if _pause:
 			_pause.disabled = true
@@ -94,7 +94,7 @@ func _update_buttons(_dummy := false) -> void:
 		return
 	if _pause:
 		_pause.disabled = false
-		_pause.button_pressed = IVStateManager.is_user_paused
+		_pause.button_pressed = IVStateManager.is_user_pause
 	if _reverse:
 		_reverse.disabled = false
 		_reverse.button_pressed = _timekeeper.is_reversed

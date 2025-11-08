@@ -55,8 +55,8 @@ var _current_target_dist := INF
 
 func _init() -> void:
 	IVStateManager.about_to_free_procedural_nodes.connect(_restore_init_state)
+	IVStateManager.paused_changed.connect(_on_paused_changed)
 	IVGlobal.camera_ready.connect(_set_camera)
-	IVGlobal.pause_changed.connect(_on_pause_changed)
 
 
 func _ready() -> void:
@@ -194,8 +194,11 @@ func _get_key_modifier_mask(event: InputEventMouse) -> int:
 	return mask
 
 
-func _on_pause_changed(is_paused: bool) -> void:
-	if is_paused:
+func _on_paused_changed(is_engine_paused: bool, _is_user_pause: bool) -> void:
+	
+	prints('paused_changed', is_engine_paused, _is_user_pause)
+	
+	if is_engine_paused:
 		if !_pause_only_stops_time:
 			_suppress_mouse_control = true
 			_drag_start = Vector2.ZERO

@@ -290,9 +290,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_PAUSED:
-		IVGlobal.pause_changed.emit(true)
+		IVStateManager.timekeeper_set_paused(true)
 	elif what == NOTIFICATION_UNPAUSED:
-		IVGlobal.pause_changed.emit(false)
+		IVStateManager.timekeeper_set_paused(false)
 	elif what == NOTIFICATION_APPLICATION_FOCUS_IN:
 		if is_now:
 			set_now_from_operating_system()
@@ -439,9 +439,9 @@ func _on_project_objects_instantiated() -> void:
 	IVStateManager.simulator_exited.connect(_set_ready_state)
 	IVStateManager.network_state_changed.connect(_on_network_state_changed)
 	IVStateManager.run_state_changed.connect(_on_run_state_changed) # starts/stops
-	IVGlobal.user_pause_changed.connect(_on_user_pause_changed)
+	IVStateManager.paused_changed.connect(_on_paused_changed)
 	IVGlobal.update_gui_requested.connect(_refresh_gui)
-	speed_changed.connect(_on_speed_changed)
+	#speed_changed.connect(_on_speed_changed)
 	times.resize(3)
 	clock.resize(3)
 	match date_format:
@@ -503,8 +503,9 @@ func _refresh_gui() -> void:
 	speed_changed.emit()
 
 
-func _on_user_pause_changed(_is_paused: bool) -> void:
+func _on_paused_changed(_is_engine_paused: bool, _is_user_pause: bool) -> void:
 	is_now = false
+	speed_changed.emit()
 
 
 func _on_run_state_changed(is_running: bool) -> void:
@@ -518,9 +519,9 @@ func _on_network_state_changed(network_state: NetworkState) -> void:
 	_network_state = network_state
 
 
-func _on_speed_changed() -> void:
-	if _network_state != NetworkState.IS_SERVER:
-		return
+#func _on_speed_changed() -> void:
+	#if _network_state != NetworkState.IS_SERVER:
+		#return
 #	rpc("_speed_changed_sync", speed_index, is_reversed, show_clock,
 #			show_seconds, is_now)
 
