@@ -25,23 +25,7 @@ extends Node
 ## [IVStateAuxiliary]. These could cause circular reference issues.
 
 
-# General simulator state signals are emitted via IVGlobal, with more specific
-# emitted by this class. Much of simulator state can be queried via dictionary
-# [code]state[/code] in IVGlobal. This class defines certain expected keys
-# in [code]state[/code] and (together with [IVSaveManager] and possibly an
-# external NetworkLobby) manages these [code]state[/code] values.[br][br]
-#
-# IVGlobal [code]state[/code] keys inited here:[br][br]
-#   [code]is_core_inited: bool[/code]
-#   [code]is_splash_screen: bool[/code][br]
-#   [code]is_system_built: bool[/code][br]
-#   [code]is_system_ready: bool[/code][br]
-#   [code]is_started_or_about_to_start: bool[/code][br]
-#   [code]is_running: bool[/code] - _run/_stop_simulator(); not the same as pause![br]
-#   [code]is_quitting: bool[/code][br]
-#   [code]is_game_loading: bool[/code] - via method call[br]
-#   [code]is_loaded_game: bool[/code] - via method cal[br]
-#   [code]network_state: NetworkState[/code] - if exists, NetworkLobby also writes[br][br]
+
 #
 # If IVCoreSettings.pause_only_stops_time == true, then PAUSE_MODE_PROCESS is
 # set in Universe and TopGUI so IVCamera can still move, visuals work (some are
@@ -63,7 +47,7 @@ extends Node
 # from another thread unless the function is guaranteed to be thread-safe. Most
 # functions are NOT thread-safe![br][br]
 
-# FIXME: Non-splash screen dependencies on is_splash_screen. Keep that true
+# FIXME: Non-splash screen dependencies on is_prestart. Keep that true
 # up until sim starts and when exiting.
 
 # FIXME: Remove IVTableSystemBuilder and any other ivoyager classes. Signal for
@@ -119,13 +103,19 @@ signal about_to_quit()
 signal about_to_exit()
 ## Emitted after the simulator exits.
 signal simulator_exited()
-
-signal run_state_changed(is_running: bool) # is_system_built and !SceneTree.paused
+## Emitted when the simulator starts or stops. The tree is always paused when
+## the simulator is stopped. However, user pause does not stop the simulator.
+signal run_state_changed(is_running: bool)
+## Emitted when network state changes.
 signal network_state_changed(network_state: NetworkState)
 
-
-signal paused_changed(is_engine_paused: bool, is_user_pause: bool)
-
+## Emitted when pause state changes for any reason. If [param is_tree_paused]
+## is true, then [param is_user_pause] indicates whether the pause is due to
+## user input.
+signal paused_changed(is_tree_paused: bool, is_user_pause: bool)
+## Emitted after any state change ("is_" property change) except for pause.
+## This signal is often emitted before a specific state signal, e.g.,
+## [signal core_initialized], [signal system_tree_ready], etc.
 signal state_changed()
 
 # TODO?: one signal threads_state_changed() and then query allow_threads
@@ -162,18 +152,17 @@ const DPRINT := false
 
 # read-only!
 
-var is_engine_paused := true
-
-
-# TODO: Persist, maybe in IVSaveManager...
-var is_user_pause := false # ignores pause from sim stop
-
-
+## Scene tree paused state.
+var is_tree_paused := true
+## User pause state. The tree might be paused for some other reason, e.g.,
+## the main menu is open.
+var is_user_pause := false
+## True at and after [signal core_initialized].
 var is_core_inited := false
-
-
-var is_splash_screen := false
+## True at and after [signal asset_preloader_finished].
 var is_assets_loaded := false
+
+var is_prestart := false
 var is_ok_to_start := false
 var is_building_tree := false # new or loading game
 var is_system_built := false
@@ -185,6 +174,9 @@ var is_quitting := false
 var is_game_loading := false
 var is_loaded_game := false
 var network_state := NetworkState.NO_NETWORK
+## Use this property to set splash screen visibility on [signal state_changed].
+## True until simulator started. True again on exit.
+var show_splash_screen := true
 
 var allow_threads := false
 var blocking_threads := []
@@ -220,16 +212,16 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 
 
+## Add before thread.start() if you want certain functions (e.g., save/load)
+## to wait until these are removed. This is essential for any thread that
+## might change persist data used in gamesave.
 func add_blocking_thread(thread: Thread) -> void:
-	# Add before thread.start() if you want certain functions (e.g., save/load)
-	# to wait until these are removed. This is essential for any thread that
-	# might change persist data used in gamesave.
 	if !blocking_threads.has(thread):
 		blocking_threads.append(thread)
 
 
+## Call on main thread after your thread has finished.
 func remove_blocking_thread(thread: Thread) -> void:
-	# Call on main thread after your thread has finished.
 	if thread:
 		blocking_threads.erase(thread)
 	if _signal_when_threads_finished and !blocking_threads:
@@ -237,9 +229,9 @@ func remove_blocking_thread(thread: Thread) -> void:
 		threads_finished.emit()
 
 
+## Generates a delayed "threads_finished" signal if/when there are no
+## blocking threads. Called by require_stop if not rejected.
 func signal_threads_finished() -> void:
-	# Generates a delayed "threads_finished" signal if/when there are no
-	# blocking threads. Called by require_stop if not rejected.
 	await _tree.process_frame
 	if !_signal_when_threads_finished:
 		_signal_when_threads_finished = true
@@ -263,14 +255,14 @@ func change_user_pause(toggle := true, pause := true) -> void:
 		_tree.paused = is_user_pause # will emit paused_changed via IVTimekeeper
 
 
+## network_sync_type used only if we are the network server.
+## bypass_checks intended for this node & NetworkLobby; could break sync.
+## Returns false if the caller doesn't have authority to stop the sim.
+## "Stopped" means SceneTree is paused, the player is locked out from most
+## input, and we have signaled "run_threads_must_stop" (any Threads added
+## via add_blocking_thread() should then be removed as they finish).
+## In many cases, you should yield to "threads_finished" after calling this.
 func require_stop(who: Object, network_sync_type := -1, bypass_checks := false) -> bool:
-	# network_sync_type used only if we are the network server.
-	# bypass_checks intended for this node & NetworkLobby; could break sync.
-	# Returns false if the caller doesn't have authority to stop the sim.
-	# "Stopped" means SceneTree is paused, the player is locked out from most
-	# input, and we have signaled "run_threads_must_stop" (any Threads added
-	# via add_blocking_thread() should then be removed as they finish).
-	# In many cases, you should yield to "threads_finished" after calling this.
 	if !bypass_checks:
 		if !IVCoreSettings.popops_can_stop_sim and who is Popup:
 			return false
@@ -310,14 +302,14 @@ func start() -> void:
 	state_changed.emit()
 	require_stop(self, NetworkStopSync.BUILD_SYSTEM, true)
 	_set_about_to_build_system_tree(true)
-	var table_system_builder: IVTableSystemBuilder = IVGlobal.program[&"TableSystemBuilder"]
-	table_system_builder.build_system_tree()
+	IVGlobal.build_system_tree_requested.emit()
 	_set_system_tree_built(true)
 
 
-## Exit to splash screen
+## Exit to splash screen. [param force_exit] = true means we've confirmed
+## already or confirmation isn't applicable.
 func exit(force_exit := false, following_server := false) -> void:
-	# force_exit == true means we've confirmed and finished other preliminaries
+	# 
 	if !is_system_ready or IVCoreSettings.disable_exit:
 		return
 	if !force_exit:
@@ -337,31 +329,34 @@ func exit(force_exit := false, following_server := false) -> void:
 	is_running = false
 	_tree.paused = true
 	is_loaded_game = false
+	show_splash_screen = true
 	state_changed.emit()
 	require_stop(self, NetworkStopSync.EXIT, true)
 	await self.threads_finished
 	about_to_exit.emit()
 	about_to_free_procedural_nodes.emit()
-	var universe: Node3D = IVGlobal.program.Universe
+	var universe: Node3D = IVGlobal.program[&"Universe"]
 	IVUtils.free_procedural_nodes_recursive(universe)
 	await _tree.process_frame
 	IVGlobal.close_all_admin_popups_requested.emit()
 	await _tree.process_frame
-	is_splash_screen = true
+	is_prestart = true
 	is_ok_to_start = true
 	is_user_pause = false
 	state_changed.emit()
 	simulator_exited.emit()
 
 
+## Quit the application. [param force_quit] = true means we've confirmed
+## already or confirmation isn't applicable.
 func quit(force_quit := false) -> void:
-	if !(is_splash_screen or is_system_ready) or IVCoreSettings.disable_quit:
+	if !(is_prestart or is_system_ready) or IVCoreSettings.disable_quit:
 		return
 	if !force_quit:
 		if network_state == NetworkState.IS_CLIENT:
 			IVGlobal.confirmation_requested.emit("Disconnect from multiplayer game?", exit.bind(true))
 			return
-		elif IVPluginUtils.is_plugin_enabled("ivoyager_save") and !is_splash_screen:
+		elif IVPluginUtils.is_plugin_enabled("ivoyager_save") and !is_prestart:
 			IVGlobal.confirmation_requested.emit(&"LABEL_QUIT_WITHOUT_SAVING", quit.bind(true))
 			return
 	if network_state == NetworkState.IS_CLIENT:
@@ -382,21 +377,16 @@ func quit(force_quit := false) -> void:
 	IVUtils.free_procedural_nodes_recursive(universe)
 	await _tree.process_frame
 	assert(IVDebug.dprint_orphan_nodes())
-	
-	
 	print("Quitting...")
 	_tree.quit()
 
 
 # *****************************************************************************
-# private functions
-
-
 
 func _on_core_initializer_finished() -> void:
 	assert(_state_auxiliary)
 	is_core_inited = true
-	is_splash_screen = true
+	is_prestart = true
 	state_changed.emit()
 	core_initialized.emit()
 
@@ -427,7 +417,7 @@ func _on_aux_about_to_free_procedural_nodes() -> void:
 
 
 func _on_aux_game_loading() -> void:
-	is_splash_screen = false
+	is_prestart = false
 	is_ok_to_start = false
 	is_system_built = false
 	is_game_loading = true
@@ -445,10 +435,10 @@ func _on_aux_game_loaded(user_pause: bool) -> void:
 
 
 func _on_aux_engine_paused_changed(engine_paused: bool) -> void:
-	if is_engine_paused == engine_paused:
+	if is_tree_paused == engine_paused:
 		return
-	is_engine_paused = engine_paused
-	paused_changed.emit(is_engine_paused, is_user_pause)
+	is_tree_paused = engine_paused
+	paused_changed.emit(is_tree_paused, is_user_pause)
 
 
 func _on_aux_tree_building_count_changed(incr: int) -> void:
@@ -460,7 +450,7 @@ func _on_aux_tree_building_count_changed(incr: int) -> void:
 
 
 func _set_about_to_build_system_tree(is_new_game: bool) -> void:
-	is_splash_screen = false
+	is_prestart = false
 	is_building_tree = true
 	state_changed.emit()
 	about_to_build_system_tree.emit(is_new_game)
@@ -490,6 +480,7 @@ func _set_system_tree_ready(is_new_game: bool) -> void:
 	IVGlobal.update_gui_requested.emit()
 	await _tree.process_frame
 	is_started = true
+	show_splash_screen = false
 	state_changed.emit()
 	simulator_started.emit()
 

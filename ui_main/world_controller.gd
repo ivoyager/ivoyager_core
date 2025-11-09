@@ -194,11 +194,8 @@ func _get_key_modifier_mask(event: InputEventMouse) -> int:
 	return mask
 
 
-func _on_paused_changed(is_engine_paused: bool, _is_user_pause: bool) -> void:
-	
-	prints('paused_changed', is_engine_paused, _is_user_pause)
-	
-	if is_engine_paused:
+func _on_paused_changed(is_tree_paused: bool, _is_user_pause: bool) -> void:
+	if is_tree_paused:
 		if !_pause_only_stops_time:
 			_suppress_mouse_control = true
 			_drag_start = Vector2.ZERO

@@ -37,7 +37,7 @@ signal core_init_object_instantiated(object: Object) # IVCoreInitializer; each o
 signal translations_imported() # IVTranslationImporter; useful for boot screen
 signal data_tables_imported() # IVTableInitializer
 
-
+signal build_system_tree_requested()
 
 signal update_gui_requested() # send signals with GUI info now!
 

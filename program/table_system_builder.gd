@@ -51,6 +51,10 @@ var _sbg_builder: IVTableSBGBuilder
 
 
 
+func _init() -> void:
+	IVGlobal.build_system_tree_requested.connect(build_system_tree)
+
+
 func build_system_tree() -> void:
 	_body_builder = IVGlobal.program[&"TableBodyBuilder"]
 	_add_bodies()

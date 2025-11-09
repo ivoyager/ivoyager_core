@@ -109,8 +109,8 @@ extends Node3D
 ## and initializes. To implement a splash screen, set [member IVCoreSettings.wait_for_start]
 ## = true and add the [IVStartButton] widget somewhere in your splash screen
 ## (the widget calls [method IVStateManager.start]). Use [signal
-## IVStateManager.state_changed] and [member IVStateManager.is_splash_screen] to
-## manage splash screen visibility. See [IVStateManager] for details.[br][br][br]
+## IVStateManager.state_changed] and [member IVStateManager.show_splash_screen]
+## to manage splash screen visibility. See [IVStateManager] for details.[br][br][br]
 ##
 ##
 ## Additional notes regarding the root "Universe" node:[br][br]
