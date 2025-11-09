@@ -48,6 +48,14 @@ var save_ivoyager_version := IVGlobal.ivoyager_version
 var save_game_mod := IVGlobal.game_mod
 
 
+
+var input_shortcut_save_as := &"save_as"
+var input_shortcut_quicksave := &"quicksave"
+var input_shortcut_load_file := &"load_file"
+var input_shortcut_quickload := &"quickload"
+
+
+
 var _paused_by_user := false
 var _save_singleton: Node
 
@@ -94,6 +102,26 @@ func _ready() -> void:
 	_save_singleton.dialog_closed.connect(IVStateManager.allow_run)
 	
 	@warning_ignore_restore("unsafe_property_access", "unsafe_method_access")
+
+
+
+
+func _shortcut_input(event: InputEvent) -> void:
+	if not event.is_pressed():
+		return
+	@warning_ignore_start("unsafe_property_access", "unsafe_method_access")
+	if event.is_action_pressed(input_shortcut_quicksave):
+		_save_singleton.quicksave()
+	elif event.is_action_pressed(input_shortcut_save_as):
+		_save_singleton.save_file()
+	elif event.is_action_pressed(input_shortcut_quickload):
+		_save_singleton.quickload()
+	elif event.is_action_pressed(input_shortcut_load_file):
+		_save_singleton.load_file()
+	else:
+		return
+	@warning_ignore_restore("unsafe_property_access", "unsafe_method_access")
+	get_viewport().set_input_as_handled()
 
 
 
