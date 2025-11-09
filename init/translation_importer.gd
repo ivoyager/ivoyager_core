@@ -50,7 +50,7 @@ static var translations: Array[String] = [
 func _init() -> void:
 	_load_translations()
 	IVGlobal.translations_imported.emit()
-	IVStateManager.project_objects_instantiated.connect(_remove_self)
+	IVStateManager.core_init_program_objects_instantiated.connect(_remove_self)
 
 
 

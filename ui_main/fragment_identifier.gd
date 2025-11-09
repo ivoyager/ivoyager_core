@@ -188,7 +188,7 @@ func _ready() -> void:
 	add_child(_screen_sampler)
 	RenderingServer.global_shader_parameter_set("iv_fragment_id_range", float(fragment_range))
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
-	IVStateManager.core_inited.connect(_configure_for_core_inited)
+	IVStateManager.core_initialized.connect(_configure_for_core_inited)
 	IVStateManager.run_state_changed.connect(set_process)
 	set_process(false)
 

@@ -69,37 +69,57 @@ extends Node
 # FIXME: Remove IVTableSystemBuilder and any other ivoyager classes. Signal for
 # build.
 
-# FIXME: Rename "core_init_preinitialized", "core_init_init_objects_initialized", ...
 
-signal core_init_preinitialized() # IVTableImporter; plugins!
-signal project_initializers_instantiated() # IVCoreInitializer; all initializers
-signal project_objects_instantiated() # IVCoreInitializer; IVGlobal.program populated
-signal project_nodes_added() # IVCoreInitializer; prog_nodes & gui_nodes added
-signal core_initializer_finished() # IVCoreInitializer
+## "core_init_" signals are emitted during [IVCoreInitializer] processing before
+## property updates here. Consider using [signal core_initialized] instead.
+signal core_init_preinitialized()
+## "core_init_" signals are emitted during [IVCoreInitializer] processing before
+## property updates here. Consider using [signal core_initialized] instead.
+signal core_init_init_refcounteds_instantiated()
+## "core_init_" signals are emitted during [IVCoreInitializer] processing before
+## property updates here. Consider using [signal core_initialized] instead.
+signal core_init_program_objects_instantiated()
+## "core_init_" signals are emitted during [IVCoreInitializer] processing before
+## property updates here. Consider using [signal core_initialized] instead.
+signal core_init_program_nodes_added()
+## "core_init_" signals are emitted during [IVCoreInitializer] processing before
+## property updates here. Consider using [signal core_initialized] instead.
+signal core_init_finished()
 
-## Use this!!!
-signal core_inited() # IVCoreInitializer; 1 frame after above (splash screen showing)
+## Emitted after "init" and "program" objects have been instantiated and
+## "program" nodes have been added to the scene tree.
+signal core_initialized()
 
 
-## Emitted after [IVAssetPreloader] has finished loading assets, after [signal core_inited].
+## Emitted after [IVAssetPreloader] has finished loading assets, always after
+## [signal core_initialized]. (Asset preloading is the longest part of startup.)
+## Must happen before [member is_ok_to_start] can be true.
 signal asset_preloader_finished()
-## Emitted before a new system tree build begins (new or loaded game).
+## Emitted immediately before the system tree is built (new or loaded game).
 signal about_to_build_system_tree(is_new_game: bool)
 ## Procedural [IVBody] and [IVSmallBodiesGroup] instances have been added for
-## new game or after load, but non-procedural "finish" nodes (models, rings,
+## new or loaded game, but non-procedural "finish" nodes (models, rings,
 ## lights, HUD elements, etc.) are still being added, possibly on thread.
 signal system_tree_built(is_new_game: bool)
-## The solar system is built and ready including "finish" nodes added on thread.
+## The system tree is built and ready, including "finish" nodes added on thread.
 signal system_tree_ready(is_new_game: bool)
 ## Emitted 1 frame after [signal system_tree_ready].
 signal about_to_start_simulator(is_new_game: bool)
+## Emitted a few frames after [signal about_to_start_simulator] and 1 frame
+## after [signal IVGlobal.update_gui_requested].
 signal simulator_started()
-## Emitted on exit, game load starting, and quit.
+## Emitted immediately before procedural nodes are freed on exit, quit, and game
+## load starting.
 signal about_to_free_procedural_nodes()
+## Emitted immediately before the simulator stops for quit.
 signal about_to_stop_before_quit()
+## Emitted immediately before quit.
 signal about_to_quit()
+## Emitted immediately before exit.
 signal about_to_exit()
+## Emitted after the simulator exits.
 signal simulator_exited()
+
 signal run_state_changed(is_running: bool) # is_system_built and !SceneTree.paused
 signal network_state_changed(network_state: NetworkState)
 
@@ -180,8 +200,8 @@ var _tree_build_counter := 0
 
 
 func _ready() -> void:
-	IVGlobal.project_object_instantiated.connect(_on_global_project_object_instantiated)
-	core_initializer_finished.connect(_on_core_initializer_finished)
+	IVGlobal.core_init_object_instantiated.connect(_on_global_project_object_instantiated)
+	core_init_finished.connect(_on_core_initializer_finished)
 	process_mode = PROCESS_MODE_ALWAYS
 	_tree.paused = true
 	require_stop(self, -1, true)
@@ -378,7 +398,7 @@ func _on_core_initializer_finished() -> void:
 	is_core_inited = true
 	is_splash_screen = true
 	state_changed.emit()
-	core_inited.emit()
+	core_initialized.emit()
 
 
 func _on_global_project_object_instantiated(object: Object) -> void:

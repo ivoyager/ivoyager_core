@@ -24,7 +24,7 @@ extends RefCounted
 ## specification in data tables.
 ##
 ## In typical setup, loading will commence right after splash screen is shown,
-## on [signal IVStateManager.core_inited]. When finished, emits [signal
+## on [signal IVStateManager.core_initialized]. When finished, emits [signal
 ## IVStateManager.asset_preloader_finished].
 
 const files := preload("res://addons/ivoyager_core/static/files.gd")
@@ -67,7 +67,7 @@ var _rings_resources: Dictionary[String, Array] = {}
 
 
 func _init() -> void:
-	IVStateManager.core_inited.connect(_on_core_inited)
+	IVStateManager.core_initialized.connect(_on_core_inited)
 
 
 

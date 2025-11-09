@@ -69,7 +69,7 @@ var default_orbit_colors: Dictionary[int, Color] = {}
 
 func _init() -> void:
 	process_mode = PROCESS_MODE_ALWAYS
-	IVStateManager.project_objects_instantiated.connect(_on_project_objects_instantiated)
+	IVStateManager.core_init_program_objects_instantiated.connect(_on_program_objects_instantiated)
 	IVStateManager.simulator_exited.connect(_set_current_to_default)
 	IVGlobal.update_gui_requested.connect(_signal_all_changed)
 
@@ -335,7 +335,7 @@ func set_all_orbit_colors(dict: Dictionary[int, Color]) -> void:
 # private
 
 
-func _on_project_objects_instantiated() -> void:
+func _on_program_objects_instantiated() -> void:
 	for row in IVTableData.get_n_rows(&"visual_groups"):
 		var body_flag := IVTableData.get_db_int(&"visual_groups", &"body_flag", row)
 		var name_visible := IVTableData.get_db_bool(&"visual_groups", &"default_name_visible", row)

@@ -55,7 +55,7 @@ var _resources: Dictionary = IVGlobal.resources
 func _init() -> void:
 	_add_preloads()
 	_make_shared_resources()
-	IVStateManager.project_objects_instantiated.connect(_remove_self)
+	IVStateManager.core_init_program_objects_instantiated.connect(_remove_self)
 
 
 

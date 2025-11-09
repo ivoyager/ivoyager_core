@@ -237,7 +237,7 @@ static func set_clock_array(fractional_day: float, clock_array: Array[int]) -> v
 
 
 func _init() -> void:
-	IVStateManager.project_objects_instantiated.connect(_on_project_objects_instantiated)
+	IVStateManager.core_init_program_objects_instantiated.connect(_on_program_objects_instantiated)
 
 
 func _ready() -> void:
@@ -433,7 +433,7 @@ func can_decrement_speed() -> bool:
 # *****************************************************************************
 
 
-func _on_project_objects_instantiated() -> void:
+func _on_program_objects_instantiated() -> void:
 	IVStateManager.about_to_start_simulator.connect(_on_about_to_start_simulator)
 	IVStateManager.about_to_free_procedural_nodes.connect(_set_init_state)
 	IVStateManager.system_tree_ready.connect(_set_ready_state)

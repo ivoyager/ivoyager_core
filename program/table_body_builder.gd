@@ -145,7 +145,7 @@ var _composition_builder: RefCounted
 
 
 func _init() -> void:
-	IVStateManager.project_objects_instantiated.connect(_on_project_objects_instantiated)
+	IVStateManager.core_init_program_objects_instantiated.connect(_on_program_objects_instantiated)
 
 
 
@@ -231,7 +231,7 @@ func build_body(table_name: String, row: int, parent: IVBody) -> IVBody:
 
 
 
-func _on_project_objects_instantiated() -> void:
+func _on_program_objects_instantiated() -> void:
 	_orbit_builder = IVGlobal.program[&"TableOrbitBuilder"]
 	_composition_builder = IVGlobal.program.get(&"TableCompositionBuilder") # remove to skip
 

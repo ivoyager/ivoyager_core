@@ -19,7 +19,7 @@
 # *****************************************************************************
 extends Node
 
-## Added as singleton 'IVCoreInitializer'.
+## Added as singleton [IVCoreInitializer].
 ##
 ## Modify properties or dictionary classes using res://ivoyager_override.cfg.
 ## Alternatively, you can modify values here using a preinitializer script.
@@ -100,7 +100,7 @@ var preinitializers: Dictionary[StringName, Variant] = {}
 ## 'preinitializers'. Many of these instances may erase themselves from
 ## dictionary 'IVGlobal.program' after init, thereby freeing themselves.
 ## Path to RefCounted class ok.
-var initializers: Dictionary[StringName, Variant] = {
+var init_refcounteds: Dictionary[StringName, Variant] = {
 	StateAuxiliary = IVStateAuxiliary,
 	ResourceInitializer = IVResourceInitializer, # self-removes
 	TranslationImporter = IVTranslationImporter, # self-removes
@@ -209,14 +209,14 @@ func _do_presets_and_plugin_mods() -> void:
 
 
 func _instantiate_initializers() -> void:
-	for key: StringName in initializers:
-		if !initializers[key]:
+	for key: StringName in init_refcounteds:
+		if !init_refcounteds[key]:
 			continue
 		assert(!IVGlobal.program.has(key))
-		var initializer: RefCounted = IVFiles.make_object_or_scene(initializers[key])
+		var initializer: RefCounted = IVFiles.make_object_or_scene(init_refcounteds[key])
 		IVGlobal.program[key] = initializer
-		IVGlobal.project_object_instantiated.emit(initializer)
-	IVStateManager.project_initializers_instantiated.emit()
+		IVGlobal.core_init_object_instantiated.emit(initializer)
+	IVStateManager.core_init_init_refcounteds_instantiated.emit()
 
 
 func _set_simulator_universe() -> void:
@@ -257,8 +257,8 @@ func _instantiate_and_index_program_objects() -> void:
 			if object is Node:
 				@warning_ignore("unsafe_property_access")
 				object.name = key
-			IVGlobal.project_object_instantiated.emit(object)
-	IVStateManager.project_objects_instantiated.emit()
+			IVGlobal.core_init_object_instantiated.emit(object)
+	IVStateManager.core_init_program_objects_instantiated.emit()
 	await get_tree().process_frame
 	init_step_finished.emit()
 
@@ -269,10 +269,10 @@ func _add_program_nodes() -> void:
 			continue
 		var node: Node = IVGlobal.program[key]
 		universe.add_child(node)
-	IVStateManager.project_nodes_added.emit()
+	IVStateManager.core_init_program_nodes_added.emit()
 	await get_tree().process_frame
 	init_step_finished.emit()
 
 
 func _finish() -> void:
-	IVStateManager.core_initializer_finished.emit()
+	IVStateManager.core_init_finished.emit()

@@ -66,7 +66,7 @@ var _external_url_format: String
 
 
 func _init() -> void:
-	IVStateManager.core_inited.connect(_configure)
+	IVStateManager.core_initialized.connect(_configure)
 
 
 

@@ -49,7 +49,7 @@ var _state_auxiliary: IVStateAuxiliary = IVGlobal.program[&"StateAuxiliary"]
 
 
 func _init() -> void:
-	IVStateManager.core_inited.connect(_on_core_inited)
+	IVStateManager.core_initialized.connect(_on_core_inited)
 	_tree.node_added.connect(_on_node_added)
 
 

@@ -26,7 +26,7 @@ extends RefCounted
 ## IVStateManager.about_to_run_initializers].
 ##
 ## Alternatively, parameters can be modified by intercepting this object on signal
-## IVGlobal.project_object_instantiated(object: Object).
+## IVGlobal.core_init_object_instantiated(object: Object).
 ##
 ## After all initializers have been instantiated, this class will call
 ## IVTableData.postprocess_tables() and then remove itself.
@@ -71,10 +71,10 @@ static var merge_overwrite_missing_values: Dictionary[int, Variant] = {} # use i
 
 
 func _init() -> void:
-	IVStateManager.project_initializers_instantiated.connect(_on_project_initializers_instantiated)
+	IVStateManager.core_init_init_refcounteds_instantiated.connect(_on_init_refcounteds_instantiated)
 
 
-func _on_project_initializers_instantiated() -> void:
+func _on_init_refcounteds_instantiated() -> void:
 	
 	IVTableData.postprocess_tables(
 			tables.values(),
@@ -87,7 +87,7 @@ func _on_project_initializers_instantiated() -> void:
 	
 	# signal done
 	IVGlobal.data_tables_imported.emit()
-	IVStateManager.project_objects_instantiated.connect(_remove_self)
+	IVStateManager.core_init_program_objects_instantiated.connect(_remove_self)
 
 
 func _remove_self() -> void:

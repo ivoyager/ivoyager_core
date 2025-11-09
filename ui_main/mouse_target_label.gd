@@ -46,7 +46,7 @@ func _ready() -> void:
 	horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	grow_horizontal = GROW_DIRECTION_BOTH
 	size_flags_horizontal = SIZE_SHRINK_CENTER
-	IVStateManager.core_inited.connect(_configure_after_core_inited)
+	IVStateManager.core_initialized.connect(_configure_after_core_inited)
 	IVStateManager.run_state_changed.connect(set_process)
 	set_process(false)
 	hide()

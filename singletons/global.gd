@@ -33,7 +33,7 @@ extends Node
 
 
 
-signal project_object_instantiated(object: Object) # IVCoreInitializer; each object in that file
+signal core_init_object_instantiated(object: Object) # IVCoreInitializer; each object in that file
 signal translations_imported() # IVTranslationImporter; useful for boot screen
 signal data_tables_imported() # IVTableInitializer
 
