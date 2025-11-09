@@ -274,8 +274,8 @@ func _process(delta: float) -> void:
 		date_changed.emit()
 
 
-func _unhandled_key_input(event: InputEvent) -> void:
-	if !event.is_action_type() or !event.is_pressed():
+func _shortcut_input(event: InputEvent) -> void:
+	if not event.is_pressed():
 		return
 	if event.is_action_pressed(&"incr_speed"):
 		change_speed(1)
@@ -285,7 +285,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		set_time_reversed(!is_reversed)
 	else:
 		return # input NOT handled!
-	get_window().set_input_as_handled()
+	get_viewport().set_input_as_handled()
 
 
 func _notification(what: int) -> void:

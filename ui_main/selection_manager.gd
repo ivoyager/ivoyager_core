@@ -146,7 +146,7 @@ func _init() -> void:
 func _ready() -> void:
 	IVStateManager.system_tree_ready.connect(_on_system_tree_ready)
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
-	set_process_unhandled_key_input(is_action_listener)
+	set_process_shortcut_input(is_action_listener)
 
 
 func _on_system_tree_ready(is_new_game: bool) -> void:
@@ -157,8 +157,8 @@ func _on_system_tree_ready(is_new_game: bool) -> void:
 		_add_history()
 
 
-func _unhandled_key_input(event: InputEvent) -> void:
-	if !event.is_action_type() or !event.is_pressed():
+func _shortcut_input(event: InputEvent) -> void:
+	if not event.is_pressed():
 		return
 	if event.is_action_pressed("select_forward"):
 		forward()
@@ -192,7 +192,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		next_last(1, SELECTION_SPACECRAFT)
 	else:
 		return # input NOT handled!
-	get_window().set_input_as_handled()
+	get_viewport().set_input_as_handled()
 
 
 

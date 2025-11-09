@@ -106,10 +106,10 @@ func _ready() -> void:
 		remove_subpanel(&"LABEL_SAVE_LOAD")
 
 
-func _unhandled_key_input(event: InputEvent) -> void:
+func _shortcut_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"ui_cancel"):
-		set_input_as_handled()
 		_on_cancel()
+		set_input_as_handled()
 
 
 func open() -> void:

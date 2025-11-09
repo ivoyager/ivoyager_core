@@ -39,7 +39,7 @@ func _ready() -> void:
 	get_label().horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 
-func _unhandled_key_input(event: InputEvent) -> void:
+func _shortcut_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"ui_cancel"):
 		set_input_as_handled()
 

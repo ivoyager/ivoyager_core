@@ -74,8 +74,10 @@ func _init() -> void:
 	IVGlobal.update_gui_requested.connect(_signal_all_changed)
 
 
-func _unhandled_key_input(event: InputEvent) -> void:
+func _shortcut_input(event: InputEvent) -> void:
 	# Only Body HUDs, for now...
+	if not event.is_pressed():
+		return
 	if event.is_action_pressed(&"toggle_orbits"):
 		set_all_orbits_visibility(bool(orbit_visible_flags != all_flags))
 	elif event.is_action_pressed(&"toggle_symbols"):
@@ -84,7 +86,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		set_all_names_visibility(bool(name_visible_flags != all_flags))
 	else:
 		return # input NOT handled!
-	get_window().set_input_as_handled()
+	get_viewport().set_input_as_handled()
 
 
 # *****************************************************************************

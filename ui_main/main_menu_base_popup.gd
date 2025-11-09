@@ -91,7 +91,7 @@ func _ready() -> void:
 		control_child.minimum_size_changed.connect(_resize)
 
 
-func _unhandled_key_input(event: InputEvent) -> void:
+func _shortcut_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"ui_cancel"):
 		close()
 		set_input_as_handled()

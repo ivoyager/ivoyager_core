@@ -138,10 +138,10 @@ func _ready() -> void:
 		IVStateManager.core_initialized.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
 
 
-func _unhandled_key_input(event: InputEvent) -> void:
+func _shortcut_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"ui_cancel"):
-		set_input_as_handled()
 		_on_cancel()
+		set_input_as_handled()
 
 
 

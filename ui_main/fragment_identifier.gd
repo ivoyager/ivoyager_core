@@ -178,6 +178,7 @@ static func encode_vec3(id: int) -> Vector3:
 
 
 func _ready() -> void:
+	process_mode = PROCESS_MODE_ALWAYS
 	assert(fragment_range % 3 == 0)
 	disable_3d = true
 	render_target_update_mode = UPDATE_ALWAYS

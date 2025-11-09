@@ -142,8 +142,8 @@ func _process(delta: float) -> void:
 		_camera.add_rotation(_rotate_pressed * delta)
 
 
-func _unhandled_key_input(event: InputEvent) -> void:
-	if !event.is_action_type() or !_camera:
+func _shortcut_input(event: InputEvent) -> void:
+	if not _camera:
 		return
 	if event.is_pressed():
 		if event.is_action_pressed(&"recenter"):
@@ -174,35 +174,36 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			_rotate_pressed.z = _key_roll_rate
 		else:
 			return  # no input handled
-		get_window().set_input_as_handled()
-	else: # key release
-		if event.is_action_released(&"camera_left"):
-			_move_pressed.x = 0.0
-		elif event.is_action_released(&"camera_right"):
-			_move_pressed.x = 0.0
-		elif event.is_action_released(&"camera_up"):
-			_move_pressed.y = 0.0
-		elif event.is_action_released(&"camera_down"):
-			_move_pressed.y = 0.0
-		elif event.is_action_released(&"camera_in"):
-			_move_pressed.z = 0.0
-		elif event.is_action_released(&"camera_out"):
-			_move_pressed.z = 0.0
-		elif event.is_action_released(&"pitch_up"):
-			_rotate_pressed.x = 0.0
-		elif event.is_action_released(&"pitch_down"):
-			_rotate_pressed.x = 0.0
-		elif event.is_action_released(&"yaw_left"):
-			_rotate_pressed.y = 0.0
-		elif event.is_action_released(&"yaw_right"):
-			_rotate_pressed.y = 0.0
-		elif event.is_action_released(&"roll_left"):
-			_rotate_pressed.z = 0.0
-		elif event.is_action_released(&"roll_right"):
-			_rotate_pressed.z = 0.0
-		else:
-			return  # no input handled
-		get_window().set_input_as_handled()
+		get_viewport().set_input_as_handled()
+		return
+	# key release
+	if event.is_action_released(&"camera_left"):
+		_move_pressed.x = 0.0
+	elif event.is_action_released(&"camera_right"):
+		_move_pressed.x = 0.0
+	elif event.is_action_released(&"camera_up"):
+		_move_pressed.y = 0.0
+	elif event.is_action_released(&"camera_down"):
+		_move_pressed.y = 0.0
+	elif event.is_action_released(&"camera_in"):
+		_move_pressed.z = 0.0
+	elif event.is_action_released(&"camera_out"):
+		_move_pressed.z = 0.0
+	elif event.is_action_released(&"pitch_up"):
+		_rotate_pressed.x = 0.0
+	elif event.is_action_released(&"pitch_down"):
+		_rotate_pressed.x = 0.0
+	elif event.is_action_released(&"yaw_left"):
+		_rotate_pressed.y = 0.0
+	elif event.is_action_released(&"yaw_right"):
+		_rotate_pressed.y = 0.0
+	elif event.is_action_released(&"roll_left"):
+		_rotate_pressed.z = 0.0
+	elif event.is_action_released(&"roll_right"):
+		_rotate_pressed.z = 0.0
+	else:
+		return  # no input handled
+	get_viewport().set_input_as_handled()
 
 
 # *****************************************************************************
