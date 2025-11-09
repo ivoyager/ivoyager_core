@@ -99,7 +99,7 @@ static func create(
 
 func _ready() -> void:
 	assert((!body_flags) != (!sbg_aliases), "Set either 'body_flags' or 'sbg_aliases', not both")
-	if IVStateManager.is_core_inited:
+	if IVStateManager.initialized_core:
 		_configure_after_core_inited()
 	else:
 		IVStateManager.core_initialized.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)

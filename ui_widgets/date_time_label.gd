@@ -51,7 +51,7 @@ var _timekeeper: IVTimekeeper
 
 func _ready() -> void:
 	set_process(false)
-	if IVStateManager.is_core_inited:
+	if IVStateManager.initialized_core:
 		_configure_after_core_inited()
 	else:
 		IVStateManager.core_initialized.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
@@ -74,7 +74,7 @@ func _process(_delta: float) -> void:
 			new_text += clock_hm_format % _hm
 	
 	new_text += time_zone_suffix
-	if show_pause and IVStateManager.is_user_pause:
+	if show_pause and IVStateManager.paused_by_user:
 		new_text += " " + tr(&"LABEL_PAUSED")
 	text = new_text
 

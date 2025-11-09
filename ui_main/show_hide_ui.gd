@@ -67,7 +67,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 ## arg [param is_show] is ignored. Use (false, true) to explicitly show or 
 ## (false, false) to explicitly hide.
 func show_hide_gui(is_toggle := true, is_show := true) -> void:
-	if not IVStateManager.is_system_built:
+	if not IVStateManager.built_system:
 		return
 	visible = !visible if is_toggle else is_show
 	visibility_toggled.emit(visible)

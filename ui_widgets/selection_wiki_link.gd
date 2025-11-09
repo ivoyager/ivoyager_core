@@ -38,12 +38,12 @@ var _selection_manager: IVSelectionManager
 
 func _ready() -> void:
 	IVStateManager.about_to_start_simulator.connect(_connect_selection_manager)
-	if IVStateManager.is_started_or_about_to_start:
+	if IVStateManager.started_or_about_to_start:
 		_connect_selection_manager()
 	IVGlobal.update_gui_requested.connect(_update_selection)
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
 	meta_clicked.connect(_on_meta_clicked)
-	if IVStateManager.is_core_inited:
+	if IVStateManager.initialized_core:
 		_configure_after_core_inited()
 	else:
 		IVStateManager.core_initialized.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
@@ -57,7 +57,7 @@ func _configure_after_core_inited() -> void:
 
 func _connect_selection_manager(_dummy := false) -> void:
 	# once after every system_tree_ready
-	if _selection_manager or !IVStateManager.is_system_ready:
+	if _selection_manager or !IVStateManager.ready_system:
 		return
 	_selection_manager = IVSelectionManager.get_selection_manager(self)
 	assert(_selection_manager, "Did not find valid 'selection_manager' above this node")

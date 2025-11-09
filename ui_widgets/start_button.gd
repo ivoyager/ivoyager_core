@@ -26,11 +26,11 @@ extends Button
 ## This is intended for starting a new game from a splash screen.[br][br]
 ##
 ## This button enables/disables itself following changes in
-## [member IVStateManager.is_ok_to_start].
+## [member IVStateManager.ok_to_start].
 
 func _ready() -> void:
 	IVStateManager.state_changed.connect(_on_state_changed)
-	disabled = not IVStateManager.is_ok_to_start
+	disabled = not IVStateManager.ok_to_start
 
 
 func _pressed() -> void:
@@ -39,4 +39,4 @@ func _pressed() -> void:
 
 
 func _on_state_changed() -> void:
-	disabled = not IVStateManager.is_ok_to_start
+	disabled = not IVStateManager.ok_to_start

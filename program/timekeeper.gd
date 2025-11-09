@@ -141,7 +141,6 @@ var _is_sync := false
 var _prev_whole_solar_day := NAN
 
 @onready var _tree := get_tree()
-@onready var _state_auxiliary: IVStateAuxiliary = IVGlobal.program[&"StateAuxiliary"]
 
 
 # *****************************************************************************
@@ -290,11 +289,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_PAUSED:
-		_state_auxiliary.set_engine_paused(true)
-	elif what == NOTIFICATION_UNPAUSED:
-		_state_auxiliary.set_engine_paused(false)
-	elif what == NOTIFICATION_APPLICATION_FOCUS_IN:
+	if what == NOTIFICATION_APPLICATION_FOCUS_IN:
 		if is_now:
 			set_now_from_operating_system()
 
@@ -504,14 +499,14 @@ func _refresh_gui() -> void:
 	speed_changed.emit()
 
 
-func _on_paused_changed(_is_engine_paused: bool, _is_user_pause: bool) -> void:
+func _on_paused_changed(_paused_tree: bool, _paused_by_user: bool) -> void:
 	is_now = false
 	speed_changed.emit()
 
 
-func _on_run_state_changed(is_running: bool) -> void:
-	set_process(is_running)
-	if is_running and is_now:
+func _on_run_state_changed(running: bool) -> void:
+	set_process(running)
+	if running and is_now:
 		await _tree.process_frame
 		set_now_from_operating_system()
 

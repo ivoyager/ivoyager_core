@@ -33,7 +33,7 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"save_project_version",
 	&"save_ivoyager_version",
 	&"save_game_mod",
-	&"_user_pause",
+	&"_paused_by_user",
 ]
 
 
@@ -48,7 +48,7 @@ var save_ivoyager_version := IVGlobal.ivoyager_version
 var save_game_mod := IVGlobal.game_mod
 
 
-var _user_pause := false
+var _paused_by_user := false
 var _save_singleton: Node
 
 @onready var _timekeeper: IVTimekeeper = IVGlobal.program[&"Timekeeper"]
@@ -84,7 +84,8 @@ func _ready() -> void:
 	_save_singleton.save_started.connect(_on_save_started)
 	_save_singleton.save_finished.connect(_on_save_finished)
 	_save_singleton.load_started.connect(_on_load_started)
-	_save_singleton.about_to_free_procedural_nodes.connect(_on_about_to_free_procedural_nodes)
+	_save_singleton.about_to_free_procedural_nodes.connect(
+			_on_save_singleton_about_to_free_procedural_nodes)
 	_save_singleton.about_to_build_procedural_tree_for_load.connect(
 			_on_about_to_build_procedural_tree_for_load)
 	_save_singleton.load_finished.connect(_on_load_finished)
@@ -95,8 +96,10 @@ func _ready() -> void:
 	@warning_ignore_restore("unsafe_property_access", "unsafe_method_access")
 
 
-func _on_paused_changed(_is_engine_paused: bool, is_user_pause: bool) -> void:
-	_user_pause = is_user_pause
+
+
+func _on_paused_changed(_paused_tree: bool, paused_by_user: bool) -> void:
+	_paused_by_user = paused_by_user
 
 
 func _start_autosave_timer() -> void:
@@ -123,7 +126,7 @@ func _suffix_generator() -> String:
 
 func _save_permit() -> bool:
 	const IS_CLIENT = IVStateManager.NetworkState.IS_CLIENT
-	if not IVStateManager.is_system_built:
+	if not IVStateManager.built_system:
 		return false
 	if IVStateManager.network_state == IS_CLIENT:
 		return false
@@ -132,7 +135,7 @@ func _save_permit() -> bool:
 
 func _load_permit() -> bool:
 	const IS_CLIENT = IVStateManager.NetworkState.IS_CLIENT
-	if not (IVStateManager.is_prestart or IVStateManager.is_system_built):
+	if not (IVStateManager.prestart or IVStateManager.built_system):
 		return false
 	if IVStateManager.network_state == IS_CLIENT:
 		return false
@@ -170,9 +173,9 @@ func _on_load_started() -> void:
 	state_auxiliary.set_game_loading()
 
 
-func _on_about_to_free_procedural_nodes() -> void:
+func _on_save_singleton_about_to_free_procedural_nodes() -> void:
 	var state_auxiliary: IVStateAuxiliary = IVGlobal.program[&"StateAuxiliary"]
-	state_auxiliary.set_about_to_free_procedural_nodes()
+	state_auxiliary.set_about_to_free_procedural_nodes_for_load()
 
 
 func _on_about_to_build_procedural_tree_for_load() -> void:
@@ -181,9 +184,9 @@ func _on_about_to_build_procedural_tree_for_load() -> void:
 
 func _on_load_finished() -> void:
 	if IVSettingsManager.get_setting(&"pause_on_load"):
-		_user_pause = true
+		_paused_by_user = true
 	var state_auxiliary: IVStateAuxiliary = IVGlobal.program[&"StateAuxiliary"]
-	state_auxiliary.set_game_loaded(_user_pause)
+	state_auxiliary.set_game_loaded(_paused_by_user)
 	if !OS.is_debug_build():
 		return
 	_warn_version_mismatch()

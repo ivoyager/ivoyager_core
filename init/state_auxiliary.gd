@@ -28,10 +28,9 @@ extends RefCounted
 ## Dev note: Don't add [i]any[/i] non-Godot class dependencies!
 
 signal asset_preloader_finished()
-signal about_to_free_procedural_nodes()
+signal about_to_free_procedural_nodes_for_load()
 signal game_loading()
-signal game_loaded(is_user_pause: bool)
-signal engine_paused_changed(engine_paused: bool)
+signal game_loaded(user_paused_on_load: bool)
 signal tree_building_count_changed(incr: int)
 
 
@@ -41,8 +40,8 @@ func set_asset_preloader_finished() -> void:
 
 
 ## IVSaveManager only.
-func set_about_to_free_procedural_nodes() -> void:
-	about_to_free_procedural_nodes.emit()
+func set_about_to_free_procedural_nodes_for_load() -> void:
+	about_to_free_procedural_nodes_for_load.emit()
 
 
 ## IVSaveManager only.
@@ -51,13 +50,8 @@ func set_game_loading() -> void:
 
 
 ## IVSaveManager only.
-func set_game_loaded(is_user_pause: bool) -> void:
-	game_loaded.emit(is_user_pause)
-
-
-## IVTimekeeper only.
-func set_engine_paused(engine_paused: bool) -> void:
-	engine_paused_changed.emit(engine_paused)
+func set_game_loaded(user_paused_on_load: bool) -> void:
+	game_loaded.emit(user_paused_on_load)
 
 
 func change_tree_building_count(incr: int) -> void:

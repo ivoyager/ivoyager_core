@@ -71,7 +71,7 @@ func _ready() -> void:
 			"Bodies HUD must be one of NAMES, SYMBOLS or ORBITS")
 	assert(!sbg_aliases or [HUDsType.POINTS, HUDsType.ORBITS].has(hud_type),
 			"SBGs HUD must be either POINTS or ORBITS")
-	if IVStateManager.is_core_inited:
+	if IVStateManager.initialized_core:
 		_configure_after_core_inited()
 	else:
 		IVStateManager.core_initialized.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)

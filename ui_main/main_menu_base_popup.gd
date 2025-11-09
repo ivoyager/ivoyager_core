@@ -100,7 +100,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 func open() -> void:
 	if visible:
 		return
-	if sim_started_only and not IVStateManager.is_started_or_about_to_start:
+	if sim_started_only and not IVStateManager.started_or_about_to_start:
 		return
 	if stop_sim:
 		IVStateManager.require_stop(self)

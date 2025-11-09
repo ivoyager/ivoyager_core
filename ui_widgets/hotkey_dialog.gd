@@ -46,7 +46,7 @@ func _ready() -> void:
 	_key_delete.pressed.connect(_on_key_delete)
 	focus_exited.connect(_keep_focus)
 	_ok_button.disabled = true
-	if IVStateManager.is_core_inited:
+	if IVStateManager.initialized_core:
 		_configure_after_core_inited()
 	else:
 		IVStateManager.core_initialized.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)

@@ -79,7 +79,7 @@ var _view_flags: int
 @warning_ignore("shadowed_variable")
 static func create_user_button(view_name: String, collection_name: String, is_cached: bool,
 		 editable := true, renamable := true, deletable := true) -> IVViewButton:
-	assert(IVStateManager.is_system_ready)
+	assert(IVStateManager.ready_system)
 	var button := IVViewButton.new()
 	button.text = view_name
 	button.editable = editable
@@ -99,7 +99,7 @@ static func create_user_button(view_name: String, collection_name: String, is_ca
 func _ready() -> void:
 	assert(default_view or _is_user_button,
 			"Pre-added IVViewButton must have default_view; text '%s' will be overwritten" % text)
-	if IVStateManager.is_core_inited:
+	if IVStateManager.initialized_core:
 		_configure_after_core_inited()
 	else:
 		IVStateManager.core_initialized.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)

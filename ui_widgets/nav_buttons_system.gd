@@ -77,7 +77,7 @@ func _build(_dummy := false) -> void:
 	
 	if _is_built:
 		return
-	if not IVStateManager.is_system_built:
+	if not IVStateManager.built_system:
 		return
 	_is_built = true
 	_suppress_resize = true

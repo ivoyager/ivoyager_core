@@ -184,7 +184,7 @@ func _ready() -> void:
 	IVGlobal.move_camera_requested.connect(move_to)
 	IVSettingsManager.changed.connect(_settings_listener)
 	transform = _transform
-	if not IVStateManager.is_loaded_game:
+	if not IVStateManager.loaded_game:
 		fov = IVCoreSettings.start_camera_fov
 	IVGlobal.camera_ready.emit(self)
 	set_process(false) # don't process until sim started

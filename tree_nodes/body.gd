@@ -436,7 +436,7 @@ func _ready() -> void:
 	_set_min_hud_dist()
 	hide()
 	
-	if not IVStateManager.is_system_built: # currently building from tables or savefile
+	if not IVStateManager.built_system: # currently building from tables or savefile
 		return
 	
 	_set_system_radius()

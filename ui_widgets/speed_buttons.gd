@@ -59,7 +59,7 @@ func _ready() -> void:
 	else:
 		_reverse.queue_free()
 		_reverse = null
-	if IVStateManager.is_core_inited:
+	if IVStateManager.initialized_core:
 		_configure_after_core_inited()
 	else:
 		IVStateManager.core_initialized.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
@@ -76,7 +76,7 @@ func _increment_speed(increment: int) -> void:
 
 
 func _change_paused() -> void:
-	IVStateManager.change_user_pause(false, _pause.button_pressed)
+	IVStateManager.set_user_paused(_pause.button_pressed)
 
 
 func _change_reversed() -> void:
@@ -94,7 +94,7 @@ func _update_buttons(_dummy := false, _dummy2 := false) -> void:
 		return
 	if _pause:
 		_pause.disabled = false
-		_pause.button_pressed = IVStateManager.is_user_pause
+		_pause.button_pressed = IVStateManager.paused_by_user
 	if _reverse:
 		_reverse.disabled = false
 		_reverse.button_pressed = _timekeeper.is_reversed

@@ -132,7 +132,7 @@ func _ready() -> void:
 	_restore_defaults.pressed.connect(_on_restore_defaults)
 	_confirm_changes.pressed.connect(_on_confirm_changes)
 	_hotkey_dialog.hotkey_confirmed.connect(_on_hotkey_confirmed)
-	if IVStateManager.is_core_inited:
+	if IVStateManager.initialized_core:
 		_configure_after_core_inited()
 	else:
 		IVStateManager.core_initialized.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)

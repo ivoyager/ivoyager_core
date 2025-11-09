@@ -75,7 +75,7 @@ func _ready() -> void:
 	set_default_cursor_shape(CURSOR_POINTING_HAND)
 	# This widget needs configuration after every tree build!
 	IVStateManager.system_tree_built.connect(_configure_for_system_tree)
-	if IVStateManager.is_system_built:
+	if IVStateManager.built_system:
 		_configure_for_system_tree()
 
 

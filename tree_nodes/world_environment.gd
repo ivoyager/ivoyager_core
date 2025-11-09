@@ -40,7 +40,7 @@ var camera_attributes_gl_compatibility_fallback := "CAMERA_ATTRIBUTES_GL_COMPATI
 
 
 func _ready() -> void:
-	IVStateManager.asset_preloader_finished.connect(_on_asset_preloader_finished)
+	IVStateManager.assets_preloaded.connect(_on_asset_preloader_finished)
 
 
 

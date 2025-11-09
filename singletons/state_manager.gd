@@ -21,8 +21,9 @@ extends Node
 
 ## Singleton [IVStateManager] maintains and exposes high-level simulator state.
 ##
-## Dev note: Don't add non-Godot class dependencies other than [IVGlobal] and
-## [IVStateAuxiliary]. These could cause circular reference issues.
+## Dev note: Don't add non-Godot class dependencies other than [IVGlobal],
+## [IVStateAuxiliary] and static utility classes. These could cause circular
+## reference issues.
 
 
 
@@ -47,51 +48,49 @@ extends Node
 # from another thread unless the function is guaranteed to be thread-safe. Most
 # functions are NOT thread-safe![br][br]
 
-# FIXME: Non-splash screen dependencies on is_prestart. Keep that true
-# up until sim starts and when exiting.
-
-# FIXME: Remove IVTableSystemBuilder and any other ivoyager classes. Signal for
-# build.
-
 
 ## "core_init_" signals are emitted during [IVCoreInitializer] processing before
-## property updates here. Consider using [signal core_initialized] instead.
+## property updates here.
 signal core_init_preinitialized()
 ## "core_init_" signals are emitted during [IVCoreInitializer] processing before
-## property updates here. Consider using [signal core_initialized] instead.
+## property updates here.
 signal core_init_init_refcounteds_instantiated()
 ## "core_init_" signals are emitted during [IVCoreInitializer] processing before
-## property updates here. Consider using [signal core_initialized] instead.
+## property updates here.
 signal core_init_program_objects_instantiated()
 ## "core_init_" signals are emitted during [IVCoreInitializer] processing before
-## property updates here. Consider using [signal core_initialized] instead.
+## property updates here.
 signal core_init_program_nodes_added()
 ## "core_init_" signals are emitted during [IVCoreInitializer] processing before
-## property updates here. Consider using [signal core_initialized] instead.
+## property updates here. DON'T USE THIS SIGNAL. Instead, use [signal core_initialized].
 signal core_init_finished()
-
-## Emitted after "init" and "program" objects have been instantiated and
-## "program" nodes have been added to the scene tree.
+## Emitted after "init" and "program" objects have been instantiated and added
+## to [member IVGlobal.program], "program" nodes have been added to the scene
+## tree, and [member initialized_core] is set.
 signal core_initialized()
-
-
-## Emitted after [IVAssetPreloader] has finished loading assets, always after
-## [signal core_initialized]. (Asset preloading is the longest part of startup.)
-## Must happen before [member is_ok_to_start] can be true.
-signal asset_preloader_finished()
-## Emitted immediately before the system tree is built (new or loaded game).
-signal about_to_build_system_tree(is_new_game: bool)
-## Procedural [IVBody] and [IVSmallBodiesGroup] instances have been added for
-## new or loaded game, but non-procedural "finish" nodes (models, rings,
-## lights, HUD elements, etc.) are still being added, possibly on thread.
-signal system_tree_built(is_new_game: bool)
-## The system tree is built and ready, including "finish" nodes added on thread.
-signal system_tree_ready(is_new_game: bool)
-## Emitted 1 frame after [signal system_tree_ready].
-signal about_to_start_simulator(is_new_game: bool)
-## Emitted a few frames after [signal about_to_start_simulator] and 1 frame
-## after [signal IVGlobal.update_gui_requested].
+## Emitted after [IVAssetPreloader] has finished loading assets and [member
+## has_assets] is set. Always after [signal core_initialized] and the delay
+## can be significant (asset preloading is the longest part of bootup).
+signal assets_preloaded()
+## Emitted after [member building_system] is set before system tree building
+## begins for new or loaded game.
+signal about_to_build_system_tree(new_game: bool)
+## Emitted after [member built_system] is set. Procedural [IVBody] and
+## [IVSmallBodiesGroup] instances have been added for new or loaded game, but
+## non-procedural "finish" nodes (models, rings, lights, HUD elements, etc.)
+## are still being added, possibly on thread.
+signal system_tree_built(new_game: bool)
+## Emitted after [member ready_system] is set. The system tree is built and
+## ready, including "finish" nodes added on thread.
+signal system_tree_ready(new_game: bool)
+## Emitted after [member started_or_about_to_start] is set. This is one frame
+## after [signal system_tree_ready].
+signal about_to_start_simulator(new_game: bool)
+## Emitted after [member started] is set. This is several frames after [signal
+## about_to_start_simulator] and 1 frame after [signal IVGlobal.update_gui_requested].
 signal simulator_started()
+
+
 ## Emitted immediately before procedural nodes are freed on exit, quit, and game
 ## load starting.
 signal about_to_free_procedural_nodes()
@@ -105,17 +104,20 @@ signal about_to_exit()
 signal simulator_exited()
 ## Emitted when the simulator starts or stops. The tree is always paused when
 ## the simulator is stopped. However, user pause does not stop the simulator.
-signal run_state_changed(is_running: bool)
+signal run_state_changed(running: bool)
 ## Emitted when network state changes.
 signal network_state_changed(network_state: NetworkState)
-
-## Emitted when pause state changes for any reason. If [param is_tree_paused]
-## is true, then [param is_user_pause] indicates whether the pause is due to
+## Emitted after pause state changes for any reason. If [param paused_tree]
+## is true, then [param paused_by_user] indicates whether the pause is due to
 ## user input.
-signal paused_changed(is_tree_paused: bool, is_user_pause: bool)
-## Emitted after any state change ("is_" property change) except for pause.
-## This signal is often emitted before a specific state signal, e.g.,
-## [signal core_initialized], [signal system_tree_ready], etc.
+signal paused_changed(paused_tree: bool, paused_by_user: bool)
+
+
+## Emitted after state changes except pause (unless pause coincides with some
+## other state change). Also not emitted durring [IVCoreInitializer] processing
+## (see "core_init_" signals). This signal is often emitted immediately before a
+## specific state signal (e.g., [signal core_initialized], [signal system_tree_ready])
+## but always after relevant class properties have been set.
 signal state_changed()
 
 # TODO?: one signal threads_state_changed() and then query allow_threads
@@ -150,29 +152,52 @@ enum NetworkStopSync {
 const DPRINT := false
 
 
-# read-only!
+# All read-only!
 
-## Scene tree paused state.
-var is_tree_paused := true
-## User pause state. The tree might be paused for some other reason, e.g.,
-## the main menu is open.
-var is_user_pause := false
-## True at and after [signal core_initialized].
-var is_core_inited := false
-## True at and after [signal asset_preloader_finished].
-var is_assets_loaded := false
-
-var is_prestart := false
-var is_ok_to_start := false
-var is_building_tree := false # new or loading game
-var is_system_built := false
-var is_system_ready := false
-var is_started_or_about_to_start := false
-var is_started := false
-var is_running := false # SceneTree.pause set in IVCoreInitializer
-var is_quitting := false
-var is_game_loading := false
-var is_loaded_game := false
+## Scene tree paused state. Follows changes in [code]get_tree().paused[/code].
+var paused_tree := true
+## True if pause is due to user input. The tree might be paused for some other
+## reason (e.g., the main menu is open). However, if [member paused_by_user] is
+## true, then [member paused_tree] must be true.
+var paused_by_user := false
+## Set after "init" and "program" objects have been instantiated and added to
+## [member IVGlobal.program], and "program" nodes have been added to the scene
+## tree (followed by [signal core_initialized]).
+var initialized_core := false
+## Set after [IVAssetPreloader] has finished loading assets (followed by [signal
+## assets_preloaded]). 
+var has_assets := false
+## Set true after [IVCoreInitializer] has finished and false before system tree
+## building begins (for new or loaded game). Set true again after a game has
+## exited. When booting up, [member has_assets] may not be true yet (see
+## [member ok_to_start]).
+var prestart := false
+## Indicates whether it is safe to build a new system tree: [member prestart]
+## and [member has_assets] are both true. If true, it's also safe to load a
+## gamesave file.
+var ok_to_start := false
+## Indicates whether a system tree is currently being built. This may be a new
+## system or loaded system from a gamesave file. This property stays true until
+## [member ready_system] is true.
+var building_system := false
+## Indicates whether a system tree has been built (new or loaded): specifically,
+## procedural [IVBody] and [IVSmallBodiesGroup] instances have been added. It's
+## possible that non-procedural "finish" nodes (models, rings, lights, HUD
+## elements, etc.) are still being added, possibly on thread.
+var built_system := false
+## True indicates that the system tree is built and ready, including "finish"
+## nodes added on thread.
+var ready_system := false
+## Indicates whether the simulation is started or about to start (soon after
+## [signal system_tree_ready]).
+var started_or_about_to_start := false
+## Indicates whether the simulation is started (soon after
+## [signal about_to_start_simulator]). 
+var started := false
+var running := false
+var quitting := false
+var loading_game := false
+var loaded_game := false
 var network_state := NetworkState.NO_NETWORK
 ## Use this property to set splash screen visibility on [signal state_changed].
 ## True until simulator started. True again on exit.
@@ -194,21 +219,22 @@ var _tree_build_counter := 0
 func _ready() -> void:
 	IVGlobal.core_init_object_instantiated.connect(_on_global_project_object_instantiated)
 	core_init_finished.connect(_on_core_initializer_finished)
-	process_mode = PROCESS_MODE_ALWAYS
+	#process_mode = PROCESS_MODE_ALWAYS
 	_tree.paused = true
 	require_stop(self, -1, true)
 
 
-func _unhandled_key_input(event: InputEvent) -> void:
-	if event.is_action_pressed(&"toggle_pause"):
-		change_user_pause()
-	elif event.is_action_pressed(&"quit"):
-		quit(false)
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PAUSED:
+		if paused_tree:
+			return
+	elif what == NOTIFICATION_UNPAUSED:
+		if !paused_tree:
+			return
 	else:
 		return
-	get_window().set_input_as_handled()
-
-
+	paused_tree = not paused_tree
+	paused_changed.emit(paused_tree, paused_by_user)
 
 
 
@@ -238,21 +264,20 @@ func signal_threads_finished() -> void:
 		remove_blocking_thread(null)
 
 
-## Toggle or set user pause. If [param toggle] is true (default) the second
-## arg is ignored.
-func change_user_pause(toggle := true, pause := true) -> void:
-	# Only allowed if running and not otherwise prohibited.
+## Set user paused. Does nothing if [member IVCoreSettings.disable_pause] == true
+## or [member network_state] == NetworkState.IS_CLIENT.
+func set_user_paused(pause: bool) -> void:
+	if paused_by_user == pause:
+		return
 	if network_state == NetworkState.IS_CLIENT:
 		return
-	if !is_running or IVCoreSettings.disable_pause:
+	if !running or IVCoreSettings.disable_pause:
 		return
-	if !toggle and pause == is_user_pause:
-		return
-	is_user_pause = !is_user_pause if toggle else pause
-	if is_user_pause == _tree.paused:
-		paused_changed.emit(is_user_pause, is_user_pause)
+	paused_by_user = pause
+	if paused_by_user == _tree.paused:
+		paused_changed.emit(paused_by_user, paused_by_user)
 	else:
-		_tree.paused = is_user_pause # will emit paused_changed via IVTimekeeper
+		_tree.paused = paused_by_user # will emit paused_changed via IVTimekeeper
 
 
 ## network_sync_type used only if we are the network server.
@@ -277,7 +302,7 @@ func require_stop(who: Object, network_sync_type := -1, bypass_checks := false) 
 	assert(!DPRINT or IVDebug.dprint("require_stop", who, network_sync_type))
 	if !_nodes_requiring_stop.has(who):
 		_nodes_requiring_stop.append(who)
-	if is_running:
+	if running:
 		_stop_simulator()
 	signal_threads_finished()
 	return true
@@ -286,7 +311,7 @@ func require_stop(who: Object, network_sync_type := -1, bypass_checks := false) 
 func allow_run(who: Object) -> void:
 	assert(!DPRINT or IVDebug.dprint("allow_run", who))
 	_nodes_requiring_stop.erase(who)
-	if is_running or _nodes_requiring_stop:
+	if running or _nodes_requiring_stop:
 		return
 	if network_state == NetworkState.IS_SERVER:
 		server_about_to_run.emit()
@@ -296,9 +321,9 @@ func allow_run(who: Object) -> void:
 
 ## Build the system tree for new game.
 func start() -> void:
-	assert(is_ok_to_start)
-	is_ok_to_start = false
-	is_loaded_game = false
+	assert(ok_to_start)
+	ok_to_start = false
+	loaded_game = false
 	state_changed.emit()
 	require_stop(self, NetworkStopSync.BUILD_SYSTEM, true)
 	_set_about_to_build_system_tree(true)
@@ -306,11 +331,11 @@ func start() -> void:
 	_set_system_tree_built(true)
 
 
-## Exit to splash screen. [param force_exit] = true means we've confirmed
-## already or confirmation isn't applicable.
+## Exit to splash screen. Set [param force_exit] = true to force exit without
+## confirmation.
 func exit(force_exit := false, following_server := false) -> void:
 	# 
-	if !is_system_ready or IVCoreSettings.disable_exit:
+	if !ready_system or IVCoreSettings.disable_exit:
 		return
 	if !force_exit:
 		if network_state == NetworkState.IS_CLIENT:
@@ -322,13 +347,13 @@ func exit(force_exit := false, following_server := false) -> void:
 	if network_state == NetworkState.IS_CLIENT:
 		if !following_server:
 			client_is_dropping_out.emit(true)
-	is_system_built = false
-	is_system_ready = false
-	is_started_or_about_to_start = false
-	is_started = false
-	is_running = false
+	built_system = false
+	ready_system = false
+	started_or_about_to_start = false
+	started = false
+	running = false
 	_tree.paused = true
-	is_loaded_game = false
+	loaded_game = false
 	show_splash_screen = true
 	state_changed.emit()
 	require_stop(self, NetworkStopSync.EXIT, true)
@@ -340,29 +365,29 @@ func exit(force_exit := false, following_server := false) -> void:
 	await _tree.process_frame
 	IVGlobal.close_all_admin_popups_requested.emit()
 	await _tree.process_frame
-	is_prestart = true
-	is_ok_to_start = true
-	is_user_pause = false
+	prestart = true
+	ok_to_start = true
+	paused_by_user = false
 	state_changed.emit()
 	simulator_exited.emit()
 
 
-## Quit the application. [param force_quit] = true means we've confirmed
-## already or confirmation isn't applicable.
+## Quit the application. Set [param force_quit] = true to force quit without
+## confirmation.
 func quit(force_quit := false) -> void:
-	if !(is_prestart or is_system_ready) or IVCoreSettings.disable_quit:
+	if !(prestart or ready_system) or IVCoreSettings.disable_quit:
 		return
 	if !force_quit:
 		if network_state == NetworkState.IS_CLIENT:
 			IVGlobal.confirmation_requested.emit("Disconnect from multiplayer game?", exit.bind(true))
 			return
-		elif IVPluginUtils.is_plugin_enabled("ivoyager_save") and !is_prestart:
+		elif IVPluginUtils.is_plugin_enabled("ivoyager_save") and !prestart:
 			IVGlobal.confirmation_requested.emit(&"LABEL_QUIT_WITHOUT_SAVING", quit.bind(true))
 			return
 	if network_state == NetworkState.IS_CLIENT:
 		client_is_dropping_out.emit(false)
-	is_ok_to_start = false
-	is_quitting = true
+	ok_to_start = false
+	quitting = true
 	state_changed.emit()
 	about_to_stop_before_quit.emit()
 	require_stop(self, NetworkStopSync.QUIT, true)
@@ -385,8 +410,8 @@ func quit(force_quit := false) -> void:
 
 func _on_core_initializer_finished() -> void:
 	assert(_state_auxiliary)
-	is_core_inited = true
-	is_prestart = true
+	initialized_core = true
+	prestart = true
 	state_changed.emit()
 	core_initialized.emit()
 
@@ -396,81 +421,74 @@ func _on_global_project_object_instantiated(object: Object) -> void:
 		return
 	_state_auxiliary = object
 	_state_auxiliary.asset_preloader_finished.connect(_on_aux_asset_preloader_finished)
-	_state_auxiliary.about_to_free_procedural_nodes.connect(_on_aux_about_to_free_procedural_nodes)
+	_state_auxiliary.about_to_free_procedural_nodes_for_load.connect(
+			_on_aux_about_to_free_procedural_nodes_for_load)
 	_state_auxiliary.game_loading.connect(_on_aux_game_loading)
 	_state_auxiliary.game_loaded.connect(_on_aux_game_loaded)
-	_state_auxiliary.engine_paused_changed.connect(_on_aux_engine_paused_changed)
 	_state_auxiliary.tree_building_count_changed.connect(_on_aux_tree_building_count_changed)
 
 
 func _on_aux_asset_preloader_finished() -> void:
-	is_assets_loaded = true
-	is_ok_to_start = true
+	has_assets = true
+	ok_to_start = true
 	state_changed.emit()
-	asset_preloader_finished.emit()
+	assets_preloaded.emit()
 	if not IVCoreSettings.wait_for_start:
 		start()
 
 
-func _on_aux_about_to_free_procedural_nodes() -> void:
+func _on_aux_about_to_free_procedural_nodes_for_load() -> void:
 	about_to_free_procedural_nodes.emit()
 
 
 func _on_aux_game_loading() -> void:
-	is_prestart = false
-	is_ok_to_start = false
-	is_system_built = false
-	is_game_loading = true
-	is_loaded_game = true
+	prestart = false
+	ok_to_start = false
+	built_system = false
+	loading_game = true
+	loaded_game = true
 	state_changed.emit()
 	require_stop(self, NetworkStopSync.BUILD_SYSTEM, true)
 	_set_about_to_build_system_tree(false)
 
 
-func _on_aux_game_loaded(user_pause: bool) -> void:
-	is_user_pause = user_pause
-	is_game_loading = false
+func _on_aux_game_loaded(user_paused_on_load: bool) -> void:
+	paused_by_user = user_paused_on_load
+	loading_game = false
 	state_changed.emit()
 	_set_system_tree_built(false)
-
-
-func _on_aux_engine_paused_changed(engine_paused: bool) -> void:
-	if is_tree_paused == engine_paused:
-		return
-	is_tree_paused = engine_paused
-	paused_changed.emit(is_tree_paused, is_user_pause)
 
 
 func _on_aux_tree_building_count_changed(incr: int) -> void:
 	_tree_build_counter += incr
 	if incr > 0:
 		return
-	if _tree_build_counter == 0 and is_building_tree:
-		_set_system_tree_ready(not is_loaded_game)
+	if _tree_build_counter == 0 and building_system:
+		_set_system_tree_ready(not loaded_game)
 
 
 func _set_about_to_build_system_tree(is_new_game: bool) -> void:
-	is_prestart = false
-	is_building_tree = true
+	prestart = false
+	building_system = true
 	state_changed.emit()
 	about_to_build_system_tree.emit(is_new_game)
 
 
 func _set_system_tree_built(is_new_game: bool) -> void:
-	is_system_built = true
+	built_system = true
 	state_changed.emit()
 	system_tree_built.emit(is_new_game)
 
 
 func _set_system_tree_ready(is_new_game: bool) -> void:
-	is_building_tree = false
-	is_game_loading = false
-	is_system_ready = true
+	building_system = false
+	loading_game = false
+	ready_system = true
 	state_changed.emit()
 	system_tree_ready.emit(is_new_game)
 	print("System tree ready...")
 	await _tree.process_frame
-	is_started_or_about_to_start = true
+	started_or_about_to_start = true
 	state_changed.emit()
 	about_to_start_simulator.emit(is_new_game)
 	IVGlobal.close_all_admin_popups_requested.emit() # main menu possible
@@ -479,7 +497,7 @@ func _set_system_tree_ready(is_new_game: bool) -> void:
 	await _tree.process_frame
 	IVGlobal.update_gui_requested.emit()
 	await _tree.process_frame
-	is_started = true
+	started = true
 	show_splash_screen = false
 	state_changed.emit()
 	simulator_started.emit()
@@ -492,9 +510,9 @@ func _stop_simulator() -> void:
 	assert(!DPRINT or IVDebug.dprint("signal run_threads_must_stop"))
 	allow_threads = false
 	run_threads_must_stop.emit()
-	is_running = false
+	running = false
 	if _tree.paused:
-		paused_changed.emit(true, is_user_pause)
+		paused_changed.emit(true, paused_by_user)
 	else:
 		_tree.paused = true # will emit paused_changed via IVTimekeeper
 	state_changed.emit()
@@ -503,11 +521,11 @@ func _stop_simulator() -> void:
 
 func _run_simulator() -> void:
 	print("Run simulator")
-	is_running = true
-	if is_user_pause == _tree.paused:
-		paused_changed.emit(is_user_pause, is_user_pause)
+	running = true
+	if paused_by_user == _tree.paused:
+		paused_changed.emit(paused_by_user, paused_by_user)
 	else:
-		_tree.paused = is_user_pause # will emit paused_changed via IVTimekeeper
+		_tree.paused = paused_by_user # will emit paused_changed via IVTimekeeper
 	state_changed.emit()
 	run_state_changed.emit(true)
 	assert(!DPRINT or IVDebug.dprint("signal run_threads_allowed"))

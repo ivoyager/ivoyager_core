@@ -25,7 +25,7 @@ extends RefCounted
 ##
 ## In typical setup, loading will commence right after splash screen is shown,
 ## on [signal IVStateManager.core_initialized]. When finished, emits [signal
-## IVStateManager.asset_preloader_finished].
+## IVStateManager.assets_preloaded].
 
 const files := preload("res://addons/ivoyager_core/static/files.gd")
 const RINGS_LOD_LEVELS := 9 # must agree w/ assets, body.gd and rings.shader

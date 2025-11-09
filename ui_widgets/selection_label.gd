@@ -37,7 +37,7 @@ func _ready() -> void:
 
 func _connect_selection_manager(_dummy := false) -> void:
 	# once after every system_tree_ready
-	if _selection_manager or !IVStateManager.is_system_ready:
+	if _selection_manager or !IVStateManager.ready_system:
 		return
 	_selection_manager = IVSelectionManager.get_selection_manager(self)
 	assert(_selection_manager, "Did not find valid 'selection_manager' above this node")
