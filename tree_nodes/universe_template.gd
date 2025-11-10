@@ -34,10 +34,10 @@ extends Node3D
 ## tree has the Core plugin UI nodes shown but lacks game panels, spash screen,
 ## exit button, and nodes from the Save plugin.[br][br]
 ##
-## (Note: It's in
-## our [url=https://github.com/orgs/ivoyager/discussions/5]roadmap[/url] to make
-## the physical part editable in the Editor too, but due to development history
-## it can only be built from data table files at this time.)
+## (Note: It's in our
+## [url=https://github.com/orgs/ivoyager/discussions/5]roadmap[/url] to make
+## the physical part editable in the Editor too. The program was built for data
+## tables, so that's where we're at right now.)
 ## 
 ## [codeblock] 
 ##
@@ -95,7 +95,7 @@ extends Node3D
 ## The "program" directory contains both [Node] and [RefCounted] program
 ## classes, which are essentially "small s singletons" that support the
 ## simulator. These are instantiated and added to dictionary [member IVGlobal.program]
-## (and the Nodes added to the scene tree) as specified in [IVCoreInitializer].
+## (and nodes added to the scene tree) as specified in [IVCoreInitializer].
 ## An external project can remove, replace, subclass, or add to these at project
 ## init.[br][br]
 ##
@@ -107,13 +107,13 @@ extends Node3D
 ##
 ## By default, the physical system is built immediately after the program starts
 ## and initializes. To implement a splash screen, set [member IVCoreSettings.wait_for_start]
-## = true and add the [IVStartButton] widget somewhere in your splash screen
-## (the widget calls [method IVStateManager.start]). Use [signal
+## = true and add the [IVStartButton] widget somewhere in your splash screen —
+## the widget will call [method IVStateManager.start] when pressed. Use [signal
 ## IVStateManager.state_changed] and [member IVStateManager.show_splash_screen]
 ## to manage splash screen visibility. See [IVStateManager] for details.[br][br][br]
 ##
 ##
-## Additional notes regarding the root "Universe" node:[br][br]
+## [b]Additional notes for root "Universe" node:[/b][br][br]
 ##
 ## We use origin shifting to prevent "imprecision shakes" caused by vast scale
 ## differences (e.g, when viewing Pluto at 40 au from the Sun). To do so,
