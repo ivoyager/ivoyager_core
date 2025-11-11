@@ -28,30 +28,19 @@ var _camera: IVCamera
 
 
 func _ready() -> void:
-	IVGlobal.camera_ready.connect(_connect_camera)
-	IVStateManager.about_to_free_procedural_nodes.connect(_disconnect_camera)
-	_connect_camera(get_viewport().get_camera_3d() as IVCamera) # null ok
+	IVWidgets.connect_ivcamera(self, &"_on_camera_changed",
+			[&"camera_lock_changed", &"_on_camera_lock_changed",
+			&"range_changed", &"_on_range_changed"])
 
 
-func _connect_camera(camera: IVCamera) -> void:
-	_disconnect_camera()
+func _on_camera_changed(camera: IVCamera) -> void:
 	_camera = camera
-	if _camera:
-		_camera.range_changed.connect(_on_range_changed)
-		_camera.camera_lock_changed.connect(_on_camera_lock_changed)
-	visible = _camera and _camera.is_camera_lock
-
-
-func _disconnect_camera() -> void:
-	if _camera and is_instance_valid(_camera):
-		_camera.range_changed.disconnect(_on_range_changed)
-		_camera.camera_lock_changed.disconnect(_on_camera_lock_changed)
-		_camera = null
-
-
-func _on_range_changed(new_range: float) -> void:
-	text = IVQFormat.dynamic_unit(new_range, &"length_m_km_au", 3)
+	visible = camera and camera.is_camera_lock
 
 
 func _on_camera_lock_changed(is_camera_lock: bool) -> void:
 	visible = is_camera_lock
+
+
+func _on_range_changed(new_range: float) -> void:
+	text = IVQFormat.dynamic_unit(new_range, &"length_m_km_au", 3)

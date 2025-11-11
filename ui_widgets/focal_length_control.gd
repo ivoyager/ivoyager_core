@@ -28,6 +28,7 @@ extends HBoxContainer
 ##
 ## Requires [IVCamera].
 
+
 var big_steps: Array[float] = [6.0, 15.0, 24.0, 35.0, 50.0] # FOVs ~125.6, 75.8, 51.9, 36.9, 26.3
 
 var _camera: IVCamera
@@ -39,23 +40,17 @@ var _camera: IVCamera
 
 
 func _ready() -> void:
-	IVGlobal.camera_ready.connect(_set_camera)
-	IVStateManager.about_to_free_procedural_nodes.connect(_free_procedural)
 	IVGlobal.camera_fov_changed.connect(_on_camera_fov_changed)
 	_spinbox.value_changed.connect(_on_spinbox_value_changed)
 	_minus.pressed.connect(_do_big_step.bind(false))
 	_plus.pressed.connect(_do_big_step.bind(true))
 	_spinbox.min_value = big_steps[0]
 	_spinbox.max_value = big_steps[-1]
-	_set_camera(get_viewport().get_camera_3d() as IVCamera)
+	IVWidgets.connect_ivcamera(self, &"_on_camera_changed")
 
 
-func _set_camera(camera: IVCamera) -> void:
+func _on_camera_changed(camera: IVCamera) -> void:
 	_camera = camera
-
-
-func _free_procedural() -> void:
-	_camera = null
 
 
 func _on_camera_fov_changed(fov: float) -> void:

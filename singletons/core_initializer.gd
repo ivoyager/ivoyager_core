@@ -310,13 +310,11 @@ func _instantiate_program_objects() -> void:
 		node.name = key
 		IVGlobal.program[key] = node
 		IVGlobal.core_init_object_instantiated.emit(node)
-	
 	IVStateManager.core_init_program_objects_instantiated.emit()
 	await get_tree().process_frame
 
 
 func _add_program_nodes() -> void:
-	print(2)
 	for key in ordered_program_nodes:
 		var node: Node = IVGlobal.program[key]
 		universe.add_child(node)
@@ -325,7 +323,6 @@ func _add_program_nodes() -> void:
 			continue
 		var node: Node = IVGlobal.program[key]
 		universe.add_child(node)
-	
 	IVStateManager.core_init_program_nodes_added.emit()
 	await get_tree().process_frame
 

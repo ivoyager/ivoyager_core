@@ -27,35 +27,41 @@ extends HBoxContainer
 
 var _selection_manager: IVSelectionManager
 
-@onready var _back: Button = $Back
-@onready var _forward: Button = $Forward
-@onready var _up: Button = $Up
+@onready var _back_buttion: Button = $Back
+@onready var _forward_buttion: Button = $Forward
+@onready var _up_buttion: Button = $Up
 
 
 func _ready() -> void:
-	IVGlobal.update_gui_requested.connect(_update_buttons)
-	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
-	IVStateManager.system_tree_ready.connect(_connect_selection_manager)
-	_connect_selection_manager()
+	_back_buttion.pressed.connect(_back)
+	_forward_buttion.pressed.connect(_forward)
+	_up_buttion.pressed.connect(_up)
+	IVWidgets.connect_selection_manager(self, &"_on_selection_manager_changed",
+			[&"selection_changed", &"_update_buttons"])
 
 
-func _connect_selection_manager(_dummy := false) -> void:
-	if _selection_manager or !IVStateManager.ready_system:
-		return
-	_selection_manager = IVSelectionManager.get_selection_manager(self)
-	assert(_selection_manager, "Did not find valid 'selection_manager' above this node")
-	_selection_manager.selection_changed.connect(_update_buttons)
-	_back.pressed.connect(_selection_manager.back)
-	_forward.pressed.connect(_selection_manager.forward)
-	_up.pressed.connect(_selection_manager.up)
-	_update_buttons()
+func _on_selection_manager_changed(selection_manager: IVSelectionManager) -> void:
+	_selection_manager = selection_manager
+	if selection_manager:
+		_update_buttons()
+
+
+func _back() -> void:
+	if _selection_manager:
+		_selection_manager.back()
+
+
+func _forward() -> void:
+	if _selection_manager:
+		_selection_manager.forward()
+
+
+func _up() -> void:
+	if _selection_manager:
+		_selection_manager.up()
 
 
 func _update_buttons(_dummy := false) -> void:
-	_back.disabled = !_selection_manager.can_go_back()
-	_forward.disabled = !_selection_manager.can_go_forward()
-	_up.disabled = !_selection_manager.can_go_up()
-
-
-func _clear_procedural() -> void:
-	_selection_manager = null
+	_back_buttion.disabled = !_selection_manager.can_go_back()
+	_forward_buttion.disabled = !_selection_manager.can_go_forward()
+	_up_buttion.disabled = !_selection_manager.can_go_up()

@@ -70,23 +70,32 @@ static func create(body_name: StringName, use_texture_slice := false,
 
 
 func _ready() -> void:
+	set_default_cursor_shape(CURSOR_POINTING_HAND)
 	IVStateManager.simulator_started.connect(_on_sim_started)
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
-	set_default_cursor_shape(CURSOR_POINTING_HAND)
+	
 	# This widget needs configuration after every tree build!
 	IVStateManager.system_tree_built.connect(_configure_for_system_tree)
 	if IVStateManager.built_system:
 		_configure_for_system_tree()
+	
+	
+	# Note: IVWidgets.connect_selection_manager() works here (tested). But it
+	# doesn't save much boilerplate code here and isn't optimal with all the
+	# IVNavButtons freeing and rebuilding. Se we don't use it.
+	
+	# Test/debug IVWidgets.connect_selection_manager() here, but then
+	# don't use it because it's suboptimal.
+	#IVWidgets.connect_selection_manager(self, &"_on_selection_manager_changed",
+			#[&"selection_changed", &"_update_selection"])
 
 
 func _pressed() -> void:
 	_selection_manager.select_body(_body)
 
 
-func _on_sim_started() -> void:
-	_update_selection()
-	if focus_selected_on_sim_start and button_pressed:
-		grab_focus()
+func _on_selection_manager_changed(selection_manager: IVSelectionManager) -> void:
+	_selection_manager = selection_manager
 
 
 func _configure_for_system_tree(_dummy := false) -> void:
@@ -114,7 +123,7 @@ func _configure_for_system_tree(_dummy := false) -> void:
 	_selection_manager.selection_changed.connect(_update_selection)
 
 
-func _clear_procedural() -> void:
+func _clear_procedural() -> void: # always before another tree is built
 	_body = null
 	_texture_rect.texture = null # looks better during quit deconstruction...
 	if _selection_manager:
@@ -122,5 +131,12 @@ func _clear_procedural() -> void:
 		_selection_manager = null
 
 
+func _on_sim_started() -> void:
+	_update_selection()
+	if focus_selected_on_sim_start and button_pressed:
+		grab_focus()
+
+
 func _update_selection(_dummy := false) -> void:
-	button_pressed = _selection_manager.get_body() == _body
+	if _body:
+		button_pressed = _selection_manager.get_body() == _body

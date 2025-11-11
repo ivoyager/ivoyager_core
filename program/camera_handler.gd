@@ -97,13 +97,14 @@ var _rotate_pressed := Vector3.ZERO
 func _ready() -> void:
 	process_mode = PROCESS_MODE_ALWAYS
 	IVStateManager.system_tree_ready.connect(_on_system_tree_ready)
-	IVStateManager.about_to_free_procedural_nodes.connect(_restore_init_state)
-	IVGlobal.camera_ready.connect(_connect_camera)
+	IVStateManager.about_to_free_procedural_nodes.connect(_on_about_to_free_procedural_nodes)
 	IVGlobal.viewport_size_changed.connect(_on_viewport_size_changed)
 	IVSettingsManager.changed.connect(_settings_listener)
 	_world_controller.mouse_target_clicked.connect(_on_mouse_target_clicked)
 	_world_controller.mouse_dragged.connect(_on_mouse_dragged)
 	_world_controller.mouse_wheel_turned.connect(_on_mouse_wheel_turned)
+	IVWidgets.connect_ivcamera(self, &"_on_camera_changed",
+			[&"camera_lock_changed", &"_on_camera_lock_changed"])
 
 
 func _process(delta: float) -> void:
@@ -213,6 +214,8 @@ func move_to(selection: IVSelection, camera_flags := 0, view_position := NULL_VE
 		view_rotations := NULL_VECTOR3, is_instant_move := false) -> void:
 	# Null or null-equivilant args tell the camera to keep its current value.
 	# Some parameters override others.
+	if not _camera:
+		return
 	if selection:
 		_selection_manager.select(selection, true)
 	_camera.move_to(selection, camera_flags, view_position, view_rotations, is_instant_move)
@@ -222,6 +225,8 @@ func move_to_by_name(selection_name: StringName, camera_flags := 0, view_positio
 		view_rotations := NULL_VECTOR3, is_instant_move := false) -> void:
 	# Null or null-equivilant args tell the camera to keep its current value.
 	# Some parameters override others.
+	if not _camera:
+		return
 	var selection: IVSelection
 	if selection_name:
 		selection = _selection_manager.get_or_make_selection(selection_name)
@@ -254,24 +259,15 @@ func _on_system_tree_ready(_is_new_game: bool) -> void:
 	_selection_manager.selection_reselected.connect(_on_selection_reselected)
 
 
-func _restore_init_state() -> void:
-	_disconnect_camera()
+func _on_camera_changed(camera: IVCamera) -> void:
+	_camera = camera
+
+
+func _on_about_to_free_procedural_nodes() -> void:
+	#_disconnect_camera()
 	if _selection_manager:
 		_selection_manager.selection_changed.disconnect(_on_selection_changed)
 		_selection_manager = null
-
-
-func _connect_camera(camera: Camera3D) -> void:
-	_disconnect_camera()
-	_camera = camera as IVCamera
-	if _camera:
-		_camera.camera_lock_changed.connect(_on_camera_lock_changed)
-
-
-func _disconnect_camera() -> void:
-	if _camera and is_instance_valid(_camera):
-		_camera.camera_lock_changed.disconnect(_on_camera_lock_changed)
-		_camera = null
 
 
 func _on_selection_changed(suppress_camera_move: bool) -> void:

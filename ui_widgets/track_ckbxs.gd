@@ -33,9 +33,8 @@ var _camera: IVCamera
 
 
 func _ready() -> void:
-	IVStateManager.about_to_free_procedural_nodes.connect(_disconnect_camera)
 	
-	# FIXME: ButtonGroup is redundant with our button logic, but it also
+	# FIXME: ButtonGroup is redundant with our update logic, but it also
 	# changes styling. Can we do the styling without the group?
 	var button_group := ButtonGroup.new()
 	button_group.pressed.connect(_on_pressed)
@@ -43,22 +42,12 @@ func _ready() -> void:
 	_orbit_checkbox.button_group = button_group
 	_ground_checkbox.button_group = button_group
 	
-	
-	IVGlobal.camera_ready.connect(_connect_camera)
-	_connect_camera(get_viewport().get_camera_3d() as IVCamera)
+	IVWidgets.connect_ivcamera(self, &"_on_camera_changed",
+			[&"tracking_changed", &"_update_buttons"])
 
 
-func _connect_camera(camera: IVCamera) -> void:
-	_disconnect_camera()
+func _on_camera_changed(camera: IVCamera) -> void:
 	_camera = camera
-	if _camera:
-		_camera.tracking_changed.connect(_update_buttons)
-
-
-func _disconnect_camera() -> void:
-	if _camera and is_instance_valid(_camera):
-		_camera.tracking_changed.disconnect(_update_buttons)
-		_camera = null
 
 
 func _on_pressed(button: CheckBox) -> void:

@@ -24,14 +24,12 @@ extends CheckBox
 ##
 ## Requires [IVCamera].
 
-
 var _camera: IVCamera
 
 
 func _ready() -> void:
-	IVGlobal.camera_ready.connect(_connect_camera)
-	IVStateManager.about_to_free_procedural_nodes.connect(_disconnect_camera)
-	_connect_camera(get_viewport().get_camera_3d() as IVCamera) # null ok
+	IVWidgets.connect_ivcamera(self, &"_on_camera_changed",
+			[&"camera_lock_changed", &"_on_camera_lock_changed"])
 
 
 func _pressed() -> void:
@@ -39,18 +37,10 @@ func _pressed() -> void:
 		_camera.change_camera_lock(button_pressed)
 
 
-func _connect_camera(camera: IVCamera) -> void:
-	_disconnect_camera()
+func _on_camera_changed(camera: IVCamera) -> void:
 	_camera = camera
-	if _camera:
-		_camera.camera_lock_changed.connect(_on_camera_lock_changed)
-		button_pressed = _camera.is_camera_lock
-
-
-func _disconnect_camera() -> void:
-	if _camera and is_instance_valid(_camera):
-		_camera.camera_lock_changed.disconnect(_on_camera_lock_changed)
-		_camera = null
+	if camera:
+		button_pressed = camera.is_camera_lock
 
 
 func _on_camera_lock_changed(is_camera_lock: bool) -> void:

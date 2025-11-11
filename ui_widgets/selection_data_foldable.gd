@@ -69,6 +69,7 @@ extends FoldableContainer
 @export var update_ignore_time_scale := true
 
 
+var _selection_manager: IVSelectionManager
 var _wiki_manager: IVWikiManager
 var _use_label_links := false
 var _use_value_links := false
@@ -76,7 +77,6 @@ var _enable_precisions := false
 var _dirty := true
 var _content: Array[Array]
 var _valid_test: Callable
-var _selection_manager: IVSelectionManager
 var _timer: Timer
 var _added_rows := 0
 var _en_width: float
@@ -102,18 +102,17 @@ func _ready() -> void:
 		_timer.ignore_time_scale = update_ignore_time_scale
 	IVGlobal.update_gui_requested.connect(_update_selection)
 	IVSettingsManager.changed.connect(_settings_listener)
-	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
 	_arrange_child_controls()
 	if IVStateManager.initialized_core:
 		_configure_after_core_inited()
 	else:
 		IVStateManager.core_initialized.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
-	IVStateManager.system_tree_ready.connect(_connect_selection_manager)
-	_connect_selection_manager()
+	IVWidgets.connect_selection_manager(self, &"_on_selection_manager_changed",
+			[&"selection_changed", &"_update_selection"])
 
 
 func _arrange_child_controls() -> void:
-	# If >1 child Controls, put all of them in a VBoxContainer!
+	# If >1 child Controls, put all of them in a VBoxContainer.
 	var child_controls: Array[Control] = []
 	for child in get_children():
 		if child is Control:
@@ -128,7 +127,6 @@ func _arrange_child_controls() -> void:
 
 
 func _configure_after_core_inited(_dummy := false) -> void:
-	# once
 	_wiki_manager = IVGlobal.program.get(&"WikiManager")
 	if _wiki_manager:
 		_use_label_links = IVUtils.get_tree_bool(self, &"enable_selection_data_label_links")
@@ -138,19 +136,8 @@ func _configure_after_core_inited(_dummy := false) -> void:
 	_reset_column_widths()
 
 
-func _connect_selection_manager(_dummy := false) -> void:
-	# once after every system_tree_ready
-	if _selection_manager or !IVStateManager.ready_system:
-		return
-	_selection_manager = IVSelectionManager.get_selection_manager(self)
-	assert(_selection_manager, "Did not find valid 'selection_manager' above this node")
-	_selection_manager.selection_changed.connect(_update_selection)
-
-
-func _clear_procedural() -> void:
-	if _selection_manager:
-		_selection_manager.selection_changed.disconnect(_update_selection)
-		_selection_manager = null
+func _on_selection_manager_changed(selection_manager: IVSelectionManager) -> void:
+	_selection_manager = selection_manager
 
 
 func _get_content() -> void:
@@ -169,7 +156,7 @@ func _on_parent_visibility_changed() -> void:
 
 
 func _update_selection(_dummy := false) -> void:
-	# This FoldableContainer will be hidden if all content rows are null/""
+	# This FoldableContainer will be hidden if all content rows are null or ""
 	# (i.e., its title will be hidden). We need update even if folded so we can
 	# determine visibility of the title. We can deffer update if this part of
 	# the GUI tree is currently hidden.

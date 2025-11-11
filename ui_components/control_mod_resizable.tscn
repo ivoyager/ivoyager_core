@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://bkcj6agxxgfw"]
+
+[ext_resource type="Script" uid="uid://ciwrnqxb3b1fv" path="res://addons/ivoyager_core/ui_components/control_mod_resizable.gd" id="1_rhn30"]
+
+[node name="ControlModResizable" type="Node"]
+script = ExtResource("1_rhn30")

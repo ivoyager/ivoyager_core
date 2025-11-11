@@ -54,14 +54,14 @@ func _pressed() -> void:
 
 
 func _change_fullscreen() -> void:
-	var window := get_window()
+	var window := get_tree().get_root()
 	var is_fullscreen := ((window.mode == Window.MODE_EXCLUSIVE_FULLSCREEN)
 			or (window.mode == Window.MODE_FULLSCREEN))
 	window.mode = Window.MODE_EXCLUSIVE_FULLSCREEN if !is_fullscreen else Window.MODE_WINDOWED
 
 
 func _update_button() -> void:
-	var window := get_window()
+	var window := get_tree().get_root()
 	if _is_fullscreen == ((window.mode == Window.MODE_EXCLUSIVE_FULLSCREEN)
 			or (window.mode == Window.MODE_FULLSCREEN)):
 		return # no update

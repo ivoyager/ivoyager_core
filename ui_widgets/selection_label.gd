@@ -30,24 +30,14 @@ var _selection_manager: IVSelectionManager
 
 func _ready() -> void:
 	IVGlobal.update_gui_requested.connect(_update_selection)
-	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
-	IVStateManager.system_tree_ready.connect(_connect_selection_manager)
-	_connect_selection_manager()
+	IVWidgets.connect_selection_manager(self, &"_on_selection_manager_changed",
+			[&"selection_changed", &"_update_selection"])
 
 
-func _connect_selection_manager(_dummy := false) -> void:
-	# once after every system_tree_ready
-	if _selection_manager or !IVStateManager.ready_system:
-		return
-	_selection_manager = IVSelectionManager.get_selection_manager(self)
-	assert(_selection_manager, "Did not find valid 'selection_manager' above this node")
-	_selection_manager.selection_changed.connect(_update_selection)
-
-
-func _clear_procedural() -> void:
-	if _selection_manager:
-		_selection_manager.selection_changed.disconnect(_update_selection)
-		_selection_manager = null
+func _on_selection_manager_changed(selection_manager: IVSelectionManager) -> void:
+	_selection_manager = selection_manager
+	if selection_manager:
+		_update_selection()
 
 
 func _update_selection(_dummy := false) -> void:

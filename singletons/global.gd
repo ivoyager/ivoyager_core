@@ -32,16 +32,25 @@ extends Node
 
 
 
-
+# FIXME: Move to IVStateManager
 signal core_init_object_instantiated(object: Object) # IVCoreInitializer; each object in that file
 signal translations_imported() # IVTranslationImporter; useful for boot screen
 signal data_tables_imported() # IVTableInitializer
 
+# FIXME: Rename most "do_something_requested" to "do_something_now" or "something_required"
+
+# FIXME: Rename "build_system_tree_now"
 signal build_system_tree_requested()
 
-signal update_gui_requested() # send signals with GUI info now!
+## FIXME: Rename "ui_dirty". Fix redundant updates to pattern described. 
+## Emitted by IVStateManager immediately before simulator start. All objects
+## that signal "something_changed" for GUI should signal now. GUI that polls
+## instead of responding should update too.
+signal update_gui_requested() 
 
 # other broadcasts
+
+## FIXME: Rename "current_camera_changed"
 signal camera_ready(camera: Camera3D)
 signal camera_tree_changed(camera: Camera3D, parent: Node3D, star_orbiter: Node3D, star: Node3D)
 signal camera_fov_changed(fov: float)
