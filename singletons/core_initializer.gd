@@ -235,8 +235,10 @@ func _instantiate_preinitializers() -> void:
 
 
 func _do_conditional_modifications() -> void:
-	if !IVPluginUtils.is_plugin_enabled("ivoyager_save"):
+	if not IVPluginUtils.is_plugin_enabled("ivoyager_save"):
+		# This isn't required, but why not...
 		program_nodes.erase(&"SaveManager")
+		ordered_program_nodes.erase(&"SaveManager")
 
 
 func _set_simulator_universe() -> void:
