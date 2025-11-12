@@ -56,7 +56,7 @@ var _current_target_dist := INF
 func _init() -> void:
 	IVStateManager.about_to_free_procedural_nodes.connect(_restore_init_state)
 	IVStateManager.paused_changed.connect(_on_paused_changed)
-	IVGlobal.camera_ready.connect(_set_camera)
+	IVGlobal.current_camera_changed.connect(_set_camera)
 
 
 func _ready() -> void:

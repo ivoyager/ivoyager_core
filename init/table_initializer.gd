@@ -26,7 +26,7 @@ extends RefCounted
 ## IVStateManager.about_to_run_initializers].
 ##
 ## Alternatively, parameters can be modified by intercepting this object on signal
-## IVGlobal.core_init_object_instantiated(object: Object).
+## IVStateManager.core_init_object_instantiated(object: Object).
 ##
 ## After all initializers have been instantiated, this class will call
 ## IVTableData.postprocess_tables() and then remove itself.
@@ -86,7 +86,7 @@ func _on_init_refcounteds_instantiated() -> void:
 	)
 	
 	# signal done
-	IVGlobal.data_tables_imported.emit()
+	IVGlobal.data_tables_postprocessed.emit()
 	IVStateManager.core_init_program_objects_instantiated.connect(_remove_self)
 
 

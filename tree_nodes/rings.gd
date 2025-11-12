@@ -85,7 +85,7 @@ func _init(body: IVBody) -> void:
 
 func _ready() -> void:
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
-	IVGlobal.camera_ready.connect(_set_camera)
+	IVGlobal.current_camera_changed.connect(_set_camera)
 	_set_camera(get_viewport().get_camera_3d())
 	
 	_illuminating_star = IVBody.bodies.get(illuminating_star)

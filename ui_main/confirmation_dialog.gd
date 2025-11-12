@@ -22,7 +22,7 @@ extends ConfirmationDialog
 
 ## A single ConfirmationDialog for all user confirmations
 ##
-## Call using [signal IVGlobal.confirmation_requested]. Calling with
+## Call using [signal IVGlobal.confirmation_required]. Calling with
 ## [param stop_sim] == true (default) means that the sim will stop while the
 ## dialog is open. This can be suppressed by setting
 ## [member IVCoreSettings.popops_can_stop_sim] to false.
@@ -32,7 +32,7 @@ var _action: Callable
 
 
 func _ready() -> void:
-	IVGlobal.confirmation_requested.connect(_on_confirmation_requested)
+	IVGlobal.confirmation_required.connect(_on_confirmation_requested)
 	confirmed.connect(_on_confirmed)
 	canceled.connect(_on_canceled)
 	focus_exited.connect(_retake_focus)

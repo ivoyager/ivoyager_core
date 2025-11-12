@@ -43,7 +43,7 @@ var _test_countdown := 0
 
 func _ready() -> void:
 	process_mode = PROCESS_MODE_ALWAYS
-	IVGlobal.update_gui_requested.connect(_update_button)
+	IVGlobal.ui_dirty.connect(_update_button)
 	get_viewport().size_changed.connect(_screen_state_listener)
 	text = full_screen_text
 	_update_button()

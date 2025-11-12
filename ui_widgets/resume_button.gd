@@ -22,7 +22,7 @@ extends Button
 
 ## Button widget that closes the main menu.
 ##
-## Emits [signal IVGlobal.resume_requested], which closes [IVMainMenuBasePopup].
+## Emits [signal IVGlobal.close_main_menu_requested], which closes [IVMainMenuBasePopup].
 
 func _pressed() -> void:
-	IVGlobal.resume_requested.emit()
+	IVGlobal.close_main_menu_requested.emit()

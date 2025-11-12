@@ -34,7 +34,7 @@ func _shortcut_input(event: InputEvent) -> void:
 	if not event.is_pressed():
 		return
 	if event.is_action_pressed(&"ui_cancel"):
-		IVGlobal.open_main_menu_requested.emit()
+		IVGlobal.main_menu_requested.emit()
 	elif event.is_action_pressed(&"toggle_options"):
 		IVGlobal.options_requested.emit()
 	elif event.is_action_pressed(&"toggle_hotkeys"):

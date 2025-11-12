@@ -71,7 +71,7 @@ func _init() -> void:
 	process_mode = PROCESS_MODE_ALWAYS
 	IVStateManager.core_init_program_objects_instantiated.connect(_on_program_objects_instantiated)
 	IVStateManager.simulator_exited.connect(_set_current_to_default)
-	IVGlobal.update_gui_requested.connect(_signal_all_changed)
+	IVGlobal.ui_dirty.connect(_signal_all_changed)
 
 
 func _shortcut_input(event: InputEvent) -> void:

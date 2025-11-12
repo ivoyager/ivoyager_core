@@ -46,7 +46,7 @@ var _timekeeper: IVTimekeeper
 func _ready() -> void:
 	process_mode = PROCESS_MODE_ALWAYS
 	IVStateManager.paused_changed.connect(_update_buttons)
-	IVGlobal.update_gui_requested.connect(_update_buttons)
+	IVGlobal.ui_dirty.connect(_update_buttons)
 	_minus.pressed.connect(_increment_speed.bind(-1))
 	_plus.pressed.connect(_increment_speed.bind(1))
 	if pause_button and !IVCoreSettings.disable_pause:

@@ -29,7 +29,7 @@ var _selection_manager: IVSelectionManager
 
 
 func _ready() -> void:
-	IVGlobal.update_gui_requested.connect(_update_selection)
+	IVGlobal.ui_dirty.connect(_update_selection)
 	IVWidgets.connect_selection_manager(self, &"_on_selection_manager_changed",
 			[&"selection_changed", &"_update_selection"])
 

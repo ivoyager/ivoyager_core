@@ -32,44 +32,46 @@ extends Node
 
 
 
-# FIXME: Move to IVStateManager
-signal core_init_object_instantiated(object: Object) # IVCoreInitializer; each object in that file
-signal translations_imported() # IVTranslationImporter; useful for boot screen
-signal data_tables_imported() # IVTableInitializer
+
+## Emitted by [IVTranslationImporter] after translations imported. This is early
+## in [IVCoreInitializer] init, before program objects have been added. May be
+## useful for boot or splash screen.  
+signal translations_imported()
+## Emitted by [IVTableInitializer] after data tables have been postprocessed.
+## This is early in [IVCoreInitializer] init, before program objects have been
+## added.
+signal data_tables_postprocessed()
 
 # FIXME: Rename most "do_something_requested" to "do_something_now" or "something_required"
 
-# FIXME: Rename "build_system_tree_now"
-signal build_system_tree_requested()
+signal build_system_tree_now()
 
-## FIXME: Rename "ui_dirty". Fix redundant updates to pattern described. 
+## FIXME: Fix redundant updates to pattern described. 
 ## Emitted by IVStateManager immediately before simulator start. All objects
 ## that signal "something_changed" for GUI should signal now. GUI that polls
 ## instead of responding should update too.
-signal update_gui_requested() 
+signal ui_dirty() 
 
 # other broadcasts
 
-## FIXME: Rename "current_camera_changed"
-signal camera_ready(camera: Camera3D)
+signal current_camera_changed(camera: Camera3D)
 signal camera_tree_changed(camera: Camera3D, parent: Node3D, star_orbiter: Node3D, star: Node3D)
 signal camera_fov_changed(fov: float)
 signal viewport_size_changed(size: Vector2)
-signal resume_requested() # close the main menu
 
 
-# requests for camera action
+# FIXME: Remove (use direct call)
 signal move_camera_requested(selection: Object, camera_flags: int, view_position: Vector3,
 		view_rotations: Vector3, is_instant_move: bool) # 1st arg can be null; all others optional
 
-# requests for GUI
-signal open_main_menu_requested()
-signal close_main_menu_requested()
-signal confirmation_requested(text: StringName, action: Callable, stop_sim: bool,
+# requests for UI
+signal confirmation_required(text: StringName, action: Callable, stop_sim: bool,
 		title_txt: StringName, ok_txt: StringName, cancel_txt: StringName)
+signal main_menu_requested()
+signal close_main_menu_requested()
 signal options_requested()
 signal hotkeys_requested()
-signal close_all_admin_popups_requested() # main menu, options, etc.
+signal close_admin_popups_required() # main menu, options, etc.
 signal show_hide_gui_requested(is_toggle: bool, is_show: bool) # 2nd arg ignored if is_toggle
 
 
@@ -173,7 +175,7 @@ func _enter_tree() -> void:
 
 func _ready() -> void:
 	get_viewport().size_changed.connect(_on_viewport_size_changed)
-	update_gui_requested.connect(_on_viewport_size_changed)
+	ui_dirty.connect(_on_viewport_size_changed)
 
 
 func _on_viewport_size_changed() -> void:

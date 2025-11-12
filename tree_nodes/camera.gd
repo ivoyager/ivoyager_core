@@ -180,13 +180,13 @@ func _ready() -> void:
 	IVStateManager.system_tree_ready.connect(_on_system_tree_ready, CONNECT_ONE_SHOT)
 	IVStateManager.simulator_started.connect(_on_simulator_started, CONNECT_ONE_SHOT)
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural, CONNECT_ONE_SHOT)
-	IVGlobal.update_gui_requested.connect(_send_gui_refresh)
+	IVGlobal.ui_dirty.connect(_send_gui_refresh)
 	IVGlobal.move_camera_requested.connect(move_to)
 	IVSettingsManager.changed.connect(_settings_listener)
 	transform = _transform
 	if not IVStateManager.loaded_game:
 		fov = IVCoreSettings.start_camera_fov
-	IVGlobal.camera_ready.emit(self)
+	IVGlobal.current_camera_changed.emit(self)
 	set_process(false) # don't process until sim started
 
 
@@ -396,7 +396,7 @@ func _on_simulator_started() -> void:
 
 func _clear_procedural() -> void:
 	set_process(false)
-	IVGlobal.update_gui_requested.disconnect(_send_gui_refresh)
+	IVGlobal.ui_dirty.disconnect(_send_gui_refresh)
 	IVGlobal.move_camera_requested.disconnect(move_to)
 	IVSettingsManager.changed.disconnect(_settings_listener)
 	selection = null

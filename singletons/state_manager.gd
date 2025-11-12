@@ -52,6 +52,11 @@ extends Node
 ## "core_init_" signals are emitted during [IVCoreInitializer] processing before
 ## property updates here.
 signal core_init_preinitialized()
+
+## "core_init_" signals are emitted during [IVCoreInitializer] processing before
+## property updates here.
+signal core_init_object_instantiated(object: Object)
+
 ## "core_init_" signals are emitted during [IVCoreInitializer] processing before
 ## property updates here.
 signal core_init_init_refcounteds_instantiated()
@@ -62,7 +67,8 @@ signal core_init_program_objects_instantiated()
 ## property updates here.
 signal core_init_program_nodes_added()
 ## "core_init_" signals are emitted during [IVCoreInitializer] processing before
-## property updates here. DON'T USE THIS SIGNAL. Instead, use [signal core_initialized].
+## property updates here. DON'T USE THIS SIGNAL. Use [signal core_initialized]
+## instead.
 signal core_init_finished()
 ## Emitted after "init" and "program" objects have been instantiated and added
 ## to [member IVGlobal.program], "program" nodes have been added to the scene
@@ -87,7 +93,7 @@ signal system_tree_ready(new_game: bool)
 ## after [signal system_tree_ready].
 signal about_to_start_simulator(new_game: bool)
 ## Emitted after [member started] is set. This is several frames after [signal
-## about_to_start_simulator] and 1 frame after [signal IVGlobal.update_gui_requested].
+## about_to_start_simulator] and 1 frame after [signal IVGlobal.ui_dirty].
 signal simulator_started()
 
 
@@ -217,7 +223,7 @@ var _tree_build_counter := 0
 
 
 func _ready() -> void:
-	IVGlobal.core_init_object_instantiated.connect(_on_global_project_object_instantiated)
+	IVStateManager.core_init_object_instantiated.connect(_on_global_project_object_instantiated)
 	core_init_finished.connect(_on_core_initializer_finished)
 	#process_mode = PROCESS_MODE_ALWAYS
 	_tree.paused = true
@@ -327,7 +333,7 @@ func start() -> void:
 	state_changed.emit()
 	require_stop(self, NetworkStopSync.BUILD_SYSTEM, true)
 	_set_about_to_build_system_tree(true)
-	IVGlobal.build_system_tree_requested.emit()
+	IVGlobal.build_system_tree_now.emit()
 	_set_system_tree_built(true)
 
 
@@ -339,10 +345,10 @@ func exit(force_exit := false, following_server := false) -> void:
 		return
 	if !force_exit:
 		if network_state == NetworkState.IS_CLIENT:
-			IVGlobal.confirmation_requested.emit("Disconnect from multiplayer game?", exit.bind(true))
+			IVGlobal.confirmation_required.emit("Disconnect from multiplayer game?", exit.bind(true))
 			return
 		elif IVPluginUtils.is_plugin_enabled("ivoyager_save"): # single player or network server
-			IVGlobal.confirmation_requested.emit(&"LABEL_EXIT_WITHOUT_SAVING", exit.bind(true))
+			IVGlobal.confirmation_required.emit(&"LABEL_EXIT_WITHOUT_SAVING", exit.bind(true))
 			return
 	if network_state == NetworkState.IS_CLIENT:
 		if !following_server:
@@ -363,7 +369,7 @@ func exit(force_exit := false, following_server := false) -> void:
 	var universe: Node3D = IVGlobal.program[&"Universe"]
 	IVUtils.free_procedural_nodes_recursive(universe)
 	await _tree.process_frame
-	IVGlobal.close_all_admin_popups_requested.emit()
+	IVGlobal.close_admin_popups_required.emit()
 	await _tree.process_frame
 	prestart = true
 	ok_to_start = true
@@ -379,10 +385,10 @@ func quit(force_quit := false) -> void:
 		return
 	if !force_quit:
 		if network_state == NetworkState.IS_CLIENT:
-			IVGlobal.confirmation_requested.emit("Disconnect from multiplayer game?", exit.bind(true))
+			IVGlobal.confirmation_required.emit("Disconnect from multiplayer game?", exit.bind(true))
 			return
 		elif IVPluginUtils.is_plugin_enabled("ivoyager_save") and !prestart:
-			IVGlobal.confirmation_requested.emit(&"LABEL_QUIT_WITHOUT_SAVING", quit.bind(true))
+			IVGlobal.confirmation_required.emit(&"LABEL_QUIT_WITHOUT_SAVING", quit.bind(true))
 			return
 	if network_state == NetworkState.IS_CLIENT:
 		client_is_dropping_out.emit(false)
@@ -491,11 +497,11 @@ func _set_system_tree_ready(is_new_game: bool) -> void:
 	started_or_about_to_start = true
 	state_changed.emit()
 	about_to_start_simulator.emit(is_new_game)
-	IVGlobal.close_all_admin_popups_requested.emit() # main menu possible
+	IVGlobal.close_admin_popups_required.emit() # main menu possible
 	await _tree.process_frame
 	allow_run(self)
 	await _tree.process_frame
-	IVGlobal.update_gui_requested.emit()
+	IVGlobal.ui_dirty.emit()
 	await _tree.process_frame
 	started = true
 	show_splash_screen = false

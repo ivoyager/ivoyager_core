@@ -270,14 +270,14 @@ func _instantiate_init_refcounteds() -> void:
 		assert(not IVGlobal.program.has(key))
 		var refcounted: RefCounted = IVFiles.make_object_or_scene(init_refcounteds[key])
 		IVGlobal.program[key] = refcounted
-		IVGlobal.core_init_object_instantiated.emit(refcounted)
+		IVStateManager.core_init_object_instantiated.emit(refcounted)
 	for key in init_refcounteds:
 		if ordered_init_refcounteds.has(key):
 			continue
 		assert(not IVGlobal.program.has(key))
 		var refcounted: RefCounted = IVFiles.make_object_or_scene(init_refcounteds[key])
 		IVGlobal.program[key] = refcounted
-		IVGlobal.core_init_object_instantiated.emit(refcounted)
+		IVStateManager.core_init_object_instantiated.emit(refcounted)
 	IVStateManager.core_init_init_refcounteds_instantiated.emit()
 
 
@@ -287,21 +287,21 @@ func _instantiate_program_objects() -> void:
 		assert(not IVGlobal.program.has(key))
 		var refcounted: RefCounted = IVFiles.make_object_or_scene(program_refcounteds[key])
 		IVGlobal.program[key] = refcounted
-		IVGlobal.core_init_object_instantiated.emit(refcounted)
+		IVStateManager.core_init_object_instantiated.emit(refcounted)
 	for key in program_refcounteds:
 		if ordered_program_refcounteds.has(key):
 			continue
 		assert(not IVGlobal.program.has(key))
 		var refcounted: RefCounted = IVFiles.make_object_or_scene(program_refcounteds[key])
 		IVGlobal.program[key] = refcounted
-		IVGlobal.core_init_object_instantiated.emit(refcounted)
+		IVStateManager.core_init_object_instantiated.emit(refcounted)
 	# Nodes
 	for key in ordered_program_nodes:
 		assert(not IVGlobal.program.has(key))
 		var node: Node = IVFiles.make_object_or_scene(program_nodes[key])
 		node.name = key
 		IVGlobal.program[key] = node
-		IVGlobal.core_init_object_instantiated.emit(node)
+		IVStateManager.core_init_object_instantiated.emit(node)
 	for key in program_nodes:
 		if ordered_program_nodes.has(key):
 			continue
@@ -309,7 +309,7 @@ func _instantiate_program_objects() -> void:
 		var node: Node = IVFiles.make_object_or_scene(program_nodes[key])
 		node.name = key
 		IVGlobal.program[key] = node
-		IVGlobal.core_init_object_instantiated.emit(node)
+		IVStateManager.core_init_object_instantiated.emit(node)
 	IVStateManager.core_init_program_objects_instantiated.emit()
 	await get_tree().process_frame
 

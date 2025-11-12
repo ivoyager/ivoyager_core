@@ -69,7 +69,7 @@ static func connect_selection_manager(widget: Control, changed_callback := &"",
 ## current (or if one already is current) a callback to this method will
 ## occur with camera as the single argument. The callback will be called with
 ## null as argument when procedural objects are freed on quit, exit, or game
-## load, or if [signal IVGlobal.camera_ready] specifies a Camera3D that is not
+## load, or if [signal IVGlobal.current_camera_changed] specifies a Camera3D that is not
 ## an IVCamera.[br][br]
 ##
 ## [param connection_pairs] can contain any number of camera_signal / widget_method
@@ -93,8 +93,8 @@ static func connect_ivcamera(widget: Node, changed_callback := &"",
 		# We assert valid signal when we have a camera in _disconnect_connect_ivcamera().
 	if not IVStateManager.about_to_free_procedural_nodes.is_connected(_on_about_to_free_procedural_nodes):
 		IVStateManager.about_to_free_procedural_nodes.connect(_on_about_to_free_procedural_nodes)
-	if not IVGlobal.camera_ready.is_connected(_set_current_ivcamera):
-		IVGlobal.camera_ready.connect(_set_current_ivcamera)
+	if not IVGlobal.current_camera_changed.is_connected(_set_current_ivcamera):
+		IVGlobal.current_camera_changed.connect(_set_current_ivcamera)
 	_ivcamera_widgets.append([widget, changed_callback, connection_pairs])
 	var camera := widget.get_tree().get_root().get_camera_3d() as IVCamera
 	assert(camera == _ivcamera, "Inconsistent widget cameras. Core bug?") # nulls before camera added

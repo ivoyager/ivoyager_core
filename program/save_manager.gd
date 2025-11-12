@@ -76,7 +76,7 @@ func _ready() -> void:
 	IVStateManager.paused_changed.connect(_on_paused_changed)
 	IVSettingsManager.changed.connect(_settings_listener)
 	@warning_ignore("unsafe_call_argument", "unsafe_property_access")
-	IVGlobal.close_all_admin_popups_requested.connect(_save_singleton.close_dialogs)
+	IVGlobal.close_admin_popups_required.connect(_save_singleton.close_dialogs)
 	
 	@warning_ignore_start("unsafe_property_access", "unsafe_method_access")
 	

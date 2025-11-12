@@ -96,7 +96,7 @@ func _ready() -> void:
 	hide() # Godot 4.5 editor keeps setting visibility == true !!!
 	IVGlobal.options_requested.connect(open)
 	IVSettingsManager.changed.connect(_settings_listener)
-	IVGlobal.close_all_admin_popups_requested.connect(hide)
+	IVGlobal.close_admin_popups_required.connect(hide)
 	close_requested.connect(_on_close_requested)
 	popup_hide.connect(_on_popup_hide)
 	_cancel.pressed.connect(_on_cancel)
@@ -341,7 +341,7 @@ func _on_cancel() -> void:
 		_suppress_close = false
 		hide()
 		return
-	IVGlobal.confirmation_requested.emit(&"LABEL_Q_CANCEL_OPTION_CHANGES", _cancel_changes, true,
+	IVGlobal.confirmation_required.emit(&"LABEL_Q_CANCEL_OPTION_CHANGES", _cancel_changes, true,
 			&"LABEL_PLEASE_CONFIRM", &"BUTTON_CANCEL_CHANGES", &"BUTTON_BACK")
 
 

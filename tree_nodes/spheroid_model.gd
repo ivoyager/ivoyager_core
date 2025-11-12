@@ -75,7 +75,7 @@ func _ready() -> void:
 	if !is_dynamic_star:
 		return
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
-	IVGlobal.camera_ready.connect(_set_camera)
+	IVGlobal.current_camera_changed.connect(_set_camera)
 	_set_camera(get_viewport().get_camera_3d())
 
 
