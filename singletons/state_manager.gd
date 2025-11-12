@@ -225,7 +225,7 @@ var _tree_build_counter := 0
 func _ready() -> void:
 	IVStateManager.core_init_object_instantiated.connect(_on_global_project_object_instantiated)
 	core_init_finished.connect(_on_core_initializer_finished)
-	#process_mode = PROCESS_MODE_ALWAYS
+	IVGlobal.ui_dirty.connect(_on_ui_dirty)
 	_tree.paused = true
 	require_stop(self, -1, true)
 
@@ -537,3 +537,7 @@ func _run_simulator() -> void:
 	assert(!DPRINT or IVDebug.dprint("signal run_threads_allowed"))
 	allow_threads = true
 	run_threads_allowed.emit()
+
+
+func _on_ui_dirty() -> void:
+	paused_changed.emit(paused_tree, paused_by_user)

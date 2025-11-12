@@ -37,6 +37,7 @@ extends Node
 ## IVStateManager.about_to_free_procedural_nodes]. They can be set on or after
 ## [signal IVStateManager.system_tree_built].
 
+
 signal selection_changed(suppress_camera_move: bool)
 signal selection_reselected(suppress_camera_move: bool)
 
@@ -146,15 +147,8 @@ func _init() -> void:
 func _ready() -> void:
 	IVStateManager.system_tree_ready.connect(_on_system_tree_ready)
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
+	IVGlobal.ui_dirty.connect(_on_ui_dirty)
 	set_process_shortcut_input(is_action_listener)
-
-
-func _on_system_tree_ready(is_new_game: bool) -> void:
-	if is_new_game:
-		var selection_ := get_or_make_selection(IVCoreSettings.home_name)
-		select(selection_, true)
-	else:
-		_add_history()
 
 
 func _shortcut_input(event: InputEvent) -> void:
@@ -395,9 +389,20 @@ func set_selection_and_history(array: Array) -> void:
 	_history_index = array[2]
 
 
-
 func _clear_procedural() -> void:
 	selection = null
+
+
+func _on_system_tree_ready(is_new_game: bool) -> void:
+	if is_new_game:
+		var selection_ := get_or_make_selection(IVCoreSettings.home_name)
+		select(selection_, true)
+	else:
+		_add_history()
+
+
+func _on_ui_dirty() -> void:
+	selection_changed.emit(true)
 
 
 func _add_history() -> void:

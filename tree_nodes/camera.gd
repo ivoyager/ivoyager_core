@@ -180,7 +180,7 @@ func _ready() -> void:
 	IVStateManager.system_tree_ready.connect(_on_system_tree_ready, CONNECT_ONE_SHOT)
 	IVStateManager.simulator_started.connect(_on_simulator_started, CONNECT_ONE_SHOT)
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural, CONNECT_ONE_SHOT)
-	IVGlobal.ui_dirty.connect(_send_gui_refresh)
+	IVGlobal.ui_dirty.connect(_on_ui_dirty)
 	IVSettingsManager.changed.connect(_settings_listener)
 	transform = _transform
 	if not IVStateManager.loaded_game:
@@ -396,7 +396,7 @@ func _on_simulator_started() -> void:
 
 func _clear_procedural() -> void:
 	set_process(false)
-	IVGlobal.ui_dirty.disconnect(_send_gui_refresh)
+	IVGlobal.ui_dirty.disconnect(_on_ui_dirty)
 	IVSettingsManager.changed.disconnect(_settings_listener)
 	selection = null
 	parent = null
@@ -731,7 +731,7 @@ func _signal_range_latitude_longitude(is_refresh := false) -> void:
 		latitude_longitude_changed.emit(lat_long, is_ecliptic, selection)
 
 
-func _send_gui_refresh() -> void:
+func _on_ui_dirty() -> void:
 	IVGlobal.camera_fov_changed.emit(fov)
 	up_lock_changed.emit(flags, disabled_flags)
 	tracking_changed.emit(flags, disabled_flags)

@@ -31,7 +31,6 @@ var _selection_manager: IVSelectionManager
 
 func _ready() -> void:
 	set_default_cursor_shape(CURSOR_POINTING_HAND)
-	IVGlobal.ui_dirty.connect(_update_selection)
 	IVWidgets.connect_selection_manager(self, &"_on_selection_manager_changed",
 			[&"selection_changed", &"_update_selection"])
 
@@ -52,8 +51,6 @@ func _gui_input(event: InputEvent) -> void:
 
 func _on_selection_manager_changed(selection_manager: IVSelectionManager) -> void:
 	_selection_manager = selection_manager
-	if selection_manager:
-		_update_selection()
 
 
 func _update_selection(_dummy := false) -> void:

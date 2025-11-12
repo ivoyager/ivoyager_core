@@ -40,10 +40,8 @@ func _ready() -> void:
 
 
 func _configure_after_core_inited() -> void:
-	IVGlobal.ui_dirty.connect(_update_speed)
 	_timekeeper = IVGlobal.program[&"Timekeeper"]
-	_timekeeper.speed_changed.connect(_update_speed)
-	_update_speed()
+	_timekeeper.speed_changed.connect(_update_speed) # signals on ui_dirty
 
 
 func _update_speed() -> void:

@@ -100,7 +100,6 @@ func _ready() -> void:
 		_timer.timeout.connect(_update_selection)
 		_timer.wait_time = update_time_interval
 		_timer.ignore_time_scale = update_ignore_time_scale
-	IVGlobal.ui_dirty.connect(_update_selection)
 	IVSettingsManager.changed.connect(_settings_listener)
 	_arrange_child_controls()
 	if IVStateManager.initialized_core:

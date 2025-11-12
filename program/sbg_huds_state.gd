@@ -65,7 +65,7 @@ func _init() -> void:
 	process_mode = PROCESS_MODE_ALWAYS # in anticipation of key input
 	IVStateManager.core_init_program_objects_instantiated.connect(_on_program_objects_instantiated)
 	IVStateManager.simulator_exited.connect(_set_current_to_default)
-	IVGlobal.ui_dirty.connect(_signal_all_changed)
+	IVGlobal.ui_dirty.connect(_on_ui_dirty)
 
 
 
@@ -320,7 +320,7 @@ func _set_current_to_default() -> void:
 	set_default_colors()
 
 
-func _signal_all_changed() -> void:
+func _on_ui_dirty() -> void:
 	points_visibility_changed.emit()
 	orbits_visibility_changed.emit()
 	points_color_changed.emit()

@@ -37,7 +37,6 @@ var _selection_manager: IVSelectionManager
 
 
 func _ready() -> void:
-	IVGlobal.ui_dirty.connect(_update_selection)
 	meta_clicked.connect(_on_meta_clicked)
 	if IVStateManager.initialized_core:
 		_configure_after_core_inited()
@@ -53,8 +52,6 @@ func _configure_after_core_inited() -> void:
 
 func _on_selection_manager_changed(selection_manager: IVSelectionManager) -> void:
 	_selection_manager = selection_manager
-	if selection_manager:
-		_update_selection()
 
 
 func _update_selection(_dummy := false) -> void:

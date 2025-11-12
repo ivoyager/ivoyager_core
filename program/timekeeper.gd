@@ -436,7 +436,7 @@ func _on_program_objects_instantiated() -> void:
 	IVStateManager.network_state_changed.connect(_on_network_state_changed)
 	IVStateManager.run_state_changed.connect(_on_run_state_changed) # starts/stops
 	IVStateManager.paused_changed.connect(_on_paused_changed)
-	IVGlobal.ui_dirty.connect(_refresh_gui)
+	IVGlobal.ui_dirty.connect(_on_ui_dirty)
 	#speed_changed.connect(_on_speed_changed)
 	times.resize(3)
 	clock.resize(3)
@@ -495,7 +495,7 @@ func _reset_speed() -> void:
 	show_seconds = show_clock and speed_index <= show_seconds_speed
 
 
-func _refresh_gui() -> void:
+func _on_ui_dirty() -> void:
 	speed_changed.emit()
 
 

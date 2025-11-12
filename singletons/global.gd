@@ -34,11 +34,11 @@ extends Node
 
 
 ## Emitted by [IVTranslationImporter] after translations imported. This is early
-## in [IVCoreInitializer] init, before program objects have been added. May be
+## in [IVCoreInitializer] init before program objects have been added. May be
 ## useful for boot or splash screen.  
 signal translations_imported()
 ## Emitted by [IVTableInitializer] after data tables have been postprocessed.
-## This is early in [IVCoreInitializer] init, before program objects have been
+## This is early in [IVCoreInitializer] init before program objects have been
 ## added.
 signal data_tables_postprocessed()
 
@@ -48,8 +48,8 @@ signal build_system_tree_now()
 
 ## FIXME: Fix redundant updates to pattern described. 
 ## Emitted by IVStateManager immediately before simulator start. All objects
-## that signal "something_changed" for GUI should signal now. GUI that polls
-## instead of responding should update too.
+## that signal "something_changed" for UI should signal now. UI that polls
+## instead of responding (if any) should update too.
 signal ui_dirty() 
 
 # other broadcasts

@@ -80,11 +80,9 @@ func _process(_delta: float) -> void:
 
 
 func _configure_after_core_inited() -> void:
-	IVGlobal.ui_dirty.connect(_update_display)
 	_timekeeper = IVGlobal.program[&"Timekeeper"]
 	_timekeeper.speed_changed.connect(_update_display)
 	set_process(true)
-	_update_display()
 
 
 func _update_display() -> void:

@@ -45,8 +45,7 @@ var _timekeeper: IVTimekeeper
 
 func _ready() -> void:
 	process_mode = PROCESS_MODE_ALWAYS
-	IVStateManager.paused_changed.connect(_update_buttons)
-	IVGlobal.ui_dirty.connect(_update_buttons)
+	IVStateManager.paused_changed.connect(_update_buttons) # signals on ui_dirty
 	_minus.pressed.connect(_increment_speed.bind(-1))
 	_plus.pressed.connect(_increment_speed.bind(1))
 	if pause_button and !IVCoreSettings.disable_pause:
@@ -67,8 +66,7 @@ func _ready() -> void:
 
 func _configure_after_core_inited() -> void:
 	_timekeeper = IVGlobal.program[&"Timekeeper"]
-	_timekeeper.speed_changed.connect(_update_buttons)
-	_update_buttons()
+	_timekeeper.speed_changed.connect(_update_buttons) # signals on ui_dirty
 
 
 func _increment_speed(increment: int) -> void:
