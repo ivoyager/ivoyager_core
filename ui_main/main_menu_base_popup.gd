@@ -53,9 +53,13 @@ extends PopupPanel
 ## menu size if the user changes setting "gui_size" from a large value to a
 ## smaller value.
 @export var minimal_size := true
-
+## The node specified here (presumably a menu Button) will grab focus on menu
+## popup. There is no error and no focus grab if the path isn't valid.
+@export var focus_path := ^"ResumeButton"
 
 var _is_explicit_close := false
+
+@onready var _focus_control: Control = get_node_or_null(focus_path)
 
 
 func _ready() -> void:
@@ -108,6 +112,8 @@ func open() -> void:
 		popup_centered()
 	else:
 		popup()
+	if _focus_control:
+		_focus_control.grab_focus.call_deferred()
 
 
 func close() -> void:

@@ -27,7 +27,7 @@ extends PopupPanel
 
 
 @onready var _huds_box: Control = $HUDsBox
-@onready var _focus_control: Control = get_node(focus_path)
+@onready var _focus_control: Control = get_node_or_null(focus_path)
 
 
 func _ready() -> void:
@@ -36,7 +36,7 @@ func _ready() -> void:
 
 
 func _on_visibility_changed() -> void:
-	if _huds_box.is_visible_in_tree():
+	if _focus_control and _huds_box.is_visible_in_tree():
 		_focus_control.grab_focus.call_deferred()
 
 
