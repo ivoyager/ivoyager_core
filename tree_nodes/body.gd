@@ -29,10 +29,10 @@ extends Node3D
 ## Using our Solar System as example, the structure of the scene tree is:
 ## [codeblock]
 ## Universe
-##    |- IVBody (Sun)
-##        |- IVBody (Earth)
-##            |- IVBody (ISS)
-##            |- IVBody (Moon)
+##    |- IVBody (STAR_SUN)
+##        |- IVBody (PLANET_EARTH)
+##            |- IVBody (SPACECRAFT_ISS)
+##            |- IVBody (MOON_MOON)
 ##                |- IVBody (a spacecraft orbiting the Moon)
 ## [/codeblock][br]
 ##

@@ -30,14 +30,14 @@ extends Node3D
 ## The schematic below shows one possible scene tree organization for a game.
 ## Note that much of the tree is built by code: specifically, the physical solar
 ## system (at child index 0) and "program" nodes added at the end. The part
-## constructed in the Godot Editor is mostly only the UI tree. This template
+## constructed in the Godot Editor is mainly the UI tree. This template
 ## tree has the Core plugin UI nodes shown but lacks game panels, spash screen,
 ## exit button, and nodes from the Save plugin.[br][br]
 ##
 ## (Note: It's in our
 ## [url=https://github.com/orgs/ivoyager/discussions/5]roadmap[/url] to make
-## the physical part editable in the Editor too. The program was built for data
-## tables, so that's where we're at right now.)
+## the physical part editable in the Editor too. The simulator was developed
+## using data tables, so that's mainly what it supports at this time.)
 ## 
 ## [codeblock] 
 ##
@@ -51,6 +51,7 @@ extends Node3D
 ##                 |- MOON_MOON      #
 ##          |- ...                   #
 ##
+##    |- IVWorldEnvironment
 ##    |- IVFragmentIdentifier
 ##    |- IVTopUI
 ##          |- IVWorldController
@@ -87,15 +88,18 @@ extends Node3D
 ## simply by naming it "Universe". If the former, the node name doesn't matter
 ## (in any case, we call this root node "Universe" in plugin documentation).[br][br]
 ##
+## [IVWorldEnvironment] is in directory "tree_nodes" with this template tree
+## and other Node3D classes.[br][br]
+##
 ## UI classes above from the Core plugin are in directory "ui_main".
-## (See [IVFragmentIdentifier], [IVTopUI], [IVWorldController], [IVMouseTargetLabel],
+## See [IVFragmentIdentifier], [IVTopUI], [IVWorldController], [IVMouseTargetLabel],
 ## [IVShowHideUI], [IVMainMenuBasePopup], [IVOptionsPopup], [IVHotkeysPopup],
-## [IVConfirmationDialog].)[br][br]
+## [IVConfirmationDialog].[br][br]
 ##
 ## The "program" directory contains both [Node] and [RefCounted] program
 ## classes, which are essentially "small s singletons" that support the
 ## simulator. These are instantiated and added to dictionary [member IVGlobal.program]
-## (and nodes added to the scene tree) as specified in [IVCoreInitializer].
+## (and nodes are added to the scene tree) as specified in [IVCoreInitializer].
 ## An external project can remove, replace, subclass, or add to these at project
 ## init.[br][br]
 ##

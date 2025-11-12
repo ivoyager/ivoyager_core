@@ -1,6 +1,7 @@
-[gd_scene load_steps=15 format=3 uid="uid://cm645o51ea8k"]
+[gd_scene load_steps=16 format=3 uid="uid://cm645o51ea8k"]
 
 [ext_resource type="Script" uid="uid://u68wtpkv15lm" path="res://addons/ivoyager_core/tree_nodes/universe_template.gd" id="1_1jtrc"]
+[ext_resource type="PackedScene" uid="uid://b15j2rbaf1c4j" path="res://addons/ivoyager_core/tree_nodes/world_environment.tscn" id="2_g61p2"]
 [ext_resource type="PackedScene" uid="uid://0r58al8slcnw" path="res://addons/ivoyager_core/ui_main/fragment_identifier.tscn" id="2_qnscx"]
 [ext_resource type="PackedScene" uid="uid://dd1xhk38f1jmf" path="res://addons/ivoyager_core/ui_main/top_ui.tscn" id="2_ufcjy"]
 [ext_resource type="PackedScene" uid="uid://cij2gsmtnwhcb" path="res://addons/ivoyager_core/ui_main/world_controller.tscn" id="3_u0sc2"]
@@ -17,6 +18,8 @@
 
 [node name="Universe" type="Node3D"]
 script = ExtResource("1_1jtrc")
+
+[node name="WorldEnvironment" parent="." instance=ExtResource("2_g61p2")]
 
 [node name="FragmentIdentifier" parent="." instance=ExtResource("2_qnscx")]
 

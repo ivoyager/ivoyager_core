@@ -178,7 +178,6 @@ var program_nodes: Dictionary[StringName, Variant] = {
 	# Unordered
 	Scheduler = IVScheduler,
 	ViewManager = IVViewManager,
-	WorldEnvironment_ = IVWorldEnvironment,
 }
 ## Include keys from [member program_nodes] that need to be instantiated or
 ## added first and in order. Note: all are instantiated (in specified order),
