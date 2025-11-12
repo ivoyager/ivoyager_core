@@ -264,20 +264,27 @@ func _on_camera_changed(camera: IVCamera) -> void:
 
 
 func _on_about_to_free_procedural_nodes() -> void:
-	#_disconnect_camera()
 	if _selection_manager:
 		_selection_manager.selection_changed.disconnect(_on_selection_changed)
 		_selection_manager = null
 
 
 func _on_selection_changed(suppress_camera_move: bool) -> void:
-	if !suppress_camera_move and _camera and _camera.is_camera_lock:
+	if suppress_camera_move or !_camera:
+		return
+	if _camera.is_camera_lock:
 		_camera.move_to(_selection_manager.selection)
 
 
 func _on_selection_reselected(suppress_camera_move: bool) -> void:
-	if !suppress_camera_move and _camera and _camera.is_camera_lock:
+	if suppress_camera_move or !_camera:
+		return
+	if _camera.is_camera_lock:
+		# recenter the current selection
 		_camera.move_to(null, 0, NULL_VECTOR3, Vector3.ZERO)
+	else:
+		# "reselection" means go here and center, even when camera lock is off
+		_camera.move_to(_selection_manager.selection, 0, NULL_VECTOR3, Vector3.ZERO)
 
 
 func _on_camera_lock_changed(is_camera_lock: bool) -> void:

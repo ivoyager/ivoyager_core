@@ -79,23 +79,13 @@ func _ready() -> void:
 	if IVStateManager.built_system:
 		_configure_for_system_tree()
 	
-	
 	# Note: IVWidgets.connect_selection_manager() works here (tested). But it
-	# doesn't save much boilerplate code here and isn't optimal with all the
-	# IVNavButtons freeing and rebuilding. Se we don't use it.
-	
-	# Test/debug IVWidgets.connect_selection_manager() here, but then
-	# don't use it because it's suboptimal.
-	#IVWidgets.connect_selection_manager(self, &"_on_selection_manager_changed",
-			#[&"selection_changed", &"_update_selection"])
+	# doesn't save much boilerplate code in this class and isn't optimal with
+	# all the IVNavButton freeing and rebuilding. Se we don't use it.
 
 
 func _pressed() -> void:
 	_selection_manager.select_body(_body)
-
-
-func _on_selection_manager_changed(selection_manager: IVSelectionManager) -> void:
-	_selection_manager = selection_manager
 
 
 func _configure_for_system_tree(_dummy := false) -> void:

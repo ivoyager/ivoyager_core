@@ -42,8 +42,8 @@ signal translations_imported()
 ## added.
 signal data_tables_postprocessed()
 
-# FIXME: Rename most "do_something_requested" to "do_something_now" or "something_required"
-
+## Signal from [IVStateManager] to [IVTableSystemBuilder] to build the system tree.
+## DON'T USE THIS. Use [signal IVStateManager.about_to_build_system_tree] instead.
 signal build_system_tree_now()
 
 ## FIXME: Fix redundant updates to pattern described. 
@@ -60,9 +60,6 @@ signal camera_fov_changed(fov: float)
 signal viewport_size_changed(size: Vector2)
 
 
-# FIXME: Remove (use direct call)
-signal move_camera_requested(selection: Object, camera_flags: int, view_position: Vector3,
-		view_rotations: Vector3, is_instant_move: bool) # 1st arg can be null; all others optional
 
 # requests for UI
 signal confirmation_required(text: StringName, action: Callable, stop_sim: bool,

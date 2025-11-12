@@ -181,7 +181,6 @@ func _ready() -> void:
 	IVStateManager.simulator_started.connect(_on_simulator_started, CONNECT_ONE_SHOT)
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural, CONNECT_ONE_SHOT)
 	IVGlobal.ui_dirty.connect(_send_gui_refresh)
-	IVGlobal.move_camera_requested.connect(move_to)
 	IVSettingsManager.changed.connect(_settings_listener)
 	transform = _transform
 	if not IVStateManager.loaded_game:
@@ -228,6 +227,7 @@ func add_rotation(rotation_amount: Vector3) -> void:
 	_rotation_accumulator += rotation_amount
 
 
+## Use IVCameraHandler instead.
 func move_to(to_selection: IVSelection, to_flags := 0, to_view_position := NULL_VECTOR3,
 		to_view_rotations := NULL_VECTOR3, is_instant_move := false) -> void:
 	# Note: call IVCameraHandler.move_to() or move_to_by_name() to move camera
@@ -397,7 +397,6 @@ func _on_simulator_started() -> void:
 func _clear_procedural() -> void:
 	set_process(false)
 	IVGlobal.ui_dirty.disconnect(_send_gui_refresh)
-	IVGlobal.move_camera_requested.disconnect(move_to)
 	IVSettingsManager.changed.disconnect(_settings_listener)
 	selection = null
 	parent = null

@@ -37,7 +37,6 @@ func _ready() -> void:
 
 
 func _gui_input(event: InputEvent) -> void:
-	# image click centers and levels the target body
 	var mouse_button_event := event as InputEventMouseButton
 	if !mouse_button_event:
 		return
@@ -45,8 +44,10 @@ func _gui_input(event: InputEvent) -> void:
 		return
 	if mouse_button_event.button_index != MOUSE_BUTTON_LEFT:
 		return
-	IVGlobal.move_camera_requested.emit(_selection_manager.selection, 0,
-			Vector3(-INF, -INF, -INF), Vector3.ZERO)
+	if !_selection_manager:
+		return
+	# This is a "reselection". IVSelectionManager decides what to do with that.
+	_selection_manager.select(_selection_manager.get_selection())
 
 
 func _on_selection_manager_changed(selection_manager: IVSelectionManager) -> void:
@@ -57,5 +58,4 @@ func _on_selection_manager_changed(selection_manager: IVSelectionManager) -> voi
 
 func _update_selection(_dummy := false) -> void:
 	tooltip_text = tr(_selection_manager.get_body_name()) + _hint_extension
-	var texture_2d := _selection_manager.get_texture_2d()
-	texture = texture_2d
+	texture = _selection_manager.get_texture_2d()
