@@ -43,16 +43,24 @@ extends Node
 ## Note: pause and 'user pause' are maintained by IVStateManager.[br][br]
 ##
 ## FIXME: there is some old rpc (remote player call) code here that is not
-## currently maintained. This will be fixed and maintained again with Godot 4.x.[br][br]
+## currently maintained. This will be fixed and maintained again at some point.[br][br]
 ##
 ## Requires shader global 'iv_time'.
 
+## Emitted when game speed changes.
 signal speed_changed()
-signal date_changed() # normal day rollover
-signal time_altered(previous_time: float) # someone manipulated time!
+## Emitted when the calendar day changes.
+signal date_changed()
+## Emitted when user or code sets time (outside of the normal flow of time).
+## This can happen in a Planetarium context but probably not in a game.
+signal time_altered(previous_time: float)
 
 
-enum { # date_format; first three are alwyas Year, Month, Day
+## Date format. First three elements are always year (Y), month (M) and day (D).
+## Formats may add quarter (Q) and running integer counts of total quarters
+## since year 0 (YQ) and total months since year 0 (YM). The latter two elements
+## are monotonic.
+enum DateFormat {
 	DATE_FORMAT_Y_M_D, # Year (2000...), Month (1 to 12), Day (1 to 31)
 	DATE_FORMAT_Y_M_D_Q, # Q, Quarter (1 to 4)
 	DATE_FORMAT_Y_M_D_Q_YQ, # YQ, increasing quarter ticker = Y * 4 + (Q - 1)
@@ -85,9 +93,11 @@ var speed_index: int
 var is_reversed := false
 
 # project vars
-var sync_tolerance := 0.2 # engine time; NOT MAINTAINED! (waiting for Gotot 4.0)
-var date_format := DATE_FORMAT_Y_M_D
-var start_real_world_time := false # true overrides other start settings
+#var sync_tolerance := 0.2 # rpc sync stuff. NOT MAINTAINED! 
+## One of [enum DateFormat]. This determines the size and content of [member IVGlobal.date].
+var date_format := DateFormat.DATE_FORMAT_Y_M_D
+## Start the simulator at real-world date and time? True overrides other start settings.
+var start_real_world_time := false
 var speeds := [ # sim_units / delta
 		IVUnits.SECOND, # real-time if IVUnits.SECOND = 1.0
 		IVUnits.MINUTE,
@@ -159,6 +169,7 @@ static func get_sim_time(Y: int, M: int, D: int, h := 12, m := 0, s := 0) -> flo
 	return sim_time
 
 
+## Tests whether input date integers define a valid Gregorian calender day.
 static func is_valid_gregorian_date(Y: int, M: int, D: int) -> bool:
 	if M < 1 or M > 12 or D < 1 or D > 31:
 		return false
@@ -171,43 +182,45 @@ static func is_valid_gregorian_date(Y: int, M: int, D: int) -> bool:
 	return test_date == [Y, M, D]
 
 
+## Converts Gregorian calender integers to Julian Day Number. Does not test for
+## valid input date! Do do that, call [method is_valid_gregorian_date].
 static func gregorian2jdn(Y: int, M: int, D: int) -> int:
-	# Does not test for valid input date!
-	@warning_ignore("integer_division")
-	var jdn := (1461 * (Y + 4800 + (M - 14) / 12)) / 4
-	@warning_ignore("integer_division")
-	jdn += (367 * (M - 2 - 12 * ((M - 14) / 12))) / 12
-	@warning_ignore("integer_division")
-	jdn += -(3 * ((Y + 4900 + (M - 14) / 12) / 100)) / 4 + D - 32075
+	@warning_ignore_start("integer_division")
+	var jdn := ((1461 * (Y + 4800 + (M - 14) / 12)) / 4
+			+ (367 * (M - 2 - 12 * ((M - 14) / 12))) / 12
+			+ -(3 * ((Y + 4900 + (M - 14) / 12) / 100)) / 4 + D - 32075)
+	@warning_ignore_restore("integer_division")
 	return jdn
 
 
+## Assumes [param date_array] is the correct size for [param date_format].
+@warning_ignore("shadowed_variable")
 static func set_gregorian_date_array(jdn: int, date_array: Array[int],
-		date_format_ := DATE_FORMAT_Y_M_D) -> void:
+		date_format := DateFormat.DATE_FORMAT_Y_M_D) -> void:
+	const DATE_FORMAT_Y_M_D := DateFormat.DATE_FORMAT_Y_M_D
+	const DATE_FORMAT_Y_M_D_Q := DateFormat.DATE_FORMAT_Y_M_D_Q
+	const DATE_FORMAT_Y_M_D_Q_YQ := DateFormat.DATE_FORMAT_Y_M_D_Q_YQ
+	
 	# Expects date_array to be correct size for date_format_
-	@warning_ignore("integer_division")
+	@warning_ignore_start("integer_division")
 	var f := jdn + 1401 + ((((4 * jdn + 274277) / 146097) * 3) / 4) - 38
 	var e := 4 * f + 3
-	@warning_ignore("integer_division")
 	var g := (e % 1461) / 4
 	var h := 5 * g + 2
-	@warning_ignore("integer_division")
 	var m := (((h / 153) + 2) % 12) + 1
-	@warning_ignore("integer_division")
 	var y := (e / 1461) - 4716 + ((14 - m) / 12)
 	date_array[0] = y
 	date_array[1] = m # month
-	@warning_ignore("integer_division")
 	date_array[2] = ((h % 153) / 5) + 1 # day
-	if date_format_ == DATE_FORMAT_Y_M_D:
+	if date_format == DATE_FORMAT_Y_M_D:
 		return
-	@warning_ignore("integer_division")
 	var q := (m - 1) / 3 + 1
+	@warning_ignore_restore("integer_division")
 	date_array[3] = q
-	if date_format_ == DATE_FORMAT_Y_M_D_Q:
+	if date_format == DATE_FORMAT_Y_M_D_Q:
 		return
 	date_array[4] = y * 4 + (q - 1) # yq, always increasing
-	if date_format_ == DATE_FORMAT_Y_M_D_Q_YQ:
+	if date_format == DATE_FORMAT_Y_M_D_Q_YQ:
 		return
 	date_array[5] = y * 12 + (m - 1) # ym, always increasing
 
@@ -219,14 +232,14 @@ static func get_clock_elements(fractional_day: float) -> Array[int]:
 	return clock_array
 
 
+## Expects clock_ of size 3. It's rare but possible to have second > 59 when
+## fractional day > 1.0, which can happen when solar day > Julian Day.
 static func set_clock_array(fractional_day: float, clock_array: Array[int]) -> void:
-	# Expects clock_ of size 3. It's possible to have second > 59 if fractional
-	# day > 1.0 (which can happen when solar day > Julian Day).
+	@warning_ignore_start("integer_division")
 	var total_seconds := int(fractional_day * 86400.0)
-	@warning_ignore("integer_division")
 	var h := total_seconds / 3600
-	@warning_ignore("integer_division")
 	var m := (total_seconds / 60) % 60
+	@warning_ignore_restore("integer_division")
 	clock_array[0] = h
 	clock_array[1] = m
 	clock_array[2] = total_seconds - h * 3600 - m * 60
@@ -441,13 +454,13 @@ func _on_program_objects_instantiated() -> void:
 	times.resize(3)
 	clock.resize(3)
 	match date_format:
-		DATE_FORMAT_Y_M_D:
+		DateFormat.DATE_FORMAT_Y_M_D:
 			date.resize(3)
-		DATE_FORMAT_Y_M_D_Q:
+		DateFormat.DATE_FORMAT_Y_M_D_Q:
 			date.resize(4)
-		DATE_FORMAT_Y_M_D_Q_YQ:
+		DateFormat.DATE_FORMAT_Y_M_D_Q_YQ:
 			date.resize(5)
-		DATE_FORMAT_Y_M_D_Q_YQ_YM:
+		DateFormat.DATE_FORMAT_Y_M_D_Q_YQ_YM:
 			date.resize(6)
 	_set_init_state()
 

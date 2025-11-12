@@ -19,17 +19,18 @@
 # *****************************************************************************
 extends Node
 
-## Added as singleton "IVCoreSettings".
+## Singleton [IVCoreSettings] holds Core plugin settings.
 ##
-## Modify properties or dictionary classes using res://ivoyager_override.cfg.
-## Alternatively, you can modify values here using an initializer script. (See
-## comments in core_initializer.gd.) [br][br]
+## All settings here should be set before or during the first step of
+## [IVCoreInitializer] init by config file, preinitializer script, project
+## autoload, or something similar. See [IVCoreInitializer] class documentation
+## for details on how to do this.[br][br]
 ##
-## With very few exceptions, these should not be modified after program start!
+## Dev note: Don't add ANY non-Godot class dependencies in this file! These
+## could cause circular reference issues.
 
 
-
-## Set false to disable thread use throughout the ivoyager_core plugin. This
+## Set false to disable thread use throughout the Core plugin. This
 ## can be helpful for debugging. Some class files also have property
 ## [param use_threads]. In these classes, both this setting and the file
 ## setting must be true for threads to be used.
@@ -127,7 +128,7 @@ var text_colors: Dictionary[StringName, Color] = {
 	base = Color.WHITE,
 	caution = Color.YELLOW,
 	warning = Color.ORANGE,
-	danger = Color(1, 0.2, 0, 1), # RED is hard to read
+	danger = Color.RED,
 	flag = Color.FUCHSIA,
 }
 

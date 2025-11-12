@@ -49,10 +49,11 @@ extends Node
 ## [url=https://github.com/ivoyager/planetarium/blob/master/planetarium/preinitializer.gd]
 ## here[/url].[br][br]
 ##
-## Alternatively, this class could be modified by another autoload or an
-## existing tree node. In any case, it's recommended to have a dedicated "init"
-## file modify this singleton and [IVCoreSettings] at program init, and ONLY
-## that file should reference this singleton.[br][br]
+## Alternatively, this class could be modified by another autoload or some other
+## early-executing code. In any case, it's recommended to have a dedicated "init"
+## file modify this singleton and [IVCoreSettings] at program init. ONLY that
+## file should reference this singleton (many files may reference [IVCoreSettings]
+## for read only).[br][br]
 ##
 ## By default, this class will begin initialization after a 5 frame delay. To
 ## modify this, see [member init_after_delay], [member init_delay], and [method

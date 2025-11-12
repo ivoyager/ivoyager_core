@@ -140,8 +140,9 @@ const PERSIST_PROCEDURAL := PersistMode.PERSIST_PROCEDURAL
 ## by default and possibly additional elements. Keeping a local array reference
 ## provides optimal access to simulator time which will always be at index 0.
 var times: Array[float] = []
-## Maintained by [IVTimekeeper]. Holds Gregorian [year, month, day] by default
-## but may also have quarter.
+## Maintained by [IVTimekeeper]. Holds Gregorian [year, month, day] by default,
+## but may have quarter and additional elements according to [member
+## IVTimekeeper.date_format].
 var date: Array[int] = []
 ## Maintained by [IVTimekeeper]. Holds UT [hour, minute, second].
 var clock: Array[int] = []
