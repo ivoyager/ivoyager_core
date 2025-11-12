@@ -45,6 +45,13 @@ var _timekeeper: IVTimekeeper
 
 func _ready() -> void:
 	process_mode = PROCESS_MODE_ALWAYS
+	if IVStateManager.initialized_core:
+		_configure_after_core_inited()
+	else:
+		IVStateManager.core_initialized.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
+
+
+func _configure_after_core_inited() -> void:
 	IVStateManager.paused_changed.connect(_update_buttons) # signals on ui_dirty
 	_minus.pressed.connect(_increment_speed.bind(-1))
 	_plus.pressed.connect(_increment_speed.bind(1))
@@ -58,13 +65,6 @@ func _ready() -> void:
 	else:
 		_reverse.queue_free()
 		_reverse = null
-	if IVStateManager.initialized_core:
-		_configure_after_core_inited()
-	else:
-		IVStateManager.core_initialized.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
-
-
-func _configure_after_core_inited() -> void:
 	_timekeeper = IVGlobal.program[&"Timekeeper"]
 	_timekeeper.speed_changed.connect(_update_buttons) # signals on ui_dirty
 

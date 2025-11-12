@@ -137,6 +137,8 @@ func _configure_after_core_inited(_dummy := false) -> void:
 
 func _on_selection_manager_changed(selection_manager: IVSelectionManager) -> void:
 	_selection_manager = selection_manager
+	if _selection_manager:
+		_update_selection()
 
 
 func _get_content() -> void:

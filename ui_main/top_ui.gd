@@ -42,12 +42,22 @@ extends Control
 const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY ## Don't free on load.
 const PERSIST_PROPERTIES: Array[StringName] = [&"selection_manager"]
 
-
+## Set true to enable wiki links in decendent [IVHUDsHBox] instances.
+## [IVWikiManager] must be present.
 @export var enable_huds_hbox_links := false
+## Set true to enable "label" wiki links in decendent [IVSelectionDataFoldable]
+## instances. [IVWikiManager] must be present.
 @export var enable_selection_data_label_links := false
+## Set true to enable "value" wiki links in decendent [IVSelectionDataFoldable]
+## instances. [IVWikiManager] must be present.
 @export var enable_selection_data_value_links := false
 
 
+## This is the "main" selection manager for GUI panels and widgets, added
+## by this class's code at [signal IVStateManager.about_to_build_system_tree]
+## for new game. It is persisted so replaced by Save plugin on game load. It's
+## possible to add other IVSelectionManager instances in branches of GUI for
+## specialized use.
 var selection_manager: IVSelectionManager
 
 

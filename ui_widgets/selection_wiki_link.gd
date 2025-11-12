@@ -52,6 +52,8 @@ func _configure_after_core_inited() -> void:
 
 func _on_selection_manager_changed(selection_manager: IVSelectionManager) -> void:
 	_selection_manager = selection_manager
+	if selection_manager:
+		_update_selection()
 
 
 func _update_selection(_dummy := false) -> void:

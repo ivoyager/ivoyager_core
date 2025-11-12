@@ -22,7 +22,9 @@ extends Label
 
 ## Label widget that shows current date and time.
 ##
-## Requires [IVTimekeeper].
+## Requires [IVTimekeeper]. This widget updates every frame using [member
+## IVGlobal.date] and [member IVGlobal.clock]. It queries [IVTimekeeper] on
+## [signal IVTimekeeper.speed_changed] whether to display the clock or seconds.
 
 ## Format string for [year, month, day].
 @export var date_format := "%02d/%02d/%02d"

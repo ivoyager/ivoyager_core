@@ -81,7 +81,7 @@ func _ready() -> void:
 	
 	# Note: IVWidgets.connect_selection_manager() works here (tested). But it
 	# doesn't save much boilerplate code in this class and isn't optimal with
-	# all the IVNavButton freeing and rebuilding. Se we don't use it.
+	# so many IVNavButtons freeing and rebuilding. Se we don't use it.
 
 
 func _pressed() -> void:

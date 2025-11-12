@@ -23,6 +23,9 @@ extends Label
 ## Label widget that displays project version with prepended or appended text.
 ##
 ## Gets project version from ProjectSettings/application/config/version.
+##
+## Godot ISSUE as of 4.5.1: Prepending "something\nv" doesn't create a line
+## break, even though paragraph_separator is default "\\n"
 
 ## Prepended text. E.g., "v" if not included in ProjectSettings.
 @export var prepend := ""

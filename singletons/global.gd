@@ -19,18 +19,17 @@
 # *****************************************************************************
 extends Node
 
-## Added as singleton "IVGlobal".
+## Singleton [IVGlobal] provides access to global signals and data.
 ##
-## Dev note: Don't add ANY non-Godot class dependencies! These could cause
-## circular reference issues.
-
-# Array and dictionary references are never overwritten, so it is safe (and
-# faster) to keep local references to these containers to in class files.
-
-# Developer note: Don't add any non-Godot dependencies in this file! That
-# messes up static class dependencies on this global.
-
-
+## This is a "signal bus". Almost all signals here are emitted by external
+## classes for external classes.[br][br]
+##
+## Data containers (arrays and dictionaries) are usually maintained by a single
+## external class and available for all. Container references are never
+## overwritten, so it is safe to keep local references in class files.[br][br]
+##
+## Dev note: Don't add ANY non-Godot class dependencies in this file! These
+## could cause circular reference issues.
 
 
 ## Emitted by [IVTranslationImporter] after translations imported. This is early
@@ -41,35 +40,42 @@ signal translations_imported()
 ## This is early in [IVCoreInitializer] init before program objects have been
 ## added.
 signal data_tables_postprocessed()
-
-## Signal from [IVStateManager] to [IVTableSystemBuilder] to build the system tree.
-## DON'T USE THIS. Use [signal IVStateManager.about_to_build_system_tree] instead.
+## Signal from [IVStateManager] to [IVTableSystemBuilder] to build the system
+## tree. DON'T USE THIS. Use [signal IVStateManager.about_to_build_system_tree]
+## or other [IVStateManager] "state" signals.
 signal build_system_tree_now()
-
-## FIXME: Fix redundant updates to pattern described. 
-## Emitted by IVStateManager immediately before simulator start. All objects
+## Emitted by [IVStateManager] immediately before simulator start. All objects
 ## that signal "something_changed" for UI should signal now. UI that polls
 ## instead of responding (if any) should update too.
 signal ui_dirty() 
-
-# other broadcasts
-
+## This signal should be emitted by whatever Camera3D class becomes current.
+## (There is no Viewport signal so it is up to the camera to signal.)
 signal current_camera_changed(camera: Camera3D)
+## This signal should be emitted by any Camera3D class used in the simulator.
+## It tells the simulator where the camera is for graphic and other updating purposes.
 signal camera_tree_changed(camera: Camera3D, parent: Node3D, star_orbiter: Node3D, star: Node3D)
+## This signal should be emitted by any Camera3D class used in the simulator.
+## It's used for things like Label3D size compensation.
 signal camera_fov_changed(fov: float)
+## This signal is emitted by [IVGlobal] code connected to the root viewport.
+## Signals when the viewport size changes and also on [signal ui_dirty].
 signal viewport_size_changed(size: Vector2)
-
-
-
-# requests for UI
+## Emit from anywhere for [IVConfirmationDialog].
 signal confirmation_required(text: StringName, action: Callable, stop_sim: bool,
 		title_txt: StringName, ok_txt: StringName, cancel_txt: StringName)
+## Emit from anywhere for [IVMainMenuBasePopup].
 signal main_menu_requested()
+## Emit from anywhere to close [IVMainMenuBasePopup].
 signal close_main_menu_requested()
+## Emit from anywhere for [IVOptionsPopup].
 signal options_requested()
+## Emit from anywhere for [IVHotkeysPopup].
 signal hotkeys_requested()
-signal close_admin_popups_required() # main menu, options, etc.
-signal show_hide_gui_requested(is_toggle: bool, is_show: bool) # 2nd arg ignored if is_toggle
+## Emit from anywhere to require closing of all "admin" popups (main menu, options, etc.).
+signal close_admin_popups_required()
+## Emit from anywere to request show/hide all GUI. This is listened to by
+## [IVShowHideUI]. The second arg is ignored if [param is_toggle] is true.
+signal show_hide_gui_requested(is_toggle: bool, is_show: bool)
 
 
 ## Sizes available for setting "gui_size". See also [member IVCoreSettings.gui_size_multipliers].
@@ -92,8 +98,8 @@ enum Confidence {
 	CONFIDENCE_YES,
 }
 
-
-## Shadow masking for semi-transparent shadows (from Saturn Rings).
+## Shadow masking for semi-transparent shadows used by [IVDynamicLight] and
+## [IVRings] (for Saturn's rings).
 enum ShadowMask {
 	SHADOW_MASK_01 = 0b0001_0000_0000, # almost no shadow
 	SHADOW_MASK_02 = 0b0010_0000_0000,
@@ -112,7 +118,8 @@ enum ShadowMask {
 	SHADOW_MASK_FULL = 0b1111_0000_0000, # full shadow
 }
 
-## Duplicated from ivoyager_save plugin. Safe to use if plugin is not present.
+## Duplicated from I, Voyager's Save plugin ([enum IVSaveUtils.PersistMode]).
+## This is used in the Core plugin because the Save plugin may not be present.
 enum PersistMode {
 	NO_PERSIST, ## Non-persist object.
 	PERSIST_PROPERTIES_ONLY, ## Object will not be freed (Node only; must have stable NodePath).
@@ -129,34 +136,39 @@ const PERSIST_PROCEDURAL := PersistMode.PERSIST_PROCEDURAL
 
 
 
-## Maintained by [IVTimekeeper]. Holds [time (s, J2000), engine_time (s), solar_day (d)]
-## by default or possibly additional elements.
+## Maintained by [IVTimekeeper]. Holds [time (s; J2000), engine_time (s), solar_day (d)]
+## by default and possibly additional elements. Keeping a local array reference
+## provides optimal access to simulator time which will always be at index 0.
 var times: Array[float] = []
-## Maintained by [IVTimekeeper]. Holds Gregorian [year, month, day].
+## Maintained by [IVTimekeeper]. Holds Gregorian [year, month, day] by default
+## but may also have quarter.
 var date: Array[int] = []
 ## Maintained by [IVTimekeeper]. Holds UT [hour, minute, second].
 var clock: Array[int] = []
-## Populated by [IVCoreInitializer]. Holds instantiated program objects (base or override classes).
+## Populated by [IVCoreInitializer]. Holds instantiated "init" and "program"
+## objects (base or override classes).
 var program: Dictionary[StringName, Object] = {}
-## Populated by [IVResourceInitializer].
+## Populated by [IVResourceInitializer]. Holds shaders and constructed resources
+## that can be shared, e.g., a common sphere mesh (for all spheroid models) and
+## a common circle mesh (for all closed orbit visuals). 
 var resources: Dictionary[StringName, Resource] = {}
 ## For project use. Not used by I, Voyager.
 var project := {}
 
-## Project can set if needed. Persisted by IVSaveManager.
+## Project can set if needed. Persisted by [IVSaveManager] if the Save plugin is present.
 var game_mod := ""
-## Read-only!
+## The Core plugin version from res://addons/ivoyager_core/plugin.cfg. Read only!
 var ivoyager_version: String
-## Read-only!
+## Assets version from res://addons/ivoyager_assets/assets.cfg (if present). Read only!
 var assets_version: String
-
-## Read-only! The plugin ConfigFile generated from res://addons/ivoyager_core/ivoyager_core.cfg
+## The Core plugin ConfigFile generated from res://addons/ivoyager_core/ivoyager_core.cfg
 ## with possible overrides in res://ivoyager_override.cfg and res://ivoyager_override2.cfg.
+## Read only!
 var ivoyager_config: ConfigFile = IVPluginUtils.get_config_with_override(
 		"res://addons/ivoyager_core/ivoyager_core.cfg",
 		"res://ivoyager_override.cfg",
 		"res://ivoyager_override2.cfg")
-## Read-only! Indicates project running with Compatibility renderer.
+## Indicates project running with Compatibility renderer. Read only!
 var is_gl_compatibility := RenderingServer.get_current_rendering_method() == "gl_compatibility"
 
 
@@ -171,9 +183,9 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
-	get_viewport().size_changed.connect(_on_viewport_size_changed)
+	get_tree().get_root().size_changed.connect(_on_viewport_size_changed)
 	ui_dirty.connect(_on_viewport_size_changed)
 
 
 func _on_viewport_size_changed() -> void:
-	viewport_size_changed.emit(get_viewport().get_visible_rect().size)
+	viewport_size_changed.emit(get_tree().get_root().get_visible_rect().size)

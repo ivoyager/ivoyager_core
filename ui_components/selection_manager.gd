@@ -113,7 +113,6 @@ static func get_or_make_selection(selection_name: StringName) -> IVSelection:
 static func make_selection_for_body(body_name: StringName) -> IVSelection:
 	assert(!IVSelection.selections.has(body_name))
 	var body: IVBody = IVBody.bodies[body_name] # must exist
-	#var selection_builder: IVSelectionBuilder = IVGlobal.program[&"SelectionBuilder"]
 	var selection_ := IVSelection.create_for_body(body)
 	if selection_:
 		IVSelection.selections[body_name] = selection_
@@ -195,7 +194,7 @@ func select(selection_: IVSelection, suppress_camera_move := false) -> void:
 		selection_reselected.emit(suppress_camera_move)
 		return
 	selection = selection_
-	_add_history()
+	_add_selection_to_history()
 	selection_changed.emit(suppress_camera_move)
 
 
@@ -395,17 +394,19 @@ func _clear_procedural() -> void:
 
 func _on_system_tree_ready(is_new_game: bool) -> void:
 	if is_new_game:
+		# Set new game selection from IVCoreSettings.
 		var selection_ := get_or_make_selection(IVCoreSettings.home_name)
 		select(selection_, true)
 	else:
-		_add_history()
+		# Loaded game starts a new history with current selection.
+		_add_selection_to_history()
 
 
 func _on_ui_dirty() -> void:
 	selection_changed.emit(true)
 
 
-func _add_history() -> void:
+func _add_selection_to_history() -> void:
 	if _supress_history:
 		_supress_history = false
 		return

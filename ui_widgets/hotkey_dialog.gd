@@ -42,10 +42,6 @@ var _layout: Array
 
 
 func _ready() -> void:
-	confirmed.connect(_on_confirmed)
-	_key_delete.pressed.connect(_on_key_delete)
-	focus_exited.connect(_keep_focus)
-	_ok_button.disabled = true
 	if IVStateManager.initialized_core:
 		_configure_after_core_inited()
 	else:
@@ -53,6 +49,10 @@ func _ready() -> void:
 
 
 func _configure_after_core_inited() -> void:
+	confirmed.connect(_on_confirmed)
+	_key_delete.pressed.connect(_on_key_delete)
+	focus_exited.connect(_keep_focus)
+	_ok_button.disabled = true
 	_input_map_manager = IVGlobal.program[&"InputMapManager"]
 	_ok_color = IVCoreSettings.text_colors[&"base"]
 	_in_use_color = IVCoreSettings.text_colors[&"danger"]
