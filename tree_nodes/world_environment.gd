@@ -20,17 +20,16 @@
 class_name IVWorldEnvironment
 extends WorldEnvironment
 
-## Default WorldEnvironment.
+## I, Voyager's WorldEnvironment for scene tree construction.
 ##
 ## This node uses default Environment and CameraAttributes resources from
 ## res://addons/ivoyager_core/resources.[br][br]
 ##
-## The default Environment doesn't have [member Environment.sky] set because
-## the starmap textures are in addons/ivoyager_assets/. (The Core plugin needs
-## to be stand-alone without assets in the Editor, even if it can't run.)[br][br]
-##
-## If [member add_starmap] is true (default), this node will add a Sky with
-## a starmap from ivoyager_assets at startup.
+## If [member add_starmap] is true (default), this node will add a starmap
+## from the assets directory to the Environment resource at startup. The default
+## Environment doesn't have this because the Core plugin is stand-alone without
+## assets. (It can't run that way but we don't want it to generate missing
+## resource errors.)[br][br]
 
 @export var add_starmap := true
 

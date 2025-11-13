@@ -36,29 +36,14 @@ extends Node
 ## setting must be true for threads to be used.
 var use_threads := true
 
-## Specifies [Environment] properties from data table environment.tsv that are
-## applied by [IVWorldEnvironment]. I, Voyager's WorldEnvironment can be
-## disabled in [IVCoreInitializer].
-var environment := &"ENVIRONMENT_PLANETARIUM"
-## Specifies [CameraAttributes] properties from data table camera_attributes.tsv
-## that are applied by [IVWorldEnvironment]. If this row has auto_exposure_enabled
-## and project uses Compatibility renderer, a fallback will be used.
-## I, Voyager's WorldEnvironment can be disabled in [IVCoreInitializer].
-var camera_attributes := &"CAMERA_ATTRIBUTES_HARD_REALISM"
-
-## @experimental: Possible future implementation. (Sim implements practiccal
-## lighting only for now.)
-var use_physical_light := false
-## @experimental: Possible future implementation. (Sim implements practiccal
-## lighting only for now.)
-var camera_attributes_physical := &"CAMERA_ATTRIBUTES_PHYSICAL_HARD_REALISM"
-
 ## See [IVDynamicLight].
 var dynamic_lights := true
-## See [IVDynamicLight].
-var nonphysical_energy_at_1_au := 1.2 # some blowout is good
-## See [IVDynamicLight].
-var nonphysical_attenuation_exponent := 0.5 # physical is 2.0
+## See [IVDynamicLight]. Values just over 1.0 give a small but realistic
+## looking blowout Earth.
+var nonphysical_energy_at_1_au := 1.2
+## See [IVDynamicLight]. Real-world physical is 2.0 (1/r^2). A much smaller
+## value is needed unless there is camera compensation.
+var nonphysical_attenuation_exponent := 0.5
 ## If <INF, overrides magnitude cutoff specified in small_bodies_group.tsv.
 var sbg_mag_cutoff_override := INF
 ## By default, the simulator starts without waiting (as in the Planetarium).
