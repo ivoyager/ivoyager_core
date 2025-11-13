@@ -89,7 +89,6 @@ const METER := IVUnits.METER
 const KM := IVUnits.KM
 
 const DPRINT := false
-const UNIVERSE_SHIFTING := true # prevents "shakes" at high global position
 const NEAR_MULTIPLIER := 0.1
 const FAR_MULTIPLIER := 1e6 # see Note below
 const POLE_LIMITER := PI / 2.1
@@ -124,6 +123,7 @@ var view_position := Vector3(0.5, 2.5, 3.0) # spherical, relative to ref frame; 
 var view_rotations := Vector3.ZERO # euler, relative to looking_at(-origin, 'up')
 
 # public - project init vars
+var origin_shifting := true # prevents "imprecision shakes" at large global_position
 var ease_exponent := 5.0 # DEPRECATE: Make dynamic for distance / size
 var gui_ecliptic_coordinates_dist := 1e6 * KM
 var action_immediacy := 10.0 # how fast we use up the accumulators
@@ -187,6 +187,8 @@ func _ready() -> void:
 		fov = IVCoreSettings.start_camera_fov
 	IVGlobal.current_camera_changed.emit(self)
 	set_process(false) # don't process until sim started
+	
+	#process_mode = PROCESS_MODE_ALWAYS
 
 
 func _process(delta: float) -> void:
@@ -196,11 +198,11 @@ func _process(delta: float) -> void:
 		_process_move_to(delta)
 	else:
 		_process_motions_and_rotations(delta)
-	if UNIVERSE_SHIFTING:
+	if origin_shifting:
 		# Camera will be at global translation (0,0,0) after this step.
-		# The -= operator works because current Universe translation is part
-		# of global_translation, so we are removing old shift at the same time
-		# we add our new shift.
+		# The -= operator works because current Universe position is part
+		# of Camera.global_position, so we are removing old shift at the
+		# same time we add our new shift.
 		_universe.position -= global_position
 	transform = _transform
 	_signal_range_latitude_longitude()

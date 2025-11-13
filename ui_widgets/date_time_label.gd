@@ -24,7 +24,10 @@ extends Label
 ##
 ## Requires [IVTimekeeper]. This widget updates every frame using [member
 ## IVGlobal.date] and [member IVGlobal.clock]. It queries [IVTimekeeper] on
-## [signal IVTimekeeper.speed_changed] whether to display the clock or seconds.
+## [signal IVTimekeeper.speed_changed] whether to display the clock or seconds.[br][br]
+##
+## This widget has process_mode == PROCESS_MODE_ALWAYS so it can always update
+## "...(paused)" text, if applicable.
 
 ## Format string for [year, month, day].
 @export var date_format := "%02d/%02d/%02d"

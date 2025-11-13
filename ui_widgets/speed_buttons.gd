@@ -22,7 +22,10 @@ extends HBoxContainer
 
 ## HBoxContainer widget with game speed controls.
 ##
-## Requires [IVTimekeeper].
+## Requires [IVTimekeeper]. The widget base node has process_mode == PROCESS_MODE_ALWAYS
+## so user can use it to get out of pause.[br][br]
+##
+## TODO: Make individual widgets for the buttons (expecially Pause).
 
 const IS_CLIENT := IVStateManager.NetworkState.IS_CLIENT
 

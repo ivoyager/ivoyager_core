@@ -95,7 +95,6 @@ var _rotate_pressed := Vector3.ZERO
 
 
 func _ready() -> void:
-	process_mode = PROCESS_MODE_ALWAYS
 	IVStateManager.system_tree_ready.connect(_on_system_tree_ready)
 	IVStateManager.about_to_free_procedural_nodes.connect(_on_about_to_free_procedural_nodes)
 	IVGlobal.viewport_size_changed.connect(_on_viewport_size_changed)

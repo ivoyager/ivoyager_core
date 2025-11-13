@@ -22,7 +22,8 @@ extends Label
 
 ## Label widget that displays game speed.
 ##
-## Requires [IVTimekeeper].
+## Requires [IVTimekeeper]. This widget has process_mode == PROCESS_MODE_ALWAYS
+## so it can update during pause.
 
 ## Display color if time is reversed. (Only possible if
 ## [IVCoreSettings.allow_time_reversal] is set to non-default true.)

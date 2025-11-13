@@ -125,7 +125,7 @@ signal huds_visibility_changed(is_visible: bool)
 enum BodyFlags {
 	
 	# orbit context & identity
-	BODYFLAGS_GALAXY_ORBITER = 1, ## "Top" IVBody; has no IVOrbit.
+	BODYFLAGS_GALAXY_ORBITER = 1, ## FIXME: Rename "_TOP". That defines scene tree status.
 	BODYFLAGS_STAR_ORBITER = 1 << 1,
 	BODYFLAGS_BARYCENTER = 1 << 2, ## NOT IMPLEMENTED YET.
 	BODYFLAGS_PLANETARY_MASS_OBJECT = 1 << 3, ## Includes dwarf planet and larger spheroid moon.
@@ -424,8 +424,8 @@ func _exit_tree() -> void:
 func _ready() -> void:
 	# Happens once only, but could be during or after whole system build.
 	const GALAXY_ORBITER := BodyFlags.BODYFLAGS_GALAXY_ORBITER
-	process_mode = PROCESS_MODE_ALWAYS # time will stop, but allows mouseover interaction
 	IVStateManager.system_tree_built.connect(_on_system_tree_built, CONNECT_ONE_SHOT)
+	IVStateManager.simulator_started.connect(_on_simulator_started, CONNECT_ONE_SHOT)
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural, CONNECT_ONE_SHOT)
 	IVSettingsManager.changed.connect(_settings_listener)
 	assert(!bodies.has(name))
@@ -1100,6 +1100,23 @@ func _on_system_tree_built(is_new_game: bool) -> void:
 	_set_hill_sphere()
 	if flags & TIDALLY_LOCKED:
 		_update_rotations(true)
+
+
+func _on_simulator_started() -> void:
+	
+	# Paused game load hack. Top IVBody and decendents (including IVCamera)
+	# need to process 1 frame to get positions and visuals right.
+	if not (flags & BodyFlags.BODYFLAGS_GALAXY_ORBITER):
+		return # only TOP needed assuming others inherit
+	if not get_tree().paused:
+		return
+	if process_mode != PROCESS_MODE_INHERIT:
+		return # hackery not needed or won't work
+	if get_parent_node_3d().process_mode == PROCESS_MODE_ALWAYS:
+		return # hackery not needed
+	process_mode = PROCESS_MODE_ALWAYS
+	await get_tree().process_frame # 1 frame is enough!
+	process_mode = PROCESS_MODE_INHERIT
 
 
 func _set_relative_bodies() -> void:

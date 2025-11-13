@@ -253,6 +253,8 @@ func _init() -> void:
 
 
 func _ready() -> void:
+	# Timekeeper must always be pausible so that time will stop even if other
+	# processes (e.g., camera and UI) still work.
 	process_mode = PROCESS_MODE_PAUSABLE
 	_set_ready_state()
 	set_process(false) # changes with "run_state_changed" signal

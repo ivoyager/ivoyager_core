@@ -42,7 +42,6 @@ var _fragment_text := ""
 
 
 func _ready() -> void:
-	process_mode = PROCESS_MODE_ALWAYS
 	horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	grow_horizontal = GROW_DIRECTION_BOTH
 	size_flags_horizontal = SIZE_SHRINK_CENTER

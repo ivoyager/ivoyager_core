@@ -44,7 +44,6 @@ var _missing_or_bad_cache_file := true
 
 
 func _init() -> void:
-	process_mode = PROCESS_MODE_ALWAYS
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
 	IVStateManager.core_init_program_objects_instantiated.connect(_on_program_objects_instantiated)
 	IVStateManager.about_to_start_simulator.connect(_on_about_to_start_simulator)

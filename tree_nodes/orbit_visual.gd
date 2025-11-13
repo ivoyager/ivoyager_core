@@ -53,7 +53,6 @@ func _init(body: IVBody) -> void:
 
 
 func _ready() -> void:
-	process_mode = PROCESS_MODE_ALWAYS # FragmentIdentifier still processing
 	_body.orbit_changed.connect(_on_orbit_changed)
 	_body_huds_state.visibility_changed.connect(_on_global_huds_changed)
 	_body_huds_state.color_changed.connect(_set_color)

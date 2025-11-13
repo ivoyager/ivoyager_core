@@ -93,7 +93,6 @@ func _init(sbg: IVSmallBodiesGroup) -> void:
 	# fragment ids
 	_vec3ids.resize(number) # needs resize whether we use ids or not
 	if _fragment_identifier and !_bypass_fragment_identifier:
-		process_mode = PROCESS_MODE_ALWAYS # FragmentIdentifier always processing
 		var i := 0
 		while i < number:
 			var data := sbg.get_fragment_data(FRAGMENT_SBG_POINT, i)

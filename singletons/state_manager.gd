@@ -27,12 +27,7 @@ extends Node
 
 
 
-#
-# If IVCoreSettings.pause_only_stops_time == true, then PAUSE_MODE_PROCESS is
-# set in Universe and TopGUI so IVCamera can still move, visuals work (some are
-# responsve to camera) and user can interact with the world. In this mode, only
-# IVTimekeeper pauses to stop time.[br][br]
-#
+
 # There is no NetworkLobby in base I, Voyager. It's is a very application-
 # specific manager that you'll have to code yourself, but see:
 # https://docs.godotengine.org/en/stable/tutorials/networking/high_level_multiplayer.html
@@ -235,7 +230,7 @@ func _notification(what: int) -> void:
 		if paused_tree:
 			return
 	elif what == NOTIFICATION_UNPAUSED:
-		if !paused_tree:
+		if not paused_tree:
 			return
 	else:
 		return

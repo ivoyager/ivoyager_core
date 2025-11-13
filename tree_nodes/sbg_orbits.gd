@@ -55,7 +55,6 @@ func _init(sbg: IVSmallBodiesGroup) -> void:
 		_sbg_huds_state = IVGlobal.program.SBGHUDsState
 	_sbg_alias = sbg.sbg_alias
 	cast_shadow = SHADOW_CASTING_SETTING_OFF
-	process_mode = PROCESS_MODE_ALWAYS # FragmentIdentifier still processing
 	_sbg_huds_state.orbits_visibility_changed.connect(_set_visibility)
 	_sbg_huds_state.orbits_color_changed.connect(_set_color)
 	

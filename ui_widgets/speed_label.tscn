@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://btmsp8rbqgti4" path="res://addons/ivoyager_core/ui_widgets/speed_label.gd" id="1"]
 
 [node name="SpeedLabel" type="Label"]
+process_mode = 3
 offset_right = 40.0
 offset_bottom = 14.0
 size_flags_horizontal = 4
