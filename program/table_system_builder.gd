@@ -92,8 +92,8 @@ func _add_bodies_from_top(name: StringName, table_dict: Dictionary[StringName, S
 	if parent:
 		parent.add_child(body)
 		return
-	assert(body.flags & BodyFlags.BODYFLAGS_GALAXY_ORBITER,
-			"body.tsv row with no parent must have galaxy_orbiter == TRUE")
+	assert(body.flags & BodyFlags.BODYFLAGS_TOP,
+			"body.tsv row with no parent must have field 'top' == TRUE")
 	if add_to_universe:
 		var universe: Node3D = IVGlobal.program.Universe
 		universe.add_child(body)

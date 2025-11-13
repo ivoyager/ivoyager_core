@@ -124,7 +124,7 @@ static func get_body_above_selection(selection_: IVSelection) -> IVBody:
 		selection_ = get_or_make_selection(selection_.up_selection_name)
 		if selection_.body:
 			return selection_.body
-	return IVBody.galaxy_orbiters.values()[0]
+	return IVBody.top_bodies.values()[0]
 
 
 static func get_body_at_above_selection_w_flags(selection_: IVSelection, flags: int) -> IVBody:
@@ -310,7 +310,7 @@ func next_last(incr: int, selection_type := -1, _alt_selection_type := -1) -> vo
 			index = iteration_array.find(current_body)
 		SELECTION_STAR:
 			# TODO: code for multistar systems
-			var sun: IVBody = IVBody.galaxy_orbiters.values()[0]
+			var sun: IVBody = IVBody.top_bodies.values()[0]
 			select_body(sun)
 			return
 		SELECTION_PLANET:

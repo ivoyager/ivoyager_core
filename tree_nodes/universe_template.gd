@@ -144,8 +144,7 @@ extends Node3D
 ## other "main" popup panels will still work.[br][br]
 ##
 ## Some mix of the two options may be posible by setting [member Node.pause_mode]
-## in individual UI and program nodes. Pause mode of code-generated classes
-## ([IVBody], [IVCamera] and others) can be modified in [IVProceduralHelper] (TODO).[br][br]
+## in individual UI and program nodes.[br][br]
 ##
 ## [b]Origin Shifting[/b][br][br]
 ##
