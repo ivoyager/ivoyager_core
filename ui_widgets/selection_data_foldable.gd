@@ -56,7 +56,14 @@ extends FoldableContainer
 ## [IVSelectionDataFoldable] instances can be nested or include other Controls
 ## as children with this scene's GridContainer child. If >1 Control children
 ## exist, they all will be gathered into a VBoxContainer automatically with
-## this node's $DataGrid as first child.
+## this node's $DataGrid as first child.[br][br]
+##
+## This widget uses its own [Control.theme_type_variation] if that's set in
+## scene tree construction. If not, it will search up its ancestry tree for
+## property "foldables_theme_type_variation". This can be used to set Foldable
+## widget theme variation globally or in specific GUI tree branches.[br][br]
+##
+## See [IVSelectionData].
 
 
 ## Minimum label width in en units (an "n" character or half the font size).
@@ -108,6 +115,10 @@ func _ready() -> void:
 		IVStateManager.core_initialized.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
 	IVWidgets.connect_selection_manager(self, &"_on_selection_manager_changed",
 			[&"selection_changed", &"_update_selection"])
+	
+	if not theme_type_variation:
+		theme_type_variation = IVUtils.get_tree_string_name(
+				self, &"foldables_theme_type_variation", true)
 
 
 func _arrange_child_controls() -> void:

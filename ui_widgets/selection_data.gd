@@ -58,6 +58,11 @@ const NumberType := IVQFormat.NumberType
 const BodyFlags := IVBody.BodyFlags
 
 
+## Theme type variation used by [IVSelectionDataFoldable] decendents. If &""
+## (default), the foldable widgets will keep looking up the Node tree for this
+## "tree property". The property is set in [IVTopUI] for a global GUI value.
+@export var foldables_theme_type_variation := &""
+
 ## Content dictionary. Must contain all descendent [IVSelectionDataFoldable]
 ## names as keys. See class doc for content format.
 var selection_data_content: Dictionary[StringName, Array] = {

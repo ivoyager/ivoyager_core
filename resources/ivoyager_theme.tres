@@ -1,3 +1,17 @@
-[gd_resource type="Theme" format=3 uid="uid://c1ce75roeyk17"]
+[gd_resource type="Theme" load_steps=5 format=3 uid="uid://c1ce75roeyk17"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_87s7r"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_axr0f"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_qtflj"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_v5oir"]
+content_margin_bottom = 4.0
 
 [resource]
+ClearFoldable/base_type = &"FoldableContainer"
+ClearFoldable/styles/panel = SubResource("StyleBoxEmpty_87s7r")
+ClearFoldable/styles/title_collapsed_hover_panel = SubResource("StyleBoxEmpty_axr0f")
+ClearFoldable/styles/title_collapsed_panel = SubResource("StyleBoxEmpty_qtflj")
+ClearFoldable/styles/title_panel = SubResource("StyleBoxEmpty_v5oir")

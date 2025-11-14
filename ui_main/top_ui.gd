@@ -24,17 +24,26 @@ extends Control
 ##
 ## See [IVUniverseTemplate] for scene tree organization.[br][br]
 ##
-## This node provides several "tree properties" used by GUI widgets (they search
-## up their ancestry tree for these). The only required ancestor property for
-## many widgets is [member selection_manager]. All bool properties are optional:
-## absence of the property in the ancestry tree is the same as a false value.[br][br]
+## This node provides "tree properties" used by GUI widgets. These are
+## properties that specific widgets obtain from their ancestor node tree.
+## The only required ancestor property for many widgets is [member selection_manager].
+## All bool properties are optional (absence of the property in the ancestry
+## tree is the same as a false value). "_theme_type_variation" properties
+## are optional and useful for seting theme variations for widgets globally or
+## in specific GUI branches.[br][br]
 ##
-## By default, this node sets its own Theme by calling [method
-## IVThemeManager.get_main_theme]. (FIXME: Do this in a more "Editor way"...)[br][br]
+## This node "sets" a [member Control.theme] that it obtains via [method
+## IVThemeManager.get_main_theme]. Note that this theme IS the project custom
+## theme (ProjectSettings/GUI/Theme/Custom) if that exists and an override
+## hasn't been set in [IVThemeManager]. So the "set" isn't necessarily a change.
+## However, if the project doesn't have a custom theme, then [IVThemeManager]
+## provides a fallback. This ensures that decendent GUI Controls have a custom
+## theme one way or the other, which is necessary for dynamic font sizing by
+## [IVThemeManager].[br][br]
 ##
-## In most cases, the GUI tree probably shouldn't be persisted. But it might be
-## in special cases. This node and [IVShowHideUI] have [code]const PERSIST_MODE[/code]
-## set to support GUI nodes that have save/load persistence.  [IVSelectionManager]
+## This node has [code]PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY[/code]
+## to support save/load persistence using the Save plugin.
+## [IVSelectionManager]
 ## is persisted here to keep current user selection through game save/load.
 ## Note that all widgets are coded to expect [IVSelectionManager] to be a
 ## procedural node, i.e., freed and replaced on game load.
@@ -51,7 +60,11 @@ const PERSIST_PROPERTIES: Array[StringName] = [&"selection_manager"]
 ## Set true to enable "value" wiki links in decendent [IVSelectionDataFoldable]
 ## instances. [IVWikiManager] must be present.
 @export var enable_selection_data_value_links := false
-
+## Theme type variation used by decedent FoldableContainer widgets (e.g.,
+## [IVSelectionDataFoldable] and [IVHUDsFoldable]). This can be set closer to
+## the Foldable widgets to override this value (e.g., in the foldable
+## containers [IVSelectionData] or [IVHUDsBox]).
+@export var foldables_theme_type_variation := &"ClearFoldable"
 
 ## This is the "main" selection manager for GUI panels and widgets, added
 ## by this class's code at [signal IVStateManager.about_to_build_system_tree]

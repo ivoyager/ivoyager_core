@@ -26,6 +26,10 @@ extends VBoxContainer
 ## row, set [member enable_wiki_links] to true. [IVWikiManager] must also be
 ## added in [IVCoreInitializer].
 
+## Theme type variation used by [IVHUDsFoldable] decendents. If &"" (default),
+## the foldable widgets will keep looking up the Node tree for this "tree
+## property". The property is set in [IVTopUI] for a global GUI value.
+@export var foldables_theme_type_variation := &""
 
 ## "Column 1" size group available for descendent Controls.
 var column_group_1 := IVControlSizeGroup.new()
@@ -38,3 +42,5 @@ func _ready() -> void:
 	column_group_2.add_control($BodiesHeaders/OrbitsHeader as Control)
 	column_group_1.add_control($SBGsHeaders/PointsHeader as Control)
 	column_group_2.add_control($SBGsHeaders/OrbitsHeader as Control)
+	
+	

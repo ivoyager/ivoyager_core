@@ -32,8 +32,12 @@ extends FoldableContainer
 ## descendent [IVHUDsHBox] values. Other properties and
 ## [member FoldableContainer.title] should be set as needed.[br][br]
 ##
+## This widget uses its own [Control.theme_type_variation] if that's set in
+## scene tree construction. If not, it will search up its ancestry tree for
+## property "foldables_theme_type_variation". This can be used to set Foldable
+## widget theme variation globally or in specific GUI tree branches.[br][br]
+##
 ## See [IVHUDsHBox].
-
 
 
 ## If true, automatically set [member body_flags] and [member sbg_aliases] to
@@ -61,6 +65,8 @@ extends FoldableContainer
 
 
 
+
+
 func _ready() -> void:
 	if build_as_union:
 		_set_union_properties()
@@ -69,6 +75,10 @@ func _ready() -> void:
 	var huds_hbox := IVHUDsHBox.create(&"", &"", true, body_flags, sbg_aliases, names_symbols,
 			points, orbits, ancestor_column_groups)
 	add_title_bar_control(huds_hbox)
+	
+	if not theme_type_variation:
+		theme_type_variation = IVUtils.get_tree_string_name(
+				self, &"foldables_theme_type_variation", true)
 
 
 func _set_union_properties() -> void:

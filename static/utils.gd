@@ -93,16 +93,6 @@ static func get_path_result(target: Variant, path: String, args := []) -> Varian
 	return target
 
 
-## Gets [param property] Variant from [param node] or from an ancestor
-## Node. Returns null if the property does not exist up the node tree.
-static func get_tree_variant(node: Node, property: StringName) -> Variant:
-	while node:
-		if property in node:
-			return node.get(property)
-		node = node.get_parent()
-	return null
-
-
 ## Gets [param bool_property] bool from [param node] or from an ancestor
 ## Node. Returns false if bool_property does not exist up the node tree.
 static func get_tree_bool(node: Node, bool_property: StringName) -> bool:
@@ -113,14 +103,62 @@ static func get_tree_bool(node: Node, bool_property: StringName) -> bool:
 	return false
 
 
+## Gets [param property] Variant from [param node] or from an ancestor
+## Node. Returns null if the property does not exist up the node tree. If
+## [param skip_null_type] is set to true, keep searching up the tree if a
+## Node has string_property but its value evaluates to false in a boolean
+## context (null, 0, 0.0, "", &"", [], Vector2(0, 0), etc.).
+static func get_tree_variant(node: Node, property: StringName, skip_null_type := false
+		) -> Variant:
+	while node:
+		if property in node:
+			var value: Variant = node.get(property)
+			if value or !skip_null_type:
+				return value
+		node = node.get_parent()
+	return null
+
+
+## Gets [param string_property] bool from [param node] or from an ancestor
+## Node. Returns "" if string_property does not exist up the node tree. If
+## [param skip_empty] is set to true, keep searching up the tree if a
+## Node has string_property but its value is "".
+static func get_tree_string(node: Node, string_property: StringName, skip_empty := false
+		) -> String:
+	while node:
+		if string_property in node:
+			var string: String = node.get(string_property)
+			if string or !skip_empty:
+				return string
+		node = node.get_parent()
+	return ""
+
+
+## Gets [param string_name_property] bool from [param node] or from an ancestor
+## Node. Returns &"" if string_name_property does not exist up the node tree. If
+## [param skip_empty] is set to true, keep searching up the tree if a
+## Node has string_name_property but its value is &"".
+static func get_tree_string_name(node: Node, string_name_property: StringName, skip_empty := false
+		) -> StringName:
+	while node:
+		if string_name_property in node:
+			var string_name: String = node.get(string_name_property)
+			if string_name or !skip_empty:
+				return string_name
+		node = node.get_parent()
+	return &""
+
+
 ## Gets [param dict_property] Dictionary from [param node] or from an ancestor
 ## Node. Returns an empty Dictionary if dict_property does not exist up the node
 ## tree.
-static func get_tree_dictionary(node: Node, dict_property: StringName
+static func get_tree_dictionary(node: Node, dict_property: StringName, skip_empty := false
 		) -> Dictionary:
 	while node:
 		if dict_property in node:
-			return node.get(dict_property)
+			var dict: Dictionary = node.get(dict_property)
+			if dict or !skip_empty:
+				return dict
 		node = node.get_parent()
 	return {}
 
@@ -128,10 +166,12 @@ static func get_tree_dictionary(node: Node, dict_property: StringName
 ## Gets [param array_property] Array from [param node] or from an ancestor
 ## Node. Returns an empty Array if array_property does not exist up the node
 ## tree.
-static func get_tree_array(node: Node, array_property: StringName) -> Array:
+static func get_tree_array(node: Node, array_property: StringName, skip_empty := false) -> Array:
 	while node:
 		if array_property in node:
-			return node.get(array_property)
+			var array: Array = node.get(array_property)
+			if array or !skip_empty:
+				return array
 		node = node.get_parent()
 	return []
 

@@ -123,6 +123,13 @@ extends Node3D
 ## [url=https://github.com/ivoyager/project_template]Project Template[/url] has
 ## an example splash screen implementation.[br][br]
 ##
+## [b]GUI Scene Tree[/b][br][br]
+##
+## [IVTopUI] has documentation on GUI scene tree construction. The Core plugin
+## has a large set of widgets (in directory "ui_widgets") that know how to talk
+## to the simulator: menu buttons, date/time label, selection data containers,
+## etc.[br][br]
+## 
 ## [b]Simulator Pause[/b][br][br]
 ##
 ## There are two main options for scene tree pause in the simulator:[br][br]
