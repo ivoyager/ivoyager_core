@@ -1,7 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://boc2r4d0eomdr"]
-
-[ext_resource type="Script" uid="uid://crfmdej6b2qm4" path="res://addons/ivoyager_core/gui_widgets/options_button.gd" id="1_3cyb5"]
-
-[node name="OptionsButton" type="Button"]
-text = "BUTTON_OPTIONS"
-script = ExtResource("1_3cyb5")

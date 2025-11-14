@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://c6q32qcmwro7b"]
+
+[ext_resource type="Script" uid="uid://n3f04jhl3wop" path="res://addons/ivoyager_core/ui_widgets/huds_foldable.gd" id="1_283hn"]
+
+[node name="HUDsFoldable" type="FoldableContainer"]
+script = ExtResource("1_283hn")

@@ -28,13 +28,13 @@ extends Node3D
 ##
 ## Using our Solar System as example, the structure of the scene tree is:
 ## [codeblock]
-## IVUniverse
-##    |- IVBody (Sun)
-##        |- IVBody (Earth)
-##            |- IVBody (ISS)
-##            |- IVBody (Moon)
+## Universe
+##    |- IVBody (STAR_SUN)
+##        |- IVBody (PLANET_EARTH)
+##            |- IVBody (SPACECRAFT_ISS)
+##            |- IVBody (MOON_MOON)
 ##                |- IVBody (a spacecraft orbiting the Moon)
-## [/codeblock]
+## [/codeblock][br]
 ##
 ## Note that current core mechanics [i]should[/i] handle a multi-star system,
 ## but this has not been tested yet.[br][br]
@@ -111,7 +111,7 @@ extends Node3D
 ## the current rotation.[br][br]
 ##
 ## TODO: We want to handle local stars out to some range. Each solitary star or
-## system primary star will be a "galaxy orbiter" with some (relative) position
+## system primary star will be a "top" body with some (relative) position
 ## and velocity in IVUniverse. (Any larger scope will require procedural system
 ## building and scene loading, which is not in our plans.)
 
@@ -125,11 +125,11 @@ signal huds_visibility_changed(is_visible: bool)
 enum BodyFlags {
 	
 	# orbit context & identity
-	BODYFLAGS_GALAXY_ORBITER = 1, ## "Top" IVBody; has no IVOrbit.
-	BODYFLAGS_STAR_ORBITER = 1 << 1,
+	BODYFLAGS_TOP = 1, ## Directly under Universe.
+	BODYFLAGS_STAR_ORBITER = 1 << 1, ## Planet, dwarf planet, asteroid, comet, etc.
 	BODYFLAGS_BARYCENTER = 1 << 2, ## NOT IMPLEMENTED YET.
 	BODYFLAGS_PLANETARY_MASS_OBJECT = 1 << 3, ## Includes dwarf planet and larger spheroid moon.
-	BODYFLAGS_STAR = 1 << 4,
+	BODYFLAGS_STAR = 1 << 4, ## May or may not be BODYFLAGS_TOP.
 	BODYFLAGS_PLANET_OR_DWARF_PLANET = 1 << 5,
 	BODYFLAGS_PLANET = 1 << 6, ## Does not include dwarf planet.
 	BODYFLAGS_DWARF_PLANET = 1 << 7,
@@ -137,7 +137,7 @@ enum BodyFlags {
 	BODYFLAGS_PLANETARY_MASS_MOON = 1 << 9,
 	BODYFLAGS_NON_PLANETARY_MASS_MOON = 1 << 10,
 	BODYFLAGS_ASTEROID = 1 << 11,
-	BODYFLAGS_COMET = 1 << 12,
+	BODYFLAGS_COMET = 1 << 12, ## NOT IMPLEMENTED YET.
 	BODYFLAGS_SPACECRAFT = 1 << 13,
 	
 	# rotation mechanics
@@ -208,7 +208,7 @@ static var min_hud_dist_star_multiplier := 20.0
 static var bodies: Dictionary[StringName, IVBody] = {}
 ## A static class dictionary that contains IVBody instances that are at the top
 ## of a system (i.e., the primary star for every star system).
-static var galaxy_orbiters: Dictionary[StringName, IVBody] = {}
+static var top_bodies: Dictionary[StringName, IVBody] = {}
 
 
 # persisted
@@ -231,7 +231,7 @@ var characteristics: Dictionary[StringName, Variant] = {} # non-object values
 var components: Dictionary[StringName, RefCounted] = {} # objects (persisted only)
 
 # redirect
-## This body's [IVOrbit]; null if galaxy orbiter.
+## This body's [IVOrbit]; null if "top" body.
 var orbit: IVOrbit: get = get_orbit, set = set_orbit
 
 # read-only!
@@ -294,7 +294,7 @@ static func create(name: StringName, flags: int, mean_radius: float, gravitation
 	
 	rotation_at_epoch = fposmod(rotation_at_epoch, TAU)
 	
-	assert(bool(flags & BodyFlags.BODYFLAGS_GALAXY_ORBITER) == (orbit == null))
+	assert(bool(flags & BodyFlags.BODYFLAGS_TOP) == (orbit == null))
 	assert(!(flags & BodyFlags.BODYFLAGS_AXIS_LOCKED) or flags & BodyFlags.BODYFLAGS_TIDALLY_LOCKED,
 			"Axis-locked bodies must also be tidally locked")
 	
@@ -358,7 +358,7 @@ static func create_from_astronomy_specs(
 	
 	rotation_at_epoch = fposmod(rotation_at_epoch, TAU)
 	
-	assert(bool(flags & BodyFlags.BODYFLAGS_GALAXY_ORBITER) == (orbit == null))
+	assert(bool(flags & BodyFlags.BODYFLAGS_TOP) == (orbit == null))
 	assert(!(flags & BodyFlags.BODYFLAGS_AXIS_LOCKED) or flags & BodyFlags.BODYFLAGS_TIDALLY_LOCKED,
 			"Axis-locked bodies must also be tidally locked")
 	# TODO: More flags asserts.
@@ -423,20 +423,20 @@ func _exit_tree() -> void:
 
 func _ready() -> void:
 	# Happens once only, but could be during or after whole system build.
-	const GALAXY_ORBITER := BodyFlags.BODYFLAGS_GALAXY_ORBITER
-	process_mode = PROCESS_MODE_ALWAYS # time will stop, but allows mouseover interaction
-	IVGlobal.system_tree_built_or_loaded.connect(_on_system_tree_built_or_loaded, CONNECT_ONE_SHOT)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural, CONNECT_ONE_SHOT)
-	IVGlobal.setting_changed.connect(_settings_listener)
+	const TOP := BodyFlags.BODYFLAGS_TOP
+	IVStateManager.system_tree_built.connect(_on_system_tree_built, CONNECT_ONE_SHOT)
+	IVStateManager.simulator_started.connect(_on_simulator_started, CONNECT_ONE_SHOT)
+	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural, CONNECT_ONE_SHOT)
+	IVSettingsManager.changed.connect(_settings_listener)
 	assert(!bodies.has(name))
 	bodies[name] = self
-	if flags & GALAXY_ORBITER:
-		galaxy_orbiters[name] = self
+	if flags & TOP:
+		top_bodies[name] = self
 	_set_resources()
 	_set_min_hud_dist()
 	hide()
 	
-	if !IVGlobal.state[&"is_system_built"]: # currently building from tables or savefile
+	if not IVStateManager.built_system: # currently building from tables or savefile
 		return
 	
 	_set_system_radius()
@@ -479,12 +479,12 @@ func _process(_delta: float) -> void:
 
 
 func remove() -> void:
-	const GALAXY_ORBITER := BodyFlags.BODYFLAGS_GALAXY_ORBITER
+	const TOP := BodyFlags.BODYFLAGS_TOP
 	for satellite_name in satellites:
 		satellites[satellite_name].remove()
 	bodies.erase(name)
-	if flags & GALAXY_ORBITER:
-		galaxy_orbiters.erase(name)
+	if flags & TOP:
+		top_bodies.erase(name)
 	if _orbit:
 		_orbit.changed.disconnect(_on_orbit_changed)
 	_clear_relative_bodies()
@@ -887,7 +887,7 @@ func get_system_radius() -> float:
 
 
 ## See [url]https://en.wikipedia.org/wiki/Hill_sphere[/url].
-## Returns INF if this body is a galaxy orbiter.
+## Returns INF if this body is a "top" body.
 func get_hill_sphere() -> float:
 	return _hill_sphere
 
@@ -914,7 +914,7 @@ func get_position_vector(time := NAN) -> Vector3:
 		time = _times[0]
 	if _orbit:
 		return _orbit.get_position(time)
-	# TODO: galaxy-orbiters will have position and velocity eventually,
+	# TODO: "top" bodies may have position and velocity eventually,
 	# probably as fixed values relative to galaxy center.
 	return Vector3.ZERO
 
@@ -928,7 +928,7 @@ func get_state_vectors(time := NAN) -> Array[Vector3]:
 		time = _times[0]
 	if _orbit:
 		return _orbit.get_state_vectors(time)
-	# TODO: galaxy-orbiters will have position and velocity eventually,
+	# TODO: "top" bodies may have position and velocity eventually,
 	# probably as fixed values relative to galaxy center.
 	return [Vector3.ZERO, Vector3.ZERO]
 
@@ -1088,10 +1088,10 @@ func _clear_procedural() -> void:
 	satellites.clear()
 	model_space = null
 	bodies.clear()
-	galaxy_orbiters.clear()
+	top_bodies.clear()
 
 
-func _on_system_tree_built_or_loaded(is_new_game: bool) -> void:
+func _on_system_tree_built(is_new_game: bool) -> void:
 	const TIDALLY_LOCKED := BodyFlags.BODYFLAGS_TIDALLY_LOCKED
 	if !is_new_game:
 		return
@@ -1102,11 +1102,28 @@ func _on_system_tree_built_or_loaded(is_new_game: bool) -> void:
 		_update_rotations(true)
 
 
+func _on_simulator_started() -> void:
+	
+	# Paused game load hack. Top IVBody and decendents (including IVCamera)
+	# need to process 1 frame to get positions and visuals right.
+	if not (flags & BodyFlags.BODYFLAGS_TOP):
+		return # only TOP needed assuming others inherit
+	if not get_tree().paused:
+		return
+	if process_mode != PROCESS_MODE_INHERIT:
+		return # hackery not needed or won't work
+	if get_parent_node_3d().process_mode == PROCESS_MODE_ALWAYS:
+		return # hackery not needed
+	process_mode = PROCESS_MODE_ALWAYS
+	await get_tree().process_frame # 1 frame is enough!
+	process_mode = PROCESS_MODE_INHERIT
+
+
 func _set_relative_bodies() -> void:
 	# For multi-star system, a star could be a star orbiter.
 	const STAR := BodyFlags.BODYFLAGS_STAR
 	const STAR_ORBITER := BodyFlags.BODYFLAGS_STAR_ORBITER
-	parent = get_parent_node_3d() as IVBody # null only for galaxy orbiter
+	parent = get_parent_node_3d() as IVBody # null only for top bodies
 	star = null
 	star_orbiter = null
 	var ascending_body := self
@@ -1136,7 +1153,7 @@ func _set_resources() -> void:
 
 
 func _set_min_hud_dist() -> void:
-	if !IVGlobal.settings[&"hide_hud_when_close"]:
+	if !IVSettingsManager.get_setting(&"hide_hud_when_close"):
 		_min_hud_dist = 0.0
 		return
 	_min_hud_dist = mean_radius * min_hud_dist_radius_multiplier

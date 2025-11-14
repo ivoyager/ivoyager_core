@@ -1,0 +1,6 @@
+[gd_resource type="Environment" format=3 uid="uid://bnnl3t8tfgkek"]
+
+[resource]
+ambient_light_source = 2
+ambient_light_color = Color(0.74902, 0.815686, 1, 1)
+ambient_light_energy = 0.02

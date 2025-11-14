@@ -100,7 +100,7 @@ var characteristics_fields: Array[StringName] = [
 ]
 
 var flag_fields: Dictionary[StringName, int] = {
-	&"galaxy_orbiter" : BodyFlags.BODYFLAGS_GALAXY_ORBITER,
+	&"top" : BodyFlags.BODYFLAGS_TOP,
 	&"star_orbiter" : BodyFlags.BODYFLAGS_STAR_ORBITER,
 	&"planetary_mass_object" : BodyFlags.BODYFLAGS_PLANETARY_MASS_OBJECT,
 	&"star" : BodyFlags.BODYFLAGS_STAR,
@@ -145,14 +145,14 @@ var _composition_builder: RefCounted
 
 
 func _init() -> void:
-	IVGlobal.project_objects_instantiated.connect(_on_project_objects_instantiated)
+	IVStateManager.core_init_program_objects_instantiated.connect(_on_program_objects_instantiated)
 
 
 
 func build_body(table_name: String, row: int, parent: IVBody) -> IVBody:
 	
 	var flags := IVTableData.db_get_flags(table_name, row, flag_fields)
-	assert(bool(flags & BodyFlags.BODYFLAGS_GALAXY_ORBITER) == (parent == null))
+	assert(bool(flags & BodyFlags.BODYFLAGS_TOP) == (parent == null))
 	
 	var orbit: IVOrbit = null
 	if parent:
@@ -231,7 +231,7 @@ func build_body(table_name: String, row: int, parent: IVBody) -> IVBody:
 
 
 
-func _on_project_objects_instantiated() -> void:
+func _on_program_objects_instantiated() -> void:
 	_orbit_builder = IVGlobal.program[&"TableOrbitBuilder"]
 	_composition_builder = IVGlobal.program.get(&"TableCompositionBuilder") # remove to skip
 

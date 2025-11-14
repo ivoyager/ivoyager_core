@@ -22,24 +22,27 @@ extends Node
 
 ## Handles input not handled in class files.
 ##
-## This is for closed Popups and Dialogs that don't recieve input passed in the
-## root Window, or anything else that can't be handled in a class file.
-
-
+## Handle input here that can't be handled in the class file for some reason.
+## E.g., input needed while a Node is paused, Popups and Dialogs that don't
+## recieve input passed in the root Window, etc.
 
 func _ready() -> void:
 	process_mode = PROCESS_MODE_ALWAYS
 
 
-func _unhandled_key_input(event: InputEvent) -> void:
-	if !event.is_action_type() or !event.is_pressed():
+func _shortcut_input(event: InputEvent) -> void:
+	if not event.is_pressed():
 		return
 	if event.is_action_pressed(&"ui_cancel"):
-		IVGlobal.open_main_menu_requested.emit()
+		IVGlobal.main_menu_requested.emit()
 	elif event.is_action_pressed(&"toggle_options"):
 		IVGlobal.options_requested.emit()
 	elif event.is_action_pressed(&"toggle_hotkeys"):
 		IVGlobal.hotkeys_requested.emit()
+	elif event.is_action_pressed(&"toggle_pause"):
+		IVStateManager.set_user_paused(not IVStateManager.paused_by_user)
+	elif event.is_action_pressed(&"quit"):
+		IVStateManager.quit()
 	else:
 		return # input not handled
 	get_viewport().set_input_as_handled()

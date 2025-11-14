@@ -1,7 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://pjw4ki1qswq0"]
-
-[ext_resource type="Script" uid="uid://dq5nev1sa608g" path="res://addons/ivoyager_core/gui_widgets/hotkeys_button.gd" id="1_v4vq2"]
-
-[node name="HotkeysButton" type="Button"]
-text = "BUTTON_HOTKEYS"
-script = ExtResource("1_v4vq2")

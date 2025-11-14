@@ -34,7 +34,7 @@ var _binary_asteroids_builder: IVBinaryAsteroidsBuilder
 
 
 func _init() -> void:
-	IVGlobal.project_objects_instantiated.connect(_on_project_objects_instantiated)
+	IVStateManager.core_init_program_objects_instantiated.connect(_on_program_objects_instantiated)
 
 
 
@@ -75,5 +75,5 @@ func build_asteroids_sbg(table_name: StringName, row: int, name: StringName, sbg
 
 
 
-func _on_project_objects_instantiated() -> void:
+func _on_program_objects_instantiated() -> void:
 	_binary_asteroids_builder = IVGlobal.program[&"BinaryAsteroidsBuilder"]

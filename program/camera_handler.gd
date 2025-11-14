@@ -35,8 +35,14 @@ enum {
 const CameraFlags := IVCamera.CameraFlags
 const NULL_VECTOR3 := Vector3(-INF, -INF, -INF)
 
+## Tells this node where to find an [IVSelectionManager] to listen to.
+## The named node is expected to have property "selection_manager" with a valid
+## [IVSelectionManager] and is also expected to be in [member IVGlobal.program]
+## (this should be the case if it is listed in [member IVCoreInitializer.tree_program_nodes]).
+var selection_manager_tree_program_node := &"TopUI"
 
-# project vars
+
+
 # set _adj vars so user option can be close to 1.0
 var mouse_wheel_adj := 7.5
 var mouse_move_adj := 0.3
@@ -55,26 +61,33 @@ var alt_drag := DRAG_ROLL
 var hybrid_drag_center_zone := 0.2 # for DRAG_PITCH_YAW_ROLL_HYBRID
 var hybrid_drag_outside_zone := 0.7 # for DRAG_PITCH_YAW_ROLL_HYBRID
 
-# private
-var _settings: Dictionary[StringName, Variant] = IVGlobal.settings
+
 var _camera: IVCamera
 var _selection_manager: IVSelectionManager
-
 var _drag_mode := -1 # one of DRAG_ enums when active
 var _drag_vector := Vector2.ZERO
 var _mwheel_turning := 0.0
 var _move_pressed := Vector3.ZERO
 var _rotate_pressed := Vector3.ZERO
 
+
 @onready var _world_controller: IVWorldController = IVGlobal.program[&"WorldController"]
-@onready var _mouse_in_out_rate: float = _settings[&"camera_mouse_in_out_rate"] * mouse_wheel_adj
-@onready var _mouse_move_rate: float = _settings[&"camera_mouse_move_rate"] * mouse_move_adj
-@onready var _mouse_pitch_yaw_rate: float = _settings[&"camera_mouse_pitch_yaw_rate"] * mouse_pitch_yaw_adj
-@onready var _mouse_roll_rate: float = _settings[&"camera_mouse_roll_rate"] * mouse_roll_adj
-@onready var _key_in_out_rate: float = _settings[&"camera_key_in_out_rate"] * key_in_out_adj
-@onready var _key_move_rate: float = _settings[&"camera_key_move_rate"] * key_move_adj
-@onready var _key_pitch_yaw_rate: float = _settings[&"camera_key_pitch_yaw_rate"] * key_pitch_yaw_adj
-@onready var _key_roll_rate: float = _settings[&"camera_key_roll_rate"] * key_roll_adj
+@onready var _mouse_in_out_rate: float = (IVSettingsManager.get_setting(&"camera_mouse_in_out_rate")
+		* mouse_wheel_adj)
+@onready var _mouse_move_rate: float = (IVSettingsManager.get_setting(&"camera_mouse_move_rate")
+		* mouse_move_adj)
+@onready var _mouse_pitch_yaw_rate: float = (IVSettingsManager.get_setting(&"camera_mouse_pitch_yaw_rate")
+		* mouse_pitch_yaw_adj)
+@onready var _mouse_roll_rate: float = (IVSettingsManager.get_setting(&"camera_mouse_roll_rate")
+		* mouse_roll_adj)
+@onready var _key_in_out_rate: float = (IVSettingsManager.get_setting(&"camera_key_in_out_rate")
+		* key_in_out_adj)
+@onready var _key_move_rate: float = (IVSettingsManager.get_setting(&"camera_key_move_rate")
+		* key_move_adj)
+@onready var _key_pitch_yaw_rate: float = (IVSettingsManager.get_setting(&"camera_key_pitch_yaw_rate")
+		* key_pitch_yaw_adj)
+@onready var _key_roll_rate: float = (IVSettingsManager.get_setting(&"camera_key_roll_rate")
+		* key_roll_adj)
 @onready var _viewport_size := get_viewport().get_visible_rect().size
 
 
@@ -82,14 +95,15 @@ var _rotate_pressed := Vector3.ZERO
 
 
 func _ready() -> void:
-	IVGlobal.system_tree_ready.connect(_on_system_tree_ready)
-	IVGlobal.about_to_free_procedural_nodes.connect(_restore_init_state)
-	IVGlobal.camera_ready.connect(_connect_camera)
+	IVStateManager.system_tree_ready.connect(_on_system_tree_ready)
+	IVStateManager.about_to_free_procedural_nodes.connect(_on_about_to_free_procedural_nodes)
 	IVGlobal.viewport_size_changed.connect(_on_viewport_size_changed)
-	IVGlobal.setting_changed.connect(_settings_listener)
+	IVSettingsManager.changed.connect(_settings_listener)
 	_world_controller.mouse_target_clicked.connect(_on_mouse_target_clicked)
 	_world_controller.mouse_dragged.connect(_on_mouse_dragged)
 	_world_controller.mouse_wheel_turned.connect(_on_mouse_wheel_turned)
+	IVWidgets.connect_ivcamera(self, &"_on_camera_changed",
+			[&"camera_lock_changed", &"_on_camera_lock_changed"])
 
 
 func _process(delta: float) -> void:
@@ -128,8 +142,8 @@ func _process(delta: float) -> void:
 		_camera.add_rotation(_rotate_pressed * delta)
 
 
-func _unhandled_key_input(event: InputEvent) -> void:
-	if !event.is_action_type() or !_camera:
+func _shortcut_input(event: InputEvent) -> void:
+	if not _camera:
 		return
 	if event.is_pressed():
 		if event.is_action_pressed(&"recenter"):
@@ -160,35 +174,36 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			_rotate_pressed.z = _key_roll_rate
 		else:
 			return  # no input handled
-		get_window().set_input_as_handled()
-	else: # key release
-		if event.is_action_released(&"camera_left"):
-			_move_pressed.x = 0.0
-		elif event.is_action_released(&"camera_right"):
-			_move_pressed.x = 0.0
-		elif event.is_action_released(&"camera_up"):
-			_move_pressed.y = 0.0
-		elif event.is_action_released(&"camera_down"):
-			_move_pressed.y = 0.0
-		elif event.is_action_released(&"camera_in"):
-			_move_pressed.z = 0.0
-		elif event.is_action_released(&"camera_out"):
-			_move_pressed.z = 0.0
-		elif event.is_action_released(&"pitch_up"):
-			_rotate_pressed.x = 0.0
-		elif event.is_action_released(&"pitch_down"):
-			_rotate_pressed.x = 0.0
-		elif event.is_action_released(&"yaw_left"):
-			_rotate_pressed.y = 0.0
-		elif event.is_action_released(&"yaw_right"):
-			_rotate_pressed.y = 0.0
-		elif event.is_action_released(&"roll_left"):
-			_rotate_pressed.z = 0.0
-		elif event.is_action_released(&"roll_right"):
-			_rotate_pressed.z = 0.0
-		else:
-			return  # no input handled
-		get_window().set_input_as_handled()
+		get_viewport().set_input_as_handled()
+		return
+	# key release
+	if event.is_action_released(&"camera_left"):
+		_move_pressed.x = 0.0
+	elif event.is_action_released(&"camera_right"):
+		_move_pressed.x = 0.0
+	elif event.is_action_released(&"camera_up"):
+		_move_pressed.y = 0.0
+	elif event.is_action_released(&"camera_down"):
+		_move_pressed.y = 0.0
+	elif event.is_action_released(&"camera_in"):
+		_move_pressed.z = 0.0
+	elif event.is_action_released(&"camera_out"):
+		_move_pressed.z = 0.0
+	elif event.is_action_released(&"pitch_up"):
+		_rotate_pressed.x = 0.0
+	elif event.is_action_released(&"pitch_down"):
+		_rotate_pressed.x = 0.0
+	elif event.is_action_released(&"yaw_left"):
+		_rotate_pressed.y = 0.0
+	elif event.is_action_released(&"yaw_right"):
+		_rotate_pressed.y = 0.0
+	elif event.is_action_released(&"roll_left"):
+		_rotate_pressed.z = 0.0
+	elif event.is_action_released(&"roll_right"):
+		_rotate_pressed.z = 0.0
+	else:
+		return  # no input handled
+	get_viewport().set_input_as_handled()
 
 
 # *****************************************************************************
@@ -198,6 +213,8 @@ func move_to(selection: IVSelection, camera_flags := 0, view_position := NULL_VE
 		view_rotations := NULL_VECTOR3, is_instant_move := false) -> void:
 	# Null or null-equivilant args tell the camera to keep its current value.
 	# Some parameters override others.
+	if not _camera:
+		return
 	if selection:
 		_selection_manager.select(selection, true)
 	_camera.move_to(selection, camera_flags, view_position, view_rotations, is_instant_move)
@@ -207,6 +224,8 @@ func move_to_by_name(selection_name: StringName, camera_flags := 0, view_positio
 		view_rotations := NULL_VECTOR3, is_instant_move := false) -> void:
 	# Null or null-equivilant args tell the camera to keep its current value.
 	# Some parameters override others.
+	if not _camera:
+		return
 	var selection: IVSelection
 	if selection_name:
 		selection = _selection_manager.get_or_make_selection(selection_name)
@@ -226,40 +245,45 @@ func get_camera_view_state() -> Array:
 # private
 
 func _on_system_tree_ready(_is_new_game: bool) -> void:
-	@warning_ignore("unsafe_property_access")
-	_selection_manager = IVGlobal.program[&"TopGUI"].selection_manager
+	var selection_manager_node: Node = IVGlobal.program.get(selection_manager_tree_program_node)
+	assert(selection_manager_node,
+			"'%s' was not found in IVGlobal.program" % selection_manager_tree_program_node)
+	assert(&"selection_manager" in selection_manager_node,
+			"'%s' does not have property 'selection_manager'" % selection_manager_tree_program_node)
+	_selection_manager = selection_manager_node.get(&"selection_manager")
+	assert(_selection_manager,
+			"Member '%s.selection_manager' does not have an IVSelectonManager" %
+			 selection_manager_tree_program_node)
 	_selection_manager.selection_changed.connect(_on_selection_changed)
 	_selection_manager.selection_reselected.connect(_on_selection_reselected)
 
 
-func _restore_init_state() -> void:
-	_disconnect_camera()
+func _on_camera_changed(camera: IVCamera) -> void:
+	_camera = camera
+
+
+func _on_about_to_free_procedural_nodes() -> void:
 	if _selection_manager:
 		_selection_manager.selection_changed.disconnect(_on_selection_changed)
 		_selection_manager = null
 
 
-func _connect_camera(camera: Camera3D) -> void:
-	_disconnect_camera()
-	_camera = camera as IVCamera
-	if _camera:
-		_camera.camera_lock_changed.connect(_on_camera_lock_changed)
-
-
-func _disconnect_camera() -> void:
-	if _camera and is_instance_valid(_camera):
-		_camera.camera_lock_changed.disconnect(_on_camera_lock_changed)
-		_camera = null
-
-
 func _on_selection_changed(suppress_camera_move: bool) -> void:
-	if !suppress_camera_move and _camera and _camera.is_camera_lock:
+	if suppress_camera_move or !_camera:
+		return
+	if _camera.is_camera_lock:
 		_camera.move_to(_selection_manager.selection)
 
 
 func _on_selection_reselected(suppress_camera_move: bool) -> void:
-	if !suppress_camera_move and _camera and _camera.is_camera_lock:
+	if suppress_camera_move or !_camera:
+		return
+	if _camera.is_camera_lock:
+		# recenter the current selection
 		_camera.move_to(null, 0, NULL_VECTOR3, Vector3.ZERO)
+	else:
+		# "reselection" means go here and center, even when camera lock is off
+		_camera.move_to(_selection_manager.selection, 0, NULL_VECTOR3, Vector3.ZERO)
 
 
 func _on_camera_lock_changed(is_camera_lock: bool) -> void:

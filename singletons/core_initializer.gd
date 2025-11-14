@@ -19,103 +19,125 @@
 # *****************************************************************************
 extends Node
 
-## Added as singleton 'IVCoreInitializer'.
+## Singleton [IVCoreInitializer] inits the Core plugin program.
 ##
-## Modify properties or dictionary classes using res://ivoyager_override.cfg.
-## Alternatively, you can modify values here using a preinitializer script.
-## (To add your preinitializer, either add it using res://ivoyager_override.cfg
-## or make it an autoload.)[br][br]
+## This singleton (and [IVCoreSettings]) can be modified by config files:[br][br]
 ##
-## For an example preinitializer script, see Planetarium: [url]
-## https://github.com/ivoyager/planetarium/blob/master/planetarium/preinitializer.gd
-## [/url].[br][br]
+## [b]res://ivoyager_override.cfg[/b] (created by Core plugin if it doesn't exist)[br]
+## [b]res://ivoyager_override2.cfg[/b] (overrides above if it exists)[br][br]
 ##
-## DON'T modify values here after program start![br][br]
+## These files override [b]res://addons/ivoyager_core/ivoyager_core.cfg[/b] and
+## allow changes to properties in this class (and many other things too). For
+## details, see comments in [b]res://addons/ivoyager_core/override_template.cfg[/b].
+## [br][br]
 ##
-## By itself, ivoyager_core will run but it lacks a GUI (the default IVTopGUI
-## has no child GUIs). You can either build on the existing IVTopGUI or provide
-## your own by setting 'top_gui' or 'top_gui_path' here.[br][br]
+## It's possible to modify most properties using config override files. However,
+## it's easier and more flexible to specify a single "preinitializer" file and
+## do subseqent changes by code. This also allows connection to
+## "core_init_" signals in [IVStateManager] so program objects can be modified
+## after instantiation. To add a preinitializer file, add these lines to
+## ivoyager_override.cfg:
+## [codeblock]
+## 
+## [core_initializer]
+## 
+## preinitializers/MyPreinitializer="res://path/my_preinitializer.gd"
+## 
+## [/codeblock][br]
 ##
-## For a game that needs a splash screen at startup, add the splash screen to
-## 'gui_nodes' here and set IVCoreSettings.skip_splash_screen = false.[br][br]
+## For an example preinitializer script, see the Planetarium's
+## [url=https://github.com/ivoyager/planetarium/blob/master/planetarium/preinitializer.gd]
+## here[/url].[br][br]
+##
+## Alternatively, this class could be modified by another autoload or some other
+## early-executing code. In any case, it's recommended to have a dedicated "init"
+## file modify this singleton and [IVCoreSettings] at program init. ONLY that
+## file should reference this singleton (many files may reference [IVCoreSettings]
+## for read only).[br][br]
+##
+## By default, this class will begin initialization after a 5 frame delay. To
+## modify this, see [member init_after_delay], [member init_delay], and [method
+## begin_init].[br][br]
+##
+## Init sequence is specified and can be modified in [member init_sequence].[br][br]
+##
+## The simulator root node can be specified by setting [member universe] or
+## [member universe_path]. If left unset (default), the program will search for
+## a node in the scene tree named "Universe".[br][br]
+##
+## "Init" and "program" objects are specified and can be modified in dictionaries
+## [member init_refcounteds], [member program_refcounteds] and [member program_nodes].
+## Instantiation order (and add order for nodes) can be specified where needed
+## in the corresponding "ordered_" array properties.[br][br]
+##
+## See [IVUniverseTemplate] for scene tree construction.
 
 
-signal init_step_finished() # for internal use only
 
-
-# *************** PROJECT VARS - MODIFY THESE TO EXTEND !!!! ******************
-
-
-var allow_project_build := true
+## If true (default), this singleton will call [method begin_init] after [member
+## init_delay] frames. If false, external project must call [method begin_init].
+var init_after_delay := true
+## Number of frames waited before this singleton will call [method begin_init]
+## (if [member init_after_delay] is still true).
 var init_delay := 5 # frames
 
 
-# init_sequence can be modified even after started (eg, by a preinitializer).
-var init_sequence: Array[Array] = [
-	# [object, method, wait_for_signal]
-#	[self, "_init_extensions", false],
-	[self, &"_instantiate_preinitializers", false],
-	[self, &"_do_presets_and_plugin_mods", false],
-	[self, &"_instantiate_initializers", false],
-	[self, &"_set_simulator_universe", false],
-	[self, &"_set_simulator_top_gui", false],
-	[self, &"_index_core_nodes", false],
-	[self, &"_instantiate_and_index_program_objects", true],
-	[self, &"_signal_project_inited", true],
-	[self, &"_add_program_nodes", true],
-	[self, &"_finish", false]
+## Sequence of Callables used for init. This array can be modified during init.
+## Specifically, a preinitializer script intantiated at the first step could
+## insert or replace Callables after index 0 if needed.
+var init_sequence: Array[Callable] = [
+	_instantiate_preinitializers,
+	_do_conditional_modifications,
+	_set_simulator_universe,
+	_index_existing_nodes,
+	_instantiate_init_refcounteds,
+	_instantiate_program_objects,
+	_add_program_nodes,
+	_finish,
 ]
 
-# All nodes instatiated here are added to 'universe' or 'top_gui'. Use
-# ivoyager_override.cfg or a preinitializer script to set either or both of
-# these. Otherwise, IVCoreInitializer will assign default nodes from
-# ivoyager_core (or for universe, by tree search for 'Universe').
-# Whatever is assigned will be accessible from IVGlobal.program[&"Universe"]
-# and IVGlobal.program[&"TopGUI"], irrespective of node names.
-
+## If specified, this will be the root simulator node. The node will be added
+## to dictionary [member IVGlobal.program] with key "Universe". If not specified
+## here or in [member universe_path], the program will search for a node named
+## "Universe" in the scene tree. If specified here, the node name does not
+## matter (the simulator always gets it from [member IVGlobal.program]). 
 var universe: Node3D
-var top_gui: Control
-var universe_path: String # assign here if using ivoyager_override.cfg
-var top_gui_path: String # assign here if using ivoyager_override.cfg
-var add_top_gui_to_universe := true # if true, happens in add_program_nodes()
+## See [member universe]. A node path can be specified here (e.g., if using
+## ivoyager_override.cfg to set).
+var universe_path: NodePath
 
-# You can replace any class below with a subclass of the original. In some
-# cases, you can replace with a base Godot class (e.g., Node3D) or erase
-# unneeded systems, but you will have to investigate dependencies.
-#
-# Dictionary values below can be any one of three things:
-#   - A GDScript class_name global.
-#   - A path to a Script resource (*.gd for now).
-#   - Where applicable, a path to a scene (*.tscn, *.scn).
-#
-# (We want to support GDExtension classes in the future. Please tell us if you
-# want to help with that!)
+## RefCounted "preinitializer" classes. IVCoreInitializer instances these first
+## and keeps private references so they won't free themselves. External
+## projects can add file paths here. See class documentation to do this.
+var preinitializers: Dictionary[StringName, Variant] = {}
 
-var preinitializers: Dictionary[StringName, Variant] = {
-	# RefCounted classes. IVCoreInitializer instances these first. External
-	# projects can add script paths here using 'res://ivoyager_override.cfg'.
-	# A reference is kept in dictionary 'IVGlobal.program' (erase it if you
-	# want to de-reference your preinitializer so it will free itself).
-}
-
-var initializers: Dictionary[StringName, Variant] = {
-	# RefCounted classes. IVCoreInitializer instances these after
-	# 'preinitializers'. Many of these instances may erase themselves from
-	# dictionary 'IVGlobal.program' after init, thereby freeing themselves.
-	# Path to RefCounted class ok.
-	SettingsManager = IVSettingsManager, # "initializer" so IVGlobal.settings are valid
-	ResourceInitializer = IVResourceInitializer, # self-removes
+## RefCounted "init" classes. IVCoreInitializer instances these after [member
+## preinitializers] and adds to [member IVGlobal.program]. Dictionary values can
+## be either classes or class file paths. If specific instantiation order is
+## needed, use [member ordered_init_refcounteds]. "Initializers" can erase
+## themselves from dictionary [member IVGlobal.program] after init, thereby
+## freeing themselves.
+var init_refcounteds: Dictionary[StringName, Variant] = {
 	TranslationImporter = IVTranslationImporter, # self-removes
+	StateAuxiliary = IVStateAuxiliary,
+	ResourceInitializer = IVResourceInitializer, # self-removes
 	TableInitializer = IVTableInitializer, # self-removes
 	InputMapManager = IVInputMapManager,
 	AssetPreloader = IVAssetPreloader,
 }
+## Include keys from [member init_refcounteds] that need to be instantiated
+## first and in order.
+var ordered_init_refcounteds: Array[StringName] = [&"TranslationImporter", &"StateAuxiliary"]
 
+## RefCounted "program" classes. IVCoreInitializer instances these after [member
+## init_refcounteds] and adds to [member IVGlobal.program]. Dictionary values
+## can be either classes or class file paths. If specific instantiation order is
+## needed, use [member ordered_program_refcounteds].[br][br]
+##
+## Note for Save plugin: These RefCounted classes cannot have save/load
+## persistence because their container dictionary is not persisted. Convert
+## class to Node and add in [member program_nodes] if persistence is needed.
 var program_refcounteds: Dictionary[StringName, Variant] = {
-	# RefCounted classes. IVCoreInitializer instances one of each and adds to
-	# dictionary IVGlobal.program. No save/load persistence.
-	# Path to RefCounted class ok.
-	
 	# builders, finishers (of procedural objects)
 	TableSystemBuilder = IVTableSystemBuilder,
 	TableBodyBuilder = IVTableBodyBuilder,
@@ -126,60 +148,57 @@ var program_refcounteds: Dictionary[StringName, Variant] = {
 	BinaryAsteroidsBuilder = IVBinaryAsteroidsBuilder,
 	BodyFinisher = IVBodyFinisher,
 	SBGFinisher = IVSBGFinisher,
-	
 	# managers, etc.
 	ThemeManager = IVThemeManager,
 	SleepManager = IVSleepManager,
 	LazyModelInitializer = IVLazyModelInitializer,
 	LanguageManager = IVLanguageManager,
 }
+## Include keys from [member program_refcounteds] that need to be instantiated
+## first and in order. (This probably shouldn't be needed. Consider adding the
+## class to [member init_refcounteds] if it's needed by other program objects.)
+var ordered_program_refcounteds: Array[StringName] = []
 
+## Node "program" classes. IVCoreInitializer instances these after [member
+## program_refcounteds], adds to [member IVGlobal.program], and adds as children
+## to Universe. Dictionary values can be either classes or class file paths. If
+## specific instantiation or add order is needed, use [member
+## ordered_program_nodes].[br][br]
+##
+## Note for Save plugin: For save/load persistence, these Node classes can have:[br][br]
+## [code]const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY[/code]  
 var program_nodes: Dictionary[StringName, Variant] = {
-	# IVCoreInitializer instances one of each and adds as child to Universe
-	# (before/"below" TopGUI) and to dictionary IVGlobal.program.
-	# Use PERSIST_MODE = PERSIST_PROPERTIES_ONLY if there is data to persist.
-	# Path to scene or Node class ok.
-	Scheduler = IVScheduler,
-	ViewManager = IVViewManager,
-	FragmentIdentifier = IVFragmentIdentifier, # safe to remove
-	WorldEnvironment_ = IVWorldEnvironment, # safe to remove
-	
-	# Nodes below are ordered for input handling (last is first). We mainly
-	# need to intercept cntr-something actions (quit, full-screen, etc.) before
-	# CameraHandler. Universe children can be reordered after
-	# 'project_nodes_added' signal using API below.
+	# Ordered
 	CameraHandler = IVCameraHandler, # remove or replace if not using IVCamera
 	Timekeeper = IVTimekeeper,
 	SBGHUDsState = IVSBGHUDsState, # (likely to have input in future)
 	BodyHUDsState = IVBodyHUDsState,
 	InputHandler = IVInputHandler,
-	StateManager = IVStateManager,
 	SaveManager = IVSaveManager, # auto removed if plugin missing or disabled
+	# Unordered
+	Scheduler = IVScheduler,
+	ViewManager = IVViewManager,
 }
+## Include keys from [member program_nodes] that need to be instantiated or
+## added first and in order. Note: all are instantiated (in specified order),
+## then all are added (in specified order).[br][br]
+##
+## Node order determines input handling order, where last added is first
+## to recieve input. We mainly need to intercept ctrl-Q, ctrl-S, etc., actions
+## before CameraHandler or other nodes consume the Q, S, etc., actions.
+var ordered_program_nodes: Array[StringName] = [&"CameraHandler", &"Timekeeper",
+	&"SBGHUDsState", &"BodyHUDsState", &"InputHandler", &"SaveManager"]
 
-var gui_nodes: Dictionary[StringName, Variant] = {
-	# IVCoreInitializer instances one of each and adds as child to TopGUI (or
-	# substitute Control set in 'top_gui') and to dictionary IVGlobal.program.
-	# Order determines visual 'on top' and input event handling: last added
-	# is on top and 1st handled. TopGUI children can be reordered after
-	# 'project_nodes_added' signal using API below.
-	# Use PERSIST_MODE = PERSIST_PROPERTIES_ONLY for save/load persistence.
-	# Path to scene or Node class ok.
-	WorldController = IVWorldController, # Control ok
-	MouseTargetLabel = IVMouseTargetLabel, # safe to replace or remove
-	InGameGUI = null, # assign here if convenient (over MouseTargetLabel, under SplashScreen)
-	SplashScreen = null, # assign here if convenient (over InGameGUI)
-	AdminPopups = null, # assign here if convenient (over SplashScreen)
-}
-
-
-
-# ***************************** PRIVATE VARS **********************************
-
-var _program := IVGlobal.program
+## Include the names of Nodes that already exist in the scene tree that you want
+## added to [member IVGlobal.program] for easy access.
+var tree_program_nodes: Array[StringName] = [
+	&"FragmentIdentifier",
+	&"TopUI",
+	&"WorldController",
+]
 
 
-# ****************************** PROJECT BUILD ********************************
+var _preinitializers: Array[RefCounted] = []
 
 
 func _enter_tree() -> void:
@@ -187,109 +206,41 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
-	var init_countdown := init_delay
-	while init_countdown > 0:
+	var count_up := 0
+	while count_up < init_delay:
 		await get_tree().process_frame
-		init_countdown -= 1
-	build_project() # after all other singletons _ready()
+		count_up += 1
+	if init_after_delay:
+		begin_init() # after all other singletons _ready()
 
 
-# **************************** PUBLIC FUNCTIONS *******************************
-# These should be called only by extension init file!
+## Call only if external project set [member init_after_delay] = false.
+func begin_init() -> void:
+	var i := 0
+	while i < init_sequence.size():
+		var callable := init_sequence[i]
+		await callable.call()
+		i += 1
 
-
-func reindex_universe_child(node_name: StringName, new_index: int) -> void:
-	# Call at 'project_nodes_added' signal.
-	var node: Node = _program[node_name]
-	universe.move_child(node, new_index)
-
-
-func reindex_top_gui_child(node_name: StringName, new_index: int) -> void:
-	# Call at 'project_nodes_added' signal.
-	var node: Node = _program[node_name]
-	top_gui.move_child(node, new_index)
-
-
-func move_universe_child_to_sibling(node_name: StringName, sibling_name: StringName,
-		before_sibling: bool) -> void:
-	# Call at 'project_nodes_added' signal.
-	var node: Node = _program[node_name]
-	var sibling: Node = _program[sibling_name]
-	var sibling_index := sibling.get_index()
-	universe.move_child(node, sibling_index if before_sibling else sibling_index + 1)
-
-
-func move_top_gui_child_to_sibling(node_name: StringName, sibling_name: StringName,
-		before_sibling: bool) -> void:
-	# Call at 'project_nodes_added' signal.
-	var node: Node = _program[node_name]
-	var sibling: Node = _program[sibling_name]
-	var sibling_index := sibling.get_index()
-	top_gui.move_child(node, sibling_index if before_sibling else sibling_index + 1)
-
-
-func build_project(override := false) -> void:
-	# Call directly only if extension set allow_project_build = false.
-	if !override and !allow_project_build:
-		return
-	# Build loop is designed so that array 'init_sequence' can be modified even
-	# during loop execution -- in particular, by an extention instantiated in
-	# the first step. Otherwise, it could be modified by an autoload singleton.
-	var init_index := 0
-	while init_index < init_sequence.size():
-		var init_array: Array = init_sequence[init_index]
-		var object: Object = init_array[0]
-		var method: String = init_array[1]
-		var wait_for_signal: bool = init_array[2]
-		object.call(method)
-		if wait_for_signal:
-			await self.init_step_finished
-		init_index += 1
-
-
-# ************************ 'init_sequence' FUNCTIONS **************************
 
 
 func _instantiate_preinitializers() -> void:
-	for key: StringName in preinitializers:
-		if !preinitializers[key]:
-			continue
-		assert(!_program.has(key))
+	for key in preinitializers:
+		assert(not IVGlobal.program.has(key))
 		var preinitializer: RefCounted = IVFiles.make_object_or_scene(preinitializers[key])
-		_program[key] = preinitializer
-	IVGlobal.preinitializers_inited.emit()
+		_preinitializers.append(preinitializer)
+		#IVGlobal.program[key] = preinitializer
+	IVStateManager.core_init_preinitialized.emit()
 
 
-func _do_presets_and_plugin_mods() -> void:
-	# TODO: We might add class presets here
-	if !IVPluginUtils.is_plugin_enabled("ivoyager_save"):
+func _do_conditional_modifications() -> void:
+	if not IVPluginUtils.is_plugin_enabled("ivoyager_save"):
+		# This isn't required, but why not...
 		program_nodes.erase(&"SaveManager")
-
-
-func _instantiate_initializers() -> void:
-	IVGlobal.about_to_run_initializers.emit()
-	for key: StringName in initializers:
-		if !initializers[key]:
-			continue
-		assert(!_program.has(key))
-		var initializer: RefCounted = IVFiles.make_object_or_scene(initializers[key])
-		_program[key] = initializer
-		IVGlobal.project_object_instantiated.emit(initializer)
-	IVGlobal.project_initializers_instantiated.emit()
+		ordered_program_nodes.erase(&"SaveManager")
 
 
 func _set_simulator_universe() -> void:
-	# Simulator root node 'universe' is assigned in one of three ways:
-	# 1. External project assigns property 'universe' or 'universe_path' via
-	#    preinitializer script or res://ivoyager_override.cfg.
-	# 2. This method finds an existing tree node named 'Universe'.
-	# 3. This method intantiates IVUniverse (tree_nodes/universe.gd).
-	#
-	# Note: We don't add Universe to the scene tree here. That must be done
-	# elsewhere if it isn't already in the tree.
-	# 
-	# Note2: ivoyager_core always gets this node via IVGlobal.program.Universe,
-	# never by node name. The actual node name doesn't matter.
 	if universe:
 		return
 	if universe_path:
@@ -298,84 +249,85 @@ func _set_simulator_universe() -> void:
 		return
 	var scenetree_root := get_tree().get_root()
 	universe = scenetree_root.find_child(&"Universe", true, false)
-	if universe:
-		return
-	universe = IVFiles.make_object_or_scene(IVUniverse)
-	universe.name = &"Universe"
+	assert(universe, "'Universe' was not found nor explicitly set")
 
 
-func _set_simulator_top_gui() -> void:
-	# 'top_gui' is assigned in one of two ways:
-	# 1. External project assigns property 'top_gui' or 'top_gui_path' via
-	#    preinitializer script or res://ivoyager_override.cfg.
-	# 2. This method intantiates IVTopGUI (tree_nodes/top_gui.gd).
-	#
-	# Method add_program_nodes() will add TopGUI to Universe if
-	# add_top_gui_to_universe == true. Otherwise, external project must add it
-	# somewhere if it isn't already in the tree.
-	#
-	# Note: ivoyager_core always gets this node via IVGlobal.program.TopGUI,
-	# never by node name. The actual node name doesn't matter.
-	if top_gui:
-		return
-	if top_gui_path:
-		top_gui = IVFiles.make_object_or_scene(top_gui_path)
-		assert(top_gui)
-		return
-	top_gui = IVFiles.make_object_or_scene(IVTopGUI)
-	top_gui.name = &"TopGUI"
+func _index_existing_nodes() -> void:
+	IVGlobal.program[&"Universe"] = universe
+	IVGlobal.program[&"Global"] = IVGlobal
+	IVGlobal.program[&"CoreSettings"] = IVCoreSettings
+	IVGlobal.program[&"SettingsManager"] = IVSettingsManager
+	IVGlobal.program[&"StateManager"] = IVStateManager
+	var scenetree_root := get_tree().get_root()
+	for node_name in tree_program_nodes:
+		var node := scenetree_root.find_child(node_name, true, false)
+		if node:
+			IVGlobal.program[node_name] = node
+		else:
+			push_warning("Did not find '$s' listed in 'tree_program_nodes'" % node_name)
 
 
-func _index_core_nodes() -> void:
-	# These will be available at program object inits.
-	_program[&"Global"] = IVGlobal
-	_program[&"CoreSettings"] = IVCoreSettings
-	_program[&"Universe"] = universe
-	_program[&"TopGUI"] = top_gui
+func _instantiate_init_refcounteds() -> void:
+	for key in ordered_init_refcounteds:
+		assert(not IVGlobal.program.has(key))
+		var refcounted: RefCounted = IVFiles.make_object_or_scene(init_refcounteds[key])
+		IVGlobal.program[key] = refcounted
+		IVStateManager.core_init_object_instantiated.emit(refcounted)
+	for key in init_refcounteds:
+		if ordered_init_refcounteds.has(key):
+			continue
+		assert(not IVGlobal.program.has(key))
+		var refcounted: RefCounted = IVFiles.make_object_or_scene(init_refcounteds[key])
+		IVGlobal.program[key] = refcounted
+		IVStateManager.core_init_object_instantiated.emit(refcounted)
+	IVStateManager.core_init_init_refcounteds_instantiated.emit()
 
 
-func _instantiate_and_index_program_objects() -> void:
-	for dict: Dictionary in [program_refcounteds, program_nodes, gui_nodes]:
-		for key: StringName in dict:
-			if !dict[key]:
-				continue
-			assert(!_program.has(key))
-			var object: Object = IVFiles.make_object_or_scene(dict[key])
-			_program[key] = object
-			if object is Node:
-				@warning_ignore("unsafe_property_access")
-				object.name = key
-			IVGlobal.project_object_instantiated.emit(object)
-	IVGlobal.project_objects_instantiated.emit()
+func _instantiate_program_objects() -> void:
+	# RefCounteds
+	for key in ordered_program_refcounteds:
+		assert(not IVGlobal.program.has(key))
+		var refcounted: RefCounted = IVFiles.make_object_or_scene(program_refcounteds[key])
+		IVGlobal.program[key] = refcounted
+		IVStateManager.core_init_object_instantiated.emit(refcounted)
+	for key in program_refcounteds:
+		if ordered_program_refcounteds.has(key):
+			continue
+		assert(not IVGlobal.program.has(key))
+		var refcounted: RefCounted = IVFiles.make_object_or_scene(program_refcounteds[key])
+		IVGlobal.program[key] = refcounted
+		IVStateManager.core_init_object_instantiated.emit(refcounted)
+	# Nodes
+	for key in ordered_program_nodes:
+		assert(not IVGlobal.program.has(key))
+		var node: Node = IVFiles.make_object_or_scene(program_nodes[key])
+		node.name = key
+		IVGlobal.program[key] = node
+		IVStateManager.core_init_object_instantiated.emit(node)
+	for key in program_nodes:
+		if ordered_program_nodes.has(key):
+			continue
+		assert(not IVGlobal.program.has(key))
+		var node: Node = IVFiles.make_object_or_scene(program_nodes[key])
+		node.name = key
+		IVGlobal.program[key] = node
+		IVStateManager.core_init_object_instantiated.emit(node)
+	IVStateManager.core_init_program_objects_instantiated.emit()
 	await get_tree().process_frame
-	init_step_finished.emit()
-
-
-func _signal_project_inited() -> void:
-	IVGlobal.project_inited.emit()
-	await get_tree().process_frame
-	init_step_finished.emit()
 
 
 func _add_program_nodes() -> void:
-	# TopGUI added after program_nodes, so gui_nodes will recieve input first
-	# and then program_nodes.
-	for key: StringName in program_nodes:
-		if !program_nodes[key]:
-			continue
-		var node: Node = _program[key]
+	for key in ordered_program_nodes:
+		var node: Node = IVGlobal.program[key]
 		universe.add_child(node)
-	if add_top_gui_to_universe:
-		universe.add_child(top_gui)
-	for key: StringName in gui_nodes:
-		if !gui_nodes[key]:
+	for key in program_nodes:
+		if ordered_program_nodes.has(key):
 			continue
-		var node: Node = _program[key]
-		top_gui.add_child(node)
-	IVGlobal.project_nodes_added.emit()
+		var node: Node = IVGlobal.program[key]
+		universe.add_child(node)
+	IVStateManager.core_init_program_nodes_added.emit()
 	await get_tree().process_frame
-	init_step_finished.emit()
 
 
 func _finish() -> void:
-	IVGlobal.project_builder_finished.emit()
+	IVStateManager.core_init_finished.emit()

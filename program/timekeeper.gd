@@ -43,16 +43,24 @@ extends Node
 ## Note: pause and 'user pause' are maintained by IVStateManager.[br][br]
 ##
 ## FIXME: there is some old rpc (remote player call) code here that is not
-## currently maintained. This will be fixed and maintained again with Godot 4.x.[br][br]
+## currently maintained. This will be fixed and maintained again at some point.[br][br]
 ##
 ## Requires shader global 'iv_time'.
 
+## Emitted when game speed changes.
 signal speed_changed()
-signal date_changed() # normal day rollover
-signal time_altered(previous_time: float) # someone manipulated time!
+## Emitted when the calendar day changes.
+signal date_changed()
+## Emitted when user or code sets time (outside of the normal flow of time).
+## This can happen in a Planetarium context but probably not in a game.
+signal time_altered(previous_time: float)
 
 
-enum { # date_format; first three are alwyas Year, Month, Day
+## Date format. First three elements are always year (Y), month (M) and day (D).
+## Formats may add quarter (Q) and running integer counts of total quarters
+## since year 0 (YQ) and total months since year 0 (YM). The latter two elements
+## are monotonic.
+enum DateFormat {
 	DATE_FORMAT_Y_M_D, # Year (2000...), Month (1 to 12), Day (1 to 31)
 	DATE_FORMAT_Y_M_D_Q, # Q, Quarter (1 to 4)
 	DATE_FORMAT_Y_M_D_Q_YQ, # YQ, increasing quarter ticker = Y * 4 + (Q - 1)
@@ -60,14 +68,14 @@ enum { # date_format; first three are alwyas Year, Month, Day
 }
 
 
+const NetworkState = IVStateManager.NetworkState
+
 const SECOND := IVUnits.SECOND # sim_time conversion
 const MINUTE := IVUnits.MINUTE
 const HOUR := IVUnits.HOUR
 const DAY := IVUnits.DAY
 const J2000_JDN := 2451545 # Julian Day Number (JDN) of J2000 epoch time
-const NO_NETWORK := IVGlobal.NetworkState.NO_NETWORK
-const IS_SERVER := IVGlobal.NetworkState.IS_SERVER
-const IS_CLIENT := IVGlobal.NetworkState.IS_CLIENT
+
 
 const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY
 const PERSIST_PROPERTIES: Array[StringName] = [
@@ -85,9 +93,11 @@ var speed_index: int
 var is_reversed := false
 
 # project vars
-var sync_tolerance := 0.2 # engine time; NOT MAINTAINED! (waiting for Gotot 4.0)
-var date_format := DATE_FORMAT_Y_M_D
-var start_real_world_time := false # true overrides other start settings
+#var sync_tolerance := 0.2 # rpc sync stuff. NOT MAINTAINED! 
+## One of [enum DateFormat]. This determines the size and content of [member IVGlobal.date].
+var date_format := DateFormat.DATE_FORMAT_Y_M_D
+## Start the simulator at real-world date and time? True overrides other start settings.
+var start_real_world_time := false
 var speeds := [ # sim_units / delta
 		IVUnits.SECOND, # real-time if IVUnits.SECOND = 1.0
 		IVUnits.MINUTE,
@@ -134,7 +144,7 @@ var speed_symbol: StringName
 var _allow_time_setting := IVCoreSettings.allow_time_setting
 var _allow_time_reversal := IVCoreSettings.allow_time_reversal
 #var _disable_pause: bool = IVCoreSettings.disable_pause
-var _network_state := NO_NETWORK
+var _network_state := NetworkState.NO_NETWORK
 var _is_sync := false
 #var _sync_engine_time := -INF
 #var _adj_sync_tolerance := 0.0
@@ -159,6 +169,7 @@ static func get_sim_time(Y: int, M: int, D: int, h := 12, m := 0, s := 0) -> flo
 	return sim_time
 
 
+## Tests whether input date integers define a valid Gregorian calender day.
 static func is_valid_gregorian_date(Y: int, M: int, D: int) -> bool:
 	if M < 1 or M > 12 or D < 1 or D > 31:
 		return false
@@ -171,43 +182,45 @@ static func is_valid_gregorian_date(Y: int, M: int, D: int) -> bool:
 	return test_date == [Y, M, D]
 
 
+## Converts Gregorian calender integers to Julian Day Number. Does not test for
+## valid input date! Do do that, call [method is_valid_gregorian_date].
 static func gregorian2jdn(Y: int, M: int, D: int) -> int:
-	# Does not test for valid input date!
-	@warning_ignore("integer_division")
-	var jdn := (1461 * (Y + 4800 + (M - 14) / 12)) / 4
-	@warning_ignore("integer_division")
-	jdn += (367 * (M - 2 - 12 * ((M - 14) / 12))) / 12
-	@warning_ignore("integer_division")
-	jdn += -(3 * ((Y + 4900 + (M - 14) / 12) / 100)) / 4 + D - 32075
+	@warning_ignore_start("integer_division")
+	var jdn := ((1461 * (Y + 4800 + (M - 14) / 12)) / 4
+			+ (367 * (M - 2 - 12 * ((M - 14) / 12))) / 12
+			+ -(3 * ((Y + 4900 + (M - 14) / 12) / 100)) / 4 + D - 32075)
+	@warning_ignore_restore("integer_division")
 	return jdn
 
 
+## Assumes [param date_array] is the correct size for [param date_format].
+@warning_ignore("shadowed_variable")
 static func set_gregorian_date_array(jdn: int, date_array: Array[int],
-		date_format_ := DATE_FORMAT_Y_M_D) -> void:
+		date_format := DateFormat.DATE_FORMAT_Y_M_D) -> void:
+	const DATE_FORMAT_Y_M_D := DateFormat.DATE_FORMAT_Y_M_D
+	const DATE_FORMAT_Y_M_D_Q := DateFormat.DATE_FORMAT_Y_M_D_Q
+	const DATE_FORMAT_Y_M_D_Q_YQ := DateFormat.DATE_FORMAT_Y_M_D_Q_YQ
+	
 	# Expects date_array to be correct size for date_format_
-	@warning_ignore("integer_division")
+	@warning_ignore_start("integer_division")
 	var f := jdn + 1401 + ((((4 * jdn + 274277) / 146097) * 3) / 4) - 38
 	var e := 4 * f + 3
-	@warning_ignore("integer_division")
 	var g := (e % 1461) / 4
 	var h := 5 * g + 2
-	@warning_ignore("integer_division")
 	var m := (((h / 153) + 2) % 12) + 1
-	@warning_ignore("integer_division")
 	var y := (e / 1461) - 4716 + ((14 - m) / 12)
 	date_array[0] = y
 	date_array[1] = m # month
-	@warning_ignore("integer_division")
 	date_array[2] = ((h % 153) / 5) + 1 # day
-	if date_format_ == DATE_FORMAT_Y_M_D:
+	if date_format == DATE_FORMAT_Y_M_D:
 		return
-	@warning_ignore("integer_division")
 	var q := (m - 1) / 3 + 1
+	@warning_ignore_restore("integer_division")
 	date_array[3] = q
-	if date_format_ == DATE_FORMAT_Y_M_D_Q:
+	if date_format == DATE_FORMAT_Y_M_D_Q:
 		return
 	date_array[4] = y * 4 + (q - 1) # yq, always increasing
-	if date_format_ == DATE_FORMAT_Y_M_D_Q_YQ:
+	if date_format == DATE_FORMAT_Y_M_D_Q_YQ:
 		return
 	date_array[5] = y * 12 + (m - 1) # ym, always increasing
 
@@ -219,14 +232,14 @@ static func get_clock_elements(fractional_day: float) -> Array[int]:
 	return clock_array
 
 
+## Expects clock_ of size 3. It's rare but possible to have second > 59 when
+## fractional day > 1.0, which can happen when solar day > Julian Day.
 static func set_clock_array(fractional_day: float, clock_array: Array[int]) -> void:
-	# Expects clock_ of size 3. It's possible to have second > 59 if fractional
-	# day > 1.0 (which can happen when solar day > Julian Day).
+	@warning_ignore_start("integer_division")
 	var total_seconds := int(fractional_day * 86400.0)
-	@warning_ignore("integer_division")
 	var h := total_seconds / 3600
-	@warning_ignore("integer_division")
 	var m := (total_seconds / 60) % 60
+	@warning_ignore_restore("integer_division")
 	clock_array[0] = h
 	clock_array[1] = m
 	clock_array[2] = total_seconds - h * 3600 - m * 60
@@ -236,10 +249,12 @@ static func set_clock_array(fractional_day: float, clock_array: Array[int]) -> v
 
 
 func _init() -> void:
-	IVGlobal.project_objects_instantiated.connect(_on_project_objects_instantiated)
+	IVStateManager.core_init_program_objects_instantiated.connect(_on_program_objects_instantiated)
 
 
 func _ready() -> void:
+	# Timekeeper must always be pausible so that time will stop even if other
+	# processes (e.g., camera and UI) still work.
 	process_mode = PROCESS_MODE_PAUSABLE
 	_set_ready_state()
 	set_process(false) # changes with "run_state_changed" signal
@@ -274,8 +289,8 @@ func _process(delta: float) -> void:
 		date_changed.emit()
 
 
-func _unhandled_key_input(event: InputEvent) -> void:
-	if !event.is_action_type() or !event.is_pressed():
+func _shortcut_input(event: InputEvent) -> void:
+	if not event.is_pressed():
 		return
 	if event.is_action_pressed(&"incr_speed"):
 		change_speed(1)
@@ -285,15 +300,11 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		set_time_reversed(!is_reversed)
 	else:
 		return # input NOT handled!
-	get_window().set_input_as_handled()
+	get_viewport().set_input_as_handled()
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_PAUSED:
-		IVGlobal.pause_changed.emit(true)
-	elif what == NOTIFICATION_UNPAUSED:
-		IVGlobal.pause_changed.emit(false)
-	elif what == NOTIFICATION_APPLICATION_FOCUS_IN:
+	if what == NOTIFICATION_APPLICATION_FOCUS_IN:
 		if is_now:
 			set_now_from_operating_system()
 
@@ -363,7 +374,7 @@ func get_current_date_for_file() -> String:
 func set_time(new_time: float) -> void:
 	if !_allow_time_setting:
 		return
-	if _network_state == IS_CLIENT:
+	if _network_state == NetworkState.IS_CLIENT:
 		return
 	var previous_time := time
 	time = new_time
@@ -375,7 +386,7 @@ func set_time(new_time: float) -> void:
 func set_now_from_operating_system() -> void:
 	if !_allow_time_setting:
 		return
-	if _network_state == IS_CLIENT:
+	if _network_state == NetworkState.IS_CLIENT:
 		return
 	if !is_now:
 		set_time_reversed(false)
@@ -391,7 +402,7 @@ func set_now_from_operating_system() -> void:
 func set_time_reversed(new_is_reversed: bool) -> void:
 	if !_allow_time_setting or !_allow_time_reversal or is_reversed == new_is_reversed:
 		return
-	if _network_state == IS_CLIENT:
+	if _network_state == NetworkState.IS_CLIENT:
 		return
 	is_reversed = new_is_reversed
 	speed_multiplier *= -1.0
@@ -400,7 +411,7 @@ func set_time_reversed(new_is_reversed: bool) -> void:
 
 
 func change_speed(delta_index: int, new_index := -1) -> void:
-	if _network_state == IS_CLIENT:
+	if _network_state == NetworkState.IS_CLIENT:
 		return
 	# Supply [0, new_index] to set a specific index
 	if new_index == -1:
@@ -417,14 +428,14 @@ func change_speed(delta_index: int, new_index := -1) -> void:
 	speed_changed.emit()
 
 
-func can_incr_speed() -> bool:
-	if _network_state == IS_CLIENT:
+func can_increment_speed() -> bool:
+	if _network_state == NetworkState.IS_CLIENT:
 		return false
 	return speed_index < speeds.size() - 1
 
 
-func can_decr_speed() -> bool:
-	if _network_state == IS_CLIENT:
+func can_decrement_speed() -> bool:
+	if _network_state == NetworkState.IS_CLIENT:
 		return false
 	return speed_index > 0
 
@@ -432,26 +443,26 @@ func can_decr_speed() -> bool:
 # *****************************************************************************
 
 
-func _on_project_objects_instantiated() -> void:
-	IVGlobal.about_to_start_simulator.connect(_on_about_to_start_simulator)
-	IVGlobal.about_to_free_procedural_nodes.connect(_set_init_state)
-	IVGlobal.system_tree_ready.connect(_set_ready_state)
-	IVGlobal.simulator_exited.connect(_set_ready_state)
-	IVGlobal.network_state_changed.connect(_on_network_state_changed)
-	IVGlobal.run_state_changed.connect(_on_run_state_changed) # starts/stops
-	IVGlobal.user_pause_changed.connect(_on_user_pause_changed)
-	IVGlobal.update_gui_requested.connect(_refresh_gui)
-	speed_changed.connect(_on_speed_changed)
+func _on_program_objects_instantiated() -> void:
+	IVStateManager.about_to_start_simulator.connect(_on_about_to_start_simulator)
+	IVStateManager.about_to_free_procedural_nodes.connect(_set_init_state)
+	IVStateManager.system_tree_ready.connect(_set_ready_state)
+	IVStateManager.simulator_exited.connect(_set_ready_state)
+	IVStateManager.network_state_changed.connect(_on_network_state_changed)
+	IVStateManager.run_state_changed.connect(_on_run_state_changed) # starts/stops
+	IVStateManager.paused_changed.connect(_on_paused_changed)
+	IVGlobal.ui_dirty.connect(_on_ui_dirty)
+	#speed_changed.connect(_on_speed_changed)
 	times.resize(3)
 	clock.resize(3)
 	match date_format:
-		DATE_FORMAT_Y_M_D:
+		DateFormat.DATE_FORMAT_Y_M_D:
 			date.resize(3)
-		DATE_FORMAT_Y_M_D_Q:
+		DateFormat.DATE_FORMAT_Y_M_D_Q:
 			date.resize(4)
-		DATE_FORMAT_Y_M_D_Q_YQ:
+		DateFormat.DATE_FORMAT_Y_M_D_Q_YQ:
 			date.resize(5)
-		DATE_FORMAT_Y_M_D_Q_YQ_YM:
+		DateFormat.DATE_FORMAT_Y_M_D_Q_YQ_YM:
 			date.resize(6)
 	_set_init_state()
 
@@ -499,28 +510,29 @@ func _reset_speed() -> void:
 	show_seconds = show_clock and speed_index <= show_seconds_speed
 
 
-func _refresh_gui() -> void:
+func _on_ui_dirty() -> void:
 	speed_changed.emit()
 
 
-func _on_user_pause_changed(_is_paused: bool) -> void:
+func _on_paused_changed(_paused_tree: bool, _paused_by_user: bool) -> void:
 	is_now = false
+	speed_changed.emit()
 
 
-func _on_run_state_changed(is_running: bool) -> void:
-	set_process(is_running)
-	if is_running and is_now:
+func _on_run_state_changed(running: bool) -> void:
+	set_process(running)
+	if running and is_now:
 		await _tree.process_frame
 		set_now_from_operating_system()
 
 
-func _on_network_state_changed(network_state: IVGlobal.NetworkState) -> void:
+func _on_network_state_changed(network_state: NetworkState) -> void:
 	_network_state = network_state
 
 
-func _on_speed_changed() -> void:
-	if _network_state != IS_SERVER:
-		return
+#func _on_speed_changed() -> void:
+	#if _network_state != NetworkState.IS_SERVER:
+		#return
 #	rpc("_speed_changed_sync", speed_index, is_reversed, show_clock,
 #			show_seconds, is_now)
 

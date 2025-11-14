@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3 uid="uid://dqwafuo72wscj"]
+
+[ext_resource type="Script" uid="uid://daa76nkc3jwfr" path="res://addons/ivoyager_core/ui_widgets/link_label.gd" id="1"]
+
+[node name="LinkLabel" type="RichTextLabel"]
+offset_top = 4.0
+offset_right = 84.0
+offset_bottom = 19.0
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+autowrap_mode = 0
+script = ExtResource("1")

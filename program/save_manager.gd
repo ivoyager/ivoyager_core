@@ -32,7 +32,8 @@ const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"save_project_version",
 	&"save_ivoyager_version",
-	&"save_game_mod"
+	&"save_game_mod",
+	&"_paused_by_user",
 ]
 
 
@@ -46,12 +47,18 @@ var save_ivoyager_version := IVGlobal.ivoyager_version
 ## will be saved in the gamesave file and overwritten at game load.
 var save_game_mod := IVGlobal.game_mod
 
-# private
-var _state := IVGlobal.state
-var _settings := IVGlobal.settings
+
+
+var input_shortcut_save_as := &"save_as"
+var input_shortcut_quicksave := &"quicksave"
+var input_shortcut_load_file := &"load_file"
+var input_shortcut_quickload := &"quickload"
+
+
+
+var _paused_by_user := false
 var _save_singleton: Node
 
-@onready var _state_manager: IVStateManager = IVGlobal.program[&"StateManager"]
 @onready var _timekeeper: IVTimekeeper = IVGlobal.program[&"Timekeeper"]
 
 
@@ -60,14 +67,16 @@ func _ready() -> void:
 	# The Core plugin needs to compile with or without the Save plugin, so we
 	# duck type the IVSave singleton here. The mess of warnings is unavoidable. 
 	_save_singleton = get_node_or_null(^"/root/IVSave")
-	
 	if !_save_singleton:
 		return
-
-	IVGlobal.simulator_started.connect(_start_autosave_timer)
-	IVGlobal.setting_changed.connect(_settings_listener)
+	
+	process_mode = PROCESS_MODE_ALWAYS
+	
+	IVStateManager.simulator_started.connect(_start_autosave_timer)
+	IVStateManager.paused_changed.connect(_on_paused_changed)
+	IVSettingsManager.changed.connect(_settings_listener)
 	@warning_ignore("unsafe_call_argument", "unsafe_property_access")
-	IVGlobal.close_all_admin_popups_requested.connect(_save_singleton.close_dialogs)
+	IVGlobal.close_admin_popups_required.connect(_save_singleton.close_dialogs)
 	
 	@warning_ignore_start("unsafe_property_access", "unsafe_method_access")
 	
@@ -83,20 +92,46 @@ func _ready() -> void:
 	_save_singleton.save_started.connect(_on_save_started)
 	_save_singleton.save_finished.connect(_on_save_finished)
 	_save_singleton.load_started.connect(_on_load_started)
-	_save_singleton.about_to_free_procedural_nodes.connect(_on_about_to_free_procedural_nodes)
+	_save_singleton.about_to_free_procedural_nodes.connect(
+			_on_save_singleton_about_to_free_procedural_nodes)
 	_save_singleton.about_to_build_procedural_tree_for_load.connect(
 			_on_about_to_build_procedural_tree_for_load)
 	_save_singleton.load_finished.connect(_on_load_finished)
 	_save_singleton.status_changed.connect(_on_status_changed)
-	_save_singleton.dialog_opened.connect(_state_manager.require_stop)
-	_save_singleton.dialog_closed.connect(_state_manager.allow_run)
+	_save_singleton.dialog_opened.connect(IVStateManager.require_stop)
+	_save_singleton.dialog_closed.connect(IVStateManager.allow_run)
 	
 	@warning_ignore_restore("unsafe_property_access", "unsafe_method_access")
 
 
 
+
+func _shortcut_input(event: InputEvent) -> void:
+	if not event.is_pressed():
+		return
+	@warning_ignore_start("unsafe_property_access", "unsafe_method_access")
+	if event.is_action_pressed(input_shortcut_quicksave):
+		_save_singleton.quicksave()
+	elif event.is_action_pressed(input_shortcut_save_as):
+		_save_singleton.save_file()
+	elif event.is_action_pressed(input_shortcut_quickload):
+		_save_singleton.quickload()
+	elif event.is_action_pressed(input_shortcut_load_file):
+		_save_singleton.load_file()
+	else:
+		return
+	@warning_ignore_restore("unsafe_property_access", "unsafe_method_access")
+	get_viewport().set_input_as_handled()
+
+
+
+
+func _on_paused_changed(_paused_tree: bool, paused_by_user: bool) -> void:
+	_paused_by_user = paused_by_user
+
+
 func _start_autosave_timer() -> void:
-	var autosave_time_min: float = _settings[&"autosave_time_min"]
+	var autosave_time_min: float = IVSettingsManager.get_setting(&"autosave_time_min")
 	@warning_ignore("unsafe_method_access")
 	_save_singleton.start_autosave_timer(autosave_time_min) # 0.0 stops the timer
 
@@ -104,52 +139,52 @@ func _start_autosave_timer() -> void:
 func _on_status_changed(is_saving: bool, is_loading: bool) -> void:
 	if !is_saving and !is_loading:
 		IVGlobal.close_main_menu_requested.emit()
-		_state_manager.allow_run(self)
+		IVStateManager.allow_run(self)
 
 
 func _name_generator() -> String:
-	return _settings[&"save_base_name"]
+	return IVSettingsManager.get_setting(&"save_base_name")
 
 
 func _suffix_generator() -> String:
-	if _settings[&"append_date_to_save"]:
+	if IVSettingsManager.get_setting(&"append_date_to_save"):
 		return "-" + _timekeeper.get_current_date_for_file()
 	return ""
 
 
 func _save_permit() -> bool:
-	const IS_CLIENT = IVGlobal.NetworkState.IS_CLIENT
-	if !_state.is_system_built:
+	const IS_CLIENT = IVStateManager.NetworkState.IS_CLIENT
+	if not IVStateManager.built_system:
 		return false
-	if _state.network_state == IS_CLIENT:
+	if IVStateManager.network_state == IS_CLIENT:
 		return false
 	return true
 
 
 func _load_permit() -> bool:
-	const IS_CLIENT = IVGlobal.NetworkState.IS_CLIENT
-	if !(_state.is_splash_screen or _state.is_system_built):
+	const IS_CLIENT = IVStateManager.NetworkState.IS_CLIENT
+	if not (IVStateManager.prestart or IVStateManager.built_system):
 		return false
-	if _state.network_state == IS_CLIENT:
+	if IVStateManager.network_state == IS_CLIENT:
 		return false
 	return true
 
 
 func _save_checkpoint() -> bool:
-	const SAVE = IVGlobal.NetworkStopSync.SAVE
+	const SAVE = IVStateManager.NetworkStopSync.SAVE
 	if !_save_permit():
 		return false
-	_state_manager.require_stop(self, SAVE, true)
-	await _state_manager.threads_finished
+	IVStateManager.require_stop(self, SAVE, true)
+	await IVStateManager.threads_finished
 	return true
 
 
 func _load_checkpoint() -> bool:
-	const LOAD = IVGlobal.NetworkStopSync.LOAD
+	const LOAD = IVStateManager.NetworkStopSync.LOAD
 	if !_load_permit():
 		return false
-	_state_manager.require_stop(self, LOAD, true)
-	await _state_manager.threads_finished
+	IVStateManager.require_stop(self, LOAD, true)
+	await IVStateManager.threads_finished
 	return true
 
 
@@ -162,11 +197,13 @@ func _on_save_finished() -> void:
 
 
 func _on_load_started() -> void:
-	_state_manager.set_game_loading()
+	var state_auxiliary: IVStateAuxiliary = IVGlobal.program[&"StateAuxiliary"]
+	state_auxiliary.set_game_loading()
 
 
-func _on_about_to_free_procedural_nodes() -> void:
-	IVGlobal.about_to_free_procedural_nodes.emit()
+func _on_save_singleton_about_to_free_procedural_nodes() -> void:
+	var state_auxiliary: IVStateAuxiliary = IVGlobal.program[&"StateAuxiliary"]
+	state_auxiliary.set_about_to_free_procedural_nodes_for_load()
 
 
 func _on_about_to_build_procedural_tree_for_load() -> void:
@@ -174,11 +211,14 @@ func _on_about_to_build_procedural_tree_for_load() -> void:
 
 
 func _on_load_finished() -> void:
-	_state_manager.set_game_loaded()
+	if IVSettingsManager.get_setting(&"pause_on_load"):
+		_paused_by_user = true
+	var state_auxiliary: IVStateAuxiliary = IVGlobal.program[&"StateAuxiliary"]
+	state_auxiliary.set_game_loaded(_paused_by_user)
 	if !OS.is_debug_build():
 		return
 	_warn_version_mismatch()
-	IVGlobal.simulator_started.connect(_print_node_count, CONNECT_ONE_SHOT)
+	IVStateManager.simulator_started.connect(_print_node_count, CONNECT_ONE_SHOT)
 
 
 func _warn_version_mismatch() -> void:

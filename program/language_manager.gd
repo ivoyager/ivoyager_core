@@ -51,8 +51,8 @@ static func get_code_for_setting(language_setting: int) -> String:
 
 
 func _init() -> void:
-	IVGlobal.setting_changed.connect(_settings_listener)
-	var language_setting: int = IVGlobal.settings[&"language"]
+	IVSettingsManager.changed.connect(_settings_listener)
+	var language_setting: int = IVSettingsManager.get_setting(&"language")
 	_set_language(language_setting)
 
 

@@ -40,7 +40,7 @@ var _is_reversed := false
 
 func _ready() -> void:
 	process_mode = PROCESS_MODE_ALWAYS
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
+	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
 	_timekeeper.time_altered.connect(_on_time_altered)
 	if IVCoreSettings.allow_time_reversal:
 		_timekeeper.speed_changed.connect(_update_for_time_reversal)
@@ -50,7 +50,7 @@ func _ready() -> void:
 
 ## E.g., for 2-day repeating signal, use interval = 2.0 * IVUnits.DAY.
 ## Note: IVScheduler will disconnet all interval signals on
-## [signal IVGlobal.about_to_free_procedural_nodes].
+## [signal IVStateManager.about_to_free_procedural_nodes].
 func interval_connect(interval: float, callable: Callable, flags := 0) -> void:
 	assert(interval > 0.0)
 	var one_shot := bool(flags & CONNECT_ONE_SHOT)
@@ -59,7 +59,7 @@ func interval_connect(interval: float, callable: Callable, flags := 0) -> void:
 
 
 ## Note: IVScheduler will disconnet all interval signals on
-## [signal IVGlobal.about_to_free_procedural_nodes].
+## [signal IVStateManager.about_to_free_procedural_nodes].
 func interval_disconnect(interval: float, callable: Callable) -> void:
 	var i := 0
 	var signal_name := &""

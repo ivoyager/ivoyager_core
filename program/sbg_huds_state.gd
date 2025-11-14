@@ -62,13 +62,13 @@ var default_orbits_colors: Dictionary[StringName, Color] = {}
 
 
 func _init() -> void:
-	IVGlobal.project_objects_instantiated.connect(_on_project_objects_instantiated)
-	IVGlobal.simulator_exited.connect(_set_current_to_default)
-	IVGlobal.update_gui_requested.connect(_signal_all_changed)
+	IVStateManager.core_init_program_objects_instantiated.connect(_on_program_objects_instantiated)
+	IVStateManager.simulator_exited.connect(_set_current_to_default)
+	IVGlobal.ui_dirty.connect(_on_ui_dirty)
 
 
 
-func _on_project_objects_instantiated() -> void:
+func _on_program_objects_instantiated() -> void:
 	for row in IVTableData.get_n_rows(&"small_bodies_groups"):
 		if IVTableData.get_db_bool(&"small_bodies_groups", &"skip", row):
 			continue
@@ -319,7 +319,7 @@ func _set_current_to_default() -> void:
 	set_default_colors()
 
 
-func _signal_all_changed() -> void:
+func _on_ui_dirty() -> void:
 	points_visibility_changed.emit()
 	orbits_visibility_changed.emit()
 	points_color_changed.emit()

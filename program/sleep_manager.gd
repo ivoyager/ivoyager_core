@@ -35,8 +35,8 @@ var _current_star_orbiter: IVBody
 
 
 func _init() -> void:
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
-	IVGlobal.system_tree_ready.connect(_on_system_tree_ready)
+	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
+	IVStateManager.system_tree_ready.connect(_on_system_tree_ready)
 	IVGlobal.camera_tree_changed.connect(_on_camera_tree_changed)
 
 
@@ -46,8 +46,8 @@ func _clear_procedural() -> void:
 
 
 func _on_system_tree_ready(_is_new_game: bool) -> void:
-	for body_name in IVBody.galaxy_orbiters:
-		_set_sleeping_recursive(IVBody.galaxy_orbiters[body_name], true)
+	for body_name in IVBody.top_bodies:
+		_set_sleeping_recursive(IVBody.top_bodies[body_name], true)
 
 
 func _on_camera_tree_changed(_camera: Camera3D, _parent: Node3D, star_orbiter: Node3D, _star: Node3D

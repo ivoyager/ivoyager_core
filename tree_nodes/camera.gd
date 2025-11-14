@@ -89,7 +89,6 @@ const METER := IVUnits.METER
 const KM := IVUnits.KM
 
 const DPRINT := false
-const UNIVERSE_SHIFTING := true # prevents "shakes" at high global position
 const NEAR_MULTIPLIER := 0.1
 const FAR_MULTIPLIER := 1e6 # see Note below
 const POLE_LIMITER := PI / 2.1
@@ -124,6 +123,7 @@ var view_position := Vector3(0.5, 2.5, 3.0) # spherical, relative to ref frame; 
 var view_rotations := Vector3.ZERO # euler, relative to looking_at(-origin, 'up')
 
 # public - project init vars
+var origin_shifting := true # prevents "imprecision shakes" at large global_position
 var ease_exponent := 5.0 # DEPRECATE: Make dynamic for distance / size
 var gui_ecliptic_coordinates_dist := 1e6 * KM
 var action_immediacy := 10.0 # how fast we use up the accumulators
@@ -145,7 +145,6 @@ var _transform := Transform3D(Basis(), Vector3(0, 0, KM)) # working value
 
 # private
 var _universe: Node3D = IVGlobal.program.Universe
-var _settings: Dictionary[StringName, Variant] = IVGlobal.settings
 var _max_dist: float = IVCoreSettings.max_camera_distance
 
 # motions / rotations
@@ -171,24 +170,25 @@ var _gui_range := NAN
 var _gui_latitude_longitude := Vector2(NAN, NAN)
 
 # settings
-var _transfer_time: float = _settings[&"camera_transfer_time"]
+var _transfer_time: float = IVSettingsManager.get_setting(&"camera_transfer_time")
 
 
 # virtual functions
 
 func _ready() -> void:
 	name = &"IVCamera"
-	IVGlobal.system_tree_ready.connect(_on_system_tree_ready, CONNECT_ONE_SHOT)
-	IVGlobal.simulator_started.connect(_on_simulator_started, CONNECT_ONE_SHOT)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural, CONNECT_ONE_SHOT)
-	IVGlobal.update_gui_requested.connect(_send_gui_refresh)
-	IVGlobal.move_camera_requested.connect(move_to)
-	IVGlobal.setting_changed.connect(_settings_listener)
+	IVStateManager.system_tree_ready.connect(_on_system_tree_ready, CONNECT_ONE_SHOT)
+	IVStateManager.simulator_started.connect(_on_simulator_started, CONNECT_ONE_SHOT)
+	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural, CONNECT_ONE_SHOT)
+	IVGlobal.ui_dirty.connect(_on_ui_dirty)
+	IVSettingsManager.changed.connect(_settings_listener)
 	transform = _transform
-	if !IVGlobal.state.is_loaded_game:
+	if not IVStateManager.loaded_game:
 		fov = IVCoreSettings.start_camera_fov
-	IVGlobal.camera_ready.emit(self)
+	IVGlobal.current_camera_changed.emit(self)
 	set_process(false) # don't process until sim started
+	
+	#process_mode = PROCESS_MODE_ALWAYS
 
 
 func _process(delta: float) -> void:
@@ -198,11 +198,11 @@ func _process(delta: float) -> void:
 		_process_move_to(delta)
 	else:
 		_process_motions_and_rotations(delta)
-	if UNIVERSE_SHIFTING:
+	if origin_shifting:
 		# Camera will be at global translation (0,0,0) after this step.
-		# The -= operator works because current Universe translation is part
-		# of global_translation, so we are removing old shift at the same time
-		# we add our new shift.
+		# The -= operator works because current Universe position is part
+		# of Camera.global_position, so we are removing old shift at the
+		# same time we add our new shift.
 		_universe.position -= global_position
 	transform = _transform
 	_signal_range_latitude_longitude()
@@ -229,6 +229,7 @@ func add_rotation(rotation_amount: Vector3) -> void:
 	_rotation_accumulator += rotation_amount
 
 
+## Use IVCameraHandler instead.
 func move_to(to_selection: IVSelection, to_flags := 0, to_view_position := NULL_VECTOR3,
 		to_view_rotations := NULL_VECTOR3, is_instant_move := false) -> void:
 	# Note: call IVCameraHandler.move_to() or move_to_by_name() to move camera
@@ -397,9 +398,8 @@ func _on_simulator_started() -> void:
 
 func _clear_procedural() -> void:
 	set_process(false)
-	IVGlobal.update_gui_requested.disconnect(_send_gui_refresh)
-	IVGlobal.move_camera_requested.disconnect(move_to)
-	IVGlobal.setting_changed.disconnect(_settings_listener)
+	IVGlobal.ui_dirty.disconnect(_on_ui_dirty)
+	IVSettingsManager.changed.disconnect(_settings_listener)
 	selection = null
 	parent = null
 	_to_spatial = null
@@ -733,7 +733,7 @@ func _signal_range_latitude_longitude(is_refresh := false) -> void:
 		latitude_longitude_changed.emit(lat_long, is_ecliptic, selection)
 
 
-func _send_gui_refresh() -> void:
+func _on_ui_dirty() -> void:
 	IVGlobal.camera_fov_changed.emit(fov)
 	up_lock_changed.emit(flags, disabled_flags)
 	tracking_changed.emit(flags, disabled_flags)

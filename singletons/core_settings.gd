@@ -19,53 +19,38 @@
 # *****************************************************************************
 extends Node
 
-## Added as singleton "IVCoreSettings".
+## Singleton [IVCoreSettings] holds Core plugin settings.
 ##
-## Modify properties or dictionary classes using res://ivoyager_override.cfg.
-## Alternatively, you can modify values here using an initializer script. (See
-## comments in core_initializer.gd.) [br][br]
+## All settings here should be set before or during the first step of
+## [IVCoreInitializer] init by config file, preinitializer script, project
+## autoload, or something similar. See [IVCoreInitializer] class documentation
+## for details on how to do this.[br][br]
 ##
-## With very few exceptions, these should not be modified after program start!
+## Dev note: Don't add ANY non-Godot class dependencies in this file! These
+## could cause circular reference issues.
 
 
-
-## Set false to disable thread use throughout the ivoyager_core plugin. This
+## Set false to disable thread use throughout the Core plugin. This
 ## can be helpful for debugging. Some class files also have property
 ## [param use_threads]. In these classes, both this setting and the file
 ## setting must be true for threads to be used.
 var use_threads := true
 
-## Specifies [Environment] properties from data table environment.tsv that are
-## applied by [IVWorldEnvironment]. I, Voyager's WorldEnvironment can be
-## disabled in [IVCoreInitializer].
-var environment := &"ENVIRONMENT_PLANETARIUM"
-## Specifies [CameraAttributes] properties from data table camera_attributes.tsv
-## that are applied by [IVWorldEnvironment]. If this row has auto_exposure_enabled
-## and project uses Compatibility renderer, a fallback will be used.
-## I, Voyager's WorldEnvironment can be disabled in [IVCoreInitializer].
-var camera_attributes := &"CAMERA_ATTRIBUTES_HARD_REALISM"
-
-## @experimental: Possible future implementation. (Sim implements practiccal
-## lighting only for now.)
-var use_physical_light := false
-## @experimental: Possible future implementation. (Sim implements practiccal
-## lighting only for now.)
-var camera_attributes_physical := &"CAMERA_ATTRIBUTES_PHYSICAL_HARD_REALISM"
-
 ## See [IVDynamicLight].
 var dynamic_lights := true
-## See [IVDynamicLight].
-var nonphysical_energy_at_1_au := 1.2 # some blowout is good
-## See [IVDynamicLight].
-var nonphysical_attenuation_exponent := 0.5 # physical is 2.0
+## See [IVDynamicLight]. Values just over 1.0 give a small but realistic
+## looking blowout Earth.
+var nonphysical_energy_at_1_au := 1.2
+## See [IVDynamicLight]. Real-world physical is 2.0 (1/r^2). A much smaller
+## value is needed unless there is camera compensation.
+var nonphysical_attenuation_exponent := 0.5
 ## If <INF, overrides magnitude cutoff specified in small_bodies_group.tsv.
 var sbg_mag_cutoff_override := INF
-## Starts simulation without waiting (e.g., as in the Planetarium). If using a
-## splash screen, set this value to false and start the simulation using
-## [signal IVGlobal.start_requested].
-var skip_splash_screen := true
-## if true, Universe is set to process_mode = PROCESS_MODE_ALWAYS. See [IVStateManager].
-var pause_only_stops_time := false
+## By default, the simulator starts without waiting (as in the Planetarium).
+## If using a splash screen, set this value to true and start the simulation
+## using [method IVStateManager.start()] (e.g., via [IVStartButton] in the
+## splash screen menu).
+var wait_for_start := false
 ## See [IVStateManager].
 var disable_pause := false
 ## See [IVStateManager].
@@ -125,7 +110,7 @@ var text_colors: Dictionary[StringName, Color] = {
 	base = Color.WHITE,
 	caution = Color.YELLOW,
 	warning = Color.ORANGE,
-	danger = Color(1, 0.2, 0, 1), # RED is hard to read
+	danger = Color.RED,
 	flag = Color.FUCHSIA,
 }
 

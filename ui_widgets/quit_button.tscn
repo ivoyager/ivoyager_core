@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://dcw1843unaohr"]
+
+[ext_resource type="Script" uid="uid://b4vwlkkxpb3rl" path="res://addons/ivoyager_core/ui_widgets/quit_button.gd" id="1_b3sh8"]
+
+[node name="QuitButton" type="Button"]
+text = "BUTTON_QUIT"
+script = ExtResource("1_b3sh8")

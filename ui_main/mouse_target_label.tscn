@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://c6yqdxh0igm7a"]
+
+[ext_resource type="Script" uid="uid://d1f5p2fr8vuwn" path="res://addons/ivoyager_core/ui_main/mouse_target_label.gd" id="1_tg33h"]
+
+[node name="MouseTargetLabel" type="Label"]
+script = ExtResource("1_tg33h")

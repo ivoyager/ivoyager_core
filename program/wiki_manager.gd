@@ -66,7 +66,7 @@ var _external_url_format: String
 
 
 func _init() -> void:
-	IVGlobal.project_inited.connect(_on_project_inited)
+	IVStateManager.core_initialized.connect(_configure)
 
 
 
@@ -83,19 +83,19 @@ func open_page(entity_name: StringName) -> void:
 		OS.shell_open(_external_url_format % page_title)
 
 
-func _on_project_inited() -> void:
+func _configure() -> void:
 	if IVTableData.wiki_page_titles_by_field.is_empty():
 		push_warning("IVWikiManager is present but no page title fields were set in IVTableData")
 		# Bail out here: has_page() will always return false & open_page() does nothing.
 		return
 	var fallback_table_field := table_fields[fallback_language_code]
 	assert(IVTableData.has_wiki_page_titles(fallback_table_field), "Fallback table field not found")
-	IVGlobal.setting_changed.connect(_settings_listener)
+	IVSettingsManager.changed.connect(_settings_listener)
 	_set_language()
 
 
 func _set_language() -> void:
-	var language_setting: int = IVGlobal.settings[&"language"]
+	var language_setting: int = IVSettingsManager.get_setting(&"language")
 	var code := IVLanguageManager.get_code_for_setting(language_setting)
 	if !table_fields.has(code):
 		code = fallback_language_code

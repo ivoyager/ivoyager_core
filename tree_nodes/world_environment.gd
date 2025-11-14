@@ -20,48 +20,27 @@
 class_name IVWorldEnvironment
 extends WorldEnvironment
 
-## Default WorldEnvironment that sets Environment and CameraAttributes
-## properties from data tables.
+## I, Voyager's WorldEnvironment for scene tree construction.
 ##
-## For projects that supply their own WorldEnvironment, disable this node by
-## removing from dictionary program_nodes in [IVCoreInitializer].[br][br]
+## This node uses default Environment and CameraAttributes resources from
+## res://addons/ivoyager_core/resources.[br][br]
 ##
-## This node sets its Environment and CameraAttributes from data tables
-## environments.tsv and camera_attributes.tsv, respectively. The starmap
-## is added by code according to user settings and fallback specification
-### (see [IVAssetPreloader]).[br][br]
+## If [member add_starmap] is true (default), this node will add a starmap
+## from the assets directory to the Environment resource at startup. The default
+## Environment doesn't have this because the Core plugin is stand-alone without
+## assets. (It can't run that way but we don't want it to generate missing
+## resource errors.)[br][br]
 
-## For scene instantiation by [IVCoreInitializer].
-const SCENE := "res://addons/ivoyager_core/tree_nodes/world_environment.tscn"
-
-
-var add_starmap := true
-var camera_attributes_gl_compatibility_fallback := "CAMERA_ATTRIBUTES_GL_COMPATIBILITY_FALLBACK"
+@export var add_starmap := true
 
 
 func _ready() -> void:
-	IVGlobal.asset_preloader_finished.connect(_on_asset_preloader_finished)
-
+	IVStateManager.assets_preloaded.connect(_on_asset_preloader_finished)
 
 
 func _on_asset_preloader_finished() -> void:
-	if IVCoreSettings.camera_attributes:
-		var row := IVTableData.get_row(IVCoreSettings.camera_attributes)
-		assert(row != -1, "Unknown IVCoreSettings.camera_attributes '%s'"
-				% IVCoreSettings.camera_attributes)
-		if IVGlobal.is_gl_compatibility and !_is_gl_compatibility_camera_attributes(row):
-			row = IVTableData.get_row(camera_attributes_gl_compatibility_fallback)
-		IVTableData.db_build_object(camera_attributes, &"camera_attributes", row)
-	if IVCoreSettings.environment:
-		var row := IVTableData.get_row(IVCoreSettings.environment)
-		assert(row != -1, "Unknown IVCoreSettings.environment '%s'" % IVCoreSettings.environment)
-		IVTableData.db_build_object(environment, &"environments", row)
 	if add_starmap:
 		_add_starmap_sky()
-
-
-func _is_gl_compatibility_camera_attributes(row: int) -> bool:
-	return !IVTableData.get_db_bool(&"camera_attributes", &"auto_exposure_enabled", row)
 
 
 func _add_starmap_sky() -> void:

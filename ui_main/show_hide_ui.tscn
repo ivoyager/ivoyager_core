@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3 uid="uid://cgv7mkfok4nux"]
+
+[ext_resource type="Script" uid="uid://csojlb71swy4x" path="res://addons/ivoyager_core/ui_main/show_hide_ui.gd" id="1_eo8w3"]
+
+[node name="ShowHideUI" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_eo8w3")

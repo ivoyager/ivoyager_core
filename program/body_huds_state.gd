@@ -68,13 +68,15 @@ var default_orbit_colors: Dictionary[int, Color] = {}
 # *****************************************************************************
 
 func _init() -> void:
-	IVGlobal.project_objects_instantiated.connect(_on_project_objects_instantiated)
-	IVGlobal.simulator_exited.connect(_set_current_to_default)
-	IVGlobal.update_gui_requested.connect(_signal_all_changed)
+	IVStateManager.core_init_program_objects_instantiated.connect(_on_program_objects_instantiated)
+	IVStateManager.simulator_exited.connect(_set_current_to_default)
+	IVGlobal.ui_dirty.connect(_on_ui_dirty)
 
 
-func _unhandled_key_input(event: InputEvent) -> void:
+func _shortcut_input(event: InputEvent) -> void:
 	# Only Body HUDs, for now...
+	if not event.is_pressed():
+		return
 	if event.is_action_pressed(&"toggle_orbits"):
 		set_all_orbits_visibility(bool(orbit_visible_flags != all_flags))
 	elif event.is_action_pressed(&"toggle_symbols"):
@@ -83,7 +85,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		set_all_names_visibility(bool(name_visible_flags != all_flags))
 	else:
 		return # input NOT handled!
-	get_window().set_input_as_handled()
+	get_viewport().set_input_as_handled()
 
 
 # *****************************************************************************
@@ -334,7 +336,7 @@ func set_all_orbit_colors(dict: Dictionary[int, Color]) -> void:
 # private
 
 
-func _on_project_objects_instantiated() -> void:
+func _on_program_objects_instantiated() -> void:
 	for row in IVTableData.get_n_rows(&"visual_groups"):
 		var body_flag := IVTableData.get_db_int(&"visual_groups", &"body_flag", row)
 		var name_visible := IVTableData.get_db_bool(&"visual_groups", &"default_name_visible", row)
@@ -359,6 +361,6 @@ func _set_current_to_default() -> void:
 	set_default_colors()
 
 
-func _signal_all_changed() -> void:
+func _on_ui_dirty() -> void:
 	visibility_changed.emit()
 	color_changed.emit()

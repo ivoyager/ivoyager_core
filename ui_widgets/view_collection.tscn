@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3 uid="uid://cr2k471sfa7fd"]
+
+[ext_resource type="Script" uid="uid://cty33bgi3ap81" path="res://addons/ivoyager_core/ui_widgets/view_collection.gd" id="1_cxd7j"]
+[ext_resource type="PackedScene" uid="uid://baa6bqyc32tfr" path="res://addons/ivoyager_core/ui_widgets/view_edit_popup.tscn" id="2_8ql3c"]
+
+[node name="ViewCollection" type="HFlowContainer"]
+script = ExtResource("1_cxd7j")
+
+[node name="ViewEditPopup" parent="." instance=ExtResource("2_8ql3c")]
+visible = false

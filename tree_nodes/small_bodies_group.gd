@@ -107,7 +107,7 @@ static func create(name: StringName, sbg_alias: StringName, sbg_class: SBGClass,
 
 
 func _ready() -> void:
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
+	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
 	assert(!small_bodies_groups.has(name))
 	small_bodies_groups[name] = self
 

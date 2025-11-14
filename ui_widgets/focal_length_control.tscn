@@ -1,0 +1,31 @@
+[gd_scene load_steps=2 format=3 uid="uid://chl27l6aiico8"]
+
+[ext_resource type="Script" uid="uid://ba6hjji77fd83" path="res://addons/ivoyager_core/ui_widgets/focal_length_control.gd" id="1_bs6ux"]
+
+[node name="FocalLengthControl" type="HBoxContainer"]
+offset_top = 18.0
+offset_right = 41.0
+offset_bottom = 38.0
+size_flags_horizontal = 4
+size_flags_vertical = 4
+mouse_filter = 2
+script = ExtResource("1_bs6ux")
+
+[node name="SpinBox" type="SpinBox" parent="."]
+layout_mode = 2
+value = 24.0
+suffix = " mm"
+
+[node name="Minus" type="Button" parent="."]
+layout_mode = 2
+tooltip_text = "HINT_DECREASE_FOCAL_LENGTH"
+action_mode = 0
+shortcut_in_tooltip = false
+text = "-"
+
+[node name="Plus" type="Button" parent="."]
+layout_mode = 2
+tooltip_text = "HINT_INCREASE_FOCAL_LENGTH"
+action_mode = 0
+shortcut_in_tooltip = false
+text = "+"

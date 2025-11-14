@@ -13,26 +13,25 @@ Now release candidate for I, Voyager "beta"!
 Under development using Godot 4.5.1.
 
 ### Added
-* Many replacement GUI widgets that are much more modular than older widgets.
+* Lots of documentation! The main entry point for plugin documentation is now [IVUniverseTemplate](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/universe_template.gd).
+* Many replacement GUI widgets that are much more modular than older widgets. New foldable widgets using the new FolableContainer.
 * IVLanguageManager and "Language" as a user option. **We're ready for translations!**
-* Signal IVGlobal.camera_fov_changed(fov: float).
-* Signal IVGlobal.viewport_size_changed(size: Vector2).
+* IVStateManager as an autolaod singleton.
 
 ### Changed
+* [Project breaking] Massive overhaul of how the scene tree works. See doc in [IVUniverseTemplate](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/universe_template.gd).
+* [API breaking] Many signals previously in IVGlobal have been removed, renamed and/or moved to IVStateManager (now a singleton).
 * [Project GUI breaking] Removed many obsoleted GUI widgets.
 * [Project GUI breaking] Removed "gui_mods/" directory and contents. These have been replaced by new "gui_helpers/": IVControlModResizable, IVControlModDraggable, etc.
 * User can now edit "View" buttons.
 * Improved the EditorPlugin's asset loader UI.
 * Replaced 3RD_PARTY.txt with updated and more human-readable 3RD_PARTY.md, and updated CREDITS.md.
 * [API breaking] Removed IVFontManager and overhauled IVThemeManager to work correctly with Godot's theme system.
-* [API breaking] Removed IVGlobal signal "wiki_requested" (all GUI uses IVWikiManager API instead).
 * Recoded IVLinkLabel widget to either open external URL or pass to IVWikiManager.open_page().
 * Recoded IVWikiManager to facilitate use of external or internal wiki.
 * IVBodyLabel visual size now compensates for camera fov and viewport height.
-* Recoded GUI widget IVSelectionData to work with the new IVSelectionDataFoldable.
-* Removed unused IVGlobal signals.
-* Renamed table field "en.wiki" to "en.wikipedia" (these are Wikipedia.org page titles).
-* Removed unused BodyFlags.EXISTS.
+* [Project breaking] Renamed many data table columns. Renamed table field "en.wiki" to "en.wikipedia" (these are Wikipedia.org page titles).
+* [API breaking] Ranamed some IVBody.BodyFlags enums. Removed unused BodyFlags.EXISTS.
 
 ### Fixed
 * Graphic glitch on the frame that IVCamera hands off to a new parent body.

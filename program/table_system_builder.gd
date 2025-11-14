@@ -51,6 +51,10 @@ var _sbg_builder: IVTableSBGBuilder
 
 
 
+func _init() -> void:
+	IVGlobal.build_system_tree_now.connect(build_system_tree)
+
+
 func build_system_tree() -> void:
 	_body_builder = IVGlobal.program[&"TableBodyBuilder"]
 	_add_bodies()
@@ -88,11 +92,12 @@ func _add_bodies_from_top(name: StringName, table_dict: Dictionary[StringName, S
 	if parent:
 		parent.add_child(body)
 		return
-	assert(body.flags & BodyFlags.BODYFLAGS_GALAXY_ORBITER,
-			"body.tsv row with no parent must have galaxy_orbiter == TRUE")
+	assert(body.flags & BodyFlags.BODYFLAGS_TOP,
+			"body.tsv row with no parent must have field 'top' == TRUE")
 	if add_to_universe:
 		var universe: Node3D = IVGlobal.program.Universe
 		universe.add_child(body)
+		universe.move_child(body, 0)
 
 
 func _add_small_bodies_groups() -> void:

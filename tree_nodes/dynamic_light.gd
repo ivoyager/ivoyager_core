@@ -89,7 +89,7 @@ func _ready() -> void:
 		return
 	# Only top light connects to camera or has children!
 	IVGlobal.camera_tree_changed.connect(_on_camera_tree_changed)
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
+	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
 	if !IVGlobal.is_gl_compatibility:
 		_add_child_lights()
 

@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://cjtauq7kev3vl"]
+
+[ext_resource type="Script" uid="uid://c7jljmbg10gbs" path="res://addons/ivoyager_core/ui_widgets/nav_buttons_system.gd" id="1_atpce"]
+
+[node name="NavButtonsSystem" type="HBoxContainer"]
+size_flags_vertical = 3
+script = ExtResource("1_atpce")

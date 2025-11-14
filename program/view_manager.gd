@@ -44,10 +44,9 @@ var _missing_or_bad_cache_file := true
 
 
 func _init() -> void:
-	IVGlobal.about_to_free_procedural_nodes.connect(_clear_procedural)
-	IVGlobal.project_objects_instantiated.connect(_on_project_objects_instantiated)
-	IVGlobal.about_to_start_simulator.connect(_on_about_to_start_simulator)
-
+	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
+	IVStateManager.core_init_program_objects_instantiated.connect(_on_program_objects_instantiated)
+	IVStateManager.about_to_start_simulator.connect(_on_about_to_start_simulator)
 
 
 func set_table_view(view_name: StringName, is_camera_instant_move := false) -> void:
@@ -175,7 +174,7 @@ func _clear_procedural() -> void:
 	gamesave_views.clear()
 
 
-func _on_project_objects_instantiated() -> void:
+func _on_program_objects_instantiated() -> void:
 	# table read
 	var table_view_builder: IVTableViewBuilder = IVGlobal.program[&"TableViewBuilder"]
 	table_views = table_view_builder.build_all()
