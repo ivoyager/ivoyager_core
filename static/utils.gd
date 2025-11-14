@@ -21,6 +21,8 @@ class_name IVUtils
 extends Object
 
 ## Miscellaneous utility static functions.
+##
+## TODO: A large set of "tree" utilities can be move to a new IVTree utility file.
 
 
 # Tree utilities
