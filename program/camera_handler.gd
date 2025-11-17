@@ -209,15 +209,20 @@ func _shortcut_input(event: InputEvent) -> void:
 # *****************************************************************************
 # public API
 
-func move_to(selection: IVSelection, camera_flags := 0, view_position := NULL_VECTOR3,
+## Null or null-equivilant args tell the camera to keep its current value.
+## Some parameters override others.
+func move_to(to_node3d: Node3D, camera_flags := 0, view_position := NULL_VECTOR3,
 		view_rotations := NULL_VECTOR3, is_instant_move := false) -> void:
-	# Null or null-equivilant args tell the camera to keep its current value.
-	# Some parameters override others.
+	
 	if not _camera:
 		return
-	if selection:
-		_selection_manager.select(selection, true)
-	_camera.move_to(selection, camera_flags, view_position, view_rotations, is_instant_move)
+	
+	# TEMP
+	if to_node3d:
+		_selection_manager.select_by_name(to_node3d.name, true)
+	
+	_camera.move_to(to_node3d, camera_flags, view_position, view_rotations, is_instant_move)
+
 
 
 func move_to_by_name(selection_name: StringName, camera_flags := 0, view_position := NULL_VECTOR3,
@@ -226,15 +231,17 @@ func move_to_by_name(selection_name: StringName, camera_flags := 0, view_positio
 	# Some parameters override others.
 	if not _camera:
 		return
-	var selection: IVSelection
+	# TEMP
+	var body: IVBody
 	if selection_name:
-		selection = _selection_manager.get_or_make_selection(selection_name)
-	move_to(selection, camera_flags, view_position, view_rotations, is_instant_move)
+		body = IVBody.bodies[selection_name]
+	
+	move_to(body, camera_flags, view_position, view_rotations, is_instant_move)
 
 
 func get_camera_view_state() -> Array:
 	return [
-		_camera.selection.name,
+		_camera.target.name,
 		_camera.flags,
 		_camera.view_position,
 		_camera.view_rotations,
@@ -272,7 +279,7 @@ func _on_selection_changed(suppress_camera_move: bool) -> void:
 	if suppress_camera_move or !_camera:
 		return
 	if _camera.is_camera_lock:
-		_camera.move_to(_selection_manager.selection)
+		_camera.move_to(_selection_manager.get_body())
 
 
 func _on_selection_reselected(suppress_camera_move: bool) -> void:
@@ -283,12 +290,12 @@ func _on_selection_reselected(suppress_camera_move: bool) -> void:
 		_camera.move_to(null, 0, NULL_VECTOR3, Vector3.ZERO)
 	else:
 		# "reselection" means go here and center, even when camera lock is off
-		_camera.move_to(_selection_manager.selection, 0, NULL_VECTOR3, Vector3.ZERO)
+		_camera.move_to(_selection_manager.get_body(), 0, NULL_VECTOR3, Vector3.ZERO)
 
 
 func _on_camera_lock_changed(is_camera_lock: bool) -> void:
 	if is_camera_lock:
-		_camera.move_to(_selection_manager.selection)
+		_camera.move_to(_selection_manager.get_body())
 
 
 func _on_mouse_target_clicked(target: Object, _button_mask: int, _key_modifier_mask: int) -> void:
@@ -304,7 +311,7 @@ func _on_mouse_target_clicked(target: Object, _button_mask: int, _key_modifier_m
 		_selection_manager.select(selection)
 	else: # move camera directly
 		# Cancel rotations, but keep relative position.
-		_camera.move_to(selection)
+		_camera.move_to(_selection_manager.get_body())
 
 
 func _on_mouse_dragged(drag_vector: Vector2, button_mask: int, key_modifier_mask: int) -> void:

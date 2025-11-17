@@ -995,6 +995,37 @@ func get_orbit_tracking_basis(time := NAN) -> Basis:
 
 
 # *****************************************************************************
+# IVCamera duck type methods...
+
+func get_camera_radius() -> float:
+	return mean_radius
+
+
+func get_camera_ground_basis() -> Basis:
+	return get_orientation()
+
+
+# FIXME: Do we need get_orbit_tracking_basis()?
+func get_camera_orbit_basis() -> Basis:
+	var orbit_basis := get_orbit_tracking_basis()
+	if flags & BodyFlags.BODYFLAGS_STAR_ORBITER:
+		return orbit_basis.rotated(orbit_basis.z, PI)
+	return orbit_basis
+
+
+func get_camera_lat_lon_type() -> IVQFormat.LatitudeLongitudeType:
+	const N_S_E_W := IVQFormat.LatitudeLongitudeType.N_S_E_W
+	const LAT_LON := IVQFormat.LatitudeLongitudeType.LAT_LON
+	const PITCH_YAW := IVQFormat.LatitudeLongitudeType.PITCH_YAW
+	if flags & BodyFlags.BODYFLAGS_USE_CARDINAL_DIRECTIONS:
+		return N_S_E_W
+	if flags & BodyFlags.BODYFLAGS_USE_PITCH_YAW:
+		return PITCH_YAW
+	return LAT_LON
+	
+	
+
+# *****************************************************************************
 # core mechanics...
 
 
