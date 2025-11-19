@@ -53,7 +53,7 @@ const NULL_VECTOR3 := Vector3(-INF, -INF, -INF)
 const PERSIST_MODE := IVGlobal.PERSIST_PROCEDURAL
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"flags",
-	&"selection_name",
+	&"target_name",
 	&"camera_flags",
 	&"view_position",
 	&"view_rotations",
@@ -84,7 +84,7 @@ static var _is_class_instanced := false
 
 # persisted
 var flags := 0 # what state does this View have?
-var selection_name := &""
+var target_name := &""
 var camera_flags := 0 # IVCamera.CameraFlags
 var view_position := NULL_VECTOR3
 var view_rotations := NULL_VECTOR3
@@ -140,7 +140,7 @@ func set_state(is_camera_instant_move := false) -> void:
 func reset() -> void:
 	# back to init state
 	flags = 0
-	selection_name = &""
+	target_name = &""
 	camera_flags = 0
 	view_position = NULL_VECTOR3
 	view_rotations = NULL_VECTOR3
@@ -191,7 +191,7 @@ func _save_camera_state() -> void:
 		return
 	var view_state := _camera_handler.get_camera_view_state()
 	if flags & ViewFlags.VIEWFLAGS_CAMERA_SELECTION:
-		selection_name = view_state[0]
+		target_name = view_state[0]
 	if flags & ViewFlags.VIEWFLAGS_CAMERA_LONGITUDE:
 		view_position.x = view_state[2].x
 	if flags & ViewFlags.VIEWFLAGS_CAMERA_ORIENTATION:
@@ -205,7 +205,7 @@ func _set_camera_state(is_instant_move := false) -> void:
 	if !(flags & ViewFlags.VIEWFLAGS_ALL_CAMERA):
 		return
 	# Note: the camera ignores all null or null-equivilant args.
-	_camera_handler.move_to_by_name(selection_name, camera_flags, view_position, view_rotations,
+	_camera_handler.move_to_by_name(target_name, camera_flags, view_position, view_rotations,
 			is_instant_move)
 
 

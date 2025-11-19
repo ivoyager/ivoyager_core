@@ -22,9 +22,18 @@ extends Camera3D
 
 ## I, Voyager's default camera.
 ##
-## This camera uses [IVSelection], a wrapper for potential target objects, and
-## [IVView], which contains camera position (and other view state). IVCamera
-## recieves most of its control input from [IVCameraHandler].[br][br]
+## This camera can have any Node3D as target. To do so, is uses method duck
+## typing. These methods are used if they exist in the camera target Node3D:[br][br]
+##
+## get_camera_radius() -> float
+## get_camera_ground_basis() -> Basis
+## get_camera_orbit_basis() -> Basis
+## get_camera_lat_lon_type() -> IVQFormat.LatitudeLongitudeType
+##
+
+
+# Old...
+
 ##
 ## This class can be replaced together with [IVCameraHandler] and a few specific
 ## GUI widgets that depend on IVCamera.[br][br]
@@ -38,9 +47,10 @@ extends Camera3D
 ## they appear to be. In the transition distance they are intermediate.
 ## This system *may* break for objects smaller than meters (not tested yet).
 
-signal move_started(to_spatial: Node3D, is_camera_lock: bool) # to_spatial is not parent yet
+signal move_started(to_node3d: Node3D, is_camera_lock: bool) # to_node3d is not parent yet
 signal range_changed(camera_range: float)
-signal latitude_longitude_changed(lat_long: Vector2, is_ecliptic: bool, selection: IVSelection)
+signal latitude_longitude_changed(lat_long: Vector2, is_ecliptic: bool,
+		lat_lon_type: IVQFormat.LatitudeLongitudeType)
 signal camera_lock_changed(is_camera_lock_: bool)
 signal up_lock_changed(flags: int, disabled_flags: int)
 signal tracking_changed(flags: int, disabled_flags: int)
@@ -72,8 +82,8 @@ enum CameraDisabledFlags {
 	CAMERADISABLEDFLAGS_TRACK_SUPERGALACIC = 1 << 4, # not implemented yet
 }
 
-const math := preload("uid://csb570a3u1x1k")
-const utils := preload("uid://bdoygriurgvtc")
+
+
 
 
 
@@ -104,7 +114,7 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"fov",
 	&"flags",
 	&"is_camera_lock",
-	&"selection",
+	&"target",
 	&"perspective_radius",
 	&"view_position",
 	&"view_rotations",
@@ -117,7 +127,8 @@ var flags: int = CameraFlags.CAMERAFLAGS_UP_LOCKED | CameraFlags.CAMERAFLAGS_TRA
 var is_camera_lock := true
 
 # public persisted - read only!
-var selection: IVSelection
+var target: Node3D # Node3D we are at or going to (not parant during 1st half of transfer)
+
 var perspective_radius := KM
 var view_position := Vector3(0.5, 2.5, 3.0) # spherical, relative to ref frame; r is 'perspective'
 var view_rotations := Vector3.ZERO # euler, relative to looking_at(-origin, 'up')
@@ -151,15 +162,14 @@ var _max_dist: float = IVCoreSettings.max_camera_distance
 var _motion_accumulator := Vector3.ZERO
 var _rotation_accumulator := Vector3.ZERO
 
-# move_to
+# move
 var _move_time: float
 var _is_interupted_move := false
 var _interupted_transform: Transform3D
 var _reference_basis: Basis
-var _to_spatial: Node3D
-var _trasfer_spatial: Node3D
-var _from_spatial: Node3D
-var _from_selection: IVSelection
+var _to_node3d: Node3D # redundant with new "target"
+var _pivot_node3d: Node3D
+var _from_node3d: Node3D
 var _from_flags := flags
 var _from_perspective_radius := KM
 var _from_view_position := Vector3(0, 0, 3)
@@ -193,7 +203,8 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	# We process our working '_transform', then update here.
-	_reference_basis = _get_reference_basis(selection, flags)
+	_reference_basis = _get_reference_basis(target, flags)
+	
 	if is_moving:
 		_process_move_to(delta)
 	else:
@@ -229,18 +240,20 @@ func add_rotation(rotation_amount: Vector3) -> void:
 	_rotation_accumulator += rotation_amount
 
 
-## Use IVCameraHandler instead.
-func move_to(to_selection: IVSelection, to_flags := 0, to_view_position := NULL_VECTOR3,
+## If a GUI selection change is also needed, use [method IVCameraHandler.move_to]
+## instead. Null or null-equivilant args tell the camera to keep its current value.
+## For this purpose, individual -INF elements in Vector3 args are treated as
+## null. For example, to change camera pitch only use args:
+## [code]null, Vector3(-INF, -INF, -INF), Vector3(pitch_amount, -INF, -INF)[/code].
+## Note: some flags may override elements of position or rotation.
+func move_to(to_node3d: Node3D, to_flags := 0, to_view_position := NULL_VECTOR3,
 		to_view_rotations := NULL_VECTOR3, is_instant_move := false) -> void:
-	# Note: call IVCameraHandler.move_to() or move_to_by_name() to move camera
-	# *and* change selection.
-	# Null or null-equivilant args tell the camera to keep its current value.
-	# For this purpose, individual -INF elements in to_view_position and
-	# to_view_rotations are treated as 'null' (ie, we can set 1 or 2 elements).
-	# Note: some flags may override elements of position or rotation.
+	
+	const math := preload("uid://csb570a3u1x1k")
+	const utils := preload("uid://bdoygriurgvtc")
 	const CAMERAFLAGS_UP_LOCKED_OR_UNLOCKED := CameraFlags.CAMERAFLAGS_UP_LOCKED_OR_UNLOCKED
 	const CAMERAFLAGS_ANY_TRACKING := CameraFlags.CAMERAFLAGS_ANY_TRACKING
-	assert(!DPRINT or IVDebug.dprint("move_to", [to_selection, to_flags, to_view_position,
+	assert(!DPRINT or IVDebug.dprint("move_to", [to_node3d, to_flags, to_view_position,
 			to_view_rotations, is_instant_move]))
 	
 	# overrides
@@ -260,7 +273,7 @@ func move_to(to_selection: IVSelection, to_flags := 0, to_view_position := NULL_
 	# don't move if *nothing* has changed and is_instant_move == false
 	if (
 			!is_instant_move
-			and (!to_selection or to_selection == selection)
+			and (!to_node3d or to_node3d == target)
 			and (!to_up_flags or to_up_flags == flags & CAMERAFLAGS_UP_LOCKED_OR_UNLOCKED)
 			and (!to_track_flags or to_track_flags == flags & CAMERAFLAGS_ANY_TRACKING)
 			and (to_view_position == NULL_VECTOR3 or to_view_position == view_position)
@@ -269,26 +282,24 @@ func move_to(to_selection: IVSelection, to_flags := 0, to_view_position := NULL_
 		return
 	
 	# data needed during the move
-	_from_selection = selection
 	_from_flags = flags
 	_from_perspective_radius = perspective_radius
 	_from_view_position = view_position
 	_from_view_rotations = view_rotations
-	_from_spatial = parent
-	
-	_trasfer_spatial = utils.get_common_node3d(_from_spatial, _to_spatial)
+	_from_node3d = parent # TODO: get_parent(). Too much optimization
 	
 	# change booleans
-	var is_up_change: bool = ((to_up_flags and to_up_flags != flags & CAMERAFLAGS_UP_LOCKED_OR_UNLOCKED)
+	var is_up_change: bool = (
+			(to_up_flags and to_up_flags != flags & CAMERAFLAGS_UP_LOCKED_OR_UNLOCKED)
 			or (to_view_rotations != NULL_VECTOR3 and to_view_rotations.z != -INF
 			and to_view_rotations.z and flags & CameraFlags.CAMERAFLAGS_UP_LOCKED))
 	var is_track_change := to_track_flags and to_track_flags != flags & CAMERAFLAGS_ANY_TRACKING
 	
 	# set selection and flags
-	if to_selection and to_selection.spatial:
-		selection = to_selection
-		perspective_radius = selection.get_perspective_radius()
-		_to_spatial = to_selection.spatial
+	if to_node3d:
+		_to_node3d = to_node3d
+		target = to_node3d
+		perspective_radius = _get_node3d_camera_radius(to_node3d)
 	if is_up_change:
 		flags &= ~CAMERAFLAGS_UP_LOCKED_OR_UNLOCKED
 		flags |= to_up_flags
@@ -300,9 +311,11 @@ func move_to(to_selection: IVSelection, to_flags := 0, to_view_position := NULL_
 			flags &= ~CameraFlags.CAMERAFLAGS_UP_LOCKED
 			flags |= CameraFlags.CAMERAFLAGS_UP_UNLOCKED
 	
+	_pivot_node3d = utils.get_common_node3d(_from_node3d, _to_node3d)
+	
 	# if track change w/out specified longitude, go to current longitude in new reference frame
 	if is_track_change and to_view_position.x == -INF:
-		var current_basis := _get_reference_basis(selection, flags)
+		var current_basis := _get_reference_basis(target, flags)
 		var current_view_position := math.get_rotated_spherical3(position, current_basis)
 		to_view_position.x = current_view_position.x
 	
@@ -345,7 +358,29 @@ func move_to(to_selection: IVSelection, to_flags := 0, to_view_position := NULL_
 		up_lock_changed.emit(flags, disabled_flags)
 	if is_track_change:
 		tracking_changed.emit(flags, disabled_flags)
-	move_started.emit(_to_spatial, is_camera_lock)
+	move_started.emit(_to_node3d, is_camera_lock)
+
+
+
+static func _get_node3d_camera_radius(node3d: Node3D) -> float:
+	if node3d.has_method(&"get_camera_radius"):
+		return node3d.call(&"get_camera_radius")
+	return METER
+
+
+static func _get_reference_basis(node3d: Node3D, camera_flags: int) -> Basis:
+	if camera_flags & CameraFlags.CAMERAFLAGS_TRACK_GROUND:
+		return _get_ground_basis(node3d)
+	if camera_flags & CameraFlags.CAMERAFLAGS_TRACK_ORBIT:
+		if node3d.has_method(&"get_camera_orbit_basis"):
+			return node3d.call(&"get_camera_orbit_basis")
+	return Basis.IDENTITY # ecliptic
+
+
+static func _get_ground_basis(node3d: Node3D) -> Basis:
+	if node3d.has_method(&"get_camera_ground_basis"):
+		return node3d.call(&"get_camera_ground_basis")
+	return Basis.IDENTITY
 
 
 func set_up_lock(is_locked: bool) -> void:
@@ -361,6 +396,7 @@ func set_up_lock(is_locked: bool) -> void:
 
 
 func set_focal_length(focal_length: float) -> void:
+	const math := preload("uid://csb570a3u1x1k")
 	var field_of_view := math.get_fov_from_focal_length(focal_length)
 	fov = field_of_view
 	IVGlobal.camera_fov_changed.emit(field_of_view)
@@ -381,13 +417,12 @@ func change_camera_lock(new_lock: bool) -> void:
 
 func _on_system_tree_ready(_is_new_game: bool) -> void:
 	parent = get_parent()
-	_to_spatial = parent
-	_from_spatial = parent
-	if !selection: # new game
-		selection = IVSelectionManager.get_or_make_selection(parent.name)
-		assert(selection)
-		perspective_radius = selection.get_perspective_radius()
-	_from_selection = selection
+	_to_node3d = parent
+	_from_node3d = parent
+	if !target: # new game
+		target = parent
+		perspective_radius = _get_node3d_camera_radius(target)
+	_from_node3d = target
 	_from_perspective_radius = perspective_radius
 	_signal_tree_changed()
 
@@ -400,12 +435,11 @@ func _clear_procedural() -> void:
 	set_process(false)
 	IVGlobal.ui_dirty.disconnect(_on_ui_dirty)
 	IVSettingsManager.changed.disconnect(_settings_listener)
-	selection = null
+	target = null
 	parent = null
-	_to_spatial = null
-	_trasfer_spatial = null
-	_from_spatial = null
-	_from_selection = null
+	_to_node3d = null
+	_pivot_node3d = null
+	_from_node3d = null
 
 
 func _process_move_to(delta: float) -> void:
@@ -415,14 +449,14 @@ func _process_move_to(delta: float) -> void:
 	if _move_time >= _transfer_time: # end the move
 		is_moving = false
 		_is_interupted_move = false
-		if parent != _to_spatial:
+		if parent != _to_node3d:
 			_do_handoff() # we get here in an instantanious move
 		_process_motions_and_rotations(delta)
 		return
 	
 	# Handoff at halfway point avoids imprecision shakes at either end.
 	var progress := ease(_move_time / _transfer_time, -ease_exponent)
-	if progress > 0.5 and parent != _to_spatial:
+	if progress > 0.5 and parent != _to_node3d:
 		_do_handoff()
 	
 	# Interpolate from where we would be if we hadn't moved to where
@@ -432,7 +466,7 @@ func _process_move_to(delta: float) -> void:
 	if _is_interupted_move:
 		from_transform = _interupted_transform
 	else:
-		var from_reference_basis := _get_reference_basis(_from_selection, _from_flags)
+		var from_reference_basis := _get_reference_basis(_from_node3d, _from_flags)
 		from_transform = _get_view_transform(_from_view_position, _from_view_rotations,
 				from_reference_basis, _from_perspective_radius)
 	var to_transform := _get_view_transform(view_position, view_rotations, _reference_basis,
@@ -441,52 +475,59 @@ func _process_move_to(delta: float) -> void:
 
 
 func _do_handoff() -> void:
-	assert(!DPRINT or IVDebug.dprint("_do_handoff()", tr(parent.name), tr(_to_spatial.name)))
+	assert(!DPRINT or IVDebug.dprint("_do_handoff()", tr(parent.name), tr(_to_node3d.name)))
 	parent.remove_child(self)
-	_to_spatial.add_child(self)
-	parent = _to_spatial
+	_to_node3d.add_child(self)
+	parent = _to_node3d
 	_signal_tree_changed()
 
 
 func _signal_tree_changed() -> void:
-	var star_orbiter: Node3D = selection.get_star_orbiter()
-	var star: Node3D = selection.get_star()
-	IVGlobal.camera_tree_changed.emit(self, parent, star_orbiter, star)
+	var body: IVBody
+	var node := target
+	while node:
+		body = node as IVBody
+		if body:
+			break
+		node = node.get_parent()
+	if !body:
+		return
+	IVGlobal.camera_tree_changed.emit(self, body, body.star_orbiter, body.star)
 
 
 func _interpolate_path(from_transform: Transform3D, to_transform: Transform3D, progress: float
 		) -> void:
-	# Interpolate spherical coordinates around a reference Spatial. Reference
-	# 'xfer' is either the parent (if 'from' or 'to' is child of the other) or
+	# Interpolate spherical coordinates around a reference "pivot" Node3D.
+	# Pivot is either the parent (if 'from' or 'to' is child of the other) or
 	# common ancestor. This is likely the dominant view object during
 	# transition, so we want to minimize orientation change relative to it.
 	# This also avoids going through a planet when moving among its moons.
 	#
 	# TODO: It's a little jarring when the shortest spherical path is way off
-	# the ecliptic plane (or 'xfer' equitorial). Wih some work we could
+	# the ecliptic plane (or 'pivot' equitorial). Wih some work we could
 	# suppress that.
 	
 	# translation
-	var xfer_global_translation := _trasfer_spatial.global_position
-	var from_global_translation := _from_spatial.global_position + from_transform.origin
-	var to_global_translation := _to_spatial.global_position + to_transform.origin
-	var from_xfer_translation := from_global_translation - xfer_global_translation
-	var to_xfer_translation := to_global_translation - xfer_global_translation
+	var pivot_global_translation := _pivot_node3d.global_position
+	var from_global_translation := _from_node3d.global_position + from_transform.origin
+	var to_global_translation := _to_node3d.global_position + to_transform.origin
+	var from_pivot_translation := from_global_translation - pivot_global_translation
+	var to_pivot_translation := to_global_translation - pivot_global_translation
 	# Godot 3.5.2 BUG? angle_to() seems to break with large vectors. Needs testing.
 	# Workaroud here is to normalize before angle operations.
-	var from_xfer_direction := from_xfer_translation.normalized()
-	var to_xfer_direction := to_xfer_translation.normalized()
-	var rotation_axis := from_xfer_direction.cross(to_xfer_direction).normalized()
+	var from_pivot_direction := from_pivot_translation.normalized()
+	var to_pivot_direction := to_pivot_translation.normalized()
+	var rotation_axis := from_pivot_direction.cross(to_pivot_direction).normalized()
 	if !rotation_axis: # edge case
 		rotation_axis = Vector3(0.0, 0.0, 1.0)
-	var path_angle := from_xfer_direction.angle_to(to_xfer_direction) # < PI
-	var xfer_translation := from_xfer_direction.rotated(rotation_axis, path_angle * progress)
-	xfer_translation *= lerp(from_xfer_translation.length(), to_xfer_translation.length(), progress)
-	var translation_ := xfer_translation + xfer_global_translation - parent.global_position
+	var path_angle := from_pivot_direction.angle_to(to_pivot_direction) # < PI
+	var pivot_translation := from_pivot_direction.rotated(rotation_axis, path_angle * progress)
+	pivot_translation *= lerp(from_pivot_translation.length(), to_pivot_translation.length(), progress)
+	var translation_ := pivot_translation + pivot_global_translation - parent.global_position
 
 	# basis
-	var from_global_basis := _from_spatial.global_transform.basis * from_transform.basis
-	var to_global_basis := _to_spatial.global_transform.basis * to_transform.basis
+	var from_global_basis := _from_node3d.global_transform.basis * from_transform.basis
+	var to_global_basis := _to_node3d.global_transform.basis * to_transform.basis
 	var from_global_quat := Quaternion(from_global_basis)
 	var to_global_quat := Quaternion(to_global_basis)
 	var global_quat := from_global_quat.slerp(to_global_quat, progress)
@@ -509,7 +550,7 @@ func _process_motions_and_rotations(delta: float) -> void:
 
 
 func _process_motion(delta: float) -> void:
-	
+	const math := preload("uid://csb570a3u1x1k")
 	# take motion from accumulator
 	var action_proportion := action_immediacy * delta
 	if action_proportion > 1.0:
@@ -630,6 +671,7 @@ func _process_rotation(delta: float) -> void:
 
 func _get_view_transform(view_position_: Vector3, view_rotations_: Vector3,
 		reference_basis: Basis, perspective_radius_: float) -> Transform3D:
+	const math := preload("uid://csb570a3u1x1k")
 	view_position_.z = clamp(_convert_perspective_dist(view_position_.z, perspective_radius_),
 			MIN_DIST_RADII_METERS, _max_dist)
 	var view_translation := math.convert_rotated_spherical3(view_position_, reference_basis)
@@ -651,14 +693,6 @@ func _get_view_transform(view_position_: Vector3, view_rotations_: Vector3,
 	view_transform.basis *= Basis.from_euler(view_rotations_)
 	view_transform.origin /= translation_multiplier
 	return view_transform
-
-
-static func _get_reference_basis(selection_: IVSelection, flags_: int) -> Basis:
-	if flags_ & CameraFlags.CAMERAFLAGS_TRACK_GROUND:
-		return selection_.get_orientation()
-	if flags_ & CameraFlags.CAMERAFLAGS_TRACK_ORBIT:
-		return selection_.get_orbit_tracking_basis()
-	return Basis.IDENTITY # identity basis for any IVBody
 
 
 func _get_perspective_dist(dist: float, radius: float) -> float:
@@ -701,36 +735,41 @@ func _convert_perspective_dist(persp_dist: float, radius: float) -> float:
 
 
 func _signal_range_latitude_longitude(is_refresh := false) -> void:
+	const math := preload("uid://csb570a3u1x1k")
+	const N_S_E_W := IVQFormat.LatitudeLongitudeType.N_S_E_W
+	const LAT_LON := IVQFormat.LatitudeLongitudeType.LAT_LON
+	
 	if is_refresh:
 		_gui_range = NAN
 		_gui_latitude_longitude = Vector2(NAN, NAN)
 	var gui_translation: Vector3
-	if _to_spatial == parent:
+	if _to_node3d == parent:
 		gui_translation = position
-	else: # move in progress: GUI is showing _to_spatial, not current parent
-		gui_translation = global_position - _to_spatial.global_position
+	else: # move in progress: GUI is showing _to_node3d, not current parent
+		gui_translation = global_position - _to_node3d.global_position
 	var dist := gui_translation.length()
 	if _gui_range != dist:
 		_gui_range = dist
 		range_changed.emit(dist)
-		
-		# debug
-#		var radius := selection.get_perspective_radius()
-#		var persp_dist := _get_perspective_dist(dist, radius)
-#		var conv := _convert_perspective_dist(persp_dist, radius)
-#		prints(persp_dist, conv, dist, conv / dist, dist / persp_dist)
-		
-		
-	var is_ecliptic := dist > gui_ecliptic_coordinates_dist
-	var lat_long: Vector2
-	if is_ecliptic:
-		var ecliptic_translation := global_position - _universe.position
-		lat_long = math.get_latitude_longitude(ecliptic_translation)
+	
+	var lat_lon: Vector2
+	var is_ecliptic := true
+	var lat_lon_type := LAT_LON
+	
+	if dist < gui_ecliptic_coordinates_dist:
+		is_ecliptic = false
+		if target.has_method(&"get_camera_lat_lon_type"):
+			lat_lon_type = target.call(&"get_camera_lat_lon_type")
+		var ground_basis := _get_ground_basis(target)
+		var spherical := math.get_rotated_spherical3(gui_translation, ground_basis)
+		lat_lon = Vector2(spherical[1], wrapf(spherical[0], -PI, PI))
 	else:
-		lat_long = selection.get_latitude_longitude(gui_translation)
-	if _gui_latitude_longitude != lat_long:
-		_gui_latitude_longitude = lat_long
-		latitude_longitude_changed.emit(lat_long, is_ecliptic, selection)
+		lat_lon_type = N_S_E_W
+		var ecliptic_translation := global_position - _universe.position
+		lat_lon = math.get_latitude_longitude(ecliptic_translation)
+	if _gui_latitude_longitude != lat_lon:
+		_gui_latitude_longitude = lat_lon
+		latitude_longitude_changed.emit(lat_lon, is_ecliptic, lat_lon_type)
 
 
 func _on_ui_dirty() -> void:
