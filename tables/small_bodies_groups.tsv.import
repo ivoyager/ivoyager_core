@@ -1,0 +1,14 @@
+[remap]
+
+importer="ivoyager.tables"
+type="IVTableResource"
+uid="uid://cy8yev2krna5t"
+path="res://.godot/imported/small_bodies_groups.tsv-96b7ad4d9aac030593796c5e10174713.tres"
+
+[deps]
+
+source_file="res://addons/ivoyager_core/tables/small_bodies_groups.tsv"
+dest_files=["res://.godot/imported/small_bodies_groups.tsv-96b7ad4d9aac030593796c5e10174713.tres"]
+
+[params]
+

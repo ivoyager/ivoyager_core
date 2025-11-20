@@ -25,7 +25,7 @@ extends HFlowContainer
 ##
 ## [IVViewButton] instances are either default (defined in a data table like
 ## "VIEW_HOME" in
-## [url=https://github.com/ivoyager/ivoyager_core/blob/master/data/tables/views.tsv]
+## [url=https://github.com/ivoyager/ivoyager_core/blob/master/tables/views.tsv]
 ## views.tsv[/url] or user-saved (added at runtime by code and persisted via
 ## cache or gamesave file).[br][br]
 ##
@@ -104,7 +104,7 @@ func open_view_edit(at_control: Control, editing_button: IVViewButton = null) ->
 		return
 	_view_edit.set_editing_button(editing_button) # null if new button creation
 	_view_edit_popup.popup()
-	IVUtils.position_popup_at_corner.call_deferred(_view_edit_popup, at_control, popup_corner)
+	IVWidgets.position_popup_at_corner.call_deferred(_view_edit_popup, at_control, popup_corner)
 
 
 func close_view_edit() -> void:

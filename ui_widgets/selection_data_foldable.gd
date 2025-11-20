@@ -117,7 +117,7 @@ func _ready() -> void:
 			[&"selection_changed", &"_update_selection"])
 	
 	if not theme_type_variation:
-		theme_type_variation = IVUtils.get_tree_string_name(
+		theme_type_variation = IVTree.get_ancestor_string_name(
 				self, &"foldables_theme_type_variation", true)
 
 
@@ -139,8 +139,8 @@ func _arrange_child_controls() -> void:
 func _configure_after_core_inited(_dummy := false) -> void:
 	_wiki_manager = IVGlobal.program.get(&"WikiManager")
 	if _wiki_manager:
-		_use_label_links = IVUtils.get_tree_bool(self, &"enable_selection_data_label_links")
-		_use_value_links = IVUtils.get_tree_bool(self, &"enable_selection_data_value_links")
+		_use_label_links = IVTree.get_ancestor_bool(self, &"enable_selection_data_label_links")
+		_use_value_links = IVTree.get_ancestor_bool(self, &"enable_selection_data_value_links")
 	_enable_precisions = IVCoreSettings.enable_precisions
 	_get_content()
 	_reset_column_widths()
@@ -153,11 +153,12 @@ func _on_selection_manager_changed(selection_manager: IVSelectionManager) -> voi
 
 
 func _get_content() -> void:
-	var selection_data_content := IVUtils.get_tree_dictionary(self, &"selection_data_content")
+	var selection_data_content := IVTree.get_ancestor_dictionary(self, &"selection_data_content")
 	assert(selection_data_content.has(name),
 			"Expected this node's name as key in ancestor Dictionary 'selection_data_content'")
 	_content = selection_data_content[name]
-	var selection_data_valid_tests := IVUtils.get_tree_dictionary(self, &"selection_data_valid_tests")
+	var selection_data_valid_tests := IVTree.get_ancestor_dictionary(self,
+			&"selection_data_valid_tests")
 	if selection_data_valid_tests.has(name):
 		_valid_test = selection_data_valid_tests[name]
 
@@ -197,7 +198,7 @@ func _update_selection(_dummy := false) -> void:
 				continue
 		
 		var value_path: String = row_content[1]
-		var value: Variant = IVUtils.get_path_result(selection, value_path)
+		var value: Variant = IVTree.get_path_variant(selection, value_path)
 		if value == null or is_same(value, NAN):
 			content_row += 1
 			continue

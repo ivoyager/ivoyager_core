@@ -27,7 +27,6 @@ extends RefCounted
 ## on [signal IVStateManager.core_initialized]. When finished, emits [signal
 ## IVStateManager.assets_preloaded].
 
-const files := preload("res://addons/ivoyager_core/static/files.gd")
 const RINGS_LOD_LEVELS := 9 # must agree w/ assets, body.gd and rings.shader
 
 
@@ -181,19 +180,19 @@ func _load_body_resources() -> void:
 			var file_prefix := IVTableData.get_db_string(table, &"file_prefix", row)
 			assert(file_prefix)
 			
-			var texture_2d: Texture2D = files.find_and_load_resource(bodies_2d_search, file_prefix)
+			var texture_2d: Texture2D = IVFiles.find_and_load_resource(bodies_2d_search, file_prefix)
 			if !texture_2d:
 				texture_2d = fallback_texture_2d
 			
 			var texture_slice_2d: Texture2D = null
 			if IVTableData.get_db_bool(table, &"star", row):
-				texture_slice_2d = files.find_and_load_resource(bodies_2d_search,
+				texture_slice_2d = IVFiles.find_and_load_resource(bodies_2d_search,
 						file_prefix + "_slice")
 			
 			var model_type := IVTableData.get_db_int(table, &"model_type", row)
 			var packed_model: PackedScene = null
 			var model_scale := METER
-			var model_path := files.find_resource_file(models_search, file_prefix)
+			var model_path := IVFiles.find_resource_file(models_search, file_prefix)
 			if model_path:
 				packed_model = load(model_path)
 				var model_file := model_path.get_file()
@@ -204,14 +203,14 @@ func _load_body_resources() -> void:
 			var albedo_map: Texture2D = null
 			var emission_map: Texture2D = null
 			var map_offset := 0.0
-			var albedo_path := files.find_resource_file(maps_search, file_prefix + ".albedo")
+			var albedo_path := IVFiles.find_resource_file(maps_search, file_prefix + ".albedo")
 			if albedo_path:
 				albedo_map = load(albedo_path)
 				var albedo_file := albedo_path.get_file()
 				if file_adj_rows.has(albedo_file):
 					map_offset = IVTableData.get_db_float(&"file_adjustments", &"map_offset",
 							file_adj_rows[albedo_file])
-			var emission_path := files.find_resource_file(maps_search, file_prefix + ".emission")
+			var emission_path := IVFiles.find_resource_file(maps_search, file_prefix + ".emission")
 			if emission_path:
 				emission_map = load(emission_path)
 				var emission_file := emission_path.get_file()
@@ -257,13 +256,13 @@ func _load_rings_resources() -> void:
 		for lod in RINGS_LOD_LEVELS:
 			var file_elements := [file_prefix, lod]
 			var backscatter_file := BACKSCATTER_FILE_FORMAT % file_elements
-			var backscatter: Texture2D = files.find_and_load_resource(rings_search, backscatter_file)
+			var backscatter: Texture2D = IVFiles.find_and_load_resource(rings_search, backscatter_file)
 			assert(backscatter, "Failed to load '%s'" % backscatter_file)
 			var forwardscatter_file := FORWARDSCATTER_FILE_FORMAT % file_elements
-			var forwardscatter: Texture2D = files.find_and_load_resource(rings_search, forwardscatter_file)
+			var forwardscatter: Texture2D = IVFiles.find_and_load_resource(rings_search, forwardscatter_file)
 			assert(forwardscatter, "Failed to load '%s'" % forwardscatter_file)
 			var unlitside_file := UNLITSIDE_FILE_FORMAT % file_elements
-			var unlitside: Texture2D = files.find_and_load_resource(rings_search, unlitside_file)
+			var unlitside: Texture2D = IVFiles.find_and_load_resource(rings_search, unlitside_file)
 			assert(unlitside, "Failed to load '%s'" % unlitside_file)
 			
 			# We load as textures, convert to images, then reconvert back to

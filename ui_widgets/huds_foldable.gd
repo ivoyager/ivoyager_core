@@ -77,7 +77,7 @@ func _ready() -> void:
 	add_title_bar_control(huds_hbox)
 	
 	if not theme_type_variation:
-		theme_type_variation = IVUtils.get_tree_string_name(
+		theme_type_variation = IVTree.get_ancestor_string_name(
 				self, &"foldables_theme_type_variation", true)
 
 
@@ -91,11 +91,12 @@ func _set_union_properties() -> void:
 
 
 func _set_union_properties_recursive(control: Control) -> void:
+	const arrays := preload("uid://bv7xrcpcm24nc")
 	for child in control.get_children():
 		var huds_hbox := child as IVHUDsHBox
 		if huds_hbox:
 			body_flags |= huds_hbox.body_flags
-			IVUtils.merge_array(sbg_aliases, huds_hbox.sbg_aliases)
+			arrays.merge_array(sbg_aliases, huds_hbox.sbg_aliases)
 			continue
 		var control_child := child as Control
 		if control_child:

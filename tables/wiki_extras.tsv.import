@@ -1,0 +1,14 @@
+[remap]
+
+importer="ivoyager.tables"
+type="IVTableResource"
+uid="uid://to4ibdecgphc"
+path="res://.godot/imported/wiki_extras.tsv-a6a0a776f3224c9a41b7852da93831fe.tres"
+
+[deps]
+
+source_file="res://addons/ivoyager_core/tables/wiki_extras.tsv"
+dest_files=["res://.godot/imported/wiki_extras.tsv-a6a0a776f3224c9a41b7852da93831fe.tres"]
+
+[params]
+

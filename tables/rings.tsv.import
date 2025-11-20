@@ -1,0 +1,14 @@
+[remap]
+
+importer="ivoyager.tables"
+type="IVTableResource"
+uid="uid://dmi5i4rsgnn0d"
+path="res://.godot/imported/rings.tsv-600109b96a533d83d2d995f099c5e33d.tres"
+
+[deps]
+
+source_file="res://addons/ivoyager_core/tables/rings.tsv"
+dest_files=["res://.godot/imported/rings.tsv-600109b96a533d83d2d995f099c5e33d.tres"]
+
+[params]
+

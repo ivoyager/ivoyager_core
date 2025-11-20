@@ -39,10 +39,10 @@ extends RefCounted
 ## For duplicate keys, 1st in this array will be kept. So prepend this
 ## array if you want to override ivoyager text keys.
 static var translations: Array[String] = [
-	"res://addons/ivoyager_core/data/text/entities_text.en.translation",
-	"res://addons/ivoyager_core/data/text/gui_text.en.translation",
-	"res://addons/ivoyager_core/data/text/hints_text.en.translation",
-	"res://addons/ivoyager_core/data/text/long_text.en.translation",
+	"res://addons/ivoyager_core/text/entities_text.en.translation",
+	"res://addons/ivoyager_core/text/gui_text.en.translation",
+	"res://addons/ivoyager_core/text/hints_text.en.translation",
+	"res://addons/ivoyager_core/text/long_text.en.translation",
 ]
 
 
@@ -96,6 +96,6 @@ func _process_translation(translation: Translation, load_dict: Dictionary,
 		var text := translation.get_message(txt_key)
 		# TODO34: This is fixed now?
 		# Patch for Godot issue #38716 not understanding "\uXXXX".
-		var new_text := IVUtils.c_unescape_patch(text)
+		var new_text := IVStrings.c_unescape_patch(text)
 		if new_text != text:
 			translation.add_message(txt_key, new_text)

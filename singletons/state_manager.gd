@@ -362,7 +362,7 @@ func exit(force_exit := false, following_server := false) -> void:
 	about_to_exit.emit()
 	about_to_free_procedural_nodes.emit()
 	var universe: Node3D = IVGlobal.program[&"Universe"]
-	IVUtils.free_procedural_nodes_recursive(universe)
+	IVTree.free_procedural_nodes_recursive(universe)
 	await _tree.process_frame
 	IVGlobal.close_admin_popups_required.emit()
 	await _tree.process_frame
@@ -400,7 +400,7 @@ func quit(force_quit := false) -> void:
 	about_to_quit.emit()
 	about_to_free_procedural_nodes.emit()
 	var universe: Node3D = IVGlobal.program[&"Universe"]
-	IVUtils.free_procedural_nodes_recursive(universe)
+	IVTree.free_procedural_nodes_recursive(universe)
 	await _tree.process_frame
 	assert(IVDebug.dprint_orphan_nodes())
 	print("Quitting...")

@@ -30,8 +30,6 @@ signal points_color_changed()
 signal orbits_color_changed()
 
 
-const utils := preload("uid://bdoygriurgvtc")
-
 const NULL_COLOR := Color.BLACK
 
 const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY

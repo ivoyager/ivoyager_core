@@ -1,4 +1,4 @@
-# time_set_button.gd
+# arrays.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -17,33 +17,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVTimeSetButton
-extends Button
+class_name IVArrays
+extends Object
 
-## Button widget that opens its own [IVTimeSetPopup].
-
-@export var popup_corner := Corner.CORNER_TOP_LEFT
-@export var popup_stylebox_override: StyleBox
-
-@onready var _time_set_popup: IVTimeSetPopup = $TimeSetPopup
+## Array static utility methods.
 
 
-func _ready() -> void:
-	toggled.connect(_on_toggled)
-	_time_set_popup.visibility_changed.connect(_on_visibility_changed)
-	if popup_stylebox_override:
-		_time_set_popup.add_theme_stylebox_override(&"panel", popup_stylebox_override)
-
-
-func _on_toggled(toggle_pressed: bool) -> void:
-	if toggle_pressed:
-		_time_set_popup.popup()
-		IVWidgets.position_popup_at_corner.call_deferred(_time_set_popup, self, popup_corner)
+## Init array of given [param size], [param fill], and type parameters. Keep
+## [param fill] == null to not fill.
+static func init_array(size: int, fill: Variant = null, type := -1, class_name_ := &"",
+		script: Variant = null) -> Array:
+	var array: Array
+	if type == -1:
+		array = []
 	else:
-		_time_set_popup.hide()
+		array = Array([], type, class_name_, script)
+	array.resize(size)
+	if fill == null:
+		return array
+	array.fill(fill)
+	return array
 
 
-func _on_visibility_changed() -> void:
-	await get_tree().process_frame
-	if !_time_set_popup.visible:
-		button_pressed = false
+## Merges the contents of [param from] Array into the provided [param into]
+## Array [b]without[/b] duplication.
+static func merge_array(into: Array, from: Array) -> void:
+	for item: Variant in from:
+		if not into.has(item):
+			into.append(item)

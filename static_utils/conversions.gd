@@ -1,4 +1,4 @@
-# time_set_button.gd
+# conversions.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -17,33 +17,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVTimeSetButton
-extends Button
+class_name IVConversions
+extends Object
 
-## Button widget that opens its own [IVTimeSetPopup].
-
-@export var popup_corner := Corner.CORNER_TOP_LEFT
-@export var popup_stylebox_override: StyleBox
-
-@onready var _time_set_popup: IVTimeSetPopup = $TimeSetPopup
+## Conversion static utility methods.
 
 
-func _ready() -> void:
-	toggled.connect(_on_toggled)
-	_time_set_popup.visibility_changed.connect(_on_visibility_changed)
-	if popup_stylebox_override:
-		_time_set_popup.add_theme_stylebox_override(&"panel", popup_stylebox_override)
-
-
-func _on_toggled(toggle_pressed: bool) -> void:
-	if toggle_pressed:
-		_time_set_popup.popup()
-		IVWidgets.position_popup_at_corner.call_deferred(_time_set_popup, self, popup_corner)
+static func srgb2linear(color: Color) -> Color:
+	if color.r <= 0.04045:
+		color.r /= 12.92
 	else:
-		_time_set_popup.hide()
+		color.r = pow((color.r + 0.055) / 1.055, 2.4)
+	if color.g <= 0.04045:
+		color.g /= 12.92
+	else:
+		color.g = pow((color.g + 0.055) / 1.055, 2.4)
+	if color.b <= 0.04045:
+		color.b /= 12.92
+	else:
+		color.b = pow((color.b + 0.055) / 1.055, 2.4)
+	return color
 
 
-func _on_visibility_changed() -> void:
-	await get_tree().process_frame
-	if !_time_set_popup.visible:
-		button_pressed = false
+static func linear2srgb(x: float) -> float:
+	if x <= 0.0031308:
+		return x * 12.92
+	else:
+		return pow(x, 1.0 / 2.4) * 1.055 - 0.055

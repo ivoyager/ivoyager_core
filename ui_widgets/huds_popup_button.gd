@@ -37,7 +37,7 @@ func _ready() -> void:
 func _on_toggled(toggle_pressed: bool) -> void:
 	if toggle_pressed:
 		_huds_popup.popup()
-		IVUtils.position_popup_at_corner.call_deferred(_huds_popup, self, popup_corner)
+		IVWidgets.position_popup_at_corner.call_deferred(_huds_popup, self, popup_corner)
 	else:
 		_huds_popup.hide()
 
@@ -49,4 +49,4 @@ func _on_popup_visibility_changed() -> void:
 
 
 func _on_popup_size_changed() -> void:
-	IVUtils.position_popup_at_corner(_huds_popup, self, popup_corner)
+	IVWidgets.position_popup_at_corner(_huds_popup, self, popup_corner)
