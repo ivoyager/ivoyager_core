@@ -1,0 +1,14 @@
+[remap]
+
+importer="ivoyager.tables"
+type="IVTableResource"
+uid="uid://c6go5ar4lrtef"
+path="res://.godot/imported/omni_lights.tsv-0319431d65b96d444943bd5d457ee9ef.tres"
+
+[deps]
+
+source_file="res://addons/ivoyager_core/tables/omni_lights.tsv"
+dest_files=["res://.godot/imported/omni_lights.tsv-0319431d65b96d444943bd5d457ee9ef.tres"]
+
+[params]
+

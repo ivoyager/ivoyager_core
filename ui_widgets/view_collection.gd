@@ -25,7 +25,7 @@ extends HFlowContainer
 ##
 ## [IVViewButton] instances are either default (defined in a data table like
 ## "VIEW_HOME" in
-## [url=https://github.com/ivoyager/ivoyager_core/blob/master/data/tables/views.tsv]
+## [url=https://github.com/ivoyager/ivoyager_core/blob/master/tables/views.tsv]
 ## views.tsv[/url] or user-saved (added at runtime by code and persisted via
 ## cache or gamesave file).[br][br]
 ##

@@ -25,7 +25,7 @@ extends Button
 ##
 ## The button selects an [IVView], which may be a default view defined in a data
 ## table (e.g., "VIEW_HOME" in
-## [url=https://github.com/ivoyager/ivoyager_core/blob/master/data/tables/views.tsv]
+## [url=https://github.com/ivoyager/ivoyager_core/blob/master/tables/views.tsv]
 ## views.tsv[/url]) or a user-saved view that is persisted via cache or gamesave.[br][br]
 ##
 ## For GUI scene building in the editor, only default views can be added. Be

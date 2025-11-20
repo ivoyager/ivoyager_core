@@ -39,10 +39,10 @@ extends RefCounted
 ## For duplicate keys, 1st in this array will be kept. So prepend this
 ## array if you want to override ivoyager text keys.
 static var translations: Array[String] = [
-	"res://addons/ivoyager_core/data/text/entities_text.en.translation",
-	"res://addons/ivoyager_core/data/text/gui_text.en.translation",
-	"res://addons/ivoyager_core/data/text/hints_text.en.translation",
-	"res://addons/ivoyager_core/data/text/long_text.en.translation",
+	"res://addons/ivoyager_core/text/entities_text.en.translation",
+	"res://addons/ivoyager_core/text/gui_text.en.translation",
+	"res://addons/ivoyager_core/text/hints_text.en.translation",
+	"res://addons/ivoyager_core/text/long_text.en.translation",
 ]
 
 

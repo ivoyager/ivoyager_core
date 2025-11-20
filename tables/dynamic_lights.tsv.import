@@ -1,0 +1,14 @@
+[remap]
+
+importer="ivoyager.tables"
+type="IVTableResource"
+uid="uid://bgvpwgdr5j4c"
+path="res://.godot/imported/dynamic_lights.tsv-91f9289bb620865dfc64e06b77e90150.tres"
+
+[deps]
+
+source_file="res://addons/ivoyager_core/tables/dynamic_lights.tsv"
+dest_files=["res://.godot/imported/dynamic_lights.tsv-91f9289bb620865dfc64e06b77e90150.tres"]
+
+[params]
+

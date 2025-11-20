@@ -49,7 +49,7 @@ extends Node3D
 ##          |- PLANET_MERCURY        #  IVBody instances and other
 ##          |- PLANET_VENUS          #  "tree_nodes" are procedurally 
 ##          |- PLANET_EARTH          #  built from *.tsv data tables
-##                 |- SPACECRAFT_ISS #  in "data/tables" directory
+##                 |- SPACECRAFT_ISS #  in "tables" directory
 ##                 |- MOON_MOON      #
 ##          |- ...                   #
 ##
