@@ -19,6 +19,8 @@ Under development using Godot 4.5.1.
 * IVStateManager as an autolaod singleton.
 
 ### Changed
+* Renamed top-level directories. Removed all subdirectories.
+* [API breaking] Moved all utils.gd static methods to new utility files: arrays.gd, conversions.gd, widgets.gd, etc.
 * [Project breaking] Massive overhaul of how the scene tree works. See doc in [IVUniverseTemplate](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/universe_template.gd).
 * [API breaking] Many signals previously in IVGlobal have been removed, renamed and/or moved to IVStateManager (now a singleton).
 * [Project GUI breaking] Removed many obsoleted GUI widgets.
