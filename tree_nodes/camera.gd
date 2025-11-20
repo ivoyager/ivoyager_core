@@ -250,7 +250,6 @@ func move_to(to_node3d: Node3D, to_flags := 0, to_view_position := NULL_VECTOR3,
 		to_view_rotations := NULL_VECTOR3, is_instant_move := false) -> void:
 	
 	const math := preload("uid://csb570a3u1x1k")
-	const utils := preload("uid://bdoygriurgvtc")
 	const CAMERAFLAGS_UP_LOCKED_OR_UNLOCKED := CameraFlags.CAMERAFLAGS_UP_LOCKED_OR_UNLOCKED
 	const CAMERAFLAGS_ANY_TRACKING := CameraFlags.CAMERAFLAGS_ANY_TRACKING
 	assert(!DPRINT or IVDebug.dprint("move_to", [to_node3d, to_flags, to_view_position,
@@ -311,7 +310,7 @@ func move_to(to_node3d: Node3D, to_flags := 0, to_view_position := NULL_VECTOR3,
 			flags &= ~CameraFlags.CAMERAFLAGS_UP_LOCKED
 			flags |= CameraFlags.CAMERAFLAGS_UP_UNLOCKED
 	
-	_pivot_node3d = utils.get_common_node3d(_from_node3d, _to_node3d)
+	_pivot_node3d = IVTree.get_common_node3d(_from_node3d, _to_node3d)
 	
 	# if track change w/out specified longitude, go to current longitude in new reference frame
 	if is_track_change and to_view_position.x == -INF:

@@ -33,6 +33,30 @@ static var _ivcamera: IVCamera
 
 
 
+## Positions [param popup] at [param corner] of [param at_control].
+## Call deferred may be needed if popup changes size when shown.
+static func position_popup_at_corner(popup: Popup, at_control: Control, corner: Corner) -> void:
+	# Note: at_control may be in its own popup. However, popup seems to be always
+	# be in root window even if it was added as descendent of a popup.
+	var popup_size := popup.size
+	var control_size := Vector2i(at_control.size)
+	var root := at_control.get_tree().get_root()
+	var viewport_size := Vector2i(root.get_visible_rect().size)
+	var position := Vector2i(at_control.global_position)
+	var window := at_control.get_window()
+	if window != root: # at_control is in a popup
+		position += window.position
+	if corner == Corner.CORNER_TOP_LEFT or corner == Corner.CORNER_BOTTOM_LEFT:
+		position.x = maxi(position.x - popup_size.x, 0)
+	else:
+		position.x = mini(position.x + control_size.x, viewport_size.x - popup_size.x)
+	if corner == Corner.CORNER_TOP_LEFT or corner == Corner.CORNER_TOP_RIGHT:
+		position.y = maxi(position.y - popup_size.y, 0)
+	else:
+		position.y = mini(position.y + control_size.y, viewport_size.y - popup_size.y)
+	popup.position = position
+
+
 ## Call once when [param widget] is in the scene tree, e.g., in _ready() method.[br][br]
 ##
 ## Expects each widget to have an ancestor Control with property [param

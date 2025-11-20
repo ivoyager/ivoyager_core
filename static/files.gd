@@ -20,7 +20,7 @@
 class_name IVFiles
 extends Object
 
-## File-related static functions.
+## File-related static utility methods.
 
 
 static func init_from_config(object: Object, config: ConfigFile, section: String) -> void:

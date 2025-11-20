@@ -109,7 +109,7 @@ func _configure_after_core_inited() -> void:
 	
 	if IVGlobal.program.has(&"WikiManager"):
 		_enable_links = (!require_links_enabled or
-				IVUtils.get_tree_bool(self, &"enable_huds_hbox_links"))
+				IVTree.get_ancestor_bool(self, &"enable_huds_hbox_links"))
 	
 	if label_text:
 		if _enable_links and link_label_key:
@@ -175,6 +175,6 @@ func _add_to_group(control: Control, column: int) -> void:
 	if !ancestor_column_groups:
 		return
 	var group_name := StringName("column_group_%s" % column)
-	var group: IVControlSizeGroup = IVUtils.get_tree_object(self, group_name)
+	var group: IVControlSizeGroup = IVTree.get_ancestor_object(self, group_name)
 	assert(group, "An ancestor must have property '%s' with an IVControlSizeGroup" % group_name)
 	group.add_control(control)

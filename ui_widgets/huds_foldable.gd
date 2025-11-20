@@ -77,7 +77,7 @@ func _ready() -> void:
 	add_title_bar_control(huds_hbox)
 	
 	if not theme_type_variation:
-		theme_type_variation = IVUtils.get_tree_string_name(
+		theme_type_variation = IVTree.get_ancestor_string_name(
 				self, &"foldables_theme_type_variation", true)
 
 

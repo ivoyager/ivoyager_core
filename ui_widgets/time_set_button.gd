@@ -38,7 +38,7 @@ func _ready() -> void:
 func _on_toggled(toggle_pressed: bool) -> void:
 	if toggle_pressed:
 		_time_set_popup.popup()
-		IVUtils.position_popup_at_corner.call_deferred(_time_set_popup, self, popup_corner)
+		IVWidgets.position_popup_at_corner.call_deferred(_time_set_popup, self, popup_corner)
 	else:
 		_time_set_popup.hide()
 

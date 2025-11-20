@@ -34,7 +34,6 @@ extends MeshInstance3D
 ##
 ## Not persisted. [IVBodyFinisher] adds when [IVBody] is added to the tree.[br][br]
 
-const files := preload("res://addons/ivoyager_core/static/files.gd")
 const ShadowMask := IVGlobal.ShadowMask
 
 const END_PADDING := 0.05 # must be same as ivbinary_maker that generated images
