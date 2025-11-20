@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3 uid="uid://8nvnbivdqm6n"]
 
-[ext_resource type="Script" uid="uid://c2vwtqn0cjvf6" path="res://addons/ivoyager_core/editor_plugin/assets_dialog.gd" id="1_7ivt1"]
+[ext_resource type="Script" uid="uid://c2vwtqn0cjvf6" path="res://addons/ivoyager_core/editor/assets_dialog.gd" id="1_7ivt1"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_7ivt1"]
 bg_color = Color(0.6, 0.6, 0.6, 0)

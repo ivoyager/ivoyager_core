@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://cij2gsmtnwhcb"]
 
-[ext_resource type="Script" uid="uid://h72j00j2qd06" path="res://addons/ivoyager_core/ui_main/world_controller.gd" id="1_kic8r"]
+[ext_resource type="Script" uid="uid://h72j00j2qd06" path="res://addons/ivoyager_core/ui/world_controller.gd" id="1_kic8r"]
 
 [node name="WorldController" type="Control"]
 layout_mode = 3

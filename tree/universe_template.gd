@@ -61,7 +61,7 @@ extends Node3D
 ##          |- IVShowHideUI
 ##                 |- GamePanel1     #
 ##                 |- GamePanel2     #  compose with "ui_widgets"
-##                 |- etc...         #  and "ui_helpers"
+##                 |- etc...         #  and "ui_components"
 ##          |- GameSplashScreen      #
 ##          |- IVMainMenuBasePopup
 ##                 |- IVSaveAsButton [from the Save plugin]
@@ -94,7 +94,7 @@ extends Node3D
 ## [IVWorldEnvironment] is in directory "tree_nodes" with [IVUniverseTemplate]
 ## and Node3D classes.[br][br]
 ##
-## UI classes above from the Core plugin are in directory "ui_main".
+## UI classes above from the Core plugin are in directory "ui".
 ## See [IVFragmentIdentifier], [IVTopUI], [IVWorldController], [IVMouseTargetLabel],
 ## [IVShowHideUI], [IVMainMenuBasePopup], [IVOptionsPopup], [IVHotkeysPopup],
 ## [IVConfirmationDialog].[br][br]
