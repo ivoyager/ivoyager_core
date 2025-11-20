@@ -20,7 +20,7 @@
 class_name IVWidgets
 extends Object
 
-## Static utility methods for GUI widgets.
+## GUI widget static utility methods.
 
 
 # Notes on static vars:

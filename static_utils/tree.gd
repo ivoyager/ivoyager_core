@@ -20,7 +20,7 @@
 class_name IVTree
 extends Object
 
-## Tree-related static utility methods.
+## Tree static utility methods.
 
 
 ## Frees all "procedural" Nodes at or below [param node]. Note: The

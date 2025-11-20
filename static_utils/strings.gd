@@ -1,4 +1,4 @@
-# utils.gd
+# strings.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -17,64 +17,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVUtils
+class_name IVStrings
 extends Object
 
-## Miscellaneous static utility methods.
+## String static utility methods.
 
-
-# Arrays
-
-## Init array of given size, fill content, and type. Will throw error if
-## [code]fill[/code] is incorrect type (leave null to not fill).
-static func init_array(size: int, fill: Variant = null, type := -1, class_name_ := &"",
-		script: Variant = null) -> Array:
-	var array: Array
-	if type == -1:
-		array = []
-	else:
-		array = Array([], type, class_name_, script)
-	array.resize(size)
-	if fill == null:
-		return array
-	array.fill(fill)
-	return array
-
-
-## Merges the contents of [param from] Array into the provided [param into]
-## Array [b]without[/b] duplication.
-static func merge_array(into: Array, from: Array) -> void:
-	for item: Variant in from:
-		if not into.has(item):
-			into.append(item)
-
-
-# Conversions
-
-static func srgb2linear(color: Color) -> Color:
-	if color.r <= 0.04045:
-		color.r /= 12.92
-	else:
-		color.r = pow((color.r + 0.055) / 1.055, 2.4)
-	if color.g <= 0.04045:
-		color.g /= 12.92
-	else:
-		color.g = pow((color.g + 0.055) / 1.055, 2.4)
-	if color.b <= 0.04045:
-		color.b /= 12.92
-	else:
-		color.b = pow((color.b + 0.055) / 1.055, 2.4)
-	return color
-
-
-static func linear2srgb(x: float) -> float:
-	if x <= 0.0031308:
-		return x * 12.92
-	else:
-		return pow(x, 1.0 / 2.4) * 1.055 - 0.055
-
-
-# Number strings
 
 ## Returns 64 bit string formatted '00000000_00000000_00000000_...'.
 static func get_bit_string(flags: int, bytes := 4) -> String:
@@ -89,9 +36,6 @@ static func get_bit_string(flags: int, bytes := 4) -> String:
 		index += 1
 	return result
 
-
-
-# Patches
 
 ## Patch method to handle "\u", which is not handled by Godot's [code]c_unescape()[/code].
 ## See Godot issue #38716. Large unicodes are not supported by Godot, so we

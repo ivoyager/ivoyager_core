@@ -20,7 +20,7 @@
 class_name IVDebug
 extends Object
 
-## Provides debug static functions.
+## Debug static utility functions.
 ##
 ## "dprint", "dlog" and most other functions always return true. They can be
 ## wrapped in assert() so they are called only in debug builds:

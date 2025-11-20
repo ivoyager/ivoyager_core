@@ -20,7 +20,7 @@
 class_name IVMath
 extends Object
 
-## Math-related static utility methods.
+## Math static utility methods.
 
 
 

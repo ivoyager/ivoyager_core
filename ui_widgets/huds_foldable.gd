@@ -91,11 +91,12 @@ func _set_union_properties() -> void:
 
 
 func _set_union_properties_recursive(control: Control) -> void:
+	const arrays := preload("uid://bv7xrcpcm24nc")
 	for child in control.get_children():
 		var huds_hbox := child as IVHUDsHBox
 		if huds_hbox:
 			body_flags |= huds_hbox.body_flags
-			IVUtils.merge_array(sbg_aliases, huds_hbox.sbg_aliases)
+			arrays.merge_array(sbg_aliases, huds_hbox.sbg_aliases)
 			continue
 		var control_child := child as Control
 		if control_child:
