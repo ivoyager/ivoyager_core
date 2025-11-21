@@ -25,9 +25,9 @@ extends Node
 ## Handles input actions for major admin popups (main menu, options, etc.) and
 ## state change (e.g., quit).[br][br]
 ##
-## Shortcut events not handled are passed to Objects added to [member
-## shortcut_handlers]. (In standard setup, [IVTopUI] adds its [IVSelectionManager]
-## to this array.)
+## Shortcut events not handled are passed to Objects in [member
+## shortcut_handlers]. In standard setup, [IVTopUI] adds its [IVSelectionManager]
+## to this array.
 
 
 ## Shortcut events not handled are passed to Objects in this array (in array
@@ -48,13 +48,13 @@ func _ready() -> void:
 func _shortcut_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"ui_cancel"):
 		IVGlobal.main_menu_requested.emit()
-	elif event.is_action_pressed(&"toggle_options"):
+	elif event.is_action_pressed(&"toggle_options", true):
 		IVGlobal.options_requested.emit()
-	elif event.is_action_pressed(&"toggle_hotkeys"):
+	elif event.is_action_pressed(&"toggle_hotkeys", true):
 		IVGlobal.hotkeys_requested.emit()
-	elif event.is_action_pressed(&"toggle_pause"):
+	elif event.is_action_pressed(&"toggle_pause", true):
 		IVStateManager.set_user_paused(not IVStateManager.paused_by_user)
-	elif event.is_action_pressed(&"quit"):
+	elif event.is_action_pressed(&"quit", true):
 		IVStateManager.quit()
 	else:
 		for shortcut_handler in shortcut_handlers:

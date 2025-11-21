@@ -279,7 +279,7 @@ func _on_selection_changed(suppress_camera_move: bool) -> void:
 	if suppress_camera_move or !_camera:
 		return
 	if _camera.is_camera_lock:
-		_camera.move_to(_selection_manager.get_body())
+		_camera.move_to(_selection_manager.get_camera_target())
 
 
 func _on_selection_reselected(suppress_camera_move: bool) -> void:
@@ -290,28 +290,26 @@ func _on_selection_reselected(suppress_camera_move: bool) -> void:
 		_camera.move_to(null, 0, NULL_VECTOR3, Vector3.ZERO)
 	else:
 		# "reselection" means go here and center, even when camera lock is off
-		_camera.move_to(_selection_manager.get_body(), 0, NULL_VECTOR3, Vector3.ZERO)
+		_camera.move_to(_selection_manager.get_camera_target(), 0, NULL_VECTOR3, Vector3.ZERO)
 
 
 func _on_camera_lock_changed(is_camera_lock: bool) -> void:
 	if is_camera_lock:
-		_camera.move_to(_selection_manager.get_body())
+		_camera.move_to(_selection_manager.get_camera_target(), 0, NULL_VECTOR3, Vector3.ZERO)
 
 
 func _on_mouse_target_clicked(target: Object, _button_mask: int, _key_modifier_mask: int) -> void:
-	# We only handle IVBody as target object for now. This could change.
+	# FIXME: mouse_target_clicked needs a camera_target: Node3D and selection: Object.
+	# For now, these are both IVBody.
 	if !_camera:
 		return
-	@warning_ignore("unsafe_property_access") # any mouse target must have 'name'
-	var target_name: StringName = target.name
-	var selection := _selection_manager.get_or_make_selection(target_name)
-	if !selection:
-		return
-	if _camera.is_camera_lock: # move via selection
-		_selection_manager.select(selection)
+	if _camera.is_camera_lock:
+		var selection := target
+		_selection_manager.select(selection) # moves camera via selection_changed signal
 	else: # move camera directly
+		var camera_target: Node3D = target
 		# Cancel rotations, but keep relative position.
-		_camera.move_to(_selection_manager.get_body())
+		_camera.move_to(camera_target, 0, NULL_VECTOR3, Vector3.ZERO)
 
 
 func _on_mouse_dragged(drag_vector: Vector2, button_mask: int, key_modifier_mask: int) -> void:

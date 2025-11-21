@@ -48,20 +48,20 @@ func _on_selection_manager_changed(selection_manager: IVSelectionManager) -> voi
 
 func _back() -> void:
 	if _selection_manager:
-		_selection_manager.back()
+		_selection_manager.select_history_back()
 
 
 func _forward() -> void:
 	if _selection_manager:
-		_selection_manager.forward()
+		_selection_manager.select_history_forward()
 
 
 func _up() -> void:
 	if _selection_manager:
-		_selection_manager.up()
+		_selection_manager.select_up()
 
 
 func _update_buttons(_dummy := false) -> void:
-	_back_buttion.disabled = !_selection_manager.can_go_back()
-	_forward_buttion.disabled = !_selection_manager.can_go_forward()
-	_up_buttion.disabled = !_selection_manager.can_go_up()
+	_back_buttion.disabled = !_selection_manager.has_history_back()
+	_forward_buttion.disabled = !_selection_manager.has_history_forward()
+	_up_buttion.disabled = !_selection_manager.has_up()

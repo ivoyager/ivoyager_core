@@ -57,7 +57,7 @@ func _on_selection_manager_changed(selection_manager: IVSelectionManager) -> voi
 
 
 func _update_selection(_dummy := false) -> void:
-	var selection_name := _selection_manager.get_selection_name()
+	var selection_name := _selection_manager.get_name()
 	var gui_name := _selection_manager.get_gui_name()
 	if _wiki_manager and _wiki_manager.has_page(selection_name):
 		parse_bbcode('[url="%s"]%s[/url]' % [selection_name, gui_name])

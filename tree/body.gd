@@ -205,6 +205,8 @@ static var min_hud_dist_radius_multiplier := 500.0
 static var min_hud_dist_star_multiplier := 20.0
 
 ## A static class dictionary that contains all added IVBody instances.
+## FIXME: Planet-moon order is perfect after load, but not on new game. This
+## messes up selection. 
 static var bodies: Dictionary[StringName, IVBody] = {}
 ## A static class dictionary that contains IVBody instances that are at the top
 ## of a system (i.e., the primary star for every star system).
@@ -995,7 +997,7 @@ func get_orbit_tracking_basis(time := NAN) -> Basis:
 
 
 # *****************************************************************************
-# IVCamera duck type methods...
+# IVCamera duck-type methods...
 
 func get_camera_radius() -> float:
 	return mean_radius
@@ -1005,7 +1007,7 @@ func get_camera_ground_basis() -> Basis:
 	return get_orientation()
 
 
-# FIXME: Do we need get_orbit_tracking_basis()?
+# FIXME: Do we need get_orbit_tracking_basis()? This is very camera-specific.
 func get_camera_orbit_basis() -> Basis:
 	var orbit_basis := get_orbit_tracking_basis()
 	if flags & BodyFlags.BODYFLAGS_STAR_ORBITER:
@@ -1022,7 +1024,212 @@ func get_camera_lat_lon_type() -> IVQFormat.LatitudeLongitudeType:
 	if flags & BodyFlags.BODYFLAGS_USE_PITCH_YAW:
 		return PITCH_YAW
 	return LAT_LON
+
+
+# *****************************************************************************
+# IVSelectionManager duck-type methods...
+
+func get_selection_up() -> IVBody:
+	return parent
+
+
+func get_selection_down() -> IVBody:
+	# Return 1st "nav panel" satellite if one exists.
+	const SHOW_IN_NAVIGATION_PANEL := BodyFlags.BODYFLAGS_SHOW_IN_NAVIGATION_PANEL
+	for satellite_name in satellites:
+		if satellites[satellite_name].flags & SHOW_IN_NAVIGATION_PANEL:
+			return satellites[satellite_name]
+	return null
+
+
+func get_selection_next() -> IVBody:
+	# Next of whatever this body is.
 	
+	return null
+
+
+func get_selection_last() -> IVBody:
+	return null
+
+
+func get_selection_next_star() -> IVBody:
+	return null
+
+
+func get_selection_last_star() -> IVBody:
+	return null
+
+
+func get_selection_next_planet() -> IVBody:
+	const PLANET_OR_DWARF_PLANET := BodyFlags.BODYFLAGS_PLANET_OR_DWARF_PLANET
+	var array: Array[IVBody] = bodies.values()
+	var size := array.size()
+	var self_pos := array.find(self)
+	assert(self_pos >= 0)
+	var pos := self_pos + 1
+	while pos < size:
+		if array[pos].flags & PLANET_OR_DWARF_PLANET:
+			return array[pos]
+		pos += 1
+	pos = 0
+	while pos < self_pos:
+		if array[pos].flags & PLANET_OR_DWARF_PLANET:
+			return array[pos]
+		pos += 1
+	return null
+
+
+func get_selection_last_planet() -> IVBody:
+	const PLANET_OR_DWARF_PLANET := BodyFlags.BODYFLAGS_PLANET_OR_DWARF_PLANET
+	var array: Array[IVBody] = bodies.values()
+	var self_pos := array.find(self)
+	assert(self_pos >= 0)
+	var pos := self_pos - 1
+	while pos >= 0:
+		if array[pos].flags & PLANET_OR_DWARF_PLANET:
+			return array[pos]
+		pos -= 1
+	pos = array.size() - 1
+	while pos > self_pos:
+		if array[pos].flags & PLANET_OR_DWARF_PLANET:
+			return array[pos]
+		pos -= 1
+	return null
+
+
+func get_selection_next_major_moon() -> IVBody:
+	const NAV_MOON := BodyFlags.BODYFLAGS_SHOW_IN_NAVIGATION_PANEL | BodyFlags.BODYFLAGS_MOON
+	var array: Array[IVBody] = bodies.values()
+	var size := array.size()
+	var self_pos := array.find(self)
+	assert(self_pos >= 0)
+	var pos := self_pos + 1
+	while pos < size:
+		if array[pos].flags & NAV_MOON == NAV_MOON:
+			return array[pos]
+		pos += 1
+	pos = 0
+	while pos < self_pos:
+		if array[pos].flags & NAV_MOON == NAV_MOON:
+			return array[pos]
+		pos += 1
+	return null
+
+
+func get_selection_last_major_moon() -> IVBody:
+	const NAV_MOON := BodyFlags.BODYFLAGS_SHOW_IN_NAVIGATION_PANEL | BodyFlags.BODYFLAGS_MOON
+	var array: Array[IVBody] = bodies.values()
+	var self_pos := array.find(self)
+	assert(self_pos >= 0)
+	var pos := self_pos - 1
+	while pos >= 0:
+		if array[pos].flags & NAV_MOON == NAV_MOON:
+			return array[pos]
+		pos -= 1
+	pos = array.size() - 1
+	while pos > self_pos:
+		if array[pos].flags & NAV_MOON == NAV_MOON:
+			return array[pos]
+		pos -= 1
+	return null
+
+
+func get_selection_next_moon() -> IVBody:
+	const MOON := BodyFlags.BODYFLAGS_MOON
+	var array: Array[IVBody] = bodies.values()
+	var size := array.size()
+	var self_pos := array.find(self)
+	assert(self_pos >= 0)
+	var pos := self_pos + 1
+	while pos < size:
+		if array[pos].flags & MOON:
+			return array[pos]
+		pos += 1
+	pos = 0
+	while pos < self_pos:
+		if array[pos].flags & MOON:
+			return array[pos]
+		pos += 1
+	return null
+
+
+func get_selection_last_moon() -> IVBody:
+	const MOON := BodyFlags.BODYFLAGS_MOON
+	var array: Array[IVBody] = bodies.values()
+	var self_pos := array.find(self)
+	assert(self_pos >= 0)
+	var pos := self_pos - 1
+	while pos >= 0:
+		if array[pos].flags & MOON:
+			return array[pos]
+		pos -= 1
+	pos = array.size() - 1
+	while pos > self_pos:
+		if array[pos].flags & MOON:
+			return array[pos]
+		pos -= 1
+	return null
+
+
+func get_selection_next_spacecraft() -> IVBody:
+	const SPACECRAFT := BodyFlags.BODYFLAGS_SPACECRAFT
+	var array: Array[IVBody] = bodies.values()
+	var size := array.size()
+	var self_pos := array.find(self)
+	assert(self_pos >= 0)
+	var pos := self_pos + 1
+	while pos < size:
+		if array[pos].flags & SPACECRAFT:
+			return array[pos]
+		pos += 1
+	pos = 0
+	while pos < self_pos:
+		if array[pos].flags & SPACECRAFT:
+			return array[pos]
+		pos += 1
+	return null
+
+
+func get_selection_last_spacecraft() -> IVBody:
+	const SPACECRAFT := BodyFlags.BODYFLAGS_SPACECRAFT
+	var array: Array[IVBody] = bodies.values()
+	var self_pos := array.find(self)
+	assert(self_pos >= 0)
+	var pos := self_pos - 1
+	while pos >= 0:
+		if array[pos].flags & SPACECRAFT:
+			return array[pos]
+		pos -= 1
+	pos = array.size() - 1
+	while pos > self_pos:
+		if array[pos].flags & SPACECRAFT:
+			return array[pos]
+		pos -= 1
+	return null
+
+
+# *****************************************************************************
+# For GUI...
+
+
+func get_periapsis_label() -> StringName:
+	if parent:
+		if parent.name == &"STAR_SUN":
+			return &"LABEL_PERIHELION"
+		if parent.name == &"PLANET_EARTH":
+			return &"LABEL_PERIGEE"
+	return &"LABEL_PERIAPSIS"
+
+
+func get_apoapsis_label() -> StringName:
+	if parent:
+		if parent.name == &"STAR_SUN":
+			return &"LABEL_APHELION"
+		if parent.name == &"PLANET_EARTH":
+			return &"LABEL_APOGEE"
+	return &"LABEL_APOAPSIS"
+
+
 	
 
 # *****************************************************************************

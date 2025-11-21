@@ -181,7 +181,7 @@ func _update_selection(_dummy := false) -> void:
 	if !selection:
 		hide()
 		return
-	if _valid_test and !_valid_test.call(selection):
+	if _valid_test and !_valid_test.call():
 		hide()
 		return
 	var grid_row := 0
@@ -193,7 +193,7 @@ func _update_selection(_dummy := false) -> void:
 		# hide callable?
 		if row_content.size() > 3:
 			var hide_callable: Callable = row_content[3]
-			if hide_callable.call(selection):
+			if hide_callable.call():
 				content_row += 1
 				continue
 		
@@ -215,11 +215,11 @@ func _update_selection(_dummy := false) -> void:
 			var format: Callable = row_content[2]
 			var internal_precision := -1
 			if _enable_precisions:
-				internal_precision = selection.get_float_precision(value_path)
-			value_text = format.call(selection, value, internal_precision)
+				internal_precision = _selection_manager.get_float_precision(value_path)
+			value_text = format.call(value, internal_precision)
 		else:
 			var format: Callable = row_content[2]
-			var formatted_value: Variant = format.call(selection, value)
+			var formatted_value: Variant = format.call(value)
 			if formatted_value is Array:
 				# Set full row row_content here, not below!
 				var list_array: Array[String] = formatted_value
@@ -241,7 +241,7 @@ func _update_selection(_dummy := false) -> void:
 		var row_label: StringName
 		if row_content[0] is Callable:
 			var label_callable: Callable = row_content[0]
-			row_label = label_callable.call(selection)
+			row_label = label_callable.call()
 		else:
 			row_label = row_content[0]
 		_set_row(grid_row, row_label, value_text, value_key)

@@ -85,7 +85,7 @@ func _ready() -> void:
 
 
 func _pressed() -> void:
-	_selection_manager.select_body(_body)
+	_selection_manager.select(_body)
 
 
 func _configure_for_system_tree(_dummy := false) -> void:
