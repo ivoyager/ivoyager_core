@@ -22,17 +22,30 @@ extends Node
 
 ## Handles input not handled in class files.
 ##
-## Handle input here that can't be handled in the class file for some reason.
-## E.g., input needed while a Node is paused, Popups and Dialogs that don't
-## recieve input passed in the root Window, etc.
+## Handles input actions for major admin popups (main menu, options, etc.) and
+## state change (e.g., quit).[br][br]
+##
+## Shortcut events not handled are passed to Objects added to [member
+## shortcut_handlers]. (In standard setup, [IVTopUI] adds its [IVSelectionManager]
+## to this array.)
+
+
+## Shortcut events not handled are passed to Objects in this array (in array
+## order) until an object handles the event. Objects must have method
+## [code]handle_shortcut_input()[/code] and the method must return [code]true[/code]
+## if the event is handled. Objects should NOT call [method
+## Viewport.set_input_as_handled].
+var shortcut_handlers: Array[Object] = []
+
+
+@onready var _viewport := get_viewport()
+
 
 func _ready() -> void:
 	process_mode = PROCESS_MODE_ALWAYS
 
 
 func _shortcut_input(event: InputEvent) -> void:
-	if not event.is_pressed():
-		return
 	if event.is_action_pressed(&"ui_cancel"):
 		IVGlobal.main_menu_requested.emit()
 	elif event.is_action_pressed(&"toggle_options"):
@@ -44,5 +57,9 @@ func _shortcut_input(event: InputEvent) -> void:
 	elif event.is_action_pressed(&"quit"):
 		IVStateManager.quit()
 	else:
+		for shortcut_handler in shortcut_handlers:
+			if shortcut_handler.call(&"handle_shortcut_input", event):
+				_viewport.set_input_as_handled()
+				return
 		return # input not handled
-	get_viewport().set_input_as_handled()
+	_viewport.set_input_as_handled()

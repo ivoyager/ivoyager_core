@@ -18,7 +18,7 @@
 # limitations under the License.
 # *****************************************************************************
 class_name IVSelectionManager
-extends Node
+extends RefCounted
 
 ## Has currently selected item (using [IVSelection] wrapper class) and keeps
 ## selection history. 
@@ -70,7 +70,7 @@ const BodyFlags := IVBody.BodyFlags
 
 const PERSIST_MODE := IVGlobal.PERSIST_PROCEDURAL
 const PERSIST_PROPERTIES: Array[StringName] = [
-	&"is_action_listener",
+	#&"is_action_listener",
 	&"selection",
 ]
 
@@ -78,7 +78,7 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 static var replacement_subclass: Script
 
 # persisted
-var is_action_listener := true
+#var is_action_listener := true
 var selection: IVSelection
 
 # private
@@ -138,54 +138,50 @@ static func get_body_at_above_selection_w_flags(selection_: IVSelection, flags: 
 
 
 
-# TODO: Remove all name sets (except where needed) and allow name to have "IV" prefix
 func _init() -> void:
-	name = &"SelectionManager"
-
-
-func _ready() -> void:
 	IVStateManager.system_tree_ready.connect(_on_system_tree_ready)
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
 	IVGlobal.ui_dirty.connect(_on_ui_dirty)
-	set_process_shortcut_input(is_action_listener)
 
 
-func _shortcut_input(event: InputEvent) -> void:
-	if not event.is_pressed():
-		return
-	if event.is_action_pressed("select_forward"):
+## Pass shortcut input here if this manager needs to handle it. Returns true
+## if handled. Does NOT call [method Viewport.set_input_as_handled].
+func handle_shortcut_input(event: InputEvent) -> bool:
+	if !event.is_pressed() or !event.is_action_type():
+		return false
+	if event.is_action("select_forward"):
 		forward()
-	elif event.is_action_pressed("select_back"):
+	elif event.is_action("select_back"):
 		back()
-	elif event.is_action_pressed("select_left"):
+	elif event.is_action("select_left"):
 		next_last(-1)
-	elif event.is_action_pressed("select_right"):
+	elif event.is_action("select_right"):
 		next_last(1)
-	elif event.is_action_pressed("select_up"):
+	elif event.is_action("select_up"):
 		up()
-	elif event.is_action_pressed("select_down"):
+	elif event.is_action("select_down"):
 		down()
-	elif event.is_action_pressed("next_star"):
+	elif event.is_action("next_star"):
 		next_last(1, SELECTION_STAR)
-	elif event.is_action_pressed("previous_planet"):
+	elif event.is_action("previous_planet"):
 		next_last(-1, SELECTION_PLANET)
-	elif event.is_action_pressed("next_planet"):
+	elif event.is_action("next_planet"):
 		next_last(1, SELECTION_PLANET)
-	elif event.is_action_pressed("previous_nav_moon"):
+	elif event.is_action("previous_nav_moon"):
 		next_last(-1, SELECTION_NAVIGATOR_MOON)
-	elif event.is_action_pressed("next_nav_moon"):
+	elif event.is_action("next_nav_moon"):
 		next_last(1, SELECTION_NAVIGATOR_MOON)
-	elif event.is_action_pressed("previous_moon"):
+	elif event.is_action("previous_moon"):
 		next_last(-1, SELECTION_MOON)
-	elif event.is_action_pressed("next_moon"):
+	elif event.is_action("next_moon"):
 		next_last(1, SELECTION_MOON)
-	elif event.is_action_pressed("previous_spacecraft"):
+	elif event.is_action("previous_spacecraft"):
 		next_last(-1, SELECTION_SPACECRAFT)
-	elif event.is_action_pressed("next_spacecraft"):
+	elif event.is_action("next_spacecraft"):
 		next_last(1, SELECTION_SPACECRAFT)
 	else:
-		return # input NOT handled!
-	get_viewport().set_input_as_handled()
+		return false # input NOT handled!
+	return true
 
 
 
