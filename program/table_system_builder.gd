@@ -77,6 +77,10 @@ func _add_bodies() -> void:
 			_add_bodies_from_top(name, table_dict)
 
 
+# WIP: Instantiate as done already. Add to array. Sort w/ IVBody.sort_bodies().
+# Then add to tree.
+
+
 func _add_bodies_from_top(name: StringName, table_dict: Dictionary[StringName, StringName]) -> void:
 	
 	# Add ancestors recursively from top, then this one.

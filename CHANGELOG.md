@@ -19,6 +19,8 @@ Under development using Godot 4.5.1.
 * IVStateManager as an autolaod singleton.
 
 ### Changed
+* Overhauled IVSelectionManager to handle any Object type as selection (yay duck-typing!).
+* Overhauled IVCamera & IVCameraHanlder to handle any Node3D as target (yay more duck-typing!).
 * Renamed top-level directories. Removed all subdirectories.
 * [API breaking] Moved all utils.gd static methods to new utility files: arrays.gd, conversions.gd, widgets.gd, etc.
 * [Project breaking] Massive overhaul of how the scene tree works. See doc in [IVUniverseTemplate](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/universe_template.gd).
