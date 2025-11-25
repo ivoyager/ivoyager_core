@@ -65,7 +65,6 @@ func build_system_tree() -> void:
 		_add_camera()
 
 
-
 func _add_bodies() -> void:
 	var table_dict: Dictionary[StringName, StringName] = {}
 	for table_name in IVCoreSettings.body_tables:
@@ -75,10 +74,6 @@ func _add_bodies() -> void:
 	for name: StringName in table_dict:
 		if !_bodies.has(name):
 			_add_bodies_from_top(name, table_dict)
-
-
-# WIP: Instantiate as done already. Add to array. Sort w/ IVBody.sort_bodies().
-# Then add to tree.
 
 
 func _add_bodies_from_top(name: StringName, table_dict: Dictionary[StringName, StringName]) -> void:

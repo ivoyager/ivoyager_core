@@ -1,8 +1,8 @@
 [gd_scene load_steps=2 format=3 uid="uid://b7a02wvmqua4q"]
 
-[ext_resource type="Script" uid="uid://crnnlljrb6jna" path="res://addons/ivoyager_core/ui_widgets/now_ckbx.gd" id="1"]
+[ext_resource type="Script" uid="uid://crnnlljrb6jna" path="res://addons/ivoyager_core/ui_widgets/sync_os_time_checkbox.gd" id="1"]
 
-[node name="NowCkbx" type="CheckBox"]
+[node name="SyncOSTimeCheckBox" type="CheckBox"]
 offset_right = 24.0
 offset_bottom = 24.0
 tooltip_text = "HINT_TIME_REAL"

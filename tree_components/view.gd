@@ -36,8 +36,8 @@ enum ViewFlags { # flags
 	VIEWFLAGS_HUDS_VISIBILITY = 1 << 3,
 	VIEWFLAGS_HUDS_COLOR = 1 << 4,
 	
-	VIEWFLAGS_TIME_STATE = 1 << 5,
-	VIEWFLAGS_IS_NOW = 1 << 6,
+	VIEWFLAGS_TIME_STATE = 1 << 5, # usually only game speed & pause
+	VIEWFLAGS_SYNC_OS_TIME = 1 << 6, # usually not avialable
 	
 	# sets
 	VIEWFLAGS_ALL_CAMERA = (1 << 3) - 1,
@@ -67,6 +67,7 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"sbg_orbits_colors",
 	&"time",
 	&"speed_index",
+	&"user_paused",
 	&"is_reversed",
 	&"edited_default",
 ]
@@ -98,6 +99,7 @@ var sbg_points_colors: Dictionary[StringName, Color] = {} # has non-default only
 var sbg_orbits_colors: Dictionary[StringName, Color] = {} # has non-default only
 var time := 0.0
 var speed_index := 0
+var user_paused := false
 var is_reversed := false
 var edited_default := &"" # not part of view, but used by GUI managing code
 
@@ -154,6 +156,7 @@ func reset() -> void:
 	sbg_orbits_colors.clear()
 	time = 0.0
 	speed_index = 0
+	user_paused = false
 	is_reversed = false
 
 
@@ -241,22 +244,24 @@ func _set_huds_state() -> void:
 
 func _save_time_state() -> void:
 	# If both TIME_STATE and IS_NOW flags set, we unset one depending on
-	# IVTimekeeper.is_now.
-	if flags & ViewFlags.VIEWFLAGS_IS_NOW and _timekeeper.is_now:
+	# IVTimekeeper.sync_with_os_time.
+	if flags & ViewFlags.VIEWFLAGS_SYNC_OS_TIME and _timekeeper.sync_with_os_time:
 		flags &= ~ViewFlags.VIEWFLAGS_TIME_STATE
 	if flags & ViewFlags.VIEWFLAGS_TIME_STATE:
-		flags &= ~ViewFlags.VIEWFLAGS_IS_NOW
+		flags &= ~ViewFlags.VIEWFLAGS_SYNC_OS_TIME
 		time = _timekeeper.time
 		speed_index = _timekeeper.speed_index
+		user_paused = IVStateManager.paused_by_user
 		is_reversed = _timekeeper.is_reversed
 
 
 func _set_time_state() -> void:
 	# Note: IVTimekeeper ignores set functions that are disallowed in IVCoreSettings
-	# project settings. In most game applications, only speed is set.
+	# project settings. In most game applications, only speed and pause is set.
 	if flags & ViewFlags.VIEWFLAGS_TIME_STATE:
 		_timekeeper.set_time(time)
 		_timekeeper.change_speed(0, speed_index)
+		IVStateManager.set_user_paused(user_paused)
 		_timekeeper.set_time_reversed(is_reversed)
-	elif flags & ViewFlags.VIEWFLAGS_IS_NOW:
-		_timekeeper.set_now_from_operating_system()
+	elif flags & ViewFlags.VIEWFLAGS_SYNC_OS_TIME:
+		_timekeeper.set_time_from_os()

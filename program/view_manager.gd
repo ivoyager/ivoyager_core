@@ -72,6 +72,9 @@ func get_table_view_flags(view_name: StringName) -> int:
 
 func save_view(view_name: String, collection_name: String, is_cached: bool, flags: int,
 		allow_threaded_cache_write := true) -> void:
+	
+	prints("save_view", view_name, collection_name, is_cached)
+	
 	var key := view_name + "." + collection_name
 	var view := get_view_object(view_name, collection_name, is_cached)
 	if view:

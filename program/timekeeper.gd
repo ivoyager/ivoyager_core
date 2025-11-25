@@ -68,13 +68,10 @@ enum DateFormat {
 }
 
 
-const NetworkState = IVStateManager.NetworkState
-
-const SECOND := IVUnits.SECOND # sim_time conversion
-const MINUTE := IVUnits.MINUTE
-const HOUR := IVUnits.HOUR
-const DAY := IVUnits.DAY
-const J2000_JDN := 2451545 # Julian Day Number (JDN) of J2000 epoch time
+## J2000 epoch Julian Day Number (JDN)
+const J2000_JDN := 2451545
+## Unix epoch time in seconds, relative to J2000 epoch (2000-01-01, 12:00).
+const UNIX_EPOCH := -946728000.0
 
 
 const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY
@@ -132,7 +129,7 @@ var date_format_for_file := "%02d-%02d-%02d" # keep safe for file name!
 var times: Array[float] = IVGlobal.times # [0] time (s, J2000) [1] engine_time [2] UT1 (floats)
 var date: Array[int] = IVGlobal.date # Gregorian (ints); see DATE_FORMAT_ enums
 var clock: Array[int] = IVGlobal.clock # UT1 [0] hour [1] minute [2] second (ints)
-var is_now := false
+var sync_with_os_time := false
 var engine_time: float # accumulated delta
 var speed_multiplier: float # negative if is_reversed
 var show_clock := false
@@ -144,7 +141,7 @@ var speed_symbol: StringName
 var _allow_time_setting := IVCoreSettings.allow_time_setting
 var _allow_time_reversal := IVCoreSettings.allow_time_reversal
 #var _disable_pause: bool = IVCoreSettings.disable_pause
-var _network_state := NetworkState.NO_NETWORK
+var _network_state := IVStateManager.NetworkState.NO_NETWORK
 var _is_sync := false
 #var _sync_engine_time := -INF
 #var _adj_sync_tolerance := 0.0
@@ -160,6 +157,10 @@ var _prev_whole_solar_day := NAN
 ## Return is not exact depending on input type (UT1, UTC, etc.) but very close.
 ## Assumes valid input! To test valid date, use [method is_valid_gregorian_date].
 static func get_sim_time(Y: int, M: int, D: int, h := 12, m := 0, s := 0) -> float:
+	const SECOND := IVUnits.SECOND
+	const MINUTE := IVUnits.MINUTE
+	const HOUR := IVUnits.HOUR
+	const DAY := IVUnits.DAY
 	var jdn := gregorian2jdn(Y, M, D)
 	var j2000days := float(jdn - J2000_JDN)
 	var sim_time := (j2000days - 0.5) * DAY
@@ -305,8 +306,8 @@ func _shortcut_input(event: InputEvent) -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_IN:
-		if is_now:
-			set_now_from_operating_system()
+		if sync_with_os_time:
+			set_time_from_os()
 
 
 # *****************************************************************************
@@ -337,6 +338,7 @@ func get_gregorian_date_time(sim_time := NAN) -> Array[Array]:
 
 
 func get_solar_day(sim_time := NAN) -> float:
+	const DAY := IVUnits.DAY
 	if is_nan(sim_time):
 		sim_time = time
 	# TODO: Return days corresponding to simulated Earth solar day.
@@ -346,24 +348,24 @@ func get_solar_day(sim_time := NAN) -> float:
 
 func get_time_from_solar_day(solar_day_: float) -> float:
 	# Inverse of whatever we do above.
+	const DAY := IVUnits.DAY
 	return (solar_day_ - 0.5) * DAY
 
 
 func get_jdn_for_solar_day(solar_day_: float) -> int:
+	const DAY := IVUnits.DAY
 	var solar_day_noon := floorf(solar_day_) + 0.5
 	var sim_time := get_time_from_solar_day(solar_day_noon)
 	var j2000day := sim_time / DAY
 	return floori(j2000day) + J2000_JDN
 
 
-func get_time_from_operating_system() -> float:
-	
-	# TEST34: Time.get_unix_time_from_system() did not previously work in
+func get_time_from_os() -> float:
+	const SECOND := IVUnits.SECOND
+	# TEST: Time.get_unix_time_from_system() did not previously work in
 	# HTML5 export, so we used OS.get_system_time_msecs(). This needs testing.
-	
 	var unix_time := Time.get_unix_time_from_system()
-
-	var j2000sec := unix_time - 946728000.0
+	var j2000sec := unix_time + UNIX_EPOCH
 	return j2000sec * SECOND
 
 
@@ -372,46 +374,51 @@ func get_current_date_for_file() -> String:
 
 
 func set_time(new_time: float) -> void:
-	if !_allow_time_setting:
+	const IS_CLIENT = IVStateManager.NetworkState.IS_CLIENT
+	if not _allow_time_setting:
 		return
-	if _network_state == NetworkState.IS_CLIENT:
+	if _network_state == IS_CLIENT:
 		return
 	var previous_time := time
 	time = new_time
-	is_now = false
+	sync_with_os_time = false
 	_reset_time()
 	time_altered.emit(previous_time)
 
 
-func set_now_from_operating_system() -> void:
-	if !_allow_time_setting:
+func set_time_from_os() -> void:
+	const IS_CLIENT = IVStateManager.NetworkState.IS_CLIENT
+	if not _allow_time_setting:
 		return
-	if _network_state == NetworkState.IS_CLIENT:
+	if _network_state == IS_CLIENT:
 		return
-	if !is_now:
+	IVStateManager.set_user_paused(false)
+	if not sync_with_os_time:
 		set_time_reversed(false)
 		change_speed(0, real_time_speed)
-		is_now = true
+		sync_with_os_time = true
 	var previous_time := time
-	time = get_time_from_operating_system()
+	time = get_time_from_os()
 	_reset_time()
-	prints("Setting date and time from operating system:", date, clock)
 	time_altered.emit(previous_time)
+	prints("Synchronized time with operating system", date, clock)
 
 
 func set_time_reversed(new_is_reversed: bool) -> void:
-	if !_allow_time_setting or !_allow_time_reversal or is_reversed == new_is_reversed:
+	const IS_CLIENT = IVStateManager.NetworkState.IS_CLIENT
+	if !_allow_time_reversal or is_reversed == new_is_reversed:
 		return
-	if _network_state == NetworkState.IS_CLIENT:
+	if _network_state == IS_CLIENT:
 		return
 	is_reversed = new_is_reversed
 	speed_multiplier *= -1.0
-	is_now = false
+	sync_with_os_time = false
 	speed_changed.emit()
 
 
 func change_speed(delta_index: int, new_index := -1) -> void:
-	if _network_state == NetworkState.IS_CLIENT:
+	const IS_CLIENT = IVStateManager.NetworkState.IS_CLIENT
+	if _network_state == IS_CLIENT:
 		return
 	# Supply [0, new_index] to set a specific index
 	if new_index == -1:
@@ -423,19 +430,21 @@ func change_speed(delta_index: int, new_index := -1) -> void:
 	if new_index == speed_index:
 		return
 	speed_index = new_index
-	is_now = false
+	sync_with_os_time = false
 	_reset_speed()
 	speed_changed.emit()
 
 
 func can_increment_speed() -> bool:
-	if _network_state == NetworkState.IS_CLIENT:
+	const IS_CLIENT = IVStateManager.NetworkState.IS_CLIENT
+	if _network_state == IS_CLIENT:
 		return false
 	return speed_index < speeds.size() - 1
 
 
 func can_decrement_speed() -> bool:
-	if _network_state == NetworkState.IS_CLIENT:
+	const IS_CLIENT = IVStateManager.NetworkState.IS_CLIENT
+	if _network_state == IS_CLIENT:
 		return false
 	return speed_index > 0
 
@@ -470,12 +479,12 @@ func _on_program_objects_instantiated() -> void:
 func _on_about_to_start_simulator(is_new_game: bool) -> void:
 	if is_new_game:
 		if start_real_world_time:
-			set_now_from_operating_system()
+			set_time_from_os()
 
 
 func _set_init_state() -> void:
 	if start_real_world_time:
-		time = get_time_from_operating_system()
+		time = get_time_from_os()
 	else:
 		time = IVCoreSettings.start_time
 	engine_time = 0.0
@@ -514,19 +523,20 @@ func _on_ui_dirty() -> void:
 	speed_changed.emit()
 
 
-func _on_paused_changed(_paused_tree: bool, _paused_by_user: bool) -> void:
-	is_now = false
+func _on_paused_changed(_paused_tree: bool, paused_by_user: bool) -> void:
+	if paused_by_user:
+		sync_with_os_time = false
 	speed_changed.emit()
 
 
 func _on_run_state_changed(running: bool) -> void:
 	set_process(running)
-	if running and is_now:
+	if running and sync_with_os_time:
 		await _tree.process_frame
-		set_now_from_operating_system()
+		set_time_from_os()
 
 
-func _on_network_state_changed(network_state: NetworkState) -> void:
+func _on_network_state_changed(network_state: IVStateManager.NetworkState) -> void:
 	_network_state = network_state
 
 
@@ -534,7 +544,7 @@ func _on_network_state_changed(network_state: NetworkState) -> void:
 	#if _network_state != NetworkState.IS_SERVER:
 		#return
 #	rpc("_speed_changed_sync", speed_index, is_reversed, show_clock,
-#			show_seconds, is_now)
+#			show_seconds, sync_with_os_time)
 
 
 #@rpc("any_peer") func _time_sync(time_: float, engine_time_: float, speed_multiplier_: float) -> void:
@@ -568,5 +578,5 @@ func _on_network_state_changed(network_state: NetworkState) -> void:
 #	is_reversed = is_reversed_
 #	show_clock = show_clock_
 #	show_seconds = show_seconds_
-#	is_now = is_real_world_time_
+#	sync_with_os_time = is_real_world_time_
 #	speed_changed.emit()

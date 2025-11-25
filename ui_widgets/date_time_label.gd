@@ -39,7 +39,8 @@ extends Label
 @export var time_zone_suffix := ""
 ## If true, suffix the string with localized " (paused)" when paused.
 @export var show_pause := true
-## Override font color if time reversed (only used if time reversal enabled).
+## Only matters if [member IVCoreSettings.allow_time_reversal] == true, which
+## is unlikely for most games.
 @export var reverse_color := Color.RED
 
 var _date: Array[int] = IVGlobal.date

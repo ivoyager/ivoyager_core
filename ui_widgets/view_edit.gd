@@ -81,7 +81,7 @@ var _view_flags := 0
 	ViewFlags.VIEWFLAGS_HUDS_VISIBILITY : _visibilities_ckbx,
 	ViewFlags.VIEWFLAGS_HUDS_COLOR : _colors_ckbx,
 	ViewFlags.VIEWFLAGS_TIME_STATE : _time_ckbx,
-	ViewFlags.VIEWFLAGS_IS_NOW : _now_ckbx,
+	ViewFlags.VIEWFLAGS_SYNC_OS_TIME : _now_ckbx,
 }
 
 @onready var _save_current_button: Button = %SaveCurrentButton
@@ -124,14 +124,14 @@ func init(new_button_name: StringName, collection_name: String, is_cached: bool,
 	
 	# modify allowed and set flags as needed
 	if !IVCoreSettings.allow_time_setting:
-		_allowed_flags &= ~ViewFlags.VIEWFLAGS_IS_NOW
+		_allowed_flags &= ~ViewFlags.VIEWFLAGS_SYNC_OS_TIME
 	_new_set_flags &= _allowed_flags # enforce subset
 	if _new_set_flags & ViewFlags.VIEWFLAGS_TIME_STATE:
-		_new_set_flags &= ~ViewFlags.VIEWFLAGS_IS_NOW # exclusive
+		_new_set_flags &= ~ViewFlags.VIEWFLAGS_SYNC_OS_TIME # exclusive
 	
 	# set checkbox exclusivity if needed
 	if (_allowed_flags & ViewFlags.VIEWFLAGS_TIME_STATE
-			and _allowed_flags & ViewFlags.VIEWFLAGS_IS_NOW):
+			and _allowed_flags & ViewFlags.VIEWFLAGS_SYNC_OS_TIME):
 		_time_ckbx.toggled.connect(_unset_exclusive_ckbx.bind(_now_ckbx))
 		_now_ckbx.toggled.connect(_unset_exclusive_ckbx.bind(_time_ckbx))
 	

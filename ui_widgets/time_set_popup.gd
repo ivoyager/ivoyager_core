@@ -20,7 +20,9 @@
 class_name IVTimeSetPopup
 extends PopupPanel
 
-## Popup widget that has an [IVTimeSetter] and is child of and evoked by [IVTimeSetButton].
+## Popup widget that has an [IVTimeSetter].
+##
+## See documentation in [IVTimeSetter].[br][br]
 
 func _ready() -> void:
 	($"%TimeSetter" as IVTimeSetter).closed.connect(hide)
