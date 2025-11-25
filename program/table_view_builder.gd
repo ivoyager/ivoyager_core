@@ -31,7 +31,7 @@ extends RefCounted
 var as_is_fields: Array[StringName] = [
 	# Member 'view_position' is handled explicitly.
 	&"flags",
-	&"selection_name",
+	&"target_name",
 	&"camera_flags",
 	&"view_rotations",
 	&"name_visible_flags",
@@ -39,9 +39,9 @@ var as_is_fields: Array[StringName] = [
 	&"orbit_visible_flags",
 	&"visible_points_groups",
 	&"visible_orbits_groups",
-	&"time",
 	&"speed_index",
-	&"is_reversed",
+	&"time",
+	&"reversed_time",
 ]
 
 

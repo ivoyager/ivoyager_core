@@ -47,7 +47,7 @@ func _configure_after_core_inited() -> void:
 
 func _update_speed() -> void:
 	text = _timekeeper.speed_name
-	if _is_reversed == _timekeeper.is_reversed:
+	if _is_reversed == _timekeeper.reversed_time:
 		return
 	_is_reversed = !_is_reversed
 	if _is_reversed:

@@ -94,7 +94,7 @@ func _configure_after_core_inited() -> void:
 func _update_display() -> void:
 	_show_clock = _timekeeper.show_clock
 	_show_seconds = _timekeeper.show_seconds
-	if _is_reversed != _timekeeper.is_reversed:
+	if _is_reversed != _timekeeper.reversed_time:
 		_is_reversed = !_is_reversed
 		if _is_reversed:
 			add_theme_color_override("font_color", reverse_color)

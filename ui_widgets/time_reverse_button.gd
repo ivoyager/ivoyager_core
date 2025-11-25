@@ -55,7 +55,7 @@ func _configure_after_core_inited() -> void:
 
 
 func _update_button() -> void:
-	var is_reversed := _timekeeper.is_reversed
-	set_pressed_no_signal(is_reversed)
-	text = reverse_text if is_reversed else forward_text
-	tooltip_text = reverse_tooltip_text if is_reversed else forward_tooltip_text
+	var reversed_time := _timekeeper.reversed_time
+	set_pressed_no_signal(reversed_time)
+	text = reverse_text if reversed_time else forward_text
+	tooltip_text = reverse_tooltip_text if reversed_time else forward_tooltip_text

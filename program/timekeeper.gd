@@ -79,7 +79,7 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"time",
 	&"solar_day",
 	&"speed_index",
-	&"is_reversed",
+	&"reversed_time",
 ]
 
 
@@ -87,7 +87,7 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 var time: float # seconds from J2000 epoch
 var solar_day: float # calculate UT from the fractional part
 var speed_index: int
-var is_reversed := false
+var reversed_time := false
 
 # project vars
 #var sync_tolerance := 0.2 # rpc sync stuff. NOT MAINTAINED! 
@@ -131,7 +131,7 @@ var date: Array[int] = IVGlobal.date # Gregorian (ints); see DATE_FORMAT_ enums
 var clock: Array[int] = IVGlobal.clock # UT1 [0] hour [1] minute [2] second (ints)
 var sync_with_os_time := false
 var engine_time: float # accumulated delta
-var speed_multiplier: float # negative if is_reversed
+var speed_multiplier: float # negative if reversed_time
 var show_clock := false
 var show_seconds := false
 var speed_name: StringName
@@ -298,7 +298,7 @@ func _shortcut_input(event: InputEvent) -> void:
 	elif event.is_action_pressed(&"decr_speed"):
 		change_speed(-1)
 	elif _allow_time_reversal and event.is_action_pressed(&"reverse_time"):
-		set_time_reversed(!is_reversed)
+		set_time_reversed(!reversed_time)
 	else:
 		return # input NOT handled!
 	get_viewport().set_input_as_handled()
@@ -406,11 +406,11 @@ func set_time_from_os() -> void:
 
 func set_time_reversed(new_is_reversed: bool) -> void:
 	const IS_CLIENT = IVStateManager.NetworkState.IS_CLIENT
-	if !_allow_time_reversal or is_reversed == new_is_reversed:
+	if !_allow_time_reversal or reversed_time == new_is_reversed:
 		return
 	if _network_state == IS_CLIENT:
 		return
-	is_reversed = new_is_reversed
+	reversed_time = new_is_reversed
 	speed_multiplier *= -1.0
 	sync_with_os_time = false
 	speed_changed.emit()
@@ -511,7 +511,7 @@ func _reset_time() -> void:
 
 func _reset_speed() -> void:
 	speed_multiplier = speeds[speed_index]
-	if is_reversed:
+	if reversed_time:
 		speed_multiplier *= -1.0
 	speed_name = speed_names[speed_index]
 	speed_symbol = speed_symbols[speed_index]
@@ -543,7 +543,7 @@ func _on_network_state_changed(network_state: IVStateManager.NetworkState) -> vo
 #func _on_speed_changed() -> void:
 	#if _network_state != NetworkState.IS_SERVER:
 		#return
-#	rpc("_speed_changed_sync", speed_index, is_reversed, show_clock,
+#	rpc("_speed_changed_sync", speed_index, reversed_time, show_clock,
 #			show_seconds, sync_with_os_time)
 
 
@@ -575,7 +575,7 @@ func _on_network_state_changed(network_state: IVStateManager.NetworkState) -> vo
 #	speed_index = speed_index_
 #	speed_name = speed_names[speed_index_]
 #	speed_symbol = speed_symbols[speed_index_]
-#	is_reversed = is_reversed_
+#	reversed_time = is_reversed_
 #	show_clock = show_clock_
 #	show_seconds = show_seconds_
 #	sync_with_os_time = is_real_world_time_
