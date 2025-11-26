@@ -38,8 +38,8 @@ extends Node3D
 ##
 ## (Note: It's in our
 ## [url=https://github.com/orgs/ivoyager/discussions/5]roadmap[/url] to make
-## the physical part editable in the Editor too. The simulator was developed
-## using data tables, so that's mainly what it supports at this time.)
+## the physical part constructable in the Editor too. The simulator was
+## developed using data tables, so that's mainly what it supports at this time.)
 ## 
 ## [codeblock] 
 ##
@@ -158,10 +158,23 @@ extends Node3D
 ## We use origin shifting to prevent "imprecision shakes" caused by vast scale
 ## differences, e.g, when viewing Pluto at 40 au from the Sun. To do so,
 ## [IVCamera] adjusts the translation of Universe every frame to keep the camera
-## at the origin.
+## at the origin.[br][br]
+##
+## [b]Important Documented Class Files[/b][br][br]
+##
+## 1. [IVUniverseTemplate] for scene tree construction.[br]
+## 2. Singletons [IVCoreInitializer], [IVCoreSettings], [IVGlobal], and
+##    [IVStateManager] have info about program init and state management.[br]
+## 3. [IVBody] is the main simulator Node3D that represents anything that orbits
+##    or is orbited. The physical 3D world is built around these. The class doc
+##    has a lot of the roadmap in it.[br]
+## 4. [IVOrbit] has the orbital mechanics. The class doc also has a lot of
+##    roadmap in it related to spacecraft thrust implementation.[br][br]
+
+
 
 ## Don't free on load. This constant only matters if the
 ## [url=https://github.com/ivoyager/ivoyager_save]Save plugin[/url] is used.
 ## Nodes have persistence only if they and all ancestors have this constant set
 ## to PERSIST_PROPERTIES_ONLY or PERSIST_PROCEDURAL.
-const PERSIST_MODE := 1 # Godot ISSUE 4.5.1: Class doc broken w/ IVGlobal.PERSIST_PROPERTIES_ONLY 
+const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY 

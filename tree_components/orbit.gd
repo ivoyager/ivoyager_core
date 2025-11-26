@@ -20,15 +20,16 @@
 class_name IVOrbit
 extends RefCounted
 
-## Represents an elliptic, parabolic or hyperbolic orbit in a specified
-## reference basis. Orbits may have nodal and apsidal precessions.
+## Represents an elliptic orbit or parabolic or hyperbolic trajectory in a
+## specified reference basis. Orbits may have nodal and apsidal precessions.
 ##
-## See Wikipedia for [url=https://en.wikipedia.org/wiki/Orbital_elements]orbital
-## elements[/url] and other technical terms. "Elements" refer to the parameters
-## needed to specify an orbit (including position in an orbit given time). Two
-## elements (Ω and ω) evolve over time in this base class (i.e., the orbit
-## evolves) and others evolve in IVOrbit subclasses. Evolution of orbit elements
-## is [b]VERY SLOW[/b] relative to change in position in an orbit.[br][br]
+## See Wikipedia [url=https://en.wikipedia.org/wiki/Orbital_elements]orbital
+## elements[/url] for many of the concepts and technical terms used here.
+## "Elements" refer to the parameters needed to specify an orbit and position
+## in an orbit. Two elements (Ω and ω) evolve over time in this base class
+## (i.e., our orbits have nodal and apsidal precessions) and others may evolve
+## or change in [IVOrbit] subclasses. Evolution of orbit elements is slow
+## relative to change in position in an orbit.[br][br]
 ##
 ## Position and velocity in this class are always relative to the parent body
 ## or barycenter. The [member reference_basis] is the basis in which this orbit
@@ -37,7 +38,8 @@ extends RefCounted
 ##
 ## In addition to epoch time (always J2000), seven elements are needed to
 ## define an unpurturbed (osculating) orbit. The following elements are used
-## here because they are valid for elliptic, parabolic and hyperbolic orbits:[br][br]
+## here because they are valid for elliptic, parabolic and hyperbolic
+## orbits/trajectories:[br][br]
 ##
 ## [member semi_parameter] (p).[br]
 ## [member eccentricity] (e).[br]
@@ -72,17 +74,17 @@ extends RefCounted
 ##
 ## Because orbital elements can evolve over time, some properties and some method
 ## returns require a preceding [method update] call to be current. However, all
-## methods that follow naming convention "get_..._at_time()" (and all static
-## methods) are valid without [method update]. Note that subclasses may evolve
+## methods that follow naming convention "get_..._at_time()" and all static
+## methods are valid without [method update]. Note that subclasses may evolve
 ## other elements in addition to the two precessing elements. Hence, many get
 ## functions require [param time] for parameters that are not time-dependent in
-## this base class (but may be time-dependent in subclasses).[br][br]
+## this base class but may be time-dependent in subclasses.[br][br]
 ##
 ## Note: property setters are implemented in this class mainly for playing
-## around at editor runtime. The setters generally hold e and GM fixed and
-## update other elements as needed, but see methods for specific cases. Code
-## based changes to elements should be implemented in a subclass (see Roadmap
-## below).[br][br]
+## around at editor runtime. The setters generally hold eccentricity and GM
+## fixed and adjust other elements as needed, but see methods for specific
+## cases. Code based changes to elements should be implemented in a subclass
+## (see Roadmap below).[br][br]
 ##
 ## Get methods are generally threadsafe, but element values may be inconsistant
 ## if an orbit change is being set concurently. Set methods cause [signal changed]
@@ -122,7 +124,7 @@ extends RefCounted
 ##
 ## [codeblock]
 ## # Naming is changed from above to stress volatility of state parameters; 
-## # "_at_time" is redundant.
+## # "_at_time" is superfluous.
 ## get_parameter_at_update() # at last update() call
 ## get_parameter(time)
 ## get_parameter_from_something(...) # static
@@ -134,7 +136,7 @@ extends RefCounted
 ## TODO: Multiplayer RPC. We REALLY don't want to make this a Node. The reason
 ## is that IVOrbit is supposed to be a cheap data container that can be instanced
 ## in different contexts (e.g., for patched conic trajectory planning). What we
-## want are serialization/deserialization methods here, and then IVBody does the
+## want are serialization/deserialization methods here, and then [IVBody] does the
 ## RPC sync on [signal changed]. We only need network sync when the change is
 ## extrinsic (e.g., thrust).[br][br]
 ##

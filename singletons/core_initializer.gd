@@ -180,17 +180,16 @@ var program_nodes: Dictionary[StringName, Variant] = {
 	ViewManager = IVViewManager,
 }
 ## Include keys from [member program_nodes] that need to be instantiated or
-## added first and in order. Note: all are instantiated (in specified order),
-## then all are added (in specified order).[br][br]
+## added first and in order. Note: all are instantiated in the specified order,
+## then all are added to the tree in the specified order.[br][br]
 ##
 ## Node order determines input handling order, where last added is first
-## to recieve input. We mainly need to intercept ctrl-Q, ctrl-S, etc., actions
-## before CameraHandler or other nodes consume the Q, S, etc., actions.
+## to recieve input.
 var ordered_program_nodes: Array[StringName] = [&"CameraHandler", &"Timekeeper",
 	&"SBGHUDsState", &"BodyHUDsState", &"InputHandler", &"SaveManager"]
 
 ## Include the names of Nodes that already exist in the scene tree that you want
-## added to [member IVGlobal.program] for easy access.
+## added to [member IVGlobal.program] for convenient access.
 var tree_program_nodes: Array[StringName] = [
 	&"FragmentIdentifier",
 	&"TopUI",
