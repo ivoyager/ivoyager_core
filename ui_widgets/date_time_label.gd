@@ -39,7 +39,8 @@ extends Label
 @export var time_zone_suffix := ""
 ## If true, suffix the string with localized " (paused)" when paused.
 @export var show_pause := true
-## Override font color if time reversed (only used if time reversal enabled).
+## Only matters if [member IVCoreSettings.allow_time_reversal] == true, which
+## is unlikely for most games.
 @export var reverse_color := Color.RED
 
 var _date: Array[int] = IVGlobal.date
@@ -93,7 +94,7 @@ func _configure_after_core_inited() -> void:
 func _update_display() -> void:
 	_show_clock = _timekeeper.show_clock
 	_show_seconds = _timekeeper.show_seconds
-	if _is_reversed != _timekeeper.is_reversed:
+	if _is_reversed != _timekeeper.reversed_time:
 		_is_reversed = !_is_reversed
 		if _is_reversed:
 			add_theme_color_override("font_color", reverse_color)

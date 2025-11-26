@@ -18,36 +18,27 @@
 # limitations under the License.
 # *****************************************************************************
 class_name IVSpeedButtons
-extends HBoxContainer
+extends BoxContainer
 
-## HBoxContainer widget with game speed controls.
+## BoxContainer widget with increase (+) and decrease (-) game speed buttons.
 ##
-## Requires [IVTimekeeper]. The widget base node has process_mode == PROCESS_MODE_ALWAYS
-## so user can use it to get out of pause.[br][br]
+## Requires [IVTimekeeper]. The widget has process_mode == PROCESS_MODE_ALWAYS
+## so user can set speed during pause.[br][br]
 ##
-## TODO: Make individual widgets for the buttons (expecially Pause).
+## You can add the [IVPauseButton] as an additional child if needed.
 
-const IS_CLIENT := IVStateManager.NetworkState.IS_CLIENT
-
-
-## Display pause button: "||". This will be removed regardless of this setting
-## if [IVCoreSettings.disable_pause] == true.
-@export var pause_button := true
-## Display reverse button: "<". This will be removed regardless of this setting
-## if [IVCoreSettings.allow_time_reversal] == false (default).
-@export var reverse_button := false
-
+@export var increase_text := "+"
+@export var decrease_text := "-"
 
 var _timekeeper: IVTimekeeper
 
-@onready var _minus: Button = $Minus
 @onready var _plus: Button = $Plus
-@onready var _pause: Button = $Pause
-@onready var _reverse: Button = $Reverse
+@onready var _minus: Button = $Minus
 
 
 func _ready() -> void:
-	process_mode = PROCESS_MODE_ALWAYS
+	_plus.text = increase_text
+	_minus.text = decrease_text
 	if IVStateManager.initialized_core:
 		_configure_after_core_inited()
 	else:
@@ -55,49 +46,16 @@ func _ready() -> void:
 
 
 func _configure_after_core_inited() -> void:
-	IVStateManager.paused_changed.connect(_update_buttons) # signals on ui_dirty
-	_minus.pressed.connect(_increment_speed.bind(-1))
-	_plus.pressed.connect(_increment_speed.bind(1))
-	if pause_button and !IVCoreSettings.disable_pause:
-		_pause.pressed.connect(_change_paused)
-	else:
-		_pause.queue_free()
-		_pause = null
-	if reverse_button and IVCoreSettings.allow_time_reversal:
-		_reverse.pressed.connect(_change_reversed)
-	else:
-		_reverse.queue_free()
-		_reverse = null
 	_timekeeper = IVGlobal.program[&"Timekeeper"]
 	_timekeeper.speed_changed.connect(_update_buttons) # signals on ui_dirty
+	_plus.pressed.connect(_change_speed.bind(1))
+	_minus.pressed.connect(_change_speed.bind(-1))
 
 
-func _increment_speed(increment: int) -> void:
+func _change_speed(increment: int) -> void:
 	_timekeeper.change_speed(increment)
 
 
-func _change_paused() -> void:
-	IVStateManager.set_user_paused(_pause.button_pressed)
-
-
-func _change_reversed() -> void:
-	_timekeeper.set_time_reversed(_reverse.button_pressed)
-
-
-func _update_buttons(_dummy := false, _dummy2 := false) -> void:
-	if IVStateManager.network_state == IS_CLIENT:
-		if _pause:
-			_pause.disabled = true
-		if _reverse:
-			_reverse.disabled = true
-		_plus.disabled = true
-		_minus.disabled = true
-		return
-	if _pause:
-		_pause.disabled = false
-		_pause.button_pressed = IVStateManager.paused_by_user
-	if _reverse:
-		_reverse.disabled = false
-		_reverse.button_pressed = _timekeeper.is_reversed
-	_plus.disabled = !_timekeeper.can_increment_speed()
-	_minus.disabled = !_timekeeper.can_decrement_speed()
+func _update_buttons() -> void:
+	_plus.disabled = not _timekeeper.can_increment_speed()
+	_minus.disabled = not _timekeeper.can_decrement_speed()

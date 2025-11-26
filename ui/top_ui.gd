@@ -24,8 +24,7 @@ extends Control
 ##
 ## See [IVUniverseTemplate] for scene tree organization.[br][br]
 ##
-## This node provides "tree properties" used by GUI widgets. These are
-## properties that specific widgets obtain from their ancestor node tree.
+## This node provides ancestor properties used by GUI widgets.
 ## The only required ancestor property for many widgets is [member selection_manager].
 ## All bool properties are optional (absence of the property in the ancestry
 ## tree is the same as a false value). "_theme_type_variation" properties
@@ -75,21 +74,27 @@ var selection_manager: IVSelectionManager
 
 
 func _ready() -> void:
-	anchor_right = 1.0
-	anchor_bottom = 1.0
+	
 	theme = IVThemeManager.get_main_theme()
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
-	IVStateManager.about_to_build_system_tree.connect(_add_selection_manager)
+	IVStateManager.about_to_build_system_tree.connect(_on_about_to_build_system_tree)
+	IVStateManager.system_tree_built.connect(_on_system_tree_built)
 	IVStateManager.about_to_quit.connect(hide)
 
 
 func _clear_procedural() -> void:
-	if selection_manager:
-		selection_manager.queue_free()
-		selection_manager = null
+	if not selection_manager:
+		return
+	var input_handler: IVInputHandler = IVGlobal.program[&"InputHandler"]
+	input_handler.shortcut_handlers.erase(selection_manager)
+	selection_manager = null
 
 
-func _add_selection_manager(is_new_game: bool) -> void:
-	if is_new_game:
+func _on_about_to_build_system_tree(new_game: bool) -> void:
+	if new_game:
 		selection_manager = IVSelectionManager.create()
-		add_child(selection_manager)
+
+
+func _on_system_tree_built(_new_game: bool) -> void:
+	var input_handler: IVInputHandler = IVGlobal.program[&"InputHandler"]
+	input_handler.shortcut_handlers.append(selection_manager)

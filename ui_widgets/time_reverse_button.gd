@@ -1,4 +1,4 @@
-# speed_label.gd
+# time_reverse_buttons.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -17,20 +17,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVSpeedLabel
-extends Label
+class_name IVTimeReverseButton
+extends Button
 
-## Label widget that displays game speed.
+## Toggle button widget that sets reverse or forward time.
 ##
-## Requires [IVTimekeeper]. This widget has process_mode == PROCESS_MODE_ALWAYS
-## so it can update during pause.
+## Requires [IVTimekeeper]. Time reversal is disabled by default. Set
+## [member IVCoreSettings.allow_time_reversal] = true to enable.
+## This button is used by the Planetarium.[br][br]
+##
+## The widget has process_mode == PROCESS_MODE_ALWAYS so user can change time
+## direction during pause.
 
-## Display color if time is reversed. (Only possible if
-## [IVCoreSettings.allow_time_reversal] is set to non-default true.)
-@export var reverse_color := Color.RED
+@export var forward_text := "<"
+@export var reverse_text := ">"
+@export var forward_tooltip_text := "HINT_RUN_TIME_BACKWARDS"
+@export var reverse_tooltip_text := "HINT_RESTORE_FORWARD_TIME"
 
 var _timekeeper: IVTimekeeper
-var _is_reversed := false
 
 
 func _ready() -> void:
@@ -40,17 +44,18 @@ func _ready() -> void:
 		IVStateManager.core_initialized.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
 
 
+func _toggled(toggled_on: bool) -> void:
+	if _timekeeper:
+		_timekeeper.set_time_reversed(toggled_on)
+
+
 func _configure_after_core_inited() -> void:
 	_timekeeper = IVGlobal.program[&"Timekeeper"]
-	_timekeeper.speed_changed.connect(_update_speed) # signals on ui_dirty
+	_timekeeper.speed_changed.connect(_update_button) # signals on ui_dirty
 
 
-func _update_speed() -> void:
-	text = _timekeeper.speed_name
-	if _is_reversed == _timekeeper.reversed_time:
-		return
-	_is_reversed = !_is_reversed
-	if _is_reversed:
-		add_theme_color_override("font_color", reverse_color)
-	else:
-		remove_theme_color_override("font_color")
+func _update_button() -> void:
+	var reversed_time := _timekeeper.reversed_time
+	set_pressed_no_signal(reversed_time)
+	text = reverse_text if reversed_time else forward_text
+	tooltip_text = reverse_tooltip_text if reversed_time else forward_tooltip_text

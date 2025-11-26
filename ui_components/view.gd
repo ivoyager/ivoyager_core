@@ -20,11 +20,23 @@
 class_name IVView
 extends RefCounted
 
-## A representation of a solar system view, optionally including camera
-## state, HUDs state, and/or time state.
+## A persisted representation of a user view or some aspect of user view.
 ##
-## This class is designed to be persisted via gamesave or cache. There are no
-## references to objects.
+## A "view" optionally includs camera target and positioning, HUDs visibilities
+## and colors, game speed, pause state, and (if allowed) time. The state
+## that a view can hold is defined by [enum ViewFlags]. Some time-related state
+## requires non-default Core settings ([member IVCoreSettings.allow_time_setting]
+## and [member IVCoreSettings.allow_time_reversal]).[br][br]
+##
+## IVView instances can be persisted via gamesave or cache.[br][br]
+##
+## This class is used by [IVViewManager] and "view_" widgets such as
+## [IVViewButton]. Views are generally user-created at runtime (these are
+## persisted via gamesave or cache) or defined as "default" views in a data
+## table (e.g., VIEW_HOME in tables/views.tsv).[br][br]
+##
+## The Planetarium caches a current user view on exit and restores it on
+## restart.[br][br]
 ##
 ## TODO: Hotkey bindings!
 
@@ -36,8 +48,8 @@ enum ViewFlags { # flags
 	VIEWFLAGS_HUDS_VISIBILITY = 1 << 3,
 	VIEWFLAGS_HUDS_COLOR = 1 << 4,
 	
-	VIEWFLAGS_TIME_STATE = 1 << 5,
-	VIEWFLAGS_IS_NOW = 1 << 6,
+	VIEWFLAGS_TIME_STATE = 1 << 5, # usually only game speed & pause
+	VIEWFLAGS_SYNC_OS_TIME = 1 << 6, # usually not avialable
 	
 	# sets
 	VIEWFLAGS_ALL_CAMERA = (1 << 3) - 1,
@@ -65,9 +77,10 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"body_orbit_colors",
 	&"sbg_points_colors",
 	&"sbg_orbits_colors",
-	&"time",
 	&"speed_index",
-	&"is_reversed",
+	&"user_paused",
+	&"time",
+	&"reversed_time",
 	&"edited_default",
 ]
 
@@ -83,10 +96,16 @@ static var _is_class_instanced := false
 
 
 # persisted
-var flags := 0 # what state does this View have?
+## State held by this view. See [enum ViewFlags].
+var flags := 0
+## Camera target. E.g., "PLANET_EARTH".
 var target_name := &""
-var camera_flags := 0 # IVCamera.CameraFlags
+## Includes camera tracking type (ground, orbit or ecliptic). See [enum
+## IVCamera.CameraFlags].
+var camera_flags := 0
+## Camera position relative to target. See [IVCamera].
 var view_position := NULL_VECTOR3
+## Camera orientation relative to target. See [IVCamera].
 var view_rotations := NULL_VECTOR3
 var name_visible_flags := 0 # exclusive w/ symbol_visible_flags
 var symbol_visible_flags := 0 # exclusive w/ name_visible_flags
@@ -96,10 +115,14 @@ var visible_orbits_groups: Array[StringName] = []
 var body_orbit_colors: Dictionary[int, Color] = {} # has non-default only
 var sbg_points_colors: Dictionary[StringName, Color] = {} # has non-default only
 var sbg_orbits_colors: Dictionary[StringName, Color] = {} # has non-default only
-var time := 0.0
 var speed_index := 0
-var is_reversed := false
-var edited_default := &"" # not part of view, but used by GUI managing code
+var user_paused := false
+## Requires [member IVCoreSettings.allow_time_setting] == true.
+var time := 0.0
+## Requires [member IVCoreSettings.allow_time_reversal= == true.
+var reversed_time := false
+## Not part of view state. Used by GUI managing code.
+var edited_default := &""
 
 
 
@@ -154,7 +177,8 @@ func reset() -> void:
 	sbg_orbits_colors.clear()
 	time = 0.0
 	speed_index = 0
-	is_reversed = false
+	user_paused = false
+	reversed_time = false
 
 
 func get_data_for_cache() -> Array:
@@ -241,22 +265,24 @@ func _set_huds_state() -> void:
 
 func _save_time_state() -> void:
 	# If both TIME_STATE and IS_NOW flags set, we unset one depending on
-	# IVTimekeeper.is_now.
-	if flags & ViewFlags.VIEWFLAGS_IS_NOW and _timekeeper.is_now:
+	# IVTimekeeper.sync_with_os_time.
+	if flags & ViewFlags.VIEWFLAGS_SYNC_OS_TIME and _timekeeper.sync_with_os_time:
 		flags &= ~ViewFlags.VIEWFLAGS_TIME_STATE
 	if flags & ViewFlags.VIEWFLAGS_TIME_STATE:
-		flags &= ~ViewFlags.VIEWFLAGS_IS_NOW
-		time = _timekeeper.time
+		flags &= ~ViewFlags.VIEWFLAGS_SYNC_OS_TIME
 		speed_index = _timekeeper.speed_index
-		is_reversed = _timekeeper.is_reversed
+		user_paused = IVStateManager.paused_by_user
+		time = _timekeeper.time
+		reversed_time = _timekeeper.reversed_time
 
 
 func _set_time_state() -> void:
 	# Note: IVTimekeeper ignores set functions that are disallowed in IVCoreSettings
-	# project settings. In most game applications, only speed is set.
+	# project settings. In most game applications, only speed and pause is set.
 	if flags & ViewFlags.VIEWFLAGS_TIME_STATE:
-		_timekeeper.set_time(time)
 		_timekeeper.change_speed(0, speed_index)
-		_timekeeper.set_time_reversed(is_reversed)
-	elif flags & ViewFlags.VIEWFLAGS_IS_NOW:
-		_timekeeper.set_now_from_operating_system()
+		IVStateManager.set_user_paused(user_paused)
+		_timekeeper.set_time(time)
+		_timekeeper.set_time_reversed(reversed_time)
+	elif flags & ViewFlags.VIEWFLAGS_SYNC_OS_TIME:
+		_timekeeper.set_time_from_os()

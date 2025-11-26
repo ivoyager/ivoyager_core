@@ -1,4 +1,4 @@
-# now_ckbx.gd
+# sync_os_time_checkbox.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -17,16 +17,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVNowCkbx
+class_name IVSyncOSTimeCheckBox
 extends CheckBox
 
-## CheckBox widget for setting "real world" time.
+## CheckBox widget that syncs simulator time with operating system time.
 ##
-## Used to set present time from user operating system (used by Planetarium).[br][br]
+## Requires [IVTimekeeper]. Time setting is disabled by default. To enable, set
+## [member IVCoreSettings.allow_time_setting] == true.
+## This button is used by Planetarium.[br][br]
 ##
-## Requires IVTimekeeper.
-
-const IS_CLIENT := IVStateManager.NetworkState.IS_CLIENT
+## When set, [IVTimekeeper] will set time from the operating system. It will
+## set again whenever the application becomes focused.[br][br]
+##
+## See also [IVTimeSetButton].
 
 var _timekeeper: IVTimekeeper
 
@@ -38,18 +41,20 @@ func _ready() -> void:
 		IVStateManager.core_initialized.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
 
 
+func _toggled(toggled_on: bool) -> void:
+	if not _timekeeper:
+		return
+	if toggled_on:
+		_timekeeper.set_time_from_os()
+	else:
+		_update_ckbx.call_deferred()
+
+
 func _configure_after_core_inited() -> void:
 	_timekeeper = IVGlobal.program[&"Timekeeper"]
 	_timekeeper.speed_changed.connect(_update_ckbx)
 	_timekeeper.time_altered.connect(_update_ckbx)
-	pressed.connect(_set_real_world)
 
 
 func _update_ckbx(_dummy: Variant = false) -> void:
-	button_pressed = _timekeeper.is_now
-
-
-func _set_real_world() -> void:
-	if IVStateManager.network_state != IS_CLIENT:
-		_timekeeper.set_now_from_operating_system()
-		button_pressed = true
+	set_pressed_no_signal(_timekeeper.sync_with_os_time)

@@ -65,7 +65,6 @@ func build_system_tree() -> void:
 		_add_camera()
 
 
-
 func _add_bodies() -> void:
 	var table_dict: Dictionary[StringName, StringName] = {}
 	for table_name in IVCoreSettings.body_tables:

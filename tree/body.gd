@@ -205,10 +205,16 @@ static var min_hud_dist_radius_multiplier := 500.0
 static var min_hud_dist_star_multiplier := 20.0
 
 ## A static class dictionary that contains all added IVBody instances.
+## FIXME: Planet-moon order is perfect after load, but not on new game. This
+## messes up selection. 
 static var bodies: Dictionary[StringName, IVBody] = {}
+
 ## A static class dictionary that contains IVBody instances that are at the top
 ## of a system (i.e., the primary star for every star system).
 static var top_bodies: Dictionary[StringName, IVBody] = {}
+
+static var _selection_ordered_bodies: Array[IVBody] = [] # build/rebuild only when needed
+static var _selection_order_dirty := true
 
 
 # persisted
@@ -243,6 +249,12 @@ var star: IVBody
 var star_orbiter: IVBody
 ## Bodies in orbit around (children of) this body. Read-only!
 var satellites: Dictionary[StringName, IVBody]
+
+## Orbiting bodies sorted by semi-parameter. Order isn't maintained during
+## game session and can be lost due to orbit changes (e.g., spacecraft changing
+## semi-parameter). It will be restored after every game load.
+var ordered_satellites: Array[IVBody]
+
 ## If present, the Node3D that has this body's visual
 ## representation (model). If data table value [param lazy_model] == TRUE, then
 ## this value will be null until needed. Read-only!
@@ -314,7 +326,6 @@ static func create(name: StringName, flags: int, mean_radius: float, gravitation
 	body.components = components
 	body._orbit = orbit
 	body.flags = flags
-	
 	body.rotation_axis = rotation_axis
 	body.rotation_rate = rotation_rate
 	body.orientation_at_epoch = orientation_at_epoch
@@ -396,6 +407,30 @@ static func create_from_astronomy_specs(
 	return body
 
 
+static func _is_ordered_satellites(a: IVBody, b: IVBody) -> bool:
+	# Semi-parameter is always defined, unlike semi-major axis. These are
+	# nearly the same for nearly circular orbits.
+	return a.get_orbit_semi_parameter() < b.get_orbit_semi_parameter()
+
+
+static func _rebuild_selection_order() -> void:
+	# Prints msec in case you're worried. Scales linearly, so should be ok
+	# with many 1000s of spacecrafts.
+	var usec := Time.get_ticks_usec()
+	_selection_ordered_bodies.clear()
+	for body_name in top_bodies:
+		_add_selection_recursive(top_bodies[body_name])
+	_selection_order_dirty = false
+	var rebuild_msec := (Time.get_ticks_usec() - usec) / 1000.0
+	print("Rebuilt IVBody selection order in %s msec" % rebuild_msec)
+
+
+static func _add_selection_recursive(body: IVBody) -> void:
+	_selection_ordered_bodies.append(body)
+	for satellite in body.ordered_satellites:
+		_add_selection_recursive(satellite)
+
+
 # *****************************************************************************
 # virtual
 
@@ -406,7 +441,7 @@ func _enter_tree() -> void:
 	# 2) During system build from game save.
 	# 3) When a body changes parent, e.g., in a spacecraft trajectory. 
 	const LAZY_MODEL := BodyFlags.BODYFLAGS_LAZY_MODEL
-	_set_relative_bodies()
+	_index()
 	if is_node_ready(): # existing ready body has changed parent
 		return
 	if _orbit:
@@ -418,27 +453,22 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
-	_clear_relative_bodies()
+	_clear_indexing()
 
 
 func _ready() -> void:
 	# Happens once only, but could be during or after whole system build.
-	const TOP := BodyFlags.BODYFLAGS_TOP
 	IVStateManager.system_tree_built.connect(_on_system_tree_built, CONNECT_ONE_SHOT)
 	IVStateManager.simulator_started.connect(_on_simulator_started, CONNECT_ONE_SHOT)
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural, CONNECT_ONE_SHOT)
 	IVSettingsManager.changed.connect(_settings_listener)
-	assert(!bodies.has(name))
-	bodies[name] = self
-	if flags & TOP:
-		top_bodies[name] = self
 	_set_resources()
 	_set_min_hud_dist()
 	hide()
 	
+	# Below for body added after system tree is already built
 	if not IVStateManager.built_system: # currently building from tables or savefile
 		return
-	
 	_set_system_radius()
 	_set_hill_sphere()
 
@@ -479,15 +509,14 @@ func _process(_delta: float) -> void:
 
 
 func remove() -> void:
-	const TOP := BodyFlags.BODYFLAGS_TOP
-	for satellite_name in satellites:
-		satellites[satellite_name].remove()
-	bodies.erase(name)
-	if flags & TOP:
-		top_bodies.erase(name)
-	if _orbit:
-		_orbit.changed.disconnect(_on_orbit_changed)
-	_clear_relative_bodies()
+	# Pre-clear satellite containers so child exits do less work.
+	var temp_satellites: Array[IVBody] = satellites.values()
+	satellites.clear()
+	ordered_satellites.clear()
+	for satellite in temp_satellites:
+		satellite.remove()
+	# Deepest children exit first, each calling _clear_indexing().
+	get_parent().remove_child(self)
 	queue_free()
 
 
@@ -879,7 +908,7 @@ func is_rotation_retrograde(_time := NAN) -> bool:
 
 
 ## Returns the "system" radius. This value is the maximum of:
-## a) semi-major axis of the outermost body orbiting this body (if any),
+## a) maximum semi-parameter of satellites (if any),
 ## b) [member mean_radius] times a multiplier, or
 ## c) a value set in data table using field name [param system_radius].
 func get_system_radius() -> float:
@@ -995,7 +1024,7 @@ func get_orbit_tracking_basis(time := NAN) -> Basis:
 
 
 # *****************************************************************************
-# IVCamera duck type methods...
+# IVCamera duck-type methods...
 
 func get_camera_radius() -> float:
 	return mean_radius
@@ -1005,7 +1034,7 @@ func get_camera_ground_basis() -> Basis:
 	return get_orientation()
 
 
-# FIXME: Do we need get_orbit_tracking_basis()?
+# FIXME: Do we need get_orbit_tracking_basis()? This is very camera-specific.
 func get_camera_orbit_basis() -> Basis:
 	var orbit_basis := get_orbit_tracking_basis()
 	if flags & BodyFlags.BODYFLAGS_STAR_ORBITER:
@@ -1022,24 +1051,309 @@ func get_camera_lat_lon_type() -> IVQFormat.LatitudeLongitudeType:
 	if flags & BodyFlags.BODYFLAGS_USE_PITCH_YAW:
 		return PITCH_YAW
 	return LAT_LON
-	
-	
+
+
+# *****************************************************************************
+# IVSelectionManager duck-type methods...
+
+## Returns parent, or null if this is a "top" body in the tree.
+func get_selection_up() -> IVBody:
+	return parent
+
+
+## Returns first satellite (child IVBody) ordered by semi-parameter, or null if
+## none exist.
+func get_selection_down() -> IVBody:
+	if ordered_satellites:
+		return ordered_satellites[0]
+	return null
+
+
+## Returns next IVBody in tree. Satellites (child IVBodies) always follow after
+## parent, ordered by semi-parameter.
+func get_selection_next() -> IVBody:
+	if _selection_order_dirty:
+		_rebuild_selection_order()
+	var self_pos := _selection_ordered_bodies.find(self)
+	assert(self_pos >= 0)
+	var pos := self_pos + 1
+	if pos < _selection_ordered_bodies.size():
+		return _selection_ordered_bodies[pos]
+	pos = 0
+	if pos < self_pos:
+		return _selection_ordered_bodies[pos]
+	return null
+
+
+## Reverse of [method get_selection_next].
+func get_selection_last() -> IVBody:
+	if _selection_order_dirty:
+		_rebuild_selection_order()
+	var self_pos := _selection_ordered_bodies.find(self)
+	assert(self_pos >= 0)
+	var pos := self_pos - 1
+	if pos >= 0:
+		return _selection_ordered_bodies[pos]
+	pos = _selection_ordered_bodies.size() - 1
+	if pos > self_pos:
+		return _selection_ordered_bodies[pos]
+	return null
+
+
+## Returns the next star in the tree.
+func get_selection_next_star() -> IVBody:
+	const STAR := BodyFlags.BODYFLAGS_STAR
+	if _selection_order_dirty:
+		_rebuild_selection_order()
+	var size := _selection_ordered_bodies.size()
+	var self_pos := _selection_ordered_bodies.find(self)
+	assert(self_pos >= 0)
+	var pos := self_pos + 1
+	while pos < size:
+		if _selection_ordered_bodies[pos].flags & STAR:
+			return _selection_ordered_bodies[pos]
+		pos += 1
+	pos = 0
+	while pos < self_pos:
+		if _selection_ordered_bodies[pos].flags & STAR:
+			return _selection_ordered_bodies[pos]
+		pos += 1
+	return null
+
+
+## Reverse of [method get_selection_next_star].
+func get_selection_last_star() -> IVBody:
+	const STAR := BodyFlags.BODYFLAGS_STAR
+	if _selection_order_dirty:
+		_rebuild_selection_order()
+	var self_pos := _selection_ordered_bodies.find(self)
+	assert(self_pos >= 0)
+	var pos := self_pos - 1
+	while pos >= 0:
+		if _selection_ordered_bodies[pos].flags & STAR:
+			return _selection_ordered_bodies[pos]
+		pos -= 1
+	pos = _selection_ordered_bodies.size() - 1
+	while pos > self_pos:
+		if _selection_ordered_bodies[pos].flags & STAR:
+			return _selection_ordered_bodies[pos]
+		pos -= 1
+	return null
+
+
+## Returns the next planet or dwarf planet in the tree.
+func get_selection_next_planet() -> IVBody:
+	const PLANET_OR_DWARF_PLANET := BodyFlags.BODYFLAGS_PLANET_OR_DWARF_PLANET
+	if _selection_order_dirty:
+		_rebuild_selection_order()
+	var size := _selection_ordered_bodies.size()
+	var self_pos := _selection_ordered_bodies.find(self)
+	assert(self_pos >= 0)
+	var pos := self_pos + 1
+	while pos < size:
+		if _selection_ordered_bodies[pos].flags & PLANET_OR_DWARF_PLANET:
+			return _selection_ordered_bodies[pos]
+		pos += 1
+	pos = 0
+	while pos < self_pos:
+		if _selection_ordered_bodies[pos].flags & PLANET_OR_DWARF_PLANET:
+			return _selection_ordered_bodies[pos]
+		pos += 1
+	return null
+
+
+## Reverse of [method get_selection_next_planet].
+func get_selection_last_planet() -> IVBody:
+	const PLANET_OR_DWARF_PLANET := BodyFlags.BODYFLAGS_PLANET_OR_DWARF_PLANET
+	if _selection_order_dirty:
+		_rebuild_selection_order()
+	var self_pos := _selection_ordered_bodies.find(self)
+	assert(self_pos >= 0)
+	var pos := self_pos - 1
+	while pos >= 0:
+		if _selection_ordered_bodies[pos].flags & PLANET_OR_DWARF_PLANET:
+			return _selection_ordered_bodies[pos]
+		pos -= 1
+	pos = _selection_ordered_bodies.size() - 1
+	while pos > self_pos:
+		if _selection_ordered_bodies[pos].flags & PLANET_OR_DWARF_PLANET:
+			return _selection_ordered_bodies[pos]
+		pos -= 1
+	return null
+
+
+## Returns the next "major" moon in the tree. Major in this contexts means it
+## is a moon with BODYFLAGS_SHOW_IN_NAVIGATION_PANEL.
+func get_selection_next_major_moon() -> IVBody:
+	const NAV_MOON := BodyFlags.BODYFLAGS_SHOW_IN_NAVIGATION_PANEL | BodyFlags.BODYFLAGS_MOON
+	if _selection_order_dirty:
+		_rebuild_selection_order()
+	var size := _selection_ordered_bodies.size()
+	var self_pos := _selection_ordered_bodies.find(self)
+	assert(self_pos >= 0)
+	var pos := self_pos + 1
+	while pos < size:
+		if _selection_ordered_bodies[pos].flags & NAV_MOON == NAV_MOON:
+			return _selection_ordered_bodies[pos]
+		pos += 1
+	pos = 0
+	while pos < self_pos:
+		if _selection_ordered_bodies[pos].flags & NAV_MOON == NAV_MOON:
+			return _selection_ordered_bodies[pos]
+		pos += 1
+	return null
+
+
+## Reverse of [method get_selection_next_major_moon].
+func get_selection_last_major_moon() -> IVBody:
+	const NAV_MOON := BodyFlags.BODYFLAGS_SHOW_IN_NAVIGATION_PANEL | BodyFlags.BODYFLAGS_MOON
+	if _selection_order_dirty:
+		_rebuild_selection_order()
+	var self_pos := _selection_ordered_bodies.find(self)
+	assert(self_pos >= 0)
+	var pos := self_pos - 1
+	while pos >= 0:
+		if _selection_ordered_bodies[pos].flags & NAV_MOON == NAV_MOON:
+			return _selection_ordered_bodies[pos]
+		pos -= 1
+	pos = _selection_ordered_bodies.size() - 1
+	while pos > self_pos:
+		if _selection_ordered_bodies[pos].flags & NAV_MOON == NAV_MOON:
+			return _selection_ordered_bodies[pos]
+		pos -= 1
+	return null
+
+
+## Returns the next moon in the tree.
+func get_selection_next_moon() -> IVBody:
+	const MOON := BodyFlags.BODYFLAGS_MOON
+	if _selection_order_dirty:
+		_rebuild_selection_order()
+	var size := _selection_ordered_bodies.size()
+	var self_pos := _selection_ordered_bodies.find(self)
+	assert(self_pos >= 0)
+	var pos := self_pos + 1
+	while pos < size:
+		if _selection_ordered_bodies[pos].flags & MOON:
+			return _selection_ordered_bodies[pos]
+		pos += 1
+	pos = 0
+	while pos < self_pos:
+		if _selection_ordered_bodies[pos].flags & MOON:
+			return _selection_ordered_bodies[pos]
+		pos += 1
+	return null
+
+
+## Reverse of [method get_selection_next_moon].
+func get_selection_last_moon() -> IVBody:
+	const MOON := BodyFlags.BODYFLAGS_MOON
+	if _selection_order_dirty:
+		_rebuild_selection_order()
+	var self_pos := _selection_ordered_bodies.find(self)
+	assert(self_pos >= 0)
+	var pos := self_pos - 1
+	while pos >= 0:
+		if _selection_ordered_bodies[pos].flags & MOON:
+			return _selection_ordered_bodies[pos]
+		pos -= 1
+	pos = _selection_ordered_bodies.size() - 1
+	while pos > self_pos:
+		if _selection_ordered_bodies[pos].flags & MOON:
+			return _selection_ordered_bodies[pos]
+		pos -= 1
+	return null
+
+
+## Returns the next spacecraft in the tree.
+func get_selection_next_spacecraft() -> IVBody:
+	const SPACECRAFT := BodyFlags.BODYFLAGS_SPACECRAFT
+	if _selection_order_dirty:
+		_rebuild_selection_order()
+	var size := _selection_ordered_bodies.size()
+	var self_pos := _selection_ordered_bodies.find(self)
+	assert(self_pos >= 0)
+	var pos := self_pos + 1
+	while pos < size:
+		if _selection_ordered_bodies[pos].flags & SPACECRAFT:
+			return _selection_ordered_bodies[pos]
+		pos += 1
+	pos = 0
+	while pos < self_pos:
+		if _selection_ordered_bodies[pos].flags & SPACECRAFT:
+			return _selection_ordered_bodies[pos]
+		pos += 1
+	return null
+
+
+## Reverse of [method get_selection_next_spacecraft].
+func get_selection_last_spacecraft() -> IVBody:
+	const SPACECRAFT := BodyFlags.BODYFLAGS_SPACECRAFT
+	if _selection_order_dirty:
+		_rebuild_selection_order()
+	var self_pos := _selection_ordered_bodies.find(self)
+	assert(self_pos >= 0)
+	var pos := self_pos - 1
+	while pos >= 0:
+		if _selection_ordered_bodies[pos].flags & SPACECRAFT:
+			return _selection_ordered_bodies[pos]
+		pos -= 1
+	pos = _selection_ordered_bodies.size() - 1
+	while pos > self_pos:
+		if _selection_ordered_bodies[pos].flags & SPACECRAFT:
+			return _selection_ordered_bodies[pos]
+		pos -= 1
+	return null
+
+
+# *****************************************************************************
+# For GUI...
+
+
+func get_periapsis_label() -> StringName:
+	if parent:
+		if parent.name == &"STAR_SUN":
+			return &"LABEL_PERIHELION"
+		if parent.name == &"PLANET_EARTH":
+			return &"LABEL_PERIGEE"
+	return &"LABEL_PERIAPSIS"
+
+
+func get_apoapsis_label() -> StringName:
+	if parent:
+		if parent.name == &"STAR_SUN":
+			return &"LABEL_APHELION"
+		if parent.name == &"PLANET_EARTH":
+			return &"LABEL_APOGEE"
+	return &"LABEL_APOAPSIS"
+
 
 # *****************************************************************************
 # core mechanics...
 
 
-## Adds [param satellite] to this body's [member satellites]. Does [b]NOT[/b]
-## add [param satellite] to the tree!
-func add_satellite(satellite: IVBody) -> void:
+## Adds [param satellite] to this body's [member satellites] and [member
+## ordered_satellites].
+func index_satellite(satellite: IVBody) -> void:
 	assert(!satellites.has(satellite.name))
 	satellites[satellite.name] = satellite
+	# Note: Most adds are in order due to data table construction, and more so
+	# for game loads due to _resort_child_bodies(). So we usually avoid
+	# the expensive binary search and non-end array insert here.
+	var ordered_index := 0
+	if ordered_satellites:
+		if _is_ordered_satellites(ordered_satellites[-1], satellite):
+			ordered_index = ordered_satellites.size()
+		else:
+			ordered_index = ordered_satellites.bsearch_custom(satellite, _is_ordered_satellites)
+	ordered_satellites.insert(ordered_index, satellite)
 
 
-## Removes [param satellite] from this body's [member satellites]. Does [b]NOT[/b]
-## remove [param satellite] from the tree!
-func remove_satellite(satellite: IVBody) -> void:
+## Removes [param satellite] from this body's [member satellites] and [member
+## ordered_satellites].
+func unindex_satellite(satellite: IVBody) -> void:
 	satellites.erase(satellite.name)
+	ordered_satellites.erase(satellite)
 
 
 ## Adds a child Node3D to this body's [IVModelSpace]. Use for nodes that need to
@@ -1106,9 +1420,17 @@ func get_fragment_text(_data: Array) -> String:
 	return tr(name) + " (" + tr("LABEL_ORBIT").to_lower() + ")"
 
 
+## Reorder this body's satellites after a satellite major orbit change
+## (specifically in semi-parameter). This isn't strictly needed; the main effect
+## is to fix GUI selection order for "next", "next_spacecraft", etc.
+func resort_satellites() -> void:
+	ordered_satellites.sort_custom(_is_ordered_satellites)
+	_resort_child_bodies()
+	_selection_order_dirty = true
+
+
 # *****************************************************************************
 # private
-
 
 func _clear_procedural() -> void:
 	if _orbit:
@@ -1116,14 +1438,19 @@ func _clear_procedural() -> void:
 	parent = null
 	star = null
 	star_orbiter = null
-	satellites.clear()
 	model_space = null
+	satellites.clear()
+	ordered_satellites.clear()
+	# static re-clearing is redundant but not expensive
 	bodies.clear()
 	top_bodies.clear()
+	_selection_ordered_bodies.clear()
+	_selection_order_dirty = true
 
 
 func _on_system_tree_built(is_new_game: bool) -> void:
 	const TIDALLY_LOCKED := BodyFlags.BODYFLAGS_TIDALLY_LOCKED
+	_resort_child_bodies()
 	if !is_new_game:
 		return
 	# persisted data needed for new game only...
@@ -1134,7 +1461,6 @@ func _on_system_tree_built(is_new_game: bool) -> void:
 
 
 func _on_simulator_started() -> void:
-	
 	# Paused game load hack. Top IVBody and decendents (including IVCamera)
 	# need to process 1 frame to get positions and visuals right.
 	if not (flags & BodyFlags.BODYFLAGS_TOP):
@@ -1150,10 +1476,15 @@ func _on_simulator_started() -> void:
 	process_mode = PROCESS_MODE_INHERIT
 
 
-func _set_relative_bodies() -> void:
+func _index() -> void:
 	# For multi-star system, a star could be a star orbiter.
+	const TOP := BodyFlags.BODYFLAGS_TOP
 	const STAR := BodyFlags.BODYFLAGS_STAR
 	const STAR_ORBITER := BodyFlags.BODYFLAGS_STAR_ORBITER
+	assert(not bodies.has(name))
+	bodies[name] = self
+	if flags & TOP:
+		top_bodies[name] = self
 	parent = get_parent_node_3d() as IVBody # null only for top bodies
 	star = null
 	star_orbiter = null
@@ -1166,15 +1497,36 @@ func _set_relative_bodies() -> void:
 			break
 		ascending_body = ascending_body.get_parent_node_3d() as IVBody
 	if parent:
-		parent.add_satellite(self)
+		parent.index_satellite(self)
+	_selection_ordered_bodies.clear()
+	_selection_order_dirty = true
 
 
-func _clear_relative_bodies() -> void:
+func _clear_indexing() -> void:
+	const TOP := BodyFlags.BODYFLAGS_TOP
+	assert(not satellites)
+	assert(not ordered_satellites)
+	bodies.erase(name)
+	if flags & TOP:
+		top_bodies.erase(name)
 	if parent:
-		parent.remove_satellite(self)
+		parent.unindex_satellite(self)
 		parent = null
 	star = null
 	star_orbiter = null
+	_selection_ordered_bodies.clear()
+	_selection_order_dirty = true
+
+
+func _resort_child_bodies() -> void:
+	# Not necessary, but neatens the tree in editor run. It also
+	# makes index_satellite() marginally faster on subsequent game load after 
+	# save. It's not expected to affect anything else. Children will go out of
+	# order during session if orbits change dramatically or bodies change
+	# parantage -- e.g., spacecrafts moving around.
+	for i in ordered_satellites.size():
+		var satellite := ordered_satellites[i]
+		move_child(satellite, i)
 
 
 func _set_resources() -> void:
@@ -1196,11 +1548,8 @@ func _set_system_radius() -> void:
 	var system_radius := mean_radius * system_mean_radius_multiplier
 	if characteristics.get(&"system_radius", 0.0) > system_radius:
 		system_radius = characteristics[&"system_radius"]
-	for satellite_name in satellites:
-		var a: float = satellites[satellite_name].get_orbit_semi_major_axis()
-		if system_radius < a:
-			system_radius = a
-	_system_radius = system_radius
+	if ordered_satellites:
+		_system_radius = maxf(_system_radius, ordered_satellites[-1].get_orbit_semi_parameter())
 
 
 func _set_hill_sphere() -> void:

@@ -21,6 +21,10 @@ class_name IVTimeSetButton
 extends Button
 
 ## Button widget that opens its own [IVTimeSetPopup].
+##
+## See documentation in [IVTimeSetter].[br][br]
+##
+## See also [IVSyncOSTimeCheckBox].
 
 @export var popup_corner := Corner.CORNER_TOP_LEFT
 @export var popup_stylebox_override: StyleBox

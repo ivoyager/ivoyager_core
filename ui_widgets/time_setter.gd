@@ -20,18 +20,22 @@
 class_name IVTimeSetter
 extends VBoxContainer
 
-## Control widget allowing user to set time.
+## Control widget that lets the user set simulator time.
 ##
-## Requires [IVTimekeeper]. Updates date/time display when shown.[br][br]
+## Requires [IVTimekeeper]. Time setting is disabled by default. To enable, set
+## [member IVCoreSettings.allow_time_setting] == true.
+## This widget is used by Planetarium.[br][br]
 ##
-## In typical setup, this control is in [IVTimeSetPopup] which is a child of
-## and evoked by [IVTimeSetButton]. You only have to add the button.
+## In typical setup, this control is in [IVTimeSetPopup] which is a child of,
+## and evoked by, [IVTimeSetButton]. You only have to add the button.[br][br]
+##
+## If not used in a popup, call [method update_setter_time] as needed.
 
 signal closed()
 
 
 var _timekeeper: IVTimekeeper
-var _updating_display := false
+var _updating_setter := false
 
 @onready var _year: SpinBox = $SetterHBox/Year
 @onready var _month: SpinBox = $SetterHBox/Month
@@ -49,6 +53,20 @@ func _ready() -> void:
 		IVStateManager.core_initialized.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
 
 
+func update_setter_time() -> void:
+	var date_time := _timekeeper.get_gregorian_date_time()
+	var date_array: Array[int] = date_time[0]
+	var time_array: Array[int] = date_time[1]
+	_updating_setter = true
+	_year.value = date_array[0]
+	_month.value = date_array[1]
+	_day.value = date_array[2]
+	_hour.value = time_array[0]
+	_minute.value = time_array[1]
+	_second.value = time_array[2]
+	_updating_setter = false
+
+
 func _configure_after_core_inited() -> void:
 	_timekeeper = IVGlobal.program[&"Timekeeper"]
 	visibility_changed.connect(_on_visibility_changed)
@@ -62,27 +80,17 @@ func _configure_after_core_inited() -> void:
 
 
 func _on_visibility_changed() -> void:
-	if !is_visible_in_tree():
-		return
-	var date_time := _timekeeper.get_gregorian_date_time()
-	var date_array: Array[int] = date_time[0]
-	var time_array: Array[int] = date_time[1]
-	_updating_display = true
-	_year.value = date_array[0]
-	_month.value = date_array[1]
-	_day.value = date_array[2]
-	_hour.value = time_array[0]
-	_minute.value = time_array[1]
-	_second.value = time_array[2]
-	_updating_display = false
+	if is_visible_in_tree():
+		update_setter_time()
 
 
 func _on_time_changed(_value: float, is_date := false) -> void:
-	# WARNING: Infinite recursion! We're here on user OR code change...
-	if _updating_display:
+	if _updating_setter: # prevents infinite recursion!
 		return
-	if is_date and _fix_invalid_day(): # recursive call if day fix!
-		return
+	if is_date and _decrement_invalid_day():
+		# _decrement_invalid_day() causes a recursive call to this method when it
+		# sets the day spinbox. It will recurse at most 3 times (Feb 31, non-leap year).
+		return 
 	if _update_ckbx.button_pressed:
 		_set_time(false)
 
@@ -96,7 +104,7 @@ func _set_time(set_and_close: bool) -> void:
 		closed.emit()
 
 
-func _fix_invalid_day() -> bool:
+func _decrement_invalid_day() -> bool:
 	if _day.value < 29.0:
 		return false
 	@warning_ignore("narrowing_conversion")

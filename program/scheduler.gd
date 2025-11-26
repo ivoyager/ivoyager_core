@@ -139,7 +139,7 @@ func _remove_active_interval_signal(signal_name: StringName) -> void:
 
 func _update_for_time_reversal() -> void:
 	# Connected only if IVCoreSettings.allow_time_reversal.
-	if _is_reversed == _timekeeper.is_reversed:
+	if _is_reversed == _timekeeper.reversed_time:
 		return
 	_is_reversed = !_is_reversed
 	var n_signals := _ordered_signal_infos.size()

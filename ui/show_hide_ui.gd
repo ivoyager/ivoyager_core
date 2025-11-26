@@ -1,4 +1,4 @@
-# show_hide_gui.gd
+# show_hide_ui.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************

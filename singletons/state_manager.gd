@@ -26,6 +26,8 @@ extends Node
 ## reference issues.
 
 
+# FIXME: User pause is persisted for game save but not Planetarium cache.
+# Persist via IVTimekeeper?
 
 
 # There is no NetworkLobby in base I, Voyager. It's is a very application-
@@ -117,8 +119,9 @@ signal paused_changed(paused_tree: bool, paused_by_user: bool)
 ## Emitted after state changes except pause (unless pause coincides with some
 ## other state change). Also not emitted durring [IVCoreInitializer] processing
 ## (see "core_init_" signals). This signal is often emitted immediately before a
-## specific state signal (e.g., [signal core_initialized], [signal system_tree_ready])
-## but always after relevant class properties have been set.
+## specific state signal (e.g., [signal core_initialized], [signal system_tree_ready],
+## [signal simulator_started]), but always after the relevant "state" properties
+## have been set.
 signal state_changed()
 
 # TODO?: one signal threads_state_changed() and then query allow_threads
@@ -272,13 +275,21 @@ func set_user_paused(pause: bool) -> void:
 		return
 	if network_state == NetworkState.IS_CLIENT:
 		return
-	if !running or IVCoreSettings.disable_pause:
+	if IVCoreSettings.disable_pause:
 		return
 	paused_by_user = pause
-	if paused_by_user == _tree.paused:
-		paused_changed.emit(paused_by_user, paused_by_user)
+	if !running or paused_by_user == _tree.paused:
+		paused_changed.emit(paused_by_user, _tree.paused)
 	else:
-		_tree.paused = paused_by_user # will emit paused_changed via IVTimekeeper
+		_tree.paused = paused_by_user # emits paused_changed via _notification()
+
+
+func can_user_pause() -> bool:
+	if network_state == NetworkState.IS_CLIENT:
+		return false
+	if IVCoreSettings.disable_pause:
+		return false
+	return true
 
 
 ## network_sync_type used only if we are the network server.
@@ -515,7 +526,7 @@ func _stop_simulator() -> void:
 	if _tree.paused:
 		paused_changed.emit(true, paused_by_user)
 	else:
-		_tree.paused = true # will emit paused_changed via IVTimekeeper
+		_tree.paused = true # emits paused_changed via _notification()
 	state_changed.emit()
 	run_state_changed.emit(false)
 
@@ -526,7 +537,7 @@ func _run_simulator() -> void:
 	if paused_by_user == _tree.paused:
 		paused_changed.emit(paused_by_user, paused_by_user)
 	else:
-		_tree.paused = paused_by_user # will emit paused_changed via IVTimekeeper
+		_tree.paused = paused_by_user # emits paused_changed via _notification()
 	state_changed.emit()
 	run_state_changed.emit(true)
 	assert(!DPRINT or IVDebug.dprint("signal run_threads_allowed"))
