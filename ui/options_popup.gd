@@ -20,80 +20,111 @@
 class_name IVOptionsPopup
 extends PopupPanel
 
+## User options popup.
+##
+## User "options" are are a subset of cached settings managed by [IVSettingsManager].
+## All options are cached settings, but not all cached settings are necessarily
+## exposed here as user options.[br][br]
+##
+## This popup builds options Control items on-the-fly as defined in class
+## properties. Columns and section headers are defined in [member layout] and
+## section content is defined in [member section_content].[br][br]
+##
+## Depending on value type, an option item can be a [CheckBox], [OptionButton],
+## [SpinBox], [LineEdit] or [ColorPickerButton]. Individual option Controls
+## can be modified by [member option_enumerations] and [member
+## option_control_properties].
 
-const DPRINT := true
 
-
+## Stop the simulator while this popup is open. This setting will be overridden
+## if [member IVCoreSettings.popops_can_stop_sim] == false.
 @export var stop_sim := true
+
+## Content layout is an array of columns, where each column is an array of 
+## header labels. The header labels must correspond to keys in [member
+## section_content].
 @export var layout: Array[Array] = [
 	# column 1
-	[
-		{
-			&"header" : &"LABEL_SAVE_LOAD",
-			&"save_base_name" : &"LABEL_BASE_NAME",
-			&"append_date_to_save" : &"LABEL_APPEND_DATE",
-			&"pause_on_load" : &"LABEL_PAUSE_ON_LOAD",
-			&"autosave_time_min" : &"LABEL_AUTOSAVE_TIME_MIN",
-		},
-		{
-			&"header" : &"LABEL_CAMERA",
-			&"camera_transfer_time" : &"LABEL_TRANSFER_TIME",
-			&"camera_mouse_in_out_rate" : &"LABEL_MOUSE_RATE_IN_OUT",
-			&"camera_mouse_move_rate" : &"LABEL_MOUSE_RATE_TANGENTIAL",
-			&"camera_mouse_pitch_yaw_rate" : &"LABEL_MOUSE_RATE_PITCH_YAW",
-			&"camera_mouse_roll_rate" : &"LABEL_MOUSE_RATE_ROLL",
-			&"camera_key_in_out_rate" : &"LABEL_KEY_RATE_IN_OUT",
-			&"camera_key_move_rate" : &"LABEL_KEY_RATE_TANGENTIAL",
-			&"camera_key_pitch_yaw_rate" : &"LABEL_KEY_RATE_PITCH_YAW",
-			&"camera_key_roll_rate" : &"LABEL_KEY_RATE_ROLL",
-		},
-	],
-	
+	[&"LABEL_SAVE_LOAD", &"LABEL_CAMERA"],
 	# column 2
-	[
-		{
-			&"header" : &"LABEL_GUI_AND_HUD",
-			&"language" : &"LABEL_LANGUAGE",
-			&"gui_size" : &"LABEL_GUI_SIZE",
-			
-			&"label3d_names_size_percent" : &"LABEL_NAMES_SIZE",
-			&"label3d_symbols_size_percent" : &"LABEL_SYMBOLS_SIZE",
-			&"point_size" : &"LABEL_POINT_SIZE",
-			&"hide_hud_when_close" : &"LABEL_HIDE_HUDS_WHEN_CLOSE",
-		},
-		{
-			&"header" : &"LABEL_GRAPHICS_PERFORMANCE",
-			&"starmap" : &"LABEL_STARMAP",
-		},
-	],
+	[&"LABEL_GUI_AND_HUD", &"LABEL_GRAPHICS_PERFORMANCE"],
 ]
 
-# These can be enums or enum-like static dictionaries.
-@export var setting_enums := {
-	language = IVLanguageManager.language_settings,
-	gui_size = IVGlobal.GUISize,
-	starmap = IVGlobal.StarmapSize,
+## Section keys are the header labels used in [member layout]. Content of each
+## section is an array of 2-element arrays, where each 2-element array has an
+## option label and a setting (setting must be defined in [IVSettingsManager]).
+## Note: It's not necessary to remove a section here if it has been removed
+## from [member layout].
+@export var section_content: Dictionary[StringName, Array] = {
+	LABEL_SAVE_LOAD = [
+		[&"LABEL_BASE_NAME", &"save_base_name"],
+		[&"LABEL_APPEND_DATE", &"append_date_to_save"],
+		[&"LABEL_PAUSE_ON_LOAD", &"pause_on_load"],
+		[&"LABEL_AUTOSAVE_TIME_MIN", &"autosave_time_min"],
+	],
+	LABEL_CAMERA = [
+		[&"LABEL_TRANSFER_TIME", &"camera_transfer_time"],
+		[&"LABEL_MOUSE_RATE_IN_OUT", &"camera_mouse_in_out_rate"],
+		[&"LABEL_MOUSE_RATE_TANGENTIAL", &"camera_mouse_move_rate"],
+		[&"LABEL_MOUSE_RATE_PITCH_YAW", &"camera_mouse_pitch_yaw_rate"],
+		[&"LABEL_MOUSE_RATE_ROLL", &"camera_mouse_roll_rate"],
+		[&"LABEL_KEY_RATE_IN_OUT", &"camera_key_in_out_rate"],
+		[&"LABEL_KEY_RATE_TANGENTIAL", &"camera_key_move_rate"],
+		[&"LABEL_KEY_RATE_PITCH_YAW", &"camera_key_pitch_yaw_rate"],
+		[&"LABEL_KEY_RATE_ROLL", &"camera_key_roll_rate"],
+	],
+	LABEL_GUI_AND_HUD = [
+		[&"LABEL_LANGUAGE", &"language"],
+		[&"LABEL_GUI_SIZE", &"gui_size"],
+		[&"LABEL_NAMES_SIZE", &"label3d_names_size_percent"],
+		[&"LABEL_SYMBOLS_SIZE", &"label3d_symbols_size_percent"],
+		[&"LABEL_POINT_SIZE", &"point_size"],
+		[&"LABEL_HIDE_HUDS_WHEN_CLOSE", &"hide_hud_when_close"],
+	],
+	LABEL_GRAPHICS_PERFORMANCE = [
+		[&"LABEL_STARMAP", &"starmap"],
+	],
 }
-@export var format_overrides := {
+
+## Option enumerations. Enumerations are enums or enum-like dictionaries
+## (i.e., sequential integer values from 0 keyed by StringNames). Enumeration
+## keys are expected to be translatable. The enumeration is identified by an
+## array containing an Object key in [member IVGlobal.program] and a property
+## name.
+@export var option_enumerations: Dictionary[StringName, Array] = {
+	language = [&"LanguageManager", &"language_settings"],
+	gui_size = [&"Global", &"GUISize"],
+	starmap = [&"Global", &"StarmapSize"],
+}
+
+## Each option Control can be a [CheckBox], [OptionButton], [SpinBox],
+## [LineEdit] or [ColorPickerButton]. Control property overrides can be defined
+## here as a dictionary keyed by the option. E.g., if an option Control is a
+## [SpinBox], properties can include "min_value", "max_value", etc.
+@export var option_control_properties: Dictionary[StringName, Dictionary] = {
 	camera_transfer_time = {max_value = 10.0},
 	label3d_names_size_percent = {min_value = 20, max_value = 500, step = 10, suffix = "%"},
 	label3d_symbols_size_percent = {min_value = 20, max_value = 500, step = 10, suffix = "%"},
 	point_size = {min_value = 3, max_value = 20},
 }
 
-
+var _enumerations: Dictionary[StringName, Dictionary] = {}
 var _suppress_close := true
 
 
-@onready var _content_container: HBoxContainer = $VBox/Content
-@onready var _cancel: Button = $VBox/BottomHBox/Cancel
-@onready var _confirm_changes: Button = $VBox/BottomHBox/ConfirmChanges
-@onready var _restore_defaults: Button = $VBox/BottomHBox/RestoreDefaults
+@onready var _content_container: HBoxContainer = %ContentContainer
+@onready var _restore_defaults: Button = %RestoreDefaultsButton
+@onready var _confirm_changes: Button = %ConfirmChangesButton
+@onready var _cancel: Button = %CancelButton
 
 
 
 func _ready() -> void:
 	hide() # Godot 4.5 editor keeps setting visibility == true !!!
+	IVStateManager.core_initialized.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
+
+
+func _configure_after_core_inited() -> void:
 	IVGlobal.options_requested.connect(open)
 	IVSettingsManager.changed.connect(_settings_listener)
 	IVGlobal.close_admin_popups_required.connect(hide)
@@ -102,12 +133,19 @@ func _ready() -> void:
 	_cancel.pressed.connect(_on_cancel)
 	_restore_defaults.pressed.connect(_on_restore_defaults)
 	_confirm_changes.pressed.connect(_on_confirm_changes)
-	if !IVPluginUtils.is_plugin_enabled("ivoyager_save"):
-		remove_subpanel(&"LABEL_SAVE_LOAD")
+	for key in option_enumerations:
+		var array := option_enumerations[key]
+		var object_key: StringName = array[0]
+		var property: StringName = array[1]
+		assert(IVGlobal.program.has(object_key))
+		var object := IVGlobal.program[object_key]
+		assert(property in object)
+		var enumeration: Dictionary = object.get(property)
+		_enumerations[key] = enumeration
 
 
 func _shortcut_input(event: InputEvent) -> void:
-	if event.is_action_pressed(&"ui_cancel"):
+	if event.is_action_pressed(&"ui_cancel") or event.is_action_pressed(&"toggle_options", true):
 		_on_cancel()
 		set_input_as_handled()
 
@@ -122,77 +160,6 @@ func open() -> void:
 	popup_centered()
 
 
-func add_subpanel(subpanel_dict: Dictionary, to_column: int, to_row := 999) -> void:
-	# Set to_column and/or to_row arbitrarily large to move to end.
-	if to_column >= layout.size():
-		to_column = layout.size()
-		layout.append([])
-	var column_array: Array[Dictionary] = layout[to_column]
-	if to_row >= column_array.size():
-		to_row = column_array.size()
-	column_array.insert(to_row, subpanel_dict)
-
-
-func remove_subpanel(header: StringName) -> Dictionary:
-	for column_array in layout:
-		var dict_index := 0
-		while dict_index < column_array.size():
-			var subpanel_dict: Dictionary = column_array[dict_index]
-			if subpanel_dict.header == header:
-				column_array.remove_at(dict_index)
-				return subpanel_dict
-			dict_index += 1
-	print("Could not find subpanel with header ", header)
-	return {}
-
-
-func move_subpanel(header: StringName, to_column: int, to_row: int) -> void:
-	# to_column and/or to_row can be arbitrarily big to move to end
-	var subpanel_dict := remove_subpanel(header)
-	if subpanel_dict:
-		add_subpanel(subpanel_dict, to_column, to_row)
-
-
-func add_item(item: StringName, setting_label_str: StringName, header: StringName, at_index := 999
-		) -> void:
-	# use add_subpanel() instead if subpanel doesn't exist already.
-	assert(item != "header")
-	for column_array in layout:
-		var dict_index := 0
-		while dict_index < column_array.size():
-			var subpanel_dict: Dictionary = column_array[dict_index]
-			if subpanel_dict.header == header:
-				if at_index >= subpanel_dict.size() - 1:
-					subpanel_dict[item] = setting_label_str
-					return
-				# Dictionaries are ordered but there is no insert!
-				var new_subpanel_dict := {}
-				var index := 0
-				for key: StringName in subpanel_dict:
-					new_subpanel_dict[key] = subpanel_dict[key] # 1st is header
-					if index == at_index:
-						new_subpanel_dict[item] = setting_label_str
-					index += 1
-				column_array[dict_index] = new_subpanel_dict
-				return
-			dict_index += 1
-	print("Could not find Options subpanel with header ", header)
-
-
-func remove_item(item: StringName) -> void:
-	assert(item != "header")
-	for column_array in layout:
-		var dict_index := 0
-		while dict_index < column_array.size():
-			var subpanel_dict: Dictionary = column_array[dict_index]
-			subpanel_dict.erase(item)
-			if subpanel_dict.size() == 1: # only header remains
-				column_array.remove_at(dict_index)
-				dict_index -= 1
-			dict_index += 1
-
-
-
 func _build_content() -> void:
 	for child in _content_container.get_children():
 		_content_container.remove_child(child)
@@ -200,7 +167,7 @@ func _build_content() -> void:
 	for column_array in layout:
 		var column_vbox := VBoxContainer.new()
 		_content_container.add_child(column_vbox)
-		for subpanel_dict: Dictionary in column_array:
+		for header: StringName in column_array:
 			var subpanel_container := PanelContainer.new()
 			column_vbox.add_child(subpanel_container)
 			var subpanel_vbox := VBoxContainer.new()
@@ -208,21 +175,25 @@ func _build_content() -> void:
 			var header_label := Label.new()
 			subpanel_vbox.add_child(header_label)
 			header_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			header_label.text = subpanel_dict.header
-			for item: StringName in subpanel_dict:
-				if item != &"header":
-					var label_name: StringName = subpanel_dict[item]
-					var setting_hbox := _build_item(item, label_name)
-					subpanel_vbox.add_child(setting_hbox)
+			header_label.text = header
+			var section := section_content[header]
+			for option_array: Array in section:
+				var option_text: StringName = option_array[0]
+				var setting: StringName = option_array[1]
+				if not IVSettingsManager.has_setting(setting):
+					push_warning("Skipping nonexistent setting %s" % setting)
+					continue
+				var setting_hbox := _build_item(option_text, setting)
+				subpanel_vbox.add_child(setting_hbox)
 	_on_content_built()
 
 
-func _build_item(setting: StringName, setting_label_str: StringName) -> HBoxContainer:
+func _build_item(option_text: StringName, setting: StringName) -> HBoxContainer:
 	var setting_hbox := HBoxContainer.new()
-	var setting_label := Label.new()
-	setting_hbox.add_child(setting_label)
-	setting_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	setting_label.text = setting_label_str
+	var label := Label.new()
+	setting_hbox.add_child(label)
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.text = option_text
 	var default_button := Button.new()
 	default_button.text = "!"
 	default_button.disabled = IVSettingsManager.is_default(setting)
@@ -241,9 +212,9 @@ func _build_item(setting: StringName, setting_label_str: StringName) -> HBoxCont
 			checkbox.toggled.connect(_on_change.bind(setting, default_button))
 		TYPE_INT, TYPE_FLOAT:
 			var is_int := type == TYPE_INT
-			if is_int and setting_enums.has(setting):
+			if is_int and _enumerations.has(setting):
 				# OptionButton
-				var setting_enum: Dictionary = setting_enums[setting]
+				var setting_enum := _enumerations[setting]
 				var keys: Array = setting_enum.keys()
 				var option_button := OptionButton.new()
 				setting_hbox.add_child(option_button)
@@ -291,8 +262,8 @@ func _build_item(setting: StringName, setting_label_str: StringName) -> HBoxCont
 
 
 func _set_overrides(control: Control, setting: StringName) -> void:
-	if format_overrides.has(setting):
-		var overrides: Dictionary = format_overrides[setting]
+	if option_control_properties.has(setting):
+		var overrides: Dictionary = option_control_properties[setting]
 		for override: StringName in overrides:
 			control.set(override, overrides[override])
 
@@ -318,7 +289,7 @@ func _on_change(value: Variant, setting: StringName, default_button: Button,
 	if convert_to_int:
 		var float_value: float = value
 		value = int(float_value)
-	assert(!DPRINT or IVDebug.dprint("Set " + setting + " = " + str(value)))
+	print("Set " + setting + " = " + str(value))
 	IVSettingsManager.change_setting(setting, value, true)
 	default_button.disabled = IVSettingsManager.is_default(setting)
 	_restore_defaults.disabled = IVSettingsManager.is_defaults()

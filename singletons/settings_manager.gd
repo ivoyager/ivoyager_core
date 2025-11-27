@@ -95,6 +95,10 @@ func set_default(key: StringName, value: Variant) -> void:
 		_defaults[key] = value
 
 
+func has_setting(key: StringName) -> bool:
+	return _defaults.has(key)
+
+
 ## If calling with [param suppress_caching] = true, call [method cache_now]
 ## after changes.
 func change_setting(key: StringName, value: Variant, suppress_caching := false) -> void:
