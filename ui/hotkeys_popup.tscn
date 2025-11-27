@@ -29,28 +29,32 @@ layout_mode = 2
 size_flags_horizontal = 4
 text = "LABEL_HOTKEYS"
 
-[node name="Content" type="HBoxContainer" parent="VBox"]
+[node name="ContentContainer" type="HBoxContainer" parent="VBox"]
+unique_name_in_owner = true
 layout_mode = 2
 
-[node name="BottomHBox" type="HBoxContainer" parent="VBox"]
+[node name="ButtonsBox" type="HBoxContainer" parent="VBox"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_constants/separation = 40
 alignment = 1
 
-[node name="RestoreDefaults" type="Button" parent="VBox/BottomHBox"]
+[node name="RestoreDefaultsButton" type="Button" parent="VBox/ButtonsBox"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 8
 text = "Restore Defaults"
 
-[node name="ConfirmChanges" type="Button" parent="VBox/BottomHBox"]
+[node name="ConfirmChangesButton" type="Button" parent="VBox/ButtonsBox"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 8
 text = "Confirm Changes"
 
-[node name="Cancel" type="Button" parent="VBox/BottomHBox"]
+[node name="CancelButton" type="Button" parent="VBox/ButtonsBox"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 8

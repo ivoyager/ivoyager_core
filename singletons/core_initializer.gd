@@ -122,7 +122,6 @@ var init_refcounteds: Dictionary[StringName, Variant] = {
 	StateAuxiliary = IVStateAuxiliary,
 	ResourceInitializer = IVResourceInitializer, # self-removes
 	TableInitializer = IVTableInitializer, # self-removes
-	InputMapManager = IVInputMapManager,
 	AssetPreloader = IVAssetPreloader,
 }
 ## Include keys from [member init_refcounteds] that need to be instantiated
@@ -149,10 +148,11 @@ var program_refcounteds: Dictionary[StringName, Variant] = {
 	BodyFinisher = IVBodyFinisher,
 	SBGFinisher = IVSBGFinisher,
 	# managers, etc.
+	InputMapManager = IVInputMapManager,
 	ThemeManager = IVThemeManager,
 	SleepManager = IVSleepManager,
-	LazyModelInitializer = IVLazyModelInitializer,
 	LanguageManager = IVLanguageManager,
+	LazyModelInitializer = IVLazyModelInitializer,
 }
 ## Include keys from [member program_refcounteds] that need to be instantiated
 ## first and in order. (This probably shouldn't be needed. Consider adding the
