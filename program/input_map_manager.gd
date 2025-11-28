@@ -237,17 +237,10 @@ static var defaults: Dictionary[StringName, Variant] = {
 	&"quit" : [
 		{&"event_class" : &"InputEventKey", &"keycode" : KEY_Q, &"ctrl_pressed" : true}
 	],
-	&"save_quit" : [
-		{&"event_class" : &"InputEventKey", &"keycode" : KEY_Q, &"alt_pressed" : true}
-	],
 	
-	# Used by ProjectCyclablePanels GUI mod (which is used by Planetarium)
-	&"cycle_next_panel" : [
-		{&"event_class" : &"InputEventKey", &"keycode" : KEY_QUOTELEFT}
-	],
-	&"cycle_prev_panel" : [
-		{&"event_class" : &"InputEventKey", &"keycode" : KEY_QUOTELEFT, &"shift_pressed" : true}
-	],
+	# TODO: Cycle focus by panel for faster keyboard selection...
+	#&"cycle_next_panel" : [],
+	#&"cycle_prev_panel" : [],
 }
 
 

@@ -20,65 +20,47 @@
 class_name IVFullScreenButton
 extends Button
 
-## Button widget that toggles between "Full Screen" and "Minimize".
+## Button widget that toggles full screen.
 ##
-## Use [IVFullScreenManager] for hotkey toggle.
-##
-## FIXME: Require IVFullScreenManager and implement listener and action in that
-## class only (maybe implement IVGlobal.full_screen_toggle_requested).
+## Requires [IVFullScreenManager] (not added by default) and [member
+## IVCoreSettings.allow_fullscreen_toggle] == true.
+
+@export var full_screen_text := &"BUTTON_FULL_SCREEN"
+@export var minimize_text := &"BUTTON_MINIMIZE"
 
 
-var full_screen_text := &"BUTTON_FULL_SCREEN"
-var minimize_text := &"BUTTON_MINIMIZE"
-
-
-## In past Godot versions, a value >0 has been needed for correct state update
-## specifically in HTML5 exports.
-var frames_to_test_screen_state := 0
-
-var _is_fullscreen := false
-var _test_countdown := 0
-
+var _full_screen_manager: IVFullScreenManager
 
 
 func _ready() -> void:
-	process_mode = PROCESS_MODE_ALWAYS
-	IVGlobal.ui_dirty.connect(_update_button)
-	get_viewport().size_changed.connect(_screen_state_listener)
+	if IVStateManager.initialized_core:
+		_configure_after_core_inited()
+	else:
+		IVStateManager.core_initialized.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
+	
+	
+func _configure_after_core_inited() -> void:
 	text = full_screen_text
+	if not IVCoreSettings.allow_fullscreen_toggle:
+		push_warning("Full screen toggle requires IVCoreSettings.allow_fullscreen_toggle == true")
+		disabled = true
+		return
+	_full_screen_manager = IVGlobal.program.get(&"FullScreenManager")
+	if not _full_screen_manager:
+		push_warning("Full screen toggle requires IVFullScreenManager")
+		disabled = true
+		return
+	process_mode = PROCESS_MODE_ALWAYS
+	_full_screen_manager.fullscreen_changed.connect(_update_button)
+	get_viewport().size_changed.connect(_update_button)
+	IVGlobal.ui_dirty.connect(_update_button)
 	_update_button()
 
 
 func _pressed() -> void:
-	_change_fullscreen()
-
-
-func _change_fullscreen() -> void:
-	var window := get_tree().get_root()
-	var is_fullscreen := ((window.mode == Window.MODE_EXCLUSIVE_FULLSCREEN)
-			or (window.mode == Window.MODE_FULLSCREEN))
-	window.mode = Window.MODE_EXCLUSIVE_FULLSCREEN if !is_fullscreen else Window.MODE_WINDOWED
+	_full_screen_manager.toggle_fullscreen()
 
 
 func _update_button() -> void:
-	var window := get_tree().get_root()
-	if _is_fullscreen == ((window.mode == Window.MODE_EXCLUSIVE_FULLSCREEN)
-			or (window.mode == Window.MODE_FULLSCREEN)):
-		return # no update
-	_is_fullscreen = !_is_fullscreen
-	text = minimize_text if _is_fullscreen else full_screen_text
-
-
-func _screen_state_listener() -> void:
-	# In some browsers, OS.window_fullscreen takes a while to give changed
-	# result. So we keep checking for a while.
-	# TODO: Test if this is still the case in HTML export.
-	if _test_countdown: # already running
-		_test_countdown = frames_to_test_screen_state
-		return
-	_test_countdown = frames_to_test_screen_state
-	_update_button()
-	while _test_countdown:
-		await get_tree().process_frame
-		_update_button()
-		_test_countdown -= 1
+	var is_fullscreen := _full_screen_manager.is_fullscreen()
+	text = minimize_text if is_fullscreen else full_screen_text

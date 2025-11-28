@@ -43,10 +43,14 @@ extends PopupPanel
 @export var stop_sim := true
 @export var item_min_size_x := 300
 
-## Enable automatic removal of items based on [IVCoreSettings] or plugin status.
-## For example, save/load related hotkeys are removed if the Save plugin is not
-## present.
-@export var enable_auto_removes := false
+## If true (default), automatically remove hotkey actions that are not
+## applicable due to [IVCoreSettings]. For example, remove &"reverse_time"
+## unless [member IVCoreSettings.allow_time_reversal] == true.
+@export var remove_if_settings_not_applicable := true
+
+## If true (default), automatically remove save/load actions if the Save plugin
+## is not present and enabled.
+@export var remove_if_save_plugin_missing := true
 
 
 ## Content layout is an array of columns, where each column is an array of 
@@ -76,7 +80,6 @@ extends PopupPanel
 		&"save_as",
 		&"quicksave",
 		&"quit",
-		&"save_quit",
 	],
 	LABEL_GUI = [
 		&"toggle_all_gui",
@@ -157,20 +160,21 @@ func _configure_after_core_inited() -> void:
 	_restore_defaults.pressed.connect(_on_restore_defaults)
 	_confirm_changes.pressed.connect(_on_confirm_changes)
 	_hotkey_dialog.hotkey_confirmed.connect(_on_hotkey_confirmed)
-	
-	
-	#if IVCoreSettings.disable_pause:
-		#remove_item(&"toggle_pause")
-	#if !IVCoreSettings.allow_time_reversal:
-		#remove_item(&"reverse_time")
-	#if !IVPluginUtils.is_plugin_enabled("ivoyager_save"):
-		#remove_item(&"load_file")
-		#remove_item(&"quickload")
-		#remove_item(&"save_as")
-		#remove_item(&"quicksave")
-		#remove_item(&"save_quit")
-	#if IVCoreSettings.disable_quit:
-		#remove_item(&"quit")
+	if remove_if_settings_not_applicable:
+		if not IVCoreSettings.allow_fullscreen_toggle:
+			section_content[&"LABEL_ADMIN"].erase(&"toggle_fullscreen")
+		if IVCoreSettings.disable_quit:
+			section_content[&"LABEL_ADMIN"].erase(&"quit")
+		if IVCoreSettings.disable_pause:
+			section_content[&"LABEL_TIME"].erase(&"toggle_pause")
+		if not IVCoreSettings.allow_time_reversal:
+			section_content[&"LABEL_TIME"].erase(&"reverse_time")
+	if remove_if_save_plugin_missing and !IVPluginUtils.is_plugin_enabled("ivoyager_save"):
+		var admin := section_content[&"LABEL_ADMIN"]
+		admin.erase(&"load_file")
+		admin.erase(&"quickload")
+		admin.erase(&"save_as")
+		admin.erase(&"quicksave")
 
 
 func open() -> void:

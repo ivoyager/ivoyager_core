@@ -66,13 +66,12 @@ var gui_size_multipliers: Array[float] = [0.75, 1.0, 1.25]
 var start_time: float = 22.0 * IVUnits.YEAR
 var start_camera_fov: float = IVMath.get_fov_from_focal_length(24.0)
 var allow_time_setting := false
-
 var allow_time_reversal := false
 var popops_can_stop_sim := true # false overrides stop_sim member in all popups
 var limit_stops_in_multiplayer := true # overrides most stops
 #var multiplayer_disables_pause := false # server can pause if false, no one if true
 #var multiplayer_min_speed := 1
-var allow_fullscreen_toggle := true
+var allow_fullscreen_toggle := false
 var auto_exposure_enabled := true
 var vertecies_per_orbit: int = 500
 var vertecies_per_orbit_low_res: int = 100 # for 10000s of small bodies like asteroids
