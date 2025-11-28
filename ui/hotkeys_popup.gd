@@ -41,16 +41,18 @@ extends PopupPanel
 ## Stop the simulator while this popup is open. This setting will be overridden
 ## if [member IVCoreSettings.popops_can_stop_sim] == false.
 @export var stop_sim := true
-@export var item_min_size_x := 300
+
+## Column width multiplied by [member IVCoreSettings.gui_size_multipliers] (minimum).
+@export var column_base_width := 320
 
 ## If true (default), automatically remove hotkey actions that are not
 ## applicable due to [IVCoreSettings]. For example, remove &"reverse_time"
 ## unless [member IVCoreSettings.allow_time_reversal] == true.
-@export var remove_if_settings_not_applicable := true
+@export var autoremove_for_na_settings := true
 
 ## If true (default), automatically remove save/load actions if the Save plugin
 ## is not present and enabled.
-@export var remove_if_save_plugin_missing := true
+@export var autoremove_for_missing_save_plugin := true
 
 
 ## Content layout is an array of columns, where each column is an array of 
@@ -160,7 +162,7 @@ func _configure_after_core_inited() -> void:
 	_restore_defaults.pressed.connect(_on_restore_defaults)
 	_confirm_changes.pressed.connect(_on_confirm_changes)
 	_hotkey_dialog.hotkey_confirmed.connect(_on_hotkey_confirmed)
-	if remove_if_settings_not_applicable:
+	if autoremove_for_na_settings:
 		if not IVCoreSettings.allow_fullscreen_toggle:
 			section_content[&"LABEL_ADMIN"].erase(&"toggle_fullscreen")
 		if IVCoreSettings.disable_quit:
@@ -169,7 +171,7 @@ func _configure_after_core_inited() -> void:
 			section_content[&"LABEL_TIME"].erase(&"toggle_pause")
 		if not IVCoreSettings.allow_time_reversal:
 			section_content[&"LABEL_TIME"].erase(&"reverse_time")
-	if remove_if_save_plugin_missing and !IVPluginUtils.is_plugin_enabled("ivoyager_save"):
+	if autoremove_for_missing_save_plugin and !IVPluginUtils.is_plugin_enabled("ivoyager_save"):
 		var admin := section_content[&"LABEL_ADMIN"]
 		admin.erase(&"load_file")
 		admin.erase(&"quickload")
@@ -210,12 +212,10 @@ func _build_content() -> void:
 			var section := section_content[header]
 			for action: StringName in section:
 				var hotkey_text := _input_map_manager.action_texts[action]
-			
-			#for hotkey_array: Array in section:
-				#var hotkey_text: StringName = hotkey_array[0]
-				#var action: StringName = hotkey_array[1]
 				var hotkey_hbox := _build_item(hotkey_text, action)
 				subpanel_vbox.add_child(hotkey_hbox)
+		var mod_resizable := IVControlModResizable.create(Vector2(column_base_width, 0))
+		column_vbox.add_child(mod_resizable)
 	_on_content_built.call_deferred()
 
 
@@ -226,7 +226,6 @@ func _on_content_built() -> void:
 
 func _build_item(hotkey_text: StringName, action: StringName) -> HBoxContainer:
 	var action_hbox := HBoxContainer.new()
-	action_hbox.custom_minimum_size.x = item_min_size_x
 	var action_label := Label.new()
 	action_hbox.add_child(action_label)
 	action_label.size_flags_horizontal = BoxContainer.SIZE_EXPAND_FILL

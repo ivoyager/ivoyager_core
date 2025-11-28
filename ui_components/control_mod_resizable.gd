@@ -80,6 +80,18 @@ var _suppress_resize := false
 @onready var _control := get_parent() as Control
 
 
+@warning_ignore("shadowed_variable")
+static func create(base_size: Vector2, sizes: Array[Vector2] = [], resize_again_delay := 1,
+		panel_under_spacing := -1.0) -> IVControlModResizable:
+	# There are no changes to control_mod_resizable.tscn, so we use new().
+	var cmr := IVControlModResizable.new()
+	cmr.base_size = base_size
+	cmr.sizes = sizes
+	cmr.resize_again_delay = resize_again_delay
+	cmr.panel_under_spacing = panel_under_spacing
+	return cmr
+
+
 func _ready() -> void:
 	if IVStateManager.initialized_core:
 		_configure_after_core_inited()

@@ -39,6 +39,17 @@ extends PopupPanel
 ## Stop the simulator while this popup is open. This setting will be overridden
 ## if [member IVCoreSettings.popops_can_stop_sim] == false.
 @export var stop_sim := true
+## Column width multiplied by [member IVCoreSettings.gui_size_multipliers] (minimum).
+@export var column_base_width := 320
+
+## If true (default), automatically remove cache settings that are not
+## applicable due to [IVCoreSettings]. (There are none at this time.)
+@export var autoremove_for_na_settings := true
+
+## If true (default), automatically remove the Save/Load section if the
+## Save plugin is not present and enabled.
+@export var autoremove_for_missing_save_plugin := true
+
 
 ## Content layout is an array of columns, where each column is an array of 
 ## header labels. The header labels must correspond to keys in [member
@@ -142,6 +153,9 @@ func _configure_after_core_inited() -> void:
 		assert(property in object)
 		var enumeration: Dictionary = object.get(property)
 		_enumerations[key] = enumeration
+	if autoremove_for_missing_save_plugin and !IVPluginUtils.is_plugin_enabled("ivoyager_save"):
+		for column in layout:
+			column.erase(&"LABEL_SAVE_LOAD")
 
 
 func _shortcut_input(event: InputEvent) -> void:
@@ -185,6 +199,8 @@ func _build_content() -> void:
 					continue
 				var setting_hbox := _build_item(option_text, setting)
 				subpanel_vbox.add_child(setting_hbox)
+		var mod_resizable := IVControlModResizable.create(Vector2(column_base_width, 0))
+		column_vbox.add_child(mod_resizable)
 	_on_content_built()
 
 
@@ -227,6 +243,7 @@ func _build_item(option_text: StringName, setting: StringName) -> HBoxContainer:
 				# SpinBox
 				var spin_box := SpinBox.new()
 				setting_hbox.add_child(spin_box)
+				spin_box.alignment = HORIZONTAL_ALIGNMENT_RIGHT
 				spin_box.step = 1.0 if is_int else 0.1
 				spin_box.rounded = is_int
 				spin_box.min_value = 0.0
@@ -241,7 +258,8 @@ func _build_item(option_text: StringName, setting: StringName) -> HBoxContainer:
 			# LineEdit
 			var line_edit := LineEdit.new()
 			setting_hbox.add_child(line_edit)
-			line_edit.size_flags_horizontal = BoxContainer.SIZE_SHRINK_END
+			line_edit.alignment = HORIZONTAL_ALIGNMENT_RIGHT
+			line_edit.size_flags_horizontal = Control.SIZE_SHRINK_END
 			line_edit.custom_minimum_size.x = 100.0
 			_set_overrides(line_edit, setting)
 			line_edit.text = value
