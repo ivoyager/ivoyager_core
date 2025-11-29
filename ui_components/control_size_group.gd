@@ -30,7 +30,9 @@ extends RefCounted
 ##
 ## This is intended for simple Controls (e.g., Labels or Control spacers), not
 ## complex Control scene trees. In particular, infinite recursion could occur
-## if Control descendents change size in resoponse to available Container space.
+## if Control descendents change size in resoponse to available Container space.[br][br]
+##
+## See also [IVControlModResizable].
 
 @export var horizontal := true
 @export var vertical := false

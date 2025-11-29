@@ -85,17 +85,17 @@ func _process_ivoyager_cofig_files() -> void:
 	if IVPluginUtils.config_exists("res://ivoyager_override.cfg"):
 		return
 	var dir := DirAccess.open("res://addons/ivoyager_core/")
-	var err := dir.copy("res://addons/ivoyager_core/override_template.cfg",
+	var err := dir.copy("res://addons/ivoyager_core/ivoyager_override_template.cfg",
 			"res://ivoyager_override.cfg")
 	if err != OK:
-		push_error("Failed to copy 'ivoyager_override.cfg' to the project directory")
+		push_error("Failed to make copy 'ivoyager_override.cfg' in the project directory")
 		return
 	print(
 """
 
 *******************************************************************************
 Created config 'ivoyager_override.cfg' in your project directory. Modify this
-file to change the behavior of 'ivoyager_core' and other 'ivoyager_' plugins.
+file to change the behavior of 'ivoyager_core' and other I, Voyager plugins.
 *******************************************************************************
 
 """
@@ -152,7 +152,7 @@ func _handle_assets_update() -> void:
 		if assets_config.has_section("ivoyager_assets"):
 			present_version = assets_config.get_value("ivoyager_assets", "version")
 		if present_version == expected_version:
-			print("res://addons/ivoyager_assets v%s is current...\n" % present_version)
+			print("Assets (res://addons/ivoyager_assets) v%s is current...\n" % present_version)
 			return # We're good!
 	
 	# Don't popup download dialog while the plugins window or other exclusive

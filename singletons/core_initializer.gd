@@ -28,7 +28,7 @@ extends Node
 ##
 ## These files override [b]res://addons/ivoyager_core/ivoyager_core.cfg[/b] and
 ## allow changes to properties in this class (and many other things too). For
-## details, see comments in [b]res://addons/ivoyager_core/override_template.cfg[/b].
+## details, see comments in [b]res://addons/ivoyager_core/ivoyager_override_template.cfg[/b].
 ## [br][br]
 ##
 ## It's possible to modify most properties using config override files. However,

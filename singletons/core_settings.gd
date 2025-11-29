@@ -102,7 +102,7 @@ var size_layers: Array[float] = [
 	0.1 * IVUnits.KM, # smaller mean_radius gets mask 0b0100
 ]
 
-## Use this dictionary to set GUI text color meanings globally.
+## @depricated
 var text_colors: Dictionary[StringName, Color] = {
 	great = Color.CYAN,
 	good = Color.GREEN,

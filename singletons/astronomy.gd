@@ -23,20 +23,20 @@ extends Node
 ##
 ## This singleton has astronomy specific constants, static variables, and
 ## static functions. It's an autoload so that it can be replaced, e.g., for
-## a fictional universe with a different gravitational constant (see
-## ivoyager_core/override_template.cfg).[br][br]
+## a fictional universe with a different gravitational constant (to do that,
+## see res://addons/ivoyager_core/ivoyager_override_template.cfg).[br][br]
 ##
-## Epoch time is J2000.0 (noon on Jan 1, 2000). Data table values specified
-## otherwise are converted.[br][br]
+## Internal epoch time is always J2000.0 (noon on Jan 1, 2000). Data table
+## values specified otherwise are converted.[br][br]
 ##
 ## In this simulator, always assume that the coordinate system is ecliptic
 ## unless indicated otherwise. In ecliptic space, the z-axis points to ecliptic
 ## north and the x-axis points to vernal equinox.[br][br]
 ##
-## WARNING/Commentary: Astronomers never tell you what coordinate system they
-## are working in! For example, right accension / declination specification is
-## always (I think) in equatorial coordinates, while most other things are
-## ecliptic. Except moon orbits, of course. Unless it is The Moon...[br][br]
+## Commentary: Astronomers don't like to tell you what coordinate system they
+## are working in. For example, right accension / declination specification is
+## always (I think) in Earth's equatorial coordinates, while most other things
+## are ecliptic. Except moon orbits, of course. Unless it is THE Moon...[br][br]
 ##
 ## See also static methods in [IVOrbit].[br][br]
 ##

@@ -21,7 +21,7 @@ class_name IVControlModResizable
 extends Node
 
 ## Resizes parent Control to specified sizes with changes in setting "gui_size".
-## Maintains correct anchor position for Controls (not in a Container) that
+## For Control not in a container, reestablishes correct anchor position after
 ## resize for any reason
 ##
 ## Set either [member base_size] or [member sizes], or leave both as
@@ -29,9 +29,11 @@ extends Node
 ## depending on Container context (see below). In either case, the Control will
 ## expand beyond specified sizes to fit contents.[br][br]
 ##
-## If parent Control is in a Container, this node sets [member Control.custom_minimum_size].
-## For resize to happen, container sizing properties must be set to a "shrink"
-## value. There is no repositioning for a Control in a Container.[br][br]
+## If parent Control is in a Container, this node sets [member
+## Control.custom_minimum_size]. For this to be the actual size, the Control and
+## its Container siblings must have appropriate container sizing. E.g., a
+## sibling could be set to expand while the Control is not. There is no
+## repositioning for a Control in a Container.[br][br]
 ##
 ## If parent Control is [u]not[/u] in a Container, this node sets [member Control.size]
 ## and repositions to anchors after a resize happens for any reason (e.g., due
@@ -43,7 +45,9 @@ extends Node
 ## Also for parent Control not in a Container, a negative value for x or y means
 ## "Don't resize!" in this axis. This is differant than 0.0, where size is set
 ## to 0.0 but imediately resets to fit content. Use this for a Control that sets
-## its own size by code in one or both axis.
+## its own size by code in one or both axis.[br][br]
+##
+## See also [IVControlSizeGroup].
 
 
 ## Set only [member base_size] or [member sizes].
