@@ -40,7 +40,7 @@ extends Control
 ## theme one way or the other, which is necessary for dynamic font sizing by
 ## [IVThemeManager].[br][br]
 ##
-## This node has [code]PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY[/code]
+## This node has [code]const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY[/code]
 ## to support save/load persistence using the Save plugin.
 ## [IVSelectionManager]
 ## is persisted here to keep current user selection through game save/load.

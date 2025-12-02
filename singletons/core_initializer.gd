@@ -70,15 +70,22 @@ extends Node
 ## Instantiation order (and add order for nodes) can be specified where needed
 ## in the corresponding "ordered_" array properties.[br][br]
 ##
-## See [IVUniverseTemplate] for scene tree construction.
+## [b]Important Class File Docs[/b][br][br]
+##
+## 1. [IVUniverseTemplate] for scene tree construction.[br]
+## 2. Singletons [IVCoreInitializer], [IVCoreSettings], [IVGlobal], and
+##    [IVStateManager] for program init and state management.[br]
+## 3. [IVBody] for the physical 3D world. Also has roadmap details.[br]
+## 4. [IVOrbit] for orbital mechanics. Has more roadmap related to spacecraft
+##    thrust implementation.
 
 
 
 ## If true (default), this singleton will call [method begin_init] after [member
 ## init_delay] frames. If false, external project must call [method begin_init].
 var init_after_delay := true
-## Number of frames waited before this singleton will call [method begin_init]
-## (if [member init_after_delay] is still true).
+## Number of frames waited before this singleton will call [method begin_init],
+## if [member init_after_delay] is still true after the delay.
 var init_delay := 5 # frames
 
 
@@ -114,9 +121,9 @@ var preinitializers: Dictionary[StringName, Variant] = {}
 ## RefCounted "init" classes. IVCoreInitializer instances these after [member
 ## preinitializers] and adds to [member IVGlobal.program]. Dictionary values can
 ## be either classes or class file paths. If specific instantiation order is
-## needed, use [member ordered_init_refcounteds]. "Initializers" can erase
-## themselves from dictionary [member IVGlobal.program] after init, thereby
-## freeing themselves.
+## needed, also add to [member ordered_init_refcounteds]. Init classes may erase
+## themselves from dictionary [member IVGlobal.program] after init (thereby
+## freeing themselves) if they are no longer needed.
 var init_refcounteds: Dictionary[StringName, Variant] = {
 	TranslationImporter = IVTranslationImporter, # self-removes
 	StateAuxiliary = IVStateAuxiliary,
@@ -131,7 +138,7 @@ var ordered_init_refcounteds: Array[StringName] = [&"TranslationImporter", &"Sta
 ## RefCounted "program" classes. IVCoreInitializer instances these after [member
 ## init_refcounteds] and adds to [member IVGlobal.program]. Dictionary values
 ## can be either classes or class file paths. If specific instantiation order is
-## needed, use [member ordered_program_refcounteds].[br][br]
+## needed, also add to [member ordered_program_refcounteds].[br][br]
 ##
 ## Note for Save plugin: These RefCounted classes cannot have save/load
 ## persistence because their container dictionary is not persisted. Convert
@@ -162,7 +169,7 @@ var ordered_program_refcounteds: Array[StringName] = []
 ## Node "program" classes. IVCoreInitializer instances these after [member
 ## program_refcounteds], adds to [member IVGlobal.program], and adds as children
 ## to Universe. Dictionary values can be either classes or class file paths. If
-## specific instantiation or add order is needed, use [member
+## specific instantiation or add order is needed, also add to [member
 ## ordered_program_nodes].[br][br]
 ##
 ## Note for Save plugin: For save/load persistence, these Node classes can have:[br][br]

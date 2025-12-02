@@ -21,24 +21,27 @@ class_name IVOrbit
 extends RefCounted
 
 ## Represents an elliptic orbit or parabolic or hyperbolic trajectory in a
-## specified reference basis. Orbits may have nodal and apsidal precessions.
+## specified reference basis. This base class supports nodal and apsidal
+## precessions.
 ##
 ## See Wikipedia [url=https://en.wikipedia.org/wiki/Orbital_elements]orbital
 ## elements[/url] for many of the concepts and technical terms used here.
 ## "Elements" refer to the parameters needed to specify an orbit and position
-## in an orbit. Two elements (Ω and ω) evolve over time in this base class
-## (i.e., our orbits have nodal and apsidal precessions) and others may evolve
-## or change in [IVOrbit] subclasses. Evolution of orbit elements is slow
-## relative to change in position in an orbit.[br][br]
+## in an orbit given time. Two elements (Ω and ω) evolve over time in this
+## base class (i.e., our orbits have nodal and apsidal precessions) and others
+## may evolve or change in [IVOrbit] subclasses. Evolution of orbit elements is
+## slow relative to change in position in an orbit.[br][br]
 ##
 ## Position and velocity in this class are always relative to the parent body
 ## or barycenter. The [member reference_basis] is the basis in which this orbit
 ## is defined, where the xy axes define the reference plane about which this
 ## orbit precesses. See also [member reference_plane_type].[br][br]
 ##
-## In addition to epoch time (always J2000), seven elements are needed to
-## define an unpurturbed (osculating) orbit. The following elements are used
-## here because they are valid for elliptic, parabolic and hyperbolic
+## In addition to epoch time (always
+## [url=https://en.wikipedia.org/wiki/Epoch_(astronomy)#Julian_years_and_J2000]J2000[/url]),
+## seven elements are needed to
+## define an unpurturbed (osculating) orbit and position. The following elements
+## are used here because they are valid for elliptic, parabolic and hyperbolic
 ## orbits/trajectories:[br][br]
 ##
 ## [member semi_parameter] (p).[br]

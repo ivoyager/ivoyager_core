@@ -80,7 +80,7 @@ signal assets_preloaded()
 signal about_to_build_system_tree(new_game: bool)
 ## Emitted after [member built_system] is set. Procedural [IVBody] and
 ## [IVSmallBodiesGroup] instances have been added for new or loaded game, but
-## non-procedural "finish" nodes (models, rings, lights, HUD elements, etc.)
+## non-persisted "finish" nodes (models, rings, lights, HUD elements, etc.)
 ## are still being added, possibly on thread.
 signal system_tree_built(new_game: bool)
 ## Emitted after [member ready_system] is set. The system tree is built and

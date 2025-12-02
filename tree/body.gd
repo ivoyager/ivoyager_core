@@ -30,39 +30,48 @@ extends Node3D
 ## [codeblock]
 ## Universe
 ##    |- IVBody (STAR_SUN)
+##        |- IVBody (PLANET_MERCURY)
+##        |- IVBody (PLANET_VENUS)
 ##        |- IVBody (PLANET_EARTH)
-##            |- IVBody (SPACECRAFT_ISS)
+##            |- IVBody (SPACECRAFT_INTERNATIONAL_SPACE_STATION)
+##            |- IVBody (SPACECRAFT_HUBBLE_SPACE_TELESCOPE)
 ##            |- IVBody (MOON_MOON)
 ##                |- IVBody (a spacecraft orbiting the Moon)
+##        |- etc...
 ## [/codeblock][br]
 ##
 ## Note that current core mechanics [i]should[/i] handle a multi-star system,
 ## but this has not been tested yet.[br][br]
 ##
-## IVBody nodes are NEVER scaled or rotated. Hence, local distances and
+## [IVBody] nodes are NEVER scaled or rotated. Hence, local distances and
 ## directions are always in the ecliptic basis at any level of the "body tree".[br][br]
 ##
-## This node adds its own [IVModelSpace] if needed. IVBody maintains orientation
-## and rotation of IVModelSpace. IVModelSpace instantiates and scales a model
-## (visual representation) for this body. If [member flags] &
-## [member BodyFlags.BODYFLAGS_LAZY_MODEL] (from table field
-## [param lazy_model] == TRUE), then IVModelSpace won't be added until the
+## All [IVBody] instances that orbit another [IVBody] have an [IVOrbit]. This
+## component provides state vectors (position and velocity) given time. Orbits
+## can evolve over time (e.g., the base class has precessions) or change in
+## other ways. See [IVOrbit] file docs for thrust implementation.[br][br]
+##
+## This node adds its own [IVModelSpace] if needed. [IVBody] maintains orientation
+## and rotation of its model space. [IVModelSpace] instantiates and scales the
+## visual representation of this body. If this body has [member
+## BodyFlags.BODYFLAGS_LAZY_MODEL] (from data table field [param lazy_model],
+## then IVModelSpace won't be added until the
 ## camera visits this body or a closely associated lazy body.
-## This is generally set for spacecrafts (with large models) and for the 100s
-## of small outer moons of the gas giants (but for not inner moons, as these
-## can be seen from nearby). See [IVLazyModelInitializer].[br][br]
+## This is generally set for spacecrafts (which are small but have large models)
+## and for the 100s of small outer moons of the gas giants (but for not inner
+## moons because these can be seen from nearby). See [IVLazyModelInitializer].[br][br]
 ##
 ## Some bodies (particularly moons and spacecrafts) have
-## [member BodyFlags.BODYFLAGS_CAN_SLEEP] set (from table field
-## [param can_sleep] == TRUE). If [IVSleepManager] is present, these bodies will
+## [member BodyFlags.BODYFLAGS_CAN_SLEEP] set from data table field
+## [param can_sleep]. If [IVSleepManager] is present, these bodies will
 ## only [code]_process()[/code] when the camera is at or under the same planet
-## or asteroid or other star orbiter.
-## Note that IVBody API methods such as [method get_position_vector] and
+## or other star-orbiter.
+## Note that [IVBody] API methods such as [method get_position_vector] and
 ## [method get_state_vectors] will provide current values even if the body is
 ## not currently processing, but [member Node3D.postion] will not. These methods also
 ## take an optional [param time] argument to allow projected results.[br][br]
 ##
-## IVBody properties are core information required for all bodies. Specialized
+## [IVBody] properties are core information required for all bodies. Specialized
 ## information is contained in dictionary [member characteristics]. For
 ## example all bodies have [member mean_radius], but oblate spheroid bodies
 ## (stars, planets, and large moons) also have [param equatorial_radius] and
@@ -70,8 +79,9 @@ extends Node3D
 ## to many of these characteristics with sensible fallbacks for missing keys.[br][br]
 ##
 ## Many body-associated "graphic" nodes are added by [IVBodyFinisher] including
-## rings, lights and HUD elements. The IVBody class has no references to these
-## nodes.[br][br]
+## [IVRings], [IVDynamicLight], [IVOrbitVisual], and [IVBodyLabel]. Dependency
+## is inverted for these nodes: they have reference to their [IVBody] but
+## [IVBody] has no reference to them.[br][br]
 ## 
 ## See also [IVSmallBodiesGroup] for handling 1000s or 100000s of orbiting bodies
 ## without individual instantiation (asteroids in particular; in the future we may add
@@ -99,8 +109,8 @@ extends Node3D
 ## TODO: API for changing orbit context or "identity". E.g., a spacecraft
 ## becomes BODYFLAGS_STAR_ORBITER, or an asteroid is captured to become a moon.[br][br]
 ##
-## TODO: (Ongoing) Make this node "drag-and_drop" and editable in the
-## editor. (While maintaining existing code-based generation.)[br][br]
+## TODO: (Ongoing) Make this node editable and constructable in the Editor
+## (while maintaining existing table and code-based generation).[br][br]
 ##
 ## TODO: Barycenters! They orbit and are orbited. This will make Pluto system
 ## (especially) more accurate, and allow things like twin planets.[br][br]

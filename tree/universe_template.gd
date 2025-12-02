@@ -22,19 +22,19 @@ extends Node3D
 
 ## Template-only root scene node. And Core plugin documentation!
 ##
-## This "Universe" scene tree is provided as a template. It will work as a
-## simulator root if made the main sceen, but shouldn't be edited since it is in
-## the plugin directory. You can make a duplicate of this scene and move it to
-## your project.[br][br]
+## The scene tree file [code]universe_template.tscn[/code] is provided as a
+## template. It will work as a simulator root if made the main sceen, but
+## shouldn't be edited since it is in the plugin directory. You can duplicate
+## this scene to your project directory to start a new project.[br][br]
 ##
 ## [b]Scene Tree Construction[/b][br][br]
 ##
 ## The schematic below shows one possible scene tree organization for a game.
 ## Note that much of the tree is built by code: specifically, the physical solar
 ## system at child index 0 and "program" nodes added at the end. The part
-## constructed in the Godot Editor is mainly the UI tree. [IVUniverseTemplate]
-## has the Core plugin UI nodes shown but lacks game panels, spash screen,
-## exit button, and nodes from the Save plugin.[br][br]
+## constructed in the Godot Editor is mainly the UI tree. Template file
+## [code]universe_template.tscn[/code] has the Core plugin UI nodes shown but
+## lacks game panels, spash screen, exit button, and nodes from the Save plugin.[br][br]
 ##
 ## (Note: It's in our
 ## [url=https://github.com/orgs/ivoyager/discussions/5]roadmap[/url] to make
@@ -47,7 +47,7 @@ extends Node3D
 ##
 ##    |- STAR_SUN                    #
 ##          |- PLANET_MERCURY        #  IVBody instances and other
-##          |- PLANET_VENUS          #  "tree_nodes" are procedurally 
+##          |- PLANET_VENUS          #  "tree" are procedurally 
 ##          |- PLANET_EARTH          #  built from *.tsv data tables
 ##                 |- SPACECRAFT_ISS #  in "tables" directory
 ##                 |- MOON_MOON      #
@@ -84,14 +84,14 @@ extends Node3D
 ##    |- IVInputHandler              #
 ##    |- etc...                      #
 ##
-## # Note: Actual node names in the tree omit the "IV" class prefixes.
+## # Note: Node names in the tree omit the "IV" class prefixes.
 ## [/codeblock][br]
 ##
 ## The simulator root node can be specified explicitly in [IVCoreInitializer] or
 ## simply by naming it "Universe". (If the former, the node name doesn't matter.
 ## In any case, we call this root node "Universe" in plugin documentation.)[br][br]
 ##
-## [IVWorldEnvironment] is in directory "tree_nodes" with [IVUniverseTemplate]
+## [IVWorldEnvironment] is in directory "tree" with [IVUniverseTemplate]
 ## and Node3D classes.[br][br]
 ##
 ## UI classes above from the Core plugin are in directory "ui".
@@ -110,7 +110,7 @@ extends Node3D
 ## the physical star system(s) and inserts it (or them) before other children of
 ## Universe. Shown above are the [IVBody] instances (stars, planets, moons,
 ## spacecraft, etc.). This class and other components of the physical system
-## tree are in directories "tree_nodes" and "tree_refs".[br][br]
+## tree are in directories "tree" and "tree_components".[br][br]
 ##
 ## [b]Splash Screen[/b][br][br]
 ##
@@ -135,7 +135,7 @@ extends Node3D
 ## There are two main options for scene tree pause in the simulator:[br][br]
 ##
 ## 1. If [code]Universe.pause_mode == PROCESS_MODE_ALWAYS[/code] (default) or
-## inherits always, time will still stop during pause because [IVTimekeeper]
+## inherits "always", time will still stop during pause because [IVTimekeeper]
 ## is pausable (does not inherit). However, [IVCamera] can be moved around
 ## the solar system, [IVWorldController] allows view zoom and rotation,
 ## [IVMouseTargetLabel] indicates what's under the mouse (this requires
@@ -144,7 +144,7 @@ extends Node3D
 ## will work.[br][br]
 ## 
 ## 2. If [code]Universe.pause_mode == PROCESS_MODE_PAUSABLE[/code] or inherits
-## pausable, then almost everything freezes during pause. The 
+## "pausable", then almost everything freezes during pause. The 
 ## camera can't be moved, the the view can't be zoomed or rotated, there is
 ## no identification feedback at the mouse position, and GUI is frozen (except
 ## a few special cases including the pause button). Main menu, options and
@@ -160,16 +160,14 @@ extends Node3D
 ## [IVCamera] adjusts the translation of Universe every frame to keep the camera
 ## at the origin.[br][br]
 ##
-## [b]Important Documented Class Files[/b][br][br]
+## [b]Important Class File Docs[/b][br][br]
 ##
 ## 1. [IVUniverseTemplate] for scene tree construction.[br]
 ## 2. Singletons [IVCoreInitializer], [IVCoreSettings], [IVGlobal], and
-##    [IVStateManager] have info about program init and state management.[br]
-## 3. [IVBody] is the main simulator Node3D that represents anything that orbits
-##    or is orbited. The physical 3D world is built around these. The class doc
-##    has a lot of the roadmap in it.[br]
-## 4. [IVOrbit] has the orbital mechanics. The class doc also has a lot of
-##    roadmap in it related to spacecraft thrust implementation.[br][br]
+##    [IVStateManager] for program init and state management.[br]
+## 3. [IVBody] for the physical 3D world. Also has roadmap details.[br]
+## 4. [IVOrbit] for orbital mechanics. Has more roadmap related to spacecraft
+##    thrust implementation.
 
 
 
