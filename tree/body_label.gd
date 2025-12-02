@@ -20,7 +20,7 @@
 extends Label3D
 class_name IVBodyLabel
 
-## Visual name or symbol of an [IVBody] instance in the 3D world.
+## Visual name or symbol of an [IVBody] in the 3D world.
 
 # init
 var _body: IVBody

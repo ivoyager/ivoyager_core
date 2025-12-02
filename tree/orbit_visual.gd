@@ -20,15 +20,16 @@
 class_name IVOrbitVisual
 extends MeshInstance3D
 
-## Visual representation of an [IVBody]'s elliptic, parabolic or hyperbolic
-## orbit.
+## Visual representation of an [IVBody] instance's elliptic, parabolic or
+## hyperbolic orbit/trajectory.
 ##
 ## This class works by transforming a circle mesh into an elliptic orbit, a
 ## parabola mesh into a parabolic trajectory, or a rectangular-hyperbolic mesh
-## into a hyperbolic trajectory. The three meshes are reused for all orbits.
+## into a hyperbolic trajectory. The three "unit" meshes are reused for all
+## orbits/trajectories.[br][br]
 ##
-## If FragmentIdentifier exists, then a shader is used to allow screen
-## identification of the orbit loop.[br][br]
+## If [IVFragmentIdentifier] is present, then an "id" shader is used to allow
+## mouse-over identification of the visual orbit line.
 
 
 const FRAGMENT_BODY_ORBIT := IVFragmentIdentifier.FRAGMENT_BODY_ORBIT

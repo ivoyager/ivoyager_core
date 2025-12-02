@@ -1,4 +1,4 @@
-# model_space.gd
+# physical_body.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -17,18 +17,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVModelSpace
+class_name IVPhysicalBody
 extends Node3D
 
 ## Provides a model reference frame and instantiates a body's model. 
 ##
-## This Node3D is tilted and rotated by [IVBody], but is not scaled.[br][br]
+## This node is tilted and rotated by [IVBody], but is not scaled.[br][br]
 ##
-## This node is not persisted. It is created by [IVBody] only if/when needed,
-## and then remains for the remainder of the user session (lazy init).[br][br]
+## This node is not persisted. If "lazy init" is applicable, it is created by
+## [IVBody] only if/when needed and remains through the current user session.
+## (Lazy init is applicable if [IVLazyModelInitializer] is present and [IVBody]
+## has [enum IVBody.BodyFlags].BODYFLAGS_LAZY_MODEL.)[br][br]
 ## 
 ## Children can be added that share the model's axial tilt and rotation.
-## In base Solar System setup, IVBodyFinisher adds IVRings for Saturn.[br][br]
+## In base Solar System setup, [IVBodyFinisher] adds [IVRings] for Saturn.[br][br]
+##
+## Note: It's not planned to implement collisions in ivoyager_core. Probably a
+## subclass of [IVPhysicalBody] would be the best approach for that. However,
+## we could accept changes to this class that help facilitate collisions (as
+## long as they don't cost anything when not used).
 
 
 const MODEL_MAX_DISTANCE_MULTIPLIER := 3e3

@@ -23,9 +23,9 @@ extends RefCounted
 ## Base class representing the composition of something, e.g., a planet's
 ## atmosphere or a star's photosphere.
 ##
-## This object is designed for simple GUI display. It isn't referenced anywhere
-## so it is easy to replace. (GUI widget IVSelectionData does expect an object
-## with method "get_labels_values_display".)
+## This object is designed for simple GUI display. It can be subclassed or
+## replaced (it isn't referenced anywhere so it's easy to replace). GUI widget
+## [IVSelectionData] expects an object with method "get_labels_values_display".
 
 enum CompositionType {
 	BY_WEIGHT, 

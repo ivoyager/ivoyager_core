@@ -23,7 +23,7 @@ extends Node
 ## Base class to represent a large number of orbiting small bodies that are not
 ## individually instantiated.
 ##
-## Data is packed for use by visual classes [IVSBGOrbits] and [IVSBGPoints],
+## Data is packed for use by visual classes [IVSBGOrbitsVisual] and [IVSBGPointsVisual],
 ## which are added by [IVSBGFinisher] when this node is added to the tree.[br][br]
 ##
 ## If modifying packed array data directly, it is necessary to ensure correct

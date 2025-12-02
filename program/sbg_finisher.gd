@@ -39,9 +39,9 @@ extends RefCounted
 ## IMPLEMENTED FOR THIS CLASS (YET).
 var disable_threads := false
 ## replace with any Node3D.
-var replacement_sbg_orbits_class: Script
+var replacement_sbg_orbits_visual_class: Script
 ## replace with any Node3D.
-var replacement_sbg_points_class: Script # replace with any Node3D
+var replacement_sbg_points_visual_class: Script
 
 
 var _use_threads: bool
@@ -72,22 +72,22 @@ func _on_node_added(node: Node) -> void:
 
 
 func _add_sbg_orbits(sbg: IVSmallBodiesGroup) -> void:
-	var sbg_orbits: Node3D
-	if replacement_sbg_orbits_class:
+	var sbg_orbits_visual: Node3D
+	if replacement_sbg_orbits_visual_class:
 		@warning_ignore("unsafe_method_access")
-		sbg_orbits = replacement_sbg_orbits_class.new()
+		sbg_orbits_visual = replacement_sbg_orbits_visual_class.new()
 	else:
-		sbg_orbits = IVSBGOrbits.new(sbg)
+		sbg_orbits_visual = IVSBGOrbitsVisual.new(sbg)
 	var parent: Node3D = sbg.get_parent()
-	parent.add_child(sbg_orbits)
+	parent.add_child(sbg_orbits_visual)
 
 
 func _add_sbg_points(sbg: IVSmallBodiesGroup) -> void:
-	var sbg_points: Node3D
-	if replacement_sbg_points_class:
+	var sbg_points_visual: Node3D
+	if replacement_sbg_points_visual_class:
 		@warning_ignore("unsafe_method_access")
-		sbg_points = replacement_sbg_points_class.new()
+		sbg_points_visual = replacement_sbg_points_visual_class.new()
 	else:
-		sbg_points = IVSBGPoints.new(sbg)
+		sbg_points_visual = IVSBGPointsVisual.new(sbg)
 	var parent: Node3D = sbg.get_parent()
-	parent.add_child(sbg_points)
+	parent.add_child(sbg_points_visual)

@@ -73,7 +73,7 @@ func _finish(body: IVBody) -> void:
 	# Everything here must be thread-safe!
 	var children: Array[Node] = []
 	var siblings: Array[Node] = []
-	var model_space_nodes: Array[Node3D] = []
+	var physical_body_nodes: Array[Node3D] = []
 	
 	_get_body_label(body, children)
 	
@@ -83,20 +83,20 @@ func _finish(body: IVBody) -> void:
 		_get_dynamic_light(body, children)
 		_get_omni_lights(body, children)
 	if body.has_rings():
-		_get_rings(body, model_space_nodes)
+		_get_rings(body, physical_body_nodes)
 	
-	_deffered_finish.call_deferred(body, children, siblings, model_space_nodes)
+	_deffered_finish.call_deferred(body, children, siblings, physical_body_nodes)
 
 
 func _deffered_finish(body: IVBody, children: Array[Node], siblings: Array[Node],
-		model_space_nodes: Array[Node3D]) -> void:
+		physical_body_nodes: Array[Node3D]) -> void:
 	# Main thread.
 	for node in children:
 		body.add_child(node)
 	for node in siblings:
 		body.get_parent().add_child(node)
-	for node3d in model_space_nodes:
-		body.add_child_to_model_space(node3d)
+	for node3d in physical_body_nodes:
+		body.add_child_to_physical_body(node3d)
 	await _tree.process_frame
 	_state_auxiliary.change_tree_building_count(-1)
 
@@ -160,11 +160,11 @@ func _get_omni_lights(body: IVBody, children: Array[Node]) -> void:
 		children.append(omni_light)
 
 
-func _get_rings(body: IVBody, model_space_nodes: Array[Node3D]) -> void:
+func _get_rings(body: IVBody, physical_body_nodes: Array[Node3D]) -> void:
 	var rings: Node3D
 	if replacement_rings_class:
 		@warning_ignore("unsafe_method_access")
 		rings = replacement_rings_class.new(body)
 	else:
 		rings = IVRings.new(body)
-	model_space_nodes.append(rings)
+	physical_body_nodes.append(rings)

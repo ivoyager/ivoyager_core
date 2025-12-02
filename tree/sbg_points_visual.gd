@@ -1,4 +1,4 @@
-# sbg_points.gd
+# sbg_points_visual.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -17,18 +17,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVSBGPoints
+class_name IVSBGPointsVisual
 extends MeshInstance3D
 
-## Visual points of a [IVSmallBodiesGroup] instance.
+## Visual points of an [IVSmallBodiesGroup].
 ##
-## Uses one of the 'points'
-## shaders ('points.x.x.gdshader', where x.x represents a shader variant).
-## Point shaders maintain vertex positions using their own orbital math.
+## Uses one of the points shaders "points.x.x.gdshader", where x.x represents
+## shader variants. Point shaders maintain vertex positions using their own
+## orbital calculations.[br][br]
 ##
-## Points shader variants:
-##    '.l4l5.' - for lagrange points L4 & L5.
-##    '.id.' - broadcasts identity for IVFragmentIdentifier.
+## Points shader variants:[br]
+##    "l4l5" - for lagrange points L4 & L5.[br]
+##    "id" - broadcasts identity for IVFragmentIdentifier.[br][br]
 ##
 ## Several subclass _init() overrides are provided to bypass IVFragmentIdentifier
 ## or to supply a different shader.

@@ -48,18 +48,21 @@ extends Node3D
 ##
 ## All [IVBody] instances that orbit another [IVBody] have an [IVOrbit]. This
 ## component provides state vectors (position and velocity) given time. Orbits
-## can evolve over time (e.g., the base class has precessions) or change in
+## can evolve over time (e.g., the base class supports precessions) or change in
 ## other ways. See [IVOrbit] file docs for thrust implementation.[br][br]
 ##
-## This node adds its own [IVModelSpace] if needed. [IVBody] maintains orientation
-## and rotation of its model space. [IVModelSpace] instantiates and scales the
-## visual representation of this body. If this body has [member
-## BodyFlags.BODYFLAGS_LAZY_MODEL] (from data table field [param lazy_model],
-## then IVModelSpace won't be added until the
-## camera visits this body or a closely associated lazy body.
-## This is generally set for spacecrafts (which are small but have large models)
-## and for the 100s of small outer moons of the gas giants (but for not inner
-## moons because these can be seen from nearby). See [IVLazyModelInitializer].[br][br]
+## This node adds its own [IVPhysicalBody] if needed. [IVBody] maintains the
+## rotation of its [IVPhysicalBody]. [IVPhysicalBody] instantiates and scales
+## the visual representation (i.e., model) of this body. Note that
+## ivoyager_core does not implement collisions. ([IVBody] and [IVPhysicalBody]
+## subclasses would likely be needed to do that.) If [IVLazyModelInitializer] is
+## present and this body has [enum BodyFlags].BODYFLAGS_LAZY_MODEL (from data
+## table field [param lazy_model]),
+## then IVPhysicalBody won't be added until the camera visits this body or a
+## closely associated "lazy" body. This is generally set for spacecraft (which
+## are small but have large models) and for the 100s of small outer moons of
+## the gas giants (but for not inner moons because these can be seen from
+## nearby).[br][br]
 ##
 ## Some bodies (particularly moons and spacecrafts) have
 ## [member BodyFlags.BODYFLAGS_CAN_SLEEP] set from data table field
@@ -80,12 +83,17 @@ extends Node3D
 ##
 ## Many body-associated "graphic" nodes are added by [IVBodyFinisher] including
 ## [IVRings], [IVDynamicLight], [IVOrbitVisual], and [IVBodyLabel]. Dependency
-## is inverted for these nodes: they have reference to their [IVBody] but
+## is inverted for these classes: they have reference to their [IVBody] but
 ## [IVBody] has no reference to them.[br][br]
 ## 
-## See also [IVSmallBodiesGroup] for handling 1000s or 100000s of orbiting bodies
-## without individual instantiation (asteroids in particular; in the future we may add
-## Earth's artificial satellites).[br][br]
+## See also [IVSmallBodiesGroup] for handling 1000s or 100000s of orbiting
+## bodies without individual instantiation. This is implemented for asteroids at
+## this time, but could support other small body types. E.g., it could easily
+## handle all of Earth's artificial satellites.[br][br]
+##
+## Godot ISSUE 4.5.1: Some class file docs seem to be broken: e.g.,
+## [IVOrbitVisual], [IVBodyLabel], [IVSmallBodiesGroup]. They do work
+## immediately after editing the file, but not after editor restart.[br][br]
 ##
 ## [b]Roadmap[/b][br][br]
 ##
@@ -200,8 +208,8 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 ## Static class setting. Set this script to generate a subclass in place of
 ## IVBody in all create methods. Assigned Script must be a subclass of IVBody!
 static var replacement_subclass: Script
-## Static class setting. Set this script to replace the IVModelSpace class.
-static var replacement_model_space_class: Script
+## Static class setting. Set this script to replace the IVPhysicalBody class.
+static var replacement_physical_body_class: Script
 
 ## Static class setting. Default value is a dashed circle.
 static var default_symbol := "\u25CC"
@@ -268,7 +276,7 @@ var ordered_satellites: Array[IVBody]
 ## If present, the Node3D that has this body's visual
 ## representation (model). If data table value [param lazy_model] == TRUE, then
 ## this value will be null until needed. Read-only!
-var model_space: Node3D
+var physical_body: Node3D
 ## Current visibility state for associated HUD elements, including IVBodyLabel
 ## and IVOrbitVisual. Read-only!
 var huds_visible := false
@@ -459,7 +467,7 @@ func _enter_tree() -> void:
 	if flags & LAZY_MODEL and IVGlobal.program.has(&"LazyModelInitializer"):
 		_lazy_model_uninited = true
 	else:
-		_add_model_space()
+		_add_physical_body()
 
 
 func _exit_tree() -> void:
@@ -496,10 +504,10 @@ func _process(_delta: float) -> void:
 	var camera_dist := _world_controller.update_world_target(self, mean_radius)
 	
 	# update model space
-	if model_space:
+	if physical_body:
 		var rotation_angle := wrapf(time * rotation_rate, 0.0, TAU)
-		model_space.basis = orientation_at_epoch.rotated(rotation_axis, rotation_angle)
-		model_space.visible = camera_dist < _max_model_dist
+		physical_body.basis = orientation_at_epoch.rotated(rotation_axis, rotation_angle)
+		physical_body.visible = camera_dist < _max_model_dist
 	
 	# set HUDs visibility
 	var show_huds := camera_dist > _min_hud_dist # Is camera far enough?
@@ -935,8 +943,8 @@ func get_hill_sphere() -> float:
 ## Supply [param time] only if you don't want the current value.
 func get_orientation(time := NAN) -> Basis:
 	if is_nan(time):
-		if model_space and !_sleeping:
-			return model_space.basis
+		if physical_body and !_sleeping:
+			return physical_body.basis
 		time = _times[0]
 	var rotation_angle := wrapf(time * rotation_rate, 0.0, TAU)
 	return orientation_at_epoch.rotated(rotation_axis, rotation_angle)
@@ -1366,26 +1374,26 @@ func unindex_satellite(satellite: IVBody) -> void:
 	ordered_satellites.erase(satellite)
 
 
-## Adds a child Node3D to this body's [IVModelSpace]. Use for nodes that need to
+## Adds a child Node3D to this body's [IVPhysicalBody]. Use for nodes that need to
 ## share the model's orientation and rotation in space, but not its scale. Used
 ## by [IVRings] (e.g., Saturn's Rings).
-func add_child_to_model_space(node3d: Node3D) -> void:
-	if !model_space:
-		_add_model_space()
-	model_space.add_child(node3d)
+func add_child_to_physical_body(node3d: Node3D) -> void:
+	if !physical_body:
+		_add_physical_body()
+	physical_body.add_child(node3d)
 
 
-## Removes a child Node3D from this body's [IVModelSpace]. See [method add_child_to_model_space].
-func remove_child_from_model_space(node3d: Node3D) -> void:
-	model_space.remove_child(node3d)
+## Removes a child Node3D from this body's [IVPhysicalBody]. See [method add_child_to_physical_body].
+func remove_child_from_physical_body(node3d: Node3D) -> void:
+	physical_body.remove_child(node3d)
 
 
 ## Removes model(s) but everything else remains (label & orbit HUDs, etc.).
-func remove_and_disable_model_space() -> void:
+func remove_and_disable_physical_body() -> void:
 	flags |= BodyFlags.BODYFLAGS_DISABLE_MODEL_SPACE
-	if model_space:
-		model_space.queue_free()
-	model_space = null
+	if physical_body:
+		physical_body.queue_free()
+	physical_body = null
 
 
 ## Returns true if this body has [member BodyFlags.BODYFLAGS_LAZY_MODEL] set
@@ -1396,7 +1404,7 @@ func is_lazy_model_uninited() -> bool:
 
 ## Use to init a lazy model, if needed. Normally called by [IVLazyModelInitializer].
 func lazy_model_init() -> void:
-	_add_model_space()
+	_add_physical_body()
 
 
 ## Current sleeping state. See [IVSleepManager].
@@ -1448,7 +1456,7 @@ func _clear_procedural() -> void:
 	parent = null
 	star = null
 	star_orbiter = null
-	model_space = null
+	physical_body = null
 	satellites.clear()
 	ordered_satellites.clear()
 	# static re-clearing is redundant but not expensive
@@ -1624,21 +1632,21 @@ func _update_rotations(is_intrinsic: bool) -> void:
 	rotation_chaged.emit(is_intrinsic)
 
 
-func _add_model_space() -> void:
+func _add_physical_body() -> void:
 	const DISABLE_MODEL_SPACE := BodyFlags.BODYFLAGS_DISABLE_MODEL_SPACE
-	assert(!model_space)
+	assert(!physical_body)
 	_lazy_model_uninited = false
 	if flags & DISABLE_MODEL_SPACE:
 		return
 	var e_radius := get_equatorial_radius()
-	if replacement_model_space_class:
+	if replacement_physical_body_class:
 		@warning_ignore("unsafe_method_access")
-		model_space = replacement_model_space_class.new(name, mean_radius, e_radius)
+		physical_body = replacement_physical_body_class.new(name, mean_radius, e_radius)
 	else:
-		model_space = IVModelSpace.new(name, mean_radius, e_radius)
+		physical_body = IVPhysicalBody.new(name, mean_radius, e_radius)
 	@warning_ignore("unsafe_property_access")
-	_max_model_dist = model_space.max_distance # FIXME: Use Node3D visual distance parameters
-	add_child(model_space)
+	_max_model_dist = physical_body.max_distance # FIXME: Use Node3D visual distance parameters
+	add_child(physical_body)
 
 
 func _settings_listener(setting: StringName, _value: Variant) -> void:

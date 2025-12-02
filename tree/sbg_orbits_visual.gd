@@ -1,4 +1,4 @@
-# sbg_orbits.gd
+# sbg_orbits_visual.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -17,13 +17,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVSBGOrbits
+class_name IVSBGOrbitsVisual
 extends MultiMeshInstance3D
 
-## Visual orbits of a [IVSmallBodiesGroup] instance.
+## Visual orbits of an [IVSmallBodiesGroup].
 ##
 ## If FragmentIdentifier exists, then a shader is used to allow screen
-## identification of the orbit lines.
+## identification of the orbit lines.[br][br]
 ##
 ## Several subclass _init() overrides are provided to override above behavior,
 ## supply a different shader, or change other aspects of the MultiMesh.
