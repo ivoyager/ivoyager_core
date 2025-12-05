@@ -36,6 +36,12 @@ extends Node
 ## setting must be true for threads to be used.
 var use_threads := true
 
+## If true, [IVTimekeeper] will set [member Engine.time_scale] to follow changes
+## in game speed. Note that ivoyager_core almost never uses [code]delta[/code]
+## from [code]_process()[/code], and compensates for [member Engine.time_scale]
+## in the rare cases where it does. So this has no effect on the simulator.
+var manage_engine_time_scale := true
+
 ## See [IVDynamicLight].
 var dynamic_lights := true
 ## See [IVDynamicLight]. Values just over 1.0 give a small but realistic
@@ -62,8 +68,12 @@ var disable_quit := false
 ## to the nearest integer after multiplication). See also [IVControlModResizable].
 var gui_size_multipliers: Array[float] = [0.75, 1.0, 1.25]
 
-## From J2000 epoch.
-var start_time: float = 22.0 * IVUnits.YEAR
+## Start time as an array of [year, month, day, hour, minute, second].
+var start_time_date_clock: Array[int] = [2025, 1, 1, 0, 0, 0]
+## If true, start time is Terrestrial Time (TT), otherwise, Universal Time (UT).
+## See also [member IVTimekeeper.terrestrial_time_clock].
+var start_time_is_terrestrial_time := false
+
 var start_camera_fov: float = IVMath.get_fov_from_focal_length(24.0)
 var allow_time_setting := false
 var allow_time_reversal := false

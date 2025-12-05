@@ -265,24 +265,24 @@ func _set_huds_state() -> void:
 
 func _save_time_state() -> void:
 	# If both TIME_STATE and IS_NOW flags set, we unset one depending on
-	# IVTimekeeper.sync_with_os_time.
-	if flags & ViewFlags.VIEWFLAGS_SYNC_OS_TIME and _timekeeper.sync_with_os_time:
+	# IVTimekeeper.os_time_sync_on.
+	if flags & ViewFlags.VIEWFLAGS_SYNC_OS_TIME and _timekeeper.os_time_sync_on:
 		flags &= ~ViewFlags.VIEWFLAGS_TIME_STATE
 	if flags & ViewFlags.VIEWFLAGS_TIME_STATE:
 		flags &= ~ViewFlags.VIEWFLAGS_SYNC_OS_TIME
 		speed_index = _timekeeper.speed_index
 		user_paused = IVStateManager.paused_by_user
 		time = _timekeeper.time
-		reversed_time = _timekeeper.reversed_time
+		reversed_time = _timekeeper.get_reversed_time()
 
 
 func _set_time_state() -> void:
 	# Note: IVTimekeeper ignores set functions that are disallowed in IVCoreSettings
 	# project settings. In most game applications, only speed and pause is set.
 	if flags & ViewFlags.VIEWFLAGS_TIME_STATE:
-		_timekeeper.change_speed(0, speed_index)
-		IVStateManager.set_user_paused(user_paused)
 		_timekeeper.set_time(time)
-		_timekeeper.set_time_reversed(reversed_time)
+		_timekeeper.set_speed_index(speed_index)
+		_timekeeper.set_reversed_time(reversed_time)
+		IVStateManager.set_user_paused(user_paused)
 	elif flags & ViewFlags.VIEWFLAGS_SYNC_OS_TIME:
-		_timekeeper.set_time_from_os()
+		_timekeeper.synchronize_time_with_os()

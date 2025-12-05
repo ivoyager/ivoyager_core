@@ -133,16 +133,18 @@ const PERSIST_PROCEDURAL := PersistMode.PERSIST_PROCEDURAL
 
 
 
-## Maintained by [IVTimekeeper]. Holds [time (s; J2000), engine_time (s), solar_day (d)]
-## by default and possibly additional elements. Keeping a local array reference
-## provides optimal access to simulator time which will always be at index 0.
-var times: Array[float] = []
-## Maintained by [IVTimekeeper]. Holds Gregorian [year, month, day] by default,
-## but may have quarter and additional elements according to [member
-## IVTimekeeper.date_format].
-var date: Array[int] = []
-## Maintained by [IVTimekeeper]. Holds UT [hour, minute, second].
-var clock: Array[int] = []
+## Maintained by [IVTimekeeper]. Holds [time, clock_time, julian_day_number (as float)].
+## See [IVTimekeeper] for definitions; "time" is Terrestrial Time with J2000 epoch
+## in units defined by [member IVUnits.SECOND].
+var times: Array[float] = [0.0, 0.0, 0.0]
+## Maintained by [IVTimekeeper]. Holds Universal Time [hour, minute, second] integers.
+var clock: Array[int] = [0, 0, 0]
+## Maintained by [IVTimekeeper]. Holds Gregorian calendar [year, month, day] integers.
+var date: Array[int] = [0, 0, 0]
+## Maintained by [IVTimekeeper]. Holds [Q, YQ, YM], where Q is quarter (1 - 4)
+## and YQ and YM are cumulative counts of quarter and month since year 0. The
+## latter two are monotonic increasing values.
+var date_aux: Array[int] = [0, 0, 0]
 ## Populated by [IVCoreInitializer]. Holds instantiated "init" and "program"
 ## objects (base or override classes).
 var program: Dictionary[StringName, Object] = {}

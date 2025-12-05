@@ -58,7 +58,7 @@ extends PopupPanel
 	# column 1
 	[&"LABEL_SAVE_LOAD", &"LABEL_CAMERA"],
 	# column 2
-	[&"LABEL_GUI_AND_HUD", &"LABEL_GRAPHICS_PERFORMANCE"],
+	[&"LABEL_GUI_AND_HUD", &"LABEL_TIME", &"LABEL_GRAPHICS_PERFORMANCE"],
 ]
 
 ## Section keys are the header labels used in [member layout]. Content of each
@@ -92,6 +92,10 @@ extends PopupPanel
 		[&"LABEL_POINT_SIZE", &"point_size"],
 		[&"LABEL_HIDE_HUDS_WHEN_CLOSE", &"hide_hud_when_close"],
 	],
+	LABEL_TIME = [
+		[&"LABEL_TERRESTRIAL_TIME_CLOCK", &"terrestrial_time_clock"],
+	],
+	
 	LABEL_GRAPHICS_PERFORMANCE = [
 		[&"LABEL_STARMAP", &"starmap"],
 	],

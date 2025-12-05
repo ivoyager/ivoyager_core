@@ -183,6 +183,7 @@ var _gui_latitude_longitude := Vector2(NAN, NAN)
 var _transfer_time: float = IVSettingsManager.get_setting(&"camera_transfer_time")
 
 
+
 # virtual functions
 
 func _ready() -> void:
@@ -202,6 +203,8 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	delta /= Engine.time_scale
+	
 	# We process our working '_transform', then update here.
 	_reference_basis = _get_reference_basis(target, flags)
 	

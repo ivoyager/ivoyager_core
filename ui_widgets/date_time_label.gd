@@ -24,7 +24,8 @@ extends Label
 ##
 ## Requires [IVTimekeeper]. This widget updates every frame using [member
 ## IVGlobal.date] and [member IVGlobal.clock]. It queries [IVTimekeeper] on
-## [signal IVTimekeeper.speed_changed] whether to display the clock or seconds.[br][br]
+## [signal IVTimekeeper.speed_changed] to know whether to display the clock or
+## clock seconds.[br][br]
 ##
 ## This widget has process_mode == PROCESS_MODE_ALWAYS so it can always update
 ## "...(paused)" text, if applicable.
@@ -35,24 +36,25 @@ extends Label
 @export var clock_hms_format := "  %02d:%02d:%02d"
 ## Format string for [hour, minute], including preceding spaces to separate from date.
 @export var clock_hm_format := "  %02d:%02d"
+## Suffix " UT" or " TT", depending on [member IVTimekeeper.terrestrial_time_clock]
+@export var suffix_ut_tt := true
 ## Time zone suffix, if needed. E.g., " UT"
-@export var time_zone_suffix := ""
+@export var suffix_text := ""
 ## If true, suffix the string with localized " (paused)" when paused.
 @export var show_pause := true
-## Only matters if [member IVCoreSettings.allow_time_reversal] == true, which
-## is unlikely for most games.
+## Font color when time runs backwards. Only matters if [member
+## IVCoreSettings.allow_time_reversal] == true.
 @export var reverse_color := Color.RED
 
+
+var _timekeeper: IVTimekeeper
 var _date: Array[int] = IVGlobal.date
 var _clock: Array[int] = IVGlobal.clock
 var _show_clock := false
 var _show_seconds := false
 var _is_reversed := false
-var _ymd: Array[int] = [0, 0, 0]
-var _hms: Array[int] = [0, 0, 0]
 var _hm: Array[int] = [0, 0]
 
-var _timekeeper: IVTimekeeper
 
 
 func _ready() -> void:
@@ -64,22 +66,17 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	_ymd[0] = _date[0]
-	_ymd[1] = _date[1]
-	_ymd[2] = _date[2]
-	var new_text: String = date_format % _ymd
+	var new_text: String = date_format % _date
 	if _show_clock:
 		if _show_seconds:
-			_hms[0] = _clock[0]
-			_hms[1] = _clock[1]
-			_hms[2] = _clock[2]
-			new_text += clock_hms_format % _hms
+			new_text += clock_hms_format % _clock
 		else:
 			_hm[0] = _clock[0]
 			_hm[1] = _clock[1]
 			new_text += clock_hm_format % _hm
-	
-	new_text += time_zone_suffix
+	if suffix_ut_tt:
+		new_text += " TT" if _timekeeper.terrestrial_time_clock else " UT"
+	new_text += suffix_text
 	if show_pause and IVStateManager.paused_by_user:
 		new_text += " " + tr(&"LABEL_PAUSED")
 	text = new_text

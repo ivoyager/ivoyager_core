@@ -35,6 +35,8 @@ signal closed()
 
 
 var _timekeeper: IVTimekeeper
+var _date := IVGlobal.date
+var _clock := IVGlobal.clock
 var _updating_setter := false
 
 @onready var _year: SpinBox = $SetterHBox/Year
@@ -54,16 +56,13 @@ func _ready() -> void:
 
 
 func update_setter_time() -> void:
-	var date_time := _timekeeper.get_gregorian_date_time()
-	var date_array: Array[int] = date_time[0]
-	var time_array: Array[int] = date_time[1]
 	_updating_setter = true
-	_year.value = date_array[0]
-	_month.value = date_array[1]
-	_day.value = date_array[2]
-	_hour.value = time_array[0]
-	_minute.value = time_array[1]
-	_second.value = time_array[2]
+	_year.value = _date[0]
+	_month.value = _date[1]
+	_day.value = _date[2]
+	_hour.value = _clock[0]
+	_minute.value = _clock[1]
+	_second.value = _clock[2]
 	_updating_setter = false
 
 
@@ -95,10 +94,11 @@ func _on_time_changed(_value: float, is_date := false) -> void:
 		_set_time(false)
 
 
+@warning_ignore_start("narrowing_conversion")
+
 func _set_time(set_and_close: bool) -> void:
-	@warning_ignore("narrowing_conversion")
-	var new_time := _timekeeper.get_sim_time(_year.value, _month.value, _day.value,
-			_hour.value, _minute.value, _second.value)
+	var new_time := _timekeeper.get_time_at_date_clock_elements(_year.value, _month.value,
+			_day.value, _hour.value, _minute.value, _second.value)
 	_timekeeper.set_time(new_time)
 	if set_and_close:
 		closed.emit()
@@ -107,7 +107,6 @@ func _set_time(set_and_close: bool) -> void:
 func _decrement_invalid_day() -> bool:
 	if _day.value < 29.0:
 		return false
-	@warning_ignore("narrowing_conversion")
 	if not _timekeeper.is_valid_gregorian_date(_year.value, _month.value, _day.value):
 		_day.value -= 1.0
 		return true

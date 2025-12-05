@@ -48,12 +48,8 @@ func _ready() -> void:
 func _configure_after_core_inited() -> void:
 	_timekeeper = IVGlobal.program[&"Timekeeper"]
 	_timekeeper.speed_changed.connect(_update_buttons) # signals on ui_dirty
-	_plus.pressed.connect(_change_speed.bind(1))
-	_minus.pressed.connect(_change_speed.bind(-1))
-
-
-func _change_speed(increment: int) -> void:
-	_timekeeper.change_speed(increment)
+	_plus.pressed.connect(_timekeeper.increment_speed)
+	_minus.pressed.connect(_timekeeper.decrement_speed)
 
 
 func _update_buttons() -> void:

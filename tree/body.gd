@@ -850,6 +850,18 @@ func get_orbit_inclination(time := NAN) -> float:
 	return _orbit.get_inclination_at_time(time)
 
 
+## Returns this body's orbital mean motion. Supply [param time] only if you
+## don't want the current value. 
+func get_orbit_mean_motion(time := NAN) -> float:
+	if !_orbit:
+		return 0.0
+	if is_nan(time):
+		if !_sleeping:
+			return _orbit.get_mean_motion()
+		time = _times[0]
+	return _orbit.get_mean_motion_at_time(time)
+
+
 ## Returns a unit vector normal to this body's orbit. Supply [param time] only
 ## if you don't want the current value. 
 func get_orbit_normal(time := NAN, flip_retrograde := false) -> Vector3:

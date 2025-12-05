@@ -72,6 +72,9 @@ var _defaults: Dictionary[StringName, Variant] = {
 	&"label3d_symbols_size_percent" : 100,
 	&"point_size" : 3,
 	&"hide_hud_when_close" : true, # restart or load required
+	
+	# time
+	&"terrestrial_time_clock" : false,
 
 	# graphics/performance
 	&"starmap" : IVGlobal.StarmapSize.STARMAP_16K,

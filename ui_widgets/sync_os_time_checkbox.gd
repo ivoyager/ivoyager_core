@@ -45,7 +45,7 @@ func _toggled(toggled_on: bool) -> void:
 	if not _timekeeper:
 		return
 	if toggled_on:
-		_timekeeper.set_time_from_os()
+		_timekeeper.synchronize_time_with_os()
 	else:
 		_update_ckbx.call_deferred()
 
@@ -57,4 +57,4 @@ func _configure_after_core_inited() -> void:
 
 
 func _update_ckbx(_dummy: Variant = false) -> void:
-	set_pressed_no_signal(_timekeeper.sync_with_os_time)
+	set_pressed_no_signal(_timekeeper.os_time_sync_on)
