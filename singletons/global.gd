@@ -26,8 +26,8 @@ extends Node
 ## external class and available for all. Container references are never
 ## overwritten, so it is safe to keep local references in class files.[br][br]
 ##
-## Dev note: Don't add any non-Godot class dependencies in this file. These
-## could cause circular reference issues.
+## Dev note: There are NO non-Godot class dependencies in this file. (These are
+## avoided here to prevent circular reference issues.)
 
 
 ## Emitted by [IVTranslationImporter] after translations imported. This is early

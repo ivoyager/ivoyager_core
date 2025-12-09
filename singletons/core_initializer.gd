@@ -50,10 +50,9 @@ extends Node
 ## here[/url].[br][br]
 ##
 ## Alternatively, this class could be modified by another autoload or some other
-## early-executing code. In any case, it's recommended to have a dedicated "init"
-## file modify this singleton and [IVCoreSettings] at program init. ONLY that
-## file should reference this singleton (many files may reference [IVCoreSettings]
-## for read only).[br][br]
+## early-executing code. In any case, it's recommended to have a dedicated
+## "preinitializer" file modify this singleton and [IVCoreSettings] at program
+## init. ONLY that file should reference this singleton.[br][br]
 ##
 ## By default, this class will begin initialization after a 5 frame delay. To
 ## modify this, see [member init_after_delay], [member init_delay], and [method
@@ -84,8 +83,8 @@ extends Node
 ## If true (default), this singleton will call [method begin_init] after [member
 ## init_delay] frames. If false, external project must call [method begin_init].
 var init_after_delay := true
-## Number of frames waited before this singleton will call [method begin_init],
-## if [member init_after_delay] is still true after the delay.
+## Number of frames waited before this singleton will call [method begin_init]
+## (if [member init_after_delay] is still true after the delay).
 var init_delay := 5 # frames
 
 
