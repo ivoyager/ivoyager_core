@@ -58,7 +58,7 @@ extends PopupPanel
 	# column 1
 	[&"LABEL_SAVE_LOAD", &"LABEL_CAMERA"],
 	# column 2
-	[&"LABEL_GUI_AND_HUD", &"LABEL_TIME", &"LABEL_GRAPHICS_PERFORMANCE"],
+	[&"LABEL_GUI_AND_HUD", &"LABEL_GRAPHICS_PERFORMANCE"],
 ]
 
 ## Section keys are the header labels used in [member layout]. Content of each
@@ -92,10 +92,6 @@ extends PopupPanel
 		[&"LABEL_POINT_SIZE", &"point_size"],
 		[&"LABEL_HIDE_HUDS_WHEN_CLOSE", &"hide_hud_when_close"],
 	],
-	LABEL_TIME = [
-		[&"LABEL_TERRESTRIAL_TIME_CLOCK", &"terrestrial_time_clock"],
-	],
-	
 	LABEL_GRAPHICS_PERFORMANCE = [
 		[&"LABEL_STARMAP", &"starmap"],
 	],
@@ -176,6 +172,39 @@ func open() -> void:
 	_build_content()
 	size = Vector2i.ZERO
 	popup_centered()
+
+
+## Add an options section at specified position. (This might be easier than
+## adding in the Editor.) Adds at end of column if [param section_index] is
+## greater than the number of existing column sections.
+func add_section(section_name: StringName, column_index: int, section_index := 999) -> void:
+	var column: Array
+	if layout.size() > column_index:
+		column = layout[column_index]
+	else:
+		column = []
+		layout.append(column)
+	section_index = mini(column.size(), section_index)
+	column.insert(section_index, section_name)
+	if not section_content.has(section_name):
+		section_content[section_name] = []
+
+
+## Add an option in specified section. (This might be easier than adding in the
+## Editor.) Adds at end of section if [param option_index] is greater than the
+## number of options already in the section. Use [method add_section] first if
+## the section doesn't already exist. Use [method IVSettingsManager.set_default]
+## first if the setting doesn't already exist.
+func add_option(section_name: StringName, option_name: StringName, setting: StringName,
+		option_index := 999) -> void:
+	assert(section_content.has(section_name),
+			"Section '%s' doesn't exist; use add_section() first" % section_name)
+	assert(IVSettingsManager.has_setting(setting),
+			"Setting '%s' doesn't exist; use IVSettingsManager.set_default() first" % setting)
+	var section := section_content[section_name]
+	option_index = mini(section.size(), option_index)
+	section.insert(option_index, [option_name, setting])
+	
 
 
 func _build_content() -> void:

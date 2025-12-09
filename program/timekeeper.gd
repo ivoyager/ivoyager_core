@@ -77,23 +77,30 @@ signal date_changed()
 ## Emitted when [member julian_day_number] (JDN) changes and on [signal
 ## IVGlobal.ui_dirty]. JDN rolls over at noon [member clock_time].
 signal julian_day_number_changed()
-## Emitted when code sets time outside of the normal flow of time. In a game
-## context this probably only happens at game start. (In our Planetarium, it
-## happens when the user sets time.)
+## Emitted when code sets time outside of the normal flow of time. This probably
+## won't happen in a game context. In our Planetarium, it happens when the user
+## sets time.
 signal time_altered(previous_time: float)
 
 
-## Julian Day Number at J2000 epoch.
-const J2000_JULIAN_DAY_NUMBER := 2451545
-## Unix epoch time relative to J2000 epoch (seconds).
-const UNIX_EPOCH := -946728000.0
+## Julian Day Number at J2000.
+const JULIAN_DAY_NUMBER_AT_J2000 := 2451545
+## Unix epoch time at J2000 in seconds. Does not account for leap seconds!
+const UNIX_EPOCH_SECONDS_AT_J2000 := 946728000.0
+## UTC leap seconds added at J2000. See [member utc_leap_seconds] for current.
+const UTC_LEAP_SECONDS_AT_J2000 := 32
+
+## TT lead over TAI. This is by definition. TT = this + UTC + leap seconds.
+const TT_TAI_OFFSET_SECONDS := 32.184
+
+
 ## Earth rotation rate for calculated universal time.
 const UT_ROTATION_RATE := 0.00007292115024 / IVUnits.SECOND
 ## Earth orbit mean motion for calculated universal time.
 const UT_ORBIT_MEAN_MOTION := 0.00000019909866 / IVUnits.SECOND
-## Offset for calculated universal time. Reproduces the true 64.184 second UT1
-## lag behind TT at J2000.
-const UT_OFFSET := 0.00074287037037
+## Offset for calculated universal time. Reproduces the present 69.184 s UT1
+## lag behind TT. The value can be generated using [method debug_print_present_offsets].
+const UT_OFFSET := 0.00072434799
 
 
 const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY
@@ -192,12 +199,21 @@ var clock_time: float
 ## lengthen, so Earth will experience a date "skip" eventually. But this won't
 ## happen for tens or hundreds of thousands of years.
 var universal_time_body := &"PLANET_EARTH"
-## The default value reproduces the true 64.184 second UT1 lag behind TT at
-## J2000 (with default [member universal_time_body] == &"PLANET_EARTH"). This
-## offset was determined empirically and depends on exact data table values.
-var universal_time_offset := 0.50435398148148
+## The default value reproduces the current 69.184 second UT1 lag behind TT
+## using [member universal_time_body] == &"PLANET_EARTH". The value could
+## change with small implementation details affecting simulated Earth rotation
+## and orbit, or with time as simulated Earth diverges from the real Earth. Set
+## [member recalculate_universal_time_offset] = true to recalculate and set at
+## system build.
+var universal_time_offset := 0.50410651
 
+## If true, recalulate and set [member universal_time_offset] at system build.
+## This is only needed if you need UT clock display to be perfectly synchronized
+## with user OS time.
+var recalculate_universal_time_offset := true
 
+## Present UTC leap seconds. The last leap second was added on 2016‑12‑31.
+var utc_leap_seconds := 37
 
 
 
@@ -305,7 +321,7 @@ var _last_clock_time_rounded := -99999999
 ## midnight (i.e., far from the rollover time).
 static func get_jdn_at_time(time: float) -> int:
 	const DAY := IVUnits.DAY
-	return floori(time / DAY) + J2000_JULIAN_DAY_NUMBER
+	return floori(time / DAY) + JULIAN_DAY_NUMBER_AT_J2000
 
 
 ## Tests whether input date integers define a valid Gregorian calendar day.
@@ -515,15 +531,41 @@ func get_reversed_time() -> float:
 	return _reversed_time
 
 
-func set_terrestrial_time_clock(value: bool) -> void:
-	if terrestrial_time_clock == value:
+func set_terrestrial_time_clock(use_terrestrial_time_clock: bool) -> void:
+	if terrestrial_time_clock == use_terrestrial_time_clock:
 		return
-	terrestrial_time_clock = value
+	terrestrial_time_clock = use_terrestrial_time_clock
 	if not IVStateManager.started:
 		return
 	_process_time() # in case we are paused
 
 # *****************************************************************************
+
+## 
+func calculate_present_universal_time_offset() -> float:
+	const SECOND := IVUnits.SECOND
+	const DAY := IVUnits.DAY
+	assert(_ut_body)
+	var unix_time := Time.get_unix_time_from_system()
+	var utc_sec := unix_time - UNIX_EPOCH_SECONDS_AT_J2000 # no leap seconds added!
+	var tt_sec := utc_sec + utc_leap_seconds + TT_TAI_OFFSET_SECONDS
+	return get_universal_time_at_body_at_time(_ut_body, tt_sec * SECOND, 0.0) - utc_sec / DAY
+
+
+func debug_print_present_offsets() -> void:
+	const SECOND := IVUnits.SECOND
+	const DAY := IVUnits.DAY
+	var unix_time := Time.get_unix_time_from_system()
+	var utc_sec := unix_time - UNIX_EPOCH_SECONDS_AT_J2000 # no leap seconds added!
+	var tt_sec := utc_sec + utc_leap_seconds + TT_TAI_OFFSET_SECONDS
+	if _ut_body:
+		var offset := (get_universal_time_at_body_at_time(_ut_body, tt_sec * SECOND, 0.0)
+				- utc_sec / DAY)
+		prints("Present offset for %s is" % _ut_body.name, offset)
+	var calc_offset := ((UT_ROTATION_RATE - UT_ORBIT_MEAN_MOTION) * tt_sec / TAU
+			- utc_sec / DAY)
+	prints("Present offset for Earth constants is ", calc_offset)
+
 
 ## Returns simulator time for provided date and clock elements. Assumes valid
 ## input! To test valid Gregorian date, use [method is_valid_gregorian_date].
@@ -534,14 +576,16 @@ func get_time_at_date_clock_elements(year: int, month: int, day: int,
 	const HOUR := IVUnits.HOUR
 	const DAY := IVUnits.DAY
 	var jdn := get_jdn_at_gregorian_date(year, month, day)
-	var epoch_days := jdn - J2000_JULIAN_DAY_NUMBER - 0.5 # approximately at midnight
-	var ct := get_clock_time_at_time(epoch_days * DAY, is_terrestrial_time_clock)
-	var delta := ct - epoch_days
-	# For UT, delta will be small unless we are going out 10000s of years or messing
-	# with rotations or orbits. But if we are, we want to keep the whole number
-	# part of epoch_days and correct only the fractional part.
-	delta = delta - int(delta)
-	var result_time := (epoch_days - delta) * DAY # corrected time at midnight UT
+	var epoch_days := jdn - JULIAN_DAY_NUMBER_AT_J2000 - 0.5
+	var result_time := epoch_days * DAY
+	if not is_terrestrial_time_clock:
+		var ct := get_clock_time_at_time(epoch_days * DAY, false)
+		var delta := ct - epoch_days
+		# Delta will be small unless we are going out 10000s of years or messing
+		# with rotations or orbits. But if we are, we want to keep the whole number
+		# part of epoch_days and correct only the fractional part.
+		delta = delta - int(delta)
+		result_time -= delta * DAY # corrected time at midnight UT
 	result_time += hour * HOUR
 	result_time += minute * MINUTE
 	result_time += second * SECOND
@@ -572,13 +616,14 @@ func get_julian_date() -> float:
 	return _julian_day_number + fposmod(clock_time, 1.0)
 
 
+## Returns "time" (as Terrestrial Time; J2000) from operating system.
 func get_time_from_os() -> float:
 	const SECOND := IVUnits.SECOND
 	# TEST: Time.get_unix_time_from_system() did not previously work in
 	# HTML5 export, so we used OS.get_system_time_msecs(). This needs testing.
 	var unix_time := Time.get_unix_time_from_system()
-	var j2000sec := unix_time + UNIX_EPOCH
-	return j2000sec * SECOND
+	var utc_sec := unix_time - UNIX_EPOCH_SECONDS_AT_J2000 # no leap seconds added!
+	return (utc_sec + utc_leap_seconds + TT_TAI_OFFSET_SECONDS) * SECOND
 
 
 func get_current_date_for_file() -> String:
@@ -586,8 +631,9 @@ func get_current_date_for_file() -> String:
 
 
 func set_time_from_date_clock_elements(year: int, month: int, day: int,
-		hour := 12, minute := 0, second := 0) -> void:
-	var new_time := get_time_at_date_clock_elements(year, month, day, hour, minute, second)
+		hour := 12, minute := 0, second := 0, is_terrestrial_time_clock := false) -> void:
+	var new_time := get_time_at_date_clock_elements(year, month, day, hour, minute, second,
+			is_terrestrial_time_clock)
 	set_time(new_time)
 
 
@@ -649,6 +695,9 @@ func _on_about_to_start_simulator(new_game: bool) -> void:
 		if not _ut_body:
 			push_warning("Could not find universal_time_body '%s'." % universal_time_body
 					+ " Calculating UT using Earth constants.")
+		elif recalculate_universal_time_offset:
+			universal_time_offset = calculate_present_universal_time_offset()
+			print(universal_time_offset)
 	if new_game: # need game start _time & _speed_index (otherwise persisted from game load)
 		if start_real_world_time or os_time_sync_on:
 			_time = get_time_from_os()
@@ -662,9 +711,7 @@ func _on_about_to_start_simulator(new_game: bool) -> void:
 	_process_time(true) # signal later on ui_dirty
 	_process_speed_index()
 	
-	#prints("delta_T", time - clock_time * IVUnits.DAY)
-	#prints("UT", clock_time)
-	#prints("UT + 64.184 s", clock_time + 64.184 / IVUnits.DAY)
+	debug_print_present_offsets()
 
 
 func _process_time(suppress_signals := false) -> void:

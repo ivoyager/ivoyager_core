@@ -31,7 +31,7 @@ extends VBoxContainer
 ##
 ## If not used in a popup, call [method update_setter_time] as needed.
 
-signal closed()
+signal closed() # not emitted after we removed close button
 
 
 var _timekeeper: IVTimekeeper
@@ -45,7 +45,7 @@ var _updating_setter := false
 @onready var _hour: SpinBox = $SetterHBox/Hour
 @onready var _minute: SpinBox = $SetterHBox/Minute
 @onready var _second: SpinBox = $SetterHBox/Second
-@onready var _update_ckbx: CheckBox = %UpdateCkbx
+@onready var _ut_tt_label: Label = %UTTTLabel
 
 
 func _ready() -> void:
@@ -63,13 +63,13 @@ func update_setter_time() -> void:
 	_hour.value = _clock[0]
 	_minute.value = _clock[1]
 	_second.value = _clock[2]
+	_ut_tt_label.text = "  TT" if _timekeeper.terrestrial_time_clock else "  UT"
 	_updating_setter = false
 
 
 func _configure_after_core_inited() -> void:
 	_timekeeper = IVGlobal.program[&"Timekeeper"]
 	visibility_changed.connect(_on_visibility_changed)
-	(%SetButton as Button).pressed.connect(_set_time.bind(true))
 	_year.value_changed.connect(_on_time_changed.bind(true))
 	_month.value_changed.connect(_on_time_changed.bind(true))
 	_day.value_changed.connect(_on_time_changed.bind(true))
@@ -90,18 +90,15 @@ func _on_time_changed(_value: float, is_date := false) -> void:
 		# _decrement_invalid_day() causes a recursive call to this method when it
 		# sets the day spinbox. It will recurse at most 3 times (Feb 31, non-leap year).
 		return 
-	if _update_ckbx.button_pressed:
-		_set_time(false)
+	_set_time()
 
 
 @warning_ignore_start("narrowing_conversion")
 
-func _set_time(set_and_close: bool) -> void:
-	var new_time := _timekeeper.get_time_at_date_clock_elements(_year.value, _month.value,
-			_day.value, _hour.value, _minute.value, _second.value)
-	_timekeeper.set_time(new_time)
-	if set_and_close:
-		closed.emit()
+func _set_time() -> void:
+	var terrestrial_time_clock := _timekeeper.terrestrial_time_clock
+	_timekeeper.set_time_from_date_clock_elements(_year.value, _month.value,
+			_day.value, _hour.value, _minute.value, _second.value, terrestrial_time_clock)
 
 
 func _decrement_invalid_day() -> bool:

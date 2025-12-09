@@ -73,9 +73,6 @@ var _defaults: Dictionary[StringName, Variant] = {
 	&"point_size" : 3,
 	&"hide_hud_when_close" : true, # restart or load required
 	
-	# time
-	&"terrestrial_time_clock" : false,
-
 	# graphics/performance
 	&"starmap" : IVGlobal.StarmapSize.STARMAP_16K,
 }
@@ -88,6 +85,7 @@ func _ready() -> void:
 	IVStateManager.core_init_preinitialized.connect(_on_core_init_preinitialized)
 
 
+## Add or change a default setting.
 ## For preinitializer script only! Defaults become read-only at cache init.
 ## Supply [param value] = null to remove a setting.
 func set_default(key: StringName, value: Variant) -> void:
