@@ -174,14 +174,15 @@ var ordered_program_refcounteds: Array[StringName] = []
 ## Note for Save plugin: For save/load persistence, these Node classes can have:[br][br]
 ## [code]const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY[/code]  
 var program_nodes: Dictionary[StringName, Variant] = {
-	# Ordered
+	# Ordered for input handling
 	CameraHandler = IVCameraHandler, # remove or replace if not using IVCamera
-	Timekeeper = IVTimekeeper,
+	SpeedManager = IVSpeedManager,
 	SBGHUDsState = IVSBGHUDsState, # (likely to have input in future)
 	BodyHUDsState = IVBodyHUDsState,
 	InputHandler = IVInputHandler,
 	SaveManager = IVSaveManager, # auto removed if plugin missing or disabled
 	# Unordered
+	Timekeeper = IVTimekeeper,
 	Scheduler = IVScheduler,
 	ViewManager = IVViewManager,
 }
@@ -191,7 +192,7 @@ var program_nodes: Dictionary[StringName, Variant] = {
 ##
 ## Node order determines input handling order, where last added is first
 ## to recieve input.
-var ordered_program_nodes: Array[StringName] = [&"CameraHandler", &"Timekeeper",
+var ordered_program_nodes: Array[StringName] = [&"CameraHandler", &"SpeedManager",
 	&"SBGHUDsState", &"BodyHUDsState", &"InputHandler", &"SaveManager"]
 
 ## Include the names of Nodes that already exist in the scene tree that you want

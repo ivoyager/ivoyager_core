@@ -20,16 +20,15 @@
 class_name IVTimekeeper
 extends Node
 
-## Maintains simulator time and provides Gregorian calendar and clock elements
-## and time conversion functions.
+## Maintains simulator "time" (TT; J2000 epoch), Julian Day Number, Gregorian
+## calendar date, and "clock time" (simulated UT or TT).
 ##
 ## This node maintains [member IVGlobal.times], [member IVGlobal.clock],
 ## [member IVGlobal.date], [member IVGlobal.date_aux], and shader global
 ## "iv_time". (Shader global "iv_time" is assumed to exist.)[br][br]
 ##
-## [IVTimekeeper] does not change [member Engine.time_scale] by default. If you
-## want that to happen, set [member IVCoreSettings.manage_engine_time_scale] = true.
-## [br][br]
+## Game speed is managed by [IVSpeedManager]. Pause and "user pause" are
+## managed by [IVStateManager].[br][br]
 ##
 ## For definitions of Terrestrial Time (TT), Universal Time (UT, UT1), Julian
 ## Day Number (JDN), and Julian Date (JD), see:[br]
@@ -37,50 +36,47 @@ extends Node
 ## [url]https://en.wikipedia.org/wiki/Universal_Time[/url][br]
 ## [url]https://en.wikipedia.org/wiki/Julian_day[/url][br][br]
 ##
-## Simulator [member time] is Terrestrial Time in units defined by [member
-## IVUnits.SECOND] with J2000 epoch (noon on Jan 1, 2000). This value is
-## available at [member IVGlobal.times][0] and is "time" for essentially all
-## simulator mechanics.[br][br]
+## Simulator [member time] is Terrestrial Time in units defined by [constant
+## IVUnits.SECOND] with J2000 epoch (noon on Jan 1, 2000). This value is "time"
+## for essentially all simulator mechanics. It is always available in array
+## [member IVGlobal.times] at index 0 (the array property is never reassigned,
+## so it is safe to keep a local reference in class files).[br][br]
 ##
-## Simulator [member clock_time] can follow either Universal Time (default) or
-## Terrestrial Time. The essential difference is that UT will maintain synchrony
-## with Earth rotation (or possibly some other body) while TT will diverge over
-## time. This value is available at [member IVGlobal.times][1] and is mainly
-## used for clock GUI display. It also determines the exact time of "rollover"
-## for JDN ([member julian_day_number]) and Gregorian date ([member IVGlobal.date])
-## at [member clock_time] noon and midnight, respectively.
-## However, JDN and date [b]values[/b] are determined by [member time]. ("Skips"
-## or "repeats" are inevitable over very long time scales if using UT.)[br][br]
+## Simulator [member clock_time] can follow either simulated Universal Time
+## (default) or Terrestrial Time. The essential difference is that UT will
+## maintain synchrony with Earth rotation (or possibly some other body) while TT
+## will diverge over time. This value is used to generate "clock" integers in
+## [member IVGlobal.clock] and to determine the exact "rollover" time for JDN
+## ([member julian_day_number]) and Gregorian date ([member IVGlobal.date]) at
+## noon and midnight, respectively. (However, JDN and date [b]values[/b] are
+## determined by [member time]. "Skips" or "repeats" are inevitable over very
+## long time scales if using UT.) This value is available in array [member
+## IVGlobal.times] at index 1.[br][br]
 ##
 ## [IVTimekeeper] simulates dynamic UT using [member universal_time_body]
 ## or calculates UT from Earth constant values. Either will be an approximation
 ## of UT1 unless something weird is done with [member universal_time_body].[br][br]
 ##
 ## [IVTimekeeper] maintains [member julian_day_number] (JDN) mainly for date
-## calculations. JDN rolls over at noon [member clock_time] (this makes JDN-
-## Gregorian date conversions tricky; use care). This value is
-## available at [member IVGlobal.clock][2] (as a float whole number).
-## [br][br]
+## calculations. JDN rolls over at noon [member clock_time], which makes
+## JDN-Gregorian date conversions tricky. Use care. This value is available in
+## array [member IVGlobal.times] at index 2 as a float whole number.[br][br]
 ##
 ## Julian Date (JD) is not used by the simulator, but can be calculated by
 ## adding [member julian_day_number] (an integer) with the fractional part of
 ## [member clock_time]. Or use [method get_julian_date].[br][br]
-##
-## Pause and "user pause" are maintained by [IVStateManager].[br][br]
 
 
-## Emitted when game speed changes and on [signal IVGlobal.ui_dirty].
-signal speed_changed()
-## Emitted when the Gregorian calendar date changes and on [signal
-## IVGlobal.ui_dirty]. Date rolls over at midnight [member clock_time].
+## Emitted when the Gregorian calendar date ([member IVGlobal.date]) changes and
+## on [signal IVGlobal.ui_dirty]. Date rolls over at midnight [member clock_time].
 signal date_changed()
-## Emitted when [member julian_day_number] (JDN) changes and on [signal
+## Emitted when JDN ([member julian_day_number]) changes and on [signal
 ## IVGlobal.ui_dirty]. JDN rolls over at noon [member clock_time].
 signal julian_day_number_changed()
-## Emitted when code sets time outside of the normal flow of time. This probably
-## won't happen in a game context. In our Planetarium, it happens when the user
-## sets time.
-signal time_altered(previous_time: float)
+## Emitted when code sets time outside of the normal flow of time. This may
+## never happen in a typical game context. In our Planetarium, it happens when
+## the user sets time using [IVTimeSetter].
+signal time_set(previous_time: float)
 
 
 ## Julian Day Number at J2000.
@@ -89,25 +85,23 @@ const JULIAN_DAY_NUMBER_AT_J2000 := 2451545
 const UNIX_EPOCH_SECONDS_AT_J2000 := 946728000.0
 ## UTC leap seconds added at J2000. See [member utc_leap_seconds] for current.
 const UTC_LEAP_SECONDS_AT_J2000 := 32
-
-## TT lead over TAI. This is by definition. TT = this + UTC + leap seconds.
+## TT lead over TAI by definition. TT = UTC + leap seconds + this.
 const TT_TAI_OFFSET_SECONDS := 32.184
-
-
 ## Earth rotation rate for calculated universal time.
 const UT_ROTATION_RATE := 0.00007292115024 / IVUnits.SECOND
 ## Earth orbit mean motion for calculated universal time.
 const UT_ORBIT_MEAN_MOTION := 0.00000019909866 / IVUnits.SECOND
-## Offset for calculated universal time. Reproduces the present 69.184 s UT1
-## lag behind TT. The value can be generated using [method debug_print_present_offsets].
+## Offset for calculated universal time. Reproduces the 69.184 s UT1 lag behind
+## TT at present time (Dec 2025) given the two "UT_" constants. The lag will
+## diverge from actual lag based on calculated Earth rotation and orbit in
+## addition to future UTC leap seconds. A current value can be printed using
+## [method debug_print_present_offsets].
 const UT_OFFSET := 0.00072434799
 
 
 const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"_time",
-	&"_speed_index",
-	&"_reversed_time",
 ]
 
 
@@ -121,23 +115,19 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 ## See also [member IVCoreSettings.start_time_is_terrestrial_time] (this affects
 ## game start time).
 var terrestrial_time_clock := false: set = set_terrestrial_time_clock
+
 ## If true, [member terrestrial_time_clock] will be set and maintained to match
 ## user setting "terrestrial_time_clock". This setting must be added in
 ## [IVSettingsManager] and [IVOptionsPopup] to be available for user setting.
-## (This is kind of niche use but available in our Planetarium.)
-var terrestrial_time_clock_setting := false
+## (This is very "niche use" but available in our Planetarium.)
+var terrestrial_time_clock_user_setting := false
 
-## Terrestrial Time (TT) in units defined by [member IVUnits.SECOND] with J2000
+## Terrestrial Time (TT) in units defined by [constant IVUnits.SECOND] with J2000
 ## epoch (noon on Jan 1, 2000). This is the main simulator "time". The value can
 ## be obtained from [member IVGlobal.times][0].[br][br]
 ##
-## Setting this value will emit [signal time_altered].
+## Setting this value will emit [signal time_set].
 var time: float: set = set_time, get = get_time
-## Current speed index as defined in [member speeds]. Settable.
-var speed_index: int: set = set_speed_index, get = get_speed_index
-## Reverse time flow. Only allowed if [member IVCoreSettings.allow_time_reversal]
-## == true. Settable.
-var reversed_time: bool: set = set_reversed_time, get = get_reversed_time
 
 ## Julian Day Number (JDN). See [url]https://en.wikipedia.org/wiki/Julian_day[/url].
 ## [br][br]
@@ -147,10 +137,7 @@ var reversed_time: bool: set = set_reversed_time, get = get_reversed_time
 ## This value can be obtained from [member IVGlobal.times][2] (as a float).[br][br]
 ##
 ## Read only.
-var julian_day_number: int:
-	get: return _julian_day_number
-
-
+var julian_day_number: int: get = get_julian_day_number
 
 ## Clock time is either Terrestrial Time (TT) or a simulated
 ## Universal Time (UT). See [member terrestrial_time_clock] and [member
@@ -163,8 +150,8 @@ var julian_day_number: int:
 ## UT is in "synodic day" units of [member universal_time_body]
 ## (if defined and present) or calculated from Earth rotation and orbit constants.
 ## This value should approximate UT1 as long as something weird isn't done with
-## [member universal_time_body]. [member universal_time_offset] has a default
-## value that reproduces the actual 64.184 second UT1 lag behind TT at J2000.[br][br]
+## [member universal_time_body]. The default value of [member universal_time_offset]
+## reproduces the actual 69.184 second UT1 lag behind TT at present time.[br][br]
 ##
 ## The fractional part of clock_time is represented in the integers of [member
 ## IVGlobal.clock]. It is also used to trigger rollover of JDN ([member
@@ -177,148 +164,78 @@ var julian_day_number: int:
 ## Read only.
 var clock_time: float
 
-
 ## [IVBody] for dynamic maintenence of [member clock_time] as Univeral Time.
-## Value should be &"PLANET_EARTH" or &"" (but see below). If value is &"" or
-## the named body goes missing for some reason, UT will be calculated from
-## constants representing Earth's rotation and orbit.[br][br]
+## To represent Earth "Universal Time", the value can be either &"PLANET_EARTH"
+## or &"". If value is &"" (or the named body goes missing for some reason), UT
+## will be calculated from constants representing Earth's rotation and orbit.[br][br]
 ##
-## What happens if value is &"PLANET_MARS"? [member clock_time] will slow down
-## to fit Mars' 24 hr, 39 min, 36 sec (88776 seconds total) synodic day.
-## [member IVGlobal.clock] "hours", "minutes" and "seconds" will be
+## What happens if value is &"PLANET_MARS"? UT [member clock_time]
+## will slow down to fit Mars' 24 hr, 39 min, 36 sec synodic day (88776 seconds
+## total). [member IVGlobal.clock] "hours", "minutes" and "seconds" will be
 ## proportionately longer. JDN and Gregorian date rollovers will still happen
 ## at [member clock_time] noon and midnight, respectively. However, as [member
-## clock_time] diverges from [member time], these rollovers will occasionally
-## skip over a JDN and Gregorian date (~10 times per 12 months). JDN and
-## Gregorian date will be correct over long time scales.[br][br]
+## clock_time] diverges from [member time], these rollovers will skip over a
+## a JDN and Gregorian date approximately 10 times every 12 months. JDN and
+## Gregorian date will be correct over long time scales because the [b]values[/b]
+## (as opposed to the rollover events) are based on TT [member time].[br][br]
 ##
 ## Conversely, if synodic day is short of 86400 seconds, JDN and Gregorian date
 ## will occasionally repeat on sequential clock cycles.[br][br]
 ##
-## Earth synodic day is slightly longer than 86400 seconds and predicted to
-## lengthen, so Earth will experience a date "skip" eventually. But this won't
-## happen for tens or hundreds of thousands of years.
+## Earth synodic day is slightly longer than 86400 seconds (and predicted to
+## lengthen for the real Earth), so Earth will experience a date "skip"
+## eventually. But this won't happen for hundreds of thousands of years for
+## simulated Earth (and an unknown but very long time for real Earth).
 var universal_time_body := &"PLANET_EARTH"
-## The default value reproduces the current 69.184 second UT1 lag behind TT
-## using [member universal_time_body] == &"PLANET_EARTH". The value could
-## change with small implementation details affecting simulated Earth rotation
-## and orbit, or with time as simulated Earth diverges from the real Earth. Set
-## [member recalculate_universal_time_offset] = true to recalculate and set at
-## system build.
-var universal_time_offset := 0.50410651
 
+## The default value reproduces the current 69.184 second UT1 lag behind TT
+## using [member universal_time_body] == &"PLANET_EARTH". The offset needed may
+## change with small implementation details affecting simulated Earth rotation
+## and orbit, and over time as simulated Earth diverges from real Earth. If a
+## precise current value is needed, set [member recalculate_universal_time_offset]
+## = true to recalculate and set at system build.
+var universal_time_offset := 0.50410651
 ## If true, recalulate and set [member universal_time_offset] at system build.
 ## This is only needed if you need UT clock display to be perfectly synchronized
 ## with user OS time.
-var recalculate_universal_time_offset := true
-
+var recalculate_universal_time_offset := false
 ## Present UTC leap seconds. The last leap second was added on 2016‑12‑31.
 var utc_leap_seconds := 37
-
-
-
 ## If true, the simulator will start at real-world (present) date and UT
 ## time from user OS. Overrides [member IVCoreSettings.start_time_date_clock].
 var start_real_world_time := false
 
-## Project game speeds. Modify at [signal IVStateManager.core_initialized].
-## Note: If the project might call [method synchronize_time_with_os], one of
-## these speeds must have value [code]IVUnits.SECOND[/code] (i.e., real-time).
-var speeds := [
-	IVUnits.SECOND,
-	IVUnits.MINUTE,
-	IVUnits.HOUR,
-	IVUnits.DAY,
-	7.0 * IVUnits.DAY,
-	30.4375 * IVUnits.DAY,
-]
-
-## Project game speed names for GUI. Modify at [signal IVStateManager.core_initialized].
-## Note that [member speeds] value [code]IVUnits.SECOND[/code] is real-time.
-var speed_names: Array[StringName] = [
-	&"GAME_SPEED_REAL_TIME",
-	&"GAME_SPEED_MINUTE_PER_SECOND",
-	&"GAME_SPEED_HOUR_PER_SECOND",
-	&"GAME_SPEED_DAY_PER_SECOND",
-	&"GAME_SPEED_WEEK_PER_SECOND",
-	&"GAME_SPEED_MONTH_PER_SECOND",
-]
-
-
-## Project [member speeds] index for game start. Modify at [signal
-## IVStateManager.core_initialized].
-var start_speed := 2
-## [member speeds] index at or below which a clock should be displayed in GUI.
-var show_clock_speed := 2
-## [member speeds] index at or below which clock seconds should be displayed in GUI.
-var show_seconds_speed := 1
-## Format string used by [method get_current_date_for_file] to convert date into
-## a file-safe string for game save file names.
-var date_format_for_file := "%02d-%02d-%02d"
-
-# public - read only!
-
-## Is simulator time currently synchronizing with OS?[br][br]
-##
-## Read-only. Use [method synchronize_time_with_os] to set. Will be unset by a
-## variety of events such as pause or game speed change.
-var os_time_sync_on := false
-## Current game speed multiplier from [member speeds] for current [member speed_index].
-## Negative if [member reversed_time].[br][br]
-##
-## Read only.
-var speed_multiplier: float # negative if reversed_time
-## Show clock at current [member speed_index]?[br][br]
-##
-## Read only. Set [member show_clock_speed] to modify behavior.
-var show_clock := false
-## Show clock secods at current [member speed_index]?[br][br]
-##
-## Read only. Set [member show_seconds_speed] to modify behavior.
-var show_seconds := false
-## Current game speed name from [member speed_names] for current [member speed_index].
-## Read-only for GUI.
-var speed_name: StringName
-
 
 # persisted
 var _time: float
-var _speed_index: int
-var _reversed_time := false
 
 # derived
 var _julian_day_number: int
 
-
-
 # localized
+var _speed_manager: IVSpeedManager
 var _times: Array[float] = IVGlobal.times
 var _clock: Array[int] = IVGlobal.clock
 var _date: Array[int] = IVGlobal.date
 var _date_aux: Array[int] = IVGlobal.date_aux
-
 var _allow_time_setting := IVCoreSettings.allow_time_setting
-var _allow_time_reversal := IVCoreSettings.allow_time_reversal
 var _network_state := IVStateManager.NetworkState.NO_NETWORK
 
 
+var _speed_multiplier: float # managed by IVSpeedManager; negative if reversed_time
 var _ut_body: IVBody
 var _last_clock_time_floored := -99999999
 var _last_clock_time_rounded := -99999999
 
 
 
-@onready var _tree := get_tree()
-
-
 # *****************************************************************************
-
 
 @warning_ignore_start("shadowed_variable", "integer_division")
 
-## JDN is calculated from epoch time, but rolls over at universal time midday
-## (12:00). It's safest to use a [param time] value that is near the present
-## midnight (i.e., far from the rollover time).
+## Returns Julian Day Number (JDN). JDN is calculated from TT J2000 epoch time,
+## but rolls over at "clock time" noon (12:00). It's safest to use [param time]
+## at midnight after the last noon (i.e., far from the rollover time).
 static func get_jdn_at_time(time: float) -> int:
 	const DAY := IVUnits.DAY
 	return floori(time / DAY) + JULIAN_DAY_NUMBER_AT_J2000
@@ -332,23 +249,24 @@ static func is_valid_gregorian_date(year: int, month: int, day: int) -> bool:
 		return true
 	if month != 2 and day < 31:
 		return true
+	var test_date: Array[int] = [year, month, day]
 	var jdn := get_jdn_at_gregorian_date(year, month, day)
-	var test_date: Array[int] = [0, 0, 0]
-	set_date_elements_at_jdn(jdn, test_date)
-	return test_date == [year, month, day]
+	var derived_date: Array[int] = [0, 0, 0]
+	get_date_elements_at_jdn(jdn, derived_date)
+	return derived_date == test_date
 
 
 ## Converts Gregorian calendar integers to Julian Day Number. Use the previous
-## day of the month to obtain JDN for any time before 12:00 noon UT (see note
-## below regarding "previous day").[br][br]
+## day of the month to obtain JDN for any time before 12:00 noon (see note below
+## regarding "previous day").[br][br]
 ##
 ## Does not test for valid input date. To do that, call [method
 ## is_valid_gregorian_date]. [br][br]
 ##
 ## Note: Although it is an invalid date, you can provide [param day] = 0 to
-## obtain the "previous day" JDN on the 1st day of a month. Out-of-calendar
-## days spill into the previous or following month, so [param day] = 0 always
-## returns JDN for the last day of the previous month.
+## obtain the "previous day" JDN on the 1st day of a month. Invalid out-of-calendar
+## days shift into the previous or following month additively, so [param day] = 0
+## always returns JDN for the last day of the previous month.
 static func get_jdn_at_gregorian_date(year: int, month: int, day: int) -> int:
 	# Who figured this out?
 	return ((1461 * (year + 4800 + (month - 14) / 12)) / 4
@@ -362,7 +280,7 @@ static func get_jdn_at_gregorian_date(year: int, month: int, day: int) -> int:
 ## year, month, and day. If specified, [param date_aux] must have size >= 3 and
 ## will have the first 3 elements set to Q, YQ, and YM, where Q is quarter (1 - 4)
 ## and YQ and YM are cumulative counts of quarter and month since year 0.
-static func set_date_elements_at_jdn(jdn: int, date: Array[int], date_aux: Array[int] = []) -> void:
+static func get_date_elements_at_jdn(jdn: int, date: Array[int], date_aux: Array[int] = []) -> void:
 	var f := jdn + 1401 + ((((4 * jdn + 274277) / 146097) * 3) / 4) - 38
 	var e := 4 * f + 3
 	var g := (e % 1461) / 4
@@ -381,23 +299,12 @@ static func set_date_elements_at_jdn(jdn: int, date: Array[int], date_aux: Array
 	date_aux[2] = y * 12 + (m - 1) # ym, always increasing
 
 
-static func get_date_elements_at_jdn(jdn: int, include_aux := false) -> Array[int]:
-	var date: Array[int] = [0, 0, 0]
-	if include_aux:
-		var date_aux: Array[int] = [0, 0, 0]
-		set_date_elements_at_jdn(jdn, date, date_aux)
-		date.append_array(date_aux)
-	else:
-		set_date_elements_at_jdn(jdn, date)
-	return date
-
-
-
-## Returns (cummulative) Universal Time in body rotation units. Note: The
-## fractional part is guaranteed to be current, but the cummulative whole part
-## could be wonky if the body's orbit changes. However, it should be good enough
-## for detecting date rollover.
-static func get_universal_time_at_body_at_time(body: IVBody, time: float, offset: float) -> float:
+## Returns cummulative synodic days at [param body] at [param time] with
+## specified [param offset]. Note: The fractional part is guaranteed to be
+## correct at present [param time], but the cummulative whole part could be
+## wonky if the body's orbit has changed significantly. However, it should be
+## good enough for detecting noon and midnight rollovers for Universal Time.
+static func get_synodic_days_at_body_at_time(body: IVBody, time: float, offset: float) -> float:
 	var rotation_angle := body.get_rotation_rate() * time + body.get_rotation_at_epoch()
 	var orbit_angle := body.get_orbit_mean_motion(time) * time + body.get_orbit_mean_longitude(0.0)
 	var mean_longitude := body.get_orbit_mean_longitude(time) # 0 ≤ L < 2π
@@ -414,7 +321,7 @@ static func get_universal_time_at_body_at_time(body: IVBody, time: float, offset
 ## Sets clock elements (hour, minute, second) in the provided [param clock]
 ## array (assumes array size >= 3). Only the fractional part of [param
 ## clock_time] matters.
-static func set_clock_elements_at_clock_time(clock_time: float, clock: Array[int]) -> void:
+static func get_clock_elements_at_clock_time(clock_time: float, clock: Array[int]) -> void:
 	var total_seconds := int(fposmod(clock_time - 0.5, 1.0) * 86400.0)
 	var hour := total_seconds / 3600
 	var minute := (total_seconds / 60) % 60
@@ -422,56 +329,32 @@ static func set_clock_elements_at_clock_time(clock_time: float, clock: Array[int
 	clock[1] = minute
 	clock[2] = total_seconds - hour * 3600 - minute * 60
 
-
-## Returns an array with integer "clock" values hour, minute, and second.
-## Only the fractional part of [param clock_time] matters.
-static func get_clock_elements_at_clock_time(clock_time: float) -> Array[int]:
-	var clock: Array[int] = [0, 0, 0]
-	set_clock_elements_at_clock_time(clock_time, clock)
-	return clock
-
-
 @warning_ignore_restore("shadowed_variable", "integer_division")
 
 # *****************************************************************************
 
 
 func _ready() -> void:
+	IVStateManager.core_initialized.connect(_on_core_initialized)
 	IVStateManager.about_to_start_simulator.connect(_on_about_to_start_simulator)
 	IVStateManager.network_state_changed.connect(_on_network_state_changed)
 	IVStateManager.run_state_changed.connect(_on_run_state_changed) # starts/stops
-	IVStateManager.paused_changed.connect(_on_paused_changed)
 	IVStateManager.about_to_free_procedural_nodes.connect(_on_about_to_free_procedural_nodes)
 	IVGlobal.ui_dirty.connect(_on_ui_dirty)
-	# Timekeeper must be pausible regarless of Universe.
-	process_mode = PROCESS_MODE_PAUSABLE
-	set_process(false) # changes with "run_state_changed" signal
-	set_process_priority(-100) # always first!
+	process_mode = PROCESS_MODE_PAUSABLE # must be pausible irrispective of Universe
+	set_process(false) # changes with signal run_state_changed
+	set_process_priority(-100) # always first when processing!
 
 
 func _process(delta: float) -> void:
-	delta /= Engine.time_scale
-	_time += delta * speed_multiplier
+	delta /= Engine.time_scale # Engine.time_scale may or may not follow _speed_multiplier
+	_time += delta * _speed_multiplier
 	_process_time()
-
-
-func _shortcut_input(event: InputEvent) -> void:
-	if not event.is_pressed():
-		return
-	if event.is_action_pressed(&"incr_speed"):
-		increment_speed()
-	elif event.is_action_pressed(&"decr_speed"):
-		decrement_speed()
-	elif _allow_time_reversal and event.is_action_pressed(&"reverse_time"):
-		set_reversed_time(!_reversed_time)
-	else:
-		return # input NOT handled!
-	get_viewport().set_input_as_handled()
 
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_IN:
-		if os_time_sync_on:
+		if _speed_manager.os_time_sync_on:
 			synchronize_time_with_os()
 
 
@@ -486,49 +369,17 @@ func set_time(new_time: float) -> void:
 		return
 	var previous_time := _time
 	_time = new_time
-	os_time_sync_on = false
+	_speed_manager.os_time_sync_on = false
 	_process_time()
-	time_altered.emit(previous_time)
+	time_set.emit(previous_time)
 
 
 func get_time() -> float:
 	return _time
 
 
-func set_speed_index(new_speed_index: int) -> void:
-	const IS_CLIENT = IVStateManager.NetworkState.IS_CLIENT
-	if _network_state == IS_CLIENT:
-		return
-	if new_speed_index < 0:
-		new_speed_index = 0
-	elif new_speed_index >= speeds.size():
-		new_speed_index = speeds.size() - 1
-	if _speed_index == new_speed_index:
-		return
-	os_time_sync_on = false
-	_speed_index = new_speed_index
-	_process_speed_index()
-	speed_changed.emit()
-
-
-func get_speed_index() -> int:
-	return _speed_index
-
-
-func set_reversed_time(new_reversed_time: bool) -> void:
-	const IS_CLIENT = IVStateManager.NetworkState.IS_CLIENT
-	if _network_state == IS_CLIENT:
-		return
-	if !_allow_time_reversal or _reversed_time == new_reversed_time:
-		return
-	os_time_sync_on = false
-	_reversed_time = new_reversed_time
-	_process_speed_index()
-	speed_changed.emit()
-
-
-func get_reversed_time() -> float:
-	return _reversed_time
+func get_julian_day_number() -> int:
+	return _julian_day_number
 
 
 func set_terrestrial_time_clock(use_terrestrial_time_clock: bool) -> void:
@@ -541,7 +392,6 @@ func set_terrestrial_time_clock(use_terrestrial_time_clock: bool) -> void:
 
 # *****************************************************************************
 
-## 
 func calculate_present_universal_time_offset() -> float:
 	const SECOND := IVUnits.SECOND
 	const DAY := IVUnits.DAY
@@ -549,7 +399,7 @@ func calculate_present_universal_time_offset() -> float:
 	var unix_time := Time.get_unix_time_from_system()
 	var utc_sec := unix_time - UNIX_EPOCH_SECONDS_AT_J2000 # no leap seconds added!
 	var tt_sec := utc_sec + utc_leap_seconds + TT_TAI_OFFSET_SECONDS
-	return get_universal_time_at_body_at_time(_ut_body, tt_sec * SECOND, 0.0) - utc_sec / DAY
+	return get_synodic_days_at_body_at_time(_ut_body, tt_sec * SECOND, 0.0) - utc_sec / DAY
 
 
 func debug_print_present_offsets() -> void:
@@ -559,7 +409,7 @@ func debug_print_present_offsets() -> void:
 	var utc_sec := unix_time - UNIX_EPOCH_SECONDS_AT_J2000 # no leap seconds added!
 	var tt_sec := utc_sec + utc_leap_seconds + TT_TAI_OFFSET_SECONDS
 	if _ut_body:
-		var offset := (get_universal_time_at_body_at_time(_ut_body, tt_sec * SECOND, 0.0)
+		var offset := (get_synodic_days_at_body_at_time(_ut_body, tt_sec * SECOND, 0.0)
 				- utc_sec / DAY)
 		prints("Present offset for %s is" % _ut_body.name, offset)
 	var calc_offset := ((UT_ROTATION_RATE - UT_ORBIT_MEAN_MOTION) * tt_sec / TAU
@@ -600,23 +450,29 @@ func get_time_at_date_clock_array(array: Array[int], is_terrestrial_time_clock :
 			array[3], array[4], array[5], is_terrestrial_time_clock)
 
 
-func get_clock_time_at_time(at_time: float, is_terrestrial_time_clock: bool) -> float:
+## Clock time is in body synodic days for UT (default), or in units [constant
+## IVUnits.DAY] for TT (if [param is_terrestrial_time_clock] == true).
+func get_clock_time_at_time(at_time: float, is_terrestrial_time_clock := false) -> float:
 	const DAY := IVUnits.DAY
 	if is_terrestrial_time_clock:
 		return at_time / DAY
 	if is_instance_valid(_ut_body):
-		return get_universal_time_at_body_at_time(_ut_body, at_time, universal_time_offset)
+		return get_synodic_days_at_body_at_time(_ut_body, at_time, universal_time_offset)
 	return (UT_ROTATION_RATE - UT_ORBIT_MEAN_MOTION) * at_time / TAU - UT_OFFSET
 
 
-## Returns Julian Date, the whole number part being [member julian_day_number]
-## and the fractional part from [member clock_time]. This is either the UT or TT
-## "flavor" of JD depending on which is being used for [member clock_time].
+## Returns Julian Date (JDN), the whole number part being [member
+## julian_day_number] and the fractional part being the fractional part of
+## [member clock_time]. This is either the UT or TT "flavor" of JD depending
+## on which is being used for [member clock_time].
 func get_julian_date() -> float:
 	return _julian_day_number + fposmod(clock_time, 1.0)
 
 
-## Returns "time" (as Terrestrial Time; J2000) from operating system.
+## Returns "time" as Terrestrial Time (J2000 epoch; in units [constant
+## IVUnits.SECOND]) from operating system. This includes a conversion from UTC
+## "Unix time" to TAI (adding leap seconds) and from TAI to TT (32.184 s offset
+## by definition). Curretly, TT leads UTC by 69.184 s.
 func get_time_from_os() -> float:
 	const SECOND := IVUnits.SECOND
 	# TEST: Time.get_unix_time_from_system() did not previously work in
@@ -624,10 +480,6 @@ func get_time_from_os() -> float:
 	var unix_time := Time.get_unix_time_from_system()
 	var utc_sec := unix_time - UNIX_EPOCH_SECONDS_AT_J2000 # no leap seconds added!
 	return (utc_sec + utc_leap_seconds + TT_TAI_OFFSET_SECONDS) * SECOND
-
-
-func get_current_date_for_file() -> String:
-	return date_format_for_file % _date
 
 
 func set_time_from_date_clock_elements(year: int, month: int, day: int,
@@ -639,53 +491,37 @@ func set_time_from_date_clock_elements(year: int, month: int, day: int,
 
 func synchronize_time_with_os(sync_on := true) -> void:
 	const IS_CLIENT = IVStateManager.NetworkState.IS_CLIENT
-	var real_time_speed := speeds.find(IVUnits.SECOND)
-	assert(real_time_speed != -1, "'speeds' does not have a real-time index")
+	var real_time_speed := _speed_manager.speeds.find(IVUnits.SECOND)
+	assert(real_time_speed != -1, "IVSpeedManager.speeds does not have a real-time value")
 	if not _allow_time_setting:
 		return
 	if _network_state == IS_CLIENT:
 		return
 	if not sync_on:
-		os_time_sync_on = false
+		_speed_manager.os_time_sync_on = false
 		return
 	IVStateManager.set_user_paused(false)
-	if not os_time_sync_on:
-		set_reversed_time(false)
-		set_speed_index(real_time_speed)
-		os_time_sync_on = true
+	if not _speed_manager.os_time_sync_on:
+		_speed_manager.set_reversed_time(false)
+		_speed_manager.set_speed_index(real_time_speed)
+		_speed_manager.os_time_sync_on = true
 	var previous_time := _time
 	_time = get_time_from_os()
 	_process_time()
-	time_altered.emit(previous_time)
+	time_set.emit(previous_time)
 	prints("Synchronized time with operating system", _date, _clock)
-
-
-func increment_speed() -> void:
-	set_speed_index(_speed_index + 1)
-
-
-func decrement_speed() -> void:
-	set_speed_index(_speed_index - 1)
-
-
-func can_increment_speed() -> bool:
-	const IS_CLIENT = IVStateManager.NetworkState.IS_CLIENT
-	if _network_state == IS_CLIENT:
-		return false
-	return _speed_index < speeds.size() - 1
-
-
-func can_decrement_speed() -> bool:
-	const IS_CLIENT = IVStateManager.NetworkState.IS_CLIENT
-	if _network_state == IS_CLIENT:
-		return false
-	return _speed_index > 0
 
 
 # *****************************************************************************
 
+func _on_core_initialized() -> void:
+	_speed_manager = IVGlobal.program[&"SpeedManager"]
+	_speed_manager.speed_changed.connect(_on_speed_changed)
+
+
 func _on_about_to_start_simulator(new_game: bool) -> void:
-	if terrestrial_time_clock_setting:
+	_speed_multiplier = _speed_manager.speed_multiplier
+	if terrestrial_time_clock_user_setting:
 		terrestrial_time_clock = (IVSettingsManager.has_setting(&"terrestrial_time_clock")
 				and IVSettingsManager.get_setting(&"terrestrial_time_clock"))
 		if not IVSettingsManager.changed.is_connected(_settings_listener):
@@ -699,19 +535,17 @@ func _on_about_to_start_simulator(new_game: bool) -> void:
 			universal_time_offset = calculate_present_universal_time_offset()
 			print(universal_time_offset)
 	if new_game: # need game start _time & _speed_index (otherwise persisted from game load)
-		if start_real_world_time or os_time_sync_on:
+		if start_real_world_time or _speed_manager.os_time_sync_on:
 			_time = get_time_from_os()
 		else:
 			var start_time_date_clock := IVCoreSettings.start_time_date_clock
 			_time = get_time_at_date_clock_array(IVCoreSettings.start_time_date_clock,
 					IVCoreSettings.start_time_is_terrestrial_time)
-		_speed_index = start_speed
 	_last_clock_time_floored = -99999999 # forces JDN update
 	_last_clock_time_rounded = -99999999 # forces Gregorian calendar update
 	_process_time(true) # signal later on ui_dirty
-	_process_speed_index()
 	
-	debug_print_present_offsets()
+	#debug_print_present_offsets()
 
 
 func _process_time(suppress_signals := false) -> void:
@@ -721,7 +555,7 @@ func _process_time(suppress_signals := false) -> void:
 	_times[0] = _time
 	clock_time = get_clock_time_at_time(_time, terrestrial_time_clock)
 	_times[1] = clock_time
-	set_clock_elements_at_clock_time(clock_time, _clock)
+	get_clock_elements_at_clock_time(clock_time, _clock)
 	
 	# JDN is calculated from actual time, but rolls over at noon clock time...
 	var clock_time_floored := floori(clock_time)
@@ -741,41 +575,24 @@ func _process_time(suppress_signals := false) -> void:
 		# Use JDN + 1 from midnight (inclusive) to the instant before noon...
 		var ct_fractional := clock_time - clock_time_floored
 		var jdn_for_date := _julian_day_number + 1 if ct_fractional >= 0.5 else _julian_day_number
-		set_date_elements_at_jdn(jdn_for_date, _date, _date_aux)
+		get_date_elements_at_jdn(jdn_for_date, _date, _date_aux)
 		if not suppress_signals:
 			date_changed.emit()
 
 
-func _process_speed_index() -> void:
-	# "_speed_index" and "_reversed_time" are set. Everything here follows from that...
-	speed_multiplier = speeds[_speed_index]
-	if _reversed_time:
-		speed_multiplier *= -1.0
-	speed_name = speed_names[_speed_index]
-	show_clock = _speed_index <= show_clock_speed
-	show_seconds = show_clock and _speed_index <= show_seconds_speed
-	if IVCoreSettings.manage_engine_time_scale:
-		# Planetarium might be the only use-case for reversed_time, and we don't
-		# use this setting. But let's avoid a negative time_scale anyway.
-		Engine.time_scale = speeds[_speed_index]
+func _on_speed_changed() -> void:
+	_speed_multiplier = _speed_manager.speed_multiplier
 
 
 func _on_ui_dirty() -> void:
 	julian_day_number_changed.emit()
 	date_changed.emit()
-	speed_changed.emit()
-
-
-func _on_paused_changed(_paused_tree: bool, paused_by_user: bool) -> void:
-	if paused_by_user:
-		os_time_sync_on = false
-	speed_changed.emit() # pause can be a "speed change" for UI
 
 
 func _on_run_state_changed(running: bool) -> void:
 	set_process(running)
-	if running and os_time_sync_on:
-		await _tree.process_frame
+	if running and _speed_manager.os_time_sync_on:
+		await get_tree().process_frame
 		synchronize_time_with_os()
 
 

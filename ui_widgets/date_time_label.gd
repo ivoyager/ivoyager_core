@@ -37,7 +37,7 @@ extends Label
 ## Format string for [hour, minute], including preceding spaces to separate from date.
 @export var clock_hm_format := "  %02d:%02d"
 ## Suffix " UT" or " TT", depending on [member IVTimekeeper.terrestrial_time_clock]
-@export var suffix_ut_tt := true
+@export var suffix_ut_tt := false
 ## Time zone suffix, if needed. E.g., " UT"
 @export var suffix_text := ""
 ## If true, suffix the string with localized " (paused)" when paused.
@@ -46,8 +46,15 @@ extends Label
 ## IVCoreSettings.allow_time_reversal] == true.
 @export var reverse_color := Color.RED
 
+## Display clock when [member IVSpeedManager.speed_index] <= value.
+@export var show_clock_speed_index := 3
+## Display clock seconds when [member IVSpeedManager.speed_index] <= value.
+@export var show_seconds_speed_index := 1
+
 
 var _timekeeper: IVTimekeeper
+var _speed_manager: IVSpeedManager
+
 var _date: Array[int] = IVGlobal.date
 var _clock: Array[int] = IVGlobal.clock
 var _show_clock := false
@@ -84,14 +91,15 @@ func _process(_delta: float) -> void:
 
 func _configure_after_core_inited() -> void:
 	_timekeeper = IVGlobal.program[&"Timekeeper"]
-	_timekeeper.speed_changed.connect(_update_display)
+	_speed_manager = IVGlobal.program[&"SpeedManager"]
+	_speed_manager.speed_changed.connect(_update_display)
 	set_process(true)
 
 
 func _update_display() -> void:
-	_show_clock = _timekeeper.show_clock
-	_show_seconds = _timekeeper.show_seconds
-	if _is_reversed != _timekeeper.reversed_time:
+	_show_clock = _speed_manager.speed_index <= show_clock_speed_index
+	_show_seconds = _speed_manager.speed_index <= show_seconds_speed_index
+	if _is_reversed != _speed_manager.reversed_time:
 		_is_reversed = !_is_reversed
 		if _is_reversed:
 			add_theme_color_override("font_color", reverse_color)

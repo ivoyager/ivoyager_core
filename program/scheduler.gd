@@ -33,17 +33,16 @@ var _signal_intervals := []
 var _available_signals := []
 var _is_reversed := false
 
-@onready var _timekeeper: IVTimekeeper = IVGlobal.program[&"Timekeeper"]
+var _timekeeper: IVTimekeeper
+var _speed_manager: IVSpeedManager
 
 
 # *****************************************************************************
 
 func _ready() -> void:
 	process_mode = PROCESS_MODE_ALWAYS
+	IVStateManager.core_initialized.connect(_on_core_initialized)
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
-	_timekeeper.time_altered.connect(_on_time_altered)
-	if IVCoreSettings.allow_time_reversal:
-		_timekeeper.speed_changed.connect(_update_for_time_reversal)
 
 
 # *****************************************************************************
@@ -80,6 +79,13 @@ func interval_disconnect(interval: float, callable: Callable) -> void:
 
 
 # *****************************************************************************
+
+func _on_core_initialized() -> void:
+	_timekeeper = IVGlobal.program[&"Timekeeper"]
+	_timekeeper.time_set.connect(_on_time_altered)
+	if IVCoreSettings.allow_time_reversal:
+		_speed_manager = IVGlobal.program[&"SpeedManager"]
+		_speed_manager.speed_changed.connect(_update_for_time_reversal)
 
 
 func _clear_procedural() -> void:
@@ -139,7 +145,7 @@ func _remove_active_interval_signal(signal_name: StringName) -> void:
 
 func _update_for_time_reversal() -> void:
 	# Connected only if IVCoreSettings.allow_time_reversal.
-	if _is_reversed == _timekeeper.reversed_time:
+	if _is_reversed == _speed_manager.reversed_time:
 		return
 	_is_reversed = !_is_reversed
 	var n_signals := _ordered_signal_infos.size()

@@ -22,7 +22,7 @@ extends BoxContainer
 
 ## BoxContainer widget with increase (+) and decrease (-) game speed buttons.
 ##
-## Requires [IVTimekeeper]. The widget has process_mode == PROCESS_MODE_ALWAYS
+## Requires [IVSpeedManager]. The widget has process_mode == PROCESS_MODE_ALWAYS
 ## so user can set speed during pause.[br][br]
 ##
 ## You can add the [IVPauseButton] as an additional child if needed.
@@ -30,7 +30,7 @@ extends BoxContainer
 @export var increase_text := "+"
 @export var decrease_text := "-"
 
-var _timekeeper: IVTimekeeper
+var _speed_manager: IVSpeedManager
 
 @onready var _plus: Button = $Plus
 @onready var _minus: Button = $Minus
@@ -46,12 +46,12 @@ func _ready() -> void:
 
 
 func _configure_after_core_inited() -> void:
-	_timekeeper = IVGlobal.program[&"Timekeeper"]
-	_timekeeper.speed_changed.connect(_update_buttons) # signals on ui_dirty
-	_plus.pressed.connect(_timekeeper.increment_speed)
-	_minus.pressed.connect(_timekeeper.decrement_speed)
+	_speed_manager = IVGlobal.program[&"SpeedManager"]
+	_speed_manager.speed_changed.connect(_update_buttons) # signals on ui_dirty
+	_plus.pressed.connect(_speed_manager.increment_speed)
+	_minus.pressed.connect(_speed_manager.decrement_speed)
 
 
 func _update_buttons() -> void:
-	_plus.disabled = not _timekeeper.can_increment_speed()
-	_minus.disabled = not _timekeeper.can_decrement_speed()
+	_plus.disabled = not _speed_manager.can_increment_speed()
+	_minus.disabled = not _speed_manager.can_decrement_speed()

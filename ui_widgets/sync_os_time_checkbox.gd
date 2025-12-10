@@ -32,6 +32,7 @@ extends CheckBox
 ## See also [IVTimeSetButton].
 
 var _timekeeper: IVTimekeeper
+var _speed_manager: IVSpeedManager
 
 
 func _ready() -> void:
@@ -42,7 +43,7 @@ func _ready() -> void:
 
 
 func _toggled(toggled_on: bool) -> void:
-	if not _timekeeper:
+	if !_timekeeper or !_speed_manager:
 		return
 	if toggled_on:
 		_timekeeper.synchronize_time_with_os()
@@ -52,9 +53,10 @@ func _toggled(toggled_on: bool) -> void:
 
 func _configure_after_core_inited() -> void:
 	_timekeeper = IVGlobal.program[&"Timekeeper"]
-	_timekeeper.speed_changed.connect(_update_ckbx)
-	_timekeeper.time_altered.connect(_update_ckbx)
+	_speed_manager = IVGlobal.program[&"SpeedManager"]
+	_timekeeper.time_set.connect(_update_ckbx)
+	_speed_manager.speed_changed.connect(_update_ckbx)
 
 
 func _update_ckbx(_dummy: Variant = false) -> void:
-	set_pressed_no_signal(_timekeeper.os_time_sync_on)
+	set_pressed_no_signal(_speed_manager.os_time_sync_on)

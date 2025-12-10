@@ -22,14 +22,14 @@ extends Label
 
 ## Label widget that displays game speed.
 ##
-## Requires [IVTimekeeper]. This widget has process_mode == PROCESS_MODE_ALWAYS
+## Requires [IVSpeedManager]. This widget has process_mode == PROCESS_MODE_ALWAYS
 ## so it can update during pause.
 
-## Display color if time is reversed. (Only possible if
-## [IVCoreSettings.allow_time_reversal] is set to non-default true.)
+## Display color if time is reversed. (Only possible if [IVCoreSettings.allow_time_reversal]
+## is set to non-default true.)
 @export var reverse_color := Color.RED
 
-var _timekeeper: IVTimekeeper
+var _speed_manager: IVSpeedManager
 var _is_reversed := false
 
 
@@ -41,13 +41,13 @@ func _ready() -> void:
 
 
 func _configure_after_core_inited() -> void:
-	_timekeeper = IVGlobal.program[&"Timekeeper"]
-	_timekeeper.speed_changed.connect(_update_speed) # signals on ui_dirty
+	_speed_manager = IVGlobal.program[&"SpeedManager"]
+	_speed_manager.speed_changed.connect(_update_speed) # signals on ui_dirty
 
 
 func _update_speed() -> void:
-	text = _timekeeper.speed_name
-	if _is_reversed == _timekeeper.reversed_time:
+	text = _speed_manager.speed_name
+	if _is_reversed == _speed_manager.reversed_time:
 		return
 	_is_reversed = !_is_reversed
 	if _is_reversed:
