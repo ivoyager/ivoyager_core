@@ -130,6 +130,7 @@ var _speed_manager: IVSpeedManager = IVGlobal.program[&"SpeedManager"]
 
 
 
+## Creates a new [IVView] instance or specified [member replacement_subclass].
 static func create() -> IVView:
 	if replacement_subclass:
 		@warning_ignore("unsafe_method_access")

@@ -49,6 +49,7 @@ var _current_color_test: Callable
 var _suppress_state_update := false
 
 
+## Creates a new [IVHUDsColorPickerButton] instance using specified parameters.
 @warning_ignore("shadowed_variable")
 static func create(hud_type: ColorHUDsType, body_flags: int, sbg_aliases: Array[StringName] = []
 		) -> IVHUDsColorPickerButton:

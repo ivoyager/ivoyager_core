@@ -323,8 +323,8 @@ var _true_anomaly := 0.0
 # *****************************************************************************
 # static methods
 
-## Creates new IVOrbit instance from elements. [param existing_orbit can be
-## supplied to reuse an existing IVOrbit or to parameterize a subclass instance.]
+## Creates new [IVOrbit] instance from elements. [param from_orbit] can be
+## supplied to reuse an existing [IVOrbit] or to parameterize a subclass instance.
 @warning_ignore("shadowed_variable")
 static func create_from_elements(
 		reference_plane_type: ReferencePlane,
@@ -338,7 +338,7 @@ static func create_from_elements(
 		argument_periapsis_rate: float,
 		time_periapsis: float,
 		gravitational_parameter: float,
-		existing_orbit: IVOrbit = null
+		from_orbit: IVOrbit = null
 	) -> IVOrbit:
 	
 	const RIGHT_ANGLE := PI / 2
@@ -361,7 +361,7 @@ static func create_from_elements(
 	if absf(inclination - RIGHT_ANGLE) < INCLINATION_RIGHT_ANGLE_BUMP:
 		inclination = RIGHT_ANGLE - INCLINATION_RIGHT_ANGLE_BUMP
 	
-	var orbit := existing_orbit
+	var orbit := from_orbit
 	if !orbit:
 		orbit = IVOrbit.new()
 	
@@ -396,8 +396,8 @@ static func create_from_elements(
 	return orbit
 
 
-## Creates new IVOrbit instance from state vectors and precession rates.
-## @experimental: Not yet implemented.
+## Creates new [IVOrbit] instance from state vectors and precession rates.
+## @experimental: NOT YET IMPLEMENTED.
 @warning_ignore("shadowed_variable", "unused_parameter")
 static func create_from_state_vectors_and_precessions(
 		position: Vector3,
@@ -412,8 +412,8 @@ static func create_from_state_vectors_and_precessions(
 	return null
 
 
-## Creates new IVOrbit instance from state vectors and orbit environment.
-## @experimental: Not yet implemented.
+## Creates new [IVOrbit] instance from state vectors and orbit environment.
+## @experimental: NOT YET IMPLEMENTED.
 @warning_ignore("shadowed_variable", "unused_parameter")
 static func create_from_state_vectors_and_environment(
 		position: Vector3,

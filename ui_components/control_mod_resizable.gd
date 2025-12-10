@@ -84,6 +84,7 @@ var _suppress_resize := false
 @onready var _control := get_parent() as Control
 
 
+## Creates a new [IVControlModResizable] instance using specified parameters.
 @warning_ignore("shadowed_variable")
 static func create(base_size: Vector2, sizes: Array[Vector2] = [], resize_again_delay := 1,
 		panel_under_spacing := -1.0) -> IVControlModResizable:

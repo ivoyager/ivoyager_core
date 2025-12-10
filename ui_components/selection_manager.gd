@@ -96,8 +96,7 @@ static func add_selection_dictionary(selections: Dictionary[StringName, Variant]
 	_selection_dictionaries.append(selections)
 
 
-## Creates an instance of this class or a subclass specified by [member
-## replacement_subclass].
+## Creates a new [IVSelectionManager] instance or specified [member replacement_subclass].
 static func create() -> IVSelectionManager:
 	if replacement_subclass:
 		@warning_ignore("unsafe_method_access")
@@ -105,7 +104,7 @@ static func create() -> IVSelectionManager:
 	return IVSelectionManager.new()
 
 
-## Get IVSelectionManager for the provided [param node] (usually a GUI widget).
+## Get [IVSelectionManager] for the provided [param node] (usually a GUI widget).
 ## This is obtained from the first non-null "selection_manager" property going
 ## up the node's ancestry tree.
 static func get_selection_manager(node: Node) -> IVSelectionManager:

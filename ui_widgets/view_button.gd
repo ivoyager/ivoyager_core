@@ -74,7 +74,7 @@ var _view_flags: int
 
 
 
-## Creates a (non-default) user view button (cached or saved). The view
+## Creates a (non-default) user [IVViewButton] (cached or saved). [param view_name]
 ## must already exist in [IVViewManager]. Normally called by [IVViewCollection].
 @warning_ignore("shadowed_variable")
 static func create_user_button(view_name: String, collection_name: String, is_cached: bool,

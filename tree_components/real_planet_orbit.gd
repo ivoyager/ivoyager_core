@@ -99,8 +99,8 @@ var _inclination_rate: float
 var _time_periapsis_at_epoch: float
 
 
-
-## Generator signature matches planet specification in data table planets.tsv.
+## Creates a new [IVRealPlanetOrbit] instance. Method signature matches planet
+## specification in data table planets.tsv.
 @warning_ignore("shadowed_variable", "shadowed_variable_base_class")
 static func create_real_planet_orbit(
 		semi_major_axis: float,

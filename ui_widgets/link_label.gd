@@ -57,7 +57,7 @@ const SCENE := "res://addons/ivoyager_core/ui_widgets/link_label.tscn"
 @export var open_external_url := false
 
 
-
+## Creates a new [IVLinkLabel] instance using specified parameters.
 @warning_ignore("shadowed_variable_base_class", "shadowed_variable")
 static func create(text: String, open_external_url := false) -> IVLinkLabel:
 	var label: IVLinkLabel = (load(SCENE) as PackedScene).instantiate()

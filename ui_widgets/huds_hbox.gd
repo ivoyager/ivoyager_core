@@ -71,6 +71,7 @@ const SCENE := "res://addons/ivoyager_core/ui_widgets/huds_hbox.tscn"
 var _enable_links := false
 
 
+## Creates a new [IVHUDsHBox] instance using specified parameters.
 @warning_ignore("shadowed_variable")
 static func create(
 		label_text := &"",
