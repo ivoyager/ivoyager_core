@@ -20,17 +20,19 @@
 class_name IVOrbit
 extends RefCounted
 
-## Represents an elliptic orbit or parabolic or hyperbolic trajectory in a
+## Defines an elliptic orbit (or parabolic or hyperbolic trajectory) in a
 ## specified reference basis. This base class supports nodal and apsidal
 ## precessions.
 ##
 ## See Wikipedia [url=https://en.wikipedia.org/wiki/Orbital_elements]orbital
 ## elements[/url] for many of the concepts and technical terms used here.
-## "Elements" refer to the parameters needed to specify an orbit and position
-## in an orbit given time. Two elements (Ω and ω) evolve over time in this
-## base class (i.e., our orbits have nodal and apsidal precessions) and others
-## may evolve or change in [IVOrbit] subclasses. Evolution of orbit elements is
-## slow relative to change in position in an orbit.[br][br]
+## "Elements" are the parameters needed to specify an orbit and position in an
+## orbit given time. Two elements, Ω and ω, can evolve over time in this base
+## class, which means this class supports nodal and apsidal precessions
+## (which means, for example, that it can define a
+## [url=https://en.wikipedia.org/wiki/Sun-synchronous_orbit]Sun-synchronous orbit[/url].)
+## Other elements may evolve or change in [IVOrbit] subclasses. Evolution of
+## orbit elements is slow relative to change in position in an orbit.[br][br]
 ##
 ## Position and velocity in this class are always relative to the parent body
 ## or barycenter. The [member reference_basis] is the basis in which this orbit

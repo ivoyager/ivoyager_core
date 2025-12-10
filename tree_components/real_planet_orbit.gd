@@ -20,7 +20,7 @@
 class_name IVRealPlanetOrbit
 extends IVOrbit
 
-## Extended IVOrbit class that implements JPL-specified corrections to
+## Extended IVOrbit class that implements JPL-specified corrections to better
 ## approximate real planet positions.
 ##
 ## This subclass can be used for realistic (though still approximate) planet
@@ -37,15 +37,15 @@ extends IVOrbit
 ## table fields: "semi_major_axis_rate", "eccentricity_rate", "inclination_rate"
 ## and "mean_anomaly_correction_b", "..._c", "..._s" and "..._f".[br][br]
 ## 
-## We changed implementation slightly from the JPL reference page. In
-## particular, we use b, c, s and f corrections to evolve time of periapsis
-## passage ([member IVOrbit.time_periapsis], an osculating element) rather
-## than correcting the mean anomoly (M) during position calculation. By doing
-## it this way, the osculating orbital elements correctly determine the orbit
-## state at all times.[br][br]
+## We changed implementation from the JPL reference page. In particular, we use
+## b, c, s and f corrections to evolve time of periapsis passage (t₀, a defining
+## element) rather than correcting the mean anomoly (M) during position
+## calculation. By doing it this way, the orbital elements (alone) specify
+## orbit and position in the orbit all times.[br][br]
 ##
-## Our data table [b]planets.tsv[/b] also contains corrections for Pluto that
-## were subsequently removed from the JPL page. (It's censorship, I say!)
+## Our data table [b]tables/planets.tsv[/b] contains corrections for Pluto that
+## were previously on the JPL page but subsequently removed (due to its
+## unfortunate demotion).
 
 
 const PERSIST_PROPERTIES2: Array[StringName] = [

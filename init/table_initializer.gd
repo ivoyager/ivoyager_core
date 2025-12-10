@@ -20,16 +20,17 @@
 class_name IVTableInitializer
 extends RefCounted
 
-## Initializes tables using the ivoyager_tables plugin.
+## Initializes data tables using the Tables plugin.
 ##
-## FIXME: Static table parameters can be modified on [signal
-## IVStateManager.about_to_run_initializers].
+## This initializer calls [method IVTableData.postprocess_tables] early in
+## project init on [signal IVStateManager.core_init_init_refcounteds_instantiated].
+## Properties are static so they can be modified immediately by
+## a preinitializer script. Alternatively, this object can be intercepted for
+## property changes on [signal IVStateManager.core_init_object_instantiated].
+## [br][br]
 ##
-## Alternatively, parameters can be modified by intercepting this object on signal
-## IVStateManager.core_init_object_instantiated(object: Object).
-##
-## After all initializers have been instantiated, this class will call
-## IVTableData.postprocess_tables() and then remove itself.
+## This RefCounted erases itself from [member IVGlobal.program] after doing its
+## work, thereby removing itself.
 
 
 static var table_base_path := "res://addons/ivoyager_core/tables/%s.tsv" 
@@ -73,7 +74,6 @@ func _init() -> void:
 
 
 func _on_init_refcounteds_instantiated() -> void:
-	
 	IVTableData.postprocess_tables(
 			tables.values(),
 			IVQConvert.to_internal,

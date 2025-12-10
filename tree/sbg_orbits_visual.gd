@@ -30,9 +30,8 @@ extends MultiMeshInstance3D
 
 const FRAGMENT_SBG_ORBIT := IVFragmentIdentifier.FRAGMENT_SBG_ORBIT
 
-static var _fragment_identifier: IVFragmentIdentifier # optional
-static var _sbg_huds_state: IVSBGHUDsState
-static var _is_class_instanced := false
+var _fragment_identifier: IVFragmentIdentifier = IVGlobal.program.get(&"FragmentIdentifier") # optional
+var _sbg_huds_state: IVSBGHUDsState = IVGlobal.program.SBGHUDsState
 
 var _sbg_alias: StringName
 var _color: Color
@@ -49,10 +48,6 @@ var _suppress_set_custom_data := false
 
 func _init(sbg: IVSmallBodiesGroup) -> void:
 	name = "SBGOrbit" + sbg.sbg_alias
-	if !_is_class_instanced:
-		_is_class_instanced = true
-		_fragment_identifier = IVGlobal.program.get(&"FragmentIdentifier")
-		_sbg_huds_state = IVGlobal.program.SBGHUDsState
 	_sbg_alias = sbg.sbg_alias
 	cast_shadow = SHADOW_CASTING_SETTING_OFF
 	_sbg_huds_state.orbits_visibility_changed.connect(_set_visibility)

@@ -92,8 +92,9 @@ var body_labels_color := Color.WHITE
 var body_labels_use_orbit_color := false
 ## See [IVCacheHandler].
 var cache_dir := "user://cache"
-## [IVTableInitializer] sends this value to the 
-## [url=https://github.com/ivoyager/ivoyager_tables]Tables plugin[/url].
+## Enable float precisions in the [IVTableData]. This is used by Planetarium to
+## reproduce data table significant digits in GUI display. (Probably not needed
+## for most game usage.)
 var enable_precisions := false
 
 var home_name := &"PLANET_EARTH"

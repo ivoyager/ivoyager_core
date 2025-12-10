@@ -205,10 +205,10 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 ]
 
 
-## Static class setting. Set this script to generate a subclass in place of
-## IVBody in all create methods. Assigned Script must be a subclass of IVBody!
+## Set this script to generate a subclass in place of IVBody in create methods.
+## A subclass can do this in their _static_init() for project-wide replacement.
 static var replacement_subclass: Script
-## Static class setting. Set this script to replace the IVPhysicalBody class.
+## Set this script to replace the [IVPhysicalBody] class.
 static var replacement_physical_body_class: Script
 
 ## Static class setting. Default value is a dashed circle.
@@ -222,13 +222,15 @@ static var min_hud_dist_radius_multiplier := 500.0
 ## Static class setting.
 static var min_hud_dist_star_multiplier := 20.0
 
+# TEST: It's possible that self-class referencing in static vars below is causing
+# editor leaks on editor exit in 4.5.x. Test if they don't go away in 4.6.
+
 ## A static class dictionary that contains all added IVBody instances.
-## FIXME: Planet-moon order is perfect after load, but not on new game. This
-## messes up selection. 
 static var bodies: Dictionary[StringName, IVBody] = {}
 
 ## A static class dictionary that contains IVBody instances that are at the top
-## of a system (i.e., the primary star for every star system).
+## of a system, i.e., the primary star for every star system (these have no
+## [IVOrbit]).
 static var top_bodies: Dictionary[StringName, IVBody] = {}
 
 static var _selection_ordered_bodies: Array[IVBody] = [] # build/rebuild only when needed

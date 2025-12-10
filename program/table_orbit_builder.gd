@@ -260,7 +260,7 @@ func make_orbit(table: String, row: int, parent: IVBody) -> IVOrbit:
 	return orbit
 
 
-static func _get_precession_rates_from_periods(nodal_period: float, apsidal_period: float,
+func _get_precession_rates_from_periods(nodal_period: float, apsidal_period: float,
 		retrograde: bool) -> Array[float]:
 	# Moons have precessions expressed as positive value periods (except a few
 	# zeros). We should expect apsidal precession in the direction of orbit and

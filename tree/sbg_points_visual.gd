@@ -49,10 +49,8 @@ const L4L5_ARRAY_FLAGS = (
 )
 
 
-static var _fragment_identifier: IVFragmentIdentifier # optional
-static var _sbg_huds_state: IVSBGHUDsState
-static var _is_class_instanced := false
-
+var _fragment_identifier: IVFragmentIdentifier = IVGlobal.program.get(&"FragmentIdentifier") # optional
+var _sbg_huds_state: IVSBGHUDsState = IVGlobal.program[&"SBGHUDsState"]
 
 var _sbg_alias: StringName
 var _color: Color
@@ -73,10 +71,6 @@ var _bypass_fragment_identifier := false
 
 func _init(sbg: IVSmallBodiesGroup) -> void:
 	name = "SBGPoints" + sbg.sbg_alias
-	if !_is_class_instanced:
-		_is_class_instanced = true
-		_fragment_identifier = IVGlobal.program.get(&"FragmentIdentifier")
-		_sbg_huds_state = IVGlobal.program[&"SBGHUDsState"]
 	_sbg_alias = sbg.sbg_alias
 	_lp_integer = sbg.lp_integer
 	if _lp_integer == 4:

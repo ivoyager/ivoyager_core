@@ -96,7 +96,7 @@ func _configure() -> void:
 
 func _set_language() -> void:
 	var language_setting: int = IVSettingsManager.get_setting(&"language")
-	var code := IVLanguageManager.get_code_for_setting(language_setting)
+	var code := IVLanguageManager.get_language_code_for_setting(language_setting)
 	if !table_fields.has(code):
 		code = fallback_language_code
 	var table_field := table_fields[code]

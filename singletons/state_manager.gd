@@ -26,7 +26,8 @@ extends Node
 ## state properties. Many specific state signals are paired with the general
 ## [signal state_changed] (except early [IVCoreInitializer] changes and pause).[br][br]
 ##
-## Early [IVCoreInitializer] project initialization:[br][br]
+## Early [IVCoreInitializer] init signals (ordered except [signal
+## core_init_object_instantiated] which emits for each object):[br][br]
 ##
 ## [signal core_init_preinitialized][br]
 ## [signal core_init_object_instantiated](object: Object)[br]
@@ -35,7 +36,9 @@ extends Node
 ## [signal core_init_program_nodes_added][br]
 ## [signal core_init_finished][br][br]
 ##
-## After [IVCoreInitializer] starup. All are paired with [signal state_changed]:[br][br]
+## After [IVCoreInitializer] starup, build, and started signals (ordered). The
+## first two always happen once on project run. The rest occur each time the
+## physical system is built. All are paired with [signal state_changed]:[br][br]
 ##
 ## [signal core_initialized][br]
 ## [signal assets_preloaded][br]
@@ -43,21 +46,21 @@ extends Node
 ## [signal system_tree_built](new_game: bool)[br]
 ## [signal system_tree_ready](new_game: bool)[br]
 ## [signal about_to_start_simulator](new_game: bool)[br]
-## [signal simulator_started][br]
-## [signal run_state_changed](running: bool)[br][br]
+## (Note: [signal IVGlobal.ui_dirty] emits here.)[br]
+## [signal simulator_started][br][br]
 ##
-## Subsequent runtime includes the following. All are paired with
-## [signal state_changed] except [signal paused_changed]:[br][br]
+## Subsequent runtime, exit and quit signals includes the following (all are
+## paired with [signal state_changed] except [signal paused_changed]):[br][br]
 ##
 ## [signal run_state_changed](running: bool)[br]
+## [signal paused_changed](paused_tree: bool, paused_by_user: bool)[br]
 ## [signal about_to_free_procedural_nodes][br]
-## [signal about_to_stop_before_quit][br]
-## [signal about_to_quit][br]
 ## [signal about_to_exit][br]
 ## [signal simulator_exited][br]
-## [signal paused_changed](paused_tree: bool, paused_by_user: bool)[br][br]
+## [signal about_to_stop_before_quit][br]
+## [signal about_to_quit][br][br]
 ## 
-## Threads can be coordinated with the following signals (and related properties
+## Threads should be coordinated with the following signals (and related properties
 ## and methods):[br][br]
 ##
 ## [signal run_threads_allowed][br]
@@ -83,8 +86,8 @@ extends Node
 ## 4. [IVOrbit] for orbital mechanics. Has more roadmap related to spacecraft
 ##    thrust implementation.
 
-
-
+# Old notes still relevant...
+#
 # There is no NetworkLobby in base I, Voyager. It's is a very application-
 # specific manager that you'll have to code yourself, but see:
 # https://docs.godotengine.org/en/stable/tutorials/networking/high_level_multiplayer.html

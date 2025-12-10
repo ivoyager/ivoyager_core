@@ -85,15 +85,11 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 ]
 
 
-# FIXME: Is this pattern the source of editor leaks? 
+## Set this script to generate a subclass in place of IVView in [method create].
+## A subclass can do this in their _static_init() for project-wide replacement.
 static var replacement_subclass: Script # subclass only
+
 static var _version_hash := PERSIST_PROPERTIES.hash() + 0 # test for obsolte cache
-static var _camera_handler: IVCameraHandler
-static var _body_huds_state: IVBodyHUDsState
-static var _sbg_huds_state: IVSBGHUDsState
-static var _timekeeper: IVTimekeeper
-static var _speed_manager: IVSpeedManager
-static var _is_class_instanced := false
 
 
 # persisted
@@ -126,23 +122,19 @@ var reversed_time := false
 var edited_default := &""
 
 
+var _camera_handler: IVCameraHandler = IVGlobal.program[&"CameraHandler"]
+var _body_huds_state: IVBodyHUDsState = IVGlobal.program[&"BodyHUDsState"]
+var _sbg_huds_state: IVSBGHUDsState = IVGlobal.program[&"SBGHUDsState"]
+var _timekeeper: IVTimekeeper = IVGlobal.program[&"Timekeeper"]
+var _speed_manager: IVSpeedManager = IVGlobal.program[&"SpeedManager"]
+
+
 
 static func create() -> IVView:
 	if replacement_subclass:
 		@warning_ignore("unsafe_method_access")
 		return replacement_subclass.new()
 	return IVView.new()
-
-
-
-func _init() -> void:
-	if !_is_class_instanced:
-		_is_class_instanced = true
-		_camera_handler = IVGlobal.program[&"CameraHandler"]
-		_body_huds_state = IVGlobal.program[&"BodyHUDsState"]
-		_sbg_huds_state = IVGlobal.program[&"SBGHUDsState"]
-		_timekeeper = IVGlobal.program[&"Timekeeper"]
-		_speed_manager = IVGlobal.program[&"SpeedManager"]
 
 
 
