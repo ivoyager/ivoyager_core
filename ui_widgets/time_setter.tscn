@@ -73,21 +73,10 @@ layout_mode = 2
 max_value = 59.0
 alignment = 1
 
-[node name="UT" type="Label" parent="SetterHBox"]
-layout_mode = 2
-text = "UT  "
-
-[node name="UpdateCkbx" type="CheckBox" parent="SetterHBox"]
+[node name="UTTTLabel" type="Label" parent="SetterHBox"]
 unique_name_in_owner = true
 layout_mode = 2
-tooltip_text = "HINT_UPDATE_W_CHANGES"
-button_pressed = true
-
-[node name="SetButton" type="Button" parent="SetterHBox"]
-unique_name_in_owner = true
-layout_mode = 2
-tooltip_text = "HINT_SET_AND_CLOSE"
-text = "BUTTON_SET"
+text = "  UT "
 
 [node name="LinkLabel" parent="." instance=ExtResource("2_0bhrt")]
 layout_mode = 2

@@ -23,7 +23,7 @@ extends RefCounted
 ## Optional manager for lazy model instantiation.
 ##
 ## If this manager is present, bodies with `lazy_model == true` table value
-## will have no [IVModelSpace] (and thus no model) at simulation start. Once
+## will have no [IVPhysicalBody] (and thus no model) at simulation start. Once
 ## visited, the lazy model is instantiated and remains for the rest of the user
 ## session. This is useful for large models (like the ISS) and 100+ tiny remote
 ## moons and asteroids that may never be visited in a given user session.[br][br]

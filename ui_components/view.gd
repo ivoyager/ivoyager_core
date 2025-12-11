@@ -85,14 +85,11 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 ]
 
 
+## Set this script to generate a subclass in place of IVView in [method create].
+## A subclass can do this in their _static_init() for project-wide replacement.
 static var replacement_subclass: Script # subclass only
 
 static var _version_hash := PERSIST_PROPERTIES.hash() + 0 # test for obsolte cache
-static var _camera_handler: IVCameraHandler
-static var _body_huds_state: IVBodyHUDsState
-static var _sbg_huds_state: IVSBGHUDsState
-static var _timekeeper: IVTimekeeper
-static var _is_class_instanced := false
 
 
 # persisted
@@ -125,22 +122,20 @@ var reversed_time := false
 var edited_default := &""
 
 
+var _camera_handler: IVCameraHandler = IVGlobal.program[&"CameraHandler"]
+var _body_huds_state: IVBodyHUDsState = IVGlobal.program[&"BodyHUDsState"]
+var _sbg_huds_state: IVSBGHUDsState = IVGlobal.program[&"SBGHUDsState"]
+var _timekeeper: IVTimekeeper = IVGlobal.program[&"Timekeeper"]
+var _speed_manager: IVSpeedManager = IVGlobal.program[&"SpeedManager"]
 
+
+
+## Creates a new [IVView] instance or specified [member replacement_subclass].
 static func create() -> IVView:
 	if replacement_subclass:
 		@warning_ignore("unsafe_method_access")
 		return replacement_subclass.new()
 	return IVView.new()
-
-
-
-func _init() -> void:
-	if !_is_class_instanced:
-		_is_class_instanced = true
-		_camera_handler = IVGlobal.program[&"CameraHandler"]
-		_body_huds_state = IVGlobal.program[&"BodyHUDsState"]
-		_sbg_huds_state = IVGlobal.program[&"SBGHUDsState"]
-		_timekeeper = IVGlobal.program[&"Timekeeper"]
 
 
 
@@ -265,24 +260,24 @@ func _set_huds_state() -> void:
 
 func _save_time_state() -> void:
 	# If both TIME_STATE and IS_NOW flags set, we unset one depending on
-	# IVTimekeeper.sync_with_os_time.
-	if flags & ViewFlags.VIEWFLAGS_SYNC_OS_TIME and _timekeeper.sync_with_os_time:
+	# IVTimekeeper.os_time_sync_on.
+	if flags & ViewFlags.VIEWFLAGS_SYNC_OS_TIME and _speed_manager.os_time_sync_on:
 		flags &= ~ViewFlags.VIEWFLAGS_TIME_STATE
 	if flags & ViewFlags.VIEWFLAGS_TIME_STATE:
 		flags &= ~ViewFlags.VIEWFLAGS_SYNC_OS_TIME
-		speed_index = _timekeeper.speed_index
+		speed_index = _speed_manager.speed_index
 		user_paused = IVStateManager.paused_by_user
 		time = _timekeeper.time
-		reversed_time = _timekeeper.reversed_time
+		reversed_time = _speed_manager.get_reversed_time()
 
 
 func _set_time_state() -> void:
 	# Note: IVTimekeeper ignores set functions that are disallowed in IVCoreSettings
 	# project settings. In most game applications, only speed and pause is set.
 	if flags & ViewFlags.VIEWFLAGS_TIME_STATE:
-		_timekeeper.change_speed(0, speed_index)
-		IVStateManager.set_user_paused(user_paused)
 		_timekeeper.set_time(time)
-		_timekeeper.set_time_reversed(reversed_time)
+		_speed_manager.set_speed_index(speed_index)
+		_speed_manager.set_reversed_time(reversed_time)
+		IVStateManager.set_user_paused(user_paused)
 	elif flags & ViewFlags.VIEWFLAGS_SYNC_OS_TIME:
-		_timekeeper.set_time_from_os()
+		_timekeeper.synchronize_time_with_os()

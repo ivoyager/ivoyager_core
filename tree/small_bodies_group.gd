@@ -23,7 +23,7 @@ extends Node
 ## Base class to represent a large number of orbiting small bodies that are not
 ## individually instantiated.
 ##
-## Data is packed for use by visual classes [IVSBGOrbits] and [IVSBGPoints],
+## Data is packed for use by visual classes [IVSBGOrbitsVisual] and [IVSBGPointsVisual],
 ## which are added by [IVSBGFinisher] when this node is added to the tree.[br][br]
 ##
 ## If modifying packed array data directly, it is necessary to ensure correct
@@ -82,9 +82,11 @@ var da_d_f_th0 := PackedFloat32Array() # Trojans only
 
 
 
-## Last 2 args only if these are Lagrange point objects. This node creation MUST
-## be followed by one or more calls to [method append_data] before adding to the
-## tree.
+## Creates a new [IVSmallBodiesGroup] instance (or specified [member
+## replacement_subclass]) using specified parameters. Supply [param lp_integer]
+## and [param secondary_body] only if these are Lagrange point objects. This
+## instantiation MUST be followed by one or more calls to [method append_data]
+## before adding to the tree.
 @warning_ignore("shadowed_variable", "shadowed_variable_base_class")
 static func create(name: StringName, sbg_alias: StringName, sbg_class: SBGClass,
 		lp_integer := -1, secondary_body: IVBody = null) -> IVSmallBodiesGroup:

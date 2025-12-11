@@ -20,24 +20,31 @@
 class_name IVOrbit
 extends RefCounted
 
-## Represents an elliptic, parabolic or hyperbolic orbit in a specified
-## reference basis. Orbits may have nodal and apsidal precessions.
+## Defines an elliptic orbit (or parabolic or hyperbolic trajectory) in a
+## specified reference basis. This base class supports nodal and apsidal
+## precessions.
 ##
-## See Wikipedia for [url=https://en.wikipedia.org/wiki/Orbital_elements]orbital
-## elements[/url] and other technical terms. "Elements" refer to the parameters
-## needed to specify an orbit (including position in an orbit given time). Two
-## elements (Ω and ω) evolve over time in this base class (i.e., the orbit
-## evolves) and others evolve in IVOrbit subclasses. Evolution of orbit elements
-## is [b]VERY SLOW[/b] relative to change in position in an orbit.[br][br]
+## See Wikipedia [url=https://en.wikipedia.org/wiki/Orbital_elements]orbital
+## elements[/url] for many of the concepts and technical terms used here.
+## "Elements" are the parameters needed to specify an orbit and position in an
+## orbit given time. Two elements, Ω and ω, can evolve over time in this base
+## class, which means this class supports nodal and apsidal precessions
+## (which means, for example, that it can define a
+## [url=https://en.wikipedia.org/wiki/Sun-synchronous_orbit]Sun-synchronous orbit[/url].)
+## Other elements may evolve or change in [IVOrbit] subclasses. Evolution of
+## orbit elements is slow relative to change in position in an orbit.[br][br]
 ##
 ## Position and velocity in this class are always relative to the parent body
 ## or barycenter. The [member reference_basis] is the basis in which this orbit
 ## is defined, where the xy axes define the reference plane about which this
 ## orbit precesses. See also [member reference_plane_type].[br][br]
 ##
-## In addition to epoch time (always J2000), seven elements are needed to
-## define an unpurturbed (osculating) orbit. The following elements are used
-## here because they are valid for elliptic, parabolic and hyperbolic orbits:[br][br]
+## In addition to epoch time (always
+## [url=https://en.wikipedia.org/wiki/Epoch_(astronomy)#Julian_years_and_J2000]J2000[/url]),
+## seven elements are needed to
+## define an unpurturbed (osculating) orbit and position. The following elements
+## are used here because they are valid for elliptic, parabolic and hyperbolic
+## orbits/trajectories:[br][br]
 ##
 ## [member semi_parameter] (p).[br]
 ## [member eccentricity] (e).[br]
@@ -72,17 +79,17 @@ extends RefCounted
 ##
 ## Because orbital elements can evolve over time, some properties and some method
 ## returns require a preceding [method update] call to be current. However, all
-## methods that follow naming convention "get_..._at_time()" (and all static
-## methods) are valid without [method update]. Note that subclasses may evolve
+## methods that follow naming convention "get_..._at_time()" and all static
+## methods are valid without [method update]. Note that subclasses may evolve
 ## other elements in addition to the two precessing elements. Hence, many get
 ## functions require [param time] for parameters that are not time-dependent in
-## this base class (but may be time-dependent in subclasses).[br][br]
+## this base class but may be time-dependent in subclasses.[br][br]
 ##
 ## Note: property setters are implemented in this class mainly for playing
-## around at editor runtime. The setters generally hold e and GM fixed and
-## update other elements as needed, but see methods for specific cases. Code
-## based changes to elements should be implemented in a subclass (see Roadmap
-## below).[br][br]
+## around at editor runtime. The setters generally hold eccentricity and GM
+## fixed and adjust other elements as needed, but see methods for specific
+## cases. Code based changes to elements should be implemented in a subclass
+## (see Roadmap below).[br][br]
 ##
 ## Get methods are generally threadsafe, but element values may be inconsistant
 ## if an orbit change is being set concurently. Set methods cause [signal changed]
@@ -122,7 +129,7 @@ extends RefCounted
 ##
 ## [codeblock]
 ## # Naming is changed from above to stress volatility of state parameters; 
-## # "_at_time" is redundant.
+## # "_at_time" is superfluous.
 ## get_parameter_at_update() # at last update() call
 ## get_parameter(time)
 ## get_parameter_from_something(...) # static
@@ -134,7 +141,7 @@ extends RefCounted
 ## TODO: Multiplayer RPC. We REALLY don't want to make this a Node. The reason
 ## is that IVOrbit is supposed to be a cheap data container that can be instanced
 ## in different contexts (e.g., for patched conic trajectory planning). What we
-## want are serialization/deserialization methods here, and then IVBody does the
+## want are serialization/deserialization methods here, and then [IVBody] does the
 ## RPC sync on [signal changed]. We only need network sync when the change is
 ## extrinsic (e.g., thrust).[br][br]
 ##
@@ -316,8 +323,8 @@ var _true_anomaly := 0.0
 # *****************************************************************************
 # static methods
 
-## Creates new IVOrbit instance from elements. [param existing_orbit can be
-## supplied to reuse an existing IVOrbit or to parameterize a subclass instance.]
+## Creates new [IVOrbit] instance from elements. [param from_orbit] can be
+## supplied to reuse an existing [IVOrbit] or to parameterize a subclass instance.
 @warning_ignore("shadowed_variable")
 static func create_from_elements(
 		reference_plane_type: ReferencePlane,
@@ -331,7 +338,7 @@ static func create_from_elements(
 		argument_periapsis_rate: float,
 		time_periapsis: float,
 		gravitational_parameter: float,
-		existing_orbit: IVOrbit = null
+		from_orbit: IVOrbit = null
 	) -> IVOrbit:
 	
 	const RIGHT_ANGLE := PI / 2
@@ -354,7 +361,7 @@ static func create_from_elements(
 	if absf(inclination - RIGHT_ANGLE) < INCLINATION_RIGHT_ANGLE_BUMP:
 		inclination = RIGHT_ANGLE - INCLINATION_RIGHT_ANGLE_BUMP
 	
-	var orbit := existing_orbit
+	var orbit := from_orbit
 	if !orbit:
 		orbit = IVOrbit.new()
 	
@@ -389,8 +396,8 @@ static func create_from_elements(
 	return orbit
 
 
-## Creates new IVOrbit instance from state vectors and precession rates.
-## @experimental: Not yet implemented.
+## Creates new [IVOrbit] instance from state vectors and precession rates.
+## @experimental: NOT YET IMPLEMENTED.
 @warning_ignore("shadowed_variable", "unused_parameter")
 static func create_from_state_vectors_and_precessions(
 		position: Vector3,
@@ -405,8 +412,8 @@ static func create_from_state_vectors_and_precessions(
 	return null
 
 
-## Creates new IVOrbit instance from state vectors and orbit environment.
-## @experimental: Not yet implemented.
+## Creates new [IVOrbit] instance from state vectors and orbit environment.
+## @experimental: NOT YET IMPLEMENTED.
 @warning_ignore("shadowed_variable", "unused_parameter")
 static func create_from_state_vectors_and_environment(
 		position: Vector3,

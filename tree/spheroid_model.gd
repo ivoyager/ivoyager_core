@@ -22,8 +22,8 @@ extends MeshInstance3D
 
 ## A generic spheroid model that uses a shared sphere mesh.
 ##
-## Stars and almost all planetary mass objects use this class as model.
-## Instances are scaled for size and oblateness.[br][br]
+## Stars and planetary mass objects can use this class as model. Instances are
+## scaled for size and oblateness.[br][br]
 ## 
 ## If is_dynamic_star = true, the model will grow with great distances to stay
 ## visible and appropriately prominent relative to the star field. The grow

@@ -49,7 +49,7 @@ var _off_action: Callable
 var _is_visible_test: Callable
 
 
-
+## Creates a new [IVHUDsCheckBox] instance using specified parameters.
 @warning_ignore("shadowed_variable")
 static func create(hud_type: HUDsType, body_flags: int, sbg_aliases: Array[StringName] = []
 		) -> IVHUDsCheckBox:

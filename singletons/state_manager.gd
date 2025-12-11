@@ -21,15 +21,73 @@ extends Node
 
 ## Singleton [IVStateManager] maintains and exposes high-level simulator state.
 ##
-## Dev note: Don't add non-Godot class dependencies other than [IVGlobal],
-## [IVStateAuxiliary] and static utility classes. These could cause circular
-## reference issues.
+## All properties, signals and methods here are about high-level simulator
+## state. State signals follow immediately after changes in associated
+## state properties. Many specific state signals are paired with the general
+## [signal state_changed] (except early [IVCoreInitializer] changes and pause).[br][br]
+##
+## Early [IVCoreInitializer] init signals (ordered except [signal
+## core_init_object_instantiated] which emits for each object):[br][br]
+##
+## [signal core_init_preinitialized][br]
+## [signal core_init_object_instantiated](object: Object)[br]
+## [signal core_init_init_refcounteds_instantiated][br]
+## [signal core_init_program_objects_instantiated][br]
+## [signal core_init_program_nodes_added][br]
+## [signal core_init_finished][br][br]
+##
+## After [IVCoreInitializer] starup, build, and started signals (ordered). The
+## first two always happen once on project run. The rest occur each time the
+## physical system is built. All are paired with [signal state_changed]:[br][br]
+##
+## [signal core_initialized][br]
+## [signal assets_preloaded][br]
+## [signal about_to_build_system_tree](new_game: bool)[br]
+## [signal system_tree_built](new_game: bool)[br]
+## [signal system_tree_ready](new_game: bool)[br]
+## [signal about_to_start_simulator](new_game: bool)[br]
+## (Note: [signal IVGlobal.ui_dirty] emits here.)[br]
+## [signal simulator_started][br][br]
+##
+## Subsequent runtime, exit and quit signals includes the following (all are
+## paired with [signal state_changed] except [signal paused_changed]):[br][br]
+##
+## [signal run_state_changed](running: bool)[br]
+## [signal paused_changed](paused_tree: bool, paused_by_user: bool)[br]
+## [signal about_to_free_procedural_nodes][br]
+## [signal about_to_exit][br]
+## [signal simulator_exited][br]
+## [signal about_to_stop_before_quit][br]
+## [signal about_to_quit][br][br]
+## 
+## Threads should be coordinated with the following signals (and related properties
+## and methods):[br][br]
+##
+## [signal run_threads_allowed][br]
+## [signal run_threads_must_stop][br]
+## [signal threads_finished][br][br]
+##
+## Multiplayer support is partial and work-in-progress. It was added and
+## working in Godot 3.x, but was never fully migrated to 4.x. Some related API
+## is present here but needs work. The intention is to have API that supports
+## (but does NOT provide) an external
+## [url=https://docs.godotengine.org/en/stable/tutorials/networking/high_level_multiplayer.html]
+## NetworkLobby[/url].[br][br]
+##
+## Dev note: There are no non-Godot class dependencies here other than [IVGlobal],
+## [IVStateAuxiliary] and static utility classes.[br][br]
+##
+## [b]Important Class File Docs[/b][br][br]
+##
+## 1. [IVUniverseTemplate] for scene tree construction.[br]
+## 2. Singletons [IVCoreInitializer], [IVCoreSettings], [IVGlobal], and
+##    [IVStateManager] for program init and state management.[br]
+## 3. [IVBody] for the physical 3D world. Also has roadmap details.[br]
+## 4. [IVOrbit] for orbital mechanics. Has more roadmap related to spacecraft
+##    thrust implementation.
 
-
-# FIXME: User pause is persisted for game save but not Planetarium cache.
-# Persist via IVTimekeeper?
-
-
+# Old notes still relevant...
+#
 # There is no NetworkLobby in base I, Voyager. It's is a very application-
 # specific manager that you'll have to code yourself, but see:
 # https://docs.godotengine.org/en/stable/tutorials/networking/high_level_multiplayer.html
@@ -80,7 +138,7 @@ signal assets_preloaded()
 signal about_to_build_system_tree(new_game: bool)
 ## Emitted after [member built_system] is set. Procedural [IVBody] and
 ## [IVSmallBodiesGroup] instances have been added for new or loaded game, but
-## non-procedural "finish" nodes (models, rings, lights, HUD elements, etc.)
+## non-persisted "finish" nodes (models, rings, lights, HUD elements, etc.)
 ## are still being added, possibly on thread.
 signal system_tree_built(new_game: bool)
 ## Emitted after [member ready_system] is set. The system tree is built and
@@ -260,7 +318,7 @@ func remove_blocking_thread(thread: Thread) -> void:
 
 
 ## Generates a delayed "threads_finished" signal if/when there are no
-## blocking threads. Called by require_stop if not rejected.
+## blocking threads. Called by [method require_stop] if not rejected.
 func signal_threads_finished() -> void:
 	await _tree.process_frame
 	if !_signal_when_threads_finished:

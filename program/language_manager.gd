@@ -40,7 +40,7 @@ static var language_codes: Array[String] = ["en"]
 
 
 
-static func get_code_for_setting(language_setting: int) -> String:
+static func get_language_code_for_setting(language_setting: int) -> String:
 	if language_setting == 0:
 		var os_code := OS.get_locale_language() # returns "en", not "en_US"
 		if language_codes.has(os_code):
@@ -58,7 +58,7 @@ func _init() -> void:
 
 
 func _set_language(language_setting: int) -> void:
-	var code := get_code_for_setting(language_setting)
+	var code := get_language_code_for_setting(language_setting)
 	TranslationServer.set_locale(code)
 
 

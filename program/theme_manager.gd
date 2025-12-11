@@ -39,7 +39,7 @@ extends RefCounted
 
 
 ## Signal provided for managing Label3D font sizing. Name and symbol sizes are
-## the the main theme's default_font_size modified by global settings
+## the main theme's default_font_size modified by global settings
 ## "label3d_names_size_percent" and "label3d_symbols_size_percent", respectively.
 signal label3d_font_size_changed(name_size: int, symbol_size: int)
 

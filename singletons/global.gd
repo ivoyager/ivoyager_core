@@ -19,17 +19,15 @@
 # *****************************************************************************
 extends Node
 
-## Singleton [IVGlobal] provides access to global signals and data.
-##
-## This is a "signal bus". Almost all signals here are emitted by external
-## classes for external classes.[br][br]
+## Singleton [IVGlobal] provides global enums and acts as a global signal and
+## data bus.
 ##
 ## Data containers (arrays and dictionaries) are usually maintained by a single
 ## external class and available for all. Container references are never
 ## overwritten, so it is safe to keep local references in class files.[br][br]
 ##
-## Dev note: Don't add ANY non-Godot class dependencies in this file! These
-## could cause circular reference issues.
+## Dev note: There are NO non-Godot class dependencies in this file. (These are
+## avoided here to prevent circular reference issues.)
 
 
 ## Emitted by [IVTranslationImporter] after translations imported. This is early
@@ -41,21 +39,20 @@ signal translations_imported()
 ## added.
 signal data_tables_postprocessed()
 ## Signal from [IVStateManager] to [IVTableSystemBuilder] to build the system
-## tree. DON'T USE THIS. Use [signal IVStateManager.about_to_build_system_tree]
-## or other [IVStateManager] "state" signals.
+## tree. DON'T USE THIS. Use state signals in [IVStateManager].
 signal build_system_tree_now()
 ## Emitted by [IVStateManager] immediately before simulator start. All objects
 ## that signal "something_changed" for UI should signal now. UI that polls
 ## instead of responding (if any) should update too.
 signal ui_dirty() 
 ## This signal should be emitted by whatever Camera3D class becomes current.
-## (There is no Viewport signal so it is up to the camera to signal.)
+## (There is no Viewport signal so it is up to the newly active camera to signal.)
 signal current_camera_changed(camera: Camera3D)
 ## This signal should be emitted by any Camera3D class used in the simulator.
 ## It tells the simulator where the camera is for graphic and other updating purposes.
 signal camera_tree_changed(camera: Camera3D, parent: Node3D, star_orbiter: Node3D, star: Node3D)
 ## This signal should be emitted by any Camera3D class used in the simulator.
-## It's used for things like Label3D size compensation.
+## It's used for things like size compensation in [IVBodyLabel].
 signal camera_fov_changed(fov: float)
 ## This signal is emitted by [IVGlobal] code connected to the root viewport.
 ## Signals when the viewport size changes and also on [signal ui_dirty].
@@ -136,16 +133,19 @@ const PERSIST_PROCEDURAL := PersistMode.PERSIST_PROCEDURAL
 
 
 
-## Maintained by [IVTimekeeper]. Holds [time (s; J2000), engine_time (s), solar_day (d)]
-## by default and possibly additional elements. Keeping a local array reference
-## provides optimal access to simulator time which will always be at index 0.
-var times: Array[float] = []
-## Maintained by [IVTimekeeper]. Holds Gregorian [year, month, day] by default,
-## but may have quarter and additional elements according to [member
-## IVTimekeeper.date_format].
-var date: Array[int] = []
-## Maintained by [IVTimekeeper]. Holds UT [hour, minute, second].
-var clock: Array[int] = []
+## Maintained by [IVTimekeeper]. Holds time, clock_time, and julian_day_number
+## (as a float). See [IVTimekeeper] for definitions; "time" at index [0] is
+## Terrestrial Time with J2000 epoch in units defined by [constant IVUnits.SECOND].
+var times: Array[float] = [0.0, 0.0, 0.0]
+## Maintained by [IVTimekeeper]. Represents the fractional part of [member
+## IVTimekeeper.clock_time] as clock integers: hour, minute, second.
+var clock: Array[int] = [0, 0, 0]
+## Maintained by [IVTimekeeper]. Holds Gregorian calendar integers: year, month, day.
+var date: Array[int] = [0, 0, 0]
+## Maintained by [IVTimekeeper]. Holds Q, YQ, YM, where Q is quarter (1 - 4)
+## and YQ and YM are cumulative counts of quarter and month since year 0. The
+## latter two are monotonic increasing values.
+var date_aux: Array[int] = [0, 0, 0]
 ## Populated by [IVCoreInitializer]. Holds instantiated "init" and "program"
 ## objects (base or override classes).
 var program: Dictionary[StringName, Object] = {}

@@ -20,110 +20,140 @@
 class_name IVHotkeysPopup
 extends PopupPanel
 
+## User hotkeys popup.
+##
+## User hotkeys are are a subset of the cached input map managed by
+## [IVInputMapManager].[br][br]
+##
+## This popup builds hotkey Control items on-the-fly as defined in class
+## properties. Columns and section headers are defined in [member layout] and
+## section content is defined in [member section_content].[br][br]
+##
+## TODO: "Views" will have hotkeys too, which can be edited in the view button's
+## IVViewEdit but possibly also in their own section here.
+## Implementation is confusing because views can be persisted via
+## cache or gamesave. Should views persist their own hotkeys? If so, how does
+## that work with IVInputMapManager? One possibility is to code all of these
+## as cached "actions" via IVInputMapManager (even the gamesave ones). Probably
+## gamesave view hotkeys should overwrite confilicting cache hotkeys on load.
 
+
+## Stop the simulator while this popup is open. This setting will be overridden
+## if [member IVCoreSettings.popops_can_stop_sim] == false.
 @export var stop_sim := true
-@export var key_box_min_size_x := 300
+
+## Column width multiplied by [member IVCoreSettings.gui_size_multipliers] (minimum).
+@export var column_base_width := 320
+
+## If true (default), automatically remove hotkey actions that are not
+## applicable due to [IVCoreSettings]. For example, remove &"reverse_time"
+## unless [member IVCoreSettings.allow_time_reversal] == true.
+@export var autoremove_for_na_settings := true
+
+## If true (default), automatically remove save/load actions if the Save plugin
+## is not present and enabled.
+@export var autoremove_for_missing_save_plugin := true
+
+
+## Content layout is an array of columns, where each column is an array of 
+## header labels. The header labels must correspond to keys in [member
+## section_content].
 @export var layout: Array[Array] = [
 	# column 1
-	[
-		{
-			&"header" : &"LABEL_ADMIN",
-			&"toggle_fullscreen" : &"LABEL_TOGGLE_FULLSCREEN",
-			&"toggle_options" : &"LABEL_OPTIONS",
-			&"toggle_hotkeys" : &"LABEL_HOTKEYS",
-			&"load_file" : &"LABEL_LOAD_FILE",
-			&"quickload" : &"LABEL_QUICKLOAD",
-			&"save_as" : &"LABEL_SAVE_AS",
-			&"quicksave" : &"LABEL_QUICKSAVE",
-			&"quit" : &"LABEL_QUIT",
-			&"save_quit" : &"LABEL_SAVE_AND_QUIT",
-		},
-		{
-			&"header" : &"LABEL_GUI",
-			&"toggle_all_gui" : &"LABEL_SHOW_HIDE_ALL_GUI",
-			&"toggle_orbits" : &"LABEL_SHOW_HIDE_ORBITS",
-			&"toggle_names" : &"LABEL_SHOW_HIDE_NAMES",
-			&"toggle_symbols" : &"LABEL_SHOW_HIDE_SYMBOLS",
-			
-			# Below UI controls have some engine hardcoding as of
-			# Godot 3.2.2, so can't be user defined.
-#				&"ui_up" : &"LABEL_GUI_UP",
-#				&"ui_down" : &"LABEL_GUI_DOWN",
-#				&"ui_left" : &"LABEL_GUI_LEFT",
-#				&"ui_right" : &"LABEL_GUI_RIGHT",
-		},
-		{
-			&"header" : &"LABEL_TIME",
-			&"incr_speed" : &"LABEL_SPEED_UP",
-			&"decr_speed" : &"LABEL_SLOW_DOWN",
-			&"reverse_time" : &"LABEL_REVERSE_TIME",
-			&"toggle_pause" : &"LABEL_TOGGLE_PAUSE",
-		},
-		
-	],
-	
+	[&"LABEL_ADMIN", &"LABEL_GUI", &"LABEL_TIME"],
 	# column 2
-	[
-		{
-			&"header" : &"LABEL_SELECTION",
-			&"select_up" : &"LABEL_UP",
-			&"select_down" : &"LABEL_DOWN",
-			&"select_left" : &"LABEL_LAST",
-			&"select_right" : &"LABEL_NEXT",
-			&"select_forward" : &"LABEL_FORWARD",
-			&"select_back" : &"LABEL_BACK",
-			&"next_star" : &"LABEL_SELECT_SUN",
-			&"next_planet" : &"LABEL_NEXT_PLANET",
-			&"previous_planet" : &"LABEL_LAST_PLANET",
-			&"next_nav_moon" : &"LABEL_NEXT_NAV_MOON",
-			&"previous_nav_moon" : &"LABEL_LAST_NAV_MOON",
-			&"next_moon" : &"LABEL_NEXT_ANY_MOON",
-			&"previous_moon" : &"LABEL_LAST_ANY_MOON",
-			# Below waiting for new code features
-#			&"next_system" : &"Select System",
-#			&"next_asteroid" : &"Next Asteroid",
-#			&"previous_asteroid" : &"Last Asteroid",
-#			&"next_comet" : &"Next Comet",
-#			&"previous_comet" : &"Last Comet",
-#			&"next_spacecraft" : &"Next Spacecraft",
-#			&"previous_spacecraft" : &"Last Spacecraft",
-		},
-	],
-	
+	[&"LABEL_SELECTION"],
 	# column 3
-	[
-		{
-			&"header" : &"LABEL_CAMERA",
-			&"camera_up" : &"LABEL_MOVE_UP",
-			&"camera_down" : &"LABEL_MOVE_DOWN",
-			&"camera_left" : &"LABEL_MOVE_LEFT",
-			&"camera_right" : &"LABEL_MOVE_RIGHT",
-			&"camera_in" : &"LABEL_MOVE_IN",
-			&"camera_out" : &"LABEL_MOVE_OUT",
-			&"recenter" : &"LABEL_RECENTER",
-			&"pitch_up" : &"LABEL_PITCH_UP",
-			&"pitch_down" : &"LABEL_PITCH_DOWN",
-			&"yaw_left" : &"LABEL_YAW_LEFT",
-			&"yaw_right" : &"LABEL_YAW_RIGHT",
-			&"roll_left" : &"LABEL_ROLL_LEFT",
-			&"roll_right" : &"LABEL_ROLL_RIGHT",
-		},
-	],
+	[&"LABEL_CAMERA"],
 ]
+
+
+## Section keys are the header labels used in [member layout]. Each section
+## is an array of actions, where actions are defined in [IVInputMapManager].
+## Note: Unlike Options, it IS necessary to remove sections or items here that
+## aren't used. This is necessary so that the hotkeys aren't reserved.
+@export var section_content: Dictionary[StringName, Array] = {
+	LABEL_ADMIN = [
+		&"toggle_fullscreen",
+		&"toggle_options",
+		&"toggle_hotkeys",
+		&"load_file",
+		&"quickload",
+		&"save_as",
+		&"quicksave",
+		&"quit",
+	],
+	LABEL_GUI = [
+		&"toggle_all_gui",
+		&"toggle_orbits",
+		&"toggle_names",
+		&"toggle_symbols",
+	],
+	LABEL_TIME = [
+		&"incr_speed",
+		&"decr_speed",
+		&"reverse_time",
+		&"toggle_pause",
+	],
+	LABEL_SELECTION = [
+		&"select_up",
+		&"select_down",
+		&"select_left",
+		&"select_right",
+		&"select_forward",
+		&"select_back",
+		&"next_star",
+		&"next_planet",
+		&"previous_planet",
+		&"next_nav_moon",
+		&"previous_nav_moon",
+		&"next_moon",
+		&"previous_moon",
+	],
+	LABEL_CAMERA = [
+		&"camera_up",
+		&"camera_down",
+		&"camera_left",
+		&"camera_right",
+		&"camera_in",
+		&"camera_out",
+		&"recenter",
+		&"pitch_up",
+		&"pitch_down",
+		&"yaw_left",
+		&"yaw_right",
+		&"roll_left",
+		&"roll_right",
+	],
+	# TODO: LABEL_VIEWS = [],
+	# This section will be filled dynamically by IVViewManager.
+}
+
 
 var _input_map_manager: IVInputMapManager
 var _suppress_close := true
 
 @onready var _hotkey_dialog: IVHotkeyDialog = $HotkeyDialog
-@onready var _content_container: HBoxContainer = $VBox/Content
-@onready var _cancel: Button = $VBox/BottomHBox/Cancel
-@onready var _confirm_changes: Button = $VBox/BottomHBox/ConfirmChanges
-@onready var _restore_defaults: Button = $VBox/BottomHBox/RestoreDefaults
+@onready var _content_container: HBoxContainer = %ContentContainer
+@onready var _restore_defaults: Button = %RestoreDefaultsButton
+@onready var _confirm_changes: Button = %ConfirmChangesButton
+@onready var _cancel: Button = %CancelButton
 
 
 
 func _ready() -> void:
 	hide() # Godot 4.5 editor keeps setting visibility == true !!!
+	IVStateManager.core_initialized.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
+
+
+func _shortcut_input(event: InputEvent) -> void:
+	if event.is_action_pressed(&"ui_cancel") or event.is_action_pressed(&"toggle_hotkeys", true):
+		_on_cancel()
+		set_input_as_handled()
+
+
+func _configure_after_core_inited() -> void:
+	_input_map_manager = IVGlobal.program[&"InputMapManager"]
 	IVGlobal.hotkeys_requested.connect(open)
 	IVGlobal.close_admin_popups_required.connect(hide)
 	close_requested.connect(_on_close_requested)
@@ -132,33 +162,21 @@ func _ready() -> void:
 	_restore_defaults.pressed.connect(_on_restore_defaults)
 	_confirm_changes.pressed.connect(_on_confirm_changes)
 	_hotkey_dialog.hotkey_confirmed.connect(_on_hotkey_confirmed)
-	if IVStateManager.initialized_core:
-		_configure_after_core_inited()
-	else:
-		IVStateManager.core_initialized.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
-
-
-func _shortcut_input(event: InputEvent) -> void:
-	if event.is_action_pressed(&"ui_cancel"):
-		_on_cancel()
-		set_input_as_handled()
-
-
-
-func _configure_after_core_inited() -> void:
-	_input_map_manager = IVGlobal.program[&"InputMapManager"]
-	if IVCoreSettings.disable_pause:
-		remove_item(&"toggle_pause")
-	if !IVCoreSettings.allow_time_reversal:
-		remove_item(&"reverse_time")
-	if !IVPluginUtils.is_plugin_enabled("ivoyager_save"):
-		remove_item(&"load_file")
-		remove_item(&"quickload")
-		remove_item(&"save_as")
-		remove_item(&"quicksave")
-		remove_item(&"save_quit")
-	if IVCoreSettings.disable_quit:
-		remove_item(&"quit")
+	if autoremove_for_na_settings:
+		if not IVCoreSettings.allow_fullscreen_toggle:
+			section_content[&"LABEL_ADMIN"].erase(&"toggle_fullscreen")
+		if IVCoreSettings.disable_quit:
+			section_content[&"LABEL_ADMIN"].erase(&"quit")
+		if IVCoreSettings.disable_pause:
+			section_content[&"LABEL_TIME"].erase(&"toggle_pause")
+		if not IVCoreSettings.allow_time_reversal:
+			section_content[&"LABEL_TIME"].erase(&"reverse_time")
+	if autoremove_for_missing_save_plugin and !IVPluginUtils.is_plugin_enabled("ivoyager_save"):
+		var admin := section_content[&"LABEL_ADMIN"]
+		admin.erase(&"load_file")
+		admin.erase(&"quickload")
+		admin.erase(&"save_as")
+		admin.erase(&"quicksave")
 
 
 func open() -> void:
@@ -173,76 +191,6 @@ func open() -> void:
 	popup_centered()
 
 
-func add_subpanel(subpanel_dict: Dictionary, to_column: int, to_row := 999) -> void:
-	# See example subpanel_dict formats in IVOptionsPopup or IVHotkeysPopup.
-	# Set to_column and/or to_row arbitrarily large to move to end.
-	if to_column >= layout.size():
-		to_column = layout.size()
-		layout.append([])
-	var column_array: Array[Dictionary] = layout[to_column]
-	if to_row >= column_array.size():
-		to_row = column_array.size()
-	column_array.insert(to_row, subpanel_dict)
-
-
-func remove_subpanel(header: StringName) -> Dictionary:
-	for column_array in layout:
-		var dict_index := 0
-		while dict_index < column_array.size():
-			var subpanel_dict: Dictionary = column_array[dict_index]
-			if subpanel_dict.header == header:
-				column_array.remove_at(dict_index)
-				return subpanel_dict
-			dict_index += 1
-	print("Could not find subpanel with header ", header)
-	return {}
-
-
-func move_subpanel(header: StringName, to_column: int, to_row: int) -> void:
-	# to_column and/or to_row can be arbitrarily big to move to end
-	var subpanel_dict := remove_subpanel(header)
-	if subpanel_dict:
-		add_subpanel(subpanel_dict, to_column, to_row)
-
-
-func add_item(item: StringName, setting_label_str: StringName, header: StringName, at_index := 999
-		) -> void:
-	# use add_subpanel() instead if subpanel doesn't exist already.
-	assert(item != "header")
-	for column_array in layout:
-		var dict_index := 0
-		while dict_index < column_array.size():
-			var subpanel_dict: Dictionary = column_array[dict_index]
-			if subpanel_dict.header == header:
-				if at_index >= subpanel_dict.size() - 1:
-					subpanel_dict[item] = setting_label_str
-					return
-				# Dictionaries are ordered but there is no insert!
-				var new_subpanel_dict := {}
-				var index := 0
-				for key: StringName in subpanel_dict:
-					new_subpanel_dict[key] = subpanel_dict[key] # 1st is header
-					if index == at_index:
-						new_subpanel_dict[item] = setting_label_str
-					index += 1
-				column_array[dict_index] = new_subpanel_dict
-				return
-			dict_index += 1
-	print("Could not find Options subpanel with header ", header)
-
-
-func remove_item(item: StringName) -> void:
-	assert(item != "header")
-	for column_array in layout:
-		var dict_index := 0
-		while dict_index < column_array.size():
-			var subpanel_dict: Dictionary = column_array[dict_index]
-			subpanel_dict.erase(item)
-			if subpanel_dict.size() == 1: # only header remains
-				column_array.remove_at(dict_index)
-				dict_index -= 1
-			dict_index += 1
-
 
 
 func _build_content() -> void:
@@ -252,7 +200,7 @@ func _build_content() -> void:
 	for column_array in layout:
 		var column_vbox := VBoxContainer.new()
 		_content_container.add_child(column_vbox)
-		for subpanel_dict: Dictionary in column_array:
+		for header: StringName in column_array:
 			var subpanel_container := PanelContainer.new()
 			column_vbox.add_child(subpanel_container)
 			var subpanel_vbox := VBoxContainer.new()
@@ -260,12 +208,14 @@ func _build_content() -> void:
 			var header_label := Label.new()
 			subpanel_vbox.add_child(header_label)
 			header_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			header_label.text = subpanel_dict.header
-			for item: StringName in subpanel_dict:
-				if item != &"header":
-					var label_name: StringName = subpanel_dict[item]
-					var setting_hbox := _build_item(item, label_name)
-					subpanel_vbox.add_child(setting_hbox)
+			header_label.text = header
+			var section := section_content[header]
+			for action: StringName in section:
+				var hotkey_text := _input_map_manager.action_texts[action]
+				var hotkey_hbox := _build_item(hotkey_text, action)
+				subpanel_vbox.add_child(hotkey_hbox)
+		var mod_resizable := IVControlModResizable.create(Vector2(column_base_width, 0))
+		column_vbox.add_child(mod_resizable)
 	_on_content_built.call_deferred()
 
 
@@ -274,27 +224,26 @@ func _on_content_built() -> void:
 	_confirm_changes.disabled = _input_map_manager.is_cache_current()
 
 
-func _build_item(action: StringName, action_label_str: StringName) -> HBoxContainer:
+func _build_item(hotkey_text: StringName, action: StringName) -> HBoxContainer:
 	var action_hbox := HBoxContainer.new()
-	action_hbox.custom_minimum_size.x = key_box_min_size_x
 	var action_label := Label.new()
 	action_hbox.add_child(action_label)
 	action_label.size_flags_horizontal = BoxContainer.SIZE_EXPAND_FILL
-	action_label.text = action_label_str
+	action_label.text = hotkey_text
 	var index := 0
 	var scancodes := _input_map_manager.get_scancodes_w_mods_for_action(action)
 	for keycode in scancodes:
 		var key_button := Button.new()
 		action_hbox.add_child(key_button)
 		key_button.text = OS.get_keycode_string(keycode)
-		key_button.pressed.connect(_hotkey_dialog.open.bind(action, index, action_label_str,
-				key_button.text, layout))
+		key_button.pressed.connect(_hotkey_dialog.open.bind(action, index, hotkey_text,
+				key_button.text, section_content))
 		index += 1
 	var add_key_button := Button.new()
 	action_hbox.add_child(add_key_button)
 	add_key_button.text = "+"
-	add_key_button.pressed.connect(_hotkey_dialog.open.bind(action, index, action_label_str,
-			"", layout))
+	add_key_button.pressed.connect(_hotkey_dialog.open.bind(action, index, hotkey_text,
+			"", section_content))
 	var default_button := Button.new()
 	action_hbox.add_child(default_button)
 	default_button.text = "!"

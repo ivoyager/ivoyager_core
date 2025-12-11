@@ -22,24 +22,25 @@ extends Node3D
 
 ## Template-only root scene node. And Core plugin documentation!
 ##
-## This "Universe" scene tree is provided as a template. It will work as a
-## simulator root if made the main sceen, but shouldn't be edited since it is in
-## the plugin directory. You can make a duplicate of this scene and move it to
-## your project.[br][br]
+## The scene tree file [code]tree/universe_template.tscn[/code] is provided as a
+## template. It will work as a simulator root if made the main sceen, but
+## shouldn't be edited since it is in the plugin directory. You can duplicate
+## this scene to your project directory to start a new project.[br][br]
 ##
 ## [b]Scene Tree Construction[/b][br][br]
 ##
 ## The schematic below shows one possible scene tree organization for a game.
 ## Note that much of the tree is built by code: specifically, the physical solar
 ## system at child index 0 and "program" nodes added at the end. The part
-## constructed in the Godot Editor is mainly the UI tree. [IVUniverseTemplate]
-## has the Core plugin UI nodes shown but lacks game panels, spash screen,
-## exit button, and nodes from the Save plugin.[br][br]
+## constructed in the Godot Editor is mainly the UI tree. Template file
+## [code]tree/universe_template.tscn[/code] has the Core plugin UI nodes shown
+## but lacks game panels, spash screen, exit button, and nodes from the Save
+## plugin.[br][br]
 ##
-## (Note: It's in our
+## Note: It's in our
 ## [url=https://github.com/orgs/ivoyager/discussions/5]roadmap[/url] to make
-## the physical part editable in the Editor too. The simulator was developed
-## using data tables, so that's mainly what it supports at this time.)
+## the physical part constructable in the Editor too. The simulator was
+## developed using data tables, so that's mainly what it supports at this time.
 ## 
 ## [codeblock] 
 ##
@@ -47,7 +48,7 @@ extends Node3D
 ##
 ##    |- STAR_SUN                    #
 ##          |- PLANET_MERCURY        #  IVBody instances and other
-##          |- PLANET_VENUS          #  "tree_nodes" are procedurally 
+##          |- PLANET_VENUS          #  "tree" items are procedurally 
 ##          |- PLANET_EARTH          #  built from *.tsv data tables
 ##                 |- SPACECRAFT_ISS #  in "tables" directory
 ##                 |- MOON_MOON      #
@@ -84,14 +85,14 @@ extends Node3D
 ##    |- IVInputHandler              #
 ##    |- etc...                      #
 ##
-## # Note: Actual node names in the tree omit the "IV" class prefixes.
+## # Note: Node names in the tree omit the "IV" class prefixes.
 ## [/codeblock][br]
 ##
 ## The simulator root node can be specified explicitly in [IVCoreInitializer] or
 ## simply by naming it "Universe". (If the former, the node name doesn't matter.
 ## In any case, we call this root node "Universe" in plugin documentation.)[br][br]
 ##
-## [IVWorldEnvironment] is in directory "tree_nodes" with [IVUniverseTemplate]
+## [IVWorldEnvironment] is in directory "tree" with [IVUniverseTemplate]
 ## and Node3D classes.[br][br]
 ##
 ## UI classes above from the Core plugin are in directory "ui".
@@ -101,16 +102,16 @@ extends Node3D
 ##
 ## The "program" directory contains both [Node] and [RefCounted] program
 ## classes, which are essentially "small-s singletons" that support the
-## simulator. These are instantiated and added to dictionary [member IVGlobal.program]
-## (and nodes are added to the scene tree) as specified in [IVCoreInitializer].
-## An external project can remove, replace, subclass, or add to these at project
-## init.[br][br]
+## simulator. These are instantiated singly and added to dictionary [member
+## IVGlobal.program] (and nodes are added to the scene tree) as specified in
+## [IVCoreInitializer]. An external project can remove, replace, subclass, or
+## add to these at project init.[br][br]
 ##
 ## [IVTableSystemBuilder] (with other "builder" and "finisher" classes) builds
 ## the physical star system(s) and inserts it (or them) before other children of
 ## Universe. Shown above are the [IVBody] instances (stars, planets, moons,
 ## spacecraft, etc.). This class and other components of the physical system
-## tree are in directories "tree_nodes" and "tree_refs".[br][br]
+## tree are in directories "tree" and "tree_components".[br][br]
 ##
 ## [b]Splash Screen[/b][br][br]
 ##
@@ -135,7 +136,7 @@ extends Node3D
 ## There are two main options for scene tree pause in the simulator:[br][br]
 ##
 ## 1. If [code]Universe.pause_mode == PROCESS_MODE_ALWAYS[/code] (default) or
-## inherits always, time will still stop during pause because [IVTimekeeper]
+## inherits "always", time will still stop during pause because [IVTimekeeper]
 ## is pausable (does not inherit). However, [IVCamera] can be moved around
 ## the solar system, [IVWorldController] allows view zoom and rotation,
 ## [IVMouseTargetLabel] indicates what's under the mouse (this requires
@@ -144,24 +145,43 @@ extends Node3D
 ## will work.[br][br]
 ## 
 ## 2. If [code]Universe.pause_mode == PROCESS_MODE_PAUSABLE[/code] or inherits
-## pausable, then almost everything freezes during pause. The 
-## camera can't be moved, the the view can't be zoomed or rotated, there is
+## "pausable", then almost everything freezes during pause. The 
+## camera can't be moved, the view can't be zoomed or rotated, there is
 ## no identification feedback at the mouse position, and GUI is frozen (except
 ## a few special cases including the pause button). Main menu, options and
 ## other "main" popup panels will still work.[br][br]
 ##
-## Some mix of the two options may be posible by setting [member Node.pause_mode]
-## in individual UI and program nodes.[br][br]
+## Some intermediate between the two options above may be posible by setting
+## [member Node.pause_mode] in individual UI and program nodes.[br][br]
 ##
-## [b]Origin Shifting[/b][br][br]
+## [b]Origin Shifting and Scale Issues[/b][br][br]
 ##
 ## We use origin shifting to prevent "imprecision shakes" caused by vast scale
 ## differences, e.g, when viewing Pluto at 40 au from the Sun. To do so,
-## [IVCamera] adjusts the translation of Universe every frame to keep the camera
-## at the origin.
+## [IVCamera] adjusts the translation of Universe every frame to keep itself
+## at the origin.[br][br]
+##
+## All scale-sensitive code uses the GDScript "float", which is double-precision
+## even without compiling changes (unlike Vector types). Scale of the simulator
+## can be changed by replacing the [IVUnits] singleton with a different [constant
+## IVUnits.METER] value. See class file comments in the Planetarium's 
+## [url=https://github.com/ivoyager/planetarium/blob/master/planetarium/units.gd]
+## units.gd[/url] for a running record of scale-related lighting and shadow
+## issues and the current recommended METER value.[br][br]
+##
+## [b]Important Class File Docs[/b][br][br]
+##
+## 1. [IVUniverseTemplate] for scene tree construction.[br]
+## 2. Singletons [IVCoreInitializer], [IVCoreSettings], [IVGlobal], and
+##    [IVStateManager] for program init and state management.[br]
+## 3. [IVBody] for the physical 3D world. Also has roadmap details.[br]
+## 4. [IVOrbit] for orbital mechanics. Has more roadmap related to spacecraft
+##    thrust implementation.
+
+
 
 ## Don't free on load. This constant only matters if the
 ## [url=https://github.com/ivoyager/ivoyager_save]Save plugin[/url] is used.
 ## Nodes have persistence only if they and all ancestors have this constant set
 ## to PERSIST_PROPERTIES_ONLY or PERSIST_PROCEDURAL.
-const PERSIST_MODE := 1 # Godot ISSUE 4.5.1: Class doc broken w/ IVGlobal.PERSIST_PROPERTIES_ONLY 
+const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY 

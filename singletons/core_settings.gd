@@ -36,6 +36,12 @@ extends Node
 ## setting must be true for threads to be used.
 var use_threads := true
 
+## If true, [IVTimekeeper] will set [member Engine.time_scale] to follow changes
+## in game speed. Note that ivoyager_core almost never uses [code]delta[/code]
+## from [code]_process()[/code], and compensates for [member Engine.time_scale]
+## in the rare cases where it does. So this has no effect on the simulator.
+var manage_engine_time_scale := true
+
 ## See [IVDynamicLight].
 var dynamic_lights := true
 ## See [IVDynamicLight]. Values just over 1.0 give a small but realistic
@@ -62,17 +68,20 @@ var disable_quit := false
 ## to the nearest integer after multiplication). See also [IVControlModResizable].
 var gui_size_multipliers: Array[float] = [0.75, 1.0, 1.25]
 
-## From J2000 epoch.
-var start_time: float = 22.0 * IVUnits.YEAR
+## Start time as an array of [year, month, day, hour, minute, second].
+var start_time_date_clock: Array[int] = [2025, 1, 1, 0, 0, 0]
+## If true, start time is Terrestrial Time (TT), otherwise, Universal Time (UT).
+## See also [member IVTimekeeper.terrestrial_time_clock].
+var start_time_is_terrestrial_time := false
+
 var start_camera_fov: float = IVMath.get_fov_from_focal_length(24.0)
 var allow_time_setting := false
-
 var allow_time_reversal := false
 var popops_can_stop_sim := true # false overrides stop_sim member in all popups
 var limit_stops_in_multiplayer := true # overrides most stops
 #var multiplayer_disables_pause := false # server can pause if false, no one if true
 #var multiplayer_min_speed := 1
-var allow_fullscreen_toggle := true
+var allow_fullscreen_toggle := false
 var auto_exposure_enabled := true
 var vertecies_per_orbit: int = 500
 var vertecies_per_orbit_low_res: int = 100 # for 10000s of small bodies like asteroids
@@ -83,8 +92,9 @@ var body_labels_color := Color.WHITE
 var body_labels_use_orbit_color := false
 ## See [IVCacheHandler].
 var cache_dir := "user://cache"
-## [IVTableInitializer] sends this value to the 
-## [url=https://github.com/ivoyager/ivoyager_tables]Tables plugin[/url].
+## Enable float precisions in the [IVTableData]. This is used by Planetarium to
+## reproduce data table significant digits in GUI display. (Probably not needed
+## for most game usage.)
 var enable_precisions := false
 
 var home_name := &"PLANET_EARTH"
@@ -103,7 +113,7 @@ var size_layers: Array[float] = [
 	0.1 * IVUnits.KM, # smaller mean_radius gets mask 0b0100
 ]
 
-## Use this dictionary to set GUI text color meanings globally.
+## @depricated
 var text_colors: Dictionary[StringName, Color] = {
 	great = Color.CYAN,
 	good = Color.GREEN,

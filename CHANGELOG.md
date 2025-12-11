@@ -15,12 +15,14 @@ Under development using Godot 4.5.1.
 ### Added
 * Lots of documentation! The main entry point for plugin documentation is now [IVUniverseTemplate](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/universe_template.gd).
 * Many replacement GUI widgets that are much more modular than older widgets. New foldable widgets using the new FolableContainer.
+* IVTimekeeper can generate "clock time" as Terrestrial Time (TT) or simulated Universal Time (UT; default). TT is true simulator "time" but diverges from Earth rotation. UT stays synchronous with Earth rotation over long time scales.
 * IVLanguageManager and "Language" as a user option. **We're ready for translations!**
 * IVStateManager as an autolaod singleton.
 
+
 ### Changed
-* Overhauled IVSelectionManager to handle any Object type as selection (yay duck-typing!).
-* Overhauled IVCamera & IVCameraHanlder to handle any Node3D as target (yay more duck-typing!).
+* Recoded IVSelectionManager to handle any Object type as selection (yay duck-typing!).
+* Recoded IVCamera & IVCameraHanlder to handle any Node3D as target (yay more duck-typing!). 
 * Renamed top-level directories. Removed all subdirectories.
 * [API breaking] Moved all utils.gd static methods to new utility files: arrays.gd, conversions.gd, widgets.gd, etc.
 * [Project breaking] Massive overhaul of how the scene tree works. See doc in [IVUniverseTemplate](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/universe_template.gd).
@@ -36,6 +38,7 @@ Under development using Godot 4.5.1.
 * IVBodyLabel visual size now compensates for camera fov and viewport height.
 * [Project breaking] Renamed many data table columns. Renamed table field "en.wiki" to "en.wikipedia" (these are Wikipedia.org page titles).
 * [API breaking] Ranamed some IVBody.BodyFlags enums. Removed unused BodyFlags.EXISTS.
+* [API breaking] Many other things not listed here... (Breaking things now so it won't happen after beta 0.1.)
 
 ### Fixed
 * Graphic glitch on the frame that IVCamera hands off to a new parent body.

@@ -46,8 +46,8 @@ var save_ivoyager_version := IVGlobal.ivoyager_version
 ## Init value from [member IVGlobal.game_mod]. This value is persisted, so it
 ## will be saved in the gamesave file and overwritten at game load.
 var save_game_mod := IVGlobal.game_mod
-
-
+## Used to generate a file-safe date string for file name.
+var file_date_format := "-%02d-%02d-%02d"
 
 var input_shortcut_save_as := &"save_as"
 var input_shortcut_quicksave := &"quicksave"
@@ -58,8 +58,6 @@ var input_shortcut_quickload := &"quickload"
 
 var _paused_by_user := false
 var _save_singleton: Node
-
-@onready var _timekeeper: IVTimekeeper = IVGlobal.program[&"Timekeeper"]
 
 
 
@@ -148,7 +146,7 @@ func _name_generator() -> String:
 
 func _suffix_generator() -> String:
 	if IVSettingsManager.get_setting(&"append_date_to_save"):
-		return "-" + _timekeeper.get_current_date_for_file()
+		return file_date_format % IVGlobal.date
 	return ""
 
 

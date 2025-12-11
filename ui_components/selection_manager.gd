@@ -49,28 +49,24 @@ extends RefCounted
 ## recieves input actions and is availble for general user interface.[br][br]
 ##
 ## This class's API provides generic and [IVBody]-specific functionality.
-## It can be extended to provide additional functionality for other Object
-## types. For an easy way to do this without changing existing UI code, see
-## [method create]. 
-
-
+## It can be subclassed to provide additional functionality for other Object
+## types; see [member replacement_subclass]. 
 
 signal selection_changed(suppress_camera_move: bool)
 signal selection_reselected(suppress_camera_move: bool)
 
 
 const PERSIST_MODE := IVGlobal.PERSIST_PROCEDURAL
-
-
-# WIP: Persist only the name
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"_selection_name",
 ]
 
 
-static var _create_subclass: Script
+## Set this script to generate a subclass in place of IVSelectionManager in
+## [method create]. A subclass can do this in their _static_init() for
+## project-wide replacement.
+static var replacement_subclass: Script
 
-# WIP
 static var _selection_dictionaries: Array[Dictionary] = [IVBody.bodies]
 
 
@@ -91,39 +87,26 @@ var _supress_history := false
 
 
 
-## Add dictonaries here that contain selections (any Object class) keyed by name
-## (as StringName). This is required for [method select_by_name] and for game
-## save/load persistence of current selection, which is persisted by name.
-## Each dictionary should be added only once at init. 
+## Add dictonaries here that contain potential selections (any Object class)
+## keyed by name (as StringName). This is required for [method select_by_name]
+## and for save/load persistence of current selection. Each dictionary should
+## be added only once at init. 
 static func add_selection_dictionary(selections: Dictionary[StringName, Variant]) -> void:
 	assert(not _selection_dictionaries.has(selections))
 	_selection_dictionaries.append(selections)
 
 
-## Creates an instance of this class or a subclass. 
-## A subclass can specify itself as the instantiated class as follows:
-## [codeblock]
-##
-## class_name MySelectionManager
-## extends IVSelectionManager
-##
-##
-## static func _static_init() -> void:
-##     _create_subclass = MySelectionManager
-##
-## [/codeblock]
-##
-## This way, use of [code]IVSelectionManager.create()[/code] or
-## [code]MySelectionManager.create()[/code] will both instantiate the subclass.
-## But the former code doesn't need to be changed where it already exists
-## (specifically, in [IVTopUI]).
+## Creates a new [IVSelectionManager] instance or specified [member replacement_subclass].
 static func create() -> IVSelectionManager:
-	if _create_subclass:
+	if replacement_subclass:
 		@warning_ignore("unsafe_method_access")
-		return _create_subclass.new()
+		return replacement_subclass.new()
 	return IVSelectionManager.new()
 
 
+## Get [IVSelectionManager] for the provided [param node] (usually a GUI widget).
+## This is obtained from the first non-null "selection_manager" property going
+## up the node's ancestry tree.
 static func get_selection_manager(node: Node) -> IVSelectionManager:
 	return IVTree.get_ancestor_object(node, &"selection_manager", true)
 

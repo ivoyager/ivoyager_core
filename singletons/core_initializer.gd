@@ -28,7 +28,7 @@ extends Node
 ##
 ## These files override [b]res://addons/ivoyager_core/ivoyager_core.cfg[/b] and
 ## allow changes to properties in this class (and many other things too). For
-## details, see comments in [b]res://addons/ivoyager_core/override_template.cfg[/b].
+## details, see comments in [b]res://addons/ivoyager_core/ivoyager_override_template.cfg[/b].
 ## [br][br]
 ##
 ## It's possible to modify most properties using config override files. However,
@@ -50,10 +50,9 @@ extends Node
 ## here[/url].[br][br]
 ##
 ## Alternatively, this class could be modified by another autoload or some other
-## early-executing code. In any case, it's recommended to have a dedicated "init"
-## file modify this singleton and [IVCoreSettings] at program init. ONLY that
-## file should reference this singleton (many files may reference [IVCoreSettings]
-## for read only).[br][br]
+## early-executing code. In any case, it's recommended to have a dedicated
+## "preinitializer" file modify this singleton and [IVCoreSettings] at program
+## init. ONLY that file should reference this singleton.[br][br]
 ##
 ## By default, this class will begin initialization after a 5 frame delay. To
 ## modify this, see [member init_after_delay], [member init_delay], and [method
@@ -70,7 +69,14 @@ extends Node
 ## Instantiation order (and add order for nodes) can be specified where needed
 ## in the corresponding "ordered_" array properties.[br][br]
 ##
-## See [IVUniverseTemplate] for scene tree construction.
+## [b]Important Class File Docs[/b][br][br]
+##
+## 1. [IVUniverseTemplate] for scene tree construction.[br]
+## 2. Singletons [IVCoreInitializer], [IVCoreSettings], [IVGlobal], and
+##    [IVStateManager] for program init and state management.[br]
+## 3. [IVBody] for the physical 3D world. Also has roadmap details.[br]
+## 4. [IVOrbit] for orbital mechanics. Has more roadmap related to spacecraft
+##    thrust implementation.
 
 
 
@@ -78,7 +84,7 @@ extends Node
 ## init_delay] frames. If false, external project must call [method begin_init].
 var init_after_delay := true
 ## Number of frames waited before this singleton will call [method begin_init]
-## (if [member init_after_delay] is still true).
+## (if [member init_after_delay] is still true after the delay).
 var init_delay := 5 # frames
 
 
@@ -114,15 +120,14 @@ var preinitializers: Dictionary[StringName, Variant] = {}
 ## RefCounted "init" classes. IVCoreInitializer instances these after [member
 ## preinitializers] and adds to [member IVGlobal.program]. Dictionary values can
 ## be either classes or class file paths. If specific instantiation order is
-## needed, use [member ordered_init_refcounteds]. "Initializers" can erase
-## themselves from dictionary [member IVGlobal.program] after init, thereby
-## freeing themselves.
+## needed, also add to [member ordered_init_refcounteds]. Init classes may erase
+## themselves from dictionary [member IVGlobal.program] after init (thereby
+## freeing themselves) if they are no longer needed.
 var init_refcounteds: Dictionary[StringName, Variant] = {
 	TranslationImporter = IVTranslationImporter, # self-removes
 	StateAuxiliary = IVStateAuxiliary,
 	ResourceInitializer = IVResourceInitializer, # self-removes
 	TableInitializer = IVTableInitializer, # self-removes
-	InputMapManager = IVInputMapManager,
 	AssetPreloader = IVAssetPreloader,
 }
 ## Include keys from [member init_refcounteds] that need to be instantiated
@@ -132,7 +137,7 @@ var ordered_init_refcounteds: Array[StringName] = [&"TranslationImporter", &"Sta
 ## RefCounted "program" classes. IVCoreInitializer instances these after [member
 ## init_refcounteds] and adds to [member IVGlobal.program]. Dictionary values
 ## can be either classes or class file paths. If specific instantiation order is
-## needed, use [member ordered_program_refcounteds].[br][br]
+## needed, also add to [member ordered_program_refcounteds].[br][br]
 ##
 ## Note for Save plugin: These RefCounted classes cannot have save/load
 ## persistence because their container dictionary is not persisted. Convert
@@ -149,10 +154,11 @@ var program_refcounteds: Dictionary[StringName, Variant] = {
 	BodyFinisher = IVBodyFinisher,
 	SBGFinisher = IVSBGFinisher,
 	# managers, etc.
+	InputMapManager = IVInputMapManager,
 	ThemeManager = IVThemeManager,
 	SleepManager = IVSleepManager,
-	LazyModelInitializer = IVLazyModelInitializer,
 	LanguageManager = IVLanguageManager,
+	LazyModelInitializer = IVLazyModelInitializer,
 }
 ## Include keys from [member program_refcounteds] that need to be instantiated
 ## first and in order. (This probably shouldn't be needed. Consider adding the
@@ -162,35 +168,35 @@ var ordered_program_refcounteds: Array[StringName] = []
 ## Node "program" classes. IVCoreInitializer instances these after [member
 ## program_refcounteds], adds to [member IVGlobal.program], and adds as children
 ## to Universe. Dictionary values can be either classes or class file paths. If
-## specific instantiation or add order is needed, use [member
+## specific instantiation or add order is needed, also add to [member
 ## ordered_program_nodes].[br][br]
 ##
 ## Note for Save plugin: For save/load persistence, these Node classes can have:[br][br]
 ## [code]const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY[/code]  
 var program_nodes: Dictionary[StringName, Variant] = {
-	# Ordered
+	# Ordered for input handling
 	CameraHandler = IVCameraHandler, # remove or replace if not using IVCamera
-	Timekeeper = IVTimekeeper,
+	SpeedManager = IVSpeedManager,
 	SBGHUDsState = IVSBGHUDsState, # (likely to have input in future)
 	BodyHUDsState = IVBodyHUDsState,
 	InputHandler = IVInputHandler,
 	SaveManager = IVSaveManager, # auto removed if plugin missing or disabled
 	# Unordered
+	Timekeeper = IVTimekeeper,
 	Scheduler = IVScheduler,
 	ViewManager = IVViewManager,
 }
 ## Include keys from [member program_nodes] that need to be instantiated or
-## added first and in order. Note: all are instantiated (in specified order),
-## then all are added (in specified order).[br][br]
+## added first and in order. Note: all are instantiated in the specified order,
+## then all are added to the tree in the specified order.[br][br]
 ##
 ## Node order determines input handling order, where last added is first
-## to recieve input. We mainly need to intercept ctrl-Q, ctrl-S, etc., actions
-## before CameraHandler or other nodes consume the Q, S, etc., actions.
-var ordered_program_nodes: Array[StringName] = [&"CameraHandler", &"Timekeeper",
+## to recieve input.
+var ordered_program_nodes: Array[StringName] = [&"CameraHandler", &"SpeedManager",
 	&"SBGHUDsState", &"BodyHUDsState", &"InputHandler", &"SaveManager"]
 
 ## Include the names of Nodes that already exist in the scene tree that you want
-## added to [member IVGlobal.program] for easy access.
+## added to [member IVGlobal.program] for convenient access.
 var tree_program_nodes: Array[StringName] = [
 	&"FragmentIdentifier",
 	&"TopUI",

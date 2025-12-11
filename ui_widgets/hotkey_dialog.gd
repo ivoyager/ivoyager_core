@@ -32,7 +32,14 @@ var _in_use_color: Color
 var _input_event_key: InputEventKey
 var _action: StringName
 var _index: int
-var _layout: Array
+
+# FIXME: Reserved hotkeys need to be kept in IVInputMapManager so any GUI has
+# access.
+
+var _section_content: Dictionary[StringName, Array]
+
+
+#var _layout: Array
 
 @onready var _dialog_label: Label = %DialogLabel
 @onready var _key_label: Label = %KeyLabel
@@ -102,10 +109,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 
 func open(action: StringName, index: int, action_label_str: StringName, key_as_text: StringName,
-		layout: Array) -> void:
+		section_content: Dictionary[StringName, Array]) -> void:
 	_action = action
 	_index = index
-	_layout = layout
+	_section_content = section_content
 	_input_event_key = null
 	if key_as_text:
 		_dialog_label.text = &"LABEL_PRESS_A_KEY_TO_CHANGE"
@@ -166,10 +173,10 @@ func _scancode_is_available(scancode_w_mods: int) -> bool:
 	if !actions_by_scancode_w_mods.has(scancode_w_mods):
 		return true
 	var scancode_action: StringName = actions_by_scancode_w_mods[scancode_w_mods]
-	# prohibit only if it is in layout (user can overwrite hidden actions)
-	for column_array: Array in _layout:
-		for dict: Dictionary in column_array:
-			if dict.has(scancode_action):
+	for header in _section_content:
+		var section := _section_content[header]
+		for action: StringName in section:
+			if action == scancode_action:
 				return false
 	return true
 
@@ -179,13 +186,17 @@ func _get_scancode_action_text(scancode_w_mods: int) -> StringName:
 	if !actions_by_scancode_w_mods.has(scancode_w_mods):
 		return "unknown"
 	var scancode_action: StringName = actions_by_scancode_w_mods[scancode_w_mods]
-	for column_array: Array in _layout:
-		for dict: Dictionary in column_array:
-			if dict.has(scancode_action):
-				var header: StringName = dict.header
-				var item: StringName = dict[scancode_action]
-				return tr(header) + " / " + tr(item)
-	return "unknown"
+	
+	return _input_map_manager.action_texts.get(scancode_action, "unknown")
+	
+	#for header in _section_content:
+		#var section_array := _section_content[header]
+		#for hotkey_array: Array in section_array:
+			#var action: StringName = hotkey_array[1]
+			#if action == scancode_action:
+				#var hotkey_text: StringName = hotkey_array[0]
+				#return tr(hotkey_text)
+	#return "unknown"
 
 
 func _keep_focus() -> void:

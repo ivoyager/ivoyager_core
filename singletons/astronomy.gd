@@ -19,33 +19,32 @@
 # *****************************************************************************
 extends Node
 
-## Added as singleton "IVAstronomy".
+## Singleton [IVAstronomy] provides astronomy constants, properites, and methods.
 ##
-## This singleton has astronomy specific constants, static variables, and
-## static functions. It's an autoload so that it can be replaced, e.g., for
-## a fictional universe with a different gravitational constant (see
-## ivoyager_core/override_template.cfg).[br][br]
+## This class is an autoload so that it (and its constants) can be replaced,
+## e.g., for a fictional universe with a different gravitational constant (to do
+## that, see res://addons/ivoyager_core/ivoyager_override_template.cfg).[br][br]
 ##
-## Epoch time is J2000.0 (noon on Jan 1, 2000). Data table values specified
-## otherwise are converted.[br][br]
+## Internal epoch time is always J2000.0 (noon on Jan 1, 2000). Data table
+## values specified otherwise are converted.[br][br]
 ##
 ## In this simulator, always assume that the coordinate system is ecliptic
 ## unless indicated otherwise. In ecliptic space, the z-axis points to ecliptic
 ## north and the x-axis points to vernal equinox.[br][br]
 ##
-## WARNING/Commentary: Astronomers never tell you what coordinate system they
-## are working in! For example, right accension / declination specification is
-## always (I think) in equatorial coordinates, while most other things are
-## ecliptic. Except moon orbits, of course. Unless it is The Moon...[br][br]
+## Commentary: Astronomers don't like to tell you what coordinate system they
+## are working in. For example, right accension / declination specification is
+## always (I think) in Earth's equatorial coordinates, while most other things
+## are ecliptic. Except moon orbits, of course. Unless it is THE Moon...[br][br]
 ##
-## See also static methods in [IVOrbit].[br][br]
+## See also static methods in [IVOrbit] for orbital mechanics.[br][br]
 ##
-## TODO: For games or sims spanning 10000s of years or more, the sim will need
-## a reset to a new "epoch" time. The problem is that [param time] in seconds
-## will lose precision if it gets too large. (Fortunatly, Godot uses double
-## precision for float, so we're good for quite a range...) Probably we need a
-## static var here "epoch_offset_j2000". To update to J10000, all "..._at_epoch"
-## and "..._time" members in all objects would need recalculation.
+## TODO: Define "epoch" and "julian_period" here for applications that span
+## millions of years. It should be possible to reset the whole sim to a new
+## epoch (on signal) after some very long interval. The problem is that
+## [param time] in seconds will lose precision if it gets too large. Fortunatly,
+## GDScript uses double precision for float, so we're ok for quite a range. 
+
 
 const G := 6.67430e-11 * IVUnits.METER ** 3 / (IVUnits.KG * IVUnits.SECOND ** 2)
 const EPOCH_JULIAN_DAY := 2451545.0 # J2000; noon on Jan 1, 2000
@@ -67,7 +66,7 @@ const EQUATORIAL_TO_ECLIPTIC_ROTATION := Basis(
 
 ## Returns a unit vector in ecliptic Cartesian coordinates for given angles in
 ## equatorial coordinates.
-static func get_ecliptic_unit_vector_from_equatorial_angles(right_ascension: float,
+func get_ecliptic_unit_vector_from_equatorial_angles(right_ascension: float,
 		declination: float) -> Vector3:
 	const COS_OBL := cos(OBLIQUITY_OF_THE_ECLIPTIC)
 	const SIN_OBL := sin(OBLIQUITY_OF_THE_ECLIPTIC)
@@ -80,7 +79,7 @@ static func get_ecliptic_unit_vector_from_equatorial_angles(right_ascension: flo
 
 ## Returns Vector3(right_ascension, declination, radius) in equatorial coordinates
 ## for [param vector3] (of any length) in ecliptic Cartesian coordinates.
-static func get_equatorial_coordinates_from_ecliptic_vector(vector3: Vector3) -> Vector3:
+func get_equatorial_coordinates_from_ecliptic_vector(vector3: Vector3) -> Vector3:
 	var r := vector3.length()
 	if r == 0.0:
 		return Vector3.ZERO
@@ -97,7 +96,7 @@ static func get_equatorial_coordinates_from_ecliptic_vector(vector3: Vector3) ->
 ## a unit vector). Note: If the specified z_axis is exacly in the direction of
 ## vernal equinox, it will be rotated 0.0001 radians around the y-axis
 ## (this is necessary in order to have a determined x-axis).
-static func get_basis_from_z_axis_and_vernal_equinox(z_axis: Vector3) -> Basis:
+func get_basis_from_z_axis_and_vernal_equinox(z_axis: Vector3) -> Basis:
 	assert(z_axis.is_normalized())
 	const SINGULARITY_BUMP := 0.0001
 	const ECLIPTIC_Y := Vector3(0, 1, 0)
@@ -114,7 +113,7 @@ static func get_basis_from_z_axis_and_vernal_equinox(z_axis: Vector3) -> Basis:
 ## Note: If the specified north is exacly in the direction of vernal equinox,
 ## it will be bumped 0.0001 radians in the direction of ecliptic north (this
 ## is necessary in order to have a determined x-axis).
-static func get_ecliptic_basis_from_equatorial_north(right_ascension: float, declination: float
+func get_ecliptic_basis_from_equatorial_north(right_ascension: float, declination: float
 		) -> Basis:
 	const SINGULARITY_BUMP := 0.0001
 	const ECLIPTIC_Y := Vector3(0, 1, 0)

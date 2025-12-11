@@ -72,7 +72,7 @@ var _defaults: Dictionary[StringName, Variant] = {
 	&"label3d_symbols_size_percent" : 100,
 	&"point_size" : 3,
 	&"hide_hud_when_close" : true, # restart or load required
-
+	
 	# graphics/performance
 	&"starmap" : IVGlobal.StarmapSize.STARMAP_16K,
 }
@@ -85,6 +85,7 @@ func _ready() -> void:
 	IVStateManager.core_init_preinitialized.connect(_on_core_init_preinitialized)
 
 
+## Add or change a default setting.
 ## For preinitializer script only! Defaults become read-only at cache init.
 ## Supply [param value] = null to remove a setting.
 func set_default(key: StringName, value: Variant) -> void:
@@ -93,6 +94,10 @@ func set_default(key: StringName, value: Variant) -> void:
 		_defaults.erase(key)
 	else:
 		_defaults[key] = value
+
+
+func has_setting(key: StringName) -> bool:
+	return _defaults.has(key)
 
 
 ## If calling with [param suppress_caching] = true, call [method cache_now]

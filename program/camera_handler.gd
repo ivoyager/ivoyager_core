@@ -107,6 +107,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	delta /= Engine.time_scale
 	if _drag_vector:
 		match _drag_mode:
 			DRAG_MOVE:

@@ -23,23 +23,53 @@ extends SubViewport
 ## Decodes unique id from on-screen shader fragment (e.g., an orbit line or
 ## asteroid point) at the mouse position.
 ##
-## This is a hack. It won't be necessary when Compositors is fully implemented
-## ([url]https://github.com/godotengine/godot-proposals/issues/7916[/url])
+## WARNING: This script is expensive due to its [method Texture2D.get_image]
+## sample. See Profiler Notes below.[br][br]
+##
+## This is also a hack that won't be necessary when Compositors is fully
+## implemented (see
+## [url=https://github.com/godotengine/godot-proposals/issues/7916]proposal[/url]),
 ## which will allow shaders to talk back via buffers. However, it might
 ## still be needed for Compatibility renderer for HTML5 builds.[br][br]
 ##
-## The system works well, but not under all settings. It's a little iffy when
+## The system works well but not under all settings. It's a little iffy when
 ## using camera auto exposure. Rendering/TAA (and probably other settings)
 ## breaks it completely.[br][br]
 ##
-## We capture a tiny square around the mouse so the texture.get_image() read
-## from GPU is as cheap as possible.[br][br]
-##
-## Shader fragments broadcast every 3rd pixel in a grid pattern bounded by
-## fragment_range. This works well for orbit lines and points with
-## point_size >= 3.[br][br]
+## The screen around the mouse is projected onto this class's tiny [SubViewport]
+## (361 pixels with default [member fragment_range] == 9) so that the
+## get_image() sample is as cheap as possible. Shader fragments broadcast their
+## "identity" every 3rd pixel in a grid pattern bounded by [member fragment_range].
+## Default 9 works well for orbit lines and points with point_size >= 3.[br][br]
 ##
 ## This class can be safely omitted from scene tree construction if not wanted.
+## Or you can achieve the same effect by setting [member disable] = true.[br][br]
+##
+## [b]Profiler Notes:[/b][br][br]
+##
+## According to the Profiler, _on_frame_post_draw() with the Texture2D.get_image()
+## sample is far more expensive than all other script methods combined at ~15.5 ms.
+## However, I'm not sure I believe the profiler. The amount seems to be a
+## fixed proportion of frame time that does not vary at all with the size of the
+## viewport texture. The default texture size is 19x19 (361) pixels. Scaling
+## this down to 49 pixels or up to 32761 pixels makes no perceptible difference
+## on the ~15.5 ms.[br][br]
+##
+## However, reducing Max FPS by 1 Hz removes the "problem":[br][br]
+## * ~15.5 ms with Max FPS set to 0 "no limit" or 60. Not sensitive to pixels sampled.[br]
+## * ~1.4 ms with Max FPS set to 59 or any lower value. Sensitive to pixels sampled,
+##   but only roughly doubles going from default 361 to 32761.[br]
+## (Above is a somewhat higher end desktop)[br][br]
+##
+## Repeating above on laptop Dell XPS 15 9500, NVIDIA GeForce GTX 1650 Ti:[br][br]
+##
+## * ~11-14 ms with Max FPS set to 0 or 60.[br]
+## * ~8-10 ms with Max FPS 59 or lower.[br][br]
+##
+## So? This node is expensive even at 1.4 ms. Above result motivates me to set
+## Max FPS = 59 for projects using this class. However, I haven't seen anything
+## like a frame slowdown using it on desktop or laptop. Not even with our HTML5
+## web Planetarium. So use at your own discretion.
 
 signal fragment_changed(id: int) # -1 on target loss; get data from 'fragment_data'
 
@@ -55,10 +85,19 @@ const CALIBRATION: Array[float] = [0.25, 0.375, 0.5, 0.625, 0.75] # >=1.0 will b
 const COLOR_HALF_STEP := Color(0.015625, 0.015625, 0.015625, 0.0)
 
 
-# project vars
-var drop_id_frames := 40 # tunes the loss of 'current' id by time
-var drop_id_mouse_movement := 20.0 # tunes the loss of 'current' id by mouse movement
-var fragment_range := 9 # multiple of 3! Going big is expensive!
+## Disables initialization and processing. This is essentially the same as
+## removing the node. Don't change at runtime!
+@export var disable := false
+## Disables updates during runtime. Use in profiling.
+@export var disable_at_runtime := false
+## Tunes the loss of current id by time. OK to change at runtime.
+@export var drop_id_frames := 40
+## Tunes the loss of current id by mouse movement. OK to change at runtime.
+@export var drop_id_mouse_movement := 20.0
+## Requires multiple of 3! This sets the size of the [method Texture2D.get_image]
+## sample. In theory, going big should be expensive, but see class file Profiler
+## Notes. Pixels sampled is (value * 2 + 1)^2. Don't change at runtime!
+@export var fragment_range := 9 
 
 # read-only!
 var current_id := -1
@@ -178,6 +217,9 @@ static func encode_vec3(id: int) -> Vector3:
 
 
 func _ready() -> void:
+	set_process(false)
+	if disable:
+		return
 	assert(fragment_range % 3 == 0)
 	disable_3d = true
 	render_target_update_mode = UPDATE_ALWAYS
@@ -190,10 +232,11 @@ func _ready() -> void:
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
 	IVStateManager.core_initialized.connect(_configure_for_core_inited)
 	IVStateManager.run_state_changed.connect(set_process)
-	set_process(false)
 
 
 func _process(_delta: float) -> void:
+	if disable_at_runtime:
+		return
 	# 'fragment_cycler' drives the calibration/value cycle of fragment shaders
 	_cycle_step += 1
 	if _cycle_step == _n_cycle_steps:
@@ -285,6 +328,9 @@ func _configure_for_core_inited() -> void:
 
 
 func _on_screen_sampler_draw() -> void:
+	if disable_at_runtime:
+		return
+		
 	# Copy a tiny square of root viewport texture to this viewport.
 	_src_rect.position = _world_controller.mouse_position - _src_offset
 	_screen_sampler.draw_texture_rect_region(_root_texture, _picker_rect, _src_rect)
@@ -292,6 +338,9 @@ func _on_screen_sampler_draw() -> void:
 
 
 func _on_frame_post_draw() -> void:
+	if disable_at_runtime:
+		return
+		
 	# Grab image from this viewport; scan pixels for shaders signaling id.
 	
 	_screen_sampler.queue_redraw()

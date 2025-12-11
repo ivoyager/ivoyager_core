@@ -237,37 +237,117 @@ static var defaults: Dictionary[StringName, Variant] = {
 	&"quit" : [
 		{&"event_class" : &"InputEventKey", &"keycode" : KEY_Q, &"ctrl_pressed" : true}
 	],
-	&"save_quit" : [
-		{&"event_class" : &"InputEventKey", &"keycode" : KEY_Q, &"alt_pressed" : true}
-	],
 	
-	# Used by ProjectCyclablePanels GUI mod (which is used by Planetarium)
-	&"cycle_next_panel" : [
-		{&"event_class" : &"InputEventKey", &"keycode" : KEY_QUOTELEFT}
-	],
-	&"cycle_prev_panel" : [
-		{&"event_class" : &"InputEventKey", &"keycode" : KEY_QUOTELEFT, &"shift_pressed" : true}
-	],
+	# TODO: Cycle focus by panel for faster keyboard selection...
+	#&"cycle_next_panel" : [],
+	#&"cycle_prev_panel" : [],
 }
+
+
+## Hotkey text is used by [IVHotkeysPopup], [IVViewEdit] (TODO) and possibly 
+## other GUI that manage hotkeys.
+static var action_texts: Dictionary[StringName, StringName] = {
+	&"toggle_fullscreen" : &"LABEL_TOGGLE_FULLSCREEN",
+	&"toggle_options" : &"LABEL_OPTIONS",
+	&"toggle_hotkeys" : &"LABEL_HOTKEYS",
+	&"load_file" : &"LABEL_LOAD_FILE",
+	&"quickload" : &"LABEL_QUICKLOAD",
+	&"save_as" : &"LABEL_SAVE_AS",
+	&"quicksave" : &"LABEL_QUICKSAVE",
+	&"quit" : &"LABEL_QUIT",
+	&"save_quit" : &"LABEL_SAVE_AND_QUIT",
+
+	&"toggle_all_gui" : &"LABEL_SHOW_HIDE_ALL_GUI",
+	&"toggle_orbits" : &"LABEL_SHOW_HIDE_ORBITS",
+	&"toggle_names" : &"LABEL_SHOW_HIDE_NAMES",
+	&"toggle_symbols" : &"LABEL_SHOW_HIDE_SYMBOLS",
+
+	&"incr_speed" : &"LABEL_SPEED_UP",
+	&"decr_speed" : &"LABEL_SLOW_DOWN",
+	&"reverse_time" : &"LABEL_REVERSE_TIME",
+	&"toggle_pause" : &"LABEL_TOGGLE_PAUSE",
+	
+	&"select_up" : &"LABEL_UP",
+	&"select_down" : &"LABEL_DOWN",
+	&"select_left" : &"LABEL_LAST",
+	&"select_right" : &"LABEL_NEXT",
+	&"select_forward" : &"LABEL_FORWARD",
+	&"select_back" : &"LABEL_BACK",
+	&"next_star" : &"LABEL_SELECT_SUN",
+	&"next_planet" : &"LABEL_NEXT_PLANET",
+	&"previous_planet" : &"LABEL_LAST_PLANET",
+	&"next_nav_moon" : &"LABEL_NEXT_NAV_MOON",
+	&"previous_nav_moon" : &"LABEL_LAST_NAV_MOON",
+	&"next_moon" : &"LABEL_NEXT_ANY_MOON",
+	&"previous_moon" : &"LABEL_LAST_ANY_MOON",
+	
+	&"camera_up" : &"LABEL_MOVE_UP",
+	&"camera_down" : &"LABEL_MOVE_DOWN",
+	&"camera_left" : &"LABEL_MOVE_LEFT",
+	&"camera_right" : &"LABEL_MOVE_RIGHT",
+	&"camera_in" : &"LABEL_MOVE_IN",
+	&"camera_out" : &"LABEL_MOVE_OUT",
+	&"recenter" : &"LABEL_RECENTER",
+	&"pitch_up" : &"LABEL_PITCH_UP",
+	&"pitch_down" : &"LABEL_PITCH_DOWN",
+	&"yaw_left" : &"LABEL_YAW_LEFT",
+	&"yaw_right" : &"LABEL_YAW_RIGHT",
+	&"roll_left" : &"LABEL_ROLL_LEFT",
+	&"roll_right" : &"LABEL_ROLL_RIGHT",
+}
+
+
+
 
 var file_name := "input_map.ivbinary"
 var file_version := "0.0.23" # update when old cache file might be problematic
 var cache_handler: IVCacheHandler
 var current: Dictionary[StringName, Variant] = {}
 
-# project vars
 var reserved_scancodes: Array[int] = [] # user can't overwrite w/ or w/out key mods
 var event_classes: Dictionary[StringName, Object] = { # we'll expand this as needed
 	&"InputEventKey" : InputEventKey,
 	&"InputEventJoypadButton" : InputEventJoypadButton,
 	}
 
-# read-only!
+# FIXME: Make private to force API development and use
 var actions_by_scancode_w_mods: Dictionary[int, StringName]= {}
+
+
+# WIP: Reserve hotkeys here (not IVHotkeysPopup) so IVViewEdit or others can use.
+# IVViewEdit implementation is confusing because it can be persisted via
+# cache or gamesave. Should views persist their own hotkeys? If so, how does
+# that work with this class?
+
+### TODO:
+#var _hotkey_reserved_by: Dictionary[int, StringName] = {}
+#
+#
+### Is hotkey reserved. See [member get_hotkey_reserved_by] and [member set_hotkey_reserved_by].
+#func is_hotkey_reserved(scancode_w_mods: int) -> bool:
+	#return _hotkey_reserved_by.has(scancode_w_mods)
+#
+#
+#
+### Return may be translated or untranslated label text that identifies the
+### the current hotkey owner. [IVHotkeysPopup], [IVViewEdit] (TODO) and possibly
+### other GUI can reserve hotkeys, so this can be an action text key or
+### something else. (TODO: "View: <user_text>" from IVViewEdit)
+#func get_hotkey_reserved_by(scancode_w_mods: int) -> StringName:
+	#return _hotkey_reserved_by.get(scancode_w_mods, &"")
+#
+#
+#
+### [IVHotkeysPopup], [IVViewEdit] (TODO) and possibly other GUI can reserve
+### hotkeys. [param who] may be translated or untranslated label text that
+### identifies the new hotkey owner.
+#func set_hotkey_reserved_by(scancode_w_mods: int, who: StringName) -> void:
+	#_hotkey_reserved_by[scancode_w_mods] = who
 
 
 
 func _init() -> void:
+	defaults.make_read_only()
 	cache_handler = IVCacheHandler.new(defaults, current, file_name, file_version)
 	cache_handler.current_changed.connect(_reset_scancodes_and_input_map)
 	IVStateManager.core_init_program_objects_instantiated.connect(_init_actions)

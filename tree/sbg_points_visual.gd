@@ -1,4 +1,4 @@
-# sbg_points.gd
+# sbg_points_visual.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -17,18 +17,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVSBGPoints
+class_name IVSBGPointsVisual
 extends MeshInstance3D
 
-## Visual points of a [IVSmallBodiesGroup] instance.
+## Visual points of an [IVSmallBodiesGroup].
 ##
-## Uses one of the 'points'
-## shaders ('points.x.x.gdshader', where x.x represents a shader variant).
-## Point shaders maintain vertex positions using their own orbital math.
+## Uses one of the points shaders "points.x.x.gdshader", where x.x represents
+## shader variants. Point shaders maintain vertex positions using their own
+## orbital calculations.[br][br]
 ##
-## Points shader variants:
-##    '.l4l5.' - for lagrange points L4 & L5.
-##    '.id.' - broadcasts identity for IVFragmentIdentifier.
+## Points shader variants:[br]
+##    "l4l5" - for lagrange points L4 & L5.[br]
+##    "id" - broadcasts identity for IVFragmentIdentifier.[br][br]
 ##
 ## Several subclass _init() overrides are provided to bypass IVFragmentIdentifier
 ## or to supply a different shader.
@@ -49,10 +49,8 @@ const L4L5_ARRAY_FLAGS = (
 )
 
 
-static var _fragment_identifier: IVFragmentIdentifier # optional
-static var _sbg_huds_state: IVSBGHUDsState
-static var _is_class_instanced := false
-
+var _fragment_identifier: IVFragmentIdentifier = IVGlobal.program.get(&"FragmentIdentifier") # optional
+var _sbg_huds_state: IVSBGHUDsState = IVGlobal.program[&"SBGHUDsState"]
 
 var _sbg_alias: StringName
 var _color: Color
@@ -73,10 +71,6 @@ var _bypass_fragment_identifier := false
 
 func _init(sbg: IVSmallBodiesGroup) -> void:
 	name = "SBGPoints" + sbg.sbg_alias
-	if !_is_class_instanced:
-		_is_class_instanced = true
-		_fragment_identifier = IVGlobal.program.get(&"FragmentIdentifier")
-		_sbg_huds_state = IVGlobal.program[&"SBGHUDsState"]
 	_sbg_alias = sbg.sbg_alias
 	_lp_integer = sbg.lp_integer
 	if _lp_integer == 4:
