@@ -204,7 +204,10 @@ var utc_leap_seconds := 37
 ## If true, the simulator will start at real-world (present) date and UT
 ## time from user OS. Overrides [member IVCoreSettings.start_time_date_clock].
 var start_real_world_time := false
-
+## If true, the simulator will start synchronized to OS time. Requires [member
+## IVCoreSettings.allow_time_setting] == true (not default). Overrides other
+## "start" time and speed settings.
+var start_os_time_sync_on := false
 
 # persisted
 var _time: float
@@ -520,6 +523,8 @@ func _on_core_initialized() -> void:
 
 
 func _on_about_to_start_simulator(new_game: bool) -> void:
+	_last_clock_time_floored = -99999999 # forces JDN update
+	_last_clock_time_rounded = -99999999 # forces Gregorian calendar update
 	_speed_multiplier = _speed_manager.speed_multiplier
 	if terrestrial_time_clock_user_setting:
 		terrestrial_time_clock = (IVSettingsManager.has_setting(&"terrestrial_time_clock")
@@ -533,16 +538,16 @@ func _on_about_to_start_simulator(new_game: bool) -> void:
 					+ " Calculating UT using Earth constants.")
 		elif recalculate_universal_time_offset:
 			universal_time_offset = calculate_present_universal_time_offset()
-			print(universal_time_offset)
 	if new_game: # need game start _time & _speed_index (otherwise persisted from game load)
-		if start_real_world_time or _speed_manager.os_time_sync_on:
+		if start_os_time_sync_on:
+			synchronize_time_with_os()
+			return
+		elif start_real_world_time:
 			_time = get_time_from_os()
 		else:
 			var start_time_date_clock := IVCoreSettings.start_time_date_clock
 			_time = get_time_at_date_clock_array(IVCoreSettings.start_time_date_clock,
 					IVCoreSettings.start_time_is_terrestrial_time)
-	_last_clock_time_floored = -99999999 # forces JDN update
-	_last_clock_time_rounded = -99999999 # forces Gregorian calendar update
 	_process_time(true) # signal later on ui_dirty
 	
 	#debug_print_present_offsets()
