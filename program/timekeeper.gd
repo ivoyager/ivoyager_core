@@ -92,17 +92,15 @@ const UT_ROTATION_RATE := 0.00007292115024 / IVUnits.SECOND
 ## Earth orbit mean motion for calculated universal time.
 const UT_ORBIT_MEAN_MOTION := 0.00000019909866 / IVUnits.SECOND
 ## Offset for calculated universal time. Reproduces the 69.184 s UT1 lag behind
-## TT at present time (Dec 2025) given the two "UT_" constants. The lag will
-## diverge from actual lag based on calculated Earth rotation and orbit in
+## TT at roughly present time (~Dec 2025) given the two "UT_" constants. The lag
+## will diverge from actual lag based on calculated Earth rotation and orbit in
 ## addition to future UTC leap seconds. A current value can be printed using
 ## [method debug_print_present_offsets].
 const UT_OFFSET := 0.00072434799
 
 
 const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY
-const PERSIST_PROPERTIES: Array[StringName] = [
-	&"_time",
-]
+const PERSIST_PROPERTIES: Array[StringName] = [&"_time"]
 
 
 ## If true, [member clock_time] indicates Terrestrial Time (TT), otherwise,
@@ -153,7 +151,8 @@ var julian_day_number: int: get = get_julian_day_number
 ## [member universal_time_body]. The default value of [member universal_time_offset]
 ## reproduces the actual 69.184 second UT1 lag behind TT at present time.[br][br]
 ##
-## The fractional part of clock_time is represented in the integers of [member
+## The fractional part of clock_time is represented in the [hour, minute, second]
+## integers of [member
 ## IVGlobal.clock]. It is also used to trigger rollover of JDN ([member
 ## julian_day_number]) and Gregorian calendar date ([member IVGlobal.date]) at
 ## noon and midnight, respectively. Note that JDN and date [b]values[/b] are
@@ -195,37 +194,37 @@ var universal_time_body := &"PLANET_EARTH"
 ## precise current value is needed, set [member recalculate_universal_time_offset]
 ## = true to recalculate and set at system build.
 var universal_time_offset := 0.50410651
+
 ## If true, recalulate and set [member universal_time_offset] at system build.
-## This is only needed if you need UT clock display to be perfectly synchronized
-## with user OS time.
+## This is only needed if you are setting [member operating_system_time_sync]
+## and need UT clock display to be perfectly synchronized with user OS time.
 var recalculate_universal_time_offset := false
+
 ## Present UTC leap seconds. The last leap second was added on 2016‑12‑31.
 var utc_leap_seconds := 37
+
 ## If true, the simulator will start at real-world (present) date and UT
 ## time from user OS. Overrides [member IVCoreSettings.start_time_date_clock].
 var start_real_world_time := false
-## If true, the simulator will start synchronized to OS time. Requires [member
-## IVCoreSettings.allow_time_setting] == true (not default). Overrides other
-## "start" time and speed settings.
-var start_os_time_sync_on := false
 
-# persisted
-var _time: float
+## True if the simulator is currently synchronizing with OS. Settable if
+## [member IVCoreSettings.allow_time_setting] == true (not by default).[br][br]
+##
+## Unset by events such as game speed change and user pause.
+var operating_system_time_sync := false: set = set_operating_system_time_sync
 
-# derived
-var _julian_day_number: int
 
-# localized
+var _time: float # persisted
+var _julian_day_number: int # derived
+
 var _speed_manager: IVSpeedManager
 var _times: Array[float] = IVGlobal.times
 var _clock: Array[int] = IVGlobal.clock
 var _date: Array[int] = IVGlobal.date
 var _date_aux: Array[int] = IVGlobal.date_aux
-var _allow_time_setting := IVCoreSettings.allow_time_setting
 var _network_state := IVStateManager.NetworkState.NO_NETWORK
 
-
-var _speed_multiplier: float # managed by IVSpeedManager; negative if reversed_time
+var _speed_multiplier: float # updated to follow IVSpeedManager
 var _ut_body: IVBody
 var _last_clock_time_floored := -99999999
 var _last_clock_time_rounded := -99999999
@@ -339,11 +338,12 @@ static func get_clock_elements_at_clock_time(clock_time: float, clock: Array[int
 
 func _ready() -> void:
 	IVStateManager.core_initialized.connect(_on_core_initialized)
-	IVStateManager.about_to_start_simulator.connect(_on_about_to_start_simulator)
+	IVStateManager.system_tree_ready.connect(_on_system_tree_ready)
 	IVStateManager.network_state_changed.connect(_on_network_state_changed)
 	IVStateManager.run_state_changed.connect(_on_run_state_changed) # starts/stops
 	IVStateManager.about_to_free_procedural_nodes.connect(_on_about_to_free_procedural_nodes)
 	IVGlobal.ui_dirty.connect(_on_ui_dirty)
+	IVSettingsManager.changed.connect(_settings_listener)
 	process_mode = PROCESS_MODE_PAUSABLE # must be pausible irrispective of Universe
 	set_process(false) # changes with signal run_state_changed
 	set_process_priority(-100) # always first when processing!
@@ -357,8 +357,8 @@ func _process(delta: float) -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_IN:
-		if _speed_manager.os_time_sync_on:
-			synchronize_time_with_os()
+		if operating_system_time_sync:
+			synchronize_with_operating_system()
 
 
 # *****************************************************************************
@@ -366,13 +366,13 @@ func _notification(what: int) -> void:
 
 func set_time(new_time: float) -> void:
 	const IS_CLIENT = IVStateManager.NetworkState.IS_CLIENT
-	if not _allow_time_setting:
+	if not IVCoreSettings.allow_time_setting:
 		return
 	if _network_state == IS_CLIENT:
 		return
 	var previous_time := _time
 	_time = new_time
-	_speed_manager.os_time_sync_on = false
+	operating_system_time_sync = false
 	_process_time()
 	time_set.emit(previous_time)
 
@@ -385,15 +385,54 @@ func get_julian_day_number() -> int:
 	return _julian_day_number
 
 
-func set_terrestrial_time_clock(use_terrestrial_time_clock: bool) -> void:
-	if terrestrial_time_clock == use_terrestrial_time_clock:
+func set_terrestrial_time_clock(tt_clock: bool) -> void:
+	if terrestrial_time_clock == tt_clock:
 		return
-	terrestrial_time_clock = use_terrestrial_time_clock
+	terrestrial_time_clock = tt_clock
 	if not IVStateManager.started:
 		return
 	_process_time() # in case we are paused
 
+
+func set_operating_system_time_sync(sync_on: bool) -> void:
+	const IS_CLIENT = IVStateManager.NetworkState.IS_CLIENT
+	if not IVCoreSettings.allow_time_setting:
+		return
+	if _network_state == IS_CLIENT:
+		return
+	if not sync_on:
+		operating_system_time_sync = false
+		return
+	if operating_system_time_sync: # already on
+		return
+	
+	if not IVStateManager.ready_system:
+		operating_system_time_sync = true
+		return # will reset on system_tree_ready
+	
+	# fix pause and speed here; time refresh by synchronize_with_operating_system()
+	IVStateManager.set_user_paused(false)
+	_speed_manager.set_real_time_speed() # may emit os_time_sync_disrupted
+	operating_system_time_sync = true
+	synchronize_with_operating_system()
+
+
 # *****************************************************************************
+
+## Sets [member operating_system_time_sync], or refreshes time sync if already
+## set.
+func synchronize_with_operating_system() -> void:
+	if not operating_system_time_sync:
+		set_operating_system_time_sync(true)
+		return
+	var previous_time := _time
+	_time = get_time_from_os()
+	_process_time()
+	time_set.emit(previous_time)
+	prints("Synchronized time with operating system", _date, _clock)
+	
+	
+
 
 func calculate_present_universal_time_offset() -> float:
 	const SECOND := IVUnits.SECOND
@@ -423,7 +462,7 @@ func debug_print_present_offsets() -> void:
 ## Returns simulator time for provided date and clock elements. Assumes valid
 ## input! To test valid Gregorian date, use [method is_valid_gregorian_date].
 func get_time_at_date_clock_elements(year: int, month: int, day: int,
-		hour := 12, minute := 0, second := 0, is_terrestrial_time_clock := false) -> float:
+		hour := 12, minute := 0, second := 0, tt_clock_time := false) -> float:
 	const SECOND := IVUnits.SECOND
 	const MINUTE := IVUnits.MINUTE
 	const HOUR := IVUnits.HOUR
@@ -431,7 +470,7 @@ func get_time_at_date_clock_elements(year: int, month: int, day: int,
 	var jdn := get_jdn_at_gregorian_date(year, month, day)
 	var epoch_days := jdn - JULIAN_DAY_NUMBER_AT_J2000 - 0.5
 	var result_time := epoch_days * DAY
-	if not is_terrestrial_time_clock:
+	if not tt_clock_time:
 		var ct := get_clock_time_at_time(epoch_days * DAY, false)
 		var delta := ct - epoch_days
 		# Delta will be small unless we are going out 10000s of years or messing
@@ -447,17 +486,17 @@ func get_time_at_date_clock_elements(year: int, month: int, day: int,
 
 ## See [method get_time_at_date_clock_elements]. The array must contain exactly
 ## six elements: year, month, day, hour, minute, second.
-func get_time_at_date_clock_array(array: Array[int], is_terrestrial_time_clock := false) -> float:
+func get_time_at_date_clock_array(array: Array[int], tt_clock_time := false) -> float:
 	assert(array.size() == 6)
 	return get_time_at_date_clock_elements(array[0], array[1], array[2],
-			array[3], array[4], array[5], is_terrestrial_time_clock)
+			array[3], array[4], array[5], tt_clock_time)
 
 
 ## Clock time is in body synodic days for UT (default), or in units [constant
-## IVUnits.DAY] for TT (if [param is_terrestrial_time_clock] == true).
-func get_clock_time_at_time(at_time: float, is_terrestrial_time_clock := false) -> float:
+## IVUnits.DAY] for TT (if [param tt_clock_time] == true).
+func get_clock_time_at_time(at_time: float, tt_clock_time := false) -> float:
 	const DAY := IVUnits.DAY
-	if is_terrestrial_time_clock:
+	if tt_clock_time:
 		return at_time / DAY
 	if is_instance_valid(_ut_body):
 		return get_synodic_days_at_body_at_time(_ut_body, at_time, universal_time_offset)
@@ -486,33 +525,11 @@ func get_time_from_os() -> float:
 
 
 func set_time_from_date_clock_elements(year: int, month: int, day: int,
-		hour := 12, minute := 0, second := 0, is_terrestrial_time_clock := false) -> void:
+		hour := 12, minute := 0, second := 0, tt_clock_time := false) -> void:
 	var new_time := get_time_at_date_clock_elements(year, month, day, hour, minute, second,
-			is_terrestrial_time_clock)
+			tt_clock_time)
 	set_time(new_time)
 
-
-func synchronize_time_with_os(sync_on := true) -> void:
-	const IS_CLIENT = IVStateManager.NetworkState.IS_CLIENT
-	var real_time_speed := _speed_manager.speeds.find(IVUnits.SECOND)
-	assert(real_time_speed != -1, "IVSpeedManager.speeds does not have a real-time value")
-	if not _allow_time_setting:
-		return
-	if _network_state == IS_CLIENT:
-		return
-	if not sync_on:
-		_speed_manager.os_time_sync_on = false
-		return
-	IVStateManager.set_user_paused(false)
-	if not _speed_manager.os_time_sync_on:
-		_speed_manager.set_reversed_time(false)
-		_speed_manager.set_speed_index(real_time_speed)
-		_speed_manager.os_time_sync_on = true
-	var previous_time := _time
-	_time = get_time_from_os()
-	_process_time()
-	time_set.emit(previous_time)
-	prints("Synchronized time with operating system", _date, _clock)
 
 
 # *****************************************************************************
@@ -520,17 +537,18 @@ func synchronize_time_with_os(sync_on := true) -> void:
 func _on_core_initialized() -> void:
 	_speed_manager = IVGlobal.program[&"SpeedManager"]
 	_speed_manager.speed_changed.connect(_on_speed_changed)
+	_speed_manager.os_time_sync_disrupted.connect(_on_os_time_sync_disrupted)
 
 
-func _on_about_to_start_simulator(new_game: bool) -> void:
+func _on_system_tree_ready(new_game: bool) -> void:
+	_speed_multiplier = _speed_manager.speed_multiplier # ok to read after system_tree_built
 	_last_clock_time_floored = -99999999 # forces JDN update
 	_last_clock_time_rounded = -99999999 # forces Gregorian calendar update
-	_speed_multiplier = _speed_manager.speed_multiplier
 	if terrestrial_time_clock_user_setting:
-		terrestrial_time_clock = (IVSettingsManager.has_setting(&"terrestrial_time_clock")
-				and IVSettingsManager.get_setting(&"terrestrial_time_clock"))
-		if not IVSettingsManager.changed.is_connected(_settings_listener):
-			IVSettingsManager.changed.connect(_settings_listener)
+		if IVSettingsManager.has_setting(&"terrestrial_time_clock"):
+			terrestrial_time_clock = IVSettingsManager.get_setting(&"terrestrial_time_clock")
+		else:
+			push_warning("Setting 'terrestrial_time_clock' must be added in IVSettingsManager")
 	if universal_time_body:
 		_ut_body = IVBody.bodies.get(universal_time_body)
 		if not _ut_body:
@@ -539,18 +557,17 @@ func _on_about_to_start_simulator(new_game: bool) -> void:
 		elif recalculate_universal_time_offset:
 			universal_time_offset = calculate_present_universal_time_offset()
 	if new_game: # need game start _time & _speed_index (otherwise persisted from game load)
-		if start_os_time_sync_on:
-			synchronize_time_with_os()
+		if operating_system_time_sync:
+			operating_system_time_sync = false # needs "reset" after system_tree_ready
+			synchronize_with_operating_system()
 			return
-		elif start_real_world_time:
+		if start_real_world_time:
 			_time = get_time_from_os()
 		else:
 			var start_time_date_clock := IVCoreSettings.start_time_date_clock
 			_time = get_time_at_date_clock_array(IVCoreSettings.start_time_date_clock,
 					IVCoreSettings.start_time_is_terrestrial_time)
 	_process_time(true) # signal later on ui_dirty
-	
-	#debug_print_present_offsets()
 
 
 func _process_time(suppress_signals := false) -> void:
@@ -585,20 +602,11 @@ func _process_time(suppress_signals := false) -> void:
 			date_changed.emit()
 
 
-func _on_speed_changed() -> void:
-	_speed_multiplier = _speed_manager.speed_multiplier
-
-
-func _on_ui_dirty() -> void:
-	julian_day_number_changed.emit()
-	date_changed.emit()
-
-
 func _on_run_state_changed(running: bool) -> void:
 	set_process(running)
-	if running and _speed_manager.os_time_sync_on:
+	if running and operating_system_time_sync:
 		await get_tree().process_frame
-		synchronize_time_with_os()
+		synchronize_with_operating_system()
 
 
 func _on_about_to_free_procedural_nodes() -> void:
@@ -609,7 +617,19 @@ func _on_network_state_changed(network_state: IVStateManager.NetworkState) -> vo
 	_network_state = network_state
 
 
+func _on_speed_changed() -> void:
+	_speed_multiplier = _speed_manager.speed_multiplier
+
+
+func _on_os_time_sync_disrupted() -> void:
+	operating_system_time_sync = false
+
+
+func _on_ui_dirty() -> void:
+	julian_day_number_changed.emit()
+	date_changed.emit()
+
+
 func _settings_listener(setting: StringName, value: Variant) -> void:
-	# Only connected if use_terrestrial_time_clock_setting == true...
 	if setting == &"terrestrial_time_clock":
 		terrestrial_time_clock = value

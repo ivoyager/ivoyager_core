@@ -38,7 +38,7 @@ extends Node
 ##
 ## After [IVCoreInitializer] starup, build, and started signals (ordered). The
 ## first two always happen once on project run. The rest occur each time the
-## physical system is built. All are paired with [signal state_changed]:[br][br]
+## physical system is built. All are paired with [signal state_changed].[br][br]
 ##
 ## [signal core_initialized][br]
 ## [signal assets_preloaded][br]
@@ -49,8 +49,9 @@ extends Node
 ## (Note: [signal IVGlobal.ui_dirty] emits here.)[br]
 ## [signal simulator_started][br][br]
 ##
-## Subsequent runtime, exit and quit signals includes the following (all are
-## paired with [signal state_changed] except [signal paused_changed]):[br][br]
+## Subsequent runtime, exit and quit signals includes the following. All are
+## paired with [signal state_changed] except [signal paused_changed] (unless
+## that coincides with some other state change).[br][br]
 ##
 ## [signal run_state_changed](running: bool)[br]
 ## [signal paused_changed](paused_tree: bool, paused_by_user: bool)[br]
@@ -59,9 +60,15 @@ extends Node
 ## [signal simulator_exited][br]
 ## [signal about_to_stop_before_quit][br]
 ## [signal about_to_quit][br][br]
-## 
-## Threads should be coordinated with the following signals (and related properties
-## and methods):[br][br]
+##
+## Note that the plugin identifies "paused_by_user" as a special case of pause.
+## All "user pauses" are tree pauses, but not all tree pauses are user pauses.
+## A user pause happens when the user presses a pause button or an action key
+## for pause. A non-user pause happens when the main menu (or other "admin"
+## popup) opens from a non-user-paused state.[br][br]
+##
+## Threads should be coordinated with the following signals (and related
+## properties and methods):[br][br]
 ##
 ## [signal run_threads_allowed][br]
 ## [signal run_threads_must_stop][br]

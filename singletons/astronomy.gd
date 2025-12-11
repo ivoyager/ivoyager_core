@@ -32,18 +32,23 @@ extends Node
 ## unless indicated otherwise. In ecliptic space, the z-axis points to ecliptic
 ## north and the x-axis points to vernal equinox.[br][br]
 ##
-## Commentary: Astronomers don't like to tell you what coordinate system they
-## are working in. For example, right accension / declination specification is
-## always (I think) in Earth's equatorial coordinates, while most other things
-## are ecliptic. Except moon orbits, of course. Unless it is THE Moon...[br][br]
+## (Commentary: Astronomers always "imply" the coordinate system rather than
+## tell you directly. E.g., RA/Dec specification implies Earth's equatorial
+## coordinates, even if we are talking about Europa. This shouldn't be confused
+## with "local" equatorial coordinates used for near moon orbits (like Europa)
+## that don't use a Laplace plane. Then, of course, we have THE Moon's orbit
+## specified in ecliptic coordinates. But our Moon really is special, to be
+## fair.)[br][br]
 ##
 ## See also static methods in [IVOrbit] for orbital mechanics.[br][br]
 ##
 ## TODO: Define "epoch" and "julian_period" here for applications that span
-## millions of years. It should be possible to reset the whole sim to a new
+## 10000s of years. It should be possible to reset the whole sim to a new
 ## epoch (on signal) after some very long interval. The problem is that
-## [param time] in seconds will lose precision if it gets too large. Fortunatly,
-## GDScript uses double precision for float, so we're ok for quite a range. 
+## [param time] in seconds looses precision at large absolute values. [IVBody]
+## orbit and rotation looks good out to a million years due to use of GDScript
+## "float" (64-bit precision) but asteroid points start jump-skipping at around
+## 10000 AD (due to 32-bit shader math). 
 
 
 const G := 6.67430e-11 * IVUnits.METER ** 3 / (IVUnits.KG * IVUnits.SECOND ** 2)

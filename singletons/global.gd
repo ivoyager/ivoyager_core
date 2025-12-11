@@ -133,16 +133,20 @@ const PERSIST_PROCEDURAL := PersistMode.PERSIST_PROCEDURAL
 
 
 
-## Maintained by [IVTimekeeper]. Holds time, clock_time, and julian_day_number
-## (as a float). See [IVTimekeeper] for definitions; "time" at index [0] is
-## Terrestrial Time with J2000 epoch in units defined by [constant IVUnits.SECOND].
+## Maintained by [IVTimekeeper]. Holds [time, clock_time, julian_day_number (as
+## a whole number float)]. See [IVTimekeeper] for definitions. Simulator "time"
+## at index 0 is Terrestrial Time with J2000 epoch in units defined by
+## [constant IVUnits.SECOND].[br][br]
+##
+## Note: Indexes may be added in the future for implementation of epoch changes;
+## see TODO comment in [IVAstronomy].
 var times: Array[float] = [0.0, 0.0, 0.0]
 ## Maintained by [IVTimekeeper]. Represents the fractional part of [member
-## IVTimekeeper.clock_time] as clock integers: hour, minute, second.
+## IVTimekeeper.clock_time] as clock integers: [hour, minute, second].
 var clock: Array[int] = [0, 0, 0]
-## Maintained by [IVTimekeeper]. Holds Gregorian calendar integers: year, month, day.
+## Maintained by [IVTimekeeper]. Holds Gregorian calendar integers: [year, month, day].
 var date: Array[int] = [0, 0, 0]
-## Maintained by [IVTimekeeper]. Holds Q, YQ, YM, where Q is quarter (1 - 4)
+## Maintained by [IVTimekeeper]. Holds [Q, YQ, YM], where Q is quarter (1 - 4)
 ## and YQ and YM are cumulative counts of quarter and month since year 0. The
 ## latter two are monotonic increasing values.
 var date_aux: Array[int] = [0, 0, 0]

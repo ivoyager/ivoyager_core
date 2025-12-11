@@ -261,7 +261,7 @@ func _set_huds_state() -> void:
 func _save_time_state() -> void:
 	# If both TIME_STATE and IS_NOW flags set, we unset one depending on
 	# IVTimekeeper.os_time_sync_on.
-	if flags & ViewFlags.VIEWFLAGS_SYNC_OS_TIME and _speed_manager.os_time_sync_on:
+	if flags & ViewFlags.VIEWFLAGS_SYNC_OS_TIME and _timekeeper.operating_system_time_sync:
 		flags &= ~ViewFlags.VIEWFLAGS_TIME_STATE
 	if flags & ViewFlags.VIEWFLAGS_TIME_STATE:
 		flags &= ~ViewFlags.VIEWFLAGS_SYNC_OS_TIME
@@ -280,4 +280,4 @@ func _set_time_state() -> void:
 		_speed_manager.set_reversed_time(reversed_time)
 		IVStateManager.set_user_paused(user_paused)
 	elif flags & ViewFlags.VIEWFLAGS_SYNC_OS_TIME:
-		_timekeeper.synchronize_time_with_os()
+		_timekeeper.set_operating_system_time_sync(true)
