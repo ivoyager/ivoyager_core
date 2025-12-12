@@ -122,7 +122,7 @@ func _set_max_distance() -> void:
 
 
 func _set_layers() -> void:
-	var layers := IVCoreSettings.get_visualinstance3d_layers_for_size(_m_radius)
+	var layers := IVCoreSettings.get_visualinstance3d_layer_for_size(_m_radius)
 	layers |= IVGlobal.ShadowMask.SHADOW_MASK_FULL
 	_set_layers_recursive(_model, layers)
 

@@ -22,33 +22,33 @@ extends Node
 ## Singleton [IVAstronomy] provides astronomy constants, properites, and methods.
 ##
 ## This class is an autoload so that it (and its constants) can be replaced,
-## e.g., for a fictional universe with a different gravitational constant (to do
-## that, see res://addons/ivoyager_core/ivoyager_override_template.cfg).[br][br]
+## e.g., for a fictional universe with a different gravitational constant. For
+## autoload replacement, see
+## res://addons/ivoyager_core/ivoyager_override_template.cfg.[br][br]
 ##
 ## Internal epoch time is always J2000.0 (noon on Jan 1, 2000). Data table
 ## values specified otherwise are converted.[br][br]
 ##
 ## In this simulator, always assume that the coordinate system is ecliptic
-## unless indicated otherwise. In ecliptic space, the z-axis points to ecliptic
-## north and the x-axis points to vernal equinox.[br][br]
+## unless something indicates otherwise E.g., [IVOrbit] has a [member
+## IVOrbit.reference_basis], but that's in reference to ecliptic. In ecliptic
+## space, the z-axis points to ecliptic north and the x-axis points to vernal
+## equinox. (Commentary: Real astronomers prefer to "imply" the coordinate
+## system rather than tell you directly.)[br][br]
 ##
-## (Commentary: Astronomers always "imply" the coordinate system rather than
-## tell you directly. E.g., RA/Dec specification implies Earth's equatorial
-## coordinates, even if we are talking about Europa. This shouldn't be confused
-## with "local" equatorial coordinates used for near moon orbits (like Europa)
-## that don't use a Laplace plane. Then, of course, we have THE Moon's orbit
-## specified in ecliptic coordinates. But our Moon really is special, to be
-## fair.)[br][br]
-##
-## See also static methods in [IVOrbit] for orbital mechanics.[br][br]
+## See also [IVOrbit] for orbital mechanics.[br][br]
 ##
 ## TODO: Define "epoch" and "julian_period" here for applications that span
-## 10000s of years. It should be possible to reset the whole sim to a new
-## epoch (on signal) after some very long interval. The problem is that
-## [param time] in seconds looses precision at large absolute values. [IVBody]
-## orbit and rotation looks good out to a million years due to use of GDScript
+## 10000s of years or more. It should be possible to reset the whole sim to a
+## new epoch (on signal) after some very long interval. The problem is that
+## [param time] in seconds loses precision at large absolute values. [IVBody]
+## orbit and rotation look good out to a million years due to use of GDScript
 ## "float" (64-bit precision) but asteroid points start jump-skipping at around
 ## 10000 AD (due to 32-bit shader math). 
+
+
+# Dev note: Don't add non-Godot class dependencies in this file! These are
+# avoided here to prevent circular reference issues.
 
 
 const G := 6.67430e-11 * IVUnits.METER ** 3 / (IVUnits.KG * IVUnits.SECOND ** 2)

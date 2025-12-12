@@ -93,6 +93,12 @@ extends Node
 ## 4. [IVOrbit] for orbital mechanics. Has more roadmap related to spacecraft
 ##    thrust implementation.
 
+
+# Dev note: Avoid adding new non-Godot class dependencies in this file if
+# possible. We already IVGlobal, IVStateAuxiliary and static utility classes,
+# but these don't have any non-Godot dependencies.
+
+
 # Old notes still relevant...
 #
 # There is no NetworkLobby in base I, Voyager. It's is a very application-
@@ -286,7 +292,7 @@ var _tree_build_counter := 0
 
 
 func _ready() -> void:
-	IVStateManager.core_init_object_instantiated.connect(_on_global_project_object_instantiated)
+	core_init_object_instantiated.connect(_on_global_project_object_instantiated)
 	core_init_finished.connect(_on_core_initializer_finished)
 	IVGlobal.ui_dirty.connect(_on_ui_dirty)
 	_tree.paused = true
@@ -396,7 +402,7 @@ func allow_run(who: Object) -> void:
 
 
 
-## Build the system tree for new game.
+## Build the system tree for a new game.
 func start() -> void:
 	assert(ok_to_start)
 	ok_to_start = false

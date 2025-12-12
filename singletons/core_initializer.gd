@@ -79,6 +79,9 @@ extends Node
 ##    thrust implementation.
 
 
+# Dev note: This file has MANY non-Godot class dependencies! This is ok here
+# because only the preinitializer file should reference this singleton.
+
 
 ## If true (default), this singleton will call [method begin_init] after [member
 ## init_delay] frames. If false, external project must call [method begin_init].
