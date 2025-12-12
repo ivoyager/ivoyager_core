@@ -19,12 +19,23 @@
 # *****************************************************************************
 extends Node
 
-## Singleton [IVGlobal] provides global enums and acts as a global signal and
-## data bus.
+## Singleton [IVGlobal] provides global properties, signals, and enums.
 ##
-## Data containers (arrays and dictionaries) are usually maintained by a single
-## external class and available for all. Container references are never
-## overwritten, so it is safe to keep local references in class files.
+## Dictionaries and arrays are usually populated and/or updated by a single
+## external class. Container references are never overwritten, so it's safe
+## to keep local references in class files; this is particularly useful for
+## optimized access to simulator "time" at [member times][0].[br][br]
+##
+## Almost all signals are emitted by external code.[br][br]
+##
+## [b]Important Class File Docs[/b][br][br]
+##
+## 1. [IVUniverseTemplate] for scene tree construction.[br]
+## 2. Singletons [IVCoreInitializer], [IVCoreSettings], [IVGlobal], and
+##    [IVStateManager] for program init and state management.[br]
+## 3. [IVBody] for the physical 3D world. Also has roadmap details.[br]
+## 4. [IVOrbit] for orbital mechanics. Has more roadmap related to spacecraft
+##    thrust implementation.
 
 
 # Dev note: Don't add non-Godot class dependencies in this file! These are
@@ -39,12 +50,9 @@ signal translations_imported()
 ## This is early in [IVCoreInitializer] init before program objects have been
 ## added.
 signal data_tables_postprocessed()
-## Signal from [IVStateManager] to [IVTableSystemBuilder] to build the system
-## tree. DON'T USE THIS. Use state signals in [IVStateManager].
-signal build_system_tree_now()
 ## Emitted by [IVStateManager] immediately before simulator start. All objects
 ## that signal "something_changed" for UI should signal now. UI that polls
-## instead of responding (if any) should update too.
+## (instead of responding to signals) should update too.
 signal ui_dirty() 
 ## This signal should be emitted by whatever Camera3D class becomes current.
 ## (There is no Viewport signal so it is up to the newly active camera to signal.)
@@ -158,8 +166,6 @@ var program: Dictionary[StringName, Object] = {}
 ## that can be shared, e.g., a common sphere mesh (for all spheroid models) and
 ## a common circle mesh (for all closed orbit visuals). 
 var resources: Dictionary[StringName, Resource] = {}
-## For project use. Not used by I, Voyager.
-var project := {}
 
 ## Project can set if needed. Persisted by [IVSaveManager] if the Save plugin is present.
 var game_mod := ""

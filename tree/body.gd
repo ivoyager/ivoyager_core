@@ -128,7 +128,16 @@ extends Node3D
 ## TODO: We want to handle local stars out to some range. Each solitary star or
 ## system primary star will be a "top" body with relative position
 ## and velocity in Universe. Any larger scope will require procedural system
-## building and scene loading, which is not in our plans but could be supported.
+## building and scene loading, which is not in our plans but could be supported.[br][br]
+##
+## [b]Important Class File Docs[/b][br][br]
+##
+## 1. [IVUniverseTemplate] for scene tree construction.[br]
+## 2. Singletons [IVCoreInitializer], [IVCoreSettings], [IVGlobal], and
+##    [IVStateManager] for program init and state management.[br]
+## 3. [IVBody] for the physical 3D world. Also has roadmap details.[br]
+## 4. [IVOrbit] for orbital mechanics. Has more roadmap related to spacecraft
+##    thrust implementation.
 
 signal orbit_changed(orbit: IVOrbit, is_intrinsic: bool, precession_only: bool)
 signal rotation_chaged(is_intrinsic: bool)

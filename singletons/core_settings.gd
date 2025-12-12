@@ -110,8 +110,8 @@ var allow_fullscreen_toggle := false
 ## [IVResourceInitializer] for construction of common orbit/trajectory meshes. 
 var vertecies_per_orbit: int = 500
 ## Sets resolution of orbit/trajectory lines used by [IVSBGOrbitsVisual] (e.g.,
-## for 10000s of asteroids). See [IVResourceInitializer] for construction of
-## common orbit/trajectory meshes. 
+## for 10000s of asteroid orbits as [MultiMeshInstance3D]). See
+## [IVResourceInitializer] for construction of common orbit/trajectory meshes. 
 var vertecies_per_orbit_low_res: int = 100
 ## Defines the maximum visual extent of open conics (i.e., parabolic and hyperbolic
 ## trajectories) relative to the unit conic. See [IVResourceInitializer].
@@ -134,8 +134,6 @@ var enable_precisions := false
 ## Sets initial GUI selection and [IVCamera] location in a new game.
 var home_name := &"PLANET_EARTH"
 
-
-var home_longitude := 0.0 ## REMOVE: Not used
 
 ## Set all [member VisualInstance3D.layer] values based on size scale.
 ## See [member size_layers].
@@ -170,7 +168,7 @@ var size_layers: Array[float] = [
 var body_tables: Array[StringName] = [&"stars", &"planets", &"asteroids", &"moons", &"spacecrafts"]
 
 
-## @depricated: This is not used by the plugin and will be removed.
+## @deprecated: This is not used by the plugin and will be removed.
 var text_colors: Dictionary[StringName, Color] = {
 	great = Color.CYAN,
 	good = Color.GREEN,

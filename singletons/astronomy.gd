@@ -30,21 +30,23 @@ extends Node
 ## values specified otherwise are converted.[br][br]
 ##
 ## In this simulator, always assume that the coordinate system is ecliptic
-## unless something indicates otherwise E.g., [IVOrbit] has a [member
-## IVOrbit.reference_basis], but that's in reference to ecliptic. In ecliptic
+## unless something indicates otherwise E.g., [IVOrbit] has an [member
+## IVOrbit.reference_basis] (which is in reference to ecliptic). In ecliptic
 ## space, the z-axis points to ecliptic north and the x-axis points to vernal
-## equinox. (Commentary: Real astronomers prefer to "imply" the coordinate
-## system rather than tell you directly.)[br][br]
+## equinox. Commentary: In contrast, real astronomers never tell you the
+## coordinate system. You're just supposed to know that RA/dec specifies Earth
+## equatorial coordinates, moon orbits are "local planet equatorial" or
+## "Laplace" (unless it is THE Moon, of course), etc...[br][br]
 ##
-## See also [IVOrbit] for orbital mechanics.[br][br]
+## See also [IVOrbit] for orbital mechanics (including static methods).[br][br]
 ##
 ## TODO: Define "epoch" and "julian_period" here for applications that span
 ## 10000s of years or more. It should be possible to reset the whole sim to a
 ## new epoch (on signal) after some very long interval. The problem is that
 ## [param time] in seconds loses precision at large absolute values. [IVBody]
-## orbit and rotation look good out to a million years due to use of GDScript
+## orbit and rotation look ok out to a million years due to use of GDScript
 ## "float" (64-bit precision) but asteroid points start jump-skipping at around
-## 10000 AD (due to 32-bit shader math). 
+## 10000 AD due to 32-bit shader math. 
 
 
 # Dev note: Don't add non-Godot class dependencies in this file! These are

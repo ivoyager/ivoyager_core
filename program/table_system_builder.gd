@@ -52,7 +52,7 @@ var _sbg_builder: IVTableSBGBuilder
 
 
 func _init() -> void:
-	IVGlobal.build_system_tree_now.connect(build_system_tree)
+	IVStateManager.state_auxiliary.ready_for_system_tree_build.connect(build_system_tree)
 
 
 func build_system_tree() -> void:

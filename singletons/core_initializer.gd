@@ -21,7 +21,7 @@ extends Node
 
 ## Singleton [IVCoreInitializer] inits the Core plugin program.
 ##
-## This singleton (and [IVCoreSettings]) can be modified by config files:[br][br]
+## [IVCoreInitializer] and [IVCoreSettings] can be modified by config files:[br][br]
 ##
 ## [b]res://ivoyager_override.cfg[/b] (created by Core plugin if it doesn't exist)[br]
 ## [b]res://ivoyager_override2.cfg[/b] (overrides above if it exists)[br][br]

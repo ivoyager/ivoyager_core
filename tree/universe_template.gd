@@ -161,10 +161,10 @@ extends Node3D
 ## [IVCamera] adjusts the translation of Universe every frame to keep itself
 ## at the origin.[br][br]
 ##
-## All scale-sensitive code uses the GDScript "float", which is double-precision
-## even without compiling changes (unlike Vector types). Scale of the simulator
-## can be changed by replacing the [IVUnits] singleton with a different [constant
-## IVUnits.METER] value. See class file comments in the Planetarium's 
+## All scale-sensitive code uses the GDScript "float" that is double-precision
+## even without compiling changes (unlike Vector types). Distance scale of the
+## simulator can be changed by replacing the [IVUnits] singleton to change the
+## [constant IVUnits.METER] value. See class file comments in the Planetarium's 
 ## [url=https://github.com/ivoyager/planetarium/blob/master/planetarium/units.gd]
 ## units.gd[/url] for a running record of scale-related lighting and shadow
 ## issues and the current recommended METER value.[br][br]
