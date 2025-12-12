@@ -128,14 +128,13 @@ var preinitializers: Dictionary[StringName, Variant] = {}
 ## freeing themselves) if they are no longer needed.
 var init_refcounteds: Dictionary[StringName, Variant] = {
 	TranslationImporter = IVTranslationImporter, # self-removes
-	StateAuxiliary = IVStateAuxiliary,
 	ResourceInitializer = IVResourceInitializer, # self-removes
 	TableInitializer = IVTableInitializer, # self-removes
 	AssetPreloader = IVAssetPreloader,
 }
 ## Include keys from [member init_refcounteds] that need to be instantiated
 ## first and in order.
-var ordered_init_refcounteds: Array[StringName] = [&"TranslationImporter", &"StateAuxiliary"]
+var ordered_init_refcounteds: Array[StringName] = [&"TranslationImporter"]
 
 ## RefCounted "program" classes. IVCoreInitializer instances these after [member
 ## init_refcounteds] and adds to [member IVGlobal.program]. Dictionary values

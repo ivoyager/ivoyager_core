@@ -20,12 +20,12 @@
 class_name IVStateAuxiliary
 extends RefCounted
 
-## Provides specific class API for state management.
+## Provides class-specific API for state management.
 ##
-## All methods are intended for specific class use only. This is to decouple
-## [IVStateManager] and keep its API general use.[br][br]
-##
-## Dev note: Don't add [i]any[/i] non-Godot class dependencies!
+## This component exists to decouple [IVStateManager] and keep its API
+## general-use. All methods are intended for class-specific use only.[br][br]
+
+# Dev note: Don't add any non-Godot class dependencies!
 
 signal asset_preloader_finished()
 signal about_to_free_procedural_nodes_for_load()

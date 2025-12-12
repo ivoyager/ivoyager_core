@@ -99,7 +99,7 @@ extends Node
 # but these don't have any non-Godot dependencies.
 
 
-# Old notes still relevant...
+# Old comments...
 #
 # There is no NetworkLobby in base I, Voyager. It's is a very application-
 # specific manager that you'll have to code yourself, but see:
@@ -223,7 +223,6 @@ enum NetworkStopSync {
 }
 
 
-
 const DPRINT := false
 
 
@@ -281,8 +280,9 @@ var show_splash_screen := true
 var allow_threads := false
 var blocking_threads := []
 
+## [IVStateAuxiliary] component for class-specific state API.
+var state_auxiliary := IVStateAuxiliary.new()
 
-var _state_auxiliary: IVStateAuxiliary
 var _nodes_requiring_stop := []
 var _signal_when_threads_finished := false
 var _tree_build_counter := 0
@@ -292,8 +292,15 @@ var _tree_build_counter := 0
 
 
 func _ready() -> void:
-	core_init_object_instantiated.connect(_on_global_project_object_instantiated)
 	core_init_finished.connect(_on_core_initializer_finished)
+	
+	state_auxiliary.asset_preloader_finished.connect(_on_aux_asset_preloader_finished)
+	state_auxiliary.about_to_free_procedural_nodes_for_load.connect(
+			_on_aux_about_to_free_procedural_nodes_for_load)
+	state_auxiliary.game_loading.connect(_on_aux_game_loading)
+	state_auxiliary.game_loaded.connect(_on_aux_game_loaded)
+	state_auxiliary.tree_building_count_changed.connect(_on_aux_tree_building_count_changed)
+	
 	IVGlobal.ui_dirty.connect(_on_ui_dirty)
 	_tree.paused = true
 	require_stop(self, -1, true)
@@ -492,23 +499,10 @@ func quit(force_quit := false) -> void:
 # *****************************************************************************
 
 func _on_core_initializer_finished() -> void:
-	assert(_state_auxiliary)
 	initialized_core = true
 	prestart = true
 	state_changed.emit()
 	core_initialized.emit()
-
-
-func _on_global_project_object_instantiated(object: Object) -> void:
-	if object is not IVStateAuxiliary:
-		return
-	_state_auxiliary = object
-	_state_auxiliary.asset_preloader_finished.connect(_on_aux_asset_preloader_finished)
-	_state_auxiliary.about_to_free_procedural_nodes_for_load.connect(
-			_on_aux_about_to_free_procedural_nodes_for_load)
-	_state_auxiliary.game_loading.connect(_on_aux_game_loading)
-	_state_auxiliary.game_loaded.connect(_on_aux_game_loaded)
-	_state_auxiliary.tree_building_count_changed.connect(_on_aux_tree_building_count_changed)
 
 
 func _on_aux_asset_preloader_finished() -> void:

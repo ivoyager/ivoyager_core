@@ -45,7 +45,7 @@ var replacement_rings_class: Script
 
 var _use_threads: bool
 var _tree := IVGlobal.get_tree()
-var _state_auxiliary: IVStateAuxiliary = IVGlobal.program[&"StateAuxiliary"]
+var _state_auxiliary := IVStateManager.state_auxiliary
 
 
 func _init() -> void:
