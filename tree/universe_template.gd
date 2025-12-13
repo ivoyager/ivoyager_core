@@ -107,11 +107,15 @@ extends Node3D
 ## [IVCoreInitializer]. An external project can remove, replace, subclass, or
 ## add to these at project init.[br][br]
 ##
-## [IVTableSystemBuilder] (with other "builder" and "finisher" classes) builds
-## the physical star system(s) and inserts it (or them) before other children of
-## Universe. Shown above are the [IVBody] instances (stars, planets, moons,
-## spacecraft, etc.). This class and other components of the physical system
-## tree are in directories "tree" and "tree_components".[br][br]
+## [IVBody] is the main object type for anything that orbits or is orbited
+## (stars, planets, moons, spacecraft, etc.), with [IVOrbit] defining the
+## orbits. These and other parts of the physical 3D world are in directories
+## "tree" and "tree_components". The physical solar system(s) is built entirely
+## from *.tsv data tables in directory "tables" (view tables at
+## [url=https://github.com/ivoyager/ivoyager_core/tree/master/tables]repository[/url]).
+## Data tables are interfaced via [IVTableData] in the Tables plugin (see
+## [url=https://github.com/ivoyager/ivoyager_tables/blob/master/README.md]readme[/url]).
+## [br][br]
 ##
 ## [b]Splash Screen[/b][br][br]
 ##
