@@ -37,7 +37,10 @@ extends RefCounted
 
 
 ## For duplicate keys, 1st in this array will be kept. So prepend this
-## array if you want to override ivoyager text keys.
+## array if you want to override ivoyager text keys.[br][br]
+##
+## This static array must be set already before the class is instantiated
+## during project init.
 static var translations: Array[String] = [
 	"res://addons/ivoyager_core/text/entities_text.en.translation",
 	"res://addons/ivoyager_core/text/gui_text.en.translation",
@@ -50,11 +53,7 @@ static var translations: Array[String] = [
 func _init() -> void:
 	_load_translations()
 	IVGlobal.translations_imported.emit()
-	IVStateManager.core_init_program_objects_instantiated.connect(_remove_self)
-
-
-
-func _remove_self() -> void:
+	await IVGlobal.get_tree().process_frame
 	IVGlobal.program.erase(&"TranslationImporter")
 
 

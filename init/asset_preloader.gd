@@ -133,8 +133,7 @@ func _load_resources(start_msec: int) -> void:
 	_load_body_resources()
 	_load_rings_resources()
 	print("Loaded assets in %s msec" % (Time.get_ticks_msec() - start_msec))
-	var state_auxiliary: IVStateAuxiliary = IVGlobal.program[&"StateAuxiliary"]
-	state_auxiliary.set_asset_preloader_finished.call_deferred()
+	IVStateManager.state_auxiliary.set_asset_preloader_finished.call_deferred()
 
 
 func _load_blue_noise_1024() -> void:

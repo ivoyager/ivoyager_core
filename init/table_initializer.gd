@@ -83,10 +83,6 @@ func _on_init_refcounteds_instantiated() -> void:
 			merge_overwrite_missing_values,
 	)
 	
-	# signal done
+	# Signal done and remove self...
 	IVGlobal.data_tables_postprocessed.emit()
-	IVStateManager.core_init_program_objects_instantiated.connect(_remove_self)
-
-
-func _remove_self() -> void:
 	IVGlobal.program.erase(&"TableInitializer")

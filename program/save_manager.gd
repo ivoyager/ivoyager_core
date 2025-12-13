@@ -195,13 +195,11 @@ func _on_save_finished() -> void:
 
 
 func _on_load_started() -> void:
-	var state_auxiliary: IVStateAuxiliary = IVGlobal.program[&"StateAuxiliary"]
-	state_auxiliary.set_game_loading()
+	IVStateManager.state_auxiliary.set_game_loading()
 
 
 func _on_save_singleton_about_to_free_procedural_nodes() -> void:
-	var state_auxiliary: IVStateAuxiliary = IVGlobal.program[&"StateAuxiliary"]
-	state_auxiliary.set_about_to_free_procedural_nodes_for_load()
+	IVStateManager.state_auxiliary.set_about_to_free_procedural_nodes_for_load()
 
 
 func _on_about_to_build_procedural_tree_for_load() -> void:
@@ -211,8 +209,7 @@ func _on_about_to_build_procedural_tree_for_load() -> void:
 func _on_load_finished() -> void:
 	if IVSettingsManager.get_setting(&"pause_on_load"):
 		_paused_by_user = true
-	var state_auxiliary: IVStateAuxiliary = IVGlobal.program[&"StateAuxiliary"]
-	state_auxiliary.set_game_loaded(_paused_by_user)
+	IVStateManager.state_auxiliary.set_game_loaded(_paused_by_user)
 	if !OS.is_debug_build():
 		return
 	_warn_version_mismatch()

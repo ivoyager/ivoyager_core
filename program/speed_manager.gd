@@ -22,21 +22,19 @@ extends Node
 
 ## Has project game speed settings and manages game speed.
 ##
-## Projects can define their own game speeds here. This node's main function is
-## to generate a [member speed_multiplier] and broadcast [signal speed_changed].
-## [IVTimekeeper] does the actual time implementation.[br][br]
+## Projects can define their own game speeds here. This node handles shortcut
+## actions for game speed, maintains [member speed_multiplier], and emits
+## [signal speed_changed]. Time is managed by [IVTimekeeper].[br][br]
 ##
 ## [IVSpeedManager] does not change [member Engine.time_scale] by default. If you
 ## want that to happen, set [member IVCoreSettings.manage_engine_time_scale].
-## [br][br]
-##
-## Properties [member reversed_time] and [member os_time_sync_on] are probably
-## not relevant for most game usage. These are used by the Planetarium and
-## require non-default changes in [IVCoreSettings] to use.
 
 
 ## Emitted when game speed changes, on pause changes, and on [signal IVGlobal.ui_dirty].
 signal speed_changed()
+## Emitted when user disrupts OS time synchronization (a subset of [signal
+## speed_changed] events). See [member IVTimekeeper.operating_system_time_sync].
+signal os_time_sync_disrupted()
 
 
 const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY
@@ -49,15 +47,15 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 ## Current speed index as defined in [member speeds]. Settable.
 var speed_index: int: set = set_speed_index, get = get_speed_index
 ## Reverse time flow. Settable if [member IVCoreSettings.allow_time_reversal]
-## == true (not by default!).
+## == true (not by default).
 var reversed_time := false: set = set_reversed_time, get = get_reversed_time
 
 
 ## Project game speeds. Modify at or before [signal IVStateManager.core_initialized].
 ## Value [constant IVUnits.SECOND] is real-time.[br][br]
 ##
-## Note: If the project might call [method IVTimekeeper.synchronize_time_with_os],
-## one of array values must be real-time.
+## Note: If the project might call [method set_real_time_speed], one of the
+## array values must be real-time.
 var speeds: Array[float] = [
 	IVUnits.SECOND,
 	IVUnits.MINUTE,
@@ -82,15 +80,6 @@ var speed_names: Array[StringName] = [
 ## Project [member speeds] index for game start. Modify at or before [signal
 ## IVStateManager.core_initialized].
 var start_speed := 2
-
-
-
-## Is simulator time currently synchronizing with OS? Not relevant unless
-## [member IVCoreSettings.allow_time_setting] == true (not by default).[br][br]
-##
-## Read-only. Use [method IVTimekeeper.synchronize_time_with_os] to set. Will be
-## unset by a variety of events such as pause or game speed change.
-var os_time_sync_on := false
 ## Current game speed multiplier from [member speeds] for current [member speed_index].
 ## Negative if [member reversed_time].[br][br]
 ##
@@ -101,7 +90,6 @@ var speed_multiplier: float # negative if reversed_time
 ##
 ## Read-only for GUI.
 var speed_name: StringName
-
 
 
 # persisted
@@ -115,7 +103,7 @@ var _network_state := IVStateManager.NetworkState.NO_NETWORK
 
 
 func _ready() -> void:
-	IVStateManager.about_to_start_simulator.connect(_on_about_to_start_simulator)
+	IVStateManager.system_tree_built.connect(_on_system_tree_built)
 	IVStateManager.network_state_changed.connect(_on_network_state_changed)
 	IVStateManager.paused_changed.connect(_on_paused_changed)
 	IVGlobal.ui_dirty.connect(_on_ui_dirty)
@@ -147,9 +135,9 @@ func set_speed_index(new_speed_index: int) -> void:
 		new_speed_index = speeds.size() - 1
 	if _speed_index == new_speed_index:
 		return
-	os_time_sync_on = false
 	_speed_index = new_speed_index
 	_process_speed_index()
+	os_time_sync_disrupted.emit()
 	speed_changed.emit()
 
 
@@ -163,9 +151,9 @@ func set_reversed_time(new_reversed_time: bool) -> void:
 		return
 	if !_allow_time_reversal or _reversed_time == new_reversed_time:
 		return
-	os_time_sync_on = false
 	_reversed_time = new_reversed_time
 	_process_speed_index()
+	os_time_sync_disrupted.emit()
 	speed_changed.emit()
 
 
@@ -174,6 +162,15 @@ func get_reversed_time() -> float:
 
 
 # Other public API
+
+## Sets "real-time" speed. Will generate an error if [member speeds] does not
+## have a real-time value (i.e., [constant IVUnits.SECOND]).
+func set_real_time_speed() -> void:
+	var real_time_speed := speeds.find(IVUnits.SECOND)
+	assert(real_time_speed != -1, "IVSpeedManager.speeds does not have a real-time value")
+	_reversed_time = false
+	set_speed_index(real_time_speed)
+
 
 func increment_speed() -> void:
 	set_speed_index(_speed_index + 1)
@@ -199,7 +196,7 @@ func can_decrement_speed() -> bool:
 
 # private
 
-func _on_about_to_start_simulator(new_game: bool) -> void:
+func _on_system_tree_built(new_game: bool) -> void:
 	if new_game: # need game start _time & _speed_index (otherwise persisted from game load)
 		_speed_index = start_speed
 	_process_speed_index()
@@ -218,14 +215,14 @@ func _process_speed_index() -> void:
 		Engine.time_scale = speeds[_speed_index]
 
 
-func _on_ui_dirty() -> void:
-	speed_changed.emit()
-
-
 func _on_paused_changed(_paused_tree: bool, paused_by_user: bool) -> void:
 	if paused_by_user:
-		os_time_sync_on = false
+		os_time_sync_disrupted.emit()
 	speed_changed.emit() # pause can be a "speed change" for UI
+
+
+func _on_ui_dirty() -> void:
+	speed_changed.emit()
 
 
 func _on_network_state_changed(network_state: IVStateManager.NetworkState) -> void:

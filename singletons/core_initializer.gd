@@ -21,7 +21,7 @@ extends Node
 
 ## Singleton [IVCoreInitializer] inits the Core plugin program.
 ##
-## This singleton (and [IVCoreSettings]) can be modified by config files:[br][br]
+## [IVCoreInitializer] and [IVCoreSettings] can be modified by config files:[br][br]
 ##
 ## [b]res://ivoyager_override.cfg[/b] (created by Core plugin if it doesn't exist)[br]
 ## [b]res://ivoyager_override2.cfg[/b] (overrides above if it exists)[br][br]
@@ -79,6 +79,9 @@ extends Node
 ##    thrust implementation.
 
 
+# Dev note: This file has MANY non-Godot class dependencies! This is ok here
+# because only the preinitializer file should reference this singleton.
+
 
 ## If true (default), this singleton will call [method begin_init] after [member
 ## init_delay] frames. If false, external project must call [method begin_init].
@@ -125,14 +128,13 @@ var preinitializers: Dictionary[StringName, Variant] = {}
 ## freeing themselves) if they are no longer needed.
 var init_refcounteds: Dictionary[StringName, Variant] = {
 	TranslationImporter = IVTranslationImporter, # self-removes
-	StateAuxiliary = IVStateAuxiliary,
 	ResourceInitializer = IVResourceInitializer, # self-removes
 	TableInitializer = IVTableInitializer, # self-removes
 	AssetPreloader = IVAssetPreloader,
 }
 ## Include keys from [member init_refcounteds] that need to be instantiated
 ## first and in order.
-var ordered_init_refcounteds: Array[StringName] = [&"TranslationImporter", &"StateAuxiliary"]
+var ordered_init_refcounteds: Array[StringName] = [&"TranslationImporter"]
 
 ## RefCounted "program" classes. IVCoreInitializer instances these after [member
 ## init_refcounteds] and adds to [member IVGlobal.program]. Dictionary values

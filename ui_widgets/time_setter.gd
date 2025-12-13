@@ -86,9 +86,10 @@ func _on_visibility_changed() -> void:
 func _on_time_changed(_value: float, is_date := false) -> void:
 	if _updating_setter: # prevents infinite recursion!
 		return
+	# _decrement_invalid_day() will cause a recursive call to this method if it
+	# decrements the day spinbox. It will recurse at most 3 times (for Feb 31 in
+	# a non-leap year).
 	if is_date and _decrement_invalid_day():
-		# _decrement_invalid_day() causes a recursive call to this method when it
-		# sets the day spinbox. It will recurse at most 3 times (Feb 31, non-leap year).
 		return 
 	_set_time()
 
@@ -96,15 +97,16 @@ func _on_time_changed(_value: float, is_date := false) -> void:
 @warning_ignore_start("narrowing_conversion")
 
 func _set_time() -> void:
-	var terrestrial_time_clock := _timekeeper.terrestrial_time_clock
+	var tt_clock_time := _timekeeper.terrestrial_time_clock
 	_timekeeper.set_time_from_date_clock_elements(_year.value, _month.value,
-			_day.value, _hour.value, _minute.value, _second.value, terrestrial_time_clock)
+			_day.value, _hour.value, _minute.value, _second.value, tt_clock_time)
 
 
 func _decrement_invalid_day() -> bool:
+	# returns true if it decremented the day spinbox
 	if _day.value < 29.0:
 		return false
-	if not _timekeeper.is_valid_gregorian_date(_year.value, _month.value, _day.value):
-		_day.value -= 1.0
-		return true
-	return false
+	if _timekeeper.is_valid_gregorian_date(_year.value, _month.value, _day.value):
+		return false
+	_day.value -= 1.0
+	return true

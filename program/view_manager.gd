@@ -29,15 +29,15 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 ]
 
 
-## If true, manager will set view &"VIEW_HOME" at simulator start.
-var move_home_at_start := true
-
+## If not &"", set this view on simulator start.
+var set_view_on_start := &"VIEW_HOME"
+## Cache file path.
 var file_path := IVCoreSettings.cache_dir.path_join("views.ivbinary")
 
-# read only!
-var table_views: Dictionary[StringName, IVView]
-var gamesave_views: Dictionary[StringName, IVView] = {}
-var cached_views: Dictionary[StringName, IVView] = {}
+
+var table_views: Dictionary[StringName, IVView] ## read only!
+var gamesave_views: Dictionary[StringName, IVView] = {} ## read only!
+var cached_views: Dictionary[StringName, IVView] = {} ## read only!
 
 var _missing_or_bad_cache_file := true
 
@@ -72,8 +72,7 @@ func get_table_view_flags(view_name: StringName) -> int:
 
 func save_view(view_name: String, collection_name: String, is_cached: bool, flags: int,
 		allow_threaded_cache_write := true) -> void:
-	
-	prints("save_view", view_name, collection_name, is_cached)
+	print("Save view '%s'; collection '%s', cached = %s" % [view_name, collection_name, is_cached])
 	
 	var key := view_name + "." + collection_name
 	var view := get_view_object(view_name, collection_name, is_cached)
@@ -189,8 +188,8 @@ func _on_program_objects_instantiated() -> void:
 
 
 func _on_about_to_start_simulator(is_new_game: bool) -> void:
-	if is_new_game and move_home_at_start:
-		set_table_view(&"VIEW_HOME", true)
+	if is_new_game and set_view_on_start:
+		set_table_view(set_view_on_start, true)
 
 
 # This replicates some IVCacheHandler code, but it's really hard to generalize

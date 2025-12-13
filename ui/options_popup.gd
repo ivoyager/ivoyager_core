@@ -390,6 +390,7 @@ func _on_popup_hide() -> void:
 func _settings_listener(setting: StringName, _value: Variant) -> void:
 	if setting == &"gui_size":
 		# Needs resize (if shrunk) and repositioning...
+		@warning_ignore_start("integer_division")
 		var center := position + size / 2
 		await get_tree().process_frame
 		size = Vector2i.ZERO

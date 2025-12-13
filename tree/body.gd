@@ -40,37 +40,37 @@ extends Node3D
 ##        |- etc...
 ## [/codeblock][br]
 ##
-## Note that current core mechanics [i]should[/i] handle a multi-star system,
-## but this has not been tested yet.[br][br]
+## Note that current core mechanics [i]should[/i] handle multi-star systems
+## or >1 primary star under Universe, but this has not been tested yet.[br][br]
 ##
 ## [IVBody] nodes are NEVER scaled or rotated. Hence, local distances and
 ## directions are always in the ecliptic basis at any level of the "body tree".[br][br]
 ##
 ## All [IVBody] instances that orbit another [IVBody] have an [IVOrbit]. This
 ## component provides state vectors (position and velocity) given time. Orbits
-## can evolve over time (e.g., the base class supports precessions) or change in
-## other ways. See [IVOrbit] file docs for thrust implementation.[br][br]
+## can evolve over time (e.g., the base class supports orbit precessions) or
+## change in other ways. See [IVOrbit] file docs for thrust implementation.[br][br]
 ##
 ## This node adds its own [IVPhysicalBody] if needed. [IVBody] maintains the
-## rotation of its [IVPhysicalBody]. [IVPhysicalBody] instantiates and scales
-## the visual representation (i.e., model) of this body. Note that
+## rotation of its [IVPhysicalBody] if present. [IVPhysicalBody] instantiates
+## and scales the visual representation (i.e., model) of this body. Note that
 ## ivoyager_core does not implement collisions. ([IVBody] and [IVPhysicalBody]
 ## subclasses would likely be needed to do that.) If [IVLazyModelInitializer] is
 ## present and this body has [enum BodyFlags].BODYFLAGS_LAZY_MODEL (from data
 ## table field [param lazy_model]),
-## then IVPhysicalBody won't be added until the camera visits this body or a
+## then [IVPhysicalBody] won't be added until the camera visits this body or a
 ## closely associated "lazy" body. This is generally set for spacecraft (which
 ## are small but have large models) and for the 100s of small outer moons of
-## the gas giants (but for not inner moons because these can be seen from
+## the gas giants (but not for inner moons because these can be seen from
 ## nearby).[br][br]
 ##
 ## Some bodies (particularly moons and spacecrafts) have
-## [member BodyFlags.BODYFLAGS_CAN_SLEEP] set from data table field
+## [member BodyFlags].BODYFLAGS_CAN_SLEEP set from data table field
 ## [param can_sleep]. If [IVSleepManager] is present, these bodies will
 ## only [code]_process()[/code] when the camera is at or under the same planet
 ## or other star-orbiter.
 ## Note that [IVBody] API methods such as [method get_position_vector] and
-## [method get_state_vectors] will provide current values even if the body is
+## [method get_state_vectors] will provide correct values even if the body is
 ## not currently processing, but [member Node3D.postion] will not. These methods also
 ## take an optional [param time] argument to allow projected results.[br][br]
 ##
@@ -91,10 +91,6 @@ extends Node3D
 ## this time, but could support other small body types. E.g., it could easily
 ## handle all of Earth's artificial satellites.[br][br]
 ##
-## Godot ISSUE 4.5.1: Some class file docs seem to be broken: e.g.,
-## [IVOrbitVisual], [IVBodyLabel], [IVSmallBodiesGroup]. They do work
-## immediately after editing the file, but not after editor restart.[br][br]
-##
 ## [b]Roadmap[/b][br][br]
 ##
 ## TODO: Document threadsafety. Gets for properties are threadsafe, but any that
@@ -107,7 +103,8 @@ extends Node3D
 ## 1. Rotation around 1 axis (this is what we have now).[br]
 ## 2. Axisymmetric wobbling (easy-ish). I1 == I2 != I3. This may be a reasonable
 ##    approximation for many elongated asteroids. (It's also applicable for north
-##    precession in planets, but the time scale for that is very long.)[br]
+##    precession in planets, but the time scale for that is too long to matter
+##    for most applications.)[br]
 ## 3. Asymmetric tumbling (quasi-periodic, non-chaotic; hard). I1 != I2 != I3.
 ##    The math is difficult (need Jacobi elliptic functions) but the rotations
 ##    are fully deterministic.[br]
@@ -126,12 +123,21 @@ extends Node3D
 ## TODO: Implement network sync! This will mainly involve synching IVOrbit
 ## anytime it changes in an extrinsic way (e.g., impulse from a rocket
 ## engine). Same for rotations: we only sync when an extrinsic force changes
-## the current rotation.[br][br]
+## the current (deterministic) state properties.[br][br]
 ##
 ## TODO: We want to handle local stars out to some range. Each solitary star or
-## system primary star will be a "top" body with some (relative) position
-## and velocity in IVUniverse. (Any larger scope will require procedural system
-## building and scene loading, which is not in our plans.)
+## system primary star will be a "top" body with relative position
+## and velocity in Universe. Any larger scope will require procedural system
+## building and scene loading, which is not in our plans but could be supported.[br][br]
+##
+## [b]Important Class File Docs[/b][br][br]
+##
+## 1. [IVUniverseTemplate] for scene tree construction.[br]
+## 2. Singletons [IVCoreInitializer], [IVCoreSettings], [IVGlobal], and
+##    [IVStateManager] for program init and state management.[br]
+## 3. [IVBody] for the physical 3D world. Also has roadmap details.[br]
+## 4. [IVOrbit] for orbital mechanics. Has more roadmap related to spacecraft
+##    thrust implementation.
 
 signal orbit_changed(orbit: IVOrbit, is_intrinsic: bool, precession_only: bool)
 signal rotation_chaged(is_intrinsic: bool)

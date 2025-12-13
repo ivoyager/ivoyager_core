@@ -20,7 +20,7 @@
 class_name IVOrbit
 extends RefCounted
 
-## Defines an elliptic orbit (or parabolic or hyperbolic trajectory) in a
+## Defines an elliptic orbit, or parabolic or hyperbolic trajectory, in a
 ## specified reference basis. This base class supports nodal and apsidal
 ## precessions.
 ##
@@ -79,7 +79,7 @@ extends RefCounted
 ##
 ## Because orbital elements can evolve over time, some properties and some method
 ## returns require a preceding [method update] call to be current. However, all
-## methods that follow naming convention "get_..._at_time()" and all static
+## methods that follow naming convention "get_something_at_time()" and all static
 ## methods are valid without [method update]. Note that subclasses may evolve
 ## other elements in addition to the two precessing elements. Hence, many get
 ## functions require [param time] for parameters that are not time-dependent in
@@ -167,6 +167,15 @@ extends RefCounted
 ## resonant effects and hold station at an L-point. However, it could be
 ## implemented initially as a direct extension of IVOrbit (if IVResonantOrbit
 ## isn't ready yet).[br][br]
+##
+## [b]Important Class File Docs[/b][br][br]
+##
+## 1. [IVUniverseTemplate] for scene tree construction.[br]
+## 2. Singletons [IVCoreInitializer], [IVCoreSettings], [IVGlobal], and
+##    [IVStateManager] for program init and state management.[br]
+## 3. [IVBody] for the physical 3D world. Also has roadmap details.[br]
+## 4. [IVOrbit] for orbital mechanics. Has more roadmap related to spacecraft
+##    thrust implementation.
 
 
 ## Signal emitted when orbital elements are set or evolve by a threshold amount.

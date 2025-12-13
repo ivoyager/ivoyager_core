@@ -23,11 +23,11 @@ extends Node
 ##
 ## All properties, signals and methods here are about high-level simulator
 ## state. State signals follow immediately after changes in associated
-## state properties. Many specific state signals are paired with the general
-## [signal state_changed] (except early [IVCoreInitializer] changes and pause).[br][br]
+## [IVStateManager] properties.[br][br]
 ##
-## Early [IVCoreInitializer] init signals (ordered except [signal
-## core_init_object_instantiated] which emits for each object):[br][br]
+## The following signals are emitted by external [IVCoreInitializer] code during
+## the first steps of project initialization. All are ordered except [signal
+## core_init_object_instantiated] (which emits for each object):[br][br]
 ##
 ## [signal core_init_preinitialized][br]
 ## [signal core_init_object_instantiated](object: Object)[br]
@@ -36,9 +36,10 @@ extends Node
 ## [signal core_init_program_nodes_added][br]
 ## [signal core_init_finished][br][br]
 ##
-## After [IVCoreInitializer] starup, build, and started signals (ordered). The
-## first two always happen once on project run. The rest occur each time the
-## physical system is built. All are paired with [signal state_changed]:[br][br]
+## After above, the following ordered "startup" signals are managed by
+## [IVStateManager] in coordination with [IVStateManager] properties. The first
+## two always happen once on project run. The rest occur each time the physical
+## system is built. All are paired with [signal state_changed]:[br][br]
 ##
 ## [signal core_initialized][br]
 ## [signal assets_preloaded][br]
@@ -49,8 +50,10 @@ extends Node
 ## (Note: [signal IVGlobal.ui_dirty] emits here.)[br]
 ## [signal simulator_started][br][br]
 ##
-## Subsequent runtime, exit and quit signals includes the following (all are
-## paired with [signal state_changed] except [signal paused_changed]):[br][br]
+## The following runtime, exit and quit signals are managed by [IVStateManager]
+## in coordination with [IVStateManager] properties.
+## All are paired with [signal state_changed] except [signal paused_changed]
+## (unless that coincides with some other state change):[br][br]
 ##
 ## [signal run_state_changed](running: bool)[br]
 ## [signal paused_changed](paused_tree: bool, paused_by_user: bool)[br]
@@ -59,23 +62,26 @@ extends Node
 ## [signal simulator_exited][br]
 ## [signal about_to_stop_before_quit][br]
 ## [signal about_to_quit][br][br]
-## 
-## Threads should be coordinated with the following signals (and related properties
-## and methods):[br][br]
+##
+## Note that the plugin identifies "paused_by_user" as a special case of pause.
+## All "user pauses" are tree pauses, but not all tree pauses are user pauses.
+## A user pause is when the user explicitely pauses via GUI button or action
+## key. A non-user pause is a pause for any other reason, e.g., when the main
+## menu opens from a non-user-paused state.[br][br]
+##
+## Threads should be coordinated with the following signals (and related
+## properties and methods):[br][br]
 ##
 ## [signal run_threads_allowed][br]
 ## [signal run_threads_must_stop][br]
 ## [signal threads_finished][br][br]
 ##
-## Multiplayer support is partial and work-in-progress. It was added and
-## working in Godot 3.x, but was never fully migrated to 4.x. Some related API
+## Multiplayer support is partial and work-in-progress. (It was added and
+## working in Godot 3.x, but was never fully migrated to 4.x.) Some related API
 ## is present here but needs work. The intention is to have API that supports
 ## (but does NOT provide) an external
 ## [url=https://docs.godotengine.org/en/stable/tutorials/networking/high_level_multiplayer.html]
 ## NetworkLobby[/url].[br][br]
-##
-## Dev note: There are no non-Godot class dependencies here other than [IVGlobal],
-## [IVStateAuxiliary] and static utility classes.[br][br]
 ##
 ## [b]Important Class File Docs[/b][br][br]
 ##
@@ -86,7 +92,13 @@ extends Node
 ## 4. [IVOrbit] for orbital mechanics. Has more roadmap related to spacecraft
 ##    thrust implementation.
 
-# Old notes still relevant...
+
+# Dev note: Avoid adding new non-Godot class dependencies in this file if
+# possible. We already IVGlobal, IVStateAuxiliary and static utility classes,
+# but these don't have any non-Godot dependencies.
+
+
+# Old comments...
 #
 # There is no NetworkLobby in base I, Voyager. It's is a very application-
 # specific manager that you'll have to code yourself, but see:
@@ -210,7 +222,6 @@ enum NetworkStopSync {
 }
 
 
-
 const DPRINT := false
 
 
@@ -268,8 +279,9 @@ var show_splash_screen := true
 var allow_threads := false
 var blocking_threads := []
 
+## [IVStateAuxiliary] component for class-specific state API.
+var state_auxiliary := IVStateAuxiliary.new()
 
-var _state_auxiliary: IVStateAuxiliary
 var _nodes_requiring_stop := []
 var _signal_when_threads_finished := false
 var _tree_build_counter := 0
@@ -279,8 +291,15 @@ var _tree_build_counter := 0
 
 
 func _ready() -> void:
-	IVStateManager.core_init_object_instantiated.connect(_on_global_project_object_instantiated)
 	core_init_finished.connect(_on_core_initializer_finished)
+	
+	state_auxiliary.asset_preloader_finished.connect(_on_aux_asset_preloader_finished)
+	state_auxiliary.about_to_free_procedural_nodes_for_load.connect(
+			_on_aux_about_to_free_procedural_nodes_for_load)
+	state_auxiliary.game_loading.connect(_on_aux_game_loading)
+	state_auxiliary.game_loaded.connect(_on_aux_game_loaded)
+	state_auxiliary.tree_building_count_changed.connect(_on_aux_tree_building_count_changed)
+	
 	IVGlobal.ui_dirty.connect(_on_ui_dirty)
 	_tree.paused = true
 	require_stop(self, -1, true)
@@ -389,7 +408,7 @@ func allow_run(who: Object) -> void:
 
 
 
-## Build the system tree for new game.
+## Build the system tree for a new game.
 func start() -> void:
 	assert(ok_to_start)
 	ok_to_start = false
@@ -397,7 +416,7 @@ func start() -> void:
 	state_changed.emit()
 	require_stop(self, NetworkStopSync.BUILD_SYSTEM, true)
 	_set_about_to_build_system_tree(true)
-	IVGlobal.build_system_tree_now.emit()
+	state_auxiliary.ready_for_system_tree_build.emit()
 	_set_system_tree_built(true)
 
 
@@ -479,23 +498,10 @@ func quit(force_quit := false) -> void:
 # *****************************************************************************
 
 func _on_core_initializer_finished() -> void:
-	assert(_state_auxiliary)
 	initialized_core = true
 	prestart = true
 	state_changed.emit()
 	core_initialized.emit()
-
-
-func _on_global_project_object_instantiated(object: Object) -> void:
-	if object is not IVStateAuxiliary:
-		return
-	_state_auxiliary = object
-	_state_auxiliary.asset_preloader_finished.connect(_on_aux_asset_preloader_finished)
-	_state_auxiliary.about_to_free_procedural_nodes_for_load.connect(
-			_on_aux_about_to_free_procedural_nodes_for_load)
-	_state_auxiliary.game_loading.connect(_on_aux_game_loading)
-	_state_auxiliary.game_loaded.connect(_on_aux_game_loaded)
-	_state_auxiliary.tree_building_count_changed.connect(_on_aux_tree_building_count_changed)
 
 
 func _on_aux_asset_preloader_finished() -> void:

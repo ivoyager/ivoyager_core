@@ -20,7 +20,7 @@
 class_name IVRealPlanetOrbit
 extends IVOrbit
 
-## Extended IVOrbit class that implements JPL-specified corrections to better
+## Extended [IVOrbit] class that implements JPL-specified corrections to better
 ## approximate real planet positions.
 ##
 ## This subclass can be used for realistic (though still approximate) planet
@@ -28,7 +28,7 @@ extends IVOrbit
 ## [url]https://ssd.jpl.nasa.gov/planets/approx_pos.html[/url].[br][br]
 ##
 ## It's probably not needed for most game usage and limits the flexibility of
-## the IVOrbit class. Orbit elements cannot be set for this subclass at editor
+## the [IVOrbit] class. Orbit elements cannot be set for this subclass at editor
 ## runtime.[br][br]
 ##
 ## Use of this subclass is allowed by setting

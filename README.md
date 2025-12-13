@@ -11,7 +11,7 @@ This Godot Editor plugin runs a solar system simulation.
 
 * ivoyager_tables (plugin) - See [repository](https://github.com/ivoyager/ivoyager_tables) for installation instructions.
 * ivoyager_units (plugin) - See [repository](https://github.com/ivoyager/ivoyager_units) for installation instructions.
-* ivoyager_assets (non-Git-tracked assets) The Core plugin will download this for you! Just press "Download" at the editor prompt. Alternatively, go [here](https://github.com/ivoyager/asset_downloads).
+* ivoyager_assets (non-Git-tracked assets) - The Core plugin will download this for you! Just press "Download" at the editor prompt. Alternatively, go [here](https://github.com/ivoyager/asset_downloads).
 
 See [changelog](https://github.com/ivoyager/ivoyager_core/blob/master/CHANGELOG.md) for current version requirements.
 
@@ -39,7 +39,7 @@ Then enable "I, Voyager - Tables", "I, Voyager - Units" and "I, Voyager - Core" 
 I, Voyager is
 
 1. an open-source software planetarium 
-2. a development platform for creating games and educational apps in a realistic solar system.
+2. a development platform for creating games and educational apps in a realistic solar system (or not realistic if you want).
 
 It is designed to be improved, modified and extended by the community. I, Voyager runs on the open-source [Godot Engine](https://godotengine.org) and primarily uses Godot’s [GDScript](http://docs.godotengine.org/en/stable/getting_started/scripting/gdscript/gdscript_basics.html#doc-gdscript) (easy to understand if you know Python). It is built as a [set of plugins](https://github.com/ivoyager). You can either add plugins as needed to an existing Godot project, or start a new project using our [Template](https://github.com/ivoyager/project_template). Godot supports project development in GDScript, C# and C++.
 

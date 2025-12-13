@@ -6,19 +6,17 @@ File format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 See cloning and downloading instructions [here](https://www.ivoyager.dev/developers/).
 
-## [v0.1] - UNRELEASED
+## [v0.1] - 2025-12-13
 
-Now release candidate for I, Voyager "beta"!
+Beta release!
 
-Under development using Godot 4.5.1.
+Developed using Godot 4.5.1.
 
 ### Added
-* Lots of documentation! The main entry point for plugin documentation is now [IVUniverseTemplate](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/universe_template.gd).
+* Lots of documentation! The main entry point for plugin documentation is [IVUniverseTemplate](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/universe_template.gd).
 * Many replacement GUI widgets that are much more modular than older widgets. New foldable widgets using the new FolableContainer.
 * IVTimekeeper can generate "clock time" as Terrestrial Time (TT) or simulated Universal Time (UT; default). TT is true simulator "time" but diverges from Earth rotation. UT stays synchronous with Earth rotation over long time scales.
 * IVLanguageManager and "Language" as a user option. **We're ready for translations!**
-* IVStateManager as an autolaod singleton.
-
 
 ### Changed
 * Recoded IVSelectionManager to handle any Object type as selection (yay duck-typing!).
@@ -26,9 +24,11 @@ Under development using Godot 4.5.1.
 * Renamed top-level directories. Removed all subdirectories.
 * [API breaking] Moved all utils.gd static methods to new utility files: arrays.gd, conversions.gd, widgets.gd, etc.
 * [Project breaking] Massive overhaul of how the scene tree works. See doc in [IVUniverseTemplate](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/universe_template.gd).
+* [API breaking] Moved game speed code in IVTimekeeper into the new IVSpeedManager.
+* IVStateManager is now an autolaod singleton.
 * [API breaking] Many signals previously in IVGlobal have been removed, renamed and/or moved to IVStateManager (now a singleton).
 * [Project GUI breaking] Removed many obsoleted GUI widgets.
-* [Project GUI breaking] Removed "gui_mods/" directory and contents. These have been replaced by new "gui_helpers/": IVControlModResizable, IVControlModDraggable, etc.
+* [Project GUI breaking] Removed "gui_mods" directory and contents. These have been replaced by new "gui_components": IVControlModResizable, IVControlModDraggable, etc.
 * User can now edit "View" buttons.
 * Improved the EditorPlugin's asset loader UI.
 * Replaced 3RD_PARTY.txt with updated and more human-readable 3RD_PARTY.md, and updated CREDITS.md.
@@ -38,7 +38,7 @@ Under development using Godot 4.5.1.
 * IVBodyLabel visual size now compensates for camera fov and viewport height.
 * [Project breaking] Renamed many data table columns. Renamed table field "en.wiki" to "en.wikipedia" (these are Wikipedia.org page titles).
 * [API breaking] Ranamed some IVBody.BodyFlags enums. Removed unused BodyFlags.EXISTS.
-* [API breaking] Many other things not listed here... (Breaking things now so it won't happen after beta 0.1.)
+* [API breaking] Many other things not listed here... (Breaking API everywhere now so it won't happen after beta 0.1.)
 
 ### Fixed
 * Graphic glitch on the frame that IVCamera hands off to a new parent body.
@@ -217,7 +217,7 @@ Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_tab
 ##
 I, Voyager projects v0.0.16 and earlier used a different core submodule [ivoyager](https://github.com/ivoyager/ivoyager) (now depreciated); see previous changelog [here](https://github.com/ivoyager/ivoyager/blob/master/CHANGELOG.md).
 
-[v0.1]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.25...HEAD
+[v0.1]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.25...v0.1
 [v0.0.25]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.24...v0.0.25
 [v0.0.24]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.23...v0.0.24
 [v0.0.23]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.22...v0.0.23

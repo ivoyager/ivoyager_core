@@ -28,8 +28,8 @@ extends RefCounted
 ## distance and angles).
 
 
+## Table fields we can set directly as properties.
 var as_is_fields: Array[StringName] = [
-	# Member 'view_position' is handled explicitly.
 	&"flags",
 	&"target_name",
 	&"camera_flags",
@@ -65,6 +65,6 @@ func build(row: int) -> IVView:
 		var timezone := Time.get_time_zone_from_system()
 		if timezone and timezone.has(&"bias"):
 			var bias: float = timezone.bias # minutes from UTC
-			# -60.0 below helps for me, but maybe that's DLT?
-			view.view_position.x = fposmod((bias - 60.0) * TAU / 1440.0, TAU)
+			bias -= 30 # splits the difference for daylight savings shift
+			view.view_position.x = fposmod(bias * TAU / 1440.0, TAU)
 	return view
