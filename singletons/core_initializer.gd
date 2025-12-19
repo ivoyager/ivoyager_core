@@ -272,7 +272,7 @@ func _index_existing_nodes() -> void:
 		if node:
 			IVGlobal.program[node_name] = node
 		else:
-			push_warning("Did not find '$s' listed in 'tree_program_nodes'" % node_name)
+			push_warning("Did not find '%s' listed in 'tree_program_nodes'" % node_name)
 
 
 func _instantiate_init_refcounteds() -> void:
