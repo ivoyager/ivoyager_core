@@ -71,12 +71,11 @@ extends Node
 ##
 ## [b]Important Class File Docs[/b][br][br]
 ##
-## 1. [IVUniverseTemplate] for scene tree construction.[br]
-## 2. Singletons [IVCoreInitializer], [IVCoreSettings], [IVGlobal], and
-##    [IVStateManager] for program init and state management.[br]
-## 3. [IVBody] for the physical 3D world. Also has roadmap details.[br]
-## 4. [IVOrbit] for orbital mechanics. Has more roadmap related to spacecraft
-##    thrust implementation.
+## * [IVUniverseTemplate] for scene tree construction.[br]
+## * [IVCoreInitializer] & [IVCoreSettings] for plugin init & settings.[br]
+## * [IVGlobal] & [IVStateManager] for runtime state management.[br]
+## * [IVBody] for the physical 3D world. (Also has roadmap details.)[br]
+## * [IVOrbit] for orbital mechanics. (Has more roadmap for spacecraft thrust).
 
 
 # Dev note: This file has MANY non-Godot class dependencies! This is ok here
