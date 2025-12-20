@@ -166,16 +166,7 @@ extends RefCounted
 ## thrust options. It will be a subclass of IVResonantOrbit so it can experience
 ## resonant effects and hold station at an L-point. However, it could be
 ## implemented initially as a direct extension of IVOrbit (if IVResonantOrbit
-## isn't ready yet).[br][br]
-##
-## [b]Important Class File Docs[/b][br][br]
-##
-## 1. [IVUniverseTemplate] for scene tree construction.[br]
-## 2. Singletons [IVCoreInitializer], [IVCoreSettings], [IVGlobal], and
-##    [IVStateManager] for program init and state management.[br]
-## 3. [IVBody] for the physical 3D world. Also has roadmap details.[br]
-## 4. [IVOrbit] for orbital mechanics. Has more roadmap related to spacecraft
-##    thrust implementation.
+## isn't ready yet).
 
 
 ## Signal emitted when orbital elements are set or evolve by a threshold amount.
