@@ -99,6 +99,7 @@ var _reversed_time := false
 # localized
 var _allow_time_reversal := IVCoreSettings.allow_time_reversal
 var _network_state := IVStateManager.NetworkState.NO_NETWORK
+var _speeds := IVGlobal.speeds
 
 
 
@@ -207,12 +208,15 @@ func _process_speed_index() -> void:
 	speed_multiplier = speeds[_speed_index]
 	if _reversed_time:
 		speed_multiplier *= -1.0
+	_speeds[0] = speed_multiplier
 	speed_name = speed_names[_speed_index]
 	if IVCoreSettings.manage_engine_time_scale:
 		# Don't set negative value here! (Planetarium might be the only use-case
 		# for reversed_time, and we don't use this setting. So shouldn't be an
 		# issue anyway...)
-		Engine.time_scale = speeds[_speed_index]
+		var time_scale := speeds[_speed_index]
+		Engine.time_scale = time_scale
+		_speeds[1] = time_scale
 
 
 func _on_paused_changed(_paused_tree: bool, paused_by_user: bool) -> void:

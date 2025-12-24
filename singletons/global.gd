@@ -141,10 +141,9 @@ const PERSIST_PROCEDURAL := PersistMode.PERSIST_PROCEDURAL
 
 
 
-## Maintained by [IVTimekeeper]. Holds [time, clock_time, julian_day_number (as
-## a whole number float)]. See [IVTimekeeper] for definitions. Simulator "time"
-## at index 0 is Terrestrial Time with J2000 epoch in units defined by
-## [constant IVUnits.SECOND].[br][br]
+## Maintained by [IVTimekeeper]. Holds [time, clock_time, julian_day_number (as float)].
+## See IVTimekeeper for details. Simulator "time" at index 0 is Terrestrial Time
+## with J2000 epoch in units defined by [constant IVUnits.SECOND].[br][br]
 ##
 ## Note: Indexes may be added in the future for implementation of epoch changes;
 ## see TODO comment in [IVAstronomy].
@@ -158,6 +157,9 @@ var date: Array[int] = [0, 0, 0]
 ## and YQ and YM are cumulative counts of quarter and month since year 0. The
 ## latter two are monotonic increasing values.
 var date_aux: Array[int] = [0, 0, 0]
+
+## Maintained by [IVSpeedManager]. Holds [speed_multiplier, Engine.time_scale].
+var speeds: Array[float] = [1.0, 1.0]
 ## Populated by [IVCoreInitializer]. Holds instantiated "init" and "program"
 ## objects (base or override classes).
 var program: Dictionary[StringName, Object] = {}
@@ -165,6 +167,7 @@ var program: Dictionary[StringName, Object] = {}
 ## that can be shared, e.g., a common sphere mesh (for all spheroid models) and
 ## a common circle mesh (for all closed orbit visuals). 
 var resources: Dictionary[StringName, Resource] = {}
+
 
 ## Project can set if needed. Persisted by [IVSaveManager] if the Save plugin is present.
 var game_mod := ""

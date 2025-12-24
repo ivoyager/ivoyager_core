@@ -298,7 +298,14 @@ var _sleeping := false
 var _max_model_dist := 0.0
 var _min_hud_dist: float
 var _times: Array[float] = IVGlobal.times
+var _speeds: Array[float] = IVGlobal.speeds
 var _world_controller: IVWorldController = IVGlobal.program[&"WorldController"]
+
+var _stroboscope_rotation := IVCoreSettings.stroboscope_rotation
+var _stroboscope_frame_rate := IVCoreSettings.stroboscope_frame_rate / IVUnits.SECOND
+var _stroboscope_minimum_blur := IVCoreSettings.stroboscope_minimum_blur
+var _stroboscope_motion_blur := IVCoreSettings.stroboscope_motion_blur
+
 
 
 # *****************************************************************************
@@ -495,18 +502,14 @@ func _process(_delta: float) -> void:
 	# sleep mode, API assumes that any properties updated here are stale and
 	# must be calculated.
 	
+	show()
+	
 	var time := _times[0]
 	
 	if _orbit:
 		position = _orbit.update(time)
 	
 	var camera_dist := _world_controller.update_world_target(self, mean_radius)
-	
-	# update model space
-	if physical_body:
-		var rotation_angle := wrapf(time * rotation_rate, 0.0, TAU)
-		physical_body.basis = orientation_at_epoch.rotated(rotation_axis, rotation_angle)
-		physical_body.visible = camera_dist < _max_model_dist
 	
 	# set HUDs visibility
 	var show_huds := camera_dist > _min_hud_dist # Is camera far enough?
@@ -518,12 +521,41 @@ func _process(_delta: float) -> void:
 		huds_visible = show_huds
 		huds_visibility_changed.emit(huds_visible)
 	
-	show()
+	# update model if needed
+	if not physical_body:
+		return
+	if camera_dist > _max_model_dist:
+		physical_body.hide()
+		return
+	physical_body.show()
+	
+	var rotation_angle: float
+	if not _stroboscope_rotation:
+		rotation_angle = wrapf(time * rotation_rate, 0.0, TAU)
+		physical_body.basis = orientation_at_epoch.rotated(rotation_axis, rotation_angle)
+		return
+	
+	# Stroboscope effect uses a pretend frame rate. True frame rate doesn't matter.
+	var frame_time := _speeds[0] / _stroboscope_frame_rate # speed multiplier / frame rate
+	var rotation_per_frame := rotation_rate * frame_time # actual rad per pretend frame
+	if absf(rotation_per_frame) < PI: # no stroboscopic effect: show real rotation
+		rotation_angle = wrapf(time * rotation_rate, 0.0, TAU)
+		physical_body.basis = orientation_at_epoch.rotated(rotation_axis, rotation_angle)
+		return
+	
+	var apparent_rotation_per_frame := angle_difference(0.0, rotation_per_frame)
+	var apparent_rotation_rate := apparent_rotation_per_frame / frame_time
+	rotation_angle = wrapf(time * apparent_rotation_rate, 0.0, TAU)
+	if Engine.get_process_frames() % 2:
+		# We experimented with noise and other kinds of jitter here, but a small
+		# shift every other frame is the most pleasing at ~60/s actual frame rate.
+		rotation_angle += _stroboscope_minimum_blur
+		rotation_angle += _stroboscope_motion_blur * absf(apparent_rotation_per_frame)
+	physical_body.basis = orientation_at_epoch.rotated(rotation_axis, rotation_angle)
 
 
 # *****************************************************************************
 # remove
-
 
 func remove() -> void:
 	# Pre-clear satellite containers so child exits do less work.

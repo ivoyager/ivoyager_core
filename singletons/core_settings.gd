@@ -166,6 +166,22 @@ var size_layers: Array[float] = [
 ## [IVAssetPreloader], [IVTableSystemBuilder], and possibly elsewhere.
 var body_tables: Array[StringName] = [&"stars", &"planets", &"asteroids", &"moons", &"spacecrafts"]
 
+## If set, fast rotating bodies will exhibit an artificial stroboscopic effect
+## that is more stable and pleasing than the one produced "naturally" from
+## actual process frames.
+var stroboscope_rotation := true
+## "Pretend" frame rate (in frames per second) if [member stroboscope_rotation]
+## is true. Values much smaller than actual frame rate generate stroboscopic
+## effect at lower rotation speeds. The exact default value is tuned to give a
+## pleasing stroboscopic effect viewing Earth at max default game speed.
+var stroboscope_frame_rate := 10.1
+## Minimum blur (in radians) when a body exhibits stroboscopic rotation. [member
+## stroboscope_rotation] must be true.
+var stroboscope_minimum_blur := 0.025
+## Motion blur multiplier when a body exhibits stroboscopic rotation. [member
+## stroboscope_rotation] must be true.
+var stroboscope_motion_blur := 0.1
+
 
 ## @deprecated: This is not used by the plugin and will be removed.
 var text_colors: Dictionary[StringName, Color] = {
