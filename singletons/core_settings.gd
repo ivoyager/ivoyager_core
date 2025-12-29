@@ -166,20 +166,19 @@ var size_layers: Array[float] = [
 ## [IVAssetPreloader], [IVTableSystemBuilder], and possibly elsewhere.
 var body_tables: Array[StringName] = [&"stars", &"planets", &"asteroids", &"moons", &"spacecrafts"]
 
-## If set, fast rotating bodies will exhibit an artificial stroboscopic effect
-## that is more stable and pleasing than the one produced "naturally" from
-## actual process frames.
-var stroboscope_rotation := true
-## "Pretend" frame rate (in frames per second) if [member stroboscope_rotation]
-## is true. Values much smaller than actual frame rate generate stroboscopic
-## effect at lower rotation speeds. The exact default value is tuned to give a
-## pleasing stroboscopic effect viewing Earth at max default game speed.
-var stroboscope_frame_rate := 10.1
+
+## If >0.0, an artificial stroboscopic visual effect is generated for fast
+## rotating bodies that is more stable and pleasing than the "natural"
+## stroboscopic effect from process frames. Value is a simulated frames per
+## second for [IVBody] rotation. Values much smaller than actual frame rates
+## (e.g., ~10.0 or ~5.0) might give desirable visual effects. Default 0.0
+## disables the effect.
+var stroboscope_frames_per_second := 0.0
 ## Minimum blur (in radians) when a body exhibits stroboscopic rotation. [member
-## stroboscope_rotation] must be true.
+## stroboscope_frames_per_second] must be greater than 0.0.
 var stroboscope_minimum_blur := 0.025
 ## Motion blur multiplier when a body exhibits stroboscopic rotation. [member
-## stroboscope_rotation] must be true.
+## stroboscope_frames_per_second] must be greater than 0.0.
 var stroboscope_motion_blur := 0.1
 
 
@@ -195,11 +194,14 @@ var text_colors: Dictionary[StringName, Color] = {
 }
 
 
-
 func _enter_tree() -> void:
 	IVFiles.init_from_config(self, IVGlobal.ivoyager_config, "core_settings")
-	assert(gui_size_multipliers.size() == IVGlobal.GUISize.size())
 
+
+## Called by [IVStateManager] to test valid settings.
+func assert_valid_settings() -> void:
+	assert(gui_size_multipliers.size() == IVGlobal.GUISize.size())
+	assert(stroboscope_frames_per_second >= 0.0)
 
 
 ## Return is the appropriate layer mask for [param mean_radius] specified

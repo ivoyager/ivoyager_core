@@ -301,10 +301,14 @@ var _times: Array[float] = IVGlobal.times
 var _speeds: Array[float] = IVGlobal.speeds
 var _world_controller: IVWorldController = IVGlobal.program[&"WorldController"]
 
-var _stroboscope_rotation := IVCoreSettings.stroboscope_rotation
-var _stroboscope_frame_rate := IVCoreSettings.stroboscope_frame_rate / IVUnits.SECOND
+var _stroboscope_frame_rate := IVCoreSettings.stroboscope_frames_per_second / IVUnits.SECOND
 var _stroboscope_minimum_blur := IVCoreSettings.stroboscope_minimum_blur
 var _stroboscope_motion_blur := IVCoreSettings.stroboscope_motion_blur
+
+
+var _stroboscope_rotation := 0.0
+
+@onready var _tree := get_tree()
 
 
 
@@ -489,6 +493,7 @@ func _ready() -> void:
 	_set_resources()
 	_set_min_hud_dist()
 	hide()
+	_stroboscope_rotation = randf() * TAU if _stroboscope_frame_rate else 0.0
 	
 	# Below for body added after system tree is already built
 	if not IVStateManager.built_system: # currently building from tables or savefile
@@ -497,7 +502,7 @@ func _ready() -> void:
 	_set_hill_sphere()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	# _process() is disabled while in sleep mode (_sleeping == true). When in
 	# sleep mode, API assumes that any properties updated here are stale and
 	# must be calculated.
@@ -530,27 +535,31 @@ func _process(_delta: float) -> void:
 	physical_body.show()
 	
 	var rotation_angle: float
-	if not _stroboscope_rotation:
-		rotation_angle = wrapf(time * rotation_rate, 0.0, TAU)
+	if !_stroboscope_frame_rate or _tree.paused:
+		rotation_angle = fposmod(time * rotation_rate, TAU)
 		physical_body.basis = orientation_at_epoch.rotated(rotation_axis, rotation_angle)
 		return
 	
-	# Stroboscope effect uses a pretend frame rate. True frame rate doesn't matter.
-	var frame_time := _speeds[0] / _stroboscope_frame_rate # speed multiplier / frame rate
-	var rotation_per_frame := rotation_rate * frame_time # actual rad per pretend frame
-	if absf(rotation_per_frame) < PI: # no stroboscopic effect: show real rotation
-		rotation_angle = wrapf(time * rotation_rate, 0.0, TAU)
+	# Stroboscope effect uses a simulated frame rate. (True frame rate doesn't matter.)
+	var rotation_per_frame := rotation_rate * _speeds[0] / _stroboscope_frame_rate
+	if absf(rotation_per_frame) < PI: # no stroboscopic effect; show true rotation
+		rotation_angle = fposmod(time * rotation_rate, TAU)
 		physical_body.basis = orientation_at_epoch.rotated(rotation_axis, rotation_angle)
 		return
 	
-	var apparent_rotation_per_frame := angle_difference(0.0, rotation_per_frame)
-	var apparent_rotation_rate := apparent_rotation_per_frame / frame_time
-	rotation_angle = wrapf(time * apparent_rotation_rate, 0.0, TAU)
+	var visual_rotation_per_frame := angle_difference(0.0, rotation_per_frame)
+	var visual_rotation_per_second := visual_rotation_per_frame * _stroboscope_frame_rate
+	delta /= Engine.time_scale # actual seconds
+	_stroboscope_rotation = fposmod(_stroboscope_rotation + visual_rotation_per_second * delta, TAU)
+	
+	rotation_angle = _stroboscope_rotation
 	if Engine.get_process_frames() % 2:
 		# We experimented with noise and other kinds of jitter here, but a small
-		# shift every other frame is the most pleasing at ~60/s actual frame rate.
+		# shift every other frame is the most pleasing at ~60 Hz actual frame rate.
 		rotation_angle += _stroboscope_minimum_blur
-		rotation_angle += _stroboscope_motion_blur * absf(apparent_rotation_per_frame)
+		rotation_angle += _stroboscope_motion_blur * absf(visual_rotation_per_frame)
+	if Engine.get_process_frames() % 20 == 0 and name.begins_with("PLANET_"):
+		prints(name, rad_to_deg(rotation_per_frame), visual_rotation_per_frame)
 	physical_body.basis = orientation_at_epoch.rotated(rotation_axis, rotation_angle)
 
 
@@ -1526,14 +1535,14 @@ func _on_simulator_started() -> void:
 	# need to process 1 frame to get positions and visuals right.
 	if not (flags & BodyFlags.BODYFLAGS_TOP):
 		return # only TOP needed assuming others inherit
-	if not get_tree().paused:
+	if not _tree.paused:
 		return
 	if process_mode != PROCESS_MODE_INHERIT:
 		return # hackery not needed or won't work
 	if get_parent_node_3d().process_mode == PROCESS_MODE_ALWAYS:
 		return # hackery not needed
 	process_mode = PROCESS_MODE_ALWAYS
-	await get_tree().process_frame # 1 frame is enough!
+	await _tree.process_frame # 1 frame is enough!
 	process_mode = PROCESS_MODE_INHERIT
 
 

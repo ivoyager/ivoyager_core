@@ -159,6 +159,10 @@ var date: Array[int] = [0, 0, 0]
 var date_aux: Array[int] = [0, 0, 0]
 
 ## Maintained by [IVSpeedManager]. Holds [speed_multiplier, Engine.time_scale].
+## These values are always the same (and equal to Engine.time_scale) with
+## default Core settings [member IVCoreSettings.manage_engine_time_scale] == true
+## and [member IVCoreSettings.allow_time_reversal] == false, but could differ
+## otherwise.
 var speeds: Array[float] = [1.0, 1.0]
 ## Populated by [IVCoreInitializer]. Holds instantiated "init" and "program"
 ## objects (base or override classes).
