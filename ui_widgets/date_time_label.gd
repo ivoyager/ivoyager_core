@@ -20,7 +20,8 @@
 class_name IVDateTimeLabel
 extends Label
 
-## Label widget that shows current date and time.
+## Label widget that shows current date, time and (optionally) game speed and
+## pause state.
 ##
 ## Requires [IVTimekeeper]. This widget updates every frame using [member
 ## IVGlobal.date] and [member IVGlobal.clock]. It queries [IVTimekeeper] on
@@ -28,7 +29,9 @@ extends Label
 ## clock seconds.[br][br]
 ##
 ## This widget has process_mode == PROCESS_MODE_ALWAYS so it can always update
-## "...(paused)" text, if applicable.
+## "...(paused)" text, if applicable.[br][br]
+##
+## See also [IVSpeedLabel] for a separate game speed label.
 
 ## Format string for [year, month, day].
 @export var date_format := "%02d/%02d/%02d"
@@ -38,16 +41,24 @@ extends Label
 @export var clock_hm_format := "  %02d:%02d"
 ## Suffix " UT" or " TT", depending on [member IVTimekeeper.terrestrial_time_clock]
 @export var suffix_ut_tt := false
-## Time zone suffix, if needed. E.g., " UT"
+## Date/clock suffix text (include space) if needed. E.g., a time zone.
 @export var suffix_text := ""
-## If true, suffix the string with localized " (paused)" when paused.
+## If true, suffix the string with game speed " (<speed>)".
+@export var show_speed := true
+## If true, suffix the string with localized " (paused)" or " (<speed>; paused)"
+## when paused.
 @export var show_pause := true
+
+
+@export var speed_format := " (%s)"
+@export var speed_paused_format := " (%s; %s)"
+@export var paused_format := " (%s)"
 ## Font color when time runs backwards. Only matters if [member
 ## IVCoreSettings.allow_time_reversal] == true.
 @export var reverse_color := Color.RED
 
 ## Display clock when [member IVSpeedManager.speed_index] <= value.
-@export var show_clock_speed_index := 3
+@export var show_clock_speed_index := 4
 ## Display clock seconds when [member IVSpeedManager.speed_index] <= value.
 @export var show_seconds_speed_index := 1
 
@@ -61,6 +72,7 @@ var _show_clock := false
 var _show_seconds := false
 var _is_reversed := false
 var _hm: Array[int] = [0, 0]
+var _append_string := ""
 
 
 
@@ -83,20 +95,19 @@ func _process(_delta: float) -> void:
 			new_text += clock_hm_format % _hm
 	if suffix_ut_tt:
 		new_text += " TT" if _timekeeper.terrestrial_time_clock else " UT"
-	new_text += suffix_text
-	if show_pause and IVStateManager.paused_by_user:
-		new_text += " " + tr(&"LABEL_PAUSED")
+	new_text += _append_string
 	text = new_text
 
 
 func _configure_after_core_inited() -> void:
 	_timekeeper = IVGlobal.program[&"Timekeeper"]
 	_speed_manager = IVGlobal.program[&"SpeedManager"]
-	_speed_manager.speed_changed.connect(_update_display)
+	_speed_manager.speed_changed.connect(_update_speed)
+	_append_string = suffix_text
 	set_process(true)
 
 
-func _update_display() -> void:
+func _update_speed() -> void:
 	_show_clock = _speed_manager.speed_index <= show_clock_speed_index
 	_show_seconds = _speed_manager.speed_index <= show_seconds_speed_index
 	if _is_reversed != _speed_manager.reversed_time:
@@ -105,3 +116,15 @@ func _update_display() -> void:
 			add_theme_color_override("font_color", reverse_color)
 		else:
 			remove_theme_color_override("font_color")
+	if !show_speed and !show_pause:
+		return
+	if show_pause and IVStateManager.paused_by_user:
+		if show_speed:
+			_append_string = suffix_text + (speed_paused_format % [
+					tr(_speed_manager.get_speed_name()), tr(&"TXT_PAUSED").to_lower()])
+		else:
+			_append_string = suffix_text + (paused_format % tr(&"TXT_PAUSED").to_lower())
+	elif show_speed:
+		_append_string = suffix_text + (speed_format % tr(_speed_manager.get_speed_name()))
+	else:
+		_append_string = suffix_text

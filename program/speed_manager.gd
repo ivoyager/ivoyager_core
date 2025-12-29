@@ -66,7 +66,8 @@ var speeds: Array[float] = [
 ]
 
 ## Project game speed names for GUI. Modify at or before [signal
-## IVStateManager.core_initialized]. Must be the same size as [member speeds].
+## IVStateManager.core_initialized]. Items must correspond to [member speeds]
+## for [method get_speed_name] to return a sensible value.
 var speed_names: Array[StringName] = [
 	&"GAME_SPEED_REAL_TIME",
 	&"GAME_SPEED_MINUTE_PER_SECOND",
@@ -85,11 +86,6 @@ var start_speed := 2
 ##
 ## Read only. Used by [IVTimekeeper].
 var speed_multiplier: float # negative if reversed_time
-## Current game speed name from [member speed_names] for current [member
-## speed_index].[br][br]
-##
-## Read-only for GUI.
-var speed_name: StringName
 
 
 # persisted
@@ -195,6 +191,13 @@ func can_decrement_speed() -> bool:
 	return _speed_index > 0
 
 
+## Current game speed name from [member speed_names] for current [member
+## speed_index].
+func get_speed_name() -> StringName:
+	return speed_names[_speed_index] if _speed_index < speed_names.size() else &""
+	
+
+
 # private
 
 func _on_system_tree_built(new_game: bool) -> void:
@@ -209,7 +212,6 @@ func _process_speed_index() -> void:
 	if _reversed_time:
 		speed_multiplier *= -1.0
 	_speeds[0] = speed_multiplier
-	speed_name = speed_names[_speed_index]
 	if IVCoreSettings.manage_engine_time_scale:
 		# Don't set negative value here! (Planetarium might be the only use-case
 		# for reversed_time, and we don't use this setting. So shouldn't be an

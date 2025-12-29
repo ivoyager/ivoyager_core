@@ -10,7 +10,12 @@ See cloning and downloading instructions [here](https://www.ivoyager.dev/develop
 
 Under development using Godot 4.5.1. We'll be moving on to 4.6 betas soon! Everything looked ok in a brief test.
 
+### Added
+* Added optional "stroboscope" properties in IVCoreSettings. These create an artificial stroboscope effect for fast rotating bodies that is more stable and pleasing then the effect you might see from frame updates. 
+
 ### Changed
+* Changed default game speeds and speed names in IVSpeedManager.
+* [API breaking] Removed property IVSpeedManager.speed_name. Use method IVSpeedManager.get_speed_name()
 * Removed unneeded/unmaintained website text in README.md.
 
 ### Fixed
