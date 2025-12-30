@@ -298,7 +298,6 @@ var _sleeping := false
 var _max_model_dist := 0.0
 var _min_hud_dist: float
 var _times: Array[float] = IVGlobal.times
-var _speeds: Array[float] = IVGlobal.speeds
 var _world_controller: IVWorldController = IVGlobal.program[&"WorldController"]
 
 var _stroboscope_frame_rate := IVCoreSettings.stroboscope_frames_per_second / IVUnits.SECOND
@@ -541,7 +540,7 @@ func _process(delta: float) -> void:
 		return
 	
 	# Stroboscope effect uses a simulated frame rate. (True frame rate doesn't matter.)
-	var rotation_per_frame := rotation_rate * _speeds[0] / _stroboscope_frame_rate
+	var rotation_per_frame := rotation_rate * _times[1] / _stroboscope_frame_rate
 	if absf(rotation_per_frame) < PI: # no stroboscopic effect; show true rotation
 		rotation_angle = fposmod(time * rotation_rate, TAU)
 		physical_body.basis = orientation_at_epoch.rotated(rotation_axis, rotation_angle)
@@ -551,15 +550,12 @@ func _process(delta: float) -> void:
 	var visual_rotation_per_second := visual_rotation_per_frame * _stroboscope_frame_rate
 	delta /= Engine.time_scale # actual seconds
 	_stroboscope_rotation = fposmod(_stroboscope_rotation + visual_rotation_per_second * delta, TAU)
-	
 	rotation_angle = _stroboscope_rotation
 	if Engine.get_process_frames() % 2:
 		# We experimented with noise and other kinds of jitter here, but a small
 		# shift every other frame is the most pleasing at ~60 Hz actual frame rate.
 		rotation_angle += _stroboscope_minimum_blur
 		rotation_angle += _stroboscope_motion_blur * absf(visual_rotation_per_frame)
-	if Engine.get_process_frames() % 20 == 0 and name.begins_with("PLANET_"):
-		prints(name, rad_to_deg(rotation_per_frame), visual_rotation_per_frame)
 	physical_body.basis = orientation_at_epoch.rotated(rotation_axis, rotation_angle)
 
 

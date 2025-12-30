@@ -132,7 +132,7 @@ var time: float: set = set_time, get = get_time
 ##
 ## This is the whole number part of Julian Date (JD).[br][br]
 ##
-## This value can be obtained from [member IVGlobal.times][2] (as a float).[br][br]
+## This value can be obtained from [member IVGlobal.times][3] (as a float).[br][br]
 ##
 ## Read only.
 var julian_day_number: int: get = get_julian_day_number
@@ -158,7 +158,7 @@ var julian_day_number: int: get = get_julian_day_number
 ## noon and midnight, respectively. Note that JDN and date [b]values[/b] are
 ## derived from [member time].[br][br]
 ##
-## This value can be obtained from [member IVGlobal.times][1].[br][br]
+## This value can be obtained from [member IVGlobal.times][2].[br][br]
 ##
 ## Read only.
 var clock_time: float
@@ -218,10 +218,10 @@ var _time: float # persisted
 var _julian_day_number: int # derived
 
 var _speed_manager: IVSpeedManager
-var _times: Array[float] = IVGlobal.times
-var _clock: Array[int] = IVGlobal.clock
-var _date: Array[int] = IVGlobal.date
-var _date_aux: Array[int] = IVGlobal.date_aux
+var _times := IVGlobal.times # floats
+var _clock := IVGlobal.clock # ints
+var _date := IVGlobal.date # ints
+var _date_aux := IVGlobal.date_aux # ints
 var _network_state := IVStateManager.NetworkState.NO_NETWORK
 
 var _speed_multiplier: float # updated to follow IVSpeedManager
@@ -576,7 +576,7 @@ func _process_time(suppress_signals := false) -> void:
 	RenderingServer.global_shader_parameter_set("iv_time", _time)
 	_times[0] = _time
 	clock_time = get_clock_time_at_time(_time, terrestrial_time_clock)
-	_times[1] = clock_time
+	_times[2] = clock_time
 	get_clock_elements_at_clock_time(clock_time, _clock)
 	
 	# JDN is calculated from actual time, but rolls over at noon clock time...
@@ -586,7 +586,7 @@ func _process_time(suppress_signals := false) -> void:
 		var ct_fractional := clock_time - clock_time_floored
 		var midnight_after_last_noon := _time + (0.5 - ct_fractional) * DAY
 		_julian_day_number = get_jdn_at_time(midnight_after_last_noon)
-		_times[2] = _julian_day_number # int -> float
+		_times[3] = _julian_day_number # int -> float
 		if not suppress_signals:
 			julian_day_number_changed.emit()
 	

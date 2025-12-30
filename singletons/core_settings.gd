@@ -45,10 +45,11 @@ extends Node
 ## setting must be true for threads to be used.
 var use_threads := true
 
-## If true, [IVTimekeeper] will set [member Engine.time_scale] to follow changes
-## in game speed. Note that ivoyager_core almost never uses [code]delta[/code]
-## from [code]_process()[/code], and compensates for [member Engine.time_scale]
-## in the rare cases where it does. So this has no effect on the simulator.
+## If true (default), [IVTimekeeper] will set [member Engine.time_scale] to
+## follow changes in game speed. Note that ivoyager_core almost never uses
+## [code]delta[/code] from [code]_process()[/code] and compensates for
+## [member Engine.time_scale] in the rare cases where it does. So this setting
+## has no effect on simulator function either way.
 var manage_engine_time_scale := true
 
 ## See [IVDynamicLight].

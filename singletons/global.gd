@@ -141,29 +141,33 @@ const PERSIST_PROCEDURAL := PersistMode.PERSIST_PROCEDURAL
 
 
 
-## Maintained by [IVTimekeeper]. Holds [time, clock_time, julian_day_number (as float)].
-## See IVTimekeeper for details. Simulator "time" at index 0 is Terrestrial Time
-## with J2000 epoch in units defined by [constant IVUnits.SECOND].[br][br]
+## Maintained by [IVTimekeeper] and [IVSpeedManager]. Holds [0] time,
+## [1] speed_multiplier, [2] clock_time, [3] julian_day_number (as a whole
+## number float).[br][br]
 ##
-## Note: Indexes may be added in the future for implementation of epoch changes;
-## see TODO comment in [IVAstronomy].
-var times: Array[float] = [0.0, 0.0, 0.0]
+## Simulator [param time] at index 0 is Terrestrial Time with J2000 epoch in
+## units defined by [constant IVUnits.SECOND].[br][br]
+##
+## [param speed_multiplier] is the same as [member Engine.time_scale] with
+## default [member IVCoreSettings.manage_engine_time_scale] == true and
+## [member IVCoreSettings.allow_time_reversal] == false, but can differ
+## otherwise. See [IVSpeedManager] for details.[br][br]
+##
+## See [IVTimekeeper] for [param clock_time] and [param julian_day_number].
+## Note that indexes may be added in the future for implementation of epoch
+## changes (see TODO comment in [IVAstronomy]).
+var times: Array[float] = [0.0, 1.0, 0.0, 0.0]
 ## Maintained by [IVTimekeeper]. Represents the fractional part of [member
-## IVTimekeeper.clock_time] as clock integers: [hour, minute, second].
+## IVTimekeeper.clock_time] as clock integers: [0] hour, [1] minute, [2] second.
 var clock: Array[int] = [0, 0, 0]
-## Maintained by [IVTimekeeper]. Holds Gregorian calendar integers: [year, month, day].
+## Maintained by [IVTimekeeper]. Holds Gregorian calendar integers: [0] year,
+## [1] month, [2] day.
 var date: Array[int] = [0, 0, 0]
-## Maintained by [IVTimekeeper]. Holds [Q, YQ, YM], where Q is quarter (1 - 4)
-## and YQ and YM are cumulative counts of quarter and month since year 0. The
-## latter two are monotonic increasing values.
+## Maintained by [IVTimekeeper]. Holds [0] Q, [1] YQ, [2] YM, where Q is quarter
+## (1 - 4) and YQ and YM are cumulative counts of quarter and month since year
+## 0. The latter two are monotonic increasing values.
 var date_aux: Array[int] = [0, 0, 0]
 
-## Maintained by [IVSpeedManager]. Holds [speed_multiplier, Engine.time_scale].
-## These values are always the same (and equal to Engine.time_scale) with
-## default Core settings [member IVCoreSettings.manage_engine_time_scale] == true
-## and [member IVCoreSettings.allow_time_reversal] == false, but could differ
-## otherwise.
-var speeds: Array[float] = [1.0, 1.0]
 ## Populated by [IVCoreInitializer]. Holds instantiated "init" and "program"
 ## objects (base or override classes).
 var program: Dictionary[StringName, Object] = {}

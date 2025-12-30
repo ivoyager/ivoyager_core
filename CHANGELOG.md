@@ -16,6 +16,7 @@ Under development using Godot 4.5.1. We'll be moving on to 4.6 betas soon! Every
 ### Changed
 * Changed default game speeds and speed names in IVSpeedManager.
 * [API breaking] Removed property IVSpeedManager.speed_name. Use method IVSpeedManager.get_speed_name()
+* [API breaking] Removed IVGlobal.speeds and changed IVGlobal.times indexing.
 * Removed unneeded/unmaintained website text in README.md.
 
 ### Fixed
