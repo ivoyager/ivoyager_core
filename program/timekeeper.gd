@@ -224,7 +224,6 @@ var _date := IVGlobal.date # ints
 var _date_aux := IVGlobal.date_aux # ints
 var _network_state := IVStateManager.NetworkState.NO_NETWORK
 
-var _speed_multiplier: float # updated to follow IVSpeedManager
 var _ut_body: IVBody
 var _last_clock_time_floored := -99999999
 var _last_clock_time_rounded := -99999999
@@ -350,8 +349,9 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	delta /= Engine.time_scale # Engine.time_scale may or may not follow _speed_multiplier
-	_time += delta * _speed_multiplier
+	# Engine.time_scale may or may not follow IVSpeedManager.speed_multiplier
+	delta *= _times[1] / Engine.time_scale 
+	_time += delta
 	_process_time()
 
 
@@ -536,12 +536,10 @@ func set_time_from_date_clock_elements(year: int, month: int, day: int,
 
 func _on_core_initialized() -> void:
 	_speed_manager = IVGlobal.program[&"SpeedManager"]
-	_speed_manager.speed_changed.connect(_on_speed_changed)
 	_speed_manager.os_time_sync_disrupted.connect(_on_os_time_sync_disrupted)
 
 
 func _on_system_tree_ready(new_game: bool) -> void:
-	_speed_multiplier = _speed_manager.speed_multiplier # ok to read after system_tree_built
 	_last_clock_time_floored = -99999999 # forces JDN update
 	_last_clock_time_rounded = -99999999 # forces Gregorian calendar update
 	if terrestrial_time_clock_user_setting:
@@ -615,10 +613,6 @@ func _on_about_to_free_procedural_nodes() -> void:
 
 func _on_network_state_changed(network_state: IVStateManager.NetworkState) -> void:
 	_network_state = network_state
-
-
-func _on_speed_changed() -> void:
-	_speed_multiplier = _speed_manager.speed_multiplier
 
 
 func _on_os_time_sync_disrupted() -> void:

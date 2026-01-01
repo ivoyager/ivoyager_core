@@ -30,8 +30,14 @@ extends Node
 ## want that to happen, set [member IVCoreSettings.manage_engine_time_scale].
 
 
-## Emitted when game speed changes, on pause changes, and on [signal IVGlobal.ui_dirty].
+## Emitted when [member speed_index] or [member reversed_time] changes, on pause
+## changes, and on [signal IVGlobal.ui_dirty]. See also [signal multiplier_changed].
 signal speed_changed()
+## Emitted each frame that [member speed_multiplier] changes. If [member
+## ease_curve] == 0.0, then this signal is emitted only once after [signal
+## speed_changed].
+signal multiplier_changed()
+
 ## Emitted when user disrupts OS time synchronization (a subset of [signal
 ## speed_changed] events). See [member IVTimekeeper.operating_system_time_sync].
 signal os_time_sync_disrupted()
@@ -50,6 +56,13 @@ var speed_index: int: set = set_speed_index, get = get_speed_index
 ## == true (not by default).
 var reversed_time := false: set = set_reversed_time, get = get_reversed_time
 
+## If not 0.0, apply an ease curve over [member ease_seconds] when changing
+## [member speed_multiplier] for speed changes. See [method @GlobalScope.ease]
+## for curve values (decreasing values less than -1.0 generate an increasing
+## ease in-out effect).
+var ease_curve := 0.0
+## Time to apply speed change. Only used if [member ease_curve] != 0.0.
+var ease_seconds := 0.5
 
 ## Project game speeds. Modify at or before [signal IVStateManager.core_initialized].
 ## Value [constant IVUnits.SECOND] is real-time.[br][br]
@@ -65,9 +78,9 @@ var speeds: Array[float] = [
 	30.4375 * IVUnits.DAY,
 ]
 
-## Project game speed names for GUI. Modify at or before [signal
-## IVStateManager.core_initialized]. Items must correspond to [member speeds]
-## for [method get_speed_name] to return a sensible value.
+## Project game speed names for GUI (will be translated). Modify at or before
+## [signal IVStateManager.core_initialized]. Items must correspond to [member
+## speeds] for [method get_speed_name] to return a sensible value.
 var speed_names: Array[StringName] = [
 	&"GAME_SPEED_REAL_TIME",
 	&"GAME_SPEED_MINUTE_PER_SECOND",
@@ -97,13 +110,37 @@ var _allow_time_reversal := IVCoreSettings.allow_time_reversal
 var _network_state := IVStateManager.NetworkState.NO_NETWORK
 var _times := IVGlobal.times # floats
 
+var _ease_from_multiplier: float
+var _ease_to_multiplier: float
+var _ease_fraction := 1.0
+
 
 
 func _ready() -> void:
+	process_mode = PROCESS_MODE_ALWAYS
 	IVStateManager.system_tree_built.connect(_on_system_tree_built)
 	IVStateManager.network_state_changed.connect(_on_network_state_changed)
 	IVStateManager.paused_changed.connect(_on_paused_changed)
 	IVGlobal.ui_dirty.connect(_on_ui_dirty)
+	set_process(false)
+
+
+func _process(delta: float) -> void:
+	# Only processes during ease transition (if applicalble).
+	delta /= Engine.time_scale # actual seconds
+	_ease_fraction += delta / ease_seconds
+	if _ease_fraction >= 1.0 or IVStateManager.paused_tree: # finish transition
+		_ease_fraction = 1.0
+		set_process(false)
+	var eased_progress := ease(_ease_fraction, ease_curve)
+	speed_multiplier = lerpf(_ease_from_multiplier, _ease_to_multiplier, eased_progress)
+	_times[1] = speed_multiplier
+	if IVCoreSettings.manage_engine_time_scale:
+		# We protect against 0.0 although it could only happen with time
+		# reversals AND manage_engine_time_scale == true. (The Planetarium
+		# sets the latter to false).
+		Engine.time_scale = absf(speed_multiplier if speed_multiplier else 0.0000001)
+	multiplier_changed.emit()
 
 
 func _shortcut_input(event: InputEvent) -> void:
@@ -123,19 +160,7 @@ func _shortcut_input(event: InputEvent) -> void:
 # setgets
 
 func set_speed_index(new_speed_index: int) -> void:
-	const IS_CLIENT = IVStateManager.NetworkState.IS_CLIENT
-	if _network_state == IS_CLIENT:
-		return
-	if new_speed_index < 0:
-		new_speed_index = 0
-	elif new_speed_index >= speeds.size():
-		new_speed_index = speeds.size() - 1
-	if _speed_index == new_speed_index:
-		return
-	_speed_index = new_speed_index
-	_process_speed_index()
-	os_time_sync_disrupted.emit()
-	speed_changed.emit()
+	change_speed(new_speed_index, false)
 
 
 func get_speed_index() -> int:
@@ -149,16 +174,33 @@ func set_reversed_time(new_reversed_time: bool) -> void:
 	if !_allow_time_reversal or _reversed_time == new_reversed_time:
 		return
 	_reversed_time = new_reversed_time
-	_process_speed_index()
 	os_time_sync_disrupted.emit()
-	speed_changed.emit()
+	_process_speed_index(true)
 
 
-func get_reversed_time() -> float:
+func get_reversed_time() -> bool:
 	return _reversed_time
 
 
 # Other public API
+
+## Sets [member speed_index]. If [param allow_ease_curve] and [member ease_curve]
+## != 0.0 and not currently paused, [member speed_multiplier] change will
+## transition using an ease curve over [member ease_seconds].
+func change_speed(new_speed_index: int, allow_ease_curve := true) -> void:
+	const IS_CLIENT = IVStateManager.NetworkState.IS_CLIENT
+	if _network_state == IS_CLIENT:
+		return
+	if new_speed_index < 0:
+		new_speed_index = 0
+	elif new_speed_index >= speeds.size():
+		new_speed_index = speeds.size() - 1
+	if _speed_index == new_speed_index:
+		return
+	_speed_index = new_speed_index
+	os_time_sync_disrupted.emit()
+	_process_speed_index(allow_ease_curve)
+
 
 ## Sets "real-time" speed. Will generate an error if [member speeds] does not
 ## have a real-time value (i.e., [constant IVUnits.SECOND]).
@@ -166,15 +208,15 @@ func set_real_time_speed() -> void:
 	var real_time_speed := speeds.find(IVUnits.SECOND)
 	assert(real_time_speed != -1, "IVSpeedManager.speeds does not have a real-time value")
 	_reversed_time = false
-	set_speed_index(real_time_speed)
+	change_speed(real_time_speed, false)
 
 
-func increment_speed() -> void:
-	set_speed_index(_speed_index + 1)
+func increment_speed(allow_ease_curve := true) -> void:
+	change_speed(_speed_index + 1, allow_ease_curve)
 
 
-func decrement_speed() -> void:
-	set_speed_index(_speed_index - 1)
+func decrement_speed(allow_ease_curve := true) -> void:
+	change_speed(_speed_index - 1, allow_ease_curve)
 
 
 func can_increment_speed() -> bool:
@@ -203,19 +245,29 @@ func get_speed_name() -> StringName:
 func _on_system_tree_built(new_game: bool) -> void:
 	if new_game: # need game start _time & _speed_index (otherwise persisted from game load)
 		_speed_index = start_speed
-	_process_speed_index()
+	_process_speed_index(false)
 
 
-func _process_speed_index() -> void:
+func _process_speed_index(allow_ease_curve: bool) -> void:
 	# "_speed_index" and "_reversed_time" are set. Everything here follows from that...
-	speed_multiplier = speeds[_speed_index]
-	if _reversed_time:
-		speed_multiplier *= -1.0
+	
+	if allow_ease_curve and ease_curve and !IVStateManager.paused_tree:
+		_ease_from_multiplier = speed_multiplier
+		_ease_to_multiplier = -speeds[_speed_index] if _reversed_time else speeds[_speed_index]
+		_ease_fraction = 0.0 if _ease_fraction == 1.0 else 0.5
+		set_process(true)
+		speed_changed.emit()
+		return
+	
+	# instant change
+	speed_multiplier = -speeds[_speed_index] if _reversed_time else speeds[_speed_index]
 	_times[1] = speed_multiplier
 	if IVCoreSettings.manage_engine_time_scale:
 		# Don't set negative value here! (Planetarium might be the only use case
 		# for reversed_time and it doesn't use Engine.time_scale for anything.)
-		Engine.time_scale = speeds[_speed_index]
+		Engine.time_scale = absf(speed_multiplier)
+	speed_changed.emit()
+	multiplier_changed.emit()
 
 
 func _on_paused_changed(_paused_tree: bool, paused_by_user: bool) -> void:
