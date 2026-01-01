@@ -46,7 +46,7 @@ func _configure_after_core_inited() -> void:
 
 
 func _update_speed() -> void:
-	text = _speed_manager.speed_name
+	text = _speed_manager.get_speed_name()
 	if _is_reversed == _speed_manager.reversed_time:
 		return
 	_is_reversed = !_is_reversed

@@ -138,7 +138,7 @@ static func create() -> IVView:
 	return IVView.new()
 
 
-
+## Save the current user state in this [IVView] for all [param save_flags].
 func save_state(save_flags: int) -> void:
 	flags = save_flags
 	_save_camera_state()
@@ -146,9 +146,11 @@ func save_state(save_flags: int) -> void:
 	_save_time_state()
 
 
-func set_state(is_camera_instant_move := false) -> void:
+## Set the user state from this [IVView]. If [param instantly], move camera
+## instantly and skip any other transitional states.
+func set_state(instantly := false) -> void:
 	# Sets all state in ViewFlags.
-	_set_camera_state(is_camera_instant_move)
+	_set_camera_state(instantly)
 	_set_huds_state()
 	_set_time_state()
 
@@ -220,12 +222,12 @@ func _save_camera_state() -> void:
 		view_rotations = view_state[3]
 
 
-func _set_camera_state(is_instant_move := false) -> void:
+func _set_camera_state(instantly := false) -> void:
 	if !(flags & ViewFlags.VIEWFLAGS_ALL_CAMERA):
 		return
 	# Note: the camera ignores all null or null-equivilant args.
 	_camera_handler.move_to_by_name(target_name, camera_flags, view_position, view_rotations,
-			is_instant_move)
+			instantly)
 
 
 func _save_huds_state() -> void:
@@ -259,25 +261,25 @@ func _set_huds_state() -> void:
 # time state
 
 func _save_time_state() -> void:
-	# If both TIME_STATE and IS_NOW flags set, we unset one depending on
+	# If both TIME_STATE and SYNC_OS_TIME flags set, we unset one depending on
 	# IVTimekeeper.os_time_sync_on.
 	if flags & ViewFlags.VIEWFLAGS_SYNC_OS_TIME and _timekeeper.operating_system_time_sync:
 		flags &= ~ViewFlags.VIEWFLAGS_TIME_STATE
 	if flags & ViewFlags.VIEWFLAGS_TIME_STATE:
 		flags &= ~ViewFlags.VIEWFLAGS_SYNC_OS_TIME
-		speed_index = _speed_manager.speed_index
 		user_paused = IVStateManager.paused_by_user
 		time = _timekeeper.time
+		speed_index = _speed_manager.speed_index
 		reversed_time = _speed_manager.get_reversed_time()
 
 
-func _set_time_state() -> void:
+func _set_time_state(instantly := false) -> void:
 	# Note: IVTimekeeper ignores set functions that are disallowed in IVCoreSettings
 	# project settings. In most game applications, only speed and pause is set.
 	if flags & ViewFlags.VIEWFLAGS_TIME_STATE:
 		_timekeeper.set_time(time)
-		_speed_manager.set_speed_index(speed_index)
-		_speed_manager.set_reversed_time(reversed_time)
 		IVStateManager.set_user_paused(user_paused)
+		_speed_manager.change_speed(speed_index, not instantly)
+		_speed_manager.set_reversed_time(reversed_time)
 	elif flags & ViewFlags.VIEWFLAGS_SYNC_OS_TIME:
 		_timekeeper.set_operating_system_time_sync(true)

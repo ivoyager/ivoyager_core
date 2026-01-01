@@ -300,6 +300,16 @@ var _min_hud_dist: float
 var _times: Array[float] = IVGlobal.times
 var _world_controller: IVWorldController = IVGlobal.program[&"WorldController"]
 
+var _stroboscope_frame_rate := IVCoreSettings.stroboscope_frames_per_second / IVUnits.SECOND
+var _stroboscope_minimum_blur := IVCoreSettings.stroboscope_minimum_blur
+var _stroboscope_motion_blur := IVCoreSettings.stroboscope_motion_blur
+
+
+var _stroboscope_rotation := 0.0
+
+@onready var _tree := get_tree()
+
+
 
 # *****************************************************************************
 # create methods
@@ -482,6 +492,7 @@ func _ready() -> void:
 	_set_resources()
 	_set_min_hud_dist()
 	hide()
+	_stroboscope_rotation = randf() * TAU if _stroboscope_frame_rate else 0.0
 	
 	# Below for body added after system tree is already built
 	if not IVStateManager.built_system: # currently building from tables or savefile
@@ -490,10 +501,12 @@ func _ready() -> void:
 	_set_hill_sphere()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	# _process() is disabled while in sleep mode (_sleeping == true). When in
 	# sleep mode, API assumes that any properties updated here are stale and
 	# must be calculated.
+	
+	show()
 	
 	var time := _times[0]
 	
@@ -501,12 +514,6 @@ func _process(_delta: float) -> void:
 		position = _orbit.update(time)
 	
 	var camera_dist := _world_controller.update_world_target(self, mean_radius)
-	
-	# update model space
-	if physical_body:
-		var rotation_angle := wrapf(time * rotation_rate, 0.0, TAU)
-		physical_body.basis = orientation_at_epoch.rotated(rotation_axis, rotation_angle)
-		physical_body.visible = camera_dist < _max_model_dist
 	
 	# set HUDs visibility
 	var show_huds := camera_dist > _min_hud_dist # Is camera far enough?
@@ -518,12 +525,42 @@ func _process(_delta: float) -> void:
 		huds_visible = show_huds
 		huds_visibility_changed.emit(huds_visible)
 	
-	show()
+	# update model if needed
+	if not physical_body:
+		return
+	if camera_dist > _max_model_dist:
+		physical_body.hide()
+		return
+	physical_body.show()
+	
+	var rotation_angle: float
+	if !_stroboscope_frame_rate or _tree.paused:
+		rotation_angle = fposmod(time * rotation_rate, TAU)
+		physical_body.basis = orientation_at_epoch.rotated(rotation_axis, rotation_angle)
+		return
+	
+	# Stroboscope effect uses a simulated frame rate. (True frame rate doesn't matter.)
+	var rotation_per_frame := rotation_rate * _times[1] / _stroboscope_frame_rate
+	if absf(rotation_per_frame) < PI: # no stroboscopic effect; show true rotation
+		rotation_angle = fposmod(time * rotation_rate, TAU)
+		physical_body.basis = orientation_at_epoch.rotated(rotation_axis, rotation_angle)
+		return
+	
+	var visual_rotation_per_frame := angle_difference(0.0, rotation_per_frame)
+	var visual_rotation_per_second := visual_rotation_per_frame * _stroboscope_frame_rate
+	delta /= Engine.time_scale # actual seconds
+	_stroboscope_rotation = fposmod(_stroboscope_rotation + visual_rotation_per_second * delta, TAU)
+	rotation_angle = _stroboscope_rotation
+	if Engine.get_process_frames() % 2:
+		# We experimented with noise and other kinds of jitter here, but a small
+		# shift every other frame is the most pleasing at ~60 Hz actual frame rate.
+		rotation_angle += _stroboscope_minimum_blur
+		rotation_angle += _stroboscope_motion_blur * absf(visual_rotation_per_frame)
+	physical_body.basis = orientation_at_epoch.rotated(rotation_axis, rotation_angle)
 
 
 # *****************************************************************************
 # remove
-
 
 func remove() -> void:
 	# Pre-clear satellite containers so child exits do less work.
@@ -1494,14 +1531,14 @@ func _on_simulator_started() -> void:
 	# need to process 1 frame to get positions and visuals right.
 	if not (flags & BodyFlags.BODYFLAGS_TOP):
 		return # only TOP needed assuming others inherit
-	if not get_tree().paused:
+	if not _tree.paused:
 		return
 	if process_mode != PROCESS_MODE_INHERIT:
 		return # hackery not needed or won't work
 	if get_parent_node_3d().process_mode == PROCESS_MODE_ALWAYS:
 		return # hackery not needed
 	process_mode = PROCESS_MODE_ALWAYS
-	await get_tree().process_frame # 1 frame is enough!
+	await _tree.process_frame # 1 frame is enough!
 	process_mode = PROCESS_MODE_INHERIT
 
 

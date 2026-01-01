@@ -497,6 +497,7 @@ func quit(force_quit := false) -> void:
 # *****************************************************************************
 
 func _on_core_initializer_finished() -> void:
+	IVCoreSettings.assert_valid_settings()
 	initialized_core = true
 	prestart = true
 	state_changed.emit()

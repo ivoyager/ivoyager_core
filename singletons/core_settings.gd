@@ -45,10 +45,11 @@ extends Node
 ## setting must be true for threads to be used.
 var use_threads := true
 
-## If true, [IVTimekeeper] will set [member Engine.time_scale] to follow changes
-## in game speed. Note that ivoyager_core almost never uses [code]delta[/code]
-## from [code]_process()[/code], and compensates for [member Engine.time_scale]
-## in the rare cases where it does. So this has no effect on the simulator.
+## If true (default), [IVTimekeeper] will set [member Engine.time_scale] to
+## follow changes in game speed. Note that ivoyager_core almost never uses
+## [code]delta[/code] from [code]_process()[/code] and compensates for
+## [member Engine.time_scale] in the rare cases where it does. So this setting
+## has no effect on simulator function either way.
 var manage_engine_time_scale := true
 
 ## See [IVDynamicLight].
@@ -167,6 +168,21 @@ var size_layers: Array[float] = [
 var body_tables: Array[StringName] = [&"stars", &"planets", &"asteroids", &"moons", &"spacecrafts"]
 
 
+## If >0.0, an artificial stroboscopic visual effect is generated for fast
+## rotating bodies that is more stable and pleasing than the "natural"
+## stroboscopic effect from process frames. Value is a simulated frames per
+## second for [IVBody] rotation. Values much smaller than actual frame rates
+## (e.g., ~10.0 or ~5.0) might give desirable visual effects. Default 0.0
+## disables the effect.
+var stroboscope_frames_per_second := 0.0
+## Minimum blur (in radians) when a body exhibits stroboscopic rotation. [member
+## stroboscope_frames_per_second] must be greater than 0.0.
+var stroboscope_minimum_blur := 0.025
+## Motion blur multiplier when a body exhibits stroboscopic rotation. [member
+## stroboscope_frames_per_second] must be greater than 0.0.
+var stroboscope_motion_blur := 0.1
+
+
 ## @deprecated: This is not used by the plugin and will be removed.
 var text_colors: Dictionary[StringName, Color] = {
 	great = Color.CYAN,
@@ -179,11 +195,14 @@ var text_colors: Dictionary[StringName, Color] = {
 }
 
 
-
 func _enter_tree() -> void:
 	IVFiles.init_from_config(self, IVGlobal.ivoyager_config, "core_settings")
-	assert(gui_size_multipliers.size() == IVGlobal.GUISize.size())
 
+
+## Called by [IVStateManager] to test valid settings.
+func assert_valid_settings() -> void:
+	assert(gui_size_multipliers.size() == IVGlobal.GUISize.size())
+	assert(stroboscope_frames_per_second >= 0.0)
 
 
 ## Return is the appropriate layer mask for [param mean_radius] specified
