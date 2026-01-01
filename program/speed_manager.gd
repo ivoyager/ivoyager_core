@@ -50,7 +50,8 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 ]
 
 
-## Current speed index as defined in [member speeds]. Settable.
+## Current speed index as defined in [member speeds]. Has setter method but see
+## also [method change_speed].
 var speed_index: int: set = set_speed_index, get = get_speed_index
 ## Reverse time flow. Settable if [member IVCoreSettings.allow_time_reversal]
 ## == true (not by default).
@@ -58,8 +59,7 @@ var reversed_time := false: set = set_reversed_time, get = get_reversed_time
 
 ## If not 0.0, apply an ease curve over [member ease_seconds] when changing
 ## [member speed_multiplier] for speed changes. See [method @GlobalScope.ease]
-## for curve values (decreasing values less than -1.0 generate an increasing
-## ease in-out effect).
+## for curve values; -1.5 generates a nice ease in-out curve.
 var ease_curve := 0.0
 ## Time to apply speed change. Only used if [member ease_curve] != 0.0.
 var ease_seconds := 0.5
@@ -71,23 +71,26 @@ var ease_seconds := 0.5
 ## array values must be real-time.
 var speeds: Array[float] = [
 	IVUnits.SECOND,
-	IVUnits.MINUTE,
-	IVUnits.HOUR,
-	IVUnits.DAY,
-	7.0 * IVUnits.DAY,
-	30.4375 * IVUnits.DAY,
+	IVUnits.SECOND * 10,
+	IVUnits.SECOND * 100,
+	IVUnits.SECOND * 1e3,
+	IVUnits.SECOND * 1e4,
+	IVUnits.SECOND * 1e5,
+	IVUnits.SECOND * 1e6,
 ]
 
 ## Project game speed names for GUI (will be translated). Modify at or before
 ## [signal IVStateManager.core_initialized]. Items must correspond to [member
 ## speeds] for [method get_speed_name] to return a sensible value.
 var speed_names: Array[StringName] = [
-	&"GAME_SPEED_REAL_TIME",
-	&"GAME_SPEED_MINUTE_PER_SECOND",
-	&"GAME_SPEED_HOUR_PER_SECOND",
-	&"GAME_SPEED_DAY_PER_SECOND",
-	&"GAME_SPEED_WEEK_PER_SECOND",
-	&"GAME_SPEED_MONTH_PER_SECOND",
+	# These can be translation keys.
+	&"1x",
+	&"10x",
+	&"100x",
+	&"1000x",
+	&"10,000x",
+	&"100,000x",
+	&"1,000,000x",
 ]
 
 

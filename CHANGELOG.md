@@ -11,15 +11,17 @@ See cloning and downloading instructions [here](https://www.ivoyager.dev/develop
 Under development using Godot 4.5.1. We'll be moving on to 4.6 betas soon! Everything looked ok in a brief test.
 
 ### Added
+* Added ease curve option for game speed changes.
 * Added optional "stroboscope" properties in IVCoreSettings. These create an artificial stroboscope effect for fast rotating bodies that is more stable and pleasing then the effect you might see from frame updates. 
 
 ### Changed
-* Changed default game speeds and speed names in IVSpeedManager.
+* Changed default game speeds and speed names.
 * [API breaking] Removed property IVSpeedManager.speed_name. Use method IVSpeedManager.get_speed_name()
 * [API breaking] Removed IVGlobal.speeds and changed IVGlobal.times indexing.
 * Removed unneeded/unmaintained website text in README.md.
 
 ### Fixed
+* Fixed setter type bug in IVSpeedManager that prevented reverse color in IVDateTimeLabel.
 * Fixed push_warning() text error in IVCoreInitializer.
 
 
