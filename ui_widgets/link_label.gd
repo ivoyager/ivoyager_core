@@ -55,7 +55,9 @@ const SCENE := "res://addons/ivoyager_core/ui_widgets/link_label.tscn"
 ## Set true to open an external URL directly. Otherwise, bbcode "url" value
 ## will be passed to [method IVWikiManager.open_page].
 @export var open_external_url := false
-
+## If [member open_external_url] is true and an external URL is opened, set
+## root [member Window.mode] == Window.MODE_WINDOWED.
+@export var windowed_on_external_url := true
 
 ## Creates a new [IVLinkLabel] instance using specified parameters.
 @warning_ignore("shadowed_variable_base_class", "shadowed_variable")
@@ -72,7 +74,9 @@ func _ready() -> void:
 
 func _on_meta_clicked(url: String) -> void:
 	if open_external_url:
-		prints("Opening external link:", url)
+		print("Opening external URL: ", url)
+		if windowed_on_external_url:
+			get_tree().get_root().mode = Window.MODE_WINDOWED
 		OS.shell_open(url)
 		return
 	var wiki_manager: IVWikiManager = IVGlobal.program.get(&"WikiManager")
