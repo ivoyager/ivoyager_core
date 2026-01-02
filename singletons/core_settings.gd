@@ -2,7 +2,7 @@
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
-# Copyright 2017-2025 Charlie Whitfield
+# Copyright 2019-2026 Charlie Whitfield
 # I, Voyager is a registered trademark of Charlie Whitfield in the US
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -80,7 +80,7 @@ var gui_size_multipliers: Array[float] = [0.75, 1.0, 1.25]
 
 ## Start time as an array of [year, month, day, hour, minute, second]. Used by
 ## [IVTimekeeper].
-var start_time_date_clock: Array[int] = [2025, 1, 1, 0, 0, 0]
+var start_time_date_clock: Array[int] = [2026, 1, 1, 0, 0, 0]
 ## If true, start time is Terrestrial Time (TT), otherwise, Universal Time (UT).
 ## Used by [IVTimekeeper]. See also [member IVTimekeeper.terrestrial_time_clock].
 var start_time_is_terrestrial_time := false
