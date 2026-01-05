@@ -2,7 +2,7 @@
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
-# Copyright 2017-2025 Charlie Whitfield
+# Copyright 2019-2026 Charlie Whitfield
 # I, Voyager is a registered trademark of Charlie Whitfield in the US
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -45,3 +45,31 @@ static func merge_array(into: Array, from: Array) -> void:
 	for item: Variant in from:
 		if not into.has(item):
 			into.append(item)
+
+
+static func get_float_sum(array: Array[float]) -> float:
+	var sum := 0.0
+	for i in array.size():
+		sum += array[i]
+	return sum
+
+
+static func get_fractions_from_proportions(proportions: Array[float]) -> Array[float]:
+	var size := proportions.size()
+	var sum := 0.0
+	for i in size:
+		sum += proportions[i]
+	var fractions: Array[float] = []
+	fractions.resize(size)
+	for i in size:
+		fractions[i] = proportions[i] / sum
+	return fractions
+
+
+static func set_fractions_from_proportions(array: Array[float]) -> void:
+	var size := array.size()
+	var sum := 0.0
+	for i in size:
+		sum += array[i]
+	for i in size:
+		array[i] = array[i] / sum

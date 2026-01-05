@@ -2,7 +2,7 @@
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
-# Copyright 2017-2025 Charlie Whitfield
+# Copyright 2019-2026 Charlie Whitfield
 # I, Voyager is a registered trademark of Charlie Whitfield in the US
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,13 +22,11 @@ extends RefCounted
 
 ## Builds [IVView] instances from table views.tsv.
 ##
-## Notes: The Tables plugin can't read dictionaries yet, so we can't populate
-## dictionary properties. We handle [member IVView.view_position] explicitly
-## since it is split into two table fields (allowing separate unit coversion of
-## distance and angles).
+## Note: We handle [member IVView.view_position] explicitly since it is split
+## into two table fields (allowing separate unit coversion of distance and angles).
 
 
-## Table fields we can set directly as properties.
+## Table fields set directly as properties. These must exist in the data table.
 var as_is_fields: Array[StringName] = [
 	&"flags",
 	&"target_name",
@@ -42,6 +40,14 @@ var as_is_fields: Array[StringName] = [
 	&"speed_index",
 	&"time",
 	&"reversed_time",
+]
+## Optionally specified dictionary fields. If these exist, they must be added
+## as a VARIANT field. The table value must be explicitely typed. E.g.,
+## Dictionary[StringName, Color]({&"NE": Color(0, 0, 1, 1)}).
+var dictionary_fields: Array[StringName] = [
+	&"body_orbit_colors",
+	&"sbg_points_colors",
+	&"sbg_orbits_colors",
 ]
 
 
@@ -58,9 +64,20 @@ func build_all() -> Dictionary[StringName, IVView]:
 func build(row: int) -> IVView:
 	var view := IVView.create()
 	IVTableData.db_build_object(view, &"views", row, as_is_fields)
+	
+	# view_position
 	var view_position_xy := IVTableData.get_db_vector2(&"views", &"view_position_xy", row)
 	var view_position_z := IVTableData.get_db_float(&"views", &"view_position_z", row)
 	view.view_position = Vector3(view_position_xy.x, view_position_xy.y, view_position_z)
+	
+	# optional dictionaries
+	for dictionary_field in dictionary_fields:
+		if not IVTableData.db_has_value(&"views", dictionary_field, row):
+			continue
+		var dict := IVTableData.get_db_dictionary(&"views", dictionary_field, row)
+		assert(dict.is_typed(), "Table dictionary must be explicitly typed")
+		view.set(dictionary_field, dict)
+	
 	if IVTableData.get_db_bool(&"views", &"longitude_from_time_zone", row):
 		var timezone := Time.get_time_zone_from_system()
 		if timezone and timezone.has(&"bias"):

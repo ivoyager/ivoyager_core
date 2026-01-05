@@ -2,7 +2,7 @@
 // This file is part of I, Voyager
 // https://ivoyager.dev
 // *****************************************************************************
-// Copyright 2017-2023 Charlie Whitfield
+// Copyright 2017-2026 Charlie Whitfield
 // I, Voyager is a registered trademark of Charlie Whitfield in the US
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -42,9 +42,9 @@ bool is_id_fragment(vec2 fragcoord_xy){
 	//
 	// Comment out the 'mod3' filter to troubleshoot; the identifier region
 	// will be visually obvious in any region of dense fragment rendering.
- 	
+
 	vec2 mouse_offset = abs(fragcoord_xy - iv_mouse_fragcoord);
-	
+
 	if (mouse_offset.x > iv_fragment_id_range) {
 		return false;
 	}
@@ -55,39 +55,38 @@ bool is_id_fragment(vec2 fragcoord_xy){
 	if (mod3.x > 0.5 || mod3.y > 0.5) {
 		return false;
 	}
-	
+
 	return true;
 }
 
 
 vec3 get_id_fragment_color(vec3 fragment_id_color){
-	
+
 	if (iv_fragment_id_cycler < 1.0) {
 		// broadcast callibration color
 		return vec3(iv_fragment_id_cycler);
 	}
-	
+
 	// Broadcast part of this fragment's identifier (1 of 3 parts).
 	// 'iv_fragment_id_cycler' value is exactly 1.0, 2.0 or 3.0.
 	int id_element = int(fragment_id_color[int(iv_fragment_id_cycler) - 1]);
-	
+
 	int rbits = id_element & 15;
 	id_element >>= 4;
 	int gbits = id_element & 15;
 	id_element >>= 4;
 	int bbits = id_element & 15;
-	
+
 	// Godot 3.x GLES2 didn't allow bit operators.
 	// Keep this code in case we need it for HTML5 export...
 //	int bbits = id_element / 256;
 //	int gbits = (id_element - bbits * 256) / 16;
 //	int rbits = id_element - gbits * 16 - bbits * 256;
-	
+
 	// Use range 0.25-0.75 for each channel.
 	float r = float(rbits) / 32.0 + 0.25;
 	float g = float(gbits) / 32.0 + 0.25;
 	float b = float(bbits) / 32.0 + 0.25;
-	
+
 	return vec3(r, g, b);
 }
-

@@ -2,7 +2,7 @@
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
-# Copyright 2017-2025 Charlie Whitfield
+# Copyright 2019-2026 Charlie Whitfield
 # I, Voyager is a registered trademark of Charlie Whitfield in the US
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -46,6 +46,9 @@ signal wiki_requested(page_title: String)
 
 ## Set true to open external URL specified in [member external_url_formats].
 var open_external_page := false
+## If [member open_external_page] is true and an external URL is opened, set
+## root [member Window.mode] == Window.MODE_WINDOWED.
+var windowed_on_external_url := true
 ## Table column field names indexed by language codes.
 var table_fields: Dictionary[StringName, StringName] = {
 	en = &"en.wikipedia"
@@ -80,7 +83,11 @@ func open_page(entity_name: StringName) -> void:
 	var page_title := _wiki_page_titles[entity_name]
 	wiki_requested.emit(page_title)
 	if open_external_page:
-		OS.shell_open(_external_url_format % page_title)
+		var url := _external_url_format % page_title
+		print("Opening external URL: ", url)
+		if windowed_on_external_url:
+			IVGlobal.get_tree().get_root().mode = Window.MODE_WINDOWED
+		OS.shell_open(url)
 
 
 func _configure() -> void:
