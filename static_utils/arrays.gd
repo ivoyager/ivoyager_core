@@ -54,6 +54,14 @@ static func get_float_sum(array: Array[float]) -> float:
 	return sum
 
 
+static func get_float_average(array: Array[float]) -> float:
+	var size := array.size()
+	var sum := 0.0
+	for i in size:
+		sum += array[i]
+	return sum / size
+
+
 static func get_fractions_from_proportions(proportions: Array[float]) -> Array[float]:
 	var size := proportions.size()
 	var sum := 0.0
