@@ -23,7 +23,7 @@ extends Node3D
 ## Template-only root scene node. And Core plugin documentation!
 ##
 ## The scene tree file [code]tree/universe_template.tscn[/code] is provided as a
-## template. It will work as a simulator root if made the main sceen, but
+## template. It will work as a simulator root if made the main scene, but
 ## shouldn't be edited since it is in the plugin directory. You can duplicate
 ## this scene to your project directory to start a new project.[br][br]
 ##
@@ -65,15 +65,15 @@ extends Node3D
 ##                 |- etc...         #  and "ui_components"
 ##          |- GameSplashScreen      #
 ##          |- IVMainMenuBasePopup
-##                 |- IVSaveAsButton [from the Save plugin]
-##                 |- IVLoadButton [from the Save plugin]
+##                 |- IVSaveAsButton # (from the Save plugin)
+##                 |- IVLoadButton # (from the Save plugin)
 ##                 |- IVOptionsButton
 ##                 |- IVHotkeysButton
 ##                 |- IVExitButton
 ##                 |- IVQuitButton
 ##                 |- IVResumeButton
-##          |- IVSaveDialog [from the Save plugin]
-##          |- IVLoadDialog [from the Save plugin]
+##          |- IVSaveDialog # (from the Save plugin)
+##          |- IVLoadDialog # (from the Save plugin)
 ##          |- IVOptionsPopup
 ##          |- IVHotkeysPopup
 ##          |- IVConfirmationDialog
@@ -187,4 +187,4 @@ extends Node3D
 ## [url=https://github.com/ivoyager/ivoyager_save]Save plugin[/url] is used.
 ## Nodes have persistence only if they and all ancestors have this constant set
 ## to PERSIST_PROPERTIES_ONLY or PERSIST_PROCEDURAL.
-const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY 
+const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY # Godot ISSUE 4.5.1: Class doc doesn't show.

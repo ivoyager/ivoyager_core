@@ -6,9 +6,9 @@ File format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 See cloning and downloading instructions [here](https://www.ivoyager.dev/developers/).
 
-## [v0.1.1] - UNRELEASED
+## [v0.1.1] - 2026-02-09
 
-Under development using Godot 4.5.1. We'll be moving on to 4.6 betas soon! Everything looked ok in a brief test.
+Released using Godot 4.6.
 
 ### Added
 * Added ease curve option for game speed changes.
@@ -30,7 +30,7 @@ Under development using Godot 4.5.1. We'll be moving on to 4.6 betas soon! Every
 
 Beta release!
 
-Developed using Godot 4.5.1.
+Released using Godot 4.5.1.
 
 ### Added
 * Lots of documentation! The main entry point for plugin documentation is [IVUniverseTemplate](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/universe_template.gd).
@@ -67,7 +67,7 @@ Developed using Godot 4.5.1.
 
 ## [v0.0.25] - 2025-06-12
 
-Developed using Godot 4.4.1
+Released using Godot 4.4.1
 
 ### Added
 * IVOrbit can now handle parabolic and hyperbolic trajectories.
@@ -95,7 +95,7 @@ Developed using Godot 4.4.1
 
 ## [v0.0.24] - 2025-03-31
 
-Developed using Godot 4.4.
+Released using Godot 4.4.
 
 NOTE: For the shadows fix to work, project must have scale METER ~ 1e3 (see  
 [comments](https://github.com/ivoyager/planetarium/blob/master/planetarium/units.gd)). For
@@ -117,7 +117,7 @@ good quality shadows you also need ProjectSettings:
 
 ## [v0.0.23] - 2025-03-20
 
-Developed using Godot 4.4.
+Released using Godot 4.4.
 
 ### Added
 * New data table views.tsv from which we build default IVView instances. (Removed class IVViewsDefaults.)
@@ -137,7 +137,7 @@ Developed using Godot 4.4.
 
 ## [v0.0.22] - 2025-03-07
 
-Developed using Godot 4.3. **We will update to 4.4 in the next release!**
+Released using Godot 4.3. **We will update to 4.4 in the next release!**
 
 ### Changed
 * [API breaking] Recoded IVSaveManager and other classes to work with the new (optional) [Save](https://github.com/ivoyager/ivoyager_save) plugin.
@@ -145,7 +145,7 @@ Developed using Godot 4.3. **We will update to 4.4 in the next release!**
 
 ## [v0.0.21] - 2025-01-07
 
-Developed using Godot 4.3.
+Released using Godot 4.3.
 
 ### Changed
 * Now requires plugins 'ivoyager_tables' and 'ivoyager_units'. (These resulted from splitting the now-depreciated 'ivoyager_table_importer' plugin.)
@@ -153,7 +153,7 @@ Developed using Godot 4.3.
 
 ## [v0.0.20] - 2024-12-20
 
-Developed using Godot 4.3.
+Released using Godot 4.3.
 
 ### Fixed
 * Export breaking reference to EditorInterface outside of EditorPlugin.
@@ -161,7 +161,7 @@ Developed using Godot 4.3.
 
 ## [v0.0.19] - 2024-12-16
 
-Developed using Godot 4.3.
+Released using Godot 4.3.
 
 Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_table_importer) v0.0.8.
 
@@ -186,7 +186,7 @@ Requires ivoyager_assets-v0.0.19. The editor plugin will add or update assets if
 
 ## [v0.0.18] - 2024-03-15
 
-Developed using Godot 4.2.1. _Has backward breaking changes!_
+Released using Godot 4.2.1. _Has backward breaking changes!_
 
 Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_table_importer) v0.0.7.
 
@@ -219,7 +219,7 @@ Requires **ivoyager_assets-0.0.18**. **_NEW! The plugin will update this for you
 
 ## v0.0.17 - 2023-10-03
 
-Developed using Godot 4.1.1.
+Released using Godot 4.1.1.
 
 Requires non-Git-tracked **ivoyager_assets-0.0.17**; find in ivoyager_core [releases](https://github.com/ivoyager/ivoyager_core/releases).    
 Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_table_importer) v0.0.5.
@@ -237,7 +237,7 @@ Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_tab
 ##
 I, Voyager projects v0.0.16 and earlier used a different core submodule [ivoyager](https://github.com/ivoyager/ivoyager) (now depreciated); see previous changelog [here](https://github.com/ivoyager/ivoyager/blob/master/CHANGELOG.md).
 
-[v0.1.1]: https://github.com/ivoyager/ivoyager_core/compare/v0.1...HEAD
+[v0.1.1]: https://github.com/ivoyager/ivoyager_core/compare/v0.1...v0.1.1
 [v0.1]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.25...v0.1
 [v0.0.25]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.24...v0.0.25
 [v0.0.24]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.23...v0.0.24
