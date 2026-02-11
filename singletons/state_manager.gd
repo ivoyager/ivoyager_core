@@ -484,13 +484,13 @@ func quit(force_quit := false) -> void:
 	# debugging leaked objects...
 	#IVDebug.register_all_objects(get_viewport())
 	
-	about_to_quit.emit()
 	about_to_free_procedural_nodes.emit()
 	var universe: Node3D = IVGlobal.program[&"Universe"]
 	IVTree.free_procedural_nodes_recursive(universe)
 	await _tree.process_frame
-	assert(IVDebug.dprint_orphan_nodes())
+	about_to_quit.emit()
 	print("Quitting...")
+	assert(IVDebug.dprint_orphan_nodes())
 	_tree.quit()
 
 
