@@ -24,6 +24,7 @@ extends Object
 
 
 ## Returns 64 bit string formatted '00000000_00000000_00000000_...'.
+## WARNING: The sign bit no longer works for shift operations as of Godot 4.6.1.
 static func get_bit_string(flags: int, bytes := 4) -> String:
 	var bits := bytes * 8
 	var result := ""

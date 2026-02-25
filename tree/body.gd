@@ -136,7 +136,8 @@ signal huds_visibility_changed(is_visible: bool)
 
 
 ## Bits to 1 << 39 are reserved for ivoyager_core future use. Higher bits are
-## safe to use for external projects. Max bit shift is 1 << 63.
+## safe to use for external projects. Max bit shift is 1 << 62 (sign bit 1 << 63
+## isn't safe to use!).
 enum BodyFlags {
 	
 	# orbit context & identity
