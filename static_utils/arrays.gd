@@ -39,6 +39,29 @@ static func init_array(size: int, fill: Variant = null, type := -1, class_name_ 
 	return array
 
 
+## Duplicates [param a] and adds elements of [param b] not already present.
+## The resulting array will have the same type as [param a]; it's an error if
+## [param b] has elements inconsistent with this type.
+static func get_union(a: Array, b: Array) -> Array:
+	var union := a.duplicate()
+	for element: Variant in b:
+		if not union.has(element):
+			union.append(element)
+	return union
+
+
+## Duplicates [param a] and removes any elements that are not also present in
+## [param b]. The resulting array will have the same type as [param a].
+static func get_intersection(a: Array, b: Array) -> Array:
+	var intersection := a.duplicate()
+	var i := a.size()
+	while i > 0:
+		i -= 1
+		if not b.has(a[i]):
+			intersection.remove_at(i)
+	return intersection
+
+
 ## Merges the contents of [param from] Array into the provided [param into]
 ## Array [b]without[/b] duplication.
 static func merge_array(into: Array, from: Array) -> void:
