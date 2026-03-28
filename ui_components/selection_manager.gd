@@ -92,7 +92,8 @@ var _supress_history := false
 ## and for save/load persistence of current selection. Each dictionary should
 ## be added only once at init. 
 static func add_selection_dictionary(selections: Dictionary[StringName, Variant]) -> void:
-	assert(not _selection_dictionaries.has(selections))
+	for dict in _selection_dictionaries:
+		assert(not is_same(selections, dict))
 	_selection_dictionaries.append(selections)
 
 
@@ -301,11 +302,12 @@ func get_camera_target() -> Node3D:
 	return null
 
 
-## Get IVBody for current selection. This is obtained from selection
-## method [code]get_selection_body()[/code] (if exists), selection property
-## [code]body[/code] (if exists), or the selection itself if it is an [IVBody].
-## Otherwise returns null.
-func get_body() -> IVBody:
+## Get "Body" for current selection. The return type is Object so method can be
+## overridden to return anything. In base I, Voyager setup, return will be an
+## [IVBody]. This is obtained from selection method [code]get_selection_body()[/code]
+## (if exists), selection property [code]body[/code] (if exists), or the selection
+## itself if it is an [IVBody]. Otherwise returns null.
+func get_body() -> Object:
 	if not selection:
 		return null
 	if selection.has_method(&"get_selection_body"):
@@ -317,16 +319,20 @@ func get_body() -> IVBody:
 	return null
 
 
-## Returns body.name if [method get_body] is not null, otherwise &"".
+## Returns body.name if [method get_body] is not null and body has name, otherwise &"".
 func get_body_name() -> StringName:
 	var body := get_body()
-	return body.name if body else &""
+	if body and &"name" in body:
+		return body.get(&"name")
+	return &""
 
 
 ## Returns body.flags if [method get_body] is not null, otherwise 0.
 func get_body_flags() -> int:
 	var body := get_body()
-	return body.flags if body else 0
+	if body and &"flags" in body:
+		return body.get(&"flags")
+	return 0
 
 
 ## Returns result of method [code]get_float_precision(path)[/code], if exists,
