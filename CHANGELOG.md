@@ -8,10 +8,14 @@ See cloning and downloading instructions [here](https://www.ivoyager.dev/develop
 
 ## [v0.1.2] - UNRELEASED
 
-Under development using Godot 4.6.1.
+Under development using Godot 4.6.2.
+
+### Added
+* Several IVArrays utility functions.
 
 ### Changed
 * Emit signal about_to_quit closer to actual SceneTree.quit().
+* IVSelectionManager "body" functions return Object rather than IVBody.
 
 ## [v0.1.1] - 2026-02-09
 
@@ -244,6 +248,7 @@ Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_tab
 ##
 I, Voyager projects v0.0.16 and earlier used a different core submodule [ivoyager](https://github.com/ivoyager/ivoyager) (now depreciated); see previous changelog [here](https://github.com/ivoyager/ivoyager/blob/master/CHANGELOG.md).
 
+[v0.1.2]: https://github.com/ivoyager/ivoyager_core/compare/v0.1.1...HEAD
 [v0.1.1]: https://github.com/ivoyager/ivoyager_core/compare/v0.1...v0.1.1
 [v0.1]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.25...v0.1
 [v0.0.25]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.24...v0.0.25
