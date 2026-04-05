@@ -183,12 +183,16 @@ func is_photosphere() -> bool:
 
 func get_periapsis_label() -> StringName:
 	var body := _selection_manager.get_body()
-	return body.get_periapsis_label() if body else &""
+	if body and body.has_method(&"get_periapsis_label"):
+		return body.call(&"get_periapsis_label")
+	return &"LABEL_PERIAPSIS"
 
 
 func get_apoapsis_label() -> StringName:
 	var body := _selection_manager.get_body()
-	return body.get_apoapsis_label() if body else &""
+	if body and body.has_method(&"get_apoapsis_label"):
+		return body.call(&"get_apoapsis_label")
+	return &"LABEL_APOAPSIS"
 
 
 # *****************************************************************************
