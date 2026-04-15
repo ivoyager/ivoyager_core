@@ -104,7 +104,7 @@ extends PopupPanel
 ## name.
 @export var option_enumerations: Dictionary[StringName, Array] = {
 	language = [&"LanguageManager", &"language_settings"],
-	gui_size = [&"Global", &"GUISize"],
+	gui_size = [&"Global", &"gui_size_settings"],
 	starmap = [&"Global", &"StarmapSize"],
 }
 
