@@ -147,6 +147,9 @@ signal assets_preloaded()
 ## Emitted after [member building_system] is set before system tree building
 ## begins for new or loaded game.
 signal about_to_build_system_tree(new_game: bool)
+## Emitted on game load. Note: Unlike the [IVSave] signal, this signal is
+## guaranteed to emit before [signal system_tree_built].
+signal game_loaded()
 ## Emitted after [member built_system] is set. Procedural [IVBody] and
 ## [IVSmallBodiesGroup] instances have been added for new or loaded game, but
 ## non-persisted "finish" nodes (models, rings, lights, HUD elements, etc.)
@@ -532,6 +535,7 @@ func _on_aux_game_loaded(user_paused_on_load: bool) -> void:
 	paused_by_user = user_paused_on_load
 	loading_game = false
 	state_changed.emit()
+	game_loaded.emit()
 	_set_system_tree_built(false)
 
 
