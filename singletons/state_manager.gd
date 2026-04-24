@@ -58,6 +58,7 @@ extends Node
 ## [signal run_state_changed](running: bool)[br]
 ## [signal paused_changed](paused_tree: bool, paused_by_user: bool)[br]
 ## [signal about_to_free_procedural_nodes][br]
+## [signal procedural_nodes_freed][br]
 ## [signal about_to_exit][br]
 ## [signal simulator_exited][br]
 ## [signal about_to_stop_before_quit][br]
@@ -169,6 +170,11 @@ signal simulator_started()
 ## Emitted immediately before procedural nodes are freed on exit, quit, and game
 ## load starting.
 signal about_to_free_procedural_nodes()
+## Emitted [constant PROCEDURAL_NODES_FREEING_DELAY] process frames after
+## [signal about_to_free_procedural_nodes]. At this point any procedural nodes
+## queued for freeing are guaranteed to be gone, so it is safe to rebuild or
+## to reset shared state that those nodes might otherwise still touch.
+signal procedural_nodes_freed()
 ## Emitted immediately before the simulator stops for quit.
 signal about_to_stop_before_quit()
 ## Emitted immediately before quit.
@@ -225,6 +231,11 @@ enum NetworkStopSync {
 
 
 const DPRINT := false
+
+## Number of process frames to wait after [signal about_to_free_procedural_nodes]
+## before [signal procedural_nodes_freed] fires. Gives queued [code]queue_free[/code]
+## calls time to complete so that downstream teardown does not race freeing nodes.
+const PROCEDURAL_NODES_FREEING_DELAY := 5
 
 
 # All read-only!
@@ -453,7 +464,9 @@ func exit(force_exit := false, following_server := false) -> void:
 	about_to_free_procedural_nodes.emit()
 	var universe: Node3D = IVGlobal.program[&"Universe"]
 	IVTree.free_procedural_nodes_recursive(universe)
-	await _tree.process_frame
+	for i in PROCEDURAL_NODES_FREEING_DELAY:
+		await _tree.process_frame
+	procedural_nodes_freed.emit()
 	IVGlobal.close_admin_popups_required.emit()
 	await _tree.process_frame
 	prestart = true
@@ -490,7 +503,9 @@ func quit(force_quit := false) -> void:
 	about_to_free_procedural_nodes.emit()
 	var universe: Node3D = IVGlobal.program[&"Universe"]
 	IVTree.free_procedural_nodes_recursive(universe)
-	await _tree.process_frame
+	for i in PROCEDURAL_NODES_FREEING_DELAY:
+		await _tree.process_frame
+	procedural_nodes_freed.emit()
 	about_to_quit.emit()
 	print("Quitting...")
 	assert(IVDebug.dprint_orphan_nodes())
@@ -518,6 +533,9 @@ func _on_aux_asset_preloader_finished() -> void:
 
 func _on_aux_about_to_free_procedural_nodes_for_load() -> void:
 	about_to_free_procedural_nodes.emit()
+	for i in PROCEDURAL_NODES_FREEING_DELAY:
+		await _tree.process_frame
+	procedural_nodes_freed.emit()
 
 
 func _on_aux_game_loading() -> void:

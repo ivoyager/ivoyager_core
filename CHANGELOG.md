@@ -11,7 +11,8 @@ See cloning and downloading instructions [here](https://www.ivoyager.dev/develop
 Under development using Godot 4.6.2.
 
 ### Added
-* IVStateManager signal "game_loaded". Unlike the IVSave signal, this signal is guarateed to emit before system_tree_built.
+* IVStateManager signal `procedural_nodes_freed`. Emits an arbitrary 5 frames after `about_to_free_procedural_nodes`.
+* IVStateManager signal `game_loaded`. Unlike the IVSave signal, this signal is guarateed to emit before system_tree_built.
 * Several IVArrays utility functions.
 
 ### Changed
