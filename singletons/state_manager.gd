@@ -94,8 +94,8 @@ extends Node
 
 
 # Dev note: Avoid adding new non-Godot class dependencies in this file if
-# possible. We already IVGlobal, IVStateAuxiliary and static utility classes,
-# but these don't have any non-Godot dependencies.
+# possible. We already have IVGlobal, IVStateAuxiliary and static utility
+# classes, but these don't have any non-Godot dependencies.
 
 
 # Old comments...
@@ -165,15 +165,11 @@ signal about_to_start_simulator(new_game: bool)
 ## Emitted after [member started] is set. This is several frames after [signal
 ## about_to_start_simulator] and 1 frame after [signal IVGlobal.ui_dirty].
 signal simulator_started()
-
-
 ## Emitted immediately before procedural nodes are freed on exit, quit, and game
 ## load starting.
 signal about_to_free_procedural_nodes()
-## Emitted [constant PROCEDURAL_NODES_FREEING_DELAY] process frames after
-## [signal about_to_free_procedural_nodes]. At this point any procedural nodes
-## queued for freeing are guaranteed to be gone, so it is safe to rebuild or
-## to reset shared state that those nodes might otherwise still touch.
+## Emitted [constant PROCEDURAL_NODES_FREEING_DELAY] frames after procedural
+## tree teardown. Allows queue_free() and other delays to resolve.
 signal procedural_nodes_freed()
 ## Emitted immediately before the simulator stops for quit.
 signal about_to_stop_before_quit()
@@ -271,6 +267,10 @@ var building_system := false
 ## possible that non-procedural "finish" nodes (models, rings, lights, HUD
 ## elements, etc.) are still being added, possibly on thread.
 var built_system := false
+## Indicates whether procedural nodes currently exist in the scene tree. Stays
+## true until [constant PROCEDURAL_NODES_FREEING_DELAY] frames after
+## [signal about_to_free_procedural_nodes].
+var has_procedural_nodes := false
 ## True indicates that the system tree is built and ready, including "finish"
 ## nodes added on thread.
 var ready_system := false
@@ -466,6 +466,8 @@ func exit(force_exit := false, following_server := false) -> void:
 	IVTree.free_procedural_nodes_recursive(universe)
 	for i in PROCEDURAL_NODES_FREEING_DELAY:
 		await _tree.process_frame
+	has_procedural_nodes = false
+	state_changed.emit()
 	procedural_nodes_freed.emit()
 	IVGlobal.close_admin_popups_required.emit()
 	await _tree.process_frame
@@ -505,6 +507,8 @@ func quit(force_quit := false) -> void:
 	IVTree.free_procedural_nodes_recursive(universe)
 	for i in PROCEDURAL_NODES_FREEING_DELAY:
 		await _tree.process_frame
+	has_procedural_nodes = false
+	state_changed.emit()
 	procedural_nodes_freed.emit()
 	about_to_quit.emit()
 	print("Quitting...")
@@ -535,6 +539,8 @@ func _on_aux_about_to_free_procedural_nodes_for_load() -> void:
 	about_to_free_procedural_nodes.emit()
 	for i in PROCEDURAL_NODES_FREEING_DELAY:
 		await _tree.process_frame
+	has_procedural_nodes = false
+	state_changed.emit()
 	procedural_nodes_freed.emit()
 
 
@@ -568,6 +574,7 @@ func _on_aux_tree_building_count_changed(incr: int) -> void:
 func _set_about_to_build_system_tree(is_new_game: bool) -> void:
 	prestart = false
 	building_system = true
+	has_procedural_nodes = true
 	state_changed.emit()
 	about_to_build_system_tree.emit(is_new_game)
 
