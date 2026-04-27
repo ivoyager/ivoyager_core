@@ -51,13 +51,13 @@ extends Node
 
 
 ## Set only [member base_size] or [member sizes].
-## Base Control size multiplied by [member IVCoreSettings.gui_size_multipliers]
-## for each [enum IVGlobal.GUISize]. If set, the resulting sizes will overwrite
-## values in [member sizes]. A negative x or y means "Don't resize!" in this
-## axis (for Control not in a Container only).
+## Base Control size multiplied by [member IVCoreSettings.gui_size_multipliers] for
+## each of [member IVGlobal.gui_size_settings]. If set, the resulting sizes will
+## overwrite values in [member sizes]. A negative x or y means "Don't resize!" in
+## this axis (for Control not in a Container only).
 @export var base_size := Vector2.ZERO
 ## Set only [member base_size] or [member sizes].
-## Control size for each setting of [enum IVGlobal.GUISize]. If
+## Control size for each setting of [member IVGlobal.gui_size_settings]. If
 ## [member base_size] is set, this array will be filled (overwritten) using
 ## [member base_size] × [member IVCoreSettings.gui_size_multipliers]. A negative
 ## x or y means "Don't resize!" in this axis (for Control not in a Container only).
@@ -112,7 +112,7 @@ func _configure_after_core_inited() -> void:
 	_in_container = _control.get_parent() is Container
 	if base_size and sizes:
 		push_warning("Provided 'sizes' are overwritten using 'base_size'. Set only one of these!")
-	var n_sizes := IVGlobal.GUISize.size()
+	var n_sizes := IVGlobal.gui_size_settings.size()
 	if base_size:
 		assert(!_in_container or (base_size.x >= 0.0 and base_size.y >= 0.0),
 				"Negative size allowed only for Control not in a Container")
@@ -123,7 +123,7 @@ func _configure_after_core_inited() -> void:
 			sizes[i].x = roundf(base_size.x * multipliers[i]) if base_size.x >= 0.0 else -1.0
 			sizes[i].y = roundf(base_size.y * multipliers[i]) if base_size.y >= 0.0 else -1.0
 	elif sizes:
-		assert(sizes.size() == n_sizes, "'sizes' size does not match enum 'IVGlobal.GUISize' size")
+		assert(sizes.size() == n_sizes, "'sizes' size does not match 'IVGlobal.gui_size_settings' size")
 		if _in_container:
 			for i in n_sizes:
 				assert(sizes[i].x >= 0.0 and sizes[i].y >= 0.0,
