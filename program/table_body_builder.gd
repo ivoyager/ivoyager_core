@@ -99,6 +99,8 @@ var characteristics_fields: Array[StringName] = [
 	&"gas_giant",
 ]
 
+## Maps table-column names to [enum IVBody.BodyFlags] bits. Each true value in
+## the row OR's the corresponding flag into [member IVBody.flags].
 var flag_fields: Dictionary[StringName, int] = {
 	&"top" : BodyFlags.BODYFLAGS_TOP,
 	&"star_orbiter" : BodyFlags.BODYFLAGS_STAR_ORBITER,
@@ -127,6 +129,9 @@ var flag_fields: Dictionary[StringName, int] = {
 	&"use_pitch_yaw" : BodyFlags.BODYFLAGS_USE_PITCH_YAW,
 }
 
+## Maps a [code]"object/path"[/code] (used by IVTableData precision lookup) to
+## the table column whose precision the value should adopt. Used only when
+## [member IVCoreSettings.enable_precisions] is true.
 var add_precisions: Dictionary[String, StringName] = {
 	"body/orbit/get_semi_major_axis" : &"semi_major_axis",
 	"body/orbit/get_periapsis" : &"semi_major_axis", # roughly
@@ -149,6 +154,9 @@ func _init() -> void:
 
 
 
+## Builds and returns an [IVBody] (or subclass) instance from row [param row]
+## of [param table_name], parented to [param parent] ([code]null[/code] for the
+## top-level star).
 func build_body(table_name: String, row: int, parent: IVBody) -> IVBody:
 	
 	var flags := IVTableData.db_get_flags(table_name, row, flag_fields)

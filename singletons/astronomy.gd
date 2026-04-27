@@ -53,16 +53,25 @@ extends Node
 # avoided here to prevent circular reference issues.
 
 
+## Newton's gravitational constant in simulator units.
 const G := 6.67430e-11 * IVUnits.METER ** 3 / (IVUnits.KG * IVUnits.SECOND ** 2)
+## Julian Day Number for the J2000.0 epoch (noon on Jan 1, 2000).
 const EPOCH_JULIAN_DAY := 2451545.0 # J2000; noon on Jan 1, 2000
+## Unit vector pointing to ecliptic north in ecliptic coordinates.
 const ECLIPTIC_NORTH := Vector3(0, 0, 1)
+## Unit vector pointing to the vernal equinox in ecliptic (and equatorial)
+## coordinates; corresponds to ecliptic longitude 0.
 const VERNAL_EQUINOX := Vector3(1, 0, 0)
+## Earth's axial tilt at J2000.0 (radians).
 const OBLIQUITY_OF_THE_ECLIPTIC := deg_to_rad(23.4392911) # at J2000
+## Basis that rotates an ecliptic-frame vector into the equatorial frame.
 const ECLIPTIC_TO_EQUATORIAL_ROTATION := Basis(
 		Vector3(1, 0, 0),
 		Vector3(0, cos(OBLIQUITY_OF_THE_ECLIPTIC), sin(OBLIQUITY_OF_THE_ECLIPTIC)),
 		Vector3(0, -sin(OBLIQUITY_OF_THE_ECLIPTIC), cos(OBLIQUITY_OF_THE_ECLIPTIC))
 	)
+## Inverse of [constant ECLIPTIC_TO_EQUATORIAL_ROTATION]; rotates equatorial to
+## ecliptic.
 const EQUATORIAL_TO_ECLIPTIC_ROTATION := Basis(
 		Vector3(1, 0, 0),
 		Vector3(0, cos(OBLIQUITY_OF_THE_ECLIPTIC), -sin(OBLIQUITY_OF_THE_ECLIPTIC)),

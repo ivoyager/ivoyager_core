@@ -39,11 +39,16 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 ]
 
 # persisted
+## How [member components] amounts should be interpreted; one of
+## [enum CompositionType].
 var type: int
+## Map of chemical name to amount string ([code]null[/code] if amount unknown).
 var components := {} # chemicals w/ amount string or null
 
 
 
+## Returns parallel [code][label, value][/code] strings for GUI display.
+## [param labels_prefix] is prepended to each label.
 func get_labels_values_display(labels_prefix := "") -> Array[String]:
 	const arrays := preload("uid://bv7xrcpcm24nc")
 	var result := arrays.init_array(2, "", TYPE_STRING) # label, value

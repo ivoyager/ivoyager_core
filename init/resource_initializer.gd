@@ -27,6 +27,9 @@ extends RefCounted
 ## presence of ivoyager_assets (see [IVAssetPreloader] for that).
 
 
+## Resources to preload and add to [member IVGlobal.resources]. Modify before
+## construction (e.g., from a preinitializer script) to add or replace shaders
+## and other resources.
 var preloads: Dictionary[StringName, Resource] = {
 	# shaders
 	points_id_shader = preload("res://addons/ivoyager_core/shaders/points.id.gdshader"),
@@ -38,6 +41,9 @@ var preloads: Dictionary[StringName, Resource] = {
 			"res://addons/ivoyager_core/shaders/rings_shadow_caster.gdshader"),
 }
 
+## Callables that build shared resources (e.g., the common sphere mesh).
+## Each Callable is invoked with no arguments and its return value is stored
+## under the matching key in [member IVGlobal.resources].
 var constructors: Dictionary[StringName, Callable]= {
 	&"sphere_mesh" : _make_sphere_mesh,
 	&"circle_mesh" : _make_circle_mesh.bind(IVCoreSettings.vertecies_per_orbit),

@@ -34,9 +34,13 @@ extends VBoxContainer
 ## will be removed. TimeCkbx is still valid because "time state" includes game
 ## speed, but this checkbox will be re-texted to display as "Game Speed".
 
+## Emitted when the user saves a brand-new view button.
 signal saved_new(view_name: String)
+## Emitted when the user saves changes to an existing view button.
 signal saved_edit(editing_button: IVViewButton, view_name: String)
+## Emitted when the user restores a default button to its table-defined state.
 signal restored_default(editing_button: IVViewButton)
+## Emitted when the user deletes a view button.
 signal deleted(editing_button: IVViewButton)
 
 const ViewFlags := IVView.ViewFlags

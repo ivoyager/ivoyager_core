@@ -44,6 +44,9 @@ extends Button
 ## If enabled and user edits a default view button, the [IVViewEdit] interface
 ## will have a "Restore Default" option.
 
+## Emitted when the user requests to edit this button (right-click or
+## shift-Enter). The parent [IVViewCollection] is expected to listen and open
+## an [IVViewEdit] popup.
 signal edit_requested()
 
 ## Set to view name for default (i.e., table defined) views like "VIEW_HOME".
@@ -118,14 +121,20 @@ func _gui_input(event: InputEvent) -> void:
 			_process_edit_or_delete_input()
 
 
+## Returns the [IVView] flags this button currently represents.
 func get_view_flags() -> int:
 	return _view_flags
 
 
+## Returns true if this is a default button whose underlying view has been
+## edited by the user.
 func is_edited_default_button() -> bool:
 	return _is_edited_default_button
 
 
+## Renames this button to [param view_name] and rebinds its [code]pressed[/code]
+## signal to load the new view. For default buttons, this also flips into
+## "edited default" mode.
 func edit(view_name: String, collection_name: String, is_cached: bool) -> void:
 	# editing name only; collection_name & is_cached in case this is a default button
 	if default_view and !_is_edited_default_button:
@@ -141,6 +150,7 @@ func edit(view_name: String, collection_name: String, is_cached: bool) -> void:
 	pressed.connect(_view_manager.set_view.bind(view_name, _collection_name, _is_cached))
 
 
+## Restores an edited default button back to its table-defined state.
 func restore_default() -> void:
 	if !_is_edited_default_button:
 		return
@@ -151,6 +161,7 @@ func restore_default() -> void:
 	pressed.connect(_view_manager.set_table_view.bind(default_view))
 
 
+## Frees this button. Does nothing if [member deletable] is false.
 func delete() -> void:
 	if !deletable:
 		return

@@ -43,7 +43,10 @@ extends Object
 ## specified by [param log_name].
 
 
+## Directory used for log files written by this class.
 static var log_directory := "user://logs"
+## File name for the default debug log opened in [method _static_init]. Set to
+## [code]""[/code] before any [method dlog] call to disable log file creation.
 static var dlog_name := "debug.log"
 
 static var _dlog: FileAccess
@@ -75,23 +78,31 @@ static func _dlog_destroy() -> void:
 # *****************************************************************************
 # simple dprint and dlog
 
+## Like [method @GlobalScope.prints]. Always returns true so it can be wrapped
+## in [method @GDScript.assert] for debug-only invocation.
 static func dprint(arg: Variant, arg2: Variant = "", arg3: Variant = "", arg4: Variant = ""
 		) -> bool:
 	prints(arg, arg2, arg3, arg4)
 	return true
 
 
+## Writes [param arg] to the debug log if one is open. Always returns true so
+## it can be wrapped in [method @GDScript.assert].
 static func dlog(arg: Variant) -> bool:
 	if _dlog:
 		_dlog.store_line(str(arg))
 	return true
 
 
+## Prints orphan-node info via [method IVGlobal.print_orphan_nodes]. Always
+## returns true; suitable for [method @GDScript.assert] wrapping.
 static func dprint_orphan_nodes() -> bool:
 	IVGlobal.print_orphan_nodes()
 	return true
 
 
+## Prints the scene tree below [param node] (defaults to viewport) using
+## [method Node.print_tree_pretty]. Always returns true.
 static func dprint_tree_pretty(node: Node = null) -> bool:
 	if !node:
 		node = IVGlobal.get_viewport()
@@ -99,6 +110,8 @@ static func dprint_tree_pretty(node: Node = null) -> bool:
 	return true
 
 
+## Recursively prints [param node] and its descendants. Pass
+## [param include_internal] = false to skip Godot-internal children.
 static func dprint_nodes_recursive(node: Node = null, include_internal: bool = true) -> bool:
 	if !node:
 		node = IVGlobal.get_viewport()
@@ -108,6 +121,8 @@ static func dprint_nodes_recursive(node: Node = null, include_internal: bool = t
 	return true
 
 
+## Recursive variant of [method dprint_nodes_recursive] that writes to the
+## debug log instead of printing.
 static func dlog_nodes_recursive(node: Node = null, include_internal: bool = true) -> bool:
 	if !node:
 		node = IVGlobal.get_viewport()

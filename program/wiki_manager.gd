@@ -73,10 +73,15 @@ func _init() -> void:
 
 
 
+## Returns true if a wiki page title is known for [param entity_name] in the
+## currently selected language (or the fallback language).
 func has_page(entity_name: StringName) -> bool:
 	return _wiki_page_titles.has(entity_name)
 
 
+## Emits [signal wiki_requested] for [param entity_name] and, if
+## [member open_external_page] is enabled, opens the matching external URL via
+## [method OS.shell_open]. No-op if the entity has no known page title.
 func open_page(entity_name: StringName) -> void:
 	if !_wiki_page_titles.has(entity_name):
 		return

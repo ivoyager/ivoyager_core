@@ -23,6 +23,8 @@ extends Object
 ## Conversion static utility methods.
 
 
+## Converts a [Color] from sRGB space to linear space (per channel; alpha is
+## not modified).
 static func srgb2linear(color: Color) -> Color:
 	if color.r <= 0.04045:
 		color.r /= 12.92
@@ -39,6 +41,7 @@ static func srgb2linear(color: Color) -> Color:
 	return color
 
 
+## Converts a single linear channel value to sRGB.
 static func linear2srgb(x: float) -> float:
 	if x <= 0.0031308:
 		return x * 12.92

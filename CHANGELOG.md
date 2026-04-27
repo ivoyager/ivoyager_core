@@ -16,6 +16,7 @@ Under development using Godot 4.6.2.
 * Several IVArrays utility functions.
 
 ### Changed
+* Complete doc comments in all files.
 * Emit signal about_to_quit closer to actual SceneTree.quit().
 * IVSelectionManager "body" functions return Object rather than IVBody.
 

@@ -434,6 +434,10 @@ func synchronize_with_operating_system() -> void:
 	
 
 
+## Returns the value [member universal_time_offset] would need to take so that
+## simulated UT exactly matches the OS clock right now (using [member
+## universal_time_body]). Used when
+## [member recalculate_universal_time_offset] is true.
 func calculate_present_universal_time_offset() -> float:
 	const SECOND := IVUnits.SECOND
 	const DAY := IVUnits.DAY
@@ -444,6 +448,8 @@ func calculate_present_universal_time_offset() -> float:
 	return get_synodic_days_at_body_at_time(_ut_body, tt_sec * SECOND, 0.0) - utc_sec / DAY
 
 
+## Prints the present-time UT offset for both [member universal_time_body] and
+## a constants-only Earth model. Useful for verifying time-sync accuracy.
 func debug_print_present_offsets() -> void:
 	const SECOND := IVUnits.SECOND
 	const DAY := IVUnits.DAY
@@ -524,6 +530,8 @@ func get_time_from_os() -> float:
 	return (utc_sec + utc_leap_seconds + TT_TAI_OFFSET_SECONDS) * SECOND
 
 
+## Convenience wrapper that calls [method get_time_at_date_clock_elements]
+## and then [method set_time].
 func set_time_from_date_clock_elements(year: int, month: int, day: int,
 		hour := 12, minute := 0, second := 0, tt_clock_time := false) -> void:
 	var new_time := get_time_at_date_clock_elements(year, month, day, hour, minute, second,

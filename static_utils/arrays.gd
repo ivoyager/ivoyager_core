@@ -70,6 +70,7 @@ static func merge_array(into: Array, from: Array) -> void:
 			into.append(item)
 
 
+## Returns the sum of all elements of [param array].
 static func get_float_sum(array: Array[float]) -> float:
 	var sum := 0.0
 	for i in array.size():
@@ -77,6 +78,7 @@ static func get_float_sum(array: Array[float]) -> float:
 	return sum
 
 
+## Returns the arithmetic mean of [param array]. Errors on an empty array.
 static func get_float_average(array: Array[float]) -> float:
 	var size := array.size()
 	var sum := 0.0
@@ -85,6 +87,9 @@ static func get_float_average(array: Array[float]) -> float:
 	return sum / size
 
 
+## Returns a new array of fractions (summing to 1.0) computed by dividing each
+## element of [param proportions] by the total. The input is not modified;
+## see [method set_fractions_from_proportions] for the in-place version.
 static func get_fractions_from_proportions(proportions: Array[float]) -> Array[float]:
 	var size := proportions.size()
 	var sum := 0.0
@@ -97,6 +102,8 @@ static func get_fractions_from_proportions(proportions: Array[float]) -> Array[f
 	return fractions
 
 
+## In-place variant of [method get_fractions_from_proportions]; rescales
+## [param array] so its elements sum to 1.0.
 static func set_fractions_from_proportions(array: Array[float]) -> void:
 	var size := array.size()
 	var sum := 0.0

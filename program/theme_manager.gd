@@ -52,7 +52,10 @@ static var fallback_theme_path := "res://addons/ivoyager_core/resources/ivoyager
 static var override_font_path := ""
 static var fallback_font_path := "res://addons/ivoyager_assets/fonts/Roboto-NotoSansSymbols-merged.ttf"
 
+## If true, the loaded font is assigned to the main theme's default font.
 var set_default_font := true
+## Callables applied (in order) to the main Theme during init. Append your own
+## to add custom theme modifications.
 var main_theme_mods: Array[Callable] = [
 	add_gui_font_sizes,
 	#add_borderless_color_picker_button,
@@ -67,7 +70,9 @@ var medium_font_base_size := 20
 ## Value multiplied by [member IVCoreSettings.gui_size_multipliers] for type
 ## variation "LargeFont".
 var large_font_base_size := 24
+## Fixed (gui_size-independent) font size for type variation "MediumFixedFont".
 var medium_font_fixed_size := 20
+## Fixed (gui_size-independent) font size for type variation "LargeFixedFont".
 var large_font_fixed_size := 24
 
 
@@ -137,6 +142,9 @@ func _init() -> void:
 
 
 
+## Default [member main_theme_mods] entry: registers the "MediumFont",
+## "LargeFont", "MediumFixedFont", and "LargeFixedFont" type variations on
+## [param theme].
 func add_gui_font_sizes(theme: Theme) -> void:
 	theme.set_type_variation(&"MediumFont", &"Control")
 	theme.set_type_variation(&"LargeFont", &"Control")
@@ -152,6 +160,8 @@ func add_gui_font_sizes(theme: Theme) -> void:
 	#theme.set_type_variation(&"BorderlessColorPickerButton", &"ColorPickerButton")
 
 
+## Returns the current Label3D font size for body name labels, derived from
+## the active GUI size and the "label3d_names_size_percent" user setting.
 func get_label3d_names_font_size() -> int:
 	var gui_size: int = IVSettingsManager.get_setting(&"gui_size")
 	var names_percent: int = IVSettingsManager.get_setting(&"label3d_names_size_percent")
@@ -159,6 +169,7 @@ func get_label3d_names_font_size() -> int:
 	return roundi(default_font_size * names_percent / 100.0)
 
 
+## Returns the current Label3D font size for body symbol labels.
 func get_label3d_symbols_font_size() -> int:
 	var gui_size: int = IVSettingsManager.get_setting(&"gui_size")
 	var symbols_percent: int = IVSettingsManager.get_setting(&"label3d_symbols_size_percent")

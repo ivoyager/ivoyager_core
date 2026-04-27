@@ -39,9 +39,16 @@ const BodyFlags := IVBody.BodyFlags
 
 
 # project vars
+## If true, the new system tree is added under the configured Universe node.
 var add_to_universe := true
+## If true, [IVSmallBodiesGroup] instances are added in addition to
+## [IVBody] instances.
 var add_small_bodies_groups := true
+## If true, an [IVCamera] (or [member replacement_camera_class] subclass) is
+## added at the body named by [member IVCoreSettings.home_name].
 var add_camera := true
+## Optional camera Script used in place of [IVCamera] when [member add_camera]
+## is true. Must be an [IVCamera] subclass.
 var replacement_camera_class: Script
 
 # private

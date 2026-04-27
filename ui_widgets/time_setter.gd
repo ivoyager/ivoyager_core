@@ -31,6 +31,8 @@ extends VBoxContainer
 ##
 ## If not used in a popup, call [method update_setter_time] as needed.
 
+## Emitted when the setter closes. (Not currently emitted; kept for projects
+## that re-add a close button.)
 signal closed() # not emitted after we removed close button
 
 
@@ -55,6 +57,9 @@ func _ready() -> void:
 		IVStateManager.core_initialized.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
 
 
+## Synchronizes the setter spin boxes with the current simulator date and
+## clock. Called automatically when used inside [IVTimeSetPopup]; call
+## manually otherwise.
 func update_setter_time() -> void:
 	_updating_setter = true
 	_year.value = _date[0]

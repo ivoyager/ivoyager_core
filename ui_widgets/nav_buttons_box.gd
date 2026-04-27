@@ -82,6 +82,7 @@ func _configure_after_core_inited() -> void:
 		_resquare_buttons()
 
 
+## Procedurally adds an [IVNavButton] for [param body_name] to this container.
 func add_button(body_name: StringName, min_size := Vector2(10, 10)) -> void:
 	var button := IVNavButton.create(body_name, false, focus_selected_on_sim_start, min_size)
 	add_child(button)

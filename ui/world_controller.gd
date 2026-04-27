@@ -27,19 +27,33 @@ extends Control
 ## call [method update_world_target] each frame to be available for mouse-over
 ## identification and selection.
 
+## Emitted when the Node3D under the mouse changes; [param target] is null
+## when nothing is under the cursor.
 signal mouse_target_changed(target: Object)
+## Emitted on mouse click over an active target. [param button_mask] /
+## [param key_modifier_mask] reflect the input state when clicked.
 signal mouse_target_clicked(target: Object, button_mask: int, key_modifier_mask: int)
+## Emitted while the mouse is being dragged in the 3D viewport.
+## [param drag_vector] is the per-frame motion in screen pixels.
 signal mouse_dragged(drag_vector: Vector2, button_mask: int, key_modifier_mask: int)
+## Emitted on mouse-wheel input. [param is_up] is true for wheel-up, false
+## for wheel-down.
 signal mouse_wheel_turned(is_up: bool)
 
 
 # project settings
+## Minimum mouse-click radius in screen pixels. Effective radius for a target
+## may be larger based on its on-screen size.
 var min_click_radius := 20.0
 
 # read-only!
+## The active 3D camera. Read-only.
 var camera: Camera3D
+## The Node3D currently under the mouse, or null. Read-only.
 var current_target: Node3D
+## Current mouse cursor shape. Read-only.
 var cursor_shape := CURSOR_ARROW
+## Most recent mouse position in viewport coordinates. Read-only.
 var mouse_position := Vector2.ZERO
 
 @onready var veiwport_height := get_viewport().get_visible_rect().size.y

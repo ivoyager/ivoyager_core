@@ -29,10 +29,19 @@ extends RefCounted
 # Dev note: Don't add any non-Godot class dependencies!
 
 # To IVStateManager
+## Emitted from [IVAssetPreloader] (via [method set_asset_preloader_finished])
+## to notify [IVStateManager] that asset preloading has completed.
 signal asset_preloader_finished()
+## Emitted from [IVSaveManager] to notify [IVStateManager] that procedural
+## nodes are about to be freed prior to a game load.
 signal about_to_free_procedural_nodes_for_load()
+## Emitted from [IVSaveManager] when game load has begun.
 signal game_loading()
+## Emitted from [IVSaveManager] when game load has completed.
+## [param user_paused_on_load] preserves the saved user-pause state.
 signal game_loaded(user_paused_on_load: bool)
+## Emitted to track outstanding system-tree-build work; [param incr] is +1
+## (work started) or -1 (work finished).
 signal tree_building_count_changed(incr: int)
 
 # From IVStateManager
@@ -61,6 +70,8 @@ func set_game_loaded(user_paused_on_load: bool) -> void:
 	game_loaded.emit(user_paused_on_load)
 
 
+## Increments or decrements the system-tree-build counter. [param incr] must
+## be exactly +1 or -1. Emits [signal tree_building_count_changed].
 func change_tree_building_count(incr: int) -> void:
 	assert(absi(incr) == 1)
 	tree_building_count_changed.emit(incr)

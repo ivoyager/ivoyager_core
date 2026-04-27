@@ -209,12 +209,17 @@ signal server_about_to_stop(network_sync_type: int) # NetworkStopSync; server on
 signal server_about_to_run() # server only
 
 
+## Multiplayer network role of this instance. Set externally by network code;
+## affects which actions are allowed (see e.g. [method require_stop]).
 enum NetworkState {
 	NO_NETWORK,
 	IS_SERVER,
 	IS_CLIENT,
 }
 
+## Reason a network server is requesting all clients to stop. Used as the
+## payload of [signal server_about_to_stop] so clients can synchronize. WIP
+## multiplayer support.
 enum NetworkStopSync {
 	BUILD_SYSTEM,
 	SAVE,
@@ -278,18 +283,31 @@ var ready_system := false
 ## [signal system_tree_ready]).
 var started_or_about_to_start := false
 ## Indicates whether the simulation is started (soon after
-## [signal about_to_start_simulator]). 
+## [signal about_to_start_simulator]).
 var started := false
+## Indicates whether the simulator is currently running (i.e., not stopped by
+## [method require_stop]). Distinct from pause: a running tree may still be
+## paused.
 var running := false
+## True from the start of [method quit] until the application exits.
 var quitting := false
+## True from the start of [method IVStateManager._on_aux_game_loading] until
+## load completes; coincides with deserializing a save file.
 var loading_game := false
+## True if the current system tree was loaded from a save file (cleared on
+## [method exit] or [method start]).
 var loaded_game := false
+## Current multiplayer network role; see [enum NetworkState].
 var network_state := NetworkState.NO_NETWORK
 ## Use this property to set splash screen visibility on [signal state_changed].
 ## True until simulator started. True again on exit.
 var show_splash_screen := true
 
+## True between [signal run_threads_allowed] and [signal run_threads_must_stop]
+## — workers that affect game state should only run while this is true.
 var allow_threads := false
+## Threads that block save/load/exit/quit until removed via
+## [method remove_blocking_thread].
 var blocking_threads := []
 
 ## [IVStateAuxiliary] component for class-specific state API.
@@ -374,6 +392,8 @@ func set_user_paused(pause: bool) -> void:
 		_tree.paused = paused_by_user # emits paused_changed via _notification()
 
 
+## Returns true if user-driven pause is currently allowed (i.e., not blocked
+## by network role or [member IVCoreSettings.disable_pause]).
 func can_user_pause() -> bool:
 	if network_state == NetworkState.IS_CLIENT:
 		return false
@@ -410,6 +430,9 @@ func require_stop(who: Object, network_sync_type := -1, bypass_checks := false) 
 	return true
 
 
+## Removes [param who] from the set of objects requiring the simulator to be
+## stopped. The simulator runs again only after every previous [method
+## require_stop] caller has called [method allow_run].
 func allow_run(who: Object) -> void:
 	assert(!DPRINT or IVDebug.dprint("allow_run", who))
 	_nodes_requiring_stop.erase(who)

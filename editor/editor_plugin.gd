@@ -20,17 +20,23 @@
 @tool
 extends EditorPlugin
 
-# This file adds autoloads and shader globals for ivoyager_core. You can change
-# these by editing res://ivoyager_override.cfg in your project directory. See
-# res://addons/ivoyager_core/ivoyager_core.cfg for base values and comments.
-#
-# If you modify autoloads or shader globals, you'll need to disable and re-
-# enable the plugin (or quit and restart the editor) for your changes to have
-# effect.
-#
-# The editor plugin also checks ivoyager_assets presence and version and offers
-# to download current assets if appropriate.
+## EditorPlugin entry point for [code]ivoyager_core[/code].
+##
+## Adds autoloads and shader globals for ivoyager_core. You can change these
+## by editing [code]res://ivoyager_override.cfg[/code] in your project
+## directory. See [code]res://addons/ivoyager_core/ivoyager_core.cfg[/code] for
+## base values and comments.[br][br]
+##
+## If you modify autoloads or shader globals, you'll need to disable and re-
+## enable the plugin (or quit and restart the editor) for your changes to have
+## effect.[br][br]
+##
+## The editor plugin also checks [code]ivoyager_assets[/code] presence and
+## version and offers to download current assets if appropriate (see
+## [IVAssetsDialog] and [IVAssetsLoader]).
 
+
+## Plugin names that must be enabled before [code]ivoyager_core[/code].
 const REQUIRED_PLUGINS: Array[String] = ["ivoyager_units", "ivoyager_tables"]
 
 var _config: ConfigFile # with overrides
