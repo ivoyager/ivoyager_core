@@ -22,6 +22,9 @@ extends ConfirmationDialog
 
 ## Dialog widget used by [IVHotkeysPopup].
 
+## Emitted when the user confirms a new hotkey binding. [param keycode]
+## is the bare scancode and modifier-key bools indicate which modifiers were
+## held; the listener should pass these to [IVInputMapManager].
 signal hotkey_confirmed(action: StringName, index: int, keycode: int,
 		control: bool, alt: bool, shift: bool, meta: bool)
 

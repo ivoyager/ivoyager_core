@@ -23,6 +23,11 @@ extends Object
 ## File static utility methods.
 
 
+## Applies values from [param section] of [param config] to properties of
+## [param object]. Plain keys set the matching property directly. Keys
+## containing [code]/[/code] (e.g. [code]my_dict/key[/code]) set or erase a
+## dictionary entry. Keys ending in [code].append[/code] or [code].erase[/code]
+## modify an array property. Unknown keys generate warnings rather than errors.
 static func init_from_config(object: Object, config: ConfigFile, section: String) -> void:
 	if !config.has_section(section):
 		return
@@ -71,6 +76,8 @@ static func init_from_config(object: Object, config: ConfigFile, section: String
 			continue
 
 
+## Loads and returns either a [PackedScene] (for [code].tscn[/code] /
+## [code].scn[/code]) or a [Script] from [param path]. Asserts on failure.
 static func get_script_or_packedscene(path: String) -> Resource:
 	if !path:
 		assert(false, "Requires path")
@@ -136,6 +143,8 @@ static func make_object_or_scene(arg: Variant) -> Object:
 	return root_node
 
 
+## Creates [param dir_path] if it doesn't exist, or removes its files if it
+## does. Subdirectories are not removed.
 static func make_or_clear_dir(dir_path: String) -> void:
 	if !DirAccess.dir_exists_absolute(dir_path):
 		DirAccess.make_dir_recursive_absolute(dir_path)
@@ -172,6 +181,11 @@ static func make_or_clear_dir(dir_path: String) -> void:
 #	return result
 
 
+## Searches each of [param dir_paths] for a resource file whose name begins
+## with [param prefix] followed by a dot, and returns its resource path
+## ([code].import[/code] suffix removed) — or [code]""[/code] if not found. Case
+## insensitive. If [param search_prefix_subdirectories] is true, also descends
+## into immediate subdirectories whose name matches [param prefix].
 static func find_resource_file(dir_paths: Array[String], prefix: String,
 		search_prefix_subdirectories := true) -> String:
 	# Searches for file in the given directory path that begins with file_prefix
@@ -205,6 +219,8 @@ static func find_resource_file(dir_paths: Array[String], prefix: String,
 	return ""
 
 
+## Calls [method find_resource_file] and [method @GlobalScope.load] on the
+## result. Returns null if no matching file was found.
 static func find_and_load_resource(dir_paths: Array[String], prefix: String,
 		search_prefix_subdirectories := true) -> Resource:
 	var path := find_resource_file(dir_paths, prefix, search_prefix_subdirectories)
@@ -213,6 +229,9 @@ static func find_and_load_resource(dir_paths: Array[String], prefix: String,
 	return null
 
 
+## Replaces literal [code]\\n[/code] / [code]\\t[/code] sequences in
+## [param string] with newline / tab characters. Use to interpret
+## escape-encoded text from data tables or config files.
 static func apply_escape_characters(string: String) -> String:
 	string = string.replace("\\n", "\n")
 	string = string.replace("\\t", "\t")

@@ -31,6 +31,8 @@ extends WorldEnvironment
 ## assets. (It can't run that way but we don't want it to generate missing
 ## resource errors.)[br][br]
 
+## If true, a starmap loaded from [IVAssetPreloader] is added to the
+## Environment's sky as a [PanoramaSkyMaterial] at startup.
 @export var add_starmap := true
 
 

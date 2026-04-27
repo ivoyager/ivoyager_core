@@ -26,13 +26,18 @@ extends RefCounted
 ## Otherwise, all orbits are created as [IVOrbit] instances with evolution of
 ## precessing elements only.
 
+## Minimum inclination (radians) for which a nodal period is treated as
+## meaningful when computing precession.
 var min_inclination_for_nodal_period := 0.001 # ~0.06 deg
+## Minimum eccentricity for which an apsidal period is treated as meaningful.
 var min_eccentricity_for_apsidal_period := 0.001
 
 ## Set true to implement [IVRealPlanetOrbit] subclass for planets with data
 ## table [param real_planet_orbit] == TRUE.
 var use_real_planet_orbits := false
 
+## Table column names read by [method make_orbit] when constructing an orbit.
+## Missing fields or values are simply absent from the working dictionary.
 var orbit_fields: Array[StringName] = [
 	# Missing table fields or values will be absent in the data dictionary.
 	
@@ -87,6 +92,10 @@ var orbit_fields: Array[StringName] = [
 
 
 
+## Builds and returns an [IVOrbit] (or [IVRealPlanetOrbit] subclass when
+## [member use_real_planet_orbits] is enabled and the row's
+## [code]real_planet_orbit[/code] flag is set) from row [param row] of
+## [param table], parented gravitationally to [param parent].
 func make_orbit(table: String, row: int, parent: IVBody) -> IVOrbit:
 	const ReferencePlane := IVOrbit.ReferencePlane
 	const DAY := IVUnits.DAY

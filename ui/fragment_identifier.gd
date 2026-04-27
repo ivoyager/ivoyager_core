@@ -71,9 +71,13 @@ extends SubViewport
 ## like a frame slowdown using it on desktop or laptop. Not even with our HTML5
 ## web Planetarium. So use at your own discretion.
 
+## Emitted when the fragment under the mouse changes. [param id] is the new
+## 36-bit fragment id, or [code]-1[/code] when the previous fragment is lost.
+## Look up the matching record in [member fragment_data].
 signal fragment_changed(id: int) # -1 on target loss; get data from 'fragment_data'
 
 
+## Categories used as the second element of each [member fragment_data] entry.
 enum { # fragment_type
 	FRAGMENT_BODY_ORBIT,
 	FRAGMENT_SBG_POINT,
@@ -100,6 +104,7 @@ const COLOR_HALF_STEP := Color(0.015625, 0.015625, 0.015625, 0.0)
 @export var fragment_range := 9 
 
 # read-only!
+## Most recently identified fragment id, or [code]-1[/code] for none. Read-only.
 var current_id := -1
 ## Data arrays indexed by 36-bit id integer; [name, fragment_type, maybe more...].
 var fragment_data: Dictionary[int, Array] = {}
@@ -256,6 +261,9 @@ func _process(_delta: float) -> void:
 # public
 
 
+## Assigns a fresh 36-bit fragment id and stores [param data] under it in
+## [member fragment_data]. [param data][0] should be the target's instance id;
+## additional indexes are caller-defined. Returns the new id.
 func get_new_id(data: Array) -> int:
 	# Assigns random id from interval 0 to 68_719_476_735 (36 bits).
 	# data[0] is target instance_id; target assigns additional indexes as needed
@@ -266,11 +274,14 @@ func get_new_id(data: Array) -> int:
 	return id
 
 
+## Convenience wrapper around [method get_new_id] that returns the new id
+## already encoded as a Vector3 ready to feed to a shader.
 func get_new_id_as_vec3(data: Array) -> Vector3:
 	var id := get_new_id(data)
 	return encode_vec3(id)
 
 
+## Removes [param id] from [member fragment_data]. No-op if not present.
 func remove_id(id: int) -> void:
 	fragment_data.erase(id)
 

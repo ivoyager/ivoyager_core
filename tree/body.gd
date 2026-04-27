@@ -130,8 +130,15 @@ extends Node3D
 ## and velocity in Universe. Any larger scope will require procedural system
 ## building and scene loading, which is not in our plans but could be supported.
 
+## Emitted when this body's orbit changes. [param is_intrinsic] distinguishes
+## intrinsic changes (e.g. spacecraft thrust) from extrinsic changes (e.g.
+## time-dependent precession). [param precession_only] indicates that only
+## precession has updated.
 signal orbit_changed(orbit: IVOrbit, is_intrinsic: bool, precession_only: bool)
+## Emitted when rotation parameters change. [param is_intrinsic] distinguishes
+## an externally-imposed rotation change from time-driven rotation evolution.
 signal rotation_chaged(is_intrinsic: bool)
+## Emitted when this body's HUD visibility (label, orbit visual, etc.) toggles.
 signal huds_visibility_changed(is_visible: bool)
 
 
@@ -250,8 +257,12 @@ var orientation_at_epoch := Basis.IDENTITY
 var rotation_axis := Vector3(0, 0, 1)
 ## Rotation rate. If negative, this body has retrograde rotation.
 var rotation_rate := 0.0
+## Rotation phase (radians) at the simulator epoch.
 var rotation_at_epoch := 0.0
+## Persisted dictionary of non-object characteristics (mass, surface gravity,
+## albedo, atmosphere data, etc.) loaded from data tables.
 var characteristics: Dictionary[StringName, Variant] = {} # non-object values
+## Persisted dictionary of object-valued components (e.g. an [IVComposition]).
 var components: Dictionary[StringName, RefCounted] = {} # objects (persisted only)
 
 # redirect
@@ -563,6 +574,8 @@ func _process(delta: float) -> void:
 # *****************************************************************************
 # remove
 
+## Removes this body and all of its satellites recursively, freeing them via
+## [method Node.queue_free].
 func remove() -> void:
 	# Pre-clear satellite containers so child exits do less work.
 	var temp_satellites: Array[IVBody] = satellites.values()
@@ -651,6 +664,9 @@ func set_rotation_at_epoch(value: float) -> void:
 	rotation_at_epoch = value
 
 
+## Sets or removes (when [param value] is null) a component in
+## [member components]. The value must be a [code]PERSIST_PROCEDURAL[/code]
+## RefCounted.
 func set_component(key: StringName, value: RefCounted) -> void:
 	if value == null:
 		components.erase(key)
@@ -660,18 +676,25 @@ func set_component(key: StringName, value: RefCounted) -> void:
 	components[key] = value
 
 
+## Returns the component for [param key] from [member components], or null if
+## absent.
 func get_component(key: StringName) -> RefCounted:
 	return components.get(key)
 
 
+## Returns true if this body has an associated [IVOrbit] (i.e., it is not a
+## top-level star).
 func has_orbit() -> bool:
 	return _orbit != null
 
 
+## Returns the [IVOrbit] for this body, or null for a top-level star.
 func get_orbit() -> IVOrbit:
 	return _orbit
 
 
+## Replaces this body's [IVOrbit]. Disconnects from the previous orbit's
+## [signal IVOrbit.changed] and connects to the new one.
 func set_orbit(new_orbit: IVOrbit) -> void:
 	if _orbit:
 		_orbit.changed.disconnect(_on_orbit_changed)

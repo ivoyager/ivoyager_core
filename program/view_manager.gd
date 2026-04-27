@@ -35,9 +35,14 @@ var set_view_on_start := &"VIEW_HOME"
 var file_path := IVCoreSettings.cache_dir.path_join("views.ivbinary")
 
 
-var table_views: Dictionary[StringName, IVView] ## read only!
-var gamesave_views: Dictionary[StringName, IVView] = {} ## read only!
-var cached_views: Dictionary[StringName, IVView] = {} ## read only!
+## Built once at init from [code]views.tsv[/code]; read only!
+var table_views: Dictionary[StringName, IVView]
+## Views persisted via gamesave; keys are
+## [code]"<view_name>.<collection_name>"[/code]. Read only!
+var gamesave_views: Dictionary[StringName, IVView] = {}
+## Views persisted via the cache file at [member file_path]; keys are
+## [code]"<view_name>.<collection_name>"[/code]. Read only!
+var cached_views: Dictionary[StringName, IVView] = {}
 
 var _missing_or_bad_cache_file := true
 
@@ -49,6 +54,8 @@ func _init() -> void:
 	IVStateManager.about_to_start_simulator.connect(_on_about_to_start_simulator)
 
 
+## Applies the named built-in [IVView] (from [member table_views]) to the
+## simulator. No-op if the name is unknown.
 func set_table_view(view_name: StringName, is_camera_instant_move := false) -> void:
 	if !table_views.has(view_name):
 		return
@@ -56,20 +63,28 @@ func set_table_view(view_name: StringName, is_camera_instant_move := false) -> v
 	view.set_state(is_camera_instant_move)
 
 
+## Returns true if [param view_name] is a known built-in view.
 func has_table_view(view_name: StringName) -> bool:
 	return table_views.has(view_name)
 
 
+## Returns the [IVView] for [param view_name] from [member table_views], or
+## [code]null[/code] if not found.
 func get_table_view_object(view_name: StringName) -> IVView:
 	return table_views.get(view_name)
 
 
+## Returns the [member IVView.flags] of [param view_name] from
+## [member table_views], or 0 if not found.
 func get_table_view_flags(view_name: StringName) -> int:
 	if table_views.has(view_name):
 		return table_views[view_name].flags
 	return 0
 
 
+## Captures the simulator's current state into a new (or existing) [IVView]
+## and persists it. Stored in [member cached_views] when [param is_cached] is
+## true (then written to disk), otherwise in [member gamesave_views].
 func save_view(view_name: String, collection_name: String, is_cached: bool, flags: int,
 		allow_threaded_cache_write := true) -> void:
 	print("Save view '%s'; collection '%s', cached = %s" % [view_name, collection_name, is_cached])
@@ -88,6 +103,8 @@ func save_view(view_name: String, collection_name: String, is_cached: bool, flag
 		gamesave_views[key] = view
 
 
+## Applies a previously saved view to the simulator. No-op if the view does
+## not exist.
 func set_view(view_name: String, collection_name: String, is_cached: bool,
 		is_camera_instant_move := false) -> void:
 	var key := view_name + "." + collection_name
@@ -101,6 +118,8 @@ func set_view(view_name: String, collection_name: String, is_cached: bool,
 	view.set_state(is_camera_instant_move)
 
 
+## Persists [param view] (without re-capturing simulator state). Useful when
+## the [IVView] was constructed externally.
 func save_view_object(view: IVView, view_name: String, collection_name: String, is_cached: bool,
 		allow_threaded_cache_write := true) -> void:
 	var key := view_name + "." + collection_name
@@ -111,6 +130,7 @@ func save_view_object(view: IVView, view_name: String, collection_name: String, 
 		gamesave_views[key] = view
 
 
+## Returns the [IVView] for the given key, or [code]null[/code] if not found.
 func get_view_object(view_name: String, collection_name: String, is_cached: bool) -> IVView:
 	var key := view_name + "." + collection_name
 	if is_cached:
@@ -118,6 +138,7 @@ func get_view_object(view_name: String, collection_name: String, is_cached: bool
 	return gamesave_views.get(key)
 
 
+## Returns the [member IVView.flags] of the named view, or 0 if not found.
 func get_view_flags(view_name: String, collection_name: String, is_cached: bool) -> int:
 	var key := view_name + "." + collection_name
 	var view: IVView = cached_views.get(key) if is_cached else gamesave_views.get(key)
@@ -143,6 +164,7 @@ func set_view_edited_default(view_name: String, collection_name: String, is_cach
 		view.edited_default = edited_default
 
 
+## Returns true if the named view exists in the chosen store.
 func has_view(view_name: String, collection_name: String, is_cached: bool) -> bool:
 	var key := view_name + "." + collection_name
 	if is_cached:
@@ -150,6 +172,8 @@ func has_view(view_name: String, collection_name: String, is_cached: bool) -> bo
 	return gamesave_views.has(key)
 
 
+## Removes the named view from the chosen store. No-op if the view doesn't
+## exist.
 func remove_view(view_name: String, collection_name: String, is_cached: bool) -> void:
 	# OK if doesn't exist
 	var key := view_name + "." + collection_name
@@ -159,8 +183,10 @@ func remove_view(view_name: String, collection_name: String, is_cached: bool) ->
 			_write_cache()
 	else:
 		gamesave_views.erase(key)
-	
 
+
+## Returns the [code]view_name[/code]s of every view in [param collection_name]
+## within the chosen store.
 func get_names_in_collection(collection_name: String, is_cached: bool) -> Array[String]:
 	var group: Array[String] = []
 	var suffix := "." + collection_name

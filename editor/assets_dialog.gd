@@ -21,8 +21,18 @@
 extends AcceptDialog
 class_name IVAssetsDialog
 
+## Editor-only AcceptDialog that prompts the user to download or update
+## [code]res://addons/ivoyager_assets[/code].
+##
+## Popped up by [IVEditorPlugin] when the assets directory is missing or its
+## version doesn't match the version specified in the plugin config. Pressing
+## "Download" hands off to [IVAssetsLoader].
+
+
 const ASSETS_REPOSITORY := "https://github.com/ivoyager/asset_downloads"
 
+## Dialog text (with one [code]%s[/code] for expected version) used when no
+## ivoyager_assets directory is present.
 const MISSING_FORMAT := """I, Voyager requires assets to run!
 
 Press "Download" to download assets v%s and install at res://addons/ivoyager_assets.
@@ -30,6 +40,8 @@ Press "Download" to download assets v%s and install at res://addons/ivoyager_ass
 Press "Close" to manage assets manually.
 """
 
+## Dialog text (with three [code]%s[/code] slots for present, expected, expected
+## versions) used when ivoyager_assets is present but at the wrong version.
 const MISMATCH_FORMAT := """res://addons/ivoyager_assets v%s does not match expected v%s.
 
 Press "Download" to download v%s and replace existing ivoyager_assets.
@@ -51,6 +63,8 @@ func _ready() -> void:
 	(%RepositoryRTL as RichTextLabel).meta_clicked.connect(_on_meta_clicked)
 
 
+## Sets the dialog body text. Pass an empty [param present_version] (the
+## default) when there's no existing assets directory.
 func update_dialog(expected_version: String, present_version := "") -> void:
 	var label := %DialogLabel as Label
 	if present_version == "":
@@ -59,6 +73,8 @@ func update_dialog(expected_version: String, present_version := "") -> void:
 		label.text = MISMATCH_FORMAT % [present_version, expected_version, expected_version]
 
 
+## Updates the progress bar; intended to be connected to
+## [signal IVAssetsLoader.progress_changed].
 func update_progress(progress: float) -> void:
 	_progress_bar.value = progress
 

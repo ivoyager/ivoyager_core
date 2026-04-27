@@ -52,6 +52,8 @@ var dictionary_fields: Array[StringName] = [
 
 
 
+## Builds an [IVView] for every row in [code]views.tsv[/code]; returns a
+## name-indexed dictionary.
 func build_all() -> Dictionary[StringName, IVView]:
 	var result: Dictionary[StringName, IVView] = {}
 	for row in IVTableData.get_n_rows(&"views"):
@@ -61,6 +63,7 @@ func build_all() -> Dictionary[StringName, IVView]:
 	return result
 
 
+## Builds a single [IVView] from row [param row] of [code]views.tsv[/code].
 func build(row: int) -> IVView:
 	var view := IVView.create()
 	IVTableData.db_build_object(view, &"views", row, as_is_fields)

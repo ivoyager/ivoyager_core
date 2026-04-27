@@ -90,11 +90,14 @@ enum GUISize {
 	GUI_LARGE,
 }
 
+## Resolution choice for the background starmap; see [IVAssetPreloader].
 enum StarmapSize {
 	STARMAP_8K,
 	STARMAP_16K,
 }
 
+## Generic confidence levels for table-driven values. Used by data tables
+## where a fact may be doubtful, unknown, or probable.
 enum Confidence {
 	CONFIDENCE_NO,
 	CONFIDENCE_DOUBTFUL,

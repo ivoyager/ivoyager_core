@@ -96,6 +96,8 @@ func set_default(key: StringName, value: Variant) -> void:
 		_defaults[key] = value
 
 
+## Returns true if [param key] is a registered setting (whether or not the
+## current value differs from the default).
 func has_setting(key: StringName) -> bool:
 	return _defaults.has(key)
 
@@ -106,22 +108,30 @@ func change_setting(key: StringName, value: Variant, suppress_caching := false) 
 	_cache_handler.change_current(key, value, suppress_caching)
 
 
+## Returns the current value of setting [param key]. Errors if [param key] is
+## not a registered setting.
 func get_setting(key: StringName) -> Variant:
 	return _settings[key]
 
 
+## Returns the default value of setting [param key]. Errors if [param key] is
+## not a registered setting.
 func get_default(key: StringName) -> Variant:
 	return _defaults[key]
 
 
+## Writes the current settings to the cache file. Useful after a batch of
+## [method change_setting] calls made with [param suppress_caching] = true.
 func cache_now() -> void:
 	_cache_handler.cache_now()
 
 
+## Returns true if [param key] currently equals its default value.
 func is_default(key: StringName) -> bool:
 	return _cache_handler.is_default(key)
 
 
+## Returns true if [i]all[/i] settings currently equal their defaults.
 func is_defaults() -> bool:
 	return _cache_handler.is_defaults()
 
@@ -136,10 +146,13 @@ func restore_defaults(suppress_caching := false) -> void:
 	_cache_handler.restore_defaults(suppress_caching)
 
 
+## Returns true if the in-memory settings match the cache file (i.e., no
+## un-cached changes are pending).
 func is_cache_current() -> bool:
 	return _cache_handler.is_cache_current()
 
 
+## Reloads settings from the cache file, discarding any in-memory changes.
 func restore_from_cache() -> void:
 	_cache_handler.restore_from_cache()
 

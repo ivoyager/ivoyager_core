@@ -24,6 +24,8 @@ extends Node
 ##
 ## Remove or replace this class if you have a different camera.
 
+## Drag-input modes assigned to the various mouse-button-and-modifier
+## combinations below (e.g. [member left_drag], [member shift_drag]).
 enum {
 	DRAG_MOVE,
 	DRAG_PITCH_YAW,
@@ -32,7 +34,10 @@ enum {
 }
 
 
+## Convenience alias for [enum IVCamera.CameraFlags].
 const CameraFlags := IVCamera.CameraFlags
+## Sentinel passed to [method move_to] / [method move_to_by_name] to leave a
+## position or rotation parameter unchanged.
 const NULL_VECTOR3 := Vector3(-INF, -INF, -INF)
 
 ## Tells this node where to find an [IVSelectionManager] to listen to.
@@ -44,21 +49,39 @@ var selection_manager_tree_program_node := &"TopUI"
 
 
 # set _adj vars so user option can be close to 1.0
+## Multiplier applied to the user "mouse in/out rate" setting (mouse wheel).
 var mouse_wheel_adj := 7.5
+## Multiplier applied to the user "mouse move rate" setting.
 var mouse_move_adj := 0.3
+## Multiplier applied to the user "mouse pitch/yaw rate" setting.
 var mouse_pitch_yaw_adj := 0.13
+## Multiplier applied to the user "mouse roll rate" setting.
 var mouse_roll_adj := 0.5
+## Multiplier applied to the user "key in/out rate" setting.
 var key_in_out_adj := 3.0
+## Multiplier applied to the user "key move rate" setting.
 var key_move_adj := 0.7
+## Multiplier applied to the user "key pitch/yaw rate" setting.
 var key_pitch_yaw_adj := 2.0
+## Multiplier applied to the user "key roll rate" setting.
 var key_roll_adj := 3.0
+## Drag mode used when the left mouse button is held with no modifier.
 var left_drag := DRAG_MOVE
+## Drag mode used when the right mouse button is held with no modifier.
 var right_drag := DRAG_PITCH_YAW_ROLL_HYBRID
+## Drag mode used when [code]Ctrl[/code] is held (matches [member right_drag]
+## by default to provide a Mac-friendly equivalent).
 var ctrl_drag := DRAG_PITCH_YAW_ROLL_HYBRID # same as right_drag for Mac!
 #var cmd_drag := DRAG_PITCH_YAW_ROLL_HYBRID # same as above? FIXME34: Mac cmd?
+## Drag mode used when [code]Shift[/code] is held.
 var shift_drag := DRAG_PITCH_YAW
+## Drag mode used when [code]Alt[/code] is held.
 var alt_drag := DRAG_ROLL
+## In [constant DRAG_PITCH_YAW_ROLL_HYBRID], normalized radius (0–1) inside
+## which drags are pitch/yaw only.
 var hybrid_drag_center_zone := 0.2 # for DRAG_PITCH_YAW_ROLL_HYBRID
+## In [constant DRAG_PITCH_YAW_ROLL_HYBRID], normalized radius outside which
+## drags are roll only. Between center and outside zones, both blend.
 var hybrid_drag_outside_zone := 0.7 # for DRAG_PITCH_YAW_ROLL_HYBRID
 
 
@@ -210,22 +233,24 @@ func _shortcut_input(event: InputEvent) -> void:
 # *****************************************************************************
 # public API
 
-## Null or null-equivilant args tell the camera to keep its current value.
-## Some parameters override others.
+## Forwards a move request to the active [IVCamera]. Null or null-equivalent
+## args (see [constant NULL_VECTOR3]) tell the camera to keep its current
+## value. Some parameters override others.
 func move_to(to_node3d: Node3D, camera_flags := 0, view_position := NULL_VECTOR3,
 		view_rotations := NULL_VECTOR3, is_instant_move := false) -> void:
-	
+
 	if not _camera:
 		return
-	
+
 	# TEMP
 	if to_node3d:
 		_selection_manager.select_by_name(to_node3d.name, true)
-	
+
 	_camera.move_to(to_node3d, camera_flags, view_position, view_rotations, is_instant_move)
 
 
-
+## As [method move_to] but resolves [param selection_name] to an [IVBody] via
+## [member IVBody.bodies] before forwarding.
 func move_to_by_name(selection_name: StringName, camera_flags := 0, view_position := NULL_VECTOR3,
 		view_rotations := NULL_VECTOR3, is_instant_move := false) -> void:
 	# Null or null-equivilant args tell the camera to keep its current value.
@@ -236,10 +261,13 @@ func move_to_by_name(selection_name: StringName, camera_flags := 0, view_positio
 	var body: IVBody
 	if selection_name:
 		body = IVBody.bodies[selection_name]
-	
+
 	move_to(body, camera_flags, view_position, view_rotations, is_instant_move)
 
 
+## Returns [code][target_name, flags, view_position, view_rotations][/code]
+## describing the active [IVCamera]'s current view; suitable for snapshotting
+## and replay via [method move_to_by_name].
 func get_camera_view_state() -> Array:
 	return [
 		_camera.target.name,

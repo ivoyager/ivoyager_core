@@ -32,11 +32,17 @@ extends Node
 # TODO: API for VISUAL_GROUP_
 
 
+## Emitted whenever any of [member name_visible_flags],
+## [member symbol_visible_flags], or [member orbit_visible_flags] changes.
 signal visibility_changed()
+## Emitted whenever any entry of [member orbit_colors] changes.
 signal color_changed()
 
 
+## Sentinel returned by [method get_orbit_color] when a multi-bit query has no
+## consensus color across the matching groups.
 const NULL_COLOR := Color.BLACK
+## Convenience alias for [enum IVBody.BodyFlags].
 const BodyFlags: Dictionary = IVBody.BodyFlags
 
 const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY
@@ -49,19 +55,34 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 
 
 # persisted - read-only!
+## Bitwise OR of [enum IVBody.BodyFlags] for body groups whose name labels are
+## currently visible. Mutually exclusive with [member symbol_visible_flags].
+## Read-only; modify via setter methods.
 var name_visible_flags := 0 # exclusive w/ symbol_visible_flags
+## Bitwise OR of [enum IVBody.BodyFlags] for body groups whose symbol labels
+## are currently visible. Mutually exclusive with [member name_visible_flags].
 var symbol_visible_flags := 0 # exclusive w/ name_visible_flags
+## Bitwise OR of [enum IVBody.BodyFlags] for body groups whose orbits are
+## currently visible.
 var orbit_visible_flags := 0
+## Per-flag orbit color. Must have a full key set from [member all_flags] bits.
 var orbit_colors: Dictionary[int, Color] = {} # must have full key set from all_flags bits!
 
 # project vars - set at project init
+## Color returned by [method get_default_orbit_color] when no single-flag match
+## is found.
 var fallback_orbit_color := Color("FE9C33") # orange
 
 # imported from visual_groups.tsv - ready-only!
+## Bitwise OR of every body-flag in [code]visual_groups.tsv[/code] (read-only).
 var all_flags := 0
+## Default value for [member name_visible_flags] (read-only).
 var default_name_visible_flags := 0 # exclusive w/ symbol_visible_flags
+## Default value for [member symbol_visible_flags] (read-only).
 var default_symbol_visible_flags := 0 # exclusive w/ name_visible_flags
+## Default value for [member orbit_visible_flags] (read-only).
 var default_orbit_visible_flags := 0
+## Default value for [member orbit_colors] (read-only).
 var default_orbit_colors: Dictionary[int, Color] = {}
 
 

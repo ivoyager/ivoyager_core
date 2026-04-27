@@ -43,6 +43,8 @@ extends RefCounted
 ## [method is_cached], etc. Only current values different than default are
 ## written to cache.[br][br]
 
+## Emitted whenever [method change_current] sets a value (including identical
+## reassignments).
 signal current_changed(key: StringName, new_value: Variant)
 
 
@@ -94,24 +96,33 @@ func change_current(key: StringName, value: Variant, suppress_caching := false) 
 		_write_cache()
 
 
+## Writes the current state to the cache file. Useful after a batch of
+## [method change_current] calls made with [param suppress_caching] = true.
 func cache_now() -> void:
 	_write_cache()
 
 
+## Returns true if the current value for [param key] equals its default.
 func is_default(key: StringName) -> bool:
 	return _current[key] == _defaults[key]
 
 
+## Returns true if [i]all[/i] current values equal their defaults.
 func is_defaults() -> bool:
 	return _current == _defaults
 
 
+## Returns the most recently cached value for [param key], or the default if
+## the key has never been written to cache. Reference-safe (returns a deep
+## copy for arrays/dictionaries).
 func get_cached_value(key: StringName) -> Variant:
 	if _cached.has(key):
 		return _get_reference_safe(_cached[key])
 	return _get_reference_safe(_defaults[key])
 
 
+## Returns true if the current value for [param key] matches what is on disk
+## (i.e., no un-cached changes are pending for this key).
 func is_cached(key: StringName) -> bool:
 	if _cached.has(key):
 		return _current[key] == _cached[key]
@@ -132,6 +143,8 @@ func restore_defaults(suppress_caching := false) -> void:
 		cache_now()
 
 
+## Returns true if every current value matches what is on disk (i.e., the
+## entire in-memory state has been persisted).
 func is_cache_current() -> bool:
 	for key in _defaults:
 		if !is_cached(key):

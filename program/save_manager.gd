@@ -49,9 +49,13 @@ var save_game_mod := IVGlobal.game_mod
 ## Used to generate a file-safe date string for file name.
 var file_date_format := "-%02d-%02d-%02d"
 
+## InputMap action name for "Save As…" shortcut.
 var input_shortcut_save_as := &"save_as"
+## InputMap action name for the quicksave shortcut.
 var input_shortcut_quicksave := &"quicksave"
+## InputMap action name for "Load File…" shortcut.
 var input_shortcut_load_file := &"load_file"
+## InputMap action name for the quickload shortcut.
 var input_shortcut_quickload := &"quickload"
 
 

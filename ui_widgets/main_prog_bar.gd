@@ -20,23 +20,30 @@
 class_name IVMainProgBar
 extends ProgressBar
 
+## Progress bar widget driven by an external object's [code]progress[/code]
+## property.
+##
+## Reads [code]progress[/code] (integer 0–100) from a target [Object] supplied
+## via [method start] and updates [member ProgressBar.value] each frame until
+## [method stop] is called.[br][br]
+##
+## This will not visually update if the main thread is hung up on a multi-frame
+## task. It is mainly useful if the target object is operating on another
+## thread.[br][br]
+##
+## Use [member delay_start_frames] to give the target object a chance to reset
+## its progress when called on another thread.
+
 
 # ALERT: This hasn't been used for a while and hasn't been maintained. It needs
 # work to re-implement...
 
 
-# Target object must have property "progress" w/ integer value 0 - 100.
-#
-# Note: This will not visually update if the main thread is hung up on a
-# multi-frame task. It is mainly usefull if the target object is operating
-# on another thread.
-#
-# delay_start_frames can be useful to allow target object to reset it's
-# progress when called on another thread.
-
 const SCENE := "res://addons/ivoyager_core/ui_widgets/main_prog_bar.tscn"
 
 
+## Number of frames to wait before reading [code]progress[/code] from the
+## target object. Useful when the target needs a moment to reset its counter.
 var delay_start_frames := 0
 
 var _delay_count := 0
@@ -55,6 +62,9 @@ func _process(_delta: float) -> void:
 	value = _object.progress
 
 
+## Begins polling [param object].[code]progress[/code] each frame and showing
+## the bar. The target must expose an integer [code]progress[/code] property
+## with values from 0 to 100.
 func start(object: Object) -> void:
 	_object = object
 	value = 0
@@ -62,6 +72,7 @@ func start(object: Object) -> void:
 	show()
 
 
+## Hides the bar and stops polling the target object.
 func stop() -> void:
 	hide()
 	set_process(false)

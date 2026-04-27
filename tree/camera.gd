@@ -47,12 +47,22 @@ extends Camera3D
 ## they appear to be. In the transition distance they are intermediate.
 ## This system *may* break for objects smaller than meters (not tested yet).
 
+## Emitted at the start of a [method move_to] transition. [param to_node3d]
+## becomes the new parent only after the move completes.
 signal move_started(to_node3d: Node3D, is_camera_lock: bool) # to_node3d is not parent yet
+## Emitted when the camera's distance to [member target] changes meaningfully
+## (rate-limited for GUI use).
 signal range_changed(camera_range: float)
+## Emitted when the camera's latitude/longitude over [member target] changes.
 signal latitude_longitude_changed(lat_long: Vector2, is_ecliptic: bool,
 		lat_lon_type: IVQFormat.LatitudeLongitudeType)
+## Emitted when [member is_camera_lock] toggles.
 signal camera_lock_changed(is_camera_lock_: bool)
+## Emitted when up-lock state changes; carries the up-lock bits of
+## [member flags] and current [member disabled_flags].
 signal up_lock_changed(flags: int, disabled_flags: int)
+## Emitted when tracking state changes; carries the tracking bits of
+## [member flags] and current [member disabled_flags].
 signal tracking_changed(flags: int, disabled_flags: int)
 
 enum CameraFlags {
@@ -123,14 +133,24 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 
 
 # public persisted - read only except project init
+## Bitwise OR of [enum CameraFlags] selecting up-lock state and tracking mode.
 var flags: int = CameraFlags.CAMERAFLAGS_UP_LOCKED | CameraFlags.CAMERAFLAGS_TRACK_ORBIT
+## When true, selection changes from [IVSelectionManager] move the camera; when
+## false, the camera stays at its current target until explicitly moved.
 var is_camera_lock := true
 
 # public persisted - read only!
+## Node3D the camera is at, or moving toward. Not the actual parent during the
+## first half of a transfer. Read-only.
 var target: Node3D # Node3D we are at or going to (not parant during 1st half of transfer)
 
+## "Perspective target radius" used in distance calculations. See class docs
+## for the perspective-distance system.
 var perspective_radius := KM
+## Spherical view position relative to the current reference basis: x is right
+## ascension, y is declination, z is "perspective distance". Read-only.
 var view_position := Vector3(0.5, 2.5, 3.0) # spherical, relative to ref frame; r is 'perspective'
+## Euler offsets applied after [code]looking_at(-origin, up)[/code]. Read-only.
 var view_rotations := Vector3.ZERO # euler, relative to looking_at(-origin, 'up')
 
 # public - project init vars
@@ -146,8 +166,12 @@ var max_perspective_radii_meters := 1e9 * METER # really target radii; see 'pers
 var min_perspective_radii_meters := 2.0 * METER # really target radii; see 'perspective distance'
 
 # public read-only
+## The Node3D the camera is currently a child of. Read-only.
 var parent: Node3D # actual Node3D parent at this time
+## True while a body-to-body move transition is in progress. Read-only.
 var is_moving := false # body to body move in progress
+## Bitwise OR of [enum CameraDisabledFlags] indicating which tracking modes
+## are not available at the current target/distance. Read-only.
 var disabled_flags := 0 # CameraDisabledFlags
 
 

@@ -27,6 +27,8 @@ extends RefCounted
 ## on [signal IVStateManager.core_initialized]. When finished, emits [signal
 ## IVStateManager.assets_preloaded].
 
+## Number of LOD textures expected per rings entry. Must agree with the asset
+## bundle, [IVBody] and [code]rings.shader[/code].
 const RINGS_LOD_LEVELS := 9 # must agree w/ assets, body.gd and rings.shader
 
 
@@ -43,11 +45,18 @@ const RINGS_LOD_LEVELS := 9 # must agree w/ assets, body.gd and rings.shader
 var use_thread := false
  ## Must exist in asset_paths.
 
+## Directories searched for body 3D models. Prepend a directory to prioritize
+## a custom override.
 var models_search: Array[String] = ["res://addons/ivoyager_assets/models"] # prepend to prioritize
+## Directories searched for body texture maps (albedo / emission).
 var maps_search: Array[String] = ["res://addons/ivoyager_assets/maps"]
+## Directories searched for 2D body textures (used in nav buttons, GUI, etc.).
 var bodies_2d_search: Array[String] = ["res://addons/ivoyager_assets/bodies_2d"]
+## Directories searched for rings textures.
 var rings_search: Array[String] = ["res://addons/ivoyager_assets/rings"]
 
+## Resolved paths for individually loaded assets. Keys correspond to the
+## [code]get_*[/code] accessors below and to entries in [member fallback_starmap].
 var asset_paths: Dictionary[StringName, String] = {
 	blue_noise_1024 = "res://addons/ivoyager_assets/noise/blue_noise_1024.png",
 	starmap_8k = "res://addons/ivoyager_assets/starmaps/starmap_8k.jpg",
@@ -55,6 +64,8 @@ var asset_paths: Dictionary[StringName, String] = {
 	fallback_body_texture_2d = "res://addons/ivoyager_assets/fallbacks/blank_grid_2d_globe.256.png",
 	fallback_body_albedo_map = "res://addons/ivoyager_assets/fallbacks/blank_grid.jpg",
 }
+## Key in [member asset_paths] used as starmap when the user-selected starmap
+## isn't available.
 var fallback_starmap := &"starmap_8k" # starmap_16k possibly removed for size reduction
 
 

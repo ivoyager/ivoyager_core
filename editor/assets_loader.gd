@@ -20,13 +20,25 @@
 @tool
 extends HTTPRequest
 
-# Self-starts when added to the tree. Self-frees after finished or failed.
+## Editor-only HTTPRequest that downloads and installs
+## [code]res://addons/ivoyager_assets[/code].
+##
+## Self-starts when added to the tree and self-frees after the download
+## finishes or fails. Used by [IVEditorPlugin] together with [IVAssetsDialog].
 
+
+## Emitted exactly once when the download has finished, errored, or aborted —
+## i.e., when this node is about to free itself.
 signal finished_or_failed()
+## Emitted as the download progresses; [param value] is an integer percentage
+## from 0 to 100.
 signal progress_changed(value: int)
 
+## Install location for the downloaded asset bundle.
 const ASSETS_DIR := "res://addons/ivoyager_assets"
+## File name used for the temporary downloaded zip.
 const TEMP_FILE := "ivoyager_assets.zip"
+## Path prefix prepended to each entry inside the zip when extracting.
 const UNZIP_PREPEND := "res://addons/"
 
 

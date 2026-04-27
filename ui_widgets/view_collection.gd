@@ -99,6 +99,9 @@ func add_user_button(view_name: String) -> void:
 	button.edit_requested.connect(open_view_edit.bind(button, button))
 
 
+## Opens the [IVViewEditPopup] anchored to [param at_control]. Pass
+## [param editing_button] to edit an existing button, or [code]null[/code] to
+## create a new view button.
 func open_view_edit(at_control: Control, editing_button: IVViewButton = null) -> void:
 	if _view_edit.is_visible_in_tree():
 		return
@@ -107,14 +110,17 @@ func open_view_edit(at_control: Control, editing_button: IVViewButton = null) ->
 	IVWidgets.position_popup_at_corner.call_deferred(_view_edit_popup, at_control, popup_corner)
 
 
+## Closes the [IVViewEditPopup] if open.
 func close_view_edit() -> void:
 	_view_edit_popup.hide()
 
 
+## Returns the owned [IVViewEditPopup] (constructed lazily).
 func get_view_edit_popup() -> IVViewEditPopup:
 	return _view_edit_popup
 
 
+## Returns the owned [IVViewEdit] (the popup's content).
 func get_view_edit() -> IVViewEdit:
 	return _view_edit
 

@@ -52,7 +52,12 @@ extends RefCounted
 ## It can be subclassed to provide additional functionality for other Object
 ## types; see [member replacement_subclass]. 
 
+## Emitted when [method select] sets a new selection (different from the
+## previous one). [param suppress_camera_move] tells listeners not to move
+## the camera in response.
 signal selection_changed(suppress_camera_move: bool)
+## Emitted when [method select] is called with the current selection (e.g.,
+## a re-click on the same target).
 signal selection_reselected(suppress_camera_move: bool)
 
 

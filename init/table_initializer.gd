@@ -33,7 +33,11 @@ extends RefCounted
 ## work, thereby removing itself.
 
 
-static var table_base_path := "res://addons/ivoyager_core/tables/%s.tsv" 
+## Format string used to build default paths in [member tables]; the
+## [code]%s[/code] is substituted with the table name.
+static var table_base_path := "res://addons/ivoyager_core/tables/%s.tsv"
+## Map of table key (used by [IVTableData]) to TSV file path. Modify (e.g.,
+## from a preinitializer) to add or replace tables.
 static var tables: Dictionary[StringName, String] = {
 	file_adjustments = table_base_path % "file_adjustments",
 	asteroids = table_base_path % "asteroids",

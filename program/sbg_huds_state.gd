@@ -24,12 +24,18 @@ extends Node
 ##
 ## HUD Nodes must connect and set visibility and color on changed signals.
 
+## Emitted whenever any entry of [member points_visibilities] changes.
 signal points_visibility_changed()
+## Emitted whenever any entry of [member orbits_visibilities] changes.
 signal orbits_visibility_changed()
+## Emitted whenever any entry of [member points_colors] changes.
 signal points_color_changed()
+## Emitted whenever any entry of [member orbits_colors] changes.
 signal orbits_color_changed()
 
 
+## Sentinel returned by [method get_consensus_points_color] /
+## [method get_consensus_orbits_color] when the queried groups don't agree.
 const NULL_COLOR := Color.BLACK
 
 const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY
@@ -42,19 +48,34 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 
 
 # persisted - read-only!
+## Indexed by [code]sbg_alias[/code]; missing keys mean false.
 var points_visibilities: Dictionary[StringName, bool] = {} # indexed by sbg_alias; missing same as false
+## Indexed by [code]sbg_alias[/code]; missing keys mean false.
 var orbits_visibilities: Dictionary[StringName, bool] = {} # "
+## Indexed by [code]sbg_alias[/code]; missing keys fall back to
+## [member fallback_points_color].
 var points_colors: Dictionary[StringName, Color] = {} # indexed by sbg_alias; missing same as fallback color
+## Indexed by [code]sbg_alias[/code]; missing keys fall back to
+## [member fallback_orbits_color].
 var orbits_colors: Dictionary[StringName, Color] = {} # "
 
 # project vars - set at project init
+## Color used by [method get_points_color] when a group has no entry.
 var fallback_points_color := Color(0.0, 0.6, 0.0)
+## Color used by [method get_orbits_color] when a group has no entry.
 var fallback_orbits_color := Color(0.8, 0.2, 0.2)
+## Default value for [member points_visibilities]. Empty by default; can be
+## populated by a project preinitializer.
 var default_points_visibilities: Dictionary[StringName, bool] = {} # default is none, unless project changes
+## Default value for [member orbits_visibilities].
 var default_orbits_visibilities: Dictionary[StringName, bool] = {}
 
 # imported from small_bodies_groups.tsv - ready-only!
+## Default value for [member points_colors], populated from
+## [code]small_bodies_groups.tsv[/code] (read-only).
 var default_points_colors: Dictionary[StringName, Color] = {}
+## Default value for [member orbits_colors], populated from
+## [code]small_bodies_groups.tsv[/code] (read-only).
 var default_orbits_colors: Dictionary[StringName, Color] = {}
 
 
@@ -260,6 +281,8 @@ func set_orbits_color(group: StringName, color: Color) -> void:
 	orbits_color_changed.emit()
 
 
+## Returns a dictionary of only those entries from [member points_colors] that
+## differ from [member default_points_colors].
 func get_non_default_points_colors() -> Dictionary[StringName, Color]:
 	# key-values equal to default are skipped
 	var dict: Dictionary[StringName, Color] = {}
@@ -269,6 +292,8 @@ func get_non_default_points_colors() -> Dictionary[StringName, Color]:
 	return dict
 
 
+## Returns a dictionary of only those entries from [member orbits_colors] that
+## differ from [member default_orbits_colors].
 func get_non_default_orbits_colors() -> Dictionary[StringName, Color]:
 	# key-values equal to default are skipped
 	var dict: Dictionary[StringName, Color] = {}
@@ -278,6 +303,8 @@ func get_non_default_orbits_colors() -> Dictionary[StringName, Color]:
 	return dict
 
 
+## Bulk-applies [param dict] to [member points_colors]. Any group not present
+## in [param dict] is reset to its default color.
 func set_all_points_colors(dict: Dictionary[StringName, Color]) -> void:
 	# missing key-values are set to default
 	var is_change := false
@@ -294,6 +321,8 @@ func set_all_points_colors(dict: Dictionary[StringName, Color]) -> void:
 		points_color_changed.emit()
 
 
+## Bulk-applies [param dict] to [member orbits_colors]. Any group not present
+## in [param dict] is reset to its default color.
 func set_all_orbits_colors(dict: Dictionary[StringName, Color]) -> void:
 	# missing key-values are set to default
 	var is_change := false

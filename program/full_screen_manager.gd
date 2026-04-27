@@ -28,6 +28,8 @@ extends Node
 ## It's also necessary to set [member IVCoreSettings.allow_fullscreen_toggle]
 ## == true.
 
+## Emitted on every full-screen toggle and re-emitted [member signal_echo_frames]
+## times across subsequent process frames.
 signal fullscreen_changed()
 
 ## In past Godot versions, a value >0 has been needed for correct update after
@@ -51,14 +53,19 @@ func _shortcut_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+## Returns true if the application window is currently in exclusive or
+## borderless fullscreen mode.
 func is_fullscreen() -> bool:
 	return _window.mode == Window.MODE_EXCLUSIVE_FULLSCREEN or _window.mode == Window.MODE_FULLSCREEN
 
 
+## Switches between fullscreen and windowed.
 func toggle_fullscreen() -> void:
 	set_screen_state(not is_fullscreen())
 
 
+## Sets fullscreen ([param fullscreen] = true) or windowed mode and emits
+## [signal fullscreen_changed].
 func set_screen_state(fullscreen: bool) -> void:
 	_window.mode = Window.MODE_EXCLUSIVE_FULLSCREEN if fullscreen else Window.MODE_WINDOWED
 	fullscreen_changed.emit()

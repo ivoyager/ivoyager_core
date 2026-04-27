@@ -40,11 +40,15 @@ extends Node3D
 
 const MODEL_MAX_DISTANCE_MULTIPLIER := 3e3
 
+## Body-frame reference basis used for orienting the model and rings.
 var reference_basis: Basis
 
 ## FIXME: Use VisualInstance3D properties!
+## Maximum distance at which the model is rendered.
 var max_distance: float
 
+## Optional Script used in place of [IVSpheroidModel] when no PackedScene model
+## is present. Must extend [IVSpheroidModel].
 var replacement_spheroid_model_class: Script
 
 

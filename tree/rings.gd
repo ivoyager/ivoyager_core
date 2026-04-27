@@ -42,12 +42,21 @@ const LOD_LEVELS := 9 # must agree w/ assets, body.gd and rings.shader
 
 
 # All built from table rings.tsv (shadow_lod is used by asset_preloader.gd).
+## Asset file prefix used to locate ring textures.
 var file_prefix: String
+## Inner edge of the ring system, in simulator units.
 var inner_radius: float
+## Outer edge of the ring system, in simulator units.
 var outer_radius: float
+## Quadratic noise coefficient (in camera distance) used to break shadow
+## banding artifacts.
 var shadow_radial_noise_a: float # breaks banding artifact (with camera distance squared)
+## Linear noise coefficient (in camera distance) used to break shadow banding
+## artifact patterns.
 var shadow_radial_noise_b: float  # breaks banding artifact pattern (with camera distance)
+## Constant noise coefficient used to break shadow banding artifacts.
 var shadow_radial_noise_c: float  # breaks banding artifact (constant)
+## Name of the [IVBody] star casting light through the rings.
 var illuminating_star: StringName
 
 

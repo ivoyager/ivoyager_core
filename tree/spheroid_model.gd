@@ -40,6 +40,8 @@ const DYNAMIC_STAR_GROW_DIST := 2.0 * IVUnits.AU
 const DYNAMIC_STAR_GROW_FACTOR := 0.3
 
 
+## If true, this model represents a star and grows visually past
+## [constant DYNAMIC_STAR_GROW_DIST] for a more pleasing distant-sun effect.
 var is_dynamic_star := false
 
 var _reference_basis: Basis

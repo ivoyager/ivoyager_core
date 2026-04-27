@@ -58,6 +58,7 @@ extends Node
 ## [signal run_state_changed](running: bool)[br]
 ## [signal paused_changed](paused_tree: bool, paused_by_user: bool)[br]
 ## [signal about_to_free_procedural_nodes][br]
+## [signal procedural_nodes_freed][br]
 ## [signal about_to_exit][br]
 ## [signal simulator_exited][br]
 ## [signal about_to_stop_before_quit][br]
@@ -93,8 +94,8 @@ extends Node
 
 
 # Dev note: Avoid adding new non-Godot class dependencies in this file if
-# possible. We already IVGlobal, IVStateAuxiliary and static utility classes,
-# but these don't have any non-Godot dependencies.
+# possible. We already have IVGlobal, IVStateAuxiliary and static utility
+# classes, but these don't have any non-Godot dependencies.
 
 
 # Old comments...
@@ -164,11 +165,12 @@ signal about_to_start_simulator(new_game: bool)
 ## Emitted after [member started] is set. This is several frames after [signal
 ## about_to_start_simulator] and 1 frame after [signal IVGlobal.ui_dirty].
 signal simulator_started()
-
-
 ## Emitted immediately before procedural nodes are freed on exit, quit, and game
 ## load starting.
 signal about_to_free_procedural_nodes()
+## Emitted [constant PROCEDURAL_NODES_FREEING_DELAY] frames after procedural
+## tree teardown. Allows queue_free() and other delays to resolve.
+signal procedural_nodes_freed()
 ## Emitted immediately before the simulator stops for quit.
 signal about_to_stop_before_quit()
 ## Emitted immediately before quit.
@@ -207,12 +209,17 @@ signal server_about_to_stop(network_sync_type: int) # NetworkStopSync; server on
 signal server_about_to_run() # server only
 
 
+## Multiplayer network role of this instance. Set externally by network code;
+## affects which actions are allowed (see e.g. [method require_stop]).
 enum NetworkState {
 	NO_NETWORK,
 	IS_SERVER,
 	IS_CLIENT,
 }
 
+## Reason a network server is requesting all clients to stop. Used as the
+## payload of [signal server_about_to_stop] so clients can synchronize. WIP
+## multiplayer support.
 enum NetworkStopSync {
 	BUILD_SYSTEM,
 	SAVE,
@@ -225,6 +232,11 @@ enum NetworkStopSync {
 
 
 const DPRINT := false
+
+## Number of process frames to wait after [signal about_to_free_procedural_nodes]
+## before [signal procedural_nodes_freed] fires. Gives queued [code]queue_free[/code]
+## calls time to complete so that downstream teardown does not race freeing nodes.
+const PROCEDURAL_NODES_FREEING_DELAY := 5
 
 
 # All read-only!
@@ -260,6 +272,10 @@ var building_system := false
 ## possible that non-procedural "finish" nodes (models, rings, lights, HUD
 ## elements, etc.) are still being added, possibly on thread.
 var built_system := false
+## Indicates whether procedural nodes currently exist in the scene tree. Stays
+## true until [constant PROCEDURAL_NODES_FREEING_DELAY] frames after
+## [signal about_to_free_procedural_nodes].
+var has_procedural_nodes := false
 ## True indicates that the system tree is built and ready, including "finish"
 ## nodes added on thread.
 var ready_system := false
@@ -267,18 +283,31 @@ var ready_system := false
 ## [signal system_tree_ready]).
 var started_or_about_to_start := false
 ## Indicates whether the simulation is started (soon after
-## [signal about_to_start_simulator]). 
+## [signal about_to_start_simulator]).
 var started := false
+## Indicates whether the simulator is currently running (i.e., not stopped by
+## [method require_stop]). Distinct from pause: a running tree may still be
+## paused.
 var running := false
+## True from the start of [method quit] until the application exits.
 var quitting := false
+## True from the start of [method IVStateManager._on_aux_game_loading] until
+## load completes; coincides with deserializing a save file.
 var loading_game := false
+## True if the current system tree was loaded from a save file (cleared on
+## [method exit] or [method start]).
 var loaded_game := false
+## Current multiplayer network role; see [enum NetworkState].
 var network_state := NetworkState.NO_NETWORK
 ## Use this property to set splash screen visibility on [signal state_changed].
 ## True until simulator started. True again on exit.
 var show_splash_screen := true
 
+## True between [signal run_threads_allowed] and [signal run_threads_must_stop]
+## — workers that affect game state should only run while this is true.
 var allow_threads := false
+## Threads that block save/load/exit/quit until removed via
+## [method remove_blocking_thread].
 var blocking_threads := []
 
 ## [IVStateAuxiliary] component for class-specific state API.
@@ -363,6 +392,8 @@ func set_user_paused(pause: bool) -> void:
 		_tree.paused = paused_by_user # emits paused_changed via _notification()
 
 
+## Returns true if user-driven pause is currently allowed (i.e., not blocked
+## by network role or [member IVCoreSettings.disable_pause]).
 func can_user_pause() -> bool:
 	if network_state == NetworkState.IS_CLIENT:
 		return false
@@ -399,6 +430,9 @@ func require_stop(who: Object, network_sync_type := -1, bypass_checks := false) 
 	return true
 
 
+## Removes [param who] from the set of objects requiring the simulator to be
+## stopped. The simulator runs again only after every previous [method
+## require_stop] caller has called [method allow_run].
 func allow_run(who: Object) -> void:
 	assert(!DPRINT or IVDebug.dprint("allow_run", who))
 	_nodes_requiring_stop.erase(who)
@@ -453,7 +487,11 @@ func exit(force_exit := false, following_server := false) -> void:
 	about_to_free_procedural_nodes.emit()
 	var universe: Node3D = IVGlobal.program[&"Universe"]
 	IVTree.free_procedural_nodes_recursive(universe)
-	await _tree.process_frame
+	for i in PROCEDURAL_NODES_FREEING_DELAY:
+		await _tree.process_frame
+	has_procedural_nodes = false
+	state_changed.emit()
+	procedural_nodes_freed.emit()
 	IVGlobal.close_admin_popups_required.emit()
 	await _tree.process_frame
 	prestart = true
@@ -490,7 +528,11 @@ func quit(force_quit := false) -> void:
 	about_to_free_procedural_nodes.emit()
 	var universe: Node3D = IVGlobal.program[&"Universe"]
 	IVTree.free_procedural_nodes_recursive(universe)
-	await _tree.process_frame
+	for i in PROCEDURAL_NODES_FREEING_DELAY:
+		await _tree.process_frame
+	has_procedural_nodes = false
+	state_changed.emit()
+	procedural_nodes_freed.emit()
 	about_to_quit.emit()
 	print("Quitting...")
 	assert(IVDebug.dprint_orphan_nodes())
@@ -518,6 +560,11 @@ func _on_aux_asset_preloader_finished() -> void:
 
 func _on_aux_about_to_free_procedural_nodes_for_load() -> void:
 	about_to_free_procedural_nodes.emit()
+	for i in PROCEDURAL_NODES_FREEING_DELAY:
+		await _tree.process_frame
+	has_procedural_nodes = false
+	state_changed.emit()
+	procedural_nodes_freed.emit()
 
 
 func _on_aux_game_loading() -> void:
@@ -550,6 +597,7 @@ func _on_aux_tree_building_count_changed(incr: int) -> void:
 func _set_about_to_build_system_tree(is_new_game: bool) -> void:
 	prestart = false
 	building_system = true
+	has_procedural_nodes = true
 	state_changed.emit()
 	about_to_build_system_tree.emit(is_new_game)
 
