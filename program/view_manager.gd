@@ -45,6 +45,7 @@ var gamesave_views: Dictionary[StringName, IVView] = {}
 var cached_views: Dictionary[StringName, IVView] = {}
 
 var _missing_or_bad_cache_file := true
+var _file_mutex := Mutex.new() # serializes [method _write_cache_file] across worker threads
 
 
 
@@ -252,6 +253,8 @@ func _read_cache() -> void:
 func _write_cache(allow_threaded_cache_write := true) -> void:
 	# Unless this is app exit, no one is waiting for this and we can do the
 	# file write on thread. At app exit, we want the main thread to wait.
+	# [member _file_mutex] in [method _write_cache_file] serializes
+	# writer-vs-writer if multiple worker tasks queue up.
 	var dict: Dictionary[StringName, Array] = {}
 	for key in cached_views:
 		var view: IVView = cached_views[key]
@@ -264,9 +267,12 @@ func _write_cache(allow_threaded_cache_write := true) -> void:
 
 
 func _write_cache_file(dict: Dictionary[StringName, Array]) -> void:
+	_file_mutex.lock()
 	var file := FileAccess.open(file_path, FileAccess.WRITE)
 	var err := FileAccess.get_open_error()
 	if err != OK:
 		push_error("Could not open file for write: ", file_path)
+		_file_mutex.unlock()
 		return
 	file.store_var(dict)
+	_file_mutex.unlock()

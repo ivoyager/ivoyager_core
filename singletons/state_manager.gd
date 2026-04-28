@@ -25,6 +25,11 @@ extends Node
 ## state. State signals follow immediately after changes in associated
 ## [IVStateManager] properties.[br][br]
 ##
+## [b]Default expectation:[/b] state-changing methods here are main-thread
+## only. A worker thread must use [method Object.call_deferred] to invoke any
+## function unless its doc comment explicitly says it is thread-safe. Most are
+## not.[br][br]
+##
 ## The following signals are emitted by external [IVCoreInitializer] code during
 ## the first steps of project initialization. All are ordered except [signal
 ## core_init_object_instantiated] (which emits for each object):[br][br]
@@ -93,37 +98,26 @@ extends Node
 ## * [IVOrbit] for orbital mechanics. (Has more roadmap for spacecraft thrust).
 
 
-# Dev note: Avoid adding new non-Godot class dependencies in this file if
+# Dev notes:
+#
+# Avoid adding new non-Godot class dependencies in this file if
 # possible. We already have IVGlobal, IVStateAuxiliary and static utility
 # classes, but these don't have any non-Godot dependencies.
-
-
-# Old comments...
 #
 # There is no NetworkLobby in base I, Voyager. It's is a very application-
 # specific manager that you'll have to code yourself, but see:
 # https://docs.godotengine.org/en/stable/tutorials/networking/high_level_multiplayer.html
-# Be sure to set IVStateManager.network_state and emit IVGlobal signal
-# "network_state_changed".[br][br]
-#
-# IMPORTANT! Non-main threads should coordinate with signals and functions here
-# for thread-safety. We wait for all threads to finish before proceding to save,
-# load, exit, quit, etc.[br][br]
-#
-# Multithreading note: Godot's SceneTree and almost all I, Voyager public
-# functions run in the main thread. Use call_defered() to invoke any function
-# from another thread unless the function is guaranteed to be thread-safe. Most
-# functions are NOT thread-safe![br][br]
+# Be sure to set IVStateManager.network_state and emit [signal
+# network_state_changed].
+
 
 
 ## "core_init_" signals are emitted during [IVCoreInitializer] processing before
 ## property updates here.
 signal core_init_preinitialized()
-
 ## "core_init_" signals are emitted during [IVCoreInitializer] processing before
 ## property updates here.
 signal core_init_object_instantiated(object: Object)
-
 ## "core_init_" signals are emitted during [IVCoreInitializer] processing before
 ## property updates here.
 signal core_init_init_refcounteds_instantiated()
@@ -188,8 +182,6 @@ signal network_state_changed(network_state: NetworkState)
 ## is true, then [param paused_by_user] indicates whether the pause is due to
 ## user input.
 signal paused_changed(paused_tree: bool, paused_by_user: bool)
-
-
 ## Emitted after state changes except pause (unless pause coincides with some
 ## other state change). Also not emitted durring [IVCoreInitializer] processing
 ## (see "core_init_" signals). This signal is often emitted immediately before a
@@ -350,15 +342,20 @@ func _notification(what: int) -> void:
 
 
 
-## Add before thread.start() if you want certain functions (e.g., save/load)
-## to wait until these are removed. This is essential for any thread that
-## might change persist data used in gamesave.
+## Add on main thread before [method Thread.start] if you want certain
+## functions (e.g., save/load) to wait until these are removed. This is
+## essential for any thread that might change persist data used in gamesave.[br][br]
+##
+## WARNING: Don't call from a thread!
 func add_blocking_thread(thread: Thread) -> void:
 	if !blocking_threads.has(thread):
 		blocking_threads.append(thread)
 
 
-## Call on main thread after your thread has finished.
+## Call from main thread after your thread has finished, e.g., using
+## [code]remove_blocking_thread.call_deferred(thread)[/code].[br][br]
+##
+## WARNING: Don't call from a thread!
 func remove_blocking_thread(thread: Thread) -> void:
 	if thread:
 		blocking_threads.erase(thread)
@@ -367,8 +364,11 @@ func remove_blocking_thread(thread: Thread) -> void:
 		threads_finished.emit()
 
 
-## Generates a delayed "threads_finished" signal if/when there are no
-## blocking threads. Called by [method require_stop] if not rejected.
+## Generates a delayed [signal threads_finished] signal if/when there are no
+## blocking threads. Called by [method require_stop] if not rejected.[br][br]
+##
+## Thread-safe: the function awaits the next process frame and signals on the 
+## main thread.
 func signal_threads_finished() -> void:
 	await _tree.process_frame
 	if !_signal_when_threads_finished:
@@ -393,7 +393,9 @@ func set_user_paused(pause: bool) -> void:
 
 
 ## Returns true if user-driven pause is currently allowed (i.e., not blocked
-## by network role or [member IVCoreSettings.disable_pause]).
+## by network role or [member IVCoreSettings.disable_pause]).[br][br]
+##
+## Thread-safe: pure read of two atomic primitives, no state change.
 func can_user_pause() -> bool:
 	if network_state == NetworkState.IS_CLIENT:
 		return false
