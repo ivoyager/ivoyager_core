@@ -84,10 +84,10 @@ signal show_hide_gui_requested(is_toggle: bool, is_show: bool)
 
 
 ## Sizes available for setting "gui_size". See also [member IVCoreSettings.gui_size_multipliers].
-enum GUISize {
-	GUI_SMALL,
-	GUI_MEDIUM,
-	GUI_LARGE,
+static var gui_size_settings: Dictionary[StringName, int] = {
+	"GUI_SMALL" = 0,
+	"GUI_MEDIUM" = 1,
+	"GUI_LARGE" = 2,
 }
 
 ## Resolution choice for the background starmap; see [IVAssetPreloader].
