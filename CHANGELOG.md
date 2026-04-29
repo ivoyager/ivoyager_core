@@ -11,11 +11,13 @@ See cloning and downloading instructions [here](https://www.ivoyager.dev/develop
 Under development using Godot 4.6.2.
 
 ### Added
+* IVStateManager signal `threads_state_changed(thread_state: ThreadsState)`. Supplements existing threads signals.
 * IVStateManager signal `procedural_nodes_freed`. Emits an arbitrary 5 frames after `about_to_free_procedural_nodes`.
 * IVStateManager signal `game_loaded`. Unlike the IVSave signal, this signal is guarateed to emit before system_tree_built.
 * Several IVArrays utility functions.
 
 ### Changed
+* [API breaking] Renamed IVStateManager threads allowed/stop signals; now: `threads_allowed` and `threads_required_to_stop`.
 * Complete doc comments in all files.
 * Emit signal about_to_quit closer to actual SceneTree.quit().
 * IVSelectionManager "body" functions return Object rather than IVBody.
