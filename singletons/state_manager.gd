@@ -192,7 +192,7 @@ signal paused_changed(paused_tree: bool, paused_by_user: bool)
 signal state_changed()
 
 ## Emitted when [member threads_state] changes. Use with [method add_blocking_thread],
-## [method remove_blocking_thread] and [method signal_threads_finished] to
+## [method remove_blocking_thread] and [method stop_threads_when_finished] to
 ## coordinate state changes with thread use. Emitted immediately before [signal
 ## threads_allowed], [signal threads_required_to_stop] and [signal threads_finished].
 signal threads_state_changed(threads_state: ThreadsState)
@@ -213,10 +213,11 @@ signal server_about_to_stop(network_sync_type: int) # NetworkStopSync; server on
 signal server_about_to_run() # server only
 
 
+## Current state or requirement for threads that affect game state.
 enum ThreadsState {
+	STOPPED, ## Threads not allowed; ok for init, gamesave, exit, quit, etc.
 	ALLOWED, ## OK to start threads that affect gamestate.
-	REQUIRED_TO_STOP, ## Waiting for threads to stop (e.g., for gamesave).
-	DISALLOWED_FINISHED, ## Threads not allowed; ok to gamesave, exit, quit, etc.
+	REQUIRED_TO_STOP, ## Waiting for threads to finish (e.g., for gamesave).
 }
 
 ## Multiplayer network role of this instance. Set externally by network code;
@@ -308,7 +309,7 @@ var loading_game := false
 ## [method exit] or [method start]).
 var loaded_game := false
 ## Current thread state; see [enum ThreadsState].
-var threads_state := ThreadsState.DISALLOWED_FINISHED
+var threads_state := ThreadsState.STOPPED
 ## Current multiplayer network role; see [enum NetworkState].
 var network_state := NetworkState.NO_NETWORK
 ## Use this property to set splash screen visibility on [signal state_changed].
@@ -319,7 +320,7 @@ var state_auxiliary := IVStateAuxiliary.new()
 
 var _blocking_threads: Array[Thread] = [] # prevent gamesave, exit, etc., until cleared
 var _objects_requiring_stop: Array[Object] = [] # require and hold stopped state
-var _signal_when_threads_finished := false
+var _stop_threads_when_finished := false
 var _tree_build_counter := 0
 
 @onready var _tree: SceneTree = get_tree()
@@ -372,10 +373,10 @@ func add_blocking_thread(thread: Thread) -> void:
 func remove_blocking_thread(thread: Thread) -> void:
 	if thread:
 		_blocking_threads.erase(thread)
-	if _signal_when_threads_finished and !_blocking_threads:
-		_signal_when_threads_finished = false
-		assert(!DPRINT or IVDebug.dprint("Threads state: DISALLOWED_FINISHED"))
-		threads_state = ThreadsState.DISALLOWED_FINISHED
+	if _stop_threads_when_finished and !_blocking_threads:
+		_stop_threads_when_finished = false
+		assert(!DPRINT or IVDebug.dprint("Threads state: STOPPED"))
+		threads_state = ThreadsState.STOPPED
 		threads_state_changed.emit(threads_state)
 		threads_finished.emit()
 
@@ -385,11 +386,16 @@ func remove_blocking_thread(thread: Thread) -> void:
 ##
 ## Thread-safe: the function awaits the next process frame and signals on the 
 ## main thread.
-func signal_threads_finished() -> void:
+func stop_threads_when_finished() -> void:
 	await _tree.process_frame
-	if !_signal_when_threads_finished:
-		_signal_when_threads_finished = true
+	if !_stop_threads_when_finished:
+		_stop_threads_when_finished = true
 		remove_blocking_thread(null)
+
+
+## Returns true if [member threads_state] == [enum ThreadsState].STOPPED.
+func is_threads_stopped() -> bool:
+	return threads_state == ThreadsState.STOPPED
 
 
 ## Set user paused. Does nothing if [member IVCoreSettings.disable_pause] == true
@@ -444,7 +450,7 @@ func require_stop(who: Object, network_sync_type := -1, bypass_checks := false) 
 		_objects_requiring_stop.append(who)
 	if running:
 		_stop_simulator()
-	signal_threads_finished()
+	stop_threads_when_finished()
 	return true
 
 
