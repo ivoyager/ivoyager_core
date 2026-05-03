@@ -160,6 +160,9 @@ signal about_to_start_simulator(new_game: bool)
 ## Emitted after [member started] is set. This is several frames after [signal
 ## about_to_start_simulator] and 1 frame after [signal IVGlobal.ui_dirty].
 signal simulator_started()
+## Emitted immediately before [signal about_to_free_procedural_nodes] when
+## quitting.
+signal about_to_free_for_quit()
 ## Emitted immediately before procedural nodes are freed on exit, quit, and game
 ## load starting.
 signal about_to_free_procedural_nodes()
@@ -167,6 +170,7 @@ signal about_to_free_procedural_nodes()
 ## tree teardown. Allows queue_free() and other delays to resolve.
 signal procedural_nodes_freed()
 ## Emitted immediately before the simulator stops for quit.
+## @deprecate: Not sure why this was added.
 signal about_to_stop_before_quit()
 ## Emitted immediately before quit.
 signal about_to_quit()
@@ -549,6 +553,7 @@ func quit(force_quit := false) -> void:
 	# debugging leaked objects...
 	#IVDebug.register_all_objects(get_viewport())
 	
+	about_to_free_for_quit.emit()
 	about_to_free_procedural_nodes.emit()
 	var universe: Node3D = IVGlobal.program[&"Universe"]
 	IVTree.free_procedural_nodes_recursive(universe)
