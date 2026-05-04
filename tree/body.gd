@@ -321,13 +321,23 @@ var _stroboscope_rotation := 0.0
 # *****************************************************************************
 # create methods
 
-## Creates a new [IVOrbit] instance (or specified [member replacement_subclass])
+## Creates a new [IVBody] instance (or specified [member replacement_subclass])
 ## using specified parameters. See also [method create_from_astronomy_specs].
 @warning_ignore("shadowed_variable", "shadowed_variable_base_class")
-static func create(name: StringName, flags: int, mean_radius: float, gravitational_parameter: float,
-		orientation_at_epoch: Basis, rotation_axis: Vector3, rotation_at_epoch: float,
-		rotation_rate: float, orbit: IVOrbit, characteristics: Dictionary,
-		components: Dictionary, exisiting_body: IVBody = null) -> IVBody:
+static func create(
+		name: StringName,
+		flags: int,
+		mean_radius: float,
+		gravitational_parameter: float,
+		orientation_at_epoch: Basis,
+		rotation_axis: Vector3,
+		rotation_at_epoch: float,
+		rotation_rate: float,
+		orbit: IVOrbit,
+		characteristics: Dictionary,
+		components: Dictionary,
+		exisiting_body: IVBody = null
+	) -> IVBody:
 	
 	assert(name)
 	assert(mean_radius > 0.0, "IVBody requires mean_radius > 0.0")
@@ -370,7 +380,7 @@ static func create(name: StringName, flags: int, mean_radius: float, gravitation
 	return body
 
 
-## Creates a new [IVOrbit] instance (or specified [member replacement_subclass])
+## Creates a new [IVBody] instance (or specified [member replacement_subclass])
 ## using specified parameters. [param right_ascension] and [param declination]
 ## define "North" for this body. If [param rotation_period] is negative, then
 ## this body has retrograde rotation (e.g., Venus). If [param flags] & BODYFLAGS_TIDALLY_LOCKED,
