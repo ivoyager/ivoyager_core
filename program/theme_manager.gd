@@ -35,7 +35,7 @@ extends RefCounted
 ## "MediumFixedFont", and "LargeFixedFont". The main theme's default_font_size
 ## is also dynamically managed. Font sizes are determined by this class's
 ## properties and (for dynamic) the global "gui_size" setting (a value of
-## [member IVGlobal.gui_size_settings]).[br][br]
+## [member IVCoreSettings.gui_size_settings]).[br][br]
 
 
 ## Signal provided for managing Label3D font sizing. Name and symbol sizes are
