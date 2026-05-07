@@ -337,4 +337,14 @@ func _add_program_nodes() -> void:
 
 
 func _finish() -> void:
+	# Freeze the program & resources registries. We do this here (rather than
+	# right after [signal IVStateManager.core_init_program_objects_instantiated]
+	# emits) so that init coroutines that yield via [code]await
+	# get_tree().process_frame[/code] before erasing themselves from
+	# [member IVGlobal.program] (e.g., [IVTranslationImporter._init]) have
+	# resumed and finished. After this, [IVBodyFinisher] worker threads read
+	# both dicts; any structural mutation by a project plugin from this point
+	# on is a hard error.
+	IVGlobal.program.make_read_only()
+	IVGlobal.resources.make_read_only()
 	IVStateManager.core_init_finished.emit()

@@ -64,6 +64,7 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 
 static var replacement_subclass: Script
 ## Contains all IVSmallBodiesGroup instances currently in the tree.
+## WARNING: Access on main thread only!
 static var small_bodies_groups: Dictionary[StringName, IVSmallBodiesGroup] = {}
 static var null_pf32_array := PackedFloat32Array()
 

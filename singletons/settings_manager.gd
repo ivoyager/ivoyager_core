@@ -67,7 +67,7 @@ var _defaults: Dictionary[StringName, Variant] = {
 
 	# UI & HUD display
 	&"language" : 0, # see IVLanguageManager
-	&"gui_size" : IVGlobal.GUISize.GUI_MEDIUM,
+	&"gui_size" : 1, # see IVCoreSettings.gui_size_settings
 	&"label3d_names_size_percent" : 100,
 	&"label3d_symbols_size_percent" : 100,
 	&"point_size" : 3,

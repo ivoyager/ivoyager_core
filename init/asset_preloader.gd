@@ -143,6 +143,10 @@ func _load_resources(start_msec: int) -> void:
 	_load_blue_noise_1024()
 	_load_body_resources()
 	_load_rings_resources()
+	# Freeze published containers so any future write becomes a hard error
+	# rather than a silent race against [IVBodyFinisher] reader workers.
+	_body_resources.make_read_only()
+	_rings_resources.make_read_only()
 	print("Loaded assets in %s msec" % (Time.get_ticks_msec() - start_msec))
 	IVStateManager.state_auxiliary.set_asset_preloader_finished.call_deferred()
 

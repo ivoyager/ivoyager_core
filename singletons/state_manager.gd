@@ -25,6 +25,11 @@ extends Node
 ## state. State signals follow immediately after changes in associated
 ## [IVStateManager] properties.[br][br]
 ##
+## [b]Default expectation:[/b] state-changing methods here are main-thread
+## only. A worker thread must use [method Object.call_deferred] to invoke any
+## function unless its doc comment explicitly says it is thread-safe. Most are
+## not.[br][br]
+##
 ## The following signals are emitted by external [IVCoreInitializer] code during
 ## the first steps of project initialization. All are ordered except [signal
 ## core_init_object_instantiated] (which emits for each object):[br][br]
@@ -57,11 +62,12 @@ extends Node
 ##
 ## [signal run_state_changed](running: bool)[br]
 ## [signal paused_changed](paused_tree: bool, paused_by_user: bool)[br]
+## [signal about_to_stop_before_quit][br]
+## [signal about_to_free_for_quit][br]
 ## [signal about_to_free_procedural_nodes][br]
 ## [signal procedural_nodes_freed][br]
 ## [signal about_to_exit][br]
 ## [signal simulator_exited][br]
-## [signal about_to_stop_before_quit][br]
 ## [signal about_to_quit][br][br]
 ##
 ## Note that the plugin identifies "paused_by_user" as a special case of pause.
@@ -73,8 +79,9 @@ extends Node
 ## Threads should be coordinated with the following signals (and related
 ## properties and methods):[br][br]
 ##
-## [signal run_threads_allowed][br]
-## [signal run_threads_must_stop][br]
+## [signal threads_state_changed][br]
+## [signal threads_allowed][br]
+## [signal threads_required_to_stop][br]
 ## [signal threads_finished][br][br]
 ##
 ## Multiplayer support is partial and work-in-progress. (It was added and
@@ -93,37 +100,26 @@ extends Node
 ## * [IVOrbit] for orbital mechanics. (Has more roadmap for spacecraft thrust).
 
 
-# Dev note: Avoid adding new non-Godot class dependencies in this file if
+# Dev notes:
+#
+# Avoid adding new non-Godot class dependencies in this file if
 # possible. We already have IVGlobal, IVStateAuxiliary and static utility
 # classes, but these don't have any non-Godot dependencies.
-
-
-# Old comments...
 #
 # There is no NetworkLobby in base I, Voyager. It's is a very application-
 # specific manager that you'll have to code yourself, but see:
 # https://docs.godotengine.org/en/stable/tutorials/networking/high_level_multiplayer.html
-# Be sure to set IVStateManager.network_state and emit IVGlobal signal
-# "network_state_changed".[br][br]
-#
-# IMPORTANT! Non-main threads should coordinate with signals and functions here
-# for thread-safety. We wait for all threads to finish before proceding to save,
-# load, exit, quit, etc.[br][br]
-#
-# Multithreading note: Godot's SceneTree and almost all I, Voyager public
-# functions run in the main thread. Use call_defered() to invoke any function
-# from another thread unless the function is guaranteed to be thread-safe. Most
-# functions are NOT thread-safe![br][br]
+# Be sure to set IVStateManager.network_state and emit [signal
+# network_state_changed].
+
 
 
 ## "core_init_" signals are emitted during [IVCoreInitializer] processing before
 ## property updates here.
 signal core_init_preinitialized()
-
 ## "core_init_" signals are emitted during [IVCoreInitializer] processing before
 ## property updates here.
 signal core_init_object_instantiated(object: Object)
-
 ## "core_init_" signals are emitted during [IVCoreInitializer] processing before
 ## property updates here.
 signal core_init_init_refcounteds_instantiated()
@@ -165,6 +161,9 @@ signal about_to_start_simulator(new_game: bool)
 ## Emitted after [member started] is set. This is several frames after [signal
 ## about_to_start_simulator] and 1 frame after [signal IVGlobal.ui_dirty].
 signal simulator_started()
+## Emitted immediately before [signal about_to_free_procedural_nodes] when
+## quitting.
+signal about_to_free_for_quit()
 ## Emitted immediately before procedural nodes are freed on exit, quit, and game
 ## load starting.
 signal about_to_free_procedural_nodes()
@@ -188,8 +187,6 @@ signal network_state_changed(network_state: NetworkState)
 ## is true, then [param paused_by_user] indicates whether the pause is due to
 ## user input.
 signal paused_changed(paused_tree: bool, paused_by_user: bool)
-
-
 ## Emitted after state changes except pause (unless pause coincides with some
 ## other state change). Also not emitted durring [IVCoreInitializer] processing
 ## (see "core_init_" signals). This signal is often emitted immediately before a
@@ -198,16 +195,34 @@ signal paused_changed(paused_tree: bool, paused_by_user: bool)
 ## have been set.
 signal state_changed()
 
-# TODO?: one signal threads_state_changed() and then query allow_threads
-signal run_threads_allowed() # ok to start threads that affect gamestate
-signal run_threads_must_stop() # finish threads that affect gamestate
-signal threads_finished() # all blocking threads removed
+## Emitted when [member threads_state] changes. Use with [method add_blocking_thread],
+## [method remove_blocking_thread] and [method stop_threads_when_finished] to
+## coordinate state changes with thread use. Emitted immediately before [signal
+## threads_allowed], [signal threads_required_to_stop] and [signal threads_finished].
+signal threads_state_changed(threads_state: ThreadsState)
+## Emitted when it's OK to start threads that affect gamestate, immediately
+## after [signal threads_state_changed].
+signal threads_allowed()
+## Emitted when [IVStateManager] or [IVSaveManager] is waiting for threads to
+## finish for gamesave, exit, quit, etc., immediately after [signal
+## threads_state_changed].
+signal threads_required_to_stop()
+## Emitted when all threads are finished in preparation for gamesave, exit,
+## quit, etc., immediately after [signal threads_state_changed].
+signal threads_finished()
 
 # TODO?: one signal server_state_changed()
 signal client_is_dropping_out(is_exit: bool)
 signal server_about_to_stop(network_sync_type: int) # NetworkStopSync; server only
 signal server_about_to_run() # server only
 
+
+## Current state or requirement for threads that affect game state.
+enum ThreadsState {
+	STOPPED, ## Threads not allowed; ok for init, gamesave, exit, quit, etc.
+	ALLOWED, ## OK to start threads that affect gamestate.
+	REQUIRED_TO_STOP, ## Waiting for threads to finish (e.g., for gamesave).
+}
 
 ## Multiplayer network role of this instance. Set externally by network code;
 ## affects which actions are allowed (see e.g. [method require_stop]).
@@ -297,24 +312,19 @@ var loading_game := false
 ## True if the current system tree was loaded from a save file (cleared on
 ## [method exit] or [method start]).
 var loaded_game := false
+## Current thread state; see [enum ThreadsState].
+var threads_state := ThreadsState.STOPPED
 ## Current multiplayer network role; see [enum NetworkState].
 var network_state := NetworkState.NO_NETWORK
 ## Use this property to set splash screen visibility on [signal state_changed].
 ## True until simulator started. True again on exit.
 var show_splash_screen := true
-
-## True between [signal run_threads_allowed] and [signal run_threads_must_stop]
-## — workers that affect game state should only run while this is true.
-var allow_threads := false
-## Threads that block save/load/exit/quit until removed via
-## [method remove_blocking_thread].
-var blocking_threads := []
-
 ## [IVStateAuxiliary] component for class-specific state API.
 var state_auxiliary := IVStateAuxiliary.new()
 
-var _nodes_requiring_stop := []
-var _signal_when_threads_finished := false
+var _blocking_threads: Array[Thread] = [] # prevent gamesave, exit, etc., until cleared
+var _objects_requiring_stop: Array[Object] = [] # require and hold stopped state
+var _stop_threads_when_finished := false
 var _tree_build_counter := 0
 
 @onready var _tree: SceneTree = get_tree()
@@ -350,30 +360,46 @@ func _notification(what: int) -> void:
 
 
 
-## Add before thread.start() if you want certain functions (e.g., save/load)
-## to wait until these are removed. This is essential for any thread that
-## might change persist data used in gamesave.
+## Add on main thread before [method Thread.start] if you want certain
+## functions (e.g., save/load) to wait until these are removed. This is
+## essential for any thread that might change persist data used in gamesave.[br][br]
+##
+## WARNING: Don't call from a thread! Call from main thread before [method Thread.start].
 func add_blocking_thread(thread: Thread) -> void:
-	if !blocking_threads.has(thread):
-		blocking_threads.append(thread)
+	if !_blocking_threads.has(thread):
+		_blocking_threads.append(thread)
 
 
-## Call on main thread after your thread has finished.
+## Call from main thread after your thread has finished, e.g., using
+## [code]remove_blocking_thread.call_deferred(thread)[/code].[br][br]
+##
+## WARNING: Don't call from a thread!
 func remove_blocking_thread(thread: Thread) -> void:
 	if thread:
-		blocking_threads.erase(thread)
-	if _signal_when_threads_finished and !blocking_threads:
-		_signal_when_threads_finished = false
+		_blocking_threads.erase(thread)
+	if _stop_threads_when_finished and !_blocking_threads:
+		_stop_threads_when_finished = false
+		assert(!DPRINT or IVDebug.dprint("Threads state: STOPPED"))
+		threads_state = ThreadsState.STOPPED
+		threads_state_changed.emit(threads_state)
 		threads_finished.emit()
 
 
-## Generates a delayed "threads_finished" signal if/when there are no
-## blocking threads. Called by [method require_stop] if not rejected.
-func signal_threads_finished() -> void:
+## Generates a delayed [signal threads_finished] signal if/when there are no
+## blocking threads. Called by [method require_stop] if not rejected.[br][br]
+##
+## Thread-safe: the function awaits the next process frame and signals on the 
+## main thread.
+func stop_threads_when_finished() -> void:
 	await _tree.process_frame
-	if !_signal_when_threads_finished:
-		_signal_when_threads_finished = true
+	if !_stop_threads_when_finished:
+		_stop_threads_when_finished = true
 		remove_blocking_thread(null)
+
+
+## Returns true if [member threads_state] == [enum ThreadsState].STOPPED.
+func is_threads_stopped() -> bool:
+	return threads_state == ThreadsState.STOPPED
 
 
 ## Set user paused. Does nothing if [member IVCoreSettings.disable_pause] == true
@@ -393,7 +419,9 @@ func set_user_paused(pause: bool) -> void:
 
 
 ## Returns true if user-driven pause is currently allowed (i.e., not blocked
-## by network role or [member IVCoreSettings.disable_pause]).
+## by network role or [member IVCoreSettings.disable_pause]).[br][br]
+##
+## Thread-safe: pure read of two atomic primitives, no state change.
 func can_user_pause() -> bool:
 	if network_state == NetworkState.IS_CLIENT:
 		return false
@@ -406,9 +434,9 @@ func can_user_pause() -> bool:
 ## bypass_checks intended for this node & NetworkLobby; could break sync.
 ## Returns false if the caller doesn't have authority to stop the sim.
 ## "Stopped" means SceneTree is paused, the player is locked out from most
-## input, and we have signaled "run_threads_must_stop" (any Threads added
+## input, and we have signaled "threads_required_to_stop" (any Threads added
 ## via add_blocking_thread() should then be removed as they finish).
-## In many cases, you should yield to "threads_finished" after calling this.
+## In many cases, you should yield to [signal threads_finished] after calling this.
 func require_stop(who: Object, network_sync_type := -1, bypass_checks := false) -> bool:
 	if !bypass_checks:
 		if !IVCoreSettings.popops_can_stop_sim and who is Popup:
@@ -422,11 +450,11 @@ func require_stop(who: Object, network_sync_type := -1, bypass_checks := false) 
 		if network_sync_type != NetworkStopSync.DONT_SYNC:
 			server_about_to_stop.emit(network_sync_type)
 	assert(!DPRINT or IVDebug.dprint("require_stop", who, network_sync_type))
-	if !_nodes_requiring_stop.has(who):
-		_nodes_requiring_stop.append(who)
+	if !_objects_requiring_stop.has(who):
+		_objects_requiring_stop.append(who)
 	if running:
 		_stop_simulator()
-	signal_threads_finished()
+	stop_threads_when_finished()
 	return true
 
 
@@ -435,8 +463,8 @@ func require_stop(who: Object, network_sync_type := -1, bypass_checks := false) 
 ## require_stop] caller has called [method allow_run].
 func allow_run(who: Object) -> void:
 	assert(!DPRINT or IVDebug.dprint("allow_run", who))
-	_nodes_requiring_stop.erase(who)
-	if running or _nodes_requiring_stop:
+	_objects_requiring_stop.erase(who)
+	if running or _objects_requiring_stop:
 		return
 	if network_state == NetworkState.IS_SERVER:
 		server_about_to_run.emit()
@@ -482,7 +510,7 @@ func exit(force_exit := false, following_server := false) -> void:
 	show_splash_screen = true
 	state_changed.emit()
 	require_stop(self, NetworkStopSync.EXIT, true)
-	await self.threads_finished
+	await threads_finished
 	about_to_exit.emit()
 	about_to_free_procedural_nodes.emit()
 	var universe: Node3D = IVGlobal.program[&"Universe"]
@@ -525,6 +553,7 @@ func quit(force_quit := false) -> void:
 	# debugging leaked objects...
 	#IVDebug.register_all_objects(get_viewport())
 	
+	about_to_free_for_quit.emit()
 	about_to_free_procedural_nodes.emit()
 	var universe: Node3D = IVGlobal.program[&"Universe"]
 	IVTree.free_procedural_nodes_recursive(universe)
@@ -635,9 +664,10 @@ func _stop_simulator() -> void:
 	# Project must ensure that state does not change during stop (in
 	# particular, persist vars during save/load).
 	print("Stop simulator")
-	assert(!DPRINT or IVDebug.dprint("signal run_threads_must_stop"))
-	allow_threads = false
-	run_threads_must_stop.emit()
+	assert(!DPRINT or IVDebug.dprint("Threads state: REQUIRED_TO_STOP"))
+	threads_state = ThreadsState.REQUIRED_TO_STOP
+	threads_state_changed.emit(threads_state)
+	threads_required_to_stop.emit()
 	running = false
 	if _tree.paused:
 		paused_changed.emit(true, paused_by_user)
@@ -656,9 +686,10 @@ func _run_simulator() -> void:
 		_tree.paused = paused_by_user # emits paused_changed via _notification()
 	state_changed.emit()
 	run_state_changed.emit(true)
-	assert(!DPRINT or IVDebug.dprint("signal run_threads_allowed"))
-	allow_threads = true
-	run_threads_allowed.emit()
+	assert(!DPRINT or IVDebug.dprint("Threads state: ALLOWED"))
+	threads_state = ThreadsState.ALLOWED
+	threads_state_changed.emit(threads_state)
+	threads_allowed.emit()
 
 
 func _on_ui_dirty() -> void:

@@ -54,6 +54,7 @@ var _cached: Dictionary[StringName, Variant] = {} # replica of disk cache
 var _file_path: String
 var _file_version: String # different version is ignored and overwritten
 var _version_key: StringName
+var _file_mutex := Mutex.new() # serializes [method _write_cache_file] across worker threads
 
 
 # *****************************************************************************
@@ -220,7 +221,9 @@ func _read_cache() -> bool:
 
 
 func _write_cache() -> void:
-	# It's safe to write file on thread, since we only read once at _init().
+	# Reads happen once on the main thread at _init(), so there is no
+	# reader-vs-writer race. [member _file_mutex] in [method _write_cache_file]
+	# serializes writer-vs-writer when multiple worker tasks queue up.
 	for key in _defaults:
 		# _cached only has keys for non-default _current
 		if _current[key] == _defaults[key]:
@@ -235,9 +238,12 @@ func _write_cache() -> void:
 
 
 func _write_cache_file(cache_data: Dictionary[StringName, Variant]) -> void:
+	_file_mutex.lock()
 	var file := FileAccess.open(_file_path, FileAccess.WRITE)
 	var err := FileAccess.get_open_error()
 	if err != OK:
 		push_error("Could not open file for write: ", _file_path)
+		_file_mutex.unlock()
 		return
 	file.store_var(cache_data)
+	_file_mutex.unlock()
