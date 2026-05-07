@@ -75,14 +75,15 @@ var disable_exit := false
 var disable_quit := false
 ## Sizes available for setting "gui_size". See also [member gui_size_multipliers].
 var gui_size_settings: Dictionary[StringName, int] = {
-	"GUI_SMALL" = 0,
-	"GUI_MEDIUM" = 1,
-	"GUI_LARGE" = 2,
+	GUI_SMALL = 0,
+	GUI_MEDIUM = 1,
+	GUI_LARGE = 2,
+	GUI_EXTRA_LARGE = 3,
 }
 ## Size multipliers for each of [member gui_size_settings]. Before adjusting,
 ## consider effects on font sizing in [IVThemeManager] (font sizes are rounded
 ## to the nearest integer after multiplication). See also [IVControlModResizable].
-var gui_size_multipliers: Array[float] = [0.75, 1.0, 1.25]
+var gui_size_multipliers: Array[float] = [0.75, 1.0, 1.25, 1.5]
 
 ## Start time as an array of [year, month, day, hour, minute, second]. Used by
 ## [IVTimekeeper].
