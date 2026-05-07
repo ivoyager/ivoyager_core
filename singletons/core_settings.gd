@@ -73,7 +73,13 @@ var disable_pause := false
 var disable_exit := false
 ## See [IVStateManager].
 var disable_quit := false
-## Size multipliers corresponding to [enum IVGlobal.GUISize]. Before adjusting,
+## Sizes available for setting "gui_size". See also [member gui_size_multipliers].
+var gui_size_settings: Dictionary[StringName, int] = {
+	"GUI_SMALL" = 0,
+	"GUI_MEDIUM" = 1,
+	"GUI_LARGE" = 2,
+}
+## Size multipliers for each of [member gui_size_settings]. Before adjusting,
 ## consider effects on font sizing in [IVThemeManager] (font sizes are rounded
 ## to the nearest integer after multiplication). See also [IVControlModResizable].
 var gui_size_multipliers: Array[float] = [0.75, 1.0, 1.25]
@@ -201,7 +207,7 @@ func _enter_tree() -> void:
 
 ## Called by [IVStateManager] to test valid settings.
 func assert_valid_settings() -> void:
-	assert(gui_size_multipliers.size() == IVGlobal.GUISize.size())
+	assert(gui_size_multipliers.size() == gui_size_settings.size())
 	assert(stroboscope_frames_per_second >= 0.0)
 
 
