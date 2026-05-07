@@ -62,6 +62,7 @@ extends Node
 ##
 ## [signal run_state_changed](running: bool)[br]
 ## [signal paused_changed](paused_tree: bool, paused_by_user: bool)[br]
+## [signal about_to_stop_before_quit][br]
 ## [signal about_to_free_for_quit][br]
 ## [signal about_to_free_procedural_nodes][br]
 ## [signal procedural_nodes_freed][br]
@@ -169,6 +170,8 @@ signal about_to_free_procedural_nodes()
 ## Emitted [constant PROCEDURAL_NODES_FREEING_DELAY] frames after procedural
 ## tree teardown. Allows queue_free() and other delays to resolve.
 signal procedural_nodes_freed()
+## Emitted immediately before the simulator stops for quit.
+signal about_to_stop_before_quit()
 ## Emitted immediately before quit.
 signal about_to_quit()
 ## Emitted immediately before exit.
@@ -543,6 +546,7 @@ func quit(force_quit := false) -> void:
 	ok_to_start = false
 	quitting = true
 	state_changed.emit()
+	about_to_stop_before_quit.emit()
 	require_stop(self, NetworkStopSync.QUIT, true)
 	await threads_finished
 	

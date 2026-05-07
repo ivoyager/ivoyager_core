@@ -11,6 +11,7 @@ See cloning and downloading instructions [here](https://www.ivoyager.dev/develop
 Under development using Godot 4.6.2.
 
 ### Added
+* IVStateManager signal `about_to_free_for_quit`. Emits before `about_to_free_procedural_nodes` when quitting.
 * IVStateManager signal `threads_state_changed(thread_state: ThreadsState)`. Supplements existing threads signals.
 * IVStateManager signal `procedural_nodes_freed`. Emits an arbitrary 5 frames after `about_to_free_procedural_nodes`.
 * IVStateManager signal `game_loaded`. Unlike the IVSave signal, this signal is guarateed to emit before system_tree_built.
