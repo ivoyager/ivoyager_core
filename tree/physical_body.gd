@@ -22,7 +22,7 @@ extends Node3D
 
 ## Provides a model reference frame and instantiates a body's model. 
 ##
-## This node is tilted and rotated by [IVBody], but is not scaled.[br][br]
+## This node is oriented and rotated by [IVBody], but is not scaled.[br][br]
 ##
 ## This node is not persisted. If "lazy init" is applicable, it is created by
 ## [IVBody] only if/when needed and remains through the current user session.
@@ -32,21 +32,16 @@ extends Node3D
 ## Children can be added that share the model's axial tilt and rotation.
 ## In base Solar System setup, [IVBodyFinisher] adds [IVRings] for Saturn.[br][br]
 ##
-## Note: It's not planned to implement collisions in ivoyager_core. Probably a
-## subclass of [IVPhysicalBody] would be the best approach for that. However,
-## we could accept changes to this class that help facilitate collisions (as
-## long as they don't cost anything when not used).
-
+## Note: It's not planned to implement collisions in ivoyager_core. Perhaps a
+## subclass of [IVPhysicalBody] would be the best approach for that. We could
+## accept changes to this class that help facilitate collisions (as long as
+## they don't cost much when not used).
 
 const MODEL_MAX_DISTANCE_MULTIPLIER := 3e3
 
+
 ## Body-frame reference basis used for orienting the model and rings.
 var reference_basis: Basis
-
-## FIXME: Use VisualInstance3D properties!
-## Maximum distance at which the model is rendered.
-var max_distance: float
-
 ## Optional Script used in place of [IVSpheroidModel] when no PackedScene model
 ## is present. Must extend [IVSpheroidModel].
 var replacement_spheroid_model_class: Script
@@ -56,15 +51,15 @@ var _body_name: StringName
 var _m_radius: float
 var _e_radius: float
 var _model_type: int
-
 var _model: Node3D
+
 
 
 func _init(body_name: StringName, mean_radius: float, equatorial_radius: float) -> void:
 	_body_name = body_name
 	_m_radius = mean_radius
 	_e_radius = equatorial_radius
-	name = &"ModelSpace"
+	name = &"PhysicalBody"
 	# Always use PackedScene model if there is one. Otherwise, generate
 	# a spheroid model w/ maps or use a fallback.
 	var asset_preloader: IVAssetPreloader = IVGlobal.program[&"AssetPreloader"]
@@ -90,7 +85,11 @@ func _build_packed_model(asset_preloader: IVAssetPreloader, packed_model: Packed
 	reference_basis = reference_basis.rotated(Vector3(1.0, 0.0, 0.0), RIGHT_ANGLE) # z-up!
 	_model = packed_model.instantiate()
 	_model.basis = reference_basis
-	_set_max_distance()
+	# The disable_auto_visual_range flag opts a packed scene out entirely, preserving any
+	# visibility values authored in the .glb/.tscn.
+	var disable_auto_visual_range := asset_preloader.get_body_disable_auto_visual_range(_body_name)
+	if not disable_auto_visual_range:
+		_apply_visibility_range_end()
 	_set_layers()
 
 
@@ -109,20 +108,33 @@ func _build_spheroid_model(asset_preloader: IVAssetPreloader) -> void:
 				emission_map)
 	else:
 		_model = IVSpheroidModel.new(_model_type, reference_basis, albedo_map, emission_map)
-	_set_max_distance()
+	_apply_visibility_range_end()
 	_set_layers()
 
 
 func _build_fallback_nonspheroid_model(asset_preloader: IVAssetPreloader) -> void:
-	# TODO: We need a fallback asteroid/comet PackedScene model here
-	_build_spheroid_model(asset_preloader) 
+	# TODO: We need a fallback asteroid/comet PackedScene model here, since the
+	# vast majority of no-model bodies are probably asteroids or tiny moons.
+	# For now, user sees generic grey sphere with grids.
+	_build_spheroid_model(asset_preloader)
 
 
-func _set_max_distance() -> void:
+func _apply_visibility_range_end() -> void:
 	if IVTableData.get_db_bool(&"models", &"inf_visibility", _model_type):
-		max_distance = INF
-	else:
-		max_distance = _m_radius * MODEL_MAX_DISTANCE_MULTIPLIER
+		# Leave visibility_range_end = 0.0 (default 0.0 is no distance cull)
+		return
+	var dist := _m_radius * MODEL_MAX_DISTANCE_MULTIPLIER
+	_set_visibility_range_end_recursive(_model, dist)
+
+
+func _set_visibility_range_end_recursive(node3d: Node3D, dist: float) -> void:
+	var geometry := node3d as GeometryInstance3D
+	if geometry:
+		geometry.visibility_range_end = dist
+	for child in node3d.get_children():
+		var child_node3d := child as Node3D
+		if child_node3d:
+			_set_visibility_range_end_recursive(child_node3d, dist)
 
 
 func _set_layers() -> void:

@@ -286,8 +286,6 @@ var physical_body: Node3D
 ## Current visibility state for associated HUD elements, including IVBodyLabel
 ## and IVOrbitVisual. Read-only!
 var huds_visible := false
-## Current visibility state of this body's model. Read-only!
-var model_visible := false
 ## GUI graphic representation of this body. Read-only!
 var texture_2d: Texture2D
 ## GUI graphic representation of this body as a "slice" for a system star. Read-only!
@@ -302,7 +300,6 @@ var _hill_sphere: float
 # private non-persisted
 var _lazy_model_uninited := false
 var _sleeping := false
-var _max_model_dist := 0.0
 var _min_hud_dist: float
 var _times: Array[float] = IVGlobal.times
 var _world_controller: IVWorldController = IVGlobal.program[&"WorldController"]
@@ -545,11 +542,7 @@ func _process(delta: float) -> void:
 	# update model if needed
 	if not physical_body:
 		return
-	if camera_dist > _max_model_dist:
-		physical_body.hide()
-		return
-	physical_body.show()
-	
+
 	var rotation_angle: float
 	if !_stroboscope_frame_rate or _tree.paused:
 		rotation_angle = fposmod(time * rotation_rate, TAU)
@@ -1721,8 +1714,6 @@ func _add_physical_body() -> void:
 		physical_body = replacement_physical_body_class.new(name, mean_radius, e_radius)
 	else:
 		physical_body = IVPhysicalBody.new(name, mean_radius, e_radius)
-	@warning_ignore("unsafe_property_access")
-	_max_model_dist = physical_body.max_distance # FIXME: Use Node3D visual distance parameters
 	add_child(physical_body)
 
 
