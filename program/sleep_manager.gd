@@ -23,22 +23,30 @@ extends RefCounted
 ## Optional manager that reduces process load by selectively putting to sleep
 ## [IVBody] instances that we don't need to process at a given time.
 ##
-## If present, this manager modifies process state for bodies that have
-## [member IVBody.flags] == BODYFLAGS_CAN_SLEEP (mainly moons and spacecrafts).
-## These bodies are processed only when the camera is in their local "star
-## orbiter" system (e.g., at a planet or its moons).[br][br]
+## If present, this manager modifies process state and visibility for bodies
+## that have [member IVBody.flags] == BODYFLAGS_CAN_SLEEP (mainly moons and
+## spacecrafts). These bodies are processed only when the camera is in their
+## local "star orbiter" system, e.g., at a planet or its moons.[br][br]
+##
+## Set [member hide_on_sleep] = false to disable changes in IVBody.visible on
+## sleep change.[br][br]
 ##
 ## If this manager is removed, bodies will never sleep.
 
 
+## Default true allows [IVSleepManager] to hide/show IVBody with changes in sleep.
+## If set to false, there is [b]tiny[/b] chance you might encounter a sleeping
+## moon or spacecraft in open space. But it's unlikely given solar system scale.
+var hide_on_sleep := true
+
 var _current_star_orbiter: IVBody
+
 
 
 func _init() -> void:
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
 	IVStateManager.system_tree_ready.connect(_on_system_tree_ready)
 	IVGlobal.camera_tree_changed.connect(_on_camera_tree_changed)
-
 
 
 func _clear_procedural() -> void:
@@ -62,8 +70,8 @@ func _on_camera_tree_changed(_camera: Camera3D, _parent: Node3D, star_orbiter: N
 	_current_star_orbiter = to_star_orbiter
 
 
-func _set_sleeping_recursive(body: IVBody, is_asleep: bool) -> void:
+func _set_sleeping_recursive(body: IVBody, sleep: bool) -> void:
 	for satellite_name in body.satellites:
 		var satellite := body.satellites[satellite_name]
-		satellite.set_sleeping(is_asleep) # does nothing if can_sleep == false
-		_set_sleeping_recursive(satellite, is_asleep)
+		satellite.set_sleeping(sleep, hide_on_sleep) # does nothing if can_sleep == false
+		_set_sleeping_recursive(satellite, sleep)

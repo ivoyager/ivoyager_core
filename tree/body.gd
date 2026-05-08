@@ -140,6 +140,9 @@ signal orbit_changed(orbit: IVOrbit, is_intrinsic: bool, precession_only: bool)
 signal rotation_chaged(is_intrinsic: bool)
 ## Emitted when this body's HUD visibility (label, orbit visual, etc.) toggles.
 signal huds_visibility_changed(is_visible: bool)
+## Emitted when this body's sleep state changes. This is managed by
+## [IVSleepManager], if present.
+signal sleep_changed(is_sleeping: bool)
 
 
 ## Bits to 1 << 39 are reserved for ivoyager_core future use. Higher bits are
@@ -505,7 +508,6 @@ func _ready() -> void:
 	IVSettingsManager.changed.connect(_settings_listener)
 	_set_resources()
 	_set_min_hud_dist()
-	hide()
 	_stroboscope_rotation = randf() * TAU if _stroboscope_frame_rate else 0.0
 	
 	# Below for body added after system tree is already built
@@ -519,8 +521,6 @@ func _process(delta: float) -> void:
 	# _process() is disabled while in sleep mode (_sleeping == true). When in
 	# sleep mode, API assumes that any properties updated here are stale and
 	# must be calculated.
-	
-	show()
 	
 	var time := _times[0]
 	
@@ -537,7 +537,7 @@ func _process(delta: float) -> void:
 		show_huds = orbit_radius * max_hud_dist_orbit_radius_multiplier > camera_dist
 	if huds_visible != show_huds:
 		huds_visible = show_huds
-		huds_visibility_changed.emit(huds_visible)
+		huds_visibility_changed.emit(show_huds)
 	
 	# update model if needed
 	if not physical_body:
@@ -1482,18 +1482,22 @@ func is_sleeping() -> bool:
 	return _sleeping
 
 
-## Set sleeping state. Only [IVSleepManager] should call this.
-func set_sleeping(is_asleep: bool) -> void:
+## Set sleep state. Only [IVSleepManager] or appropriate replacement class or
+## code should call this.
+func set_sleeping(sleep: bool, show_hide := true) -> void:
 	const CAN_SLEEP := BodyFlags.BODYFLAGS_CAN_SLEEP
-	if _sleeping == is_asleep or !(flags & CAN_SLEEP):
+	if _sleeping == sleep or !(flags & CAN_SLEEP):
 		return
-	_sleeping = is_asleep
-	if is_asleep:
-		hide()
-		set_process(false)
+	_sleeping = sleep
+	set_process(not sleep)
+	if show_hide:
+		visible = not sleep
+	if sleep:
 		_world_controller.remove_world_target(self)
-	else:
-		set_process(true)
+		if huds_visible:
+			huds_visible = false
+			huds_visibility_changed.emit(false)
+	sleep_changed.emit(sleep)
 
 
 ## Used for mouse-over identification of this body's orbit visual.
