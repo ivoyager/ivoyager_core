@@ -121,6 +121,10 @@ func get_body_map_offset(body_name: StringName) -> float:
 	return _body_resources[body_name][7]
 
 
+func get_body_disable_auto_visual_range(body_name: StringName) -> bool:
+	return _body_resources[body_name][8]
+
+
 func get_rings_texture_arrays(rings_name: StringName) -> Array[Texture2DArray]:
 	return _rings_resources[rings_name][0]
 
@@ -206,6 +210,7 @@ func _load_body_resources() -> void:
 			var model_type := IVTableData.get_db_int(table, &"model_type", row)
 			var packed_model: PackedScene = null
 			var model_scale := METER
+			var disable_auto_visual_range := false
 			var model_path := IVFiles.find_resource_file(models_search, file_prefix)
 			if model_path:
 				packed_model = load(model_path)
@@ -213,6 +218,8 @@ func _load_body_resources() -> void:
 				if file_adj_rows.has(model_file):
 					model_scale = IVTableData.get_db_float(&"file_adjustments", &"model_scale",
 							file_adj_rows[model_file])
+					disable_auto_visual_range = IVTableData.get_db_bool(&"file_adjustments",
+							&"disable_auto_visual_range", file_adj_rows[model_file])
 			
 			var albedo_map: Texture2D = null
 			var emission_map: Texture2D = null
@@ -248,6 +255,7 @@ func _load_body_resources() -> void:
 				albedo_map,
 				emission_map,
 				map_offset,
+				disable_auto_visual_range,
 			]
 			
 			_body_resources[body_name] = resources
