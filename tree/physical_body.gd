@@ -37,8 +37,6 @@ extends Node3D
 ## accept changes to this class that help facilitate collisions (as long as
 ## they don't cost much when not used).
 
-const MODEL_MAX_DISTANCE_MULTIPLIER := 3e3
-
 
 ## Body-frame reference basis used for orienting the model and rings.
 var reference_basis: Basis
@@ -89,7 +87,7 @@ func _build_packed_model(asset_preloader: IVAssetPreloader, packed_model: Packed
 	# visibility values authored in the .glb/.tscn.
 	var disable_auto_visual_range := asset_preloader.get_body_disable_auto_visual_range(_body_name)
 	if not disable_auto_visual_range:
-		_apply_visibility_range_end()
+		_set_visibility_ranges()
 	_set_layers()
 
 
@@ -108,7 +106,7 @@ func _build_spheroid_model(asset_preloader: IVAssetPreloader) -> void:
 				emission_map)
 	else:
 		_model = IVSpheroidModel.new(_model_type, reference_basis, albedo_map, emission_map)
-	_apply_visibility_range_end()
+	_set_visibility_ranges()
 	_set_layers()
 
 
@@ -119,22 +117,21 @@ func _build_fallback_nonspheroid_model(asset_preloader: IVAssetPreloader) -> voi
 	_build_spheroid_model(asset_preloader)
 
 
-func _apply_visibility_range_end() -> void:
+func _set_visibility_ranges() -> void:
 	if IVTableData.get_db_bool(&"models", &"inf_visibility", _model_type):
-		# Leave visibility_range_end = 0.0 (default 0.0 is no distance cull)
-		return
-	var dist := _m_radius * MODEL_MAX_DISTANCE_MULTIPLIER
-	_set_visibility_range_end_recursive(_model, dist)
+		return # default 0.0 is no distance cull
+	var visibility_range_end := _m_radius * IVCoreSettings.radius_multiplier_visibility_range_end
+	_set_visibility_ranges_recursive(_model, visibility_range_end)
 
 
-func _set_visibility_range_end_recursive(node3d: Node3D, dist: float) -> void:
+func _set_visibility_ranges_recursive(node3d: Node3D, visibility_range_end: float) -> void:
 	var geometry := node3d as GeometryInstance3D
 	if geometry:
-		geometry.visibility_range_end = dist
+		geometry.visibility_range_end = visibility_range_end
 	for child in node3d.get_children():
 		var child_node3d := child as Node3D
 		if child_node3d:
-			_set_visibility_range_end_recursive(child_node3d, dist)
+			_set_visibility_ranges_recursive(child_node3d, visibility_range_end)
 
 
 func _set_layers() -> void:

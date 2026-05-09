@@ -125,6 +125,9 @@ var vertecies_per_orbit_low_res: int = 100
 var open_conic_max_radius := 1000.0
 ## Limits camera distance. Used by [IVCamera].
 var max_camera_distance: float = 5e3 * IVUnits.AU
+## Radius multiplier used to set [member GeometryInstance3D.visibility_range_end]
+## in [IVPhysicalBody] and [IVRings].
+var radius_multiplier_visibility_range_end := 4000.0
 ## Font color used for [IVBodyLabel] instances. See also [member
 ## body_labels_use_orbit_color].
 var body_labels_color := Color.WHITE
