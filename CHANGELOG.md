@@ -13,6 +13,7 @@ Under development using Godot 4.6.2.
 ### Added
 * IVBody signal `sleep_changed(is_sleeping: bool)`.
 * IVSleepManager `hide_on_sleep` setting. Set false to prevent IVSleepManager from toggling `IVBody.visible`.
+* IVCoreSettings `radius_multiplier_visibility_range_end` applied in IVPhysicalBody and IVRings.
 * IVCoreSettings `gui_size_settings` for project customization. (Replaces IVGlobal enum.) 
 * IVStateManager signal `about_to_free_for_quit`. Emits before `about_to_free_procedural_nodes` when quitting.
 * IVStateManager signal `threads_state_changed(thread_state: ThreadsState)`. Supplements existing threads signals.
@@ -21,7 +22,7 @@ Under development using Godot 4.6.2.
 * Several IVArrays utility functions.
 
 ### Changed
-* Scrapped `IVBody._process()` distance culling code. Instead, IVPhysicalBody sets `visibility_range_end` on all GeometryInstance3D instances. Since this is intrusive on project models, there is an "opt-out" option specified by field `disable_auto_visual_range` in table `file_adjustments.tsv`.
+* Scrapped `IVBody._process()` distance culling code. Instead, IVPhysicalBody and IVRings set `visibility_range_end` on all GeometryInstance3Ds. Since this is intrusive on project models, there is an "opt-out" option provided by field `disable_auto_visual_range` in table `file_adjustments.tsv`.
 * [API breaking] Removed IVGlobal enum `GUISize`. (Replaced by settable IVCoreSettings `gui_size_settings`.)
 * [API breaking] Renamed IVStateManager threads allowed/stop signals; now: `threads_allowed` and `threads_required_to_stop`.
 * Complete doc comments in all files.

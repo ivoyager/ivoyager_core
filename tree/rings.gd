@@ -110,6 +110,7 @@ func _ready() -> void:
 	_outer_margin = (outer_radius + RENDER_MARGIN * ring_span) / outer_texture # render boundary
 	
 	scale = Vector3(outer_texture, 1.0, outer_texture)
+	visibility_range_end = outer_radius * IVCoreSettings.radius_multiplier_visibility_range_end
 	
 	_rings_material.shader = IVGlobal.resources[&"rings_shader"]
 	for lod in LOD_LEVELS:
@@ -182,7 +183,7 @@ func _add_shadow_casters() -> void:
 			max_alpha = 3.0 # >1.0 allows for noise addition
 		var shadow_caster := IVRingsShadowCaster.new(_shadow_caster_texture, _texture_start,
 			_inner_margin, _outer_margin, low_alpha, max_alpha, shadow_mask, _shadow_caster_shared,
-			_blue_noise_1024)
+			_blue_noise_1024, outer_radius)
 		add_child(shadow_caster)
 		i += 1
 
@@ -203,7 +204,8 @@ class IVRingsShadowCaster extends MeshInstance3D:
 	
 	func _init(texture_r8: Texture2D, texture_start: float, inner_margin: float, outer_margin: float,
 			low_alpha: float, max_alpha: float, shadow_mask: ShadowMask,
-			shadow_caster_shared: Array[float], blue_noise_1024: Texture2D) -> void:
+			shadow_caster_shared: Array[float], blue_noise_1024: Texture2D,
+			outer_radius: float) -> void:
 		_texture_r8 = texture_r8
 		_texture_start = texture_start
 		_inner_margin = inner_margin
@@ -216,6 +218,7 @@ class IVRingsShadowCaster extends MeshInstance3D:
 		cast_shadow = SHADOW_CASTING_SETTING_SHADOWS_ONLY
 		mesh = PlaneMesh.new() # default 2x2
 		name = "RingsShadowCaster" + str(low_alpha).replace(".", "p")
+		visibility_range_end = outer_radius * IVCoreSettings.radius_multiplier_visibility_range_end
 
 
 	func _ready() -> void:
