@@ -29,7 +29,6 @@ extends Label
 ## This is NOT a widget. It can't be added after core init.
 
 
-
 ## A small offest puts the label above the mouse cursor. This is graphically
 ## nice but also helps FragmentIdentifier identify screen fragment shader items
 ## (e.g., asteroid points and orbit lines).
@@ -75,7 +74,6 @@ func _configure_after_core_inited() -> void:
 		_fragment_data = fragment_identifier.fragment_data
 
 
-
 func _on_mouse_target_changed(object: Object) -> void:
 	if !object:
 		_object_text = ""
@@ -85,10 +83,11 @@ func _on_mouse_target_changed(object: Object) -> void:
 
 
 func _on_fragment_changed(id: int) -> void:
+	const NULL_ARRAY := []
 	if id == -1:
 		_fragment_text = ""
 		return
-	var data: Array = _fragment_data.get(id, []) # sometimes missing key while quiting the app
+	var data: Array = _fragment_data.get(id, NULL_ARRAY) # sometimes missing key while quiting the app
 	if !data:
 		_fragment_text = ""
 		return

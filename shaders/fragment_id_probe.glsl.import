@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://b52cx2wfimggo"
+path="res://.godot/imported/fragment_id_probe.glsl-18a17e04528bab14aaa799a9d9a77c4b.res"
+
+[deps]
+
+source_file="res://addons/ivoyager_core/shaders/fragment_id_probe.glsl"
+dest_files=["res://.godot/imported/fragment_id_probe.glsl-18a17e04528bab14aaa799a9d9a77c4b.res"]
+
+[params]
+

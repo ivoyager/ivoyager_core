@@ -2,7 +2,7 @@
 // This file is part of I, Voyager
 // https://ivoyager.dev
 // *****************************************************************************
-// Copyright 2017-2026 Charlie Whitfield
+// Copyright 2019-2026 Charlie Whitfield
 // I, Voyager is a registered trademark of Charlie Whitfield in the US
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,75 +18,34 @@
 // limitations under the License.
 // *****************************************************************************
 
-// Functions here allow implementation of fragment identification for 'id'
-// shaders. Pixels near the mouse (in a grid pattern) can broadcast a series
-// of calibration colors followed by 3 fragment identifier colors to be
-// detected by IVFragmentIdentifier. IVFragmentIdentifier sets the 3 shader
-// globals here to drive the system.
+// Helpers for "id" shaders that broadcast a fragment id to IVFragmentIdentifier
+// via its compute-shader probe. Each id-bearing shader writes its (already
+// encoded) fragment id into ALBEDO at the sparse 3-pixel grid pattern around
+// the mouse. ALBEDO (not EMISSION) is the right channel here because Godot 4
+// `render_mode unshaded` outputs ALBEDO directly and skips the EMISSION add.
+//
+// Globals are set by IVFragmentIdentifier each frame:
+//   iv_mouse_fragcoord  - mouse position + (0.5, 0.5) in internal-buffer pixels
+//   iv_fragment_id_range - sparse-grid half-extent; <= 0 disables broadcasting
+//
+// Fragment id components arrive in [1, 2048] per channel (offset-by-1 sentinel
+// applied by IVFragmentIdentifier.encode_vec3). Half-float (RGBA16F) carries
+// these integers exactly.
 
 global uniform vec2 iv_mouse_fragcoord;
 global uniform float iv_fragment_id_range;
-global uniform float iv_fragment_id_cycler;
 
 
-bool is_id_fragment(vec2 fragcoord_xy){
-	// Follows grid pattern near mouse described in FragmentIdentifier, which
-	// will capture any point in range area with POINT_SIZE >= 3 and generally
-	// captures orbit lines.
-	//
-	// Note that FRAGCOORD x and y are offset from pixel coordinate by either
-	// exaclty +0.5 (Windows) or close to but not exactly +0.5 (HTML5 export)
-	// as of Godot 3.5.2. Perhaps this could change or vary on other platforms?
-	// To compensate, we set iv_mouse_fragcoord = mouse_pos + Vector2(0.5, 0.5)
-	// and we allow for non-whole numbers below.
-	//
-	// Comment out the 'mod3' filter to troubleshoot; the identifier region
-	// will be visually obvious in any region of dense fragment rendering.
-
-	vec2 mouse_offset = abs(fragcoord_xy - iv_mouse_fragcoord);
-
-	if (mouse_offset.x > iv_fragment_id_range) {
+bool is_id_fragment(vec2 fragcoord_xy) {
+	// Sparse 3-pixel grid (every 3rd pixel) inside a square bounded by
+	// iv_fragment_id_range. The compute shader iterates the same grid.
+	if (iv_fragment_id_range <= 0.0) {
 		return false;
 	}
-	if (mouse_offset.y > iv_fragment_id_range) {
+	vec2 d = abs(fragcoord_xy - iv_mouse_fragcoord);
+	if (d.x > iv_fragment_id_range || d.y > iv_fragment_id_range) {
 		return false;
 	}
-	vec2 mod3 = mod(mouse_offset, 3.0);
-	if (mod3.x > 0.5 || mod3.y > 0.5) {
-		return false;
-	}
-
-	return true;
-}
-
-
-vec3 get_id_fragment_color(vec3 fragment_id_color){
-
-	if (iv_fragment_id_cycler < 1.0) {
-		// broadcast callibration color
-		return vec3(iv_fragment_id_cycler);
-	}
-
-	// Broadcast part of this fragment's identifier (1 of 3 parts).
-	// 'iv_fragment_id_cycler' value is exactly 1.0, 2.0 or 3.0.
-	int id_element = int(fragment_id_color[int(iv_fragment_id_cycler) - 1]);
-
-	int rbits = id_element & 15;
-	id_element >>= 4;
-	int gbits = id_element & 15;
-	id_element >>= 4;
-	int bbits = id_element & 15;
-
-	// Godot 3.x GLES2 didn't allow bit operators.
-	// Keep this code in case we need it for HTML5 export...
-//	int bbits = id_element / 256;
-//	int gbits = (id_element - bbits * 256) / 16;
-//	int rbits = id_element - gbits * 16 - bbits * 256;
-
-	// Use range 0.25-0.75 for each channel.
-	float r = float(rbits) / 32.0 + 0.25;
-	float g = float(gbits) / 32.0 + 0.25;
-	float b = float(bbits) / 32.0 + 0.25;
-
-	return vec3(r, g, b);
+	vec2 m = mod(d, 3.0);
+	return m.x < 0.5 && m.y < 0.5;
 }

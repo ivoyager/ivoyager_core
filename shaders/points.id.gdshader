@@ -75,9 +75,8 @@ void vertex() {
 
 
 void fragment() {
-	if (is_id_fragment(FRAGCOORD.xy)){
-		ALBEDO = get_id_fragment_color(fragment_id);
-	} else {
-		ALBEDO = color;
+	ALBEDO = color;
+	if (is_id_fragment(FRAGCOORD.xy)) {
+		ALBEDO = fragment_id;
 	}
 }

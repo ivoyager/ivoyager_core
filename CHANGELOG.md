@@ -10,6 +10,12 @@ See cloning and downloading instructions [here](https://www.ivoyager.dev/develop
 
 Under development using Godot 4.6.2.
 
+**Project Breaking note:** IVFragmentIdentifier is no longer a SubViewport added in your scene tree! It's now a regular program node added by IVCoreInitializer. Suggested project update:
+1. Remove node "FragmentIdentifier" in your scene tree, if present (it was optional).
+2. Close editor and update `ivoyager_core`.
+3. Open editor and go into Project Settings / Globals / Shader Globals. Delete the now-orphaned "iv_fragment_id_cycler", if present.
+
+
 ### Added
 * IVBody signal `sleep_changed(is_sleeping: bool)`.
 * IVSleepManager `hide_on_sleep` setting. Set false to prevent IVSleepManager from toggling `IVBody.visible`.
@@ -22,6 +28,7 @@ Under development using Godot 4.6.2.
 * Several IVArrays utility functions.
 
 ### Changed
+* [Project breaking] Rebuilt IVFragmentIdentifier system to use a CompositorEffect and a probe compute shader that writes an SSBO (Shader Storage Buffer Object). Previous SubViewport system was a very expensive hack that needed to be replaced. Now only functions with Forward+ or Mobile renderer (cleanly removes itself if Compatibility renderer). The system is very cheap now so added to projects by default. Performance is noticeably better than the older hack. (The new system is still a hack: it'll be much simplified when [this proposal](https://github.com/godotengine/godot-proposals/issues/7916) is fully implemented. Our shaders will then write their ids directly to CUSTOM_BUFFER0, CUSTOM_BUFFER1, etc.)
 * Scrapped `IVBody._process()` distance culling code. Instead, IVPhysicalBody and IVRings set `visibility_range_end` on all GeometryInstance3Ds. Since this is intrusive on project models, there is an "opt-out" option provided by field `disable_auto_visual_range` in table `file_adjustments.tsv`.
 * [API breaking] Removed IVGlobal enum `GUISize`. (Replaced by settable IVCoreSettings `gui_size_settings`.)
 * [API breaking] Renamed IVStateManager threads allowed/stop signals; now: `threads_allowed` and `threads_required_to_stop`.
