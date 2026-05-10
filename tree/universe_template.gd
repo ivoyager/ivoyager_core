@@ -55,7 +55,6 @@ extends Node3D
 ##          |- ...                   #
 ##
 ##    |- IVWorldEnvironment
-##    |- IVFragmentIdentifier
 ##    |- IVTopUI
 ##          |- IVWorldController
 ##          |- IVMouseTargetLabel
@@ -96,7 +95,7 @@ extends Node3D
 ## and Node3D classes.[br][br]
 ##
 ## UI classes above from the Core plugin are in directory "ui".
-## See [IVFragmentIdentifier], [IVTopUI], [IVWorldController], [IVMouseTargetLabel],
+## See [IVTopUI], [IVWorldController], [IVMouseTargetLabel],
 ## [IVShowHideUI], [IVMainMenuBasePopup], [IVOptionsPopup], [IVHotkeysPopup],
 ## [IVConfirmationDialog].[br][br]
 ##

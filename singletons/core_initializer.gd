@@ -186,6 +186,7 @@ var program_nodes: Dictionary[StringName, Variant] = {
 	Timekeeper = IVTimekeeper,
 	Scheduler = IVScheduler,
 	ViewManager = IVViewManager,
+	FragmentIdentifier = IVFragmentIdentifier, # self-removes on Compatibility renderer
 }
 ## Include keys from [member program_nodes] that need to be instantiated or
 ## added first and in order. Note: all are instantiated in the specified order,
@@ -199,7 +200,6 @@ var ordered_program_nodes: Array[StringName] = [&"CameraHandler", &"SpeedManager
 ## Include the names of Nodes that already exist in the scene tree that you want
 ## added to [member IVGlobal.program] for convenient access.
 var tree_program_nodes: Array[StringName] = [
-	&"FragmentIdentifier",
 	&"TopUI",
 	&"WorldController",
 ]
