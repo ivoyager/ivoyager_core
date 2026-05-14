@@ -159,11 +159,10 @@ var clock: Array[int] = [0, 0, 0]
 ## Maintained by [IVTimekeeper]. Holds Gregorian calendar integers: [0] year,
 ## [1] month, [2] day.
 var date: Array[int] = [0, 0, 0]
-## Maintained by [IVTimekeeper]. Holds [0] Q, [1] YQ, [2] YM, where Q is quarter
-## (1 - 4) and YQ and YM are cumulative counts of quarter and month since year
-## 0. The latter two are monotonic increasing values.
+## Maintained by [IVTimekeeper]. Holds [0] quarter (1 - 4), [1] ordinal_quarter,
+## [2] ordinal_month, where "ordinal" means cumulative count since 0000-01-01
+## (these are monotonic increasing values).
 var date_aux: Array[int] = [0, 0, 0]
-
 ## Populated by [IVCoreInitializer]. Holds instantiated "init" and "program"
 ## objects (base or override classes).
 var program: Dictionary[StringName, Object] = {}
