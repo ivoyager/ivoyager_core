@@ -45,6 +45,7 @@ enum SBGClass {
 	SBG_CLASS_OTHER,
 }
 
+const NULL_PF32ARRAY: PackedFloat32Array = []
 
 const PERSIST_MODE := IVGlobal.PERSIST_PROCEDURAL
 const PERSIST_PROPERTIES: Array[StringName] = [
@@ -66,7 +67,6 @@ static var replacement_subclass: Script
 ## Contains all IVSmallBodiesGroup instances currently in the tree.
 ## WARNING: Access on main thread only!
 static var small_bodies_groups: Dictionary[StringName, IVSmallBodiesGroup] = {}
-static var null_pf32_array := PackedFloat32Array()
 
 
 var sbg_alias: StringName
@@ -123,7 +123,7 @@ func _exit_tree() -> void:
 ## Append all data before adding this node to the tree.
 func append_data(names_append: PackedStringArray, e_i_lan_aop_append: PackedFloat32Array,
 		a_m0_n_append: PackedFloat32Array, s_g_mag_de_append: PackedFloat32Array,
-		da_d_f_th0_append := null_pf32_array, suppress_max_apoapsis_update := false) -> void:
+		da_d_f_th0_append := NULL_PF32ARRAY, suppress_max_apoapsis_update := false) -> void:
 	var n_bodies := names_append.size()
 	assert(e_i_lan_aop_append.size() == n_bodies * 4)
 	assert(a_m0_n_append.size() == n_bodies * 3)

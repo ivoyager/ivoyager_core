@@ -98,6 +98,7 @@ const UT_ORBIT_MEAN_MOTION := 0.00000019909866 / IVUnits.SECOND
 ## [method debug_print_present_offsets].
 const UT_OFFSET := 0.00072434799
 
+const NULL_INT_ARRAY: Array[int] = []
 
 const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY
 const PERSIST_PROPERTIES: Array[StringName] = [&"_time"]
@@ -279,9 +280,10 @@ static func get_jdn_at_gregorian_date(year: int, month: int, day: int) -> int:
 ## Sets Gregorian date elements in the provided array(s) for Julian Day Number.
 ## [param date] must have size >= 3 and will have the first 3 elements set to
 ## year, month, and day. If specified, [param date_aux] must have size >= 3 and
-## will have the first 3 elements set to Q, YQ, and YM, where Q is quarter (1 - 4)
-## and YQ and YM are cumulative counts of quarter and month since year 0.
-static func get_date_elements_at_jdn(jdn: int, date: Array[int], date_aux: Array[int] = []) -> void:
+## will have the first 3 elements set to quarter (1 - 4), ordinal_quarter, and
+## ordinal_month (see [member IVGlobal.date_aux]).
+static func get_date_elements_at_jdn(jdn: int, date: Array[int],
+		date_aux: Array[int] = NULL_INT_ARRAY) -> void:
 	var f := jdn + 1401 + ((((4 * jdn + 274277) / 146097) * 3) / 4) - 38
 	var e := 4 * f + 3
 	var g := (e % 1461) / 4
@@ -296,8 +298,8 @@ static func get_date_elements_at_jdn(jdn: int, date: Array[int], date_aux: Array
 	
 	var q := (m - 1) / 3 + 1
 	date_aux[0] = q
-	date_aux[1] = y * 4 + (q - 1) # yq, always increasing
-	date_aux[2] = y * 12 + (m - 1) # ym, always increasing
+	date_aux[1] = y * 4 + (q - 1) # ordinal_quarter, always increasing
+	date_aux[2] = y * 12 + (m - 1) # ordinal_month, always increasing
 
 
 ## Returns cummulative synodic days at [param body] at [param time] with
