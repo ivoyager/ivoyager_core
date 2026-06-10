@@ -26,6 +26,7 @@ Under development using Godot 4.6.2.
 * IVStateManager signal `procedural_nodes_freed`. Emits an arbitrary 5 frames after `about_to_free_procedural_nodes`.
 * IVStateManager signal `game_loaded`. Unlike the IVSave signal, this signal is guarateed to emit before system_tree_built.
 * Several IVArrays utility functions.
+* IVAstronomy constant `CELESTIAL_NORTH` and function `get_basis_from_z_axis_and_icrf_equator_node()` (the reference basis convention for JPL satellite mean elements).
 
 ### Changed
 * [Project breaking] Rebuilt IVFragmentIdentifier system to use a CompositorEffect and a probe compute shader that writes an SSBO (Shader Storage Buffer Object). Previous SubViewport system was a very expensive hack that needed to be replaced. Now only functions with Forward+ or Mobile renderer (cleanly removes itself if Compatibility renderer). The system is very cheap now so added to projects by default. Performance is noticeably better than the older hack. (The new system is still a hack: it'll be much simplified when [this proposal](https://github.com/godotengine/godot-proposals/issues/7916) is fully implemented. Our shaders will then write their ids directly to CUSTOM_BUFFER0, CUSTOM_BUFFER1, etc.)
@@ -35,6 +36,11 @@ Under development using Godot 4.6.2.
 * Complete doc comments in all files.
 * Emit signal about_to_quit closer to actual SceneTree.quit().
 * IVSelectionManager "body" functions return Object rather than IVBody.
+
+### Fixed
+* [#7](https://github.com/ivoyager/ivoyager_core/issues/7) Moon positions diverged from ephemeris (e.g., Earth's Moon ~120° ahead at 2026-01-01). IVTableOrbitBuilder misinterpreted two values from the JPL satellite mean elements source data: table `mean_motion` is the sidereal rate (dL/dt), not the mean anomaly rate; and `apsidal_period` (JPL "Pw") is the cycle period of the argument of periapsis ω measured from the moving node, not of the longitude of periapsis ϖ. Together these made mean longitude drift ahead by 360°/Pw per year (~60°/year for Earth's Moon).
+* IVTableOrbitBuilder shifted Ω₀ and ω₀ in the wrong direction when converting orbit elements from a non-J2000 table epoch (`epoch_jd`) to internal J2000 epoch (affected Mars, Jupiter, Saturn & Uranus moons with 1950/1997 epochs).
+* Orbit reference basis for EQUATORIAL and LAPLACE reference planes now has x-axis at the ascending node of the reference plane on the ICRF equator, matching the JPL convention for the longitude of the ascending node ("measured from the node of the reference plane on the ICRF equator"). Was the direction nearest the vernal equinox, causing static in-plane offsets (e.g., ~40° for Phobos/Deimos, ~126° for Titan, ~174° for Charon).
 
 ## [v0.1.1] - 2026-02-09
 

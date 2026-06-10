@@ -62,7 +62,7 @@ var orbit_fields: Array[StringName] = [
 	&"semi_major_axis",
 	&"longitude_periapsis",
 	&"mean_anomaly_at_epoch",
-	&"mean_motion", # if provided, cross check with parent GM
+	&"mean_motion", # sidereal (dL/dt) convention; cross check with parent GM
 	
 	# precession data variations
 	&"longitude_ascending_node_rate",
@@ -101,7 +101,7 @@ func make_orbit(table: String, row: int, parent: IVBody) -> IVOrbit:
 	const DAY := IVUnits.DAY
 	const RIGHT_ANGLE := PI / 2.0
 	const EPOCH_JULIAN_DAY := IVAstronomy.EPOCH_JULIAN_DAY
-	const WARNING_EXCESS_BARYCENTER_GM := 0.15 # ballpark only test; Pluto moons ~0.12
+	const WARNING_EXCESS_BARYCENTER_GM := 0.16 # ballpark only test; Pluto moons ~0.11-0.15
 	const WARNING_SHORTFALL_BARYCENTER_GM := -0.07 # -0.01 passes all but a few odd moons
 	const MIN_INCLINATION := IVOrbit.MIN_INCLINATION
 	
@@ -114,6 +114,10 @@ func make_orbit(table: String, row: int, parent: IVBody) -> IVOrbit:
 	# reference plane type and basis
 	var reference_plane_type: int = data.get(&"reference_plane_type",
 			ReferencePlane.REFERENCE_PLANE_ECLIPTIC) # default ecliptic
+	# For equatorial and Laplace reference planes, the basis x-axis (the zero
+	# point for longitude of the ascending node) is the ascending node of the
+	# reference plane on the ICRF equator, following JPL satellite mean
+	# elements convention (https://ssd.jpl.nasa.gov/sats/elem/).
 	var reference_basis := Basis.IDENTITY
 	if reference_plane_type == ReferencePlane.REFERENCE_PLANE_EQUATORIAL:
 		assert(!data.has(&"orbit_right_ascension"),
@@ -121,7 +125,7 @@ func make_orbit(table: String, row: int, parent: IVBody) -> IVOrbit:
 		assert(!data.has(&"orbit_declination"),
 			"'orbit_declination' specified for non-Laplace orbit")
 		var positive_axis := parent.get_positive_axis()
-		reference_basis = IVAstronomy.get_basis_from_z_axis_and_vernal_equinox(positive_axis)
+		reference_basis = IVAstronomy.get_basis_from_z_axis_and_icrf_equator_node(positive_axis)
 	elif reference_plane_type == ReferencePlane.REFERENCE_PLANE_LAPLACE:
 		assert(data.has(&"orbit_right_ascension"),
 				"Expected 'orbit_right_ascension' for ORBIT_REFERENCE_LAPLACE")
@@ -129,7 +133,9 @@ func make_orbit(table: String, row: int, parent: IVBody) -> IVOrbit:
 				"Expected 'orbit_declination' for ORBIT_REFERENCE_LAPLACE")
 		var orbit_ra: float = data[&"orbit_right_ascension"]
 		var orbit_dec: float = data[&"orbit_declination"]
-		reference_basis = IVAstronomy.get_ecliptic_basis_from_equatorial_north(orbit_ra, orbit_dec)
+		var laplace_north := IVAstronomy.get_ecliptic_unit_vector_from_equatorial_angles(
+				orbit_ra, orbit_dec)
+		reference_basis = IVAstronomy.get_basis_from_z_axis_and_icrf_equator_node(laplace_north)
 	else:
 		assert(!data.has(&"orbit_right_ascension"),
 			"'orbit_right_ascension' specified for non-Laplace orbit")
@@ -164,43 +170,6 @@ func make_orbit(table: String, row: int, parent: IVBody) -> IVOrbit:
 	assert(!is_nan(argument_periapsis),
 			"Table must specify 'argument_periapsis' or 'longitude_periapsis'")
 	
-	var gravitational_parameter := parent.get_gravitational_parameter()
-	if data.has(&"orbit_gravitational_parameter"):
-		var orbit_gm: float = data[&"orbit_gravitational_parameter"]
-		var excess_gm := (orbit_gm - gravitational_parameter) / gravitational_parameter
-		if excess_gm > WARNING_EXCESS_BARYCENTER_GM or excess_gm < WARNING_SHORTFALL_BARYCENTER_GM:
-			push_warning("%s 'orbit_gravitational_parameter' (%s) differs from parent GM (%s)" %
-					[data[&"name"], String.num_scientific(orbit_gm),
-					String.num_scientific(gravitational_parameter)]
-					+ " more than expected")
-		gravitational_parameter = orbit_gm
-	if data.has(&"mean_motion"):
-		assert(!data.has(&"orbit_gravitational_parameter"),
-				"Don't specify 'mean_motion' AND 'orbit_gravitational_parameter'")
-		assert(eccentricity < 1.0, "'mean_motion' specified for parabolic or hyperbolic orbit")
-		var n: float = data[&"mean_motion"]
-		var a := semi_parameter / (1.0 - eccentricity * eccentricity)
-		var derived_gm := a ** 3 * n ** 2
-		var excess_gm := (derived_gm - gravitational_parameter) / gravitational_parameter
-		if excess_gm > WARNING_EXCESS_BARYCENTER_GM or excess_gm < WARNING_SHORTFALL_BARYCENTER_GM:
-			push_warning("%s derived orbit GM (%s) differs from parent GM (%s)" %
-					[data[&"name"], String.num_scientific(derived_gm),
-					String.num_scientific(gravitational_parameter)]
-					+ " more than expected")
-		gravitational_parameter = derived_gm
-	
-	if data.has(&"mean_anomaly_at_epoch"):
-		assert(is_nan(time_periapsis),
-				"Don't specify 'time_periapsis' AND 'mean_anomaly_at_epoch'")
-		assert(eccentricity < 1.0,
-				"'mean_anomaly_at_epoch' specified for parabolic or hyperbolic orbit")
-		var m0: float = data[&"mean_anomaly_at_epoch"]
-		var a := semi_parameter / (1.0 - eccentricity * eccentricity)
-		var n := sqrt(gravitational_parameter / a ** 3)
-		time_periapsis = IVOrbit.modulo_time_periapsis_elliptic(-m0 / n, n)
-	assert(!is_nan(time_periapsis),
-			"Table must specify 'time_periapsis' or 'mean_anomaly_at_epoch'")
-	
 	# precessions; either "rates" or "periods" (format must be consistant for this row)
 	
 	var longitude_ascending_node_rate := 0.0
@@ -232,23 +201,75 @@ func make_orbit(table: String, row: int, parent: IVBody) -> IVOrbit:
 		longitude_ascending_node_rate = rates[0]
 		argument_periapsis_rate = rates[1]
 	
+	# The advance rate of the periapsis along the direction of orbital motion,
+	# in inertial terms (dϖ/dt for a prograde orbit). Needed to convert
+	# 'mean_motion' below from source-data convention to mean anomaly rate.
+	var periapsis_drift_rate := argument_periapsis_rate
+	if inclination < RIGHT_ANGLE:
+		periapsis_drift_rate += longitude_ascending_node_rate
+	else:
+		periapsis_drift_rate -= longitude_ascending_node_rate
+	
+	var gravitational_parameter := parent.get_gravitational_parameter()
+	if data.has(&"orbit_gravitational_parameter"):
+		var orbit_gm: float = data[&"orbit_gravitational_parameter"]
+		var excess_gm := (orbit_gm - gravitational_parameter) / gravitational_parameter
+		if excess_gm > WARNING_EXCESS_BARYCENTER_GM or excess_gm < WARNING_SHORTFALL_BARYCENTER_GM:
+			push_warning("%s 'orbit_gravitational_parameter' (%s) differs from parent GM (%s)" %
+					[data[&"name"], String.num_scientific(orbit_gm),
+					String.num_scientific(gravitational_parameter)]
+					+ " more than expected")
+		gravitational_parameter = orbit_gm
+	if data.has(&"mean_motion"):
+		assert(!data.has(&"orbit_gravitational_parameter"),
+				"Don't specify 'mean_motion' AND 'orbit_gravitational_parameter'")
+		assert(eccentricity < 1.0, "'mean_motion' specified for parabolic or hyperbolic orbit")
+		# Table 'mean_motion' is the sidereal rate (of mean longitude, dL/dt),
+		# following source-data convention (e.g., JPL satellite mean elements).
+		# Internal Kepler propagation needs the mean anomaly rate dM/dt, which
+		# is slower by the periapsis drift rate (equal if no apsidal precession).
+		var n: float = data[&"mean_motion"] - periapsis_drift_rate
+		var a := semi_parameter / (1.0 - eccentricity * eccentricity)
+		var derived_gm := a ** 3 * n ** 2
+		var excess_gm := (derived_gm - gravitational_parameter) / gravitational_parameter
+		if excess_gm > WARNING_EXCESS_BARYCENTER_GM or excess_gm < WARNING_SHORTFALL_BARYCENTER_GM:
+			push_warning("%s derived orbit GM (%s) differs from parent GM (%s)" %
+					[data[&"name"], String.num_scientific(derived_gm),
+					String.num_scientific(gravitational_parameter)]
+					+ " more than expected")
+		gravitational_parameter = derived_gm
+	
+	if data.has(&"mean_anomaly_at_epoch"):
+		assert(is_nan(time_periapsis),
+				"Don't specify 'time_periapsis' AND 'mean_anomaly_at_epoch'")
+		assert(eccentricity < 1.0,
+				"'mean_anomaly_at_epoch' specified for parabolic or hyperbolic orbit")
+		var m0: float = data[&"mean_anomaly_at_epoch"]
+		var a := semi_parameter / (1.0 - eccentricity * eccentricity)
+		var n := sqrt(gravitational_parameter / a ** 3)
+		time_periapsis = IVOrbit.modulo_time_periapsis_elliptic(-m0 / n, n)
+	assert(!is_nan(time_periapsis),
+			"Table must specify 'time_periapsis' or 'mean_anomaly_at_epoch'")
+	
 	# convert to internal J2000 epoch
 	
 	var epoch_delta := 0.0
 	if data.has(&"epoch_jd") and data[&"epoch_jd"] != EPOCH_JULIAN_DAY:
 		epoch_delta = (data[&"epoch_jd"] - EPOCH_JULIAN_DAY) * DAY
-		
+	
 		# time_periapsis
 		time_periapsis += epoch_delta
 		if eccentricity < 1.0:
 			var a := semi_parameter / (1.0 - eccentricity * eccentricity)
 			var n := sqrt(gravitational_parameter / a ** 3)
 			time_periapsis = IVOrbit.modulo_time_periapsis_elliptic(time_periapsis, n)
-			
-		# precessions (at epoch angles)
-		longitude_ascending_node += epoch_delta * longitude_ascending_node_rate
+	
+		# Table Ω and ω are values at epoch_jd; internal "at epoch" values are
+		# anchored at J2000 (rate propagation in IVOrbit runs from J2000), so
+		# back-propagate by epoch_delta.
+		longitude_ascending_node -= epoch_delta * longitude_ascending_node_rate
 		longitude_ascending_node = fposmod(longitude_ascending_node, TAU)
-		argument_periapsis += epoch_delta * argument_periapsis_rate
+		argument_periapsis -= epoch_delta * argument_periapsis_rate
 		argument_periapsis = fposmod(argument_periapsis, TAU)
 	
 	# standard orbit
@@ -275,6 +296,13 @@ func _get_precession_rates_from_periods(nodal_period: float, apsidal_period: flo
 	# zeros). We should expect apsidal precession in the direction of orbit and
 	# nodal in the opposite direction.
 	#
+	# Period meanings follow JPL satellite mean elements
+	# (https://ssd.jpl.nasa.gov/sats/elem/): 'apsidal_period' (Pw) is the cycle
+	# period of the argument of periapsis ω itself — measured from the moving
+	# node, so nodal regression is already folded in (which is why the Moon's
+	# Pw is 5.997 yr while its longitude-of-periapsis ϖ cycles in 8.85 yr).
+	# 'nodal_period' (Pnode) is the cycle period of Ω.
+	#
 	# Precessions tests:
 	# 1. Observe Earth's prograde (counter-clockwise-orbiting) Moon with apsidal
 	#    precession in direction of orbit (counter-clockwise) and nodal
@@ -285,8 +313,7 @@ func _get_precession_rates_from_periods(nodal_period: float, apsidal_period: flo
 	#    precessions in opposite direction (counter-clockwise), with roughly
 	#    ~80 year(ish) periods.
 	var lan_rate := -TAU / nodal_period if nodal_period else 0.0
-	var lp_rate := TAU / apsidal_period if apsidal_period else 0.0
-	var ap_rate := lp_rate - lan_rate # ω = ϖ - Ω
+	var ap_rate := TAU / apsidal_period if apsidal_period else 0.0
 	if retrograde:
 		# This is confusing, but longitude of the node is measured in the
 		# reference plane, so needs sign flip for retrograde. However, argument
