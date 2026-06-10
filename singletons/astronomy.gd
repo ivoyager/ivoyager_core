@@ -64,6 +64,10 @@ const ECLIPTIC_NORTH := Vector3(0, 0, 1)
 const VERNAL_EQUINOX := Vector3(1, 0, 0)
 ## Earth's axial tilt at J2000.0 (radians).
 const OBLIQUITY_OF_THE_ECLIPTIC := deg_to_rad(23.4392911) # at J2000
+## Unit vector pointing to the north celestial pole (ICRF z-axis) in ecliptic
+## coordinates.
+const CELESTIAL_NORTH := Vector3(0, sin(OBLIQUITY_OF_THE_ECLIPTIC),
+		cos(OBLIQUITY_OF_THE_ECLIPTIC))
 ## Basis that rotates an ecliptic-frame vector into the equatorial frame.
 const ECLIPTIC_TO_EQUATORIAL_ROTATION := Basis(
 		Vector3(1, 0, 0),
@@ -141,7 +145,28 @@ func get_ecliptic_basis_from_equatorial_north(right_ascension: float, declinatio
 	var zeq := sin(declination)
 	var z := Vector3(xeq, yeq * COS_OBL + zeq * SIN_OBL, -yeq * SIN_OBL + zeq * COS_OBL) # north
 	if z.is_equal_approx(VERNAL_EQUINOX): # edge case (tested at <~0.00001 rotated in 32-bit)
-		z = z.rotated(ECLIPTIC_Y, -SINGULARITY_BUMP) 
+		z = z.rotated(ECLIPTIC_Y, -SINGULARITY_BUMP)
 	var y := z.cross(VERNAL_EQUINOX).normalized() # perpendicular to vernal equinox
 	var x := y.cross(z) # in the plane of vernal equinox (usually close to it)
 	return Basis(x, y, z)
+
+
+## Returns a basis in ecliptic coordinates that has z-axis in the specified
+## direction and x-axis at the ascending node of the basis xy-plane on the
+## ICRF (Earth) equatorial plane. This is the reference basis convention for
+## JPL planetary satellite mean elements
+## ([url]https://ssd.jpl.nasa.gov/sats/elem/[/url]), where the longitude of the
+## ascending node is "measured from the node of the reference plane on the
+## ICRF equator". [param z_axis] must be a unit vector in ecliptic coordinates.
+## Note: If the specified z_axis is exactly in the direction of celestial north
+## (or south), it will be rotated 0.0001 radians around the ecliptic y-axis
+## (this is necessary in order to have a determined x-axis).
+func get_basis_from_z_axis_and_icrf_equator_node(z_axis: Vector3) -> Basis:
+	assert(z_axis.is_normalized())
+	const SINGULARITY_BUMP := 0.0001
+	const ECLIPTIC_Y := Vector3(0, 1, 0)
+	if z_axis.is_equal_approx(CELESTIAL_NORTH) or z_axis.is_equal_approx(-CELESTIAL_NORTH):
+		z_axis = z_axis.rotated(ECLIPTIC_Y, -SINGULARITY_BUMP)
+	var x := CELESTIAL_NORTH.cross(z_axis).normalized() # ascending node on ICRF equator
+	var y := z_axis.cross(x)
+	return Basis(x, y, z_axis)

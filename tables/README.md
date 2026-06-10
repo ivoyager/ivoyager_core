@@ -52,7 +52,7 @@ See [IVBody](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/bo
 
 Source: https://ssd.jpl.nasa.gov/?sat_elem.
 
-P_apsidal (apsidal_period) for the Moon from above source (5.997) is in conflict with other sources (e.g., Wikipedia: 8.85). WTH?
+Source convention notes (handled by [IVTableOrbitBuilder](https://github.com/ivoyager/ivoyager_core/blob/master/program/table_orbit_builder.gd)): `mean_motion` (n) is the sidereal rate dL/dt, not the mean anomaly rate. `apsidal_period` (Pw) is the cycle period of the argument of periapsis ω, which is measured from the moving node — so nodal regression is folded in. That's why the Moon's Pw (5.997 yr) differs from its longitude-of-periapsis precession period found in other sources (e.g., Wikipedia: 8.85 yr); the two are consistent: 1/(1/5.997 - 1/18.613) ≈ 8.85.
 
 Sort each planet's moons by `semi_major_axis` for proper order in GUI display and selection.
 
