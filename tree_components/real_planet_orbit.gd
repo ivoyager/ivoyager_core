@@ -163,9 +163,16 @@ static func create_real_planet_orbit(
 	orbit._longitude_ascending_node_rate = longitude_ascending_node_rate
 	orbit._argument_periapsis_at_epoch = longitude_periapsis - longitude_ascending_node
 	orbit._argument_periapsis_rate = longitude_periapsis_rate - longitude_ascending_node_rate
-	orbit._time_periapsis = modulo_time_periapsis_elliptic(-mean_anomaly_at_epoch / mean_motion,
-			mean_motion)
-	orbit._gravitational_parameter = semi_major_axis ** 3 * mean_motion ** 2
+	# Table 'mean_motion' is JPL's mean longitude rate (dL/dt), not the mean
+	# anomaly rate. With the periapsis precessing, mean anomaly advances at
+	# dM/dt = dL/dt - dϖ/dt (JPL computes M = L - ϖ, both linear in time). This
+	# slower rate is the orbit's true (osculating) mean motion; using it for the
+	# Kepler relations and M propagation keeps position from drifting ahead by
+	# dϖ/dt per unit time (a few degrees over the multi-millennia validity range).
+	var mean_anomaly_rate := mean_motion - longitude_periapsis_rate
+	orbit._time_periapsis = modulo_time_periapsis_elliptic(
+			-mean_anomaly_at_epoch / mean_anomaly_rate, mean_anomaly_rate)
+	orbit._gravitational_parameter = semi_major_axis ** 3 * mean_anomaly_rate ** 2
 	
 	# set evolving parameters to epoch (precessing)
 	orbit._longitude_ascending_node = longitude_ascending_node
@@ -173,8 +180,8 @@ static func create_real_planet_orbit(
 	
 	# derived
 	orbit._semi_major_axis = semi_major_axis
-	orbit._mean_motion = mean_motion
-	orbit._specific_energy = -0.5 * semi_major_axis ** 2 * mean_motion ** 2
+	orbit._mean_motion = mean_anomaly_rate
+	orbit._specific_energy = -0.5 * semi_major_axis ** 2 * mean_anomaly_rate ** 2
 	orbit._specific_angular_momentum = sqrt(orbit._gravitational_parameter
 			* orbit._semi_parameter)
 	
@@ -201,11 +208,13 @@ static func create_real_planet_orbit(
 
 
 ## See [method IVOrbit.update]. This subclass additionally evolves a, e,
-## [therefore p], i and t₀ (if M corrections). The JPL reference indicates a
-## fixed mean motion (= dL/dt). Given orbit shape change with a fixed mean
-## motion, we should technically update GM, ε and h. My guess is the shape
-## changes cross cancel to a good approximation, since GM shouldn't evolve. Or
-## in any case, the energy changes should be tiny. So we don't update these.
+## [therefore p], i and t₀ (if M corrections). The JPL reference uses a fixed
+## mean longitude rate dL/dt, hence a fixed mean anomaly rate dM/dt = dL/dt -
+## dϖ/dt (= [member mean_motion] here; see [method create_real_planet_orbit]).
+## Given orbit shape change with a fixed mean motion, we should technically
+## update GM, ε and h. My guess is the shape changes cross cancel to a good
+## approximation, since GM shouldn't evolve. Or in any case, the energy changes
+## should be tiny. So we don't update these.
 func update(time: float, rotate_to_ecliptic := true) -> Vector3:
 	
 	const CHANGED_ANGLE_THRESHOLD := CHANGED_THRESHOLD / TAU
