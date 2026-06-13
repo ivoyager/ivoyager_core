@@ -398,6 +398,13 @@ func stop_threads_when_finished() -> void:
 
 
 ## Returns true if [member threads_state] == [enum ThreadsState].STOPPED.
+## OK to start thread work.
+func is_threads_allowed() -> bool:
+	return threads_state == ThreadsState.ALLOWED
+
+
+## Returns true if [member threads_state] == [enum ThreadsState].STOPPED.
+## OK to handle unsafe (normally threaded) data, e.g., for game save.
 func is_threads_stopped() -> bool:
 	return threads_state == ThreadsState.STOPPED
 
