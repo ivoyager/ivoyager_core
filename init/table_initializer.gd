@@ -46,6 +46,7 @@ static var tables: Dictionary[StringName, String] = {
 	omni_lights = table_base_path % "omni_lights",
 	models = table_base_path % "models",
 	moons = table_base_path % "moons",
+	orbits = table_base_path % "orbits",
 	planets = table_base_path % "planets",
 	rings = table_base_path % "rings",
 	small_bodies_groups = table_base_path % "small_bodies_groups",

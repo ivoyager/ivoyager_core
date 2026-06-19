@@ -130,16 +130,21 @@ var flag_fields: Dictionary[StringName, int] = {
 }
 
 ## Maps a [code]"object/path"[/code] (used by IVTableData precision lookup) to
-## the table column whose precision the value should adopt. Used only when
+## the body-table column whose precision the value should adopt. Used only when
 ## [member IVCoreSettings.enable_precisions] is true.
 var add_precisions: Dictionary[String, StringName] = {
+	"body/get_rotation_period" : &"rotation_period",
+}
+
+## Like [member add_precisions] but for orbital values; precision is read from
+## [code]orbits.tsv[/code] at the body's orbit row.
+var orbit_add_precisions: Dictionary[String, StringName] = {
 	"body/orbit/get_semi_major_axis" : &"semi_major_axis",
 	"body/orbit/get_periapsis" : &"semi_major_axis", # roughly
 	"body/orbit/get_apoapsis" : &"semi_major_axis", # roughly
 	"body/orbit/get_eccentricity" : &"eccentricity",
 	"body/orbit/get_inclination" : &"inclination",
 	"body/orbit/get_period" : &"mean_motion",
-	"body/get_rotation_period" : &"rotation_period",
 }
 
 
@@ -259,3 +264,10 @@ func _set_table_data_precisions(table_name: StringName, row: int,
 		var precision := IVTableData.get_db_float_precision(table_name, field, row)
 		if precision != -1:
 			precisions[key] = precision
+	var orbit_row := IVTableData.get_db_int(table_name, &"orbit", row)
+	if orbit_row != -1:
+		for key in orbit_add_precisions:
+			var field := orbit_add_precisions[key]
+			var precision := IVTableData.get_db_float_precision(&"orbits", field, orbit_row)
+			if precision != -1:
+				precisions[key] = precision

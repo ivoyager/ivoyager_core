@@ -1,0 +1,14 @@
+[remap]
+
+importer="ivoyager.tables"
+type="IVTableResource"
+uid="uid://ckw0nb0niw7xm"
+path="res://.godot/imported/orbits.tsv-ef862105111cd94a54ff9eb6a418cf33.tres"
+
+[deps]
+
+source_file="res://addons/ivoyager_core/tables/orbits.tsv"
+dest_files=["res://.godot/imported/orbits.tsv-ef862105111cd94a54ff9eb6a418cf33.tres"]
+
+[params]
+

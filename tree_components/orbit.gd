@@ -196,6 +196,7 @@ const INCLINATION_RIGHT_ANGLE_BUMP := 0.001
 
 const PERSIST_MODE := IVGlobal.PERSIST_PROCEDURAL
 const PERSIST_PROPERTIES: Array[StringName] = [
+	&"parent_name",
 	&"_reference_plane_type",
 	&"_reference_basis",
 	&"_semi_parameter",
@@ -216,6 +217,13 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"_mean_anomaly",
 	&"_true_anomaly",
 ]
+
+
+## Name of the parent body (gravitational primary) about which this orbit is
+## defined. This class holds no [IVBody] reference by design; this name is the
+## durable parent linkage a future IVTrajectory will use to pair orbit segments
+## with their primaries. Set by [IVTableOrbitBuilder]; not read internally.
+var parent_name: StringName
 
 
 # Public properties are all "redirect" vars so we can implement side-effects or
@@ -1473,6 +1481,10 @@ func get_unit_parabola_transform_at_time(time: float, rotate_to_ecliptic := true
 
 # *****************************************************************************
 # serialize/deserialize
+#
+# These pack defining + derived elements as floats only. parent_name (a
+# StringName) is intentionally absent and has no float representation; if these
+# methods are revived for network sync, parent_name needs separate handling.
 
 
 func serialize() -> PackedFloat64Array:

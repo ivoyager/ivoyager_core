@@ -88,7 +88,12 @@ func _add_bodies_from_top(name: StringName, table_dict: Dictionary[StringName, S
 	# Add ancestors recursively from top, then this one.
 	var table_name: StringName = table_dict[name]
 	var row := IVTableData.get_row(name)
-	var parent_name := IVTableData.get_db_string_name(table_name, &"parent", row)
+	# Orbital parentage comes from orbits.tsv via the body's 'orbit' reference;
+	# absence of 'orbit' marks the tree root.
+	var orbit_row := IVTableData.get_db_int(table_name, &"orbit", row)
+	var parent_name: StringName = &""
+	if orbit_row != -1:
+		parent_name = IVTableData.get_db_string_name(&"orbits", &"parent", orbit_row)
 	var parent: IVBody
 	if parent_name:
 		if !_bodies.has(parent_name):
@@ -99,7 +104,7 @@ func _add_bodies_from_top(name: StringName, table_dict: Dictionary[StringName, S
 		parent.add_child(body)
 		return
 	assert(body.flags & BodyFlags.BODYFLAGS_TOP,
-			"body.tsv row with no parent must have field 'top' == TRUE")
+			"body row with no 'orbit' must have field 'top' == TRUE")
 	if add_to_universe:
 		var universe: Node3D = IVGlobal.program.Universe
 		universe.add_child(body)

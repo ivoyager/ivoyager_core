@@ -31,11 +31,12 @@ extends IVOrbit
 ## the [IVOrbit] class. Orbit elements cannot be set for this subclass at editor
 ## runtime.[br][br]
 ##
-## Use of this subclass is allowed by setting
-## [code]IVTableOrbitBuilder.allow_real_planet_orbits = true[/code] and data
-## table field value [param use_real_planet_orbit] = TRUE. This will implement
-## table fields: "semi_major_axis_rate", "eccentricity_rate", "inclination_rate"
-## and "mean_anomaly_correction_b", "..._c", "..._s" and "..._f".[br][br]
+## Use of this subclass is enabled by setting
+## [code]IVTableOrbitBuilder.use_real_planet_orbits = true[/code] and
+## [code]orbits.tsv[/code] field [code]real_planet_orbit[/code] = TRUE. It then
+## reads the additional orbits.tsv fields "semi_major_axis_rate",
+## "eccentricity_rate", "inclination_rate" and "mean_anomaly_correction_b",
+## "..._c", "..._s" and "..._f".[br][br]
 ## 
 ## We changed implementation from the JPL reference page. In particular, we use
 ## b, c, s and f corrections to evolve time of periapsis passage (t₀, a defining
@@ -43,7 +44,7 @@ extends IVOrbit
 ## calculation. By doing it this way, the orbital elements (alone) specify
 ## orbit and position in the orbit all times.[br][br]
 ##
-## Our data table [b]tables/planets.tsv[/b] contains corrections for Pluto that
+## Our data table [b]tables/orbits.tsv[/b] contains corrections for Pluto that
 ## were previously on the JPL page but subsequently removed (due to its
 ## unfortunate demotion).
 
@@ -99,8 +100,8 @@ var _inclination_rate: float
 var _time_periapsis_at_epoch: float
 
 
-## Creates a new [IVRealPlanetOrbit] instance. Method signature matches planet
-## specification in data table planets.tsv.
+## Creates a new [IVRealPlanetOrbit] instance. Takes argument of periapsis (ω)
+## and its rate, consistent with the base [IVOrbit] element convention.
 @warning_ignore("shadowed_variable", "shadowed_variable_base_class")
 static func create_real_planet_orbit(
 		semi_major_axis: float,
@@ -111,8 +112,8 @@ static func create_real_planet_orbit(
 		inclination_rate: float,
 		longitude_ascending_node: float,
 		longitude_ascending_node_rate: float,
-		longitude_periapsis: float,
-		longitude_periapsis_rate: float,
+		argument_periapsis: float,
+		argument_periapsis_rate: float,
 		mean_anomaly_at_epoch: float,
 		mean_motion: float,
 		mean_anomaly_correction_b: float,
@@ -132,7 +133,7 @@ static func create_real_planet_orbit(
 			"IVRealPlanetOrbit requires allowed 'inclination' value")
 	assert(!is_nan(longitude_ascending_node),
 			"IVRealPlanetOrbit requires 'longitude_ascending_node'")
-	assert(!is_nan(longitude_periapsis), "IVRealPlanetOrbit requires 'longitude_periapsis'")
+	assert(!is_nan(argument_periapsis), "IVRealPlanetOrbit requires 'argument_periapsis'")
 	assert(!is_nan(mean_anomaly_at_epoch), "IVRealPlanetOrbit requires 'mean_anomaly_at_epoch'")
 	assert(mean_motion > 0.0, "IVRealPlanetOrbit requires 'mean_motion' > 0.0")
 	assert(!is_nan(semi_major_axis_rate), "IVRealPlanetOrbit requires 'semi_major_axis_rate'")
@@ -140,8 +141,8 @@ static func create_real_planet_orbit(
 	assert(!is_nan(inclination_rate), "IVRealPlanetOrbit requires 'inclination_rate'")
 	assert(!is_nan(longitude_ascending_node_rate),
 			"IVRealPlanetOrbit requires 'longitude_ascending_node_rate'")
-	assert(!is_nan(longitude_periapsis_rate),
-			"IVRealPlanetOrbit requires 'longitude_periapsis_rate'")
+	assert(!is_nan(argument_periapsis_rate),
+			"IVRealPlanetOrbit requires 'argument_periapsis_rate'")
 	assert(!is_nan(mean_anomaly_correction_b), "Use 0.0 for missing")
 	assert(!is_nan(mean_anomaly_correction_f), "Use 0.0 for missing")
 	assert(!is_nan(mean_anomaly_correction_c), "Use 0.0 for missing")
@@ -161,22 +162,23 @@ static func create_real_planet_orbit(
 	orbit._inclination = inclination
 	orbit._longitude_ascending_node_at_epoch = longitude_ascending_node
 	orbit._longitude_ascending_node_rate = longitude_ascending_node_rate
-	orbit._argument_periapsis_at_epoch = longitude_periapsis - longitude_ascending_node
-	orbit._argument_periapsis_rate = longitude_periapsis_rate - longitude_ascending_node_rate
+	orbit._argument_periapsis_at_epoch = argument_periapsis
+	orbit._argument_periapsis_rate = argument_periapsis_rate
 	# Table 'mean_motion' is JPL's mean longitude rate (dL/dt), not the mean
 	# anomaly rate. With the periapsis precessing, mean anomaly advances at
 	# dM/dt = dL/dt - dϖ/dt (JPL computes M = L - ϖ, both linear in time). This
 	# slower rate is the orbit's true (osculating) mean motion; using it for the
 	# Kepler relations and M propagation keeps position from drifting ahead by
 	# dϖ/dt per unit time (a few degrees over the multi-millennia validity range).
-	var mean_anomaly_rate := mean_motion - longitude_periapsis_rate
+	# Reconstruct ϖ̇ = ω̇ + Ω̇ (prograde planets).
+	var mean_anomaly_rate := mean_motion - (argument_periapsis_rate + longitude_ascending_node_rate)
 	orbit._time_periapsis = modulo_time_periapsis_elliptic(
 			-mean_anomaly_at_epoch / mean_anomaly_rate, mean_anomaly_rate)
 	orbit._gravitational_parameter = semi_major_axis ** 3 * mean_anomaly_rate ** 2
 	
 	# set evolving parameters to epoch (precessing)
 	orbit._longitude_ascending_node = longitude_ascending_node
-	orbit._argument_periapsis = longitude_periapsis - longitude_ascending_node
+	orbit._argument_periapsis = argument_periapsis
 	
 	# derived
 	orbit._semi_major_axis = semi_major_axis
