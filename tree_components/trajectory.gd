@@ -51,8 +51,10 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 
 ## Ordered, time-contiguous conic segments. The only persisted member; all other
 ## members are derived from this. Segment [code]i[/code] is active for time in
-## [code][segment_begin, segment_end)[/code]; by convention the first segment's
-## begin and the last segment's end are -INF/INF so coverage is total.
+## [code][segment_begin, segment_end)[/code]. The first segment's begin and the last
+## segment's end may be finite (e.g. a launch time): for times outside that overall
+## window the body parks at the nearest path endpoint instead of extrapolating (see
+## [method get_clamped_time]); use -INF/INF for an open-ended window.
 var orbits: Array[IVOrbit] = []
 
 ## If true, the first segment is a closed/parking orbit: it is drawn with the normal
@@ -139,8 +141,10 @@ static func create_from_table(trajectory_name: StringName) -> IVTrajectory:
 # API
 
 
-## Returns the active orbit segment for [param time]. Never null (outer segment
-## bounds are -INF/INF by convention).
+## Returns the active orbit segment for [param time]. Never null: out-of-range times
+## clamp to the first or last segment (the segment index is always in bounds). This
+## selects the segment only; callers clamp the evaluation time (see
+## [method get_clamped_time]) to park a body at the endpoints instead of extrapolating.
 func get_orbit(time: float) -> IVOrbit:
 	return orbits[_get_index(time)]
 

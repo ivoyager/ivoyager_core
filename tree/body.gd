@@ -892,6 +892,7 @@ func get_orbit_mean_longitude(time := NAN) -> float:
 		if !_sleeping:
 			return _orbit.get_mean_longitude_at_update()
 		time = _times[0]
+	time = _clamp_trajectory_time(time)
 	return _get_orbit_at_time(time).get_mean_longitude(time)
 
 
@@ -904,6 +905,7 @@ func get_orbit_true_longitude(time := NAN) -> float:
 		if !_sleeping:
 			return _orbit.get_true_longitude_at_update()
 		time = _times[0]
+	time = _clamp_trajectory_time(time)
 	return _get_orbit_at_time(time).get_true_longitude(time)
 
 
@@ -916,6 +918,7 @@ func is_orbit_retrograde(time := NAN) -> bool:
 		if !_sleeping:
 			return _orbit.is_retrograde()
 		time = _times[0]
+	time = _clamp_trajectory_time(time)
 	return _get_orbit_at_time(time).is_retrograde_at_time(time)
 
 
@@ -928,6 +931,7 @@ func get_orbit_semi_parameter(time := NAN) -> float:
 		if !_sleeping:
 			return _orbit.get_semi_parameter()
 		time = _times[0]
+	time = _clamp_trajectory_time(time)
 	return _get_orbit_at_time(time).get_semi_parameter_at_time(time)
 
 
@@ -940,6 +944,7 @@ func get_orbit_semi_major_axis(time := NAN) -> float:
 		if !_sleeping:
 			return _orbit.get_semi_major_axis()
 		time = _times[0]
+	time = _clamp_trajectory_time(time)
 	return _get_orbit_at_time(time).get_semi_major_axis_at_time(time)
 
 
@@ -952,6 +957,7 @@ func get_orbit_eccentricity(time := NAN) -> float:
 		if !_sleeping:
 			return _orbit.get_eccentricity()
 		time = _times[0]
+	time = _clamp_trajectory_time(time)
 	return _get_orbit_at_time(time).get_eccentricity_at_time(time)
 
 
@@ -964,6 +970,7 @@ func get_orbit_inclination(time := NAN) -> float:
 		if !_sleeping:
 			return _orbit.get_inclination()
 		time = _times[0]
+	time = _clamp_trajectory_time(time)
 	return _get_orbit_at_time(time).get_inclination_at_time(time)
 
 
@@ -976,6 +983,7 @@ func get_orbit_mean_motion(time := NAN) -> float:
 		if !_sleeping:
 			return _orbit.get_mean_motion()
 		time = _times[0]
+	time = _clamp_trajectory_time(time)
 	return _get_orbit_at_time(time).get_mean_motion_at_time(time)
 
 
@@ -989,6 +997,7 @@ func get_orbit_normal(time := NAN, flip_retrograde := false) -> Vector3:
 		if !_sleeping:
 			return _orbit.get_normal(flip_retrograde)
 		time = _times[0]
+	time = _clamp_trajectory_time(time)
 	return _get_orbit_at_time(time).get_normal_at_time(time, flip_retrograde)
 
 
@@ -1126,15 +1135,9 @@ func get_latitude_longitude(vector: Vector3, time := NAN) -> Vector2:
 func get_axial_tilt_to_orbit(time := NAN) -> float:
 	if !_orbit:
 		return NAN
-	var orbit_normal: Vector3
-	if is_nan(time):
-		if !_sleeping:
-			orbit_normal = _orbit.get_normal()
-		else:
-			time = _times[0]
-			orbit_normal = _get_orbit_at_time(time).get_normal_at_time(time)
-	else:
-		orbit_normal = _get_orbit_at_time(time).get_normal_at_time(time)
+	# Orbit normal parks at the window endpoints (get_orbit_normal clamps the time);
+	# the spin axis keeps its raw-time value since rotation is independent of the trajectory.
+	var orbit_normal := get_orbit_normal(time)
 	var positive_axis := get_positive_axis(time)
 	return positive_axis.angle_to(orbit_normal)
 
@@ -1166,6 +1169,7 @@ func get_orbit_tracking_basis(time := NAN) -> Basis:
 			y_axis = z_axis.cross(x_axis)
 			return Basis(x_axis, y_axis, z_axis)
 		time = _times[0]
+	time = _clamp_trajectory_time(time)
 	var active_orbit := _get_orbit_at_time(time)
 	x_axis = -active_orbit.get_position(time).normalized()
 	z_axis = active_orbit.get_normal_at_time(time, true, true)
