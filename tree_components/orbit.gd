@@ -197,6 +197,8 @@ const INCLINATION_RIGHT_ANGLE_BUMP := 0.001
 const PERSIST_MODE := IVGlobal.PERSIST_PROCEDURAL
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"parent_name",
+	&"segment_begin",
+	&"segment_end",
 	&"_reference_plane_type",
 	&"_reference_basis",
 	&"_semi_parameter",
@@ -221,9 +223,16 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 
 ## Name of the parent body (gravitational primary) about which this orbit is
 ## defined. This class holds no [IVBody] reference by design; this name is the
-## durable parent linkage a future IVTrajectory will use to pair orbit segments
+## durable parent linkage [IVTrajectory] uses to pair orbit segments
 ## with their primaries. Set by [IVTableOrbitBuilder]; not read internally.
 var parent_name: StringName
+
+## Segment start time (s). When this orbit is a segment in an [IVTrajectory], the
+## trajectory uses this and [member segment_end] to select the active segment for
+## a given time. Default -INF means no lower bound. Set by [IVTableOrbitBuilder].
+var segment_begin := -INF
+## Segment end time (s). See [member segment_begin]. Default INF means no upper bound.
+var segment_end := INF
 
 
 # Public properties are all "redirect" vars so we can implement side-effects or
@@ -509,6 +518,40 @@ static func get_true_anomaly_from_mean_anomaly_parabolic(mean_anomaly: float) ->
 	return 2.0 * atan(2.0 * sinh(asinh(1.5 * mean_anomaly) / 3.0))
 
 
+## Static method returns eccentric anomaly (E; estimated iteratively) from mean
+## anomaly (M) for an elliptic orbit (e < 1). Unlike the bounded true-anomaly
+## solvers, the result is unwrapped (same revolution as [param mean_anomaly]).
+@warning_ignore("shadowed_variable")
+static func get_eccentric_anomaly_from_mean_anomaly_elliptic(eccentricity: float,
+		mean_anomaly: float) -> float:
+	assert(eccentricity < 1.0)
+	const TOLERANCE := 1e-10
+	var ea := mean_anomaly + eccentricity * sin(mean_anomaly) # initial estimate
+	var delta_ea := (ea - eccentricity * sin(ea) - mean_anomaly) / (1.0 - eccentricity * cos(ea))
+	ea -= delta_ea
+	while absf(delta_ea) > TOLERANCE:
+		delta_ea = (ea - eccentricity * sin(ea) - mean_anomaly) / (1.0 - eccentricity * cos(ea))
+		ea -= delta_ea
+	return ea
+
+
+## Static method returns hyperbolic anomaly (H; estimated iteratively) from mean
+## anomaly (M) for a hyperbolic orbit (e > 1).
+@warning_ignore("shadowed_variable")
+static func get_hyperbolic_anomaly_from_mean_anomaly_hyperbolic(eccentricity: float,
+		mean_anomaly: float) -> float:
+	assert(eccentricity > 1.0)
+	const TOLERANCE := 1e-10
+	var s := -1.0 if mean_anomaly < 0.0 else 1.0
+	var ha := s * log(s * 2.0 * mean_anomaly / (eccentricity + 1.0) + 1.0) # initial estimate
+	var delta_ha := (eccentricity * sinh(ha) - ha - mean_anomaly) / (eccentricity * cosh(ha) - 1.0)
+	ha -= delta_ha
+	while absf(delta_ha) > TOLERANCE:
+		delta_ha = (eccentricity * sinh(ha) - ha - mean_anomaly) / (eccentricity * cosh(ha) - 1.0)
+		ha -= delta_ha
+	return ha
+
+
 ## Static method returns position for specified orbit elements at [param true_anomaly].
 ## Reference basis is intrinsic.
 @warning_ignore("shadowed_variable")
@@ -772,6 +815,75 @@ func get_state_vectors(time: float, rotate_to_ecliptic := true) -> Array[Vector3
 	if rotate_to_ecliptic and _reference_plane_type != REFERENCE_PLANE_ECLIPTIC:
 		return [_reference_basis * vectors[0], _reference_basis * vectors[1]]
 	return vectors
+
+
+## Returns a curvature-weighted polyline sampling of this orbit between
+## [param begin_time] and [param end_time] as [[PackedVector3Array] positions,
+## [PackedFloat64Array] times]. Positions are relative to the parent body in the
+## ecliptic basis (via [method get_position], so precession-correct). Vertices are
+## spaced by uniform eccentric / hyperbolic / parabolic anomaly to concentrate near
+## periapsis, mirroring the unit orbit meshes. An unbounded end (±INF) clamps to one
+## full period (closed orbit) or to [param max_radius], in units of [member semi_parameter]
+## (open orbit). Used by [IVTrajectory] to build its path. Requires [param n_vertices] >= 2.
+func sample_arc(begin_time: float, end_time: float, n_vertices: int, max_radius: float) -> Array:
+	assert(n_vertices >= 2)
+	var positions := PackedVector3Array()
+	var times := PackedFloat64Array()
+	positions.resize(n_vertices)
+	times.resize(n_vertices)
+	var t_p := _time_periapsis
+	if _eccentricity < 1.0: # elliptic; step uniform eccentric anomaly
+		var e := _eccentricity
+		var n := _mean_motion
+		var period := TAU / n
+		var begin := begin_time
+		var end := end_time
+		if is_inf(begin) and is_inf(end):
+			begin = t_p - 0.5 * period
+			end = t_p + 0.5 * period
+		elif is_inf(begin):
+			begin = end - period
+		elif is_inf(end):
+			end = begin + period
+		var ea_begin := get_eccentric_anomaly_from_mean_anomaly_elliptic(e, n * (begin - t_p))
+		var ea_end := get_eccentric_anomaly_from_mean_anomaly_elliptic(e, n * (end - t_p))
+		for k in n_vertices:
+			var ea := lerpf(ea_begin, ea_end, float(k) / (n_vertices - 1))
+			var time := t_p + (ea - e * sin(ea)) / n
+			positions[k] = get_position(time)
+			times[k] = time
+	elif _eccentricity > 1.0: # hyperbolic; step uniform hyperbolic anomaly
+		var e := _eccentricity
+		var n := _mean_motion
+		var arg := (max_radius * (e * e - 1.0) + 1.0) / e
+		var ha_limit := log(arg + sqrt(arg * arg - 1.0)) # acosh(arg); H at max_radius
+		var ha_begin := -ha_limit
+		if !is_inf(begin_time):
+			ha_begin = get_hyperbolic_anomaly_from_mean_anomaly_hyperbolic(e, n * (begin_time - t_p))
+		var ha_end := ha_limit
+		if !is_inf(end_time):
+			ha_end = get_hyperbolic_anomaly_from_mean_anomaly_hyperbolic(e, n * (end_time - t_p))
+		for k in n_vertices:
+			var ha := lerpf(ha_begin, ha_end, float(k) / (n_vertices - 1))
+			var time := t_p + (e * sinh(ha) - ha) / n
+			positions[k] = get_position(time)
+			times[k] = time
+	else: # parabolic; step uniform parabolic anomaly D (Barker's equation)
+		var q := 0.5 * _semi_parameter
+		var factor := sqrt(_gravitational_parameter / (2.0 * q * q * q))
+		var nu_max := acos(clampf(1.0 / max_radius - 1.0, -1.0, 1.0))
+		var d_begin := -tan(0.5 * nu_max)
+		if !is_inf(begin_time):
+			d_begin = tan(0.5 * get_true_anomaly(begin_time))
+		var d_end := tan(0.5 * nu_max)
+		if !is_inf(end_time):
+			d_end = tan(0.5 * get_true_anomaly(end_time))
+		for k in n_vertices:
+			var d := lerpf(d_begin, d_end, float(k) / (n_vertices - 1))
+			var time := t_p + (d + d * d * d / 3.0) / factor
+			positions[k] = get_position(time)
+			times[k] = time
+	return [positions, times]
 
 
 ## Returns mean anomaly (M) at [param time]. -π ≤ M < π. Valid for any orbit.
@@ -1489,7 +1601,7 @@ func get_unit_parabola_transform_at_time(time: float, rotate_to_ecliptic := true
 
 func serialize() -> PackedFloat64Array:
 	var data := PackedFloat64Array()
-	data.resize(27)
+	data.resize(29)
 	data[0] = float(_reference_plane_type)
 	data[1] = _reference_basis[0][0]
 	data[2] = _reference_basis[0][1]
@@ -1517,6 +1629,8 @@ func serialize() -> PackedFloat64Array:
 	data[24] = _argument_periapsis_rate
 	data[25] = _mean_anomaly
 	data[26] = _true_anomaly
+	data[27] = segment_begin
+	data[28] = segment_end
 	return data
 
 
@@ -1548,3 +1662,5 @@ func deserialize(data: PackedFloat64Array) -> void:
 	_argument_periapsis_rate = data[24]
 	_mean_anomaly = data[25]
 	_true_anomaly = data[26]
+	segment_begin = data[27]
+	segment_end = data[28]

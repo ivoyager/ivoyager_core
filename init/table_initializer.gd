@@ -52,6 +52,7 @@ static var tables: Dictionary[StringName, String] = {
 	small_bodies_groups = table_base_path % "small_bodies_groups",
 	spacecrafts = table_base_path % "spacecrafts",
 	stars = table_base_path % "stars",
+	trajectories = table_base_path % "trajectories",
 	views = table_base_path % "views",
 	visual_groups = table_base_path % "visual_groups",
 	wiki_extras = table_base_path % "wiki_extras",

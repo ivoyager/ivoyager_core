@@ -1,11 +1,13 @@
-	spacecraft	use_pitch_yaw	lazy_model	sleep	file_prefix	en.wikipedia	hud_name	symbol	show_in_nav_panel	parent	orbit	body_class	model_type	tidally_locked	axis_locked	#rotation_period	right_ascension	declination	gravitational_parameter	mean_radius	mean_density	magnitude	albedo
-Type	BOOL	BOOL	BOOL	BOOL	STRING	STRING	STRING_NAME	STRING	BOOL	STRING_NAME	TABLE_ROW	TABLE_ROW	TABLE_ROW	BOOL	BOOL	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT
-Default	TRUE	TRUE	TRUE	TRUE				\u25CC				SPACECRAFT	SPACECRAFT				0	0	0	0	0	0	0
-Unit																d	deg	deg	km^3/s^2	m	g/cm^3
-Prefix/SPACECRAFT_							SPACECRAFT_				ORBIT_	BODY_CLASS_	MODEL_
-INTERNATIONAL_SPACE_STATION					ISS	International_Space_Station	INTERNATIONAL_SPACE_STATION_HUD		x	PLANET_EARTH	SPACECRAFT_INTERNATIONAL_SPACE_STATION			TRUE	TRUE	-365.256363				30
-HUBBLE_SPACE_TELESCOPE					Hubble	Hubble_Space_Telescope	HUBBLE_SPACE_TELESCOPE_HUD		x	PLANET_EARTH	SPACECRAFT_HUBBLE_SPACE_TELESCOPE			TRUE	TRUE	-365.256363				10
-JUNO_SPACECRAFT					Juno	Juno_(spacecraft)	JUNO_SPACECRAFT_HUD		x	PLANET_JUPITER	SPACECRAFT_JUNO_SPACECRAFT			TRUE	TRUE	-4332.59				5
-# https://ssd.jpl.nasa.gov/horizons
-# https://www.heavens-above.com/
-# FIXME: Calculate epoch
+	spacecraft	use_pitch_yaw	lazy_model	sleep	file_prefix	en.wikipedia	hud_name	symbol	show_in_nav_panel	parent	orbit	body_class	model_type	tidally_locked	axis_locked	#rotation_period	right_ascension	declination	gravitational_parameter	mean_radius	mean_density	magnitude	albedo	trajectory
+Type	BOOL	BOOL	BOOL	BOOL	STRING	STRING	STRING_NAME	STRING	BOOL	STRING_NAME	TABLE_ROW	TABLE_ROW	TABLE_ROW	BOOL	BOOL	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	STRING_NAME
+Default	TRUE	TRUE	TRUE	TRUE				\u25CC				SPACECRAFT	SPACECRAFT				0	0	0	0	0	0	0	
+Unit																d	deg	deg	km^3/s^2	m	g/cm^3			
+Prefix/SPACECRAFT_							SPACECRAFT_				ORBIT_	BODY_CLASS_	MODEL_											TRAJECTORY_
+INTERNATIONAL_SPACE_STATION					ISS	International_Space_Station	INTERNATIONAL_SPACE_STATION_HUD		x	PLANET_EARTH	SPACECRAFT_INTERNATIONAL_SPACE_STATION			TRUE	TRUE	-365.256363				30				
+HUBBLE_SPACE_TELESCOPE					Hubble	Hubble_Space_Telescope	HUBBLE_SPACE_TELESCOPE_HUD		x	PLANET_EARTH	SPACECRAFT_HUBBLE_SPACE_TELESCOPE			TRUE	TRUE	-365.256363				10				
+JUNO_SPACECRAFT					Juno	Juno_(spacecraft)	JUNO_SPACECRAFT_HUD		x	PLANET_JUPITER	SPACECRAFT_JUNO_SPACECRAFT			TRUE	TRUE	-4332.59				5				
+TEST_PROBE_EARTH_MOON					TestProbeEM					PLANET_EARTH	SEG_TEST_EM_1									10				TEST_EARTH_MOON
+TEST_PROBE_INTERPLANETARY				FALSE	TestProbeIP					PLANET_EARTH	SEG_TEST_IP_1									10				TEST_INTERPLANETARY
+# https://ssd.jpl.nasa.gov/horizons																								
+# https://www.heavens-above.com/																								
+# FIXME: Calculate epoch																								

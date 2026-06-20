@@ -113,7 +113,7 @@ var limit_stops_in_multiplayer := true # overrides most stops
 ## Set true to enable fullscreen toggling. See also [IVFullScreenManager], which
 ## is not present in default Core initialization.
 var allow_fullscreen_toggle := false
-## Sets resolution of orbit/trajectory lines used by [IVOrbitVisual]. See
+## Sets resolution of orbit/trajectory lines used by [IVPathVisual]. See
 ## [IVResourceInitializer] for construction of common orbit/trajectory meshes. 
 var vertecies_per_orbit: int = 500
 ## Sets resolution of orbit/trajectory lines used by [IVSBGOrbitsVisual] (e.g.,
