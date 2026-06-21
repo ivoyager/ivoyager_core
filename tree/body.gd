@@ -258,6 +258,14 @@ var rotation_axis := Vector3(0, 0, 1)
 var rotation_rate := 0.0
 ## Rotation phase (radians) at the simulator epoch.
 var rotation_at_epoch := 0.0
+## Beginning of life. NAN or -INF mean no begining, but the latter is required
+## for [member end] to be effective. This is mainly for spacecraft that begin
+## life via table value (not added by code).
+var begin := NAN
+## End of life. Only works if [member begin] is not NAN. NAN or INF mean no end.
+## This is mainly for spacecraft that end life via table value (not removed by
+## code).
+var end := NAN
 ## Persisted dictionary of non-object characteristics (mass, surface gravity,
 ## albedo, atmosphere data, etc.) loaded from data tables.
 var characteristics: Dictionary[StringName, Variant] = {} # non-object values
@@ -525,6 +533,16 @@ func _process(delta: float) -> void:
 	# must be calculated.
 	
 	var time := _times[0]
+	
+	if not is_nan(begin):
+		# Only here if begin was set. This is mainly for spacecraft beginning
+		# and end of life (if you don't add or remove by code). Handle visual
+		# orbit using orbit segment_begin and segment_end.
+		if time < begin or time > end:
+			hide()
+			return
+		else:
+			show()
 
 	if _trajectory:
 		time = _clamp_trajectory_time(time)

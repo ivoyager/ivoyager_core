@@ -43,6 +43,8 @@ var create_fields: Array[StringName] = [
 	&"declination",
 	&"rotation_period",
 	&"rotation_at_epoch",
+	&"begin",
+	&"end",
 ]
 
 ## Add to IVBody.characteristics if non-missing value in table.
@@ -240,6 +242,9 @@ func build_body(table_name: String, row: int, parent: IVBody) -> IVBody:
 		flags
 	)
 	
+	# Non-essential table mods
+	body.begin = create_parameters.get(&"begin", NAN)
+	body.end = create_parameters.get(&"end", NAN)
 	
 	return body
 
