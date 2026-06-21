@@ -34,10 +34,10 @@ extends MeshInstance3D
 ## ([method IVTrajectory.get_lca]) while the body reparents through the segment primaries.
 ## The mesh is built once and cached.[br][br]
 ##
-## A first and/or last segment can instead be a parking/capture orbit (see
-## [member IVTrajectory.begin_orbit], [member IVTrajectory.end_orbit],
-## [member IVTrajectory.end_remove]); while the body is in such a segment this node renders
-## in orbit mode in the body's own parent frame and omits that segment from the polyline.
+## Any segment can instead be drawn as a parking/capture orbit (see
+## [member IVTrajectory.visual_orbits], [member IVTrajectory.end_remove]); while the body
+## is in such a segment this node renders in orbit mode in the body's own parent frame and
+## omits that segment from the polyline.
 ## [method _on_orbit_changed] is the single switchboard that, on each segment change (via
 ## [signal IVBody.orbit_changed]), selects the mode, reparents, and sets the mesh.[br][br]
 ##

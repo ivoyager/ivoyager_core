@@ -43,8 +43,7 @@ extends RefCounted
 const PERSIST_MODE := IVGlobal.PERSIST_PROCEDURAL
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"orbits",
-	&"begin_orbit",
-	&"end_orbit",
+	&"visual_orbits",
 	&"end_remove",
 ]
 
@@ -55,26 +54,28 @@ const GAP_WARN_AU := 0.1 ## Cruise gap above this (× IVUnits.AU) is still re-fi
 const OPEN_TERMINAL_LOOKAHEAD_YEARS := 5.0 ## Far Lambert-point look-ahead for an open terminal cruise.
 
 
-## Ordered, time-contiguous conic segments. The only persisted member; all other
-## members are derived from this. Segment [code]i[/code] is active for time in
+# persisted
+
+## Ordered, time-contiguous conic segments. Segment [code]i[/code] is active for time in
 ## [code][segment_begin, segment_end)[/code]. The first segment's begin and the last
 ## segment's end may be finite (e.g. a launch time): for times outside that overall
 ## window the body parks at the nearest path endpoint instead of extrapolating (see
-## [method get_clamped_time]); use -INF/INF for an open-ended window.
+## [method get_clamped_time]); use -INF/INF for an open-ended window. To define
+## a corresponding spacecraft beginning- and end-of-life, see [member IVBody.begin] and
+## [member IVBody.end]
 var orbits: Array[IVOrbit] = []
-
-## If true, the first segment is a closed/parking orbit: it is drawn with the normal
-## orbit visual (in the body's own parent frame) while the body is in it, and is omitted
-## from the trajectory polyline. See [method is_orbit_segment].
-var begin_orbit: bool
-## If true, the last segment is a closed/capture orbit, drawn as a normal orbit like
-## [member begin_orbit]. See [method is_orbit_segment].
-var end_orbit: bool
+## Segment indexes drawn with the normal orbit visual (in the body's own parent frame)
+## while the body is in them and omitted from the trajectory polyline, instead of being
+## drawn as part of the trajectory. A negative index counts from the end, so
+## [code][0, -1][/code] marks the first and last segments (a launch parking orbit and a
+## capture orbit). Empty (the default) draws every segment as part of the trajectory.
+## See [method is_orbit_segment].
+var visual_orbits: Array[int] = []
 ## If true, on reaching the last segment the body switches to the normal orbit visual
-## (as [member end_orbit]) and then discards the trajectory, reverting to a plain orbiter.
-## Intended for games without time reversal; keep false for Planetarium content so
-## spacecraft trajectories persist. The [method create] argument defaults to true.
+## and then discards the trajectory, reverting to a plain orbiter.
 var end_remove: bool
+
+# derived
 
 ## Connected polyline of the whole trajectory in the [member lca] frame (ecliptic
 ## basis). Derived from [member orbits]; consumed by [IVPathVisual].
@@ -91,23 +92,15 @@ var _boundaries: PackedFloat64Array # interior segment-begin times, ascending, f
 var _cached_index := 0
 
 
-func _init() -> void:
-	# Rebuild derived data after a load (orbits are restored by then). Clear IVBody
-	# references before teardown to break the IVBody<->IVTrajectory cycle.
-	IVStateManager.game_loaded.connect(_build_derived.bind(false))
-	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
-
-
 # *****************************************************************************
 # static creators
 
-
 ## Creates an [IVTrajectory] from an ordered, time-contiguous array of [IVOrbit]
 ## segments. Each segment's [member IVOrbit.parent_name] must name a body present
-## in [member IVBody.bodies]. [param begin_orbit], [param end_orbit] and
-## [param end_remove] set the same-named members (see [method is_orbit_segment]).
+## in [member IVBody.bodies]. [param visual_orbits] and [param end_remove] set the
+## same-named members (see [member visual_orbits] and [method is_orbit_segment]).
 @warning_ignore("shadowed_variable")
-static func create(orbits: Array[IVOrbit], begin_orbit: bool, end_orbit: bool,
+static func create(orbits: Array[IVOrbit], visual_orbits: Array[int] = [],
 		end_remove := true) -> IVTrajectory:
 	assert(!orbits.is_empty(), "IVTrajectory requires at least one orbit segment")
 	for i in range(1, orbits.size()):
@@ -115,8 +108,7 @@ static func create(orbits: Array[IVOrbit], begin_orbit: bool, end_orbit: bool,
 				"IVTrajectory segments must be ordered by segment_begin")
 	var trajectory := IVTrajectory.new()
 	trajectory.orbits = orbits
-	trajectory.begin_orbit = begin_orbit
-	trajectory.end_orbit = end_orbit
+	trajectory.visual_orbits = visual_orbits
 	trajectory.end_remove = end_remove
 	trajectory._build_derived(true)
 	return trajectory
@@ -137,15 +129,24 @@ static func create_from_table(trajectory_name: StringName) -> IVTrajectory:
 				"Trajectory segment parent '%s' not found in IVBody.bodies" % parent_name)
 		var parent: IVBody = IVBody.bodies[parent_name]
 		segment_orbits.append(table_orbit_builder.make_orbit_from_orbit_row(orbit_row, parent))
-	return create(segment_orbits,
-			IVTableData.get_db_bool(&"trajectories", &"begin_orbit", trajectory_row),
-			IVTableData.get_db_bool(&"trajectories", &"end_orbit", trajectory_row),
+	var visual_orbit_indexes: Array[int] = IVTableData.get_db_array(&"trajectories", &"visual_orbits",
+			trajectory_row)
+	return create(segment_orbits, visual_orbit_indexes,
 			IVTableData.get_db_bool(&"trajectories", &"end_remove", trajectory_row))
 
 
 # *****************************************************************************
-# API
+# Virtual
 
+func _init() -> void:
+	# Rebuild derived data after a load (orbits are restored by then). Clear IVBody
+	# references before teardown to break the IVBody<->IVTrajectory cycle.
+	IVStateManager.game_loaded.connect(_build_derived.bind(false))
+	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
+
+
+# *****************************************************************************
+# API
 
 ## Returns the active orbit segment for [param time]. Never null: out-of-range times
 ## clamp to the first or last segment (the segment index is always in bounds). This
@@ -168,15 +169,14 @@ func get_lca() -> IVBody:
 
 ## Returns true if segment [param index] should be drawn as a standalone orbit (a
 ## parking/capture orbit shown with the normal orbit visual in the body's own parent
-## frame) rather than as part of the trajectory polyline. Driven by [member begin_orbit]
-## (first segment) and [member end_orbit]/[member end_remove] (last segment). [IVPathVisual]
+## frame) rather than as part of the trajectory polyline. Driven by [member visual_orbits]
+## (any segment) and [member end_remove] (which forces the last segment). [IVPathVisual]
 ## uses this both to choose its display mode and to omit these segments from the polyline.
 func is_orbit_segment(index: int) -> bool:
-	if begin_orbit and index == 0:
+	if end_remove and index == orbits.size() - 1:
 		return true
-	if (end_orbit or end_remove) and index == orbits.size() - 1:
-		return true
-	return false
+	# visual_orbits may use negative indexes counting from the end (e.g. -1 == last segment)
+	return visual_orbits.has(index) or visual_orbits.has(index - orbits.size())
 
 
 ## Clamps [param time] to this trajectory's validity window: the first segment's
@@ -200,7 +200,6 @@ func _get_index(time: float) -> int:
 
 # *****************************************************************************
 # derived data
-
 
 # Rebuilds all derived data from orbits. Called by the creators ([param new_game] true)
 # and on game_loaded ([param new_game] false). When new_game, fix_gaps cruise segments
