@@ -439,34 +439,49 @@ static func create_from_state_vectors_and_precessions(
 		from_orbit: IVOrbit = null,
 	) -> IVOrbit:
 
-	var radius := position.length()
-	var speed := velocity.length()
-	var angular_momentum := position.cross(velocity) # specific angular momentum vector
-	var angular_momentum_length := angular_momentum.length()
-	var node := Vector3(0.0, 0.0, 1.0).cross(angular_momentum) # ascending node vector
-	var node_length := node.length()
-	var eccentricity_vector := (position * (speed * speed - gravitational_parameter / radius)
-			- velocity * position.dot(velocity)) / gravitational_parameter
-	var eccentricity := eccentricity_vector.length()
-	var inclination := acos(clampf(angular_momentum.z / angular_momentum_length, -1.0, 1.0))
+	# Compute in double-precision scalars: Vector3 components are float32, and the
+	# near-180° Lambert transfers that feed this method amplify that rounding to
+	# ~1e4 km at planetary distances. Decompose the state vectors once, up front.
+	var px := position.x
+	var py := position.y
+	var pz := position.z
+	var vx := velocity.x
+	var vy := velocity.y
+	var vz := velocity.z
+	var radius := sqrt(px * px + py * py + pz * pz)
+	var speed_squared := vx * vx + vy * vy + vz * vz
+	var radial_velocity := px * vx + py * vy + pz * vz # position.dot(velocity)
+	var hx := py * vz - pz * vy # specific angular momentum = position.cross(velocity)
+	var hy := pz * vx - px * vz
+	var hz := px * vy - py * vx
+	var angular_momentum_length := sqrt(hx * hx + hy * hy + hz * hz)
+	var node_x := -hy # ascending node = (0,0,1).cross(angular_momentum) = (-hy, hx, 0)
+	var node_y := hx
+	var node_length := sqrt(node_x * node_x + node_y * node_y)
+	var ecc_coefficient := speed_squared - gravitational_parameter / radius
+	var ecc_x := (px * ecc_coefficient - vx * radial_velocity) / gravitational_parameter
+	var ecc_y := (py * ecc_coefficient - vy * radial_velocity) / gravitational_parameter
+	var ecc_z := (pz * ecc_coefficient - vz * radial_velocity) / gravitational_parameter
+	var eccentricity := sqrt(ecc_x * ecc_x + ecc_y * ecc_y + ecc_z * ecc_z)
+	var inclination := acos(clampf(hz / angular_momentum_length, -1.0, 1.0))
 
 	var longitude_ascending_node: float
 	var argument_periapsis: float
 	if node_length > 1e-9:
-		longitude_ascending_node = acos(clampf(node.x / node_length, -1.0, 1.0))
-		if node.y < 0.0:
+		longitude_ascending_node = acos(clampf(node_x / node_length, -1.0, 1.0))
+		if node_y < 0.0:
 			longitude_ascending_node = TAU - longitude_ascending_node
-		argument_periapsis = acos(clampf(node.dot(eccentricity_vector)
+		argument_periapsis = acos(clampf((node_x * ecc_x + node_y * ecc_y)
 				/ (node_length * eccentricity), -1.0, 1.0))
-		if eccentricity_vector.z < 0.0:
+		if ecc_z < 0.0:
 			argument_periapsis = TAU - argument_periapsis
 	else: # orbit lies in the reference plane; ascending node undefined
 		longitude_ascending_node = 0.0
-		argument_periapsis = atan2(eccentricity_vector.y, eccentricity_vector.x)
+		argument_periapsis = atan2(ecc_y, ecc_x)
 
-	var true_anomaly := acos(clampf(eccentricity_vector.dot(position)
+	var true_anomaly := acos(clampf((ecc_x * px + ecc_y * py + ecc_z * pz)
 			/ (eccentricity * radius), -1.0, 1.0))
-	if position.dot(velocity) < 0.0:
+	if radial_velocity < 0.0:
 		true_anomaly = TAU - true_anomaly
 
 	var semi_parameter := angular_momentum_length * angular_momentum_length / gravitational_parameter
@@ -528,11 +543,20 @@ static func solve_lambert(position_1: Vector3, position_2: Vector3, time_of_flig
 		gravitational_parameter: float, prograde := true) -> Array[Vector3]:
 
 	var velocities: Array[Vector3] = []
-	var radius_1 := position_1.length()
-	var radius_2 := position_2.length()
+	# Double-precision scalars: a near-180° transfer drives 1+cos_transfer toward 0,
+	# where float32 Vector3 ops lose ~1e4 km at planetary distances.
+	var p1x := position_1.x
+	var p1y := position_1.y
+	var p1z := position_1.z
+	var p2x := position_2.x
+	var p2y := position_2.y
+	var p2z := position_2.z
+	var radius_1 := sqrt(p1x * p1x + p1y * p1y + p1z * p1z)
+	var radius_2 := sqrt(p2x * p2x + p2y * p2y + p2z * p2z)
 	var sum_radii := radius_1 + radius_2
-	var cos_transfer := clampf(position_1.dot(position_2) / (radius_1 * radius_2), -1.0, 1.0)
-	var direction := 1.0 if (position_1.cross(position_2).z >= 0.0) == prograde else -1.0
+	var cos_transfer := clampf((p1x * p2x + p1y * p2y + p1z * p2z) / (radius_1 * radius_2), -1.0, 1.0)
+	var cross_z := p1x * p2y - p1y * p2x # z of position_1.cross(position_2)
+	var direction := 1.0 if (cross_z >= 0.0) == prograde else -1.0
 	var a_geom := direction * sqrt(radius_1 * radius_2 * (1.0 + cos_transfer))
 	if is_zero_approx(a_geom):
 		return velocities
@@ -570,8 +594,15 @@ static func solve_lambert(position_1: Vector3, position_2: Vector3, time_of_flig
 	if is_zero_approx(g):
 		return velocities
 	var g_dot := 1.0 - y_value / radius_2
-	velocities.append((position_2 - f * position_1) / g)
-	velocities.append((g_dot * position_2 - position_1) / g)
+	var inverse_g := 1.0 / g
+	velocities.append(Vector3(
+			(p2x - f * p1x) * inverse_g,
+			(p2y - f * p1y) * inverse_g,
+			(p2z - f * p1z) * inverse_g))
+	velocities.append(Vector3(
+			(g_dot * p2x - p1x) * inverse_g,
+			(g_dot * p2y - p1y) * inverse_g,
+			(g_dot * p2z - p1z) * inverse_g))
 	return velocities
 
 
