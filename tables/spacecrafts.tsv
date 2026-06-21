@@ -6,7 +6,7 @@ Prefix/SPACECRAFT_							SPACECRAFT_				ORBIT_	BODY_CLASS_	MODEL_											TRAJ
 INTERNATIONAL_SPACE_STATION					ISS	International_Space_Station	INTERNATIONAL_SPACE_STATION_HUD		x	PLANET_EARTH	SPACECRAFT_INTERNATIONAL_SPACE_STATION			TRUE	TRUE	-365.256363				30				
 HUBBLE_SPACE_TELESCOPE					Hubble	Hubble_Space_Telescope	HUBBLE_SPACE_TELESCOPE_HUD		x	PLANET_EARTH	SPACECRAFT_HUBBLE_SPACE_TELESCOPE			TRUE	TRUE	-365.256363				10				
 JUNO_SPACECRAFT					Juno	Juno_(spacecraft)	JUNO_SPACECRAFT_HUD		x	PLANET_JUPITER	SPACECRAFT_JUNO_SPACECRAFT			TRUE	TRUE	-4332.59				5				
-VOYAGER_1				FALSE	Voyager	Voyager_1			x	STAR_SUN	SEG_VOYAGER_1_CRUISE_1									5				VOYAGER_1
+VOYAGER_1				FALSE	Voyager	Voyager_1			x	PLANET_EARTH	SEG_VOYAGER_1_DEPARTURE									5				VOYAGER_1
 # https://ssd.jpl.nasa.gov/horizons																								
 # https://www.heavens-above.com/																								
 # FIXME: Calculate epoch																								

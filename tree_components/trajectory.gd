@@ -48,6 +48,12 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"end_remove",
 ]
 
+# Gap-fixing tunables (see [method _fix_gaps]); applied as multiples of the IVUnits
+# scale constants at runtime so they stay correct regardless of the sim's METER scale.
+const GAP_SKIP_KM := 100.0 ## Cruise gap below this (× IVUnits.KM) is left as authored.
+const GAP_WARN_AU := 0.1 ## Cruise gap above this (× IVUnits.AU) is still re-fitted, but warns.
+const OPEN_TERMINAL_LOOKAHEAD_YEARS := 5.0 ## Far Lambert-point look-ahead for an open terminal cruise.
+
 
 ## Ordered, time-contiguous conic segments. The only persisted member; all other
 ## members are derived from this. Segment [code]i[/code] is active for time in
@@ -88,7 +94,7 @@ var _cached_index := 0
 func _init() -> void:
 	# Rebuild derived data after a load (orbits are restored by then). Clear IVBody
 	# references before teardown to break the IVBody<->IVTrajectory cycle.
-	IVStateManager.game_loaded.connect(_build_derived)
+	IVStateManager.game_loaded.connect(_build_derived.bind(false))
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
 
 
@@ -112,7 +118,7 @@ static func create(orbits: Array[IVOrbit], begin_orbit: bool, end_orbit: bool,
 	trajectory.begin_orbit = begin_orbit
 	trajectory.end_orbit = end_orbit
 	trajectory.end_remove = end_remove
-	trajectory._build_derived()
+	trajectory._build_derived(true)
 	return trajectory
 
 
@@ -196,9 +202,11 @@ func _get_index(time: float) -> int:
 # derived data
 
 
-# Rebuilds all derived data from orbits. Called by the creators (new game) and on
-# game_loaded (after the procedural tree, including all segment primaries, is rebuilt).
-func _build_derived() -> void:
+# Rebuilds all derived data from orbits. Called by the creators ([param new_game] true)
+# and on game_loaded ([param new_game] false). When new_game, fix_gaps cruise segments
+# are re-fitted to close patched-conic gaps (see _fix_gaps); on a load the already-fixed
+# orbits are restored, so the fix is neither needed nor re-run.
+func _build_derived(new_game: bool) -> void:
 	var n_segments := orbits.size()
 	_segment_parents.clear()
 	_segment_parents.resize(n_segments)
@@ -212,7 +220,64 @@ func _build_derived() -> void:
 		_boundaries.append(orbits[i].segment_begin)
 	_cached_index = 0
 	lca = _compute_lca()
+	if new_game:
+		_fix_gaps()
 	_build_path()
+
+
+# Re-fits each fix_gaps cruise segment as the conic (Lambert) through its neighbor
+# segments' boundary positions, using the primaries' actual positions, so the
+# patched-conic joins meet. New-game only; runs before _build_path so the polyline
+# uses the fixed orbits. Each cruise orbit is recycled in place (segment count and
+# per-segment vertex count unchanged). A boundary that abuts another segment pins to
+# that segment's drawn endpoint; an open trajectory end keeps the cruise's own
+# position. Skips a near-continuous cruise; warns (but still fits) on an implausible gap.
+func _fix_gaps() -> void:
+	var skip_threshold := GAP_SKIP_KM * IVUnits.KM
+	var warn_threshold := GAP_WARN_AU * IVUnits.AU
+	var lookahead := OPEN_TERMINAL_LOOKAHEAD_YEARS * IVUnits.YEAR
+	var n_segments := orbits.size()
+	for i in n_segments:
+		var cruise := orbits[i]
+		if !cruise.fix_gaps:
+			continue
+		var primary := _segment_parents[i]
+		var gm := cruise.gravitational_parameter
+		var t_begin := cruise.segment_begin
+		var t_end := cruise.segment_end
+		# Targets expressed in the cruise's own primary frame (subtract the primary's
+		# offset to the lca frame, where neighbor endpoints are computed).
+		var begin_target: Vector3
+		if i > 0:
+			begin_target = _segment_position_lca(i - 1, t_begin) - _offset_to_lca(primary, t_begin)
+		else:
+			begin_target = cruise.get_position(t_begin)
+		var end_target: Vector3
+		if i < n_segments - 1:
+			end_target = _segment_position_lca(i + 1, t_end) - _offset_to_lca(primary, t_end)
+		else:
+			t_end = t_begin + lookahead # open terminal: keep the conic's far field, re-pin the start
+			end_target = cruise.get_position(t_end)
+		var gap := maxf((begin_target - cruise.get_position(t_begin)).length(),
+				(end_target - cruise.get_position(t_end)).length())
+		if gap < skip_threshold:
+			continue
+		if gap > warn_threshold:
+			push_warning("IVTrajectory: implausible gap (%.3e) re-fitting segment %d ('%s')"
+					% [gap, i, cruise.parent_name])
+		var velocities := IVOrbit.solve_lambert(begin_target, end_target, t_end - t_begin, gm)
+		if velocities.is_empty():
+			push_warning("IVTrajectory: Lambert did not converge for segment %d ('%s'); left as authored"
+					% [i, cruise.parent_name])
+			continue
+		orbits[i] = IVOrbit.create_from_state_vectors_and_precessions(begin_target, velocities[0],
+				gm, t_begin, cruise.reference_plane_type, cruise.reference_basis,
+				cruise.longitude_ascending_node_rate, cruise.argument_periapsis_rate, cruise)
+
+
+# Drawn position of segment [param index] at [param time] in the [member lca] frame.
+func _segment_position_lca(index: int, time: float) -> Vector3:
+	return orbits[index].get_position(time) + _offset_to_lca(_segment_parents[index], time)
 
 
 func _compute_lca() -> IVBody:

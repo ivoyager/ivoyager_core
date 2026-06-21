@@ -234,6 +234,13 @@ var segment_begin := -INF
 ## Segment end time (s). See [member segment_begin]. Default INF means no upper bound.
 var segment_end := INF
 
+## If true, this cruise segment is re-fitted (via Lambert) through its neighbor
+## segments' boundary positions to close patched-conic gaps; see [method
+## IVTrajectory._fix_gaps]. Set by [IVTableOrbitBuilder] from orbits.tsv. Transient:
+## consumed once during new-game build and intentionally NOT persisted (the fixed
+## elements persist; the trigger flag does not).
+var fix_gaps := false
+
 
 # Public properties are all "redirect" vars so we can implement side-effects or
 # force alternative set methods.
@@ -413,20 +420,77 @@ static func create_from_elements(
 	return orbit
 
 
-## Creates new [IVOrbit] instance from state vectors and precession rates.
-## @experimental: NOT YET IMPLEMENTED.
-@warning_ignore("shadowed_variable", "unused_parameter")
+## Creates an [IVOrbit] from a state vector ([param position], [param velocity]) at
+## [param time], plus the supplied precession rates. This is the inverse of the
+## element→state math: it solves for the osculating elements and forwards them to
+## [method create_from_elements] (reusing [param from_orbit] when supplied). Inputs
+## are in the [param reference_basis] frame (identity for ECLIPTIC) and any consistent
+## length/time units. Not valid for a parabolic orbit (eccentricity == 1).
+@warning_ignore_start("shadowed_variable")
 static func create_from_state_vectors_and_precessions(
 		position: Vector3,
 		velocity: Vector3,
 		gravitational_parameter: float,
+		time: float,
 		reference_plane_type: ReferencePlane,
 		reference_basis: Basis,
 		longitude_ascending_node_rate: float,
 		argument_periapsis_rate: float,
+		from_orbit: IVOrbit = null,
 	) -> IVOrbit:
-	
-	return null
+
+	var radius := position.length()
+	var speed := velocity.length()
+	var angular_momentum := position.cross(velocity) # specific angular momentum vector
+	var angular_momentum_length := angular_momentum.length()
+	var node := Vector3(0.0, 0.0, 1.0).cross(angular_momentum) # ascending node vector
+	var node_length := node.length()
+	var eccentricity_vector := (position * (speed * speed - gravitational_parameter / radius)
+			- velocity * position.dot(velocity)) / gravitational_parameter
+	var eccentricity := eccentricity_vector.length()
+	var inclination := acos(clampf(angular_momentum.z / angular_momentum_length, -1.0, 1.0))
+
+	var longitude_ascending_node: float
+	var argument_periapsis: float
+	if node_length > 1e-9:
+		longitude_ascending_node = acos(clampf(node.x / node_length, -1.0, 1.0))
+		if node.y < 0.0:
+			longitude_ascending_node = TAU - longitude_ascending_node
+		argument_periapsis = acos(clampf(node.dot(eccentricity_vector)
+				/ (node_length * eccentricity), -1.0, 1.0))
+		if eccentricity_vector.z < 0.0:
+			argument_periapsis = TAU - argument_periapsis
+	else: # orbit lies in the reference plane; ascending node undefined
+		longitude_ascending_node = 0.0
+		argument_periapsis = atan2(eccentricity_vector.y, eccentricity_vector.x)
+
+	var true_anomaly := acos(clampf(eccentricity_vector.dot(position)
+			/ (eccentricity * radius), -1.0, 1.0))
+	if position.dot(velocity) < 0.0:
+		true_anomaly = TAU - true_anomaly
+
+	var semi_parameter := angular_momentum_length * angular_momentum_length / gravitational_parameter
+	var semi_major_axis := semi_parameter / (1.0 - eccentricity * eccentricity)
+	var mean_anomaly: float
+	if eccentricity < 1.0:
+		var eccentric_anomaly := 2.0 * atan2(sqrt(1.0 - eccentricity) * sin(true_anomaly / 2.0),
+				sqrt(1.0 + eccentricity) * cos(true_anomaly / 2.0))
+		mean_anomaly = eccentric_anomaly - eccentricity * sin(eccentric_anomaly)
+		var mean_motion := sqrt(gravitational_parameter / semi_major_axis ** 3)
+		return create_from_elements(reference_plane_type, reference_basis, semi_parameter,
+				eccentricity, inclination, longitude_ascending_node, longitude_ascending_node_rate,
+				argument_periapsis, argument_periapsis_rate, time - mean_anomaly / mean_motion,
+				gravitational_parameter, from_orbit)
+	# hyperbolic anomaly H = 2*atanh(x) = log((1 + x) / (1 - x)) (avoids depending on atanh())
+	var x := sqrt((eccentricity - 1.0) / (eccentricity + 1.0)) * tan(true_anomaly / 2.0)
+	var hyperbolic_anomaly := log((1.0 + x) / (1.0 - x))
+	mean_anomaly = eccentricity * sinh(hyperbolic_anomaly) - hyperbolic_anomaly
+	var hyperbolic_mean_motion := sqrt(gravitational_parameter / (-semi_major_axis) ** 3)
+	return create_from_elements(reference_plane_type, reference_basis, semi_parameter,
+			eccentricity, inclination, longitude_ascending_node, longitude_ascending_node_rate,
+			argument_periapsis, argument_periapsis_rate, time - mean_anomaly / hyperbolic_mean_motion,
+			gravitational_parameter, from_orbit)
+@warning_ignore_restore("shadowed_variable")
 
 
 ## Creates new [IVOrbit] instance from state vectors and orbit environment.
@@ -448,8 +512,98 @@ static func create_from_state_vectors_and_environment(
 	# For HEO satellite, J2 is dominant (~90%) with small but significant Moon & Sun effects. 
 	# For the Moon, Sun perturbation is dominant (>>90%), then J2.
 	# For a Moon-orbiter, the Earth is the main effect, then maybe the Sun. (Moon isn't oblate.)
-	
+
 	return null
+
+
+## Solves Lambert's problem: the conic from [param position_1] to [param position_2]
+## crossed in [param time_of_flight], about a primary with [param gravitational_parameter].
+## Universal-variable (Vallado) formulation; valid for elliptic and hyperbolic transfers
+## (not parabolic). Returns [code][velocity_1, velocity_2][/code] in the input frame and
+## units, or an empty array if the geometry is degenerate or it fails to converge. Pass
+## [param prograde] = false for the retrograde (clockwise about +Z) transfer. Feed a
+## result to [method create_from_state_vectors_and_precessions] to build the orbit.
+@warning_ignore("shadowed_variable")
+static func solve_lambert(position_1: Vector3, position_2: Vector3, time_of_flight: float,
+		gravitational_parameter: float, prograde := true) -> Array[Vector3]:
+
+	var velocities: Array[Vector3] = []
+	var radius_1 := position_1.length()
+	var radius_2 := position_2.length()
+	var sum_radii := radius_1 + radius_2
+	var cos_transfer := clampf(position_1.dot(position_2) / (radius_1 * radius_2), -1.0, 1.0)
+	var direction := 1.0 if (position_1.cross(position_2).z >= 0.0) == prograde else -1.0
+	var a_geom := direction * sqrt(radius_1 * radius_2 * (1.0 + cos_transfer))
+	if is_zero_approx(a_geom):
+		return velocities
+
+	# Time of flight rises monotonically with psi over the zero-revolution range
+	# (-inf, 4π²); c2 = 0 at 4π² so cap just below it, and extend the hyperbolic
+	# floor downward when the transfer is faster than the default lower bound allows.
+	var psi_low := -4.0 * PI * PI
+	var psi_up := 4.0 * PI * PI - 1e-6
+	for _i in 60:
+		var low := _lambert_dt_y(psi_low, sum_radii, a_geom, gravitational_parameter)
+		if low.is_empty() or low[0] <= time_of_flight:
+			break
+		psi_low *= 2.0
+
+	var y_value := 0.0
+	for _i in 200:
+		var psi := 0.5 * (psi_low + psi_up)
+		var result := _lambert_dt_y(psi, sum_radii, a_geom, gravitational_parameter)
+		if result.is_empty(): # psi below the valid floor; raise it
+			psi_low = psi
+			continue
+		y_value = result[1]
+		if absf(result[0] - time_of_flight) < 1e-3:
+			break
+		if result[0] < time_of_flight:
+			psi_low = psi
+		else:
+			psi_up = psi
+	if y_value <= 0.0:
+		return velocities
+
+	var f := 1.0 - y_value / radius_1
+	var g := a_geom * sqrt(y_value / gravitational_parameter)
+	if is_zero_approx(g):
+		return velocities
+	var g_dot := 1.0 - y_value / radius_2
+	velocities.append((position_2 - f * position_1) / g)
+	velocities.append((g_dot * position_2 - position_1) / g)
+	return velocities
+
+
+# Universal-variable time of flight for trial [param psi]: returns [dt, y] (seconds,
+# length), or an empty array when psi is invalid (y < 0 below the floor, or the
+# Stumpff terms degenerate/overflow). Helper for [method solve_lambert].
+@warning_ignore("shadowed_variable")
+static func _lambert_dt_y(psi: float, sum_radii: float, a_geom: float,
+		gravitational_parameter: float) -> Array[float]:
+	var out: Array[float] = []
+	var c2: float
+	var c3: float
+	if psi > 1e-6:
+		var sqrt_psi := sqrt(psi)
+		c2 = (1.0 - cos(sqrt_psi)) / psi
+		c3 = (sqrt_psi - sin(sqrt_psi)) / (sqrt_psi * sqrt_psi * sqrt_psi)
+	elif psi < -1e-6:
+		var sqrt_psi := sqrt(-psi)
+		c2 = (1.0 - cosh(sqrt_psi)) / psi
+		c3 = (sinh(sqrt_psi) - sqrt_psi) / (sqrt_psi * sqrt_psi * sqrt_psi)
+	else:
+		c2 = 0.5
+		c3 = 1.0 / 6.0
+	if c2 <= 0.0 or not is_finite(c2) or not is_finite(c3):
+		return out
+	var y := sum_radii + a_geom * (psi * c3 - 1.0) / sqrt(c2)
+	if y < 0.0:
+		return out
+	var chi := sqrt(y / c2)
+	out.append((chi * chi * chi * c3 + a_geom * sqrt(y)) / sqrt(gravitational_parameter))
+	out.append(y)
+	return out
 
 
 ## Static method returns mean anomaly (M) for an elliptic orbit (e < 1). 0 ≤ M < 2π.
