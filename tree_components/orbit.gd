@@ -135,8 +135,19 @@ extends RefCounted
 ## get_parameter_from_something(...) # static
 ## [/codeblock][br]
 ##
-##
 ## [b]Roadmap[/b][br][br]
+##
+## TODO: Planned v0.2 API-breaking update. It's getting too cognitively difficult
+## to remember when float (64 bit) <-> Vector3 (32 bit) round trips are benign
+## and when they are sim breaking. We're committed to NOT requiring 64-bit Godot
+## compilation (which would up Vector types to 64 bit). Instead, we're going to
+## adhere to a new ivoyager requirement that Euclidean coordinates for real
+## spatial calculations are ALWAYS PackedFloat64Array. To not confuse with Godot
+## `Node3D.position`, we use "translation". So real coordinates are "translation"
+## (size 3 PackedFloat64Array), "velocity" (size 3), "state" (size 6), etc. Any
+## function that outputs Vector type data is essentially flagging its output as
+## "low precision, suitable for graphic consumption or similar use". That's our
+## new ideom, to be implemented and maintained throught Core submodule.[br][br]
 ##
 ## TODO: Multiplayer RPC. We REALLY don't want to make this a Node. The reason
 ## is that IVOrbit is supposed to be a cheap data container that can be instanced
@@ -147,8 +158,7 @@ extends RefCounted
 ##
 ## TODO:
 ## [codeblock]
-## create_from_state_vectors_and_precessions(p, v, gm, ref_basis, nodal_precession, apsidal_precession)
-## create_from_state_vectors_and_environment(p, v, gm, j2, ...)
+## create_from_state_and_environment(x, y, z, vx, vy, vz, gm, j2, ...)
 ## [/codeblock]
 ## The primary "environment" parameter for near satellites is parent oblateness (J2
 ## or whatever). Other environment parameters will be needed to at least roughly
@@ -220,13 +230,11 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"_true_anomaly",
 ]
 
-
+# persist
 ## Name of the parent body (gravitational primary) about which this orbit is
-## defined. This class holds no [IVBody] reference by design; this name is the
-## durable parent linkage [IVTrajectory] uses to pair orbit segments
-## with their primaries. Set by [IVTableOrbitBuilder]; not read internally.
+## defined. Required only if this [IVOrbit] is part of an [IVTrajectory]. Assumed
+## to be invariant, so not handled by [method serialize] / [method deserialize].
 var parent_name: StringName
-
 ## Segment start time (s). When this orbit is a segment in an [IVTrajectory], the
 ## trajectory uses this and [member segment_end] to select the active segment for
 ## a given time. Default -INF means no lower bound. Set by [IVTableOrbitBuilder].
@@ -234,6 +242,7 @@ var segment_begin := -INF
 ## Segment end time (s). See [member segment_begin]. Default INF means no upper bound.
 var segment_end := INF
 
+# non-persist (only used once in new game table load)
 ## If true, this cruise segment is re-fitted (via Lambert) through its neighbor
 ## segments' boundary positions to close patched-conic gaps; see [method
 ## IVTrajectory._fix_gaps]. Set by [IVTableOrbitBuilder] from orbits.tsv. Transient:
@@ -243,7 +252,7 @@ var fix_gaps := false
 
 
 # Public properties are all "redirect" vars so we can implement side-effects or
-# force alternative set methods.
+# force alternative set methods. Private counterparts are persisted.
 
 ## One of [enum ReferencePlane] types.
 var reference_plane_type: ReferencePlane: get = get_reference_plane_type
@@ -420,16 +429,25 @@ static func create_from_elements(
 	return orbit
 
 
-## Creates an [IVOrbit] from a state vector ([param position], [param velocity]) at
-## [param time], plus the supplied precession rates. This is the inverse of the
-## element→state math: it solves for the osculating elements and forwards them to
-## [method create_from_elements] (reusing [param from_orbit] when supplied). Inputs
-## are in the [param reference_basis] frame (identity for ECLIPTIC) and any consistent
-## length/time units. Not valid for a parabolic orbit (eccentricity == 1).
+## Creates an [IVOrbit] from state (x, y, z, vx, vy, vz) at [param time], plus
+## the supplied precession rates. This is the inverse of the element→state math:
+## it solves for the osculating elements and forwards them to [method create_from_elements]
+## (reusing [param from_orbit] when supplied). Inputs are in the [param reference_basis]
+## frame (identity for ECLIPTIC) and any consistent length/time units. Not valid
+## for a parabolic orbit (eccentricity == 1).[br][br]
+##
+## Internal calculations amplify imprecision of Vector3 components (float32 in
+## standard Godot compilation) even if inputs are derived from single precision.
+## We require scalars in the method signature to avoid "up-casting" to float64
+## inside the method.
 @warning_ignore_start("shadowed_variable")
-static func create_from_state_vectors_and_precessions(
-		position: Vector3,
-		velocity: Vector3,
+static func create_from_state_and_precessions(
+		x: float,
+		y: float,
+		z: float,
+		vx: float,
+		vy: float,
+		vz: float,
 		gravitational_parameter: float,
 		time: float,
 		reference_plane_type: ReferencePlane,
@@ -439,29 +457,20 @@ static func create_from_state_vectors_and_precessions(
 		from_orbit: IVOrbit = null,
 	) -> IVOrbit:
 
-	# Compute in double-precision scalars: Vector3 components are float32, and the
-	# near-180° Lambert transfers that feed this method amplify that rounding to
-	# ~1e4 km at planetary distances. Decompose the state vectors once, up front.
-	var px := position.x
-	var py := position.y
-	var pz := position.z
-	var vx := velocity.x
-	var vy := velocity.y
-	var vz := velocity.z
-	var radius := sqrt(px * px + py * py + pz * pz)
+	var radius := sqrt(x * x + y * y + z * z)
 	var speed_squared := vx * vx + vy * vy + vz * vz
-	var radial_velocity := px * vx + py * vy + pz * vz # position.dot(velocity)
-	var hx := py * vz - pz * vy # specific angular momentum = position.cross(velocity)
-	var hy := pz * vx - px * vz
-	var hz := px * vy - py * vx
+	var radial_velocity := x * vx + y * vy + z * vz # position.dot(velocity)
+	var hx := y * vz - z * vy # specific angular momentum = position.cross(velocity)
+	var hy := z * vx - x * vz
+	var hz := x * vy - y * vx
 	var angular_momentum_length := sqrt(hx * hx + hy * hy + hz * hz)
 	var node_x := -hy # ascending node = (0,0,1).cross(angular_momentum) = (-hy, hx, 0)
 	var node_y := hx
 	var node_length := sqrt(node_x * node_x + node_y * node_y)
 	var ecc_coefficient := speed_squared - gravitational_parameter / radius
-	var ecc_x := (px * ecc_coefficient - vx * radial_velocity) / gravitational_parameter
-	var ecc_y := (py * ecc_coefficient - vy * radial_velocity) / gravitational_parameter
-	var ecc_z := (pz * ecc_coefficient - vz * radial_velocity) / gravitational_parameter
+	var ecc_x := (x * ecc_coefficient - vx * radial_velocity) / gravitational_parameter
+	var ecc_y := (y * ecc_coefficient - vy * radial_velocity) / gravitational_parameter
+	var ecc_z := (z * ecc_coefficient - vz * radial_velocity) / gravitational_parameter
 	var eccentricity := sqrt(ecc_x * ecc_x + ecc_y * ecc_y + ecc_z * ecc_z)
 	var inclination := acos(clampf(hz / angular_momentum_length, -1.0, 1.0))
 
@@ -479,7 +488,7 @@ static func create_from_state_vectors_and_precessions(
 		longitude_ascending_node = 0.0
 		argument_periapsis = atan2(ecc_y, ecc_x)
 
-	var true_anomaly := acos(clampf((ecc_x * px + ecc_y * py + ecc_z * pz)
+	var true_anomaly := acos(clampf((ecc_x * x + ecc_y * y + ecc_z * z)
 			/ (eccentricity * radius), -1.0, 1.0))
 	if radial_velocity < 0.0:
 		true_anomaly = TAU - true_anomaly
@@ -496,9 +505,8 @@ static func create_from_state_vectors_and_precessions(
 				eccentricity, inclination, longitude_ascending_node, longitude_ascending_node_rate,
 				argument_periapsis, argument_periapsis_rate, time - mean_anomaly / mean_motion,
 				gravitational_parameter, from_orbit)
-	# hyperbolic anomaly H = 2*atanh(x) = log((1 + x) / (1 - x)) (avoids depending on atanh())
-	var x := sqrt((eccentricity - 1.0) / (eccentricity + 1.0)) * tan(true_anomaly / 2.0)
-	var hyperbolic_anomaly := log((1.0 + x) / (1.0 - x))
+	var tanh_half_anomaly := sqrt((eccentricity - 1.0) / (eccentricity + 1.0)) * tan(true_anomaly / 2.0)
+	var hyperbolic_anomaly := log((1.0 + tanh_half_anomaly) / (1.0 - tanh_half_anomaly))
 	mean_anomaly = eccentricity * sinh(hyperbolic_anomaly) - hyperbolic_anomaly
 	var hyperbolic_mean_motion := sqrt(gravitational_parameter / (-semi_major_axis) ** 3)
 	return create_from_elements(reference_plane_type, reference_basis, semi_parameter,
@@ -511,9 +519,13 @@ static func create_from_state_vectors_and_precessions(
 ## Creates new [IVOrbit] instance from state vectors and orbit environment.
 ## @experimental: NOT YET IMPLEMENTED.
 @warning_ignore("shadowed_variable", "unused_parameter")
-static func create_from_state_vectors_and_environment(
-		position: Vector3,
-		velocity: Vector3,
+static func create_from_state_and_environment(
+		x: float,
+		y: float,
+		z: float,
+		vx: float,
+		vy: float,
+		vz: float,
 		gravitational_parameter: float,
 		dynamic_form_factor: float, # primary's J2 (oblateness effect, known or estimated)
 		primary_orbit: IVOrbit, # includes GM of the grandparent
@@ -534,28 +546,30 @@ static func create_from_state_vectors_and_environment(
 ## Solves Lambert's problem: the conic from [param position_1] to [param position_2]
 ## crossed in [param time_of_flight], about a primary with [param gravitational_parameter].
 ## Universal-variable (Vallado) formulation; valid for elliptic and hyperbolic transfers
-## (not parabolic). Returns [code][velocity_1, velocity_2][/code] in the input frame and
-## units, or an empty array if the geometry is degenerate or it fails to converge. Pass
-## [param prograde] = false for the retrograde (clockwise about +Z) transfer. Feed a
-## result to [method create_from_state_vectors_and_precessions] to build the orbit.
+## (not parabolic). Returns the two velocities as double-precision scalars in a
+## [PackedFloat64Array] [code][vx1, vy1, vz1, vx2, vy2, vz2][/code] (input frame and units),
+## or an empty array if the geometry is degenerate or it fails to converge. Double precision
+## is deliberate: the result feeds [method create_from_state_and_precessions] without a
+## float32 round trip. Pass [param prograde] = false for the retrograde (clockwise about +Z)
+## transfer.
 @warning_ignore("shadowed_variable")
 static func solve_lambert(position_1: Vector3, position_2: Vector3, time_of_flight: float,
-		gravitational_parameter: float, prograde := true) -> Array[Vector3]:
+		gravitational_parameter: float, prograde := true) -> PackedFloat64Array:
 
-	var velocities: Array[Vector3] = []
+	var velocities := PackedFloat64Array()
 	# Double-precision scalars: a near-180° transfer drives 1+cos_transfer toward 0,
 	# where float32 Vector3 ops lose ~1e4 km at planetary distances.
-	var p1x := position_1.x
-	var p1y := position_1.y
-	var p1z := position_1.z
-	var p2x := position_2.x
-	var p2y := position_2.y
-	var p2z := position_2.z
-	var radius_1 := sqrt(p1x * p1x + p1y * p1y + p1z * p1z)
-	var radius_2 := sqrt(p2x * p2x + p2y * p2y + p2z * p2z)
+	var x1 := position_1.x
+	var y1 := position_1.y
+	var z1 := position_1.z
+	var x2 := position_2.x
+	var y2 := position_2.y
+	var z2 := position_2.z
+	var radius_1 := sqrt(x1 * x1 + y1 * y1 + z1 * z1)
+	var radius_2 := sqrt(x2 * x2 + y2 * y2 + z2 * z2)
 	var sum_radii := radius_1 + radius_2
-	var cos_transfer := clampf((p1x * p2x + p1y * p2y + p1z * p2z) / (radius_1 * radius_2), -1.0, 1.0)
-	var cross_z := p1x * p2y - p1y * p2x # z of position_1.cross(position_2)
+	var cos_transfer := clampf((x1 * x2 + y1 * y2 + z1 * z2) / (radius_1 * radius_2), -1.0, 1.0)
+	var cross_z := x1 * y2 - y1 * x2 # z of position_1.cross(position_2)
 	var direction := 1.0 if (cross_z >= 0.0) == prograde else -1.0
 	var a_geom := direction * sqrt(radius_1 * radius_2 * (1.0 + cos_transfer))
 	if is_zero_approx(a_geom):
@@ -595,46 +609,20 @@ static func solve_lambert(position_1: Vector3, position_2: Vector3, time_of_flig
 		return velocities
 	var g_dot := 1.0 - y_value / radius_2
 	var inverse_g := 1.0 / g
-	velocities.append(Vector3(
-			(p2x - f * p1x) * inverse_g,
-			(p2y - f * p1y) * inverse_g,
-			(p2z - f * p1z) * inverse_g))
-	velocities.append(Vector3(
-			(g_dot * p2x - p1x) * inverse_g,
-			(g_dot * p2y - p1y) * inverse_g,
-			(g_dot * p2z - p1z) * inverse_g))
+	var vx1 := (x2 - f * x1) * inverse_g
+	var vy1 := (y2 - f * y1) * inverse_g
+	var vz1 := (z2 - f * z1) * inverse_g
+	var vx2 := (g_dot * x2 - x1) * inverse_g
+	var vy2 := (g_dot * y2 - y1) * inverse_g
+	var vz2 := (g_dot * z2 - z1) * inverse_g
+	velocities.resize(6)
+	velocities[0] = vx1
+	velocities[1] = vy1
+	velocities[2] = vz1
+	velocities[3] = vx2
+	velocities[4] = vy2
+	velocities[5] = vz2
 	return velocities
-
-
-# Universal-variable time of flight for trial [param psi]: returns [dt, y] (seconds,
-# length), or an empty array when psi is invalid (y < 0 below the floor, or the
-# Stumpff terms degenerate/overflow). Helper for [method solve_lambert].
-@warning_ignore("shadowed_variable")
-static func _lambert_dt_y(psi: float, sum_radii: float, a_geom: float,
-		gravitational_parameter: float) -> Array[float]:
-	var out: Array[float] = []
-	var c2: float
-	var c3: float
-	if psi > 1e-6:
-		var sqrt_psi := sqrt(psi)
-		c2 = (1.0 - cos(sqrt_psi)) / psi
-		c3 = (sqrt_psi - sin(sqrt_psi)) / (sqrt_psi * sqrt_psi * sqrt_psi)
-	elif psi < -1e-6:
-		var sqrt_psi := sqrt(-psi)
-		c2 = (1.0 - cosh(sqrt_psi)) / psi
-		c3 = (sinh(sqrt_psi) - sqrt_psi) / (sqrt_psi * sqrt_psi * sqrt_psi)
-	else:
-		c2 = 0.5
-		c3 = 1.0 / 6.0
-	if c2 <= 0.0 or not is_finite(c2) or not is_finite(c3):
-		return out
-	var y := sum_radii + a_geom * (psi * c3 - 1.0) / sqrt(c2)
-	if y < 0.0:
-		return out
-	var chi := sqrt(y / c2)
-	out.append((chi * chi * chi * c3 + a_geom * sqrt(y)) / sqrt(gravitational_parameter))
-	out.append(y)
-	return out
 
 
 ## Static method returns mean anomaly (M) for an elliptic orbit (e < 1). 0 ≤ M < 2π.
@@ -890,6 +878,37 @@ static func modulo_time_periapsis_elliptic(time_periapsis: float, mean_motion: f
 	if time_periapsis > -half_period and time_periapsis <= half_period:
 		return time_periapsis
 	return fposmod(time_periapsis + half_period, 2.0 * half_period) - half_period
+
+
+# Universal-variable time of flight for trial [param psi]: returns [dt, y] (seconds,
+# length), or an empty array when psi is invalid (y < 0 below the floor, or the
+# Stumpff terms degenerate/overflow). Helper for [method solve_lambert].
+@warning_ignore("shadowed_variable")
+static func _lambert_dt_y(psi: float, sum_radii: float, a_geom: float,
+		gravitational_parameter: float) -> Array[float]:
+	var out: Array[float] = []
+	var c2: float
+	var c3: float
+	if psi > 1e-6:
+		var sqrt_psi := sqrt(psi)
+		c2 = (1.0 - cos(sqrt_psi)) / psi
+		c3 = (sqrt_psi - sin(sqrt_psi)) / (sqrt_psi * sqrt_psi * sqrt_psi)
+	elif psi < -1e-6:
+		var sqrt_psi := sqrt(-psi)
+		c2 = (1.0 - cosh(sqrt_psi)) / psi
+		c3 = (sinh(sqrt_psi) - sqrt_psi) / (sqrt_psi * sqrt_psi * sqrt_psi)
+	else:
+		c2 = 0.5
+		c3 = 1.0 / 6.0
+	if c2 <= 0.0 or not is_finite(c2) or not is_finite(c3):
+		return out
+	var y := sum_radii + a_geom * (psi * c3 - 1.0) / sqrt(c2)
+	if y < 0.0:
+		return out
+	var chi := sqrt(y / c2)
+	out.append((chi * chi * chi * c3 + a_geom * sqrt(y)) / sqrt(gravitational_parameter))
+	out.append(y)
+	return out
 
 
 # *****************************************************************************

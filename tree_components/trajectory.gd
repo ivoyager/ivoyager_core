@@ -269,7 +269,8 @@ func _fix_gaps() -> void:
 			push_warning("IVTrajectory: Lambert did not converge for segment %d ('%s'); left as authored"
 					% [i, cruise.parent_name])
 			continue
-		orbits[i] = IVOrbit.create_from_state_vectors_and_precessions(begin_target, velocities[0],
+		orbits[i] = IVOrbit.create_from_state_and_precessions(begin_target.x, begin_target.y,
+				begin_target.z, velocities[0], velocities[1], velocities[2],
 				gm, t_begin, cruise.reference_plane_type, cruise.reference_basis,
 				cruise.longitude_ascending_node_rate, cruise.argument_periapsis_rate, cruise)
 
