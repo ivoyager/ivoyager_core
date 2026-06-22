@@ -50,7 +50,7 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 # Gap-fixing tunables (see [method _fix_gaps]); applied as multiples of the IVUnits
 # scale constants at runtime so they stay correct regardless of the sim's METER scale.
 const GAP_SKIP_KM := 100.0 ## Cruise gap below this (× IVUnits.KM) is left as authored.
-const GAP_WARN_AU := 0.1 ## Cruise gap above this (× IVUnits.AU) is still re-fitted, but warns.
+const GAP_WARN_AU := 0.1 ## Cruise gap above this (× IVUnits.AU) is still re-fitted, but logged.
 const OPEN_TERMINAL_LOOKAHEAD_YEARS := 5.0 ## Far Lambert-point look-ahead for an open terminal cruise.
 
 
@@ -230,7 +230,7 @@ func _build_derived(new_game: bool) -> void:
 # uses the fixed orbits. Each cruise orbit is recycled in place (segment count and
 # per-segment vertex count unchanged). A boundary that abuts another segment pins to
 # that segment's drawn endpoint; an open trajectory end keeps the cruise's own
-# position. Skips a near-continuous cruise; warns (but still fits) on an implausible gap.
+# position. Skips a near-continuous cruise; logs (but still fits) a large gap.
 func _fix_gaps() -> void:
 	var skip_threshold := GAP_SKIP_KM * IVUnits.KM
 	var warn_threshold := GAP_WARN_AU * IVUnits.AU
@@ -247,23 +247,36 @@ func _fix_gaps() -> void:
 		# Targets expressed in the cruise's own primary frame (subtract the primary's
 		# offset to the lca frame, where neighbor endpoints are computed).
 		var begin_target: Vector3
+		var begin_anchor: StringName # neighbor primary we snap the begin to (cruise's own if open)
 		if i > 0:
 			begin_target = _segment_position_lca(i - 1, t_begin) - _offset_to_lca(primary, t_begin)
+			begin_anchor = orbits[i - 1].parent_name
 		else:
 			begin_target = cruise.get_position(t_begin)
+			begin_anchor = cruise.parent_name
 		var end_target: Vector3
+		var end_anchor: StringName # neighbor primary we snap the end to (cruise's own if open)
 		if i < n_segments - 1:
 			end_target = _segment_position_lca(i + 1, t_end) - _offset_to_lca(primary, t_end)
+			end_anchor = orbits[i + 1].parent_name
 		else:
 			t_end = t_begin + lookahead # open terminal: keep the conic's far field, re-pin the start
 			end_target = cruise.get_position(t_end)
-		var gap := maxf((begin_target - cruise.get_position(t_begin)).length(),
-				(end_target - cruise.get_position(t_end)).length())
+			end_anchor = cruise.parent_name
+		var begin_gap := (begin_target - cruise.get_position(t_begin)).length()
+		var end_gap := (end_target - cruise.get_position(t_end)).length()
+		var gap := maxf(begin_gap, end_gap)
 		if gap < skip_threshold:
 			continue
 		if gap > warn_threshold:
-			push_warning("IVTrajectory: implausible gap (%.3e) re-fitting segment %d ('%s')"
-					% [gap, i, cruise.parent_name])
+			# Report the neighbor anchor on the larger-gap side; the cruise's own parent is
+			# always the system primary (e.g. Sun) and so uninformative. A large gap here is
+			# expected when fitting IVOrbit (rather than real-ephemeris) primaries at a distant
+			# flyby, so log it rather than warn.
+			var anchor := begin_anchor if begin_gap >= end_gap else end_anchor
+			print("IVTrajectory: large gap (%.3f au) at segment %d,anchor %s; fitting anyway."
+					% [gap / IVUnits.AU, i, anchor]
+					+ "Expected for Uranus+ flybys if use_real_planet_orbits = false.")
 		var velocities := IVOrbit.solve_lambert(begin_target, end_target, t_end - t_begin, gm)
 		if velocities.is_empty():
 			push_warning("IVTrajectory: Lambert did not converge for segment %d ('%s'); left as authored"
