@@ -1,0 +1,215 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://addons/ivoyager_core/editor/body_2d_capture_dialog.gd" id="1"]
+
+[sub_resource type="Environment" id="Environment_1"]
+background_mode = 0
+
+[node name="BodyIconCaptureDialog" type="AcceptDialog"]
+oversampling_override = 1.0
+title = "Capture Body 2D Icons"
+size = Vector2i(880, 620)
+visible = true
+ok_button_text = "Capture & Save"
+dialog_hide_on_ok = false
+script = ExtResource("1")
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+offset_left = 8.0
+offset_top = 8.0
+offset_right = 872.0
+offset_bottom = 575.0
+theme_override_constants/margin_bottom = 30
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="LeftVBox" type="VBoxContainer" parent="MarginContainer/HBoxContainer"]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+
+[node name="ListLabel" type="Label" parent="MarginContainer/HBoxContainer/LeftVBox"]
+layout_mode = 2
+text = "Bodies"
+
+[node name="OnlyMissingToggle" type="CheckButton" parent="MarginContainer/HBoxContainer/LeftVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Only missing icons"
+
+[node name="ModelList" type="ItemList" parent="MarginContainer/HBoxContainer/LeftVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="CaptureAllButton" type="Button" parent="MarginContainer/HBoxContainer/LeftVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Capture all remaining"
+
+[node name="StatusLabel" type="Label" parent="MarginContainer/HBoxContainer/LeftVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+autowrap_mode = 2
+
+[node name="RightVBox" type="VBoxContainer" parent="MarginContainer/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="AspectRatioContainer" type="AspectRatioContainer" parent="MarginContainer/HBoxContainer/RightVBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="PreviewArea" type="Control" parent="MarginContainer/HBoxContainer/RightVBox/AspectRatioContainer"]
+custom_minimum_size = Vector2(320, 320)
+layout_mode = 2
+clip_contents = true
+
+[node name="CheckerRect" type="TextureRect" parent="MarginContainer/HBoxContainer/RightVBox/AspectRatioContainer/PreviewArea"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+stretch_mode = 1
+
+[node name="PreviewTextureRect" type="TextureRect" parent="MarginContainer/HBoxContainer/RightVBox/AspectRatioContainer/PreviewArea"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="PreviewViewport" type="SubViewport" parent="MarginContainer/HBoxContainer/RightVBox/AspectRatioContainer/PreviewArea"]
+unique_name_in_owner = true
+own_world_3d = true
+transparent_bg = true
+msaa_3d = 2
+size = Vector2i(1024, 1024)
+render_target_update_mode = 4
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="MarginContainer/HBoxContainer/RightVBox/AspectRatioContainer/PreviewArea/PreviewViewport"]
+environment = SubResource("Environment_1")
+
+[node name="Camera" type="Camera3D" parent="MarginContainer/HBoxContainer/RightVBox/AspectRatioContainer/PreviewArea/PreviewViewport"]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 3)
+projection = 1
+
+[node name="KeyLight" type="DirectionalLight3D" parent="MarginContainer/HBoxContainer/RightVBox/AspectRatioContainer/PreviewArea/PreviewViewport"]
+unique_name_in_owner = true
+
+[node name="FillLight" type="DirectionalLight3D" parent="MarginContainer/HBoxContainer/RightVBox/AspectRatioContainer/PreviewArea/PreviewViewport"]
+unique_name_in_owner = true
+
+[node name="YawPivot" type="Node3D" parent="MarginContainer/HBoxContainer/RightVBox/AspectRatioContainer/PreviewArea/PreviewViewport"]
+unique_name_in_owner = true
+
+[node name="PitchPivot" type="Node3D" parent="MarginContainer/HBoxContainer/RightVBox/AspectRatioContainer/PreviewArea/PreviewViewport/YawPivot"]
+unique_name_in_owner = true
+
+[node name="ModelHolder" type="Node3D" parent="MarginContainer/HBoxContainer/RightVBox/AspectRatioContainer/PreviewArea/PreviewViewport/YawPivot/PitchPivot"]
+unique_name_in_owner = true
+
+[node name="ControlsGrid" type="GridContainer" parent="MarginContainer/HBoxContainer/RightVBox"]
+layout_mode = 2
+columns = 2
+
+[node name="AzimuthLabel" type="Label" parent="MarginContainer/HBoxContainer/RightVBox/ControlsGrid"]
+layout_mode = 2
+text = "Key light azimuth"
+
+[node name="KeyAzimuthSlider" type="HSlider" parent="MarginContainer/HBoxContainer/RightVBox/ControlsGrid"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -3.1415927
+max_value = 3.1415927
+step = 0.01
+
+[node name="ElevationLabel" type="Label" parent="MarginContainer/HBoxContainer/RightVBox/ControlsGrid"]
+layout_mode = 2
+text = "Key light elevation"
+
+[node name="KeyElevationSlider" type="HSlider" parent="MarginContainer/HBoxContainer/RightVBox/ControlsGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -1.5707964
+max_value = 1.5707964
+step = 0.01
+
+[node name="ZoomLabel" type="Label" parent="MarginContainer/HBoxContainer/RightVBox/ControlsGrid"]
+layout_mode = 2
+text = "Zoom"
+
+[node name="ZoomSlider" type="HSlider" parent="MarginContainer/HBoxContainer/RightVBox/ControlsGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.3
+max_value = 3.0
+step = 0.01
+value = 1.0
+
+[node name="BrightnessLabel" type="Label" parent="MarginContainer/HBoxContainer/RightVBox/ControlsGrid"]
+layout_mode = 2
+text = "Brightness"
+
+[node name="BrightnessSlider" type="HSlider" parent="MarginContainer/HBoxContainer/RightVBox/ControlsGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.25
+max_value = 4.0
+step = 0.05
+value = 1.0
+
+[node name="ResetButton" type="Button" parent="MarginContainer/HBoxContainer/RightVBox/ControlsGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Reset to 30°/30°"
+
+[node name="LightToggles" type="HBoxContainer" parent="MarginContainer/HBoxContainer/RightVBox/ControlsGrid"]
+layout_mode = 2
+
+[node name="KeyLightToggle" type="CheckButton" parent="MarginContainer/HBoxContainer/RightVBox/ControlsGrid/LightToggles"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Key"
+
+[node name="FillLightToggle" type="CheckButton" parent="MarginContainer/HBoxContainer/RightVBox/ControlsGrid/LightToggles"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Fill"
+
+[node name="BottomBar" type="HBoxContainer" parent="MarginContainer/HBoxContainer/RightVBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="RestartButton" type="Button" parent="MarginContainer/HBoxContainer/RightVBox/BottomBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Restart Editor"
+
+[node name="RestartNote" type="Label" parent="MarginContainer/HBoxContainer/RightVBox/BottomBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 1
+theme_override_colors/font_color = Color(0.92, 0.85, 0.5, 1)
+text = "Restart to import the captures with clean thumbnails. (Saved PNGs are correct; don't Reimport a fresh icon before restarting — it can crash.)"
+autowrap_mode = 2

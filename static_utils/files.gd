@@ -229,6 +229,33 @@ static func find_and_load_resource(dir_paths: Array[String], prefix: String,
 	return null
 
 
+## Returns res:// paths of all files under any of [param dir_paths] (recursing
+## into subdirectories unless [param recursive] is false) whose extension equals
+## [param extension] (no leading dot, e.g. [code]"glb"[/code]). Editor-time
+## helper: it matches source files directly, not [code].import[/code] remaps, so
+## it returns nothing in an exported project.
+static func list_resource_files(dir_paths: Array[String], extension: String,
+		recursive := true) -> Array[String]:
+	var result: Array[String] = []
+	for dir_path in dir_paths:
+		var dir := DirAccess.open(dir_path)
+		if !dir:
+			continue
+		dir.include_hidden = false
+		dir.include_navigational = false
+		dir.list_dir_begin()
+		var file_name := dir.get_next()
+		while file_name:
+			var path := dir_path.path_join(file_name)
+			if dir.current_is_dir():
+				if recursive:
+					result.append_array(list_resource_files([path], extension))
+			elif file_name.get_extension() == extension:
+				result.append(path)
+			file_name = dir.get_next()
+	return result
+
+
 ## Replaces literal [code]\\n[/code] / [code]\\t[/code] sequences in
 ## [param string] with newline / tab characters. Use to interpret
 ## escape-encoded text from data tables or config files.

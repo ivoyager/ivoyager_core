@@ -76,11 +76,18 @@ func _ready() -> void:
 	add_child(_model)
 
 
-func _build_packed_model(asset_preloader: IVAssetPreloader, packed_model: PackedScene) -> void:
+## Returns the body-frame reference [Basis] for a packed-scene model: uniformly
+## scaled by [param model_scale] and rotated so the model's z-up axis becomes
+## y-up. Shared by [method _build_packed_model] and the editor icon capturer so a
+## captured 2D icon matches the in-sim model orientation.
+static func get_packed_model_reference_basis(model_scale: float) -> Basis:
 	const RIGHT_ANGLE := PI / 2
+	return Basis().scaled(model_scale * Vector3.ONE).rotated(Vector3(1.0, 0.0, 0.0), RIGHT_ANGLE)
+
+
+func _build_packed_model(asset_preloader: IVAssetPreloader, packed_model: PackedScene) -> void:
 	var model_scale := asset_preloader.get_body_model_scale(_body_name)
-	reference_basis = Basis().scaled(model_scale * Vector3.ONE)
-	reference_basis = reference_basis.rotated(Vector3(1.0, 0.0, 0.0), RIGHT_ANGLE) # z-up!
+	reference_basis = get_packed_model_reference_basis(model_scale)
 	_model = packed_model.instantiate()
 	_model.basis = reference_basis
 	# The disable_auto_visual_range flag opts a packed scene out entirely, preserving any
