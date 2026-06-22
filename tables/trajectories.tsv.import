@@ -1,0 +1,14 @@
+[remap]
+
+importer="ivoyager.tables"
+type="IVTableResource"
+uid="uid://dskw8ygd7v1tx"
+path="res://.godot/imported/trajectories.tsv-c19c979b3d659ed211b6271597b04d8a.tres"
+
+[deps]
+
+source_file="res://addons/ivoyager_core/tables/trajectories.tsv"
+dest_files=["res://.godot/imported/trajectories.tsv-c19c979b3d659ed211b6271597b04d8a.tres"]
+
+[params]
+

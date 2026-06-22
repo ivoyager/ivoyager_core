@@ -50,11 +50,9 @@ Many of the model types are meant to facilitate graphic differences for differen
 
 See [IVBody](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/body.gd) and [IVTableBodyBuilder](https://github.com/ivoyager/ivoyager_core/blob/master/program/table_body_builder.gd).
 
-Source: https://ssd.jpl.nasa.gov/?sat_elem.
+Orbital elements are in [orbits.tsv](#orbitstsv) (source https://ssd.jpl.nasa.gov/?sat_elem).
 
-Source convention notes (handled by [IVTableOrbitBuilder](https://github.com/ivoyager/ivoyager_core/blob/master/program/table_orbit_builder.gd)): `mean_motion` (n) is the sidereal rate dL/dt, not the mean anomaly rate. `apsidal_period` (Pw) is the cycle period of the argument of periapsis ω, which is measured from the moving node — so nodal regression is folded in. That's why the Moon's Pw (5.997 yr) differs from its longitude-of-periapsis precession period found in other sources (e.g., Wikipedia: 8.85 yr); the two are consistent: 1/(1/5.997 - 1/18.613) ≈ 8.85.
-
-Sort each planet's moons by `semi_major_axis` for proper order in GUI display and selection.
+Keep each planet's moons in semi-major-axis order (now in orbits.tsv) for proper order in GUI display and selection.
 
 ## omni_lights.tsv
 
@@ -62,15 +60,27 @@ Used to build simple OmniLight instances. See light-building code in [IVBodyFini
 
 if `disable_if_dynamic_enabled` is TRUE (default) and renderer mode allows, code will prefer to build an IVDynamicLight instance instead (this is necessary for shadows).
 
+## orbits.tsv
+
+See [IVTableOrbitBuilder](https://github.com/ivoyager/ivoyager_core/blob/master/program/table_orbit_builder.gd).
+
+Holds the orbit for every non-root body (planets, moons, asteroids, spacecraft) on one common element set. Each body table references its orbit through a `TABLE_ROW` field `orbit`; a body with no `orbit` value (only the Sun) is the IVBody tree root. The body tables retain a `parent` field for backward compatibility, but it is deprecated and no longer read by Core — orbital parentage comes from this table's `parent` (resolved via the body's `orbit`).
+
+Elements use argument of periapsis (ω), not longitude of periapsis (ϖ), and signed precession rates in deg/Cy throughout. Source epochs are preserved in `epoch_jd` (J2000 if absent); IVTableOrbitBuilder converts to internal J2000.
+
+Convention notes (handled by IVTableOrbitBuilder): `mean_motion` (n) is the sidereal rate dL/dt, not the mean anomaly rate; the builder derives the orbit GM from it. The silent sub-threshold precession cutoff — for near-circular or near-equatorial orbits, where nodal/apsidal precession is meaningless — applies only to body-centric (Laplace/equatorial) reference frames; ecliptic planet/asteroid rates are never zeroed. Comment columns `#nodal_period` and `#apsidal_period` preserve the JPL satellite-elements periods the moon rates were derived from; `apsidal_period` (Pw) is the cycle period of ω measured from the moving node, which is why the Moon's Pw (5.997 yr) differs from its longitude-of-periapsis period (~8.85 yr): 1/(1/5.997 - 1/18.613) ≈ 8.85.
+
+Sources: planets from https://ssd.jpl.nasa.gov/?planet_pos (3000 BC – 3000 AD; Earth is really the Earth-Moon barycenter; an earlier version of that page included Pluto; Ceres from AstDyS-2 proper elements); moons from https://ssd.jpl.nasa.gov/?sat_elem; asteroids and spacecraft from the JPL Small-Body Database and Horizons.
+
 ## planets.tsv
 
 See [IVBody](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/body.gd) and [IVTableBodyBuilder](https://github.com/ivoyager/ivoyager_core/blob/master/program/table_body_builder.gd).
 
-Keplarian elements and rates are from https://ssd.jpl.nasa.gov/?planet_pos (data for 3000BC to 3000AD). Earth is really Earth-Moon barycenter. Note that an earlier version of this page had data for Pluto. Ceres was added using AstDyS-2 proper elements.
+Orbital elements are in [orbits.tsv](#orbitstsv).
 
 Physical characteristics are mostly from https://ssd.jpl.nasa.gov/?planet_phys_par or Wikipedia.
 
-Sort planets by `semi_major_axis` for proper order in GUI display and selection.
+Keep planets in semi-major-axis order (now in orbits.tsv) for proper order in GUI display and selection.
 
 ## rings.tsv
 

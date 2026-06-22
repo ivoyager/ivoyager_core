@@ -82,7 +82,7 @@ extends Node3D
 ## to many of these characteristics with sensible fallbacks for missing keys.[br][br]
 ##
 ## Many body-associated "graphic" nodes are added by [IVBodyFinisher] including
-## [IVRings], [IVDynamicLight], [IVOrbitVisual], and [IVBodyLabel]. Dependency
+## [IVRings], [IVDynamicLight], [IVPathVisual], and [IVBodyLabel]. Dependency
 ## is inverted for these classes: they have reference to their [IVBody] but
 ## [IVBody] has no reference to them.[br][br]
 ## 
@@ -208,6 +208,7 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"components",
 	
 	&"_orbit",
+	&"_trajectory",
 	&"_system_radius",
 	&"_hill_sphere",
 ]
@@ -223,7 +224,7 @@ static var default_symbol := "\u25CC"
 ## Static class setting.
 static var system_mean_radius_multiplier := 15.0
 ## Static class setting.
-static var max_hud_dist_orbit_radius_multiplier := 100.0
+static var min_visual_separation_multiplier := 100.0
 ## Static class setting.
 static var min_hud_dist_radius_multiplier := 500.0
 ## Static class setting.
@@ -257,6 +258,14 @@ var rotation_axis := Vector3(0, 0, 1)
 var rotation_rate := 0.0
 ## Rotation phase (radians) at the simulator epoch.
 var rotation_at_epoch := 0.0
+## Beginning of life. NAN or -INF mean no begining, but the latter is required
+## for [member end] to be effective. This is mainly for spacecraft that begin
+## life via table value (not added by code).
+var begin := NAN
+## End of life. Only works if [member begin] is not NAN. NAN or INF mean no end.
+## This is mainly for spacecraft that end life via table value (not removed by
+## code).
+var end := NAN
 ## Persisted dictionary of non-object characteristics (mass, surface gravity,
 ## albedo, atmosphere data, etc.) loaded from data tables.
 var characteristics: Dictionary[StringName, Variant] = {} # non-object values
@@ -287,7 +296,7 @@ var ordered_satellites: Array[IVBody]
 ## this value will be null until needed. Read-only!
 var physical_body: Node3D
 ## Current visibility state for associated HUD elements, including IVBodyLabel
-## and IVOrbitVisual. Read-only!
+## and IVPathVisual. Read-only!
 var huds_visible := false
 ## GUI graphic representation of this body. Read-only!
 var texture_2d: Texture2D
@@ -297,6 +306,7 @@ var texture_slice_2d: Texture2D
 
 # private persisted
 var _orbit: IVOrbit
+var _trajectory: IVTrajectory # usually null; if set, _process swaps _orbit per segment
 var _system_radius: float
 var _hill_sphere: float
 
@@ -524,6 +534,28 @@ func _process(delta: float) -> void:
 	
 	var time := _times[0]
 	
+	if not is_nan(begin):
+		# Only here if begin was set. This is mainly for spacecraft beginning
+		# and end of life (if you don't add or remove by code). Handle visual
+		# orbit using orbit segment_begin and segment_end.
+		if time < begin or time > end:
+			hide()
+			return
+		else:
+			show()
+
+	if _trajectory:
+		time = _clamp_trajectory_time(time)
+		var trajectory_orbit := _trajectory.get_orbit(time)
+		if trajectory_orbit != _orbit:
+			var new_parent := _trajectory.get_parent(time)
+			# end_remove: discard the trajectory on reaching the final segment (one-way
+			# trips in games without time reversal). Null it before the swap so the visual's
+			# orbit_changed handler sees a plain orbiter and releases its trajectory ref.
+			if _trajectory.end_remove and trajectory_orbit == _trajectory.orbits[-1]:
+				_trajectory = null
+			set_orbit_and_parent(trajectory_orbit, new_parent)
+
 	if _orbit:
 		position = _orbit.update(time)
 	
@@ -532,9 +564,10 @@ func _process(delta: float) -> void:
 	# set HUDs visibility
 	var show_huds := camera_dist > _min_hud_dist # Is camera far enough?
 	if show_huds and _orbit:
-		# Is body far enough from it parent?
-		var orbit_radius := position.length()
-		show_huds = orbit_radius * max_hud_dist_orbit_radius_multiplier > camera_dist
+		# Is body far enough from its parent? Skip check if we are on a trajectory flyby.
+		if !_trajectory or _trajectory.get_lca() == parent:
+			var visual_separation := position.length()
+			show_huds = visual_separation * min_visual_separation_multiplier > camera_dist
 	if huds_visible != show_huds:
 		huds_visible = show_huds
 		huds_visibility_changed.emit(show_huds)
@@ -701,6 +734,34 @@ func set_orbit(new_orbit: IVOrbit) -> void:
 		new_orbit.changed.connect(_on_orbit_changed)
 
 
+## Returns this body's [IVTrajectory], or null if it follows a single [member orbit].
+func get_trajectory() -> IVTrajectory:
+	return _trajectory
+
+
+## Returns true if this body has an [IVTrajectory] (a patched-conic path of orbit
+## segments) rather than a single fixed [member orbit].
+func has_trajectory() -> bool:
+	return _trajectory != null
+
+
+## Atomically swaps this body's [IVOrbit] and reparents it under [param new_parent].
+## This is the coordinated event for an [IVTrajectory] segment change; [param new_orbit]'s
+## [member IVOrbit.parent_name] should name [param new_parent]. Position is recomputed
+## from the new orbit later in the same [method _process] frame, so there is no visible jump.
+## Emits [signal orbit_changed] so an [IVPathVisual] can switch display mode and reparent.
+func set_orbit_and_parent(new_orbit: IVOrbit, new_parent: IVBody) -> void:
+	if _orbit:
+		_orbit.changed.disconnect(_on_orbit_changed)
+	_orbit = new_orbit # set before reparent so satellite re-indexing sorts by the new orbit
+	if new_parent != parent:
+		get_parent().remove_child(self)
+		new_parent.add_child(self) # _exit_tree -> _clear_indexing; _enter_tree -> _index
+	# _enter_tree's is_node_ready() guard skips the orbit reconnect on reparent, so do it here
+	new_orbit.changed.connect(_on_orbit_changed)
+	orbit_changed.emit(new_orbit, false, false)
+
+
 # *****************************************************************************
 # characteristics API...
 
@@ -824,6 +885,22 @@ func get_float_precision(path: String) -> int:
 # orbit API...
 
 
+# Clamps [param time] to the trajectory's validity window when this body has a
+# trajectory (so it parks at the path's endpoints instead of extrapolating the
+# first/last conic far off the drawn path); returns [param time] unchanged otherwise.
+func _clamp_trajectory_time(time: float) -> float:
+	return _trajectory.get_clamped_time(time) if _trajectory else time
+
+
+# Returns the orbit governing a projected/sleeping query at [param time]: the
+# trajectory's active segment for that time if this body has a trajectory, else
+# the single _orbit. Callers must have already guarded against null _orbit.
+func _get_orbit_at_time(time: float) -> IVOrbit:
+	if _trajectory:
+		return _trajectory.get_orbit(_clamp_trajectory_time(time))
+	return _orbit
+
+
 ## Returns this body's orbital mean longitude (L). Supply [param time] only if
 ## you don't want the current value. 
 func get_orbit_mean_longitude(time := NAN) -> float:
@@ -833,7 +910,8 @@ func get_orbit_mean_longitude(time := NAN) -> float:
 		if !_sleeping:
 			return _orbit.get_mean_longitude_at_update()
 		time = _times[0]
-	return _orbit.get_mean_longitude(time)
+	time = _clamp_trajectory_time(time)
+	return _get_orbit_at_time(time).get_mean_longitude(time)
 
 
 ## Returns this body's orbital true longitude (l). Supply [param time] only if
@@ -845,7 +923,8 @@ func get_orbit_true_longitude(time := NAN) -> float:
 		if !_sleeping:
 			return _orbit.get_true_longitude_at_update()
 		time = _times[0]
-	return _orbit.get_true_longitude(time)
+	time = _clamp_trajectory_time(time)
+	return _get_orbit_at_time(time).get_true_longitude(time)
 
 
 ## Returns true if this body's orbit is retrograde. Supply [param time] only if
@@ -857,7 +936,8 @@ func is_orbit_retrograde(time := NAN) -> bool:
 		if !_sleeping:
 			return _orbit.is_retrograde()
 		time = _times[0]
-	return _orbit.is_retrograde_at_time(time)
+	time = _clamp_trajectory_time(time)
+	return _get_orbit_at_time(time).is_retrograde_at_time(time)
 
 
 ## Returns this body's orbital semi-parameter (p). Supply [param time] only if
@@ -869,7 +949,8 @@ func get_orbit_semi_parameter(time := NAN) -> float:
 		if !_sleeping:
 			return _orbit.get_semi_parameter()
 		time = _times[0]
-	return _orbit.get_semi_parameter_at_time(time)
+	time = _clamp_trajectory_time(time)
+	return _get_orbit_at_time(time).get_semi_parameter_at_time(time)
 
 
 ## Returns this body's orbital semi-major axis (a). Supply [param time] only if
@@ -881,7 +962,8 @@ func get_orbit_semi_major_axis(time := NAN) -> float:
 		if !_sleeping:
 			return _orbit.get_semi_major_axis()
 		time = _times[0]
-	return _orbit.get_semi_major_axis_at_time(time)
+	time = _clamp_trajectory_time(time)
+	return _get_orbit_at_time(time).get_semi_major_axis_at_time(time)
 
 
 ## Returns this body's orbital eccentricity. Supply [param time] only if you
@@ -893,7 +975,8 @@ func get_orbit_eccentricity(time := NAN) -> float:
 		if !_sleeping:
 			return _orbit.get_eccentricity()
 		time = _times[0]
-	return _orbit.get_eccentricity_at_time(time)
+	time = _clamp_trajectory_time(time)
+	return _get_orbit_at_time(time).get_eccentricity_at_time(time)
 
 
 ## Returns this body's orbital inclination. Supply [param time] only if you
@@ -905,7 +988,8 @@ func get_orbit_inclination(time := NAN) -> float:
 		if !_sleeping:
 			return _orbit.get_inclination()
 		time = _times[0]
-	return _orbit.get_inclination_at_time(time)
+	time = _clamp_trajectory_time(time)
+	return _get_orbit_at_time(time).get_inclination_at_time(time)
 
 
 ## Returns this body's orbital mean motion. Supply [param time] only if you
@@ -917,7 +1001,8 @@ func get_orbit_mean_motion(time := NAN) -> float:
 		if !_sleeping:
 			return _orbit.get_mean_motion()
 		time = _times[0]
-	return _orbit.get_mean_motion_at_time(time)
+	time = _clamp_trajectory_time(time)
+	return _get_orbit_at_time(time).get_mean_motion_at_time(time)
 
 
 ## Returns a unit vector normal to this body's orbit. Supply [param time] only
@@ -930,7 +1015,8 @@ func get_orbit_normal(time := NAN, flip_retrograde := false) -> Vector3:
 		if !_sleeping:
 			return _orbit.get_normal(flip_retrograde)
 		time = _times[0]
-	return _orbit.get_normal_at_time(time, flip_retrograde)
+	time = _clamp_trajectory_time(time)
+	return _get_orbit_at_time(time).get_normal_at_time(time, flip_retrograde)
 
 
 # *****************************************************************************
@@ -1030,7 +1116,8 @@ func get_position_vector(time := NAN) -> Vector3:
 			return position
 		time = _times[0]
 	if _orbit:
-		return _orbit.get_position(time)
+		var orbit_time := _clamp_trajectory_time(time)
+		return _get_orbit_at_time(orbit_time).get_position(orbit_time)
 	# TODO: "top" bodies may have position and velocity eventually,
 	# probably as fixed values relative to galaxy center.
 	return Vector3.ZERO
@@ -1044,7 +1131,8 @@ func get_state_vectors(time := NAN) -> Array[Vector3]:
 	if is_nan(time):
 		time = _times[0]
 	if _orbit:
-		return _orbit.get_state_vectors(time)
+		var orbit_time := _clamp_trajectory_time(time)
+		return _get_orbit_at_time(orbit_time).get_state_vectors(orbit_time)
 	# TODO: "top" bodies may have position and velocity eventually,
 	# probably as fixed values relative to galaxy center.
 	return [Vector3.ZERO, Vector3.ZERO]
@@ -1065,15 +1153,9 @@ func get_latitude_longitude(vector: Vector3, time := NAN) -> Vector2:
 func get_axial_tilt_to_orbit(time := NAN) -> float:
 	if !_orbit:
 		return NAN
-	var orbit_normal: Vector3
-	if is_nan(time):
-		if !_sleeping:
-			orbit_normal = _orbit.get_normal()
-		else:
-			time = _times[0]
-			orbit_normal = _orbit.get_normal_at_time(time)
-	else:
-		orbit_normal = _orbit.get_normal_at_time(time)
+	# Orbit normal parks at the window endpoints (get_orbit_normal clamps the time);
+	# the spin axis keeps its raw-time value since rotation is independent of the trajectory.
+	var orbit_normal := get_orbit_normal(time)
 	var positive_axis := get_positive_axis(time)
 	return positive_axis.angle_to(orbit_normal)
 
@@ -1105,8 +1187,10 @@ func get_orbit_tracking_basis(time := NAN) -> Basis:
 			y_axis = z_axis.cross(x_axis)
 			return Basis(x_axis, y_axis, z_axis)
 		time = _times[0]
-	x_axis = -_orbit.get_position(time).normalized()
-	z_axis = _orbit.get_normal_at_time(time, true, true)
+	time = _clamp_trajectory_time(time)
+	var active_orbit := _get_orbit_at_time(time)
+	x_axis = -active_orbit.get_position(time).normalized()
+	z_axis = active_orbit.get_normal_at_time(time, true, true)
 	y_axis = z_axis.cross(x_axis)
 	return Basis(x_axis, y_axis, z_axis)
 
@@ -1527,6 +1611,7 @@ func resort_satellites() -> void:
 func _clear_procedural() -> void:
 	if _orbit:
 		_orbit.changed.disconnect(_on_orbit_changed)
+	_trajectory = null # stop _process touching it; IVTrajectory clears itself on the same signal
 	parent = null
 	star = null
 	star_orbiter = null
@@ -1546,6 +1631,9 @@ func _on_system_tree_built(is_new_game: bool) -> void:
 	if !is_new_game:
 		return
 	# persisted data needed for new game only...
+	if characteristics.has(&"trajectory"):
+		var trajectory_name: StringName = characteristics[&"trajectory"]
+		_trajectory = IVTrajectory.create_from_table(trajectory_name)
 	_set_system_radius()
 	_set_hill_sphere()
 	if flags & TIDALLY_LOCKED:
