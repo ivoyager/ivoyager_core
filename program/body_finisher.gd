@@ -39,7 +39,7 @@ extends RefCounted
 var disable_threads := false
 
 var replacement_body_label_class: Script
-var replacement_orbit_visual_class: Script
+var replacement_path_visual_class: Script
 var replacement_dynamic_light_class: Script
 var replacement_rings_class: Script
 
@@ -78,7 +78,7 @@ func _finish(body: IVBody) -> void:
 	_get_body_label(body, children)
 	
 	if body.has_orbit():
-		_get_orbit_visual(body, siblings)
+		_get_path_visual(body, siblings)
 	if body.has_light():
 		_get_dynamic_light(body, children)
 		_get_omni_lights(body, children)
@@ -117,14 +117,14 @@ func _get_body_label(body: IVBody, children: Array[Node]) -> void:
 	children.append(body_label)
 
 
-func _get_orbit_visual(body: IVBody, siblings: Array[Node]) -> void:
-	var orbit_visual: Node
-	if replacement_orbit_visual_class:
+func _get_path_visual(body: IVBody, siblings: Array[Node]) -> void:
+	var path_visual: Node
+	if replacement_path_visual_class:
 		@warning_ignore("unsafe_method_access")
-		orbit_visual = replacement_orbit_visual_class.new(body)
+		path_visual = replacement_path_visual_class.new(body)
 	else:
-		orbit_visual = IVOrbitVisual.new(body)
-	siblings.append(orbit_visual)
+		path_visual = IVPathVisual.new(body)
+	siblings.append(path_visual)
 
 
 func _get_dynamic_light(body: IVBody, children: Array[Node]) -> void:

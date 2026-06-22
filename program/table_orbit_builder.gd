@@ -67,6 +67,9 @@ var orbits_fields: Array[StringName] = [
 	&"mean_anomaly_correction_f",
 	&"validity_begin",
 	&"validity_end",
+	&"segment_begin",
+	&"segment_end",
+	&"fix_gaps",
 ]
 
 
@@ -107,10 +110,15 @@ func make_orbit_from_orbit_row(orbit_row: int, parent: IVBody) -> IVOrbit:
 	IVTableData.db_build_dictionary(data, &"orbits", orbit_row, orbits_fields)
 
 	var parent_name := parent.name
+	var segment_begin: float = data.get(&"segment_begin", -INF)
+	var segment_end: float = data.get(&"segment_end", INF)
+	var fix_gaps: bool = data.get(&"fix_gaps", false)
 
 	if use_real_planet_orbits and data.get(&"real_planet_orbit"):
 		var real_planet_orbit := _make_real_planet_orbit_consolidated(data)
 		real_planet_orbit.parent_name = parent_name
+		real_planet_orbit.segment_begin = segment_begin
+		real_planet_orbit.segment_end = segment_end
 		return real_planet_orbit
 
 	# reference plane type and basis. For equatorial and Laplace reference planes,
@@ -243,6 +251,9 @@ func make_orbit_from_orbit_row(orbit_row: int, parent: IVBody) -> IVOrbit:
 		gravitational_parameter
 	)
 	orbit.parent_name = parent_name
+	orbit.segment_begin = segment_begin
+	orbit.segment_end = segment_end
+	orbit.fix_gaps = fix_gaps
 
 	return orbit
 

@@ -8,7 +8,7 @@ See cloning and downloading instructions [here](https://www.ivoyager.dev/develop
 
 ## [v0.1.2] - UNRELEASED
 
-Under development using Godot 4.6.2.
+Under development using Godot 4.7.
 
 **Project Breaking note:** IVFragmentIdentifier is no longer a SubViewport added in your scene tree! It's now a regular program node added by IVCoreInitializer. Suggested project update:
 1. Remove node "FragmentIdentifier" in your scene tree, if present (it was optional).
@@ -17,6 +17,7 @@ Under development using Godot 4.6.2.
 
 
 ### Added
+* Patched conics via new [IVTrajectory](https://github.com/ivoyager/ivoyager_core/blob/master/tree_components/trajectory.gd). Allows construction of complex flight paths with planet flybys. It's essentially a scheduler that specifies a series of IVOrbit instances and parent bodies. Can be defined in data tables or built by code in running game. Demonstrated with additions: Voyager 1 & 2, Pioneer 10, and New Horizons.
 * IVBody signal `sleep_changed(is_sleeping: bool)`.
 * IVSleepManager `hide_on_sleep` setting. Set false to prevent IVSleepManager from toggling `IVBody.visible`.
 * IVCoreSettings `radius_multiplier_visibility_range_end` applied in IVPhysicalBody and IVRings.
@@ -29,6 +30,7 @@ Under development using Godot 4.6.2.
 * IVAstronomy constant `CELESTIAL_NORTH` and function `get_basis_from_z_axis_and_icrf_equator_node()` (the reference basis convention for JPL satellite mean elements).
 
 ### Changed
+* [Possibly project breaking] Orbit parameters have been taken out of body tables (planets.tsv, moons.tsv, etc.) and moved to their own [orbits.tsv](https://github.com/ivoyager/ivoyager_core/blob/master/tables/orbits.tsv). This was necessary to implement the new trajectory system, but it's also a much cleaner data representation.
 * [Project breaking] Rebuilt IVFragmentIdentifier system to use a CompositorEffect and a probe compute shader that writes an SSBO (Shader Storage Buffer Object). Previous SubViewport system was a very expensive hack that needed to be replaced. Now only functions with Forward+ or Mobile renderer (cleanly removes itself if Compatibility renderer). The system is very cheap now so added to projects by default. Performance is noticeably better than the older hack. (The new system is still a hack: it'll be much simplified when [this proposal](https://github.com/godotengine/godot-proposals/issues/7916) is fully implemented. Our shaders will then write their ids directly to CUSTOM_BUFFER0, CUSTOM_BUFFER1, etc.)
 * Scrapped `IVBody._process()` distance culling code. Instead, IVPhysicalBody and IVRings set `visibility_range_end` on all GeometryInstance3Ds. Since this is intrusive on project models, there is an "opt-out" option provided by field `disable_auto_visual_range` in table `file_adjustments.tsv`.
 * [API breaking] Removed IVGlobal enum `GUISize`. (Replaced by settable IVCoreSettings `gui_size_settings`.)
