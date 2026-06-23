@@ -31,6 +31,31 @@ extends RefCounted
 ## bundle, [IVBody] and [code]rings.shader[/code].
 const RINGS_LOD_LEVELS := 9 # must agree w/ assets, body.gd and rings.shader
 
+# StandardMaterial3D channel -> the "feature" that must be enabled for it to
+# render (channels absent here are always active). Lets
+# [method apply_channels_to_material] enable any registered channel generically.
+const _CHANNEL_FEATURES := {
+	BaseMaterial3D.TEXTURE_EMISSION: BaseMaterial3D.FEATURE_EMISSION,
+	BaseMaterial3D.TEXTURE_NORMAL: BaseMaterial3D.FEATURE_NORMAL_MAPPING,
+	BaseMaterial3D.TEXTURE_BENT_NORMAL: BaseMaterial3D.FEATURE_BENT_NORMAL_MAPPING,
+	BaseMaterial3D.TEXTURE_RIM: BaseMaterial3D.FEATURE_RIM,
+	BaseMaterial3D.TEXTURE_CLEARCOAT: BaseMaterial3D.FEATURE_CLEARCOAT,
+	BaseMaterial3D.TEXTURE_FLOWMAP: BaseMaterial3D.FEATURE_ANISOTROPY,
+	BaseMaterial3D.TEXTURE_AMBIENT_OCCLUSION: BaseMaterial3D.FEATURE_AMBIENT_OCCLUSION,
+	BaseMaterial3D.TEXTURE_HEIGHTMAP: BaseMaterial3D.FEATURE_HEIGHT_MAPPING,
+	BaseMaterial3D.TEXTURE_SUBSURFACE_SCATTERING: BaseMaterial3D.FEATURE_SUBSURFACE_SCATTERING,
+	BaseMaterial3D.TEXTURE_SUBSURFACE_TRANSMITTANCE: BaseMaterial3D.FEATURE_SUBSURFACE_TRANSMITTANCE,
+	BaseMaterial3D.TEXTURE_BACKLIGHT: BaseMaterial3D.FEATURE_BACKLIGHT,
+	BaseMaterial3D.TEXTURE_REFRACTION: BaseMaterial3D.FEATURE_REFRACTION,
+	BaseMaterial3D.TEXTURE_DETAIL_ALBEDO: BaseMaterial3D.FEATURE_DETAIL,
+}
+
+# VRAM color formats a normal map must never have (would mean it was imported as
+# sRGB color, not as a Normal Map). Load-time push_warning only.
+const _NORMAL_COLOR_FORMATS := [
+	Image.FORMAT_DXT1, Image.FORMAT_DXT3, Image.FORMAT_DXT5, Image.FORMAT_BPTC_RGBA,
+]
+
 
 ## This setting AND IVCoreSettings.use_threads must be true for loading to
 ## occur on thread.
@@ -48,7 +73,7 @@ var use_thread := false
 ## Directories searched for body 3D models. Prepend a directory to prioritize
 ## a custom override.
 var models_search: Array[String] = ["res://addons/ivoyager_assets/models"] # prepend to prioritize
-## Directories searched for body texture maps (albedo / emission).
+## Directories searched for body texture maps (channel maps + shell overlays).
 var maps_search: Array[String] = ["res://addons/ivoyager_assets/maps"]
 ## Directories searched for 2D body textures (used in nav buttons, GUI, etc.).
 var bodies_2d_search: Array[String] = ["res://addons/ivoyager_assets/bodies_2d"]
@@ -68,12 +93,48 @@ var asset_paths: Dictionary[StringName, String] = {
 ## isn't available.
 var fallback_starmap := &"starmap_8k" # starmap_16k possibly removed for size reduction
 
+## Maps a [enum BaseMaterial3D.TextureParam] to the filename tag the preloader
+## searches for under [member maps_search], prepopulated with the universal three.
+## Add entries (e.g. [code]BaseMaterial3D.TEXTURE_ROUGHNESS: &"roughness"[/code])
+## before [signal IVStateManager.core_initialized] to ingest more channels; each
+## tag must match [code][A-Za-z0-9_]+[/code]. A discovered file
+## [code]<file_prefix>[.<shell>].<tag>.*[/code] is applied to the body's (or a
+## shell's) material by [method apply_channels_to_material].
+var texture_channels: Dictionary[int, StringName] = {
+	BaseMaterial3D.TEXTURE_ALBEDO: &"albedo",
+	BaseMaterial3D.TEXTURE_EMISSION: &"emission",
+	BaseMaterial3D.TEXTURE_NORMAL: &"normal",
+}
+## If non-empty, replaces the auto-composed map-filename pattern. Must define
+## named groups [code]prefix[/code] and [code]tag[/code] (optionally [code]shell[/code]).
+## You own its correctness; it is validated at load and ignored if invalid.
+var map_filename_regex_override := ""
+## Highest [code]mesh<N>[/code] body-table column scanned for an extra render shell
+## ([code]mesh0[/code] is the base surface). Raise if a body needs more concentric
+## shells. Set before [signal IVStateManager.core_initialized].
+var max_shells := 4
+
 
 var _blue_noise_1024: Texture2D
 var _starmap: Texture2D
 var _body_resources: Dictionary[StringName, Array] = {}
 var _rings_resources: Dictionary[String, Array] = {}
+var _map_regex := RegEx.new()
 
+
+## Applies each texture in [param channels] ([code]{TextureParam: Texture2D}[/code])
+## to [param material], enabling the matching material feature where one is
+## required (see [constant _CHANNEL_FEATURES]). Shared by the base spheroid model
+## and every render shell.
+static func apply_channels_to_material(material: BaseMaterial3D, channels: Dictionary) -> void:
+	for param: int in channels:
+		var texture: Texture2D = channels[param]
+		if !texture:
+			continue
+		material.set_texture(param, texture)
+		if _CHANNEL_FEATURES.has(param):
+			var feature: int = _CHANNEL_FEATURES[param]
+			material.set_feature(feature, true)
 
 
 func _init() -> void:
@@ -109,24 +170,24 @@ func get_body_model_scale(body_name: StringName) -> float:
 	return _body_resources[body_name][4]
 
 
-func get_body_albedo_map(body_name: StringName) -> Texture2D:
+func get_body_disable_auto_visual_range(body_name: StringName) -> bool:
 	return _body_resources[body_name][5]
 
 
-func get_body_emission_map(body_name: StringName) -> Texture2D:
+func get_body_map_offset(body_name: StringName) -> float:
 	return _body_resources[body_name][6]
 
 
-func get_body_normal_map(body_name: StringName) -> Texture2D:
+## Returns [code]{shell_name: {TextureParam: Texture2D}}[/code] for one body;
+## always includes key [code]&"surface"[/code] (the base spheroid model).
+func get_body_shell_channels(body_name: StringName) -> Dictionary:
 	return _body_resources[body_name][7]
 
 
-func get_body_map_offset(body_name: StringName) -> float:
+## Returns [code]{shell_name: {&"height": float}}[/code] for the body's extra
+## render shells declared via [code]mesh<N>[/code] columns; empty if it has none.
+func get_body_shell_params(body_name: StringName) -> Dictionary:
 	return _body_resources[body_name][8]
-
-
-func get_body_disable_auto_visual_range(body_name: StringName) -> bool:
-	return _body_resources[body_name][9]
 
 
 func get_rings_texture_arrays(rings_name: StringName) -> Array[Texture2DArray]:
@@ -135,7 +196,6 @@ func get_rings_texture_arrays(rings_name: StringName) -> Array[Texture2DArray]:
 
 func get_rings_shadow_caster_texture(rings_name: StringName) -> Texture2D:
 	return _rings_resources[rings_name][1]
-
 
 
 func _on_core_inited() -> void:
@@ -151,9 +211,10 @@ func _load_resources(start_msec: int) -> void:
 	_load_blue_noise_1024()
 	_load_body_resources()
 	_load_rings_resources()
-	# Freeze published containers so any future write becomes a hard error
-	# rather than a silent race against [IVBodyFinisher] reader workers.
-	_body_resources.make_read_only()
+	# Freeze published containers (incl. the nested per-shell dicts) so any future
+	# write becomes a hard error rather than a silent race against [IVBodyFinisher]
+	# reader workers.
+	_deep_freeze_body_resources()
 	_rings_resources.make_read_only()
 	print("Loaded assets in %s msec" % (Time.get_ticks_msec() - start_msec))
 	IVStateManager.state_auxiliary.set_asset_preloader_finished.call_deferred()
@@ -180,6 +241,9 @@ func _load_starmap() -> void:
 
 func _load_body_resources() -> void:
 	const METER := IVUnits.METER
+	
+	_compose_map_regex()
+	var maps_index := _build_maps_index() # prefix(lower) -> shell -> {TextureParam: res_path}
 	
 	var fallback_texture_2d_path := asset_paths[&"fallback_body_texture_2d"]
 	assert(ResourceLoader.exists(fallback_texture_2d_path))
@@ -225,53 +289,190 @@ func _load_body_resources() -> void:
 					disable_auto_visual_range = IVTableData.get_db_bool(&"file_adjustments",
 							&"disable_auto_visual_range", file_adj_rows[model_file])
 			
-			var albedo_map: Texture2D = null
-			var emission_map: Texture2D = null
-			var normal_map: Texture2D = null
+			# Discovered texture channels per shell from the single-pass maps index
+			# (shell &"surface" = files with no shell token in the name).
+			var shell_channels: Dictionary = {}
+			var surface_albedo_file := ""
+			var surface_emission_file := ""
+			var by_shell: Dictionary = maps_index.get(file_prefix.to_lower(), {})
+			for shell: StringName in by_shell:
+				var param_paths: Dictionary = by_shell[shell]
+				var channels: Dictionary = {}
+				for param: int in param_paths:
+					var map_path: String = param_paths[param]
+					var texture: Texture2D = load(map_path)
+					channels[param] = texture
+					_warn_channel_texture(param, texture, map_path)
+					if shell == &"surface":
+						if param == BaseMaterial3D.TEXTURE_ALBEDO:
+							surface_albedo_file = map_path.get_file()
+						elif param == BaseMaterial3D.TEXTURE_EMISSION:
+							surface_emission_file = map_path.get_file()
+				shell_channels[shell] = channels
+
+			# map_offset rotates the equirectangular projection (applied to the model
+			# basis); shells inherit it. Read from the surface albedo (else emission)
+			# file in file_adjustments; the two must agree if both are present.
 			var map_offset := 0.0
-			var albedo_path := IVFiles.find_resource_file(maps_search, file_prefix + ".albedo")
-			if albedo_path:
-				albedo_map = load(albedo_path)
-				var albedo_file := albedo_path.get_file()
-				if file_adj_rows.has(albedo_file):
-					map_offset = IVTableData.get_db_float(&"file_adjustments", &"map_offset",
-							file_adj_rows[albedo_file])
-			var emission_path := IVFiles.find_resource_file(maps_search, file_prefix + ".emission")
-			if emission_path:
-				emission_map = load(emission_path)
-				var emission_file := emission_path.get_file()
-				if file_adj_rows.has(emission_file):
-					var emission_offset := IVTableData.get_db_float(&"file_adjustments",
-							&"map_offset", file_adj_rows[emission_file])
-					assert(map_offset == 0.0 or map_offset == emission_offset,
-							"emission and albedo must have equal map_offset in file_adjustments.tsv"
-							+ " (only one needs to be specified)")
-					map_offset = emission_offset
+			if surface_albedo_file and file_adj_rows.has(surface_albedo_file):
+				map_offset = IVTableData.get_db_float(&"file_adjustments", &"map_offset",
+						file_adj_rows[surface_albedo_file])
+			if surface_emission_file and file_adj_rows.has(surface_emission_file):
+				var emission_offset := IVTableData.get_db_float(&"file_adjustments",
+						&"map_offset", file_adj_rows[surface_emission_file])
+				assert(map_offset == 0.0 or map_offset == emission_offset,
+						"emission and albedo must have equal map_offset in file_adjustments.tsv"
+						+ " (only one needs to be specified)")
+				map_offset = emission_offset
 
-			# A normal map shares the albedo/emission equirectangular projection, so
-			# it inherits the same map_offset (applied as mesh rotation); no separate
-			# offset is read here.
-			var normal_path := IVFiles.find_resource_file(maps_search, file_prefix + ".normal")
-			if normal_path:
-				normal_map = load(normal_path)
+			# Surface always exists; fall back to the blank grid if it has no albedo
+			# and no emission.
+			var surface_channels: Dictionary = shell_channels.get_or_add(&"surface", {})
+			var has_surface_color := surface_channels.has(BaseMaterial3D.TEXTURE_ALBEDO)
+			has_surface_color = has_surface_color or surface_channels.has(BaseMaterial3D.TEXTURE_EMISSION)
+			if not has_surface_color:
+				surface_channels[BaseMaterial3D.TEXTURE_ALBEDO] = fallback_albedo_map
 
-			if !albedo_map and !emission_map:
-				albedo_map = fallback_albedo_map
-			
+			# Extra render shells declared by mesh<N> columns; the value is the shell
+			# name, which is also the file token routing textures to it.
+			var shell_params: Dictionary = {}
+			for mesh_index in range(1, max_shells + 1):
+				var mesh_field := StringName("mesh%d" % mesh_index)
+				if not IVTableData.db_has_value(table, mesh_field, row):
+					continue
+				var shell_name := IVTableData.get_db_string_name(table, mesh_field, row)
+				var params: Dictionary = {}
+				var height_field := StringName("mesh%d_height" % mesh_index)
+				if IVTableData.db_has_value(table, height_field, row):
+					params[&"height"] = IVTableData.get_db_float(table, height_field, row)
+				var rim_field := StringName("mesh%d_rim" % mesh_index)
+				if IVTableData.db_has_value(table, rim_field, row):
+					params[&"rim"] = IVTableData.get_db_float(table, rim_field, row)
+				var opacity_field := StringName("mesh%d_opacity" % mesh_index)
+				if IVTableData.db_has_value(table, opacity_field, row):
+					params[&"opacity"] = IVTableData.get_db_float(table, opacity_field, row)
+				shell_params[shell_name] = params
+
 			var resources := [
 				texture_2d,
 				texture_slice_2d,
 				model_type,
 				packed_model,
 				model_scale,
-				albedo_map,
-				emission_map,
-				normal_map,
-				map_offset,
 				disable_auto_visual_range,
+				map_offset,
+				shell_channels,
+				shell_params,
 			]
-			
+
 			_body_resources[body_name] = resources
+
+
+func _compose_map_regex() -> void:
+	# Compose [member _map_regex] so the "tag" group is an exact alternation of
+	# registered tags - this is what lets the optional "shell" token be told apart
+	# from the tag. A valid override replaces the default.
+	if map_filename_regex_override:
+		if _map_regex.compile(map_filename_regex_override) == OK and _map_regex_has_groups():
+			return
+		push_error("map_filename_regex_override invalid or missing prefix/tag groups;"
+				+ " using composed default")
+	var word := RegEx.create_from_string("^[A-Za-z0-9_]+$")
+	var tags: Array[String] = []
+	for param: int in texture_channels:
+		var tag := String(texture_channels[param])
+		if word.search(tag):
+			tags.append(tag)
+		else:
+			push_error("texture_channels tag '%s' is not [A-Za-z0-9_]+; ignored" % tag)
+	tags.sort_custom(func(a: String, b: String) -> bool: return a.length() > b.length())
+	var pattern := "^(?<prefix>[^.]+)(?:[.](?<shell>[^.]+))?[.](?<tag>%s)(?:[.].*)?$" % "|".join(tags)
+	var err := _map_regex.compile(pattern)
+	assert(err == OK, "composed map regex failed to compile: %s" % pattern)
+
+
+func _map_regex_has_groups() -> bool:
+	# Functional check: a synthetic "<prefix>.<tag>" must yield both named groups.
+	var any_tag := ""
+	for param: int in texture_channels:
+		any_tag = String(texture_channels[param])
+		break
+	var regex_match := _map_regex.search("ivprefix.%s" % any_tag)
+	if not regex_match:
+		return false
+	return regex_match.get_string("prefix") == "ivprefix" and regex_match.get_string("tag") == any_tag
+
+
+func _build_maps_index() -> Dictionary:
+	# prefix(lower) -> shell(StringName) -> {TextureParam(int): res_path}. One pass
+	# replaces a per-(body x channel) directory scan.
+	var index: Dictionary = {}
+	var tag_to_param: Dictionary = {}
+	for param: int in texture_channels:
+		tag_to_param[String(texture_channels[param])] = param
+	for dir_path in maps_search:
+		_scan_maps_dir(dir_path, index, tag_to_param, true)
+	return index
+
+
+func _scan_maps_dir(dir_path: String, index: Dictionary, tag_to_param: Dictionary,
+		descend: bool) -> void:
+	# Only ".import" files exist in exported projects, so we match those and strip
+	# the suffix (same idiom as [method IVFiles.find_resource_file]).
+	var dir := DirAccess.open(dir_path)
+	if !dir:
+		return
+	dir.include_hidden = false
+	dir.include_navigational = false
+	dir.list_dir_begin()
+	var file_name := dir.get_next()
+	while file_name:
+		if dir.current_is_dir():
+			if descend:
+				_scan_maps_dir(dir_path.path_join(file_name), index, tag_to_param, false)
+		elif file_name.get_extension() == "import":
+			var map_basename := file_name.get_basename() # strips ".import"
+			var regex_match := _map_regex.search(map_basename)
+			if regex_match:
+				var tag := regex_match.get_string("tag")
+				if tag_to_param.has(tag):
+					var prefix := regex_match.get_string("prefix").to_lower()
+					var shell := regex_match.get_string("shell")
+					var shell_key: StringName = &"surface" if shell == "" else StringName(shell)
+					var by_shell: Dictionary = index.get_or_add(prefix, {})
+					var by_param: Dictionary = by_shell.get_or_add(shell_key, {})
+					by_param[tag_to_param[tag]] = dir_path.path_join(map_basename)
+		file_name = dir.get_next()
+
+
+func _warn_channel_texture(param: int, texture: Texture2D, map_path: String) -> void:
+	# Best-effort checks decipherable from the texture itself (no .import reading).
+	var image := texture.get_image()
+	if !image:
+		return
+	if param == BaseMaterial3D.TEXTURE_NORMAL and image.get_format() in _NORMAL_COLOR_FORMATS:
+		push_warning("Normal map '%s' has a color/sRGB format; import it as a Normal Map"
+				% map_path.get_file())
+	var width := image.get_width()
+	var height := image.get_height()
+	if height > 0 and width != 2 * height:
+		push_warning("Map '%s' is %sx%s; expected 2:1 equirectangular"
+				% [map_path.get_file(), width, height])
+
+
+func _deep_freeze_body_resources() -> void:
+	# make_read_only() freezes only the immediate container; recurse into the
+	# nested per-shell dicts (indices 7 and 8) so worker-thread reads are race-free.
+	for body_name in _body_resources:
+		var resources: Array = _body_resources[body_name]
+		for shell_dict_index: int in [7, 8]:
+			var by_shell: Dictionary = resources[shell_dict_index]
+			for shell: StringName in by_shell:
+				var inner: Dictionary = by_shell[shell]
+				inner.make_read_only()
+			by_shell.make_read_only()
+		resources.make_read_only()
+	_body_resources.make_read_only()
 
 
 func _load_rings_resources() -> void:

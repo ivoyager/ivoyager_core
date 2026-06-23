@@ -49,8 +49,7 @@ var _camera: Camera3D # only set if is_dynamic_star == true
 
 
 
-func _init(model_type: int, reference_basis: Basis, albedo_map: Texture2D,
-		emission_map: Texture2D, normal_map: Texture2D = null) -> void:
+func _init(model_type: int, reference_basis: Basis, surface_channels: Dictionary) -> void:
 	name = &"SpheroidModel"
 	_reference_basis = reference_basis
 	transform.basis = _reference_basis # z up, possibly oblate
@@ -58,14 +57,8 @@ func _init(model_type: int, reference_basis: Basis, albedo_map: Texture2D,
 	var surface := StandardMaterial3D.new()
 	set_surface_override_material(0, surface)
 	IVTableData.db_build_object(surface, &"models", model_type, MATERIAL_FIELDS)
-	if albedo_map:
-		surface.albedo_texture = albedo_map
-	if normal_map:
-		surface.normal_enabled = true
-		surface.normal_texture = normal_map
-	if emission_map:
-		surface.emission_enabled = true
-		surface.emission_texture = emission_map
+	IVAssetPreloader.apply_channels_to_material(surface, surface_channels)
+	if surface_channels.has(BaseMaterial3D.TEXTURE_EMISSION):
 		surface.emission_energy_multiplier = IVTableData.get_db_float(&"models",
 				&"emission_energy_multiplier", model_type)
 	if IVTableData.get_db_bool(&"models", &"is_star", model_type):
