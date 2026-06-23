@@ -50,7 +50,7 @@ var _camera: Camera3D # only set if is_dynamic_star == true
 
 
 func _init(model_type: int, reference_basis: Basis, albedo_map: Texture2D,
-		emission_map: Texture2D) -> void:
+		emission_map: Texture2D, normal_map: Texture2D = null) -> void:
 	name = &"SpheroidModel"
 	_reference_basis = reference_basis
 	transform.basis = _reference_basis # z up, possibly oblate
@@ -60,6 +60,9 @@ func _init(model_type: int, reference_basis: Basis, albedo_map: Texture2D,
 	IVTableData.db_build_object(surface, &"models", model_type, MATERIAL_FIELDS)
 	if albedo_map:
 		surface.albedo_texture = albedo_map
+	if normal_map:
+		surface.normal_enabled = true
+		surface.normal_texture = normal_map
 	if emission_map:
 		surface.emission_enabled = true
 		surface.emission_texture = emission_map

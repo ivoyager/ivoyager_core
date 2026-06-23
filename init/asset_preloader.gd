@@ -117,12 +117,16 @@ func get_body_emission_map(body_name: StringName) -> Texture2D:
 	return _body_resources[body_name][6]
 
 
-func get_body_map_offset(body_name: StringName) -> float:
+func get_body_normal_map(body_name: StringName) -> Texture2D:
 	return _body_resources[body_name][7]
 
 
-func get_body_disable_auto_visual_range(body_name: StringName) -> bool:
+func get_body_map_offset(body_name: StringName) -> float:
 	return _body_resources[body_name][8]
+
+
+func get_body_disable_auto_visual_range(body_name: StringName) -> bool:
+	return _body_resources[body_name][9]
 
 
 func get_rings_texture_arrays(rings_name: StringName) -> Array[Texture2DArray]:
@@ -223,6 +227,7 @@ func _load_body_resources() -> void:
 			
 			var albedo_map: Texture2D = null
 			var emission_map: Texture2D = null
+			var normal_map: Texture2D = null
 			var map_offset := 0.0
 			var albedo_path := IVFiles.find_resource_file(maps_search, file_prefix + ".albedo")
 			if albedo_path:
@@ -242,7 +247,14 @@ func _load_body_resources() -> void:
 							"emission and albedo must have equal map_offset in file_adjustments.tsv"
 							+ " (only one needs to be specified)")
 					map_offset = emission_offset
-			
+
+			# A normal map shares the albedo/emission equirectangular projection, so
+			# it inherits the same map_offset (applied as mesh rotation); no separate
+			# offset is read here.
+			var normal_path := IVFiles.find_resource_file(maps_search, file_prefix + ".normal")
+			if normal_path:
+				normal_map = load(normal_path)
+
 			if !albedo_map and !emission_map:
 				albedo_map = fallback_albedo_map
 			
@@ -254,6 +266,7 @@ func _load_body_resources() -> void:
 				model_scale,
 				albedo_map,
 				emission_map,
+				normal_map,
 				map_offset,
 				disable_auto_visual_range,
 			]
