@@ -17,6 +17,7 @@ Under development using Godot 4.7.
 
 
 ### Added
+* Editor 2D image capture tool (Project/Tools menu) for generating missing 256 PNG alpha flat images in ivoyager_assets/bodies_2d/ for existing models and spheroid maps.
 * Patched conics via new [IVTrajectory](https://github.com/ivoyager/ivoyager_core/blob/master/tree_components/trajectory.gd). Allows construction of complex flight paths with planet flybys. It's essentially a scheduler that specifies a series of IVOrbit instances and parent bodies. Can be defined in data tables or built by code in running game. Demonstrated with additions: Voyager 1 & 2, Pioneer 10, and New Horizons.
 * IVBody signal `sleep_changed(is_sleeping: bool)`.
 * IVSleepManager `hide_on_sleep` setting. Set false to prevent IVSleepManager from toggling `IVBody.visible`.
@@ -40,6 +41,7 @@ Under development using Godot 4.7.
 * IVSelectionManager "body" functions return Object rather than IVBody.
 
 ### Fixed
+* [#11](https://github.com/ivoyager/ivoyager_core/issues/12) Mouse-over target identification now requires body to have minimum visual separation from parent (same logic that show/hides visual HUD element).
 * [#7](https://github.com/ivoyager/ivoyager_core/issues/7) Moon positions diverged from ephemeris (e.g., Earth's Moon ~120° ahead at 2026-01-01). IVTableOrbitBuilder misinterpreted two values from the JPL satellite mean elements source data: table `mean_motion` is the sidereal rate (dL/dt), not the mean anomaly rate; and `apsidal_period` (JPL "Pw") is the cycle period of the argument of periapsis ω measured from the moving node, not of the longitude of periapsis ϖ. Together these made mean longitude drift ahead by 360°/Pw per year (~60°/year for Earth's Moon).
 * IVTableOrbitBuilder shifted Ω₀ and ω₀ in the wrong direction when converting orbit elements from a non-J2000 table epoch (`epoch_jd`) to internal J2000 epoch (affected Mars, Jupiter, Saturn & Uranus moons with 1950/1997 epochs).
 * Orbit reference basis for EQUATORIAL and LAPLACE reference planes now has x-axis at the ascending node of the reference plane on the ICRF equator, matching the JPL convention for the longitude of the ascending node ("measured from the node of the reference plane on the ICRF equator"). Was the direction nearest the vernal equinox, causing static in-plane offsets (e.g., ~40° for Phobos/Deimos, ~126° for Titan, ~174° for Charon).

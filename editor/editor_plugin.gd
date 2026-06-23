@@ -38,6 +38,8 @@ extends EditorPlugin
 
 ## Plugin names that must be enabled before [code]ivoyager_core[/code].
 const REQUIRED_PLUGINS: Array[String] = ["ivoyager_units", "ivoyager_tables"]
+## Project > Tools menu entry that opens [IVBody2DCaptureDialog].
+const ICON_TOOL_MENU_ITEM := "Capture Body 2D Icons…"
 
 var _config: ConfigFile # with overrides
 var _autoloads: Dictionary[String, String] = {}
@@ -63,12 +65,14 @@ func _enter_tree() -> void:
 	_add_autoloads()
 	_add_shader_globals()
 	_handle_assets_update()
+	add_tool_menu_item(ICON_TOOL_MENU_ITEM, _open_body_2d_capture_dialog)
 
 
 func _exit_tree() -> void:
 	# We don't remove shader globals here because it causes errors on startup
 	# when they are used by external projects.
 	print("Removing I, Voyager - Core (plugin)")
+	remove_tool_menu_item(ICON_TOOL_MENU_ITEM)
 	_config = null
 	_remove_autoloads()
 
@@ -189,3 +193,27 @@ func _init_assets_loader(assets_dialog: IVAssetsDialog) -> void:
 	assets_loader.progress_changed.connect(assets_dialog.update_progress)
 	assets_loader.finished_or_failed.connect(assets_dialog.queue_free)
 	add_child(assets_loader)
+
+
+func _open_body_2d_capture_dialog() -> void:
+	var dialog: IVBody2DCaptureDialog = preload("body_2d_capture_dialog.tscn").instantiate()
+	dialog.captures_ready.connect(_write_and_import_body_icons)
+	EditorInterface.popup_dialog_centered(dialog)
+
+
+func _write_and_import_body_icons(captured: Dictionary) -> void:
+	if captured.is_empty():
+		return
+	# Let the dialog and its 3D SubViewport finish freeing before we write/import:
+	# importing a texture while a custom SubViewport renders corrupts the editor's
+	# GPU/preview state for the session (broken thumbnail, crash on click/Reimport).
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var paths := PackedStringArray()
+	for prefix: String in captured:
+		var image: Image = captured[prefix]
+		var path := IVBody2DIconSaver.save_image(prefix, image)
+		if !path.is_empty():
+			paths.append(path)
+	IVBody2DIconSaver.reimport(paths)
+	print("Captured %d body 2D icon(s): %s" % [paths.size(), ", ".join(paths)])
