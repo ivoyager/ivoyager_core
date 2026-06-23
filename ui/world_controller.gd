@@ -134,50 +134,50 @@ func _gui_input(input_event: InputEvent) -> void:
 				_drag_segment_start = Vector2.ZERO
 
 
-
-## Potential mouse targets must call this every frame to be available for
-## mouse-over identification and selection. Return value is distance from
-## target to the camera.
-func update_world_target(node3d: Node3D, radius: float) -> float:
+## Returns 0.0 if there is no camera, (+) camera distance if [param node3d] is
+## in front of camera, or (-) camera distance if behind.
+func get_camera_distance_signed(node3d: Node3D) -> float:
 	if !camera:
 		return 0.0
 	var node3d_global_position := node3d.global_position
 	var camera_dist := node3d_global_position.distance_to(camera.global_position)
+	return -camera_dist if camera.is_position_behind(node3d_global_position) else camera_dist
+
+
+## Potential mouse targets must call this every frame to be available for
+## mouse-over identification and selection.
+func update_world_target(node3d: Node3D, camera_dist: float, radius: float) -> void:
+	if !camera:
+		return
 	var is_in_mouse_click_radius := false
-	if !camera.is_position_behind(node3d_global_position):
-		var pos2d := camera.unproject_position(node3d_global_position)
-		var mouse_dist := pos2d.distance_to(mouse_position)
-		var click_radius := min_click_radius
-		var divisor := camera.fov * camera_dist
-		if divisor > 0.0:
-			var screen_radius := 55.0 * radius * veiwport_height / divisor
-			if click_radius < screen_radius:
-				click_radius = screen_radius
-		if mouse_dist < click_radius:
-			is_in_mouse_click_radius = true
-	
-	# set/unset this node3d as mouse target
+	var pos2d := camera.unproject_position(node3d.global_position)
+	var mouse_dist := pos2d.distance_to(mouse_position)
+	var click_radius := min_click_radius
+	var divisor := camera.fov * camera_dist
+	if divisor > 0.0:
+		var screen_radius := 55.0 * radius * veiwport_height / divisor
+		if click_radius < screen_radius:
+			click_radius = screen_radius
+	if mouse_dist < click_radius:
+		is_in_mouse_click_radius = true
 	if is_in_mouse_click_radius:
-		if node3d != current_target:
-			if camera_dist < _current_target_dist: # make node3d the mouse target
-				current_target = node3d
-				_current_target_dist = camera_dist
-				mouse_target_changed.emit(node3d)
-		else:
+		if node3d == current_target:
 			_current_target_dist = camera_dist
+		elif camera_dist < _current_target_dist: # set node3d as mouse target
+			current_target = node3d
+			_current_target_dist = camera_dist
+			mouse_target_changed.emit(node3d)
 	elif node3d == current_target: # remove node3d as mouse target
 		current_target = null
 		_current_target_dist = INF
 		mouse_target_changed.emit(null)
-	
-	return camera_dist
 
 
 func remove_world_target(node3d: Node3D) -> void:
 	if node3d == current_target:
 		current_target = null
 		_current_target_dist = INF
-
+		mouse_target_changed.emit(null)
 
 
 func _restore_init_state() -> void:

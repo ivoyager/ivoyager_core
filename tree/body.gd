@@ -555,19 +555,23 @@ func _process(delta: float) -> void:
 			if _trajectory.end_remove and trajectory_orbit == _trajectory.orbits[-1]:
 				_trajectory = null
 			set_orbit_and_parent(trajectory_orbit, new_parent)
-
+	
 	if _orbit:
 		position = _orbit.update(time)
 	
-	var camera_dist := _world_controller.update_world_target(self, mean_radius)
+	# Mouse-over target
+	var camera_dist_signed := _world_controller.get_camera_distance_signed(self)
+	var camera_dist := absf(camera_dist_signed)
+	var visually_separate := true
+	if !_trajectory or _trajectory.get_lca() == parent:
+		visually_separate = camera_dist < position.length() * min_visual_separation_multiplier
+	if visually_separate and camera_dist_signed > 0.0:
+		_world_controller.update_world_target(self, camera_dist, mean_radius)
+	else:
+		_world_controller.remove_world_target(self)
 	
 	# set HUDs visibility
-	var show_huds := camera_dist > _min_hud_dist # Is camera far enough?
-	if show_huds and _orbit:
-		# Is body far enough from its parent? Skip check if we are on a trajectory flyby.
-		if !_trajectory or _trajectory.get_lca() == parent:
-			var visual_separation := position.length()
-			show_huds = visual_separation * min_visual_separation_multiplier > camera_dist
+	var show_huds := visually_separate and camera_dist > _min_hud_dist
 	if huds_visible != show_huds:
 		huds_visible = show_huds
 		huds_visibility_changed.emit(show_huds)
