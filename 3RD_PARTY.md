@@ -137,6 +137,19 @@ Subdirectory `/2d_bodies/` contains derived images (flat projections of wrapped 
 - **License:** Public Domain; see [NASA Images and Media Usage Guidelines](https://www.nasa.gov/nasa-brand-center/images-and-media/).
 
 
+### I, Voyager body models
+
+Unlike the NASA models listed above, the 3D body models in this section are original works created by Charlie Whitfield for I, Voyager. They are not third-party works; they are covered by the I, Voyager license ([Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0)). They are listed here only to attribute the public-domain source data from which they were derived, and the corresponding NASA albedo maps (listed above) used for their surface textures. The source data is NASA mission data in the public domain, governed by the [NASA Images and Media Usage Guidelines](https://www.nasa.gov/nasa-brand-center/images-and-media/).
+
+- `/models/ceres/*` — derived from the Dawn Framing Camera HAMO global Digital Terrain Model (Preusker et al., 2016; NASA/JPL-Caltech/UCLA/MPS/DLR/IDA).
+- `/models/charon/*` — derived from the New Horizons LORRI/MVIC global Digital Elevation Model (Schenk et al., 2018; NASA/Johns Hopkins APL/SwRI).
+- `/models/iapetus/*` — an idealized figure based on the published triaxial radii of Thomas et al. (2007); no global Iapetus elevation model is publicly available.
+- `/models/phoebe/*` — derived from the Gaskell stereophotoclinometry shape model (R. Gaskell, Cassini ISS; PDS Small Bodies Node dataset CO-SA-ISSNA-5-PHOEBESHAPE-V2.0).
+
+- **Copyright:** Models © Charlie Whitfield; underlying source data Public Domain.
+- **License:** [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) (models); Public Domain (source data).
+
+
 ### Blue noise by Christoph Peters
 
 File downloaded from https://momentsingraphics.de/BlueNoise.html.
