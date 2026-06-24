@@ -109,8 +109,8 @@ var texture_channels: Dictionary[int, StringName] = {
 ## named groups [code]prefix[/code] and [code]tag[/code] (optionally [code]shell[/code]).
 ## You own its correctness; it is validated at load and ignored if invalid.
 var map_filename_regex_override := ""
-## Highest [code]mesh<N>[/code] body-table column scanned for an extra render shell
-## ([code]mesh0[/code] is the base surface). Raise if a body needs more concentric
+## Highest [code]shell<N>[/code] body-table column scanned for an extra render shell
+## ([code]shell0[/code] is the base surface). Raise if a body needs more concentric
 ## shells. Set before [signal IVStateManager.core_initialized].
 var max_shells := 4
 
@@ -135,6 +135,16 @@ static func apply_channels_to_material(material: BaseMaterial3D, channels: Dicti
 		if _CHANNEL_FEATURES.has(param):
 			var feature: int = _CHANNEL_FEATURES[param]
 			material.set_feature(feature, true)
+
+
+## Feeds each texture in [param channels] to [param material] as a shader uniform
+## named by its [member texture_channels] tag (e.g. [code]&"albedo"[/code],
+## [code]&"normal"[/code]). Used for shells that specify a [code]shell<N>_shader[/code].
+func apply_channels_to_shader_material(material: ShaderMaterial, channels: Dictionary) -> void:
+	for param: int in channels:
+		var texture: Texture2D = channels[param]
+		if texture and texture_channels.has(param):
+			material.set_shader_parameter(texture_channels[param], texture)
 
 
 func _init() -> void:
@@ -178,16 +188,13 @@ func get_body_map_offset(body_name: StringName) -> float:
 	return _body_resources[body_name][6]
 
 
-## Returns [code]{shell_name: {TextureParam: Texture2D}}[/code] for one body;
-## always includes key [code]&"surface"[/code] (the base spheroid model).
-func get_body_shell_channels(body_name: StringName) -> Dictionary:
+## Returns an ordered [Array] of shell specs for one body: element 0 is the base
+## surface; elements 1..N are extra render shells declared via [code]shell<N>[/code]
+## columns. Each spec is a Dictionary with keys [code]name, channels, process,
+## shader, overrides[/code] (plus [code]scale, opacity[/code] for shells 1..N).
+## Consumed by [IVSpheroidModel].
+func get_body_shell_specs(body_name: StringName) -> Array:
 	return _body_resources[body_name][7]
-
-
-## Returns [code]{shell_name: {&"height": float}}[/code] for the body's extra
-## render shells declared via [code]mesh<N>[/code] columns; empty if it has none.
-func get_body_shell_params(body_name: StringName) -> Dictionary:
-	return _body_resources[body_name][8]
 
 
 func get_rings_texture_arrays(rings_name: StringName) -> Array[Texture2DArray]:
@@ -237,6 +244,22 @@ func _load_starmap() -> void:
 		path = asset_paths[fallback_starmap]
 	assert(ResourceLoader.exists(path))
 	_starmap = load(path)
+
+
+## Reads body-table [code]shell<N>_<field>[/code] overrides for each material field
+## in [member IVSpheroidModel.material_fields], returned keyed by the bare field
+## name (prefix stripped). Empty if the table has no such columns.
+func _read_shell_overrides(table: StringName, row: int, shell_index: int) -> Dictionary:
+	var prefix := "shell%d_" % shell_index
+	var prefixed_fields: Array[StringName] = []
+	for material_field in IVSpheroidModel.material_fields:
+		prefixed_fields.append(StringName(prefix + material_field))
+	var prefixed: Dictionary = {}
+	IVTableData.db_build_dictionary(prefixed, table, row, prefixed_fields)
+	var overrides: Dictionary = {}
+	for key: StringName in prefixed:
+		overrides[StringName(String(key).trim_prefix(prefix))] = prefixed[key]
+	return overrides
 
 
 func _load_body_resources() -> void:
@@ -333,25 +356,38 @@ func _load_body_resources() -> void:
 			if not has_surface_color:
 				surface_channels[BaseMaterial3D.TEXTURE_ALBEDO] = fallback_albedo_map
 
-			# Extra render shells declared by mesh<N> columns; the value is the shell
-			# name, which is also the file token routing textures to it.
-			var shell_params: Dictionary = {}
-			for mesh_index in range(1, max_shells + 1):
-				var mesh_field := StringName("mesh%d" % mesh_index)
-				if not IVTableData.db_has_value(table, mesh_field, row):
+			# Ordered shell specs: [0] is the always-present surface; [1..N] are extra
+			# render shells declared by shell<N> columns (the value is the shell name,
+			# also the file token routing textures to it). The model interprets each
+			# spec into a Material and an optional per-frame process Callable.
+			var shell_specs: Array = [{
+				&"name": &"surface",
+				&"channels": surface_channels,
+				&"process": IVTableData.get_db_array(table, &"shell0_process", row),
+				&"shader": IVTableData.get_db_string_name(table, &"shell0_shader", row),
+				&"overrides": _read_shell_overrides(table, row, 0),
+			}]
+			for shell_index in range(1, max_shells + 1):
+				var shell_field := StringName("shell%d" % shell_index)
+				if not IVTableData.db_has_value(table, shell_field, row):
 					continue
-				var shell_name := IVTableData.get_db_string_name(table, mesh_field, row)
-				var params: Dictionary = {}
-				var height_field := StringName("mesh%d_height" % mesh_index)
-				if IVTableData.db_has_value(table, height_field, row):
-					params[&"height"] = IVTableData.get_db_float(table, height_field, row)
-				var rim_field := StringName("mesh%d_rim" % mesh_index)
-				if IVTableData.db_has_value(table, rim_field, row):
-					params[&"rim"] = IVTableData.get_db_float(table, rim_field, row)
-				var opacity_field := StringName("mesh%d_opacity" % mesh_index)
+				var shell_name := IVTableData.get_db_string_name(table, shell_field, row)
+				var spec: Dictionary = {
+					&"name": shell_name,
+					&"channels": shell_channels.get(shell_name, {}),
+					&"process": IVTableData.get_db_array(table,
+							StringName("shell%d_process" % shell_index), row),
+					&"shader": IVTableData.get_db_string_name(table,
+							StringName("shell%d_shader" % shell_index), row),
+					&"overrides": _read_shell_overrides(table, row, shell_index),
+				}
+				var scale_field := StringName("shell%d_scale" % shell_index)
+				if IVTableData.db_has_value(table, scale_field, row):
+					spec[&"scale"] = IVTableData.get_db_float(table, scale_field, row)
+				var opacity_field := StringName("shell%d_opacity" % shell_index)
 				if IVTableData.db_has_value(table, opacity_field, row):
-					params[&"opacity"] = IVTableData.get_db_float(table, opacity_field, row)
-				shell_params[shell_name] = params
+					spec[&"opacity"] = IVTableData.get_db_float(table, opacity_field, row)
+				shell_specs.append(spec)
 
 			var resources := [
 				texture_2d,
@@ -361,8 +397,7 @@ func _load_body_resources() -> void:
 				model_scale,
 				disable_auto_visual_range,
 				map_offset,
-				shell_channels,
-				shell_params,
+				shell_specs,
 			]
 
 			_body_resources[body_name] = resources
@@ -462,15 +497,19 @@ func _warn_channel_texture(param: int, texture: Texture2D, map_path: String) -> 
 
 func _deep_freeze_body_resources() -> void:
 	# make_read_only() freezes only the immediate container; recurse into the
-	# nested per-shell dicts (indices 7 and 8) so worker-thread reads are race-free.
+	# ordered shell specs (index 7) and their nested channel dicts so worker-thread
+	# reads are race-free. (Each spec's "process" array is already frozen by the
+	# table postprocessor, or is an empty literal.)
 	for body_name in _body_resources:
 		var resources: Array = _body_resources[body_name]
-		for shell_dict_index: int in [7, 8]:
-			var by_shell: Dictionary = resources[shell_dict_index]
-			for shell: StringName in by_shell:
-				var inner: Dictionary = by_shell[shell]
-				inner.make_read_only()
-			by_shell.make_read_only()
+		var shell_specs: Array = resources[7]
+		for spec: Dictionary in shell_specs:
+			var channels: Dictionary = spec[&"channels"]
+			channels.make_read_only()
+			var overrides: Dictionary = spec[&"overrides"]
+			overrides.make_read_only()
+			spec.make_read_only()
+		shell_specs.make_read_only()
 		resources.make_read_only()
 	_body_resources.make_read_only()
 

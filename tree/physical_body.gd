@@ -20,7 +20,7 @@
 class_name IVPhysicalBody
 extends Node3D
 
-## Provides a model reference frame and instantiates a body's model. 
+## Provides a model reference frame and instantiates a body's model.
 ##
 ## This node is oriented and rotated by [IVBody], but is not scaled.[br][br]
 ##
@@ -28,7 +28,7 @@ extends Node3D
 ## [IVBody] only if/when needed and remains through the current user session.
 ## (Lazy init is applicable if [IVLazyModelInitializer] is present and [IVBody]
 ## has [enum IVBody.BodyFlags].BODYFLAGS_LAZY_MODEL.)[br][br]
-## 
+##
 ## Children can be added that share the model's axial tilt and rotation.
 ## In base Solar System setup, [IVBodyFinisher] adds [IVRings] for Saturn.[br][br]
 ##
@@ -42,7 +42,7 @@ extends Node3D
 var reference_basis: Basis
 ## Optional Script used in place of [IVSpheroidModel] when no PackedScene model
 ## is present. Must extend [IVSpheroidModel] and share its
-## [code]_init(model_type, reference_basis, surface_channels)[/code] signature.
+## [code]_init(body_name, model_type, mean_radius, model_basis, shell)[/code] signature.
 var replacement_spheroid_model_class: Script
 
 
@@ -100,62 +100,19 @@ func _build_packed_model(asset_preloader: IVAssetPreloader, packed_model: Packed
 
 
 func _build_spheroid_model(asset_preloader: IVAssetPreloader) -> void:
+	# Compute the oblate, map-offset, z-up reference basis; the model self-builds
+	# its surface, child shells, visibility ranges and layers from there.
 	const RIGHT_ANGLE := PI / 2
-	var polar_radius: = 3.0 * _m_radius - 2.0 * _e_radius
+	var polar_radius := 3.0 * _m_radius - 2.0 * _e_radius
 	reference_basis = Basis().scaled(Vector3(_e_radius, polar_radius, _e_radius))
 	var map_offset := asset_preloader.get_body_map_offset(_body_name)
 	reference_basis = reference_basis.rotated(Vector3(0.0, 1.0, 0.0), -RIGHT_ANGLE - map_offset)
 	reference_basis = reference_basis.rotated(Vector3(1.0, 0.0, 0.0), RIGHT_ANGLE) # z-up!
-	var shell_channels := asset_preloader.get_body_shell_channels(_body_name)
-	var surface_channels: Dictionary = shell_channels.get(&"surface", {})
 	if replacement_spheroid_model_class:
 		@warning_ignore("unsafe_method_access")
-		_model = replacement_spheroid_model_class.new(_model_type, reference_basis, surface_channels)
+		_model = replacement_spheroid_model_class.new(_body_name, _model_type, _m_radius, reference_basis)
 	else:
-		_model = IVSpheroidModel.new(_model_type, reference_basis, surface_channels)
-	_build_shells(asset_preloader, shell_channels)
-	_set_visibility_ranges()
-	_set_layers()
-
-
-func _build_shells(asset_preloader: IVAssetPreloader, shell_channels: Dictionary) -> void:
-	# Each extra shell (cloud deck, atmosphere overlay) is a translucent child of the
-	# base model, reusing the shared sphere mesh at a larger radius so it inherits the
-	# body's oblateness, orientation and spin. Added before the visibility/layer
-	# recursion in [method _build_spheroid_model] so those settings propagate to it.
-	var shell_params := asset_preloader.get_body_shell_params(_body_name)
-	for shell_name: StringName in shell_params:
-		var channels: Dictionary = shell_channels.get(shell_name, {})
-		if channels.is_empty():
-			push_warning("Body %s shell '%s' has no textures; skipping" % [_body_name, shell_name])
-			continue
-		var params: Dictionary = shell_params[shell_name]
-		var height: float = params.get(&"height", NAN)
-		if is_nan(height):
-			push_warning("Body %s shell '%s' has no height; skipping" % [_body_name, shell_name])
-			continue
-		var shell := MeshInstance3D.new()
-		shell.name = StringName("Shell_" + shell_name)
-		shell.mesh = IVGlobal.resources[&"sphere_mesh"]
-		shell.transform.basis = Basis().scaled(Vector3.ONE * (1.0 + height))
-		shell.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		var material := StandardMaterial3D.new()
-		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		var rim: float = params.get(&"rim", 0.0)
-		if rim > 0.0:
-			# Limb-brighten the haze: rim adds a Fresnel-style glow at grazing angles
-			# (the silhouette edge), tinted toward the haze color.
-			material.rim_enabled = true
-			material.rim = rim
-			material.rim_tint = 0.6
-		# Optional per-shell opacity scales the texture's alpha. Unset (NAN) leaves
-		# the texture's own alpha untouched.
-		var opacity: float = params.get(&"opacity", NAN)
-		if not is_nan(opacity):
-			material.albedo_color.a = opacity
-		IVAssetPreloader.apply_channels_to_material(material, channels)
-		shell.set_surface_override_material(0, material)
-		_model.add_child(shell)
+		_model = IVSpheroidModel.new(_body_name, _model_type, _m_radius, reference_basis)
 
 
 func _build_fallback_nonspheroid_model(asset_preloader: IVAssetPreloader) -> void:
@@ -165,6 +122,9 @@ func _build_fallback_nonspheroid_model(asset_preloader: IVAssetPreloader) -> voi
 	_build_spheroid_model(asset_preloader)
 
 
+# Packed-scene models are foreign node trees, so [IVPhysicalBody] still recurses
+# to set their visibility ranges and layers. Spheroid models self-configure (see
+# [IVSpheroidModel]).
 func _set_visibility_ranges() -> void:
 	if IVTableData.get_db_bool(&"models", &"inf_visibility", _model_type):
 		return # default 0.0 is no distance cull
