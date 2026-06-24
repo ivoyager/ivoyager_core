@@ -31,25 +31,6 @@ extends RefCounted
 ## bundle, [IVBody] and [code]rings.shader[/code].
 const RINGS_LOD_LEVELS := 9 # must agree w/ assets, body.gd and rings.shader
 
-# StandardMaterial3D channel -> the "feature" that must be enabled for it to
-# render (channels absent here are always active). Lets
-# [method apply_channels_to_material] enable any registered channel generically.
-const _CHANNEL_FEATURES := {
-	BaseMaterial3D.TEXTURE_EMISSION: BaseMaterial3D.FEATURE_EMISSION,
-	BaseMaterial3D.TEXTURE_NORMAL: BaseMaterial3D.FEATURE_NORMAL_MAPPING,
-	BaseMaterial3D.TEXTURE_BENT_NORMAL: BaseMaterial3D.FEATURE_BENT_NORMAL_MAPPING,
-	BaseMaterial3D.TEXTURE_RIM: BaseMaterial3D.FEATURE_RIM,
-	BaseMaterial3D.TEXTURE_CLEARCOAT: BaseMaterial3D.FEATURE_CLEARCOAT,
-	BaseMaterial3D.TEXTURE_FLOWMAP: BaseMaterial3D.FEATURE_ANISOTROPY,
-	BaseMaterial3D.TEXTURE_AMBIENT_OCCLUSION: BaseMaterial3D.FEATURE_AMBIENT_OCCLUSION,
-	BaseMaterial3D.TEXTURE_HEIGHTMAP: BaseMaterial3D.FEATURE_HEIGHT_MAPPING,
-	BaseMaterial3D.TEXTURE_SUBSURFACE_SCATTERING: BaseMaterial3D.FEATURE_SUBSURFACE_SCATTERING,
-	BaseMaterial3D.TEXTURE_SUBSURFACE_TRANSMITTANCE: BaseMaterial3D.FEATURE_SUBSURFACE_TRANSMITTANCE,
-	BaseMaterial3D.TEXTURE_BACKLIGHT: BaseMaterial3D.FEATURE_BACKLIGHT,
-	BaseMaterial3D.TEXTURE_REFRACTION: BaseMaterial3D.FEATURE_REFRACTION,
-	BaseMaterial3D.TEXTURE_DETAIL_ALBEDO: BaseMaterial3D.FEATURE_DETAIL,
-}
-
 # VRAM color formats a normal map must never have (would mean it was imported as
 # sRGB color, not as a Normal Map). Load-time push_warning only.
 const _NORMAL_COLOR_FORMATS := [
@@ -99,7 +80,7 @@ var fallback_starmap := &"starmap_8k" # starmap_16k possibly removed for size re
 ## before [signal IVStateManager.core_initialized] to ingest more channels; each
 ## tag must match [code][A-Za-z0-9_]+[/code]. A discovered file
 ## [code]<file_prefix>[.<shell>].<tag>.*[/code] is applied to the body's (or a
-## shell's) material by [method apply_channels_to_material].
+## shell's) material by [IVSpheroidModel].
 var texture_channels: Dictionary[int, StringName] = {
 	BaseMaterial3D.TEXTURE_ALBEDO: &"albedo",
 	BaseMaterial3D.TEXTURE_EMISSION: &"emission",
@@ -120,31 +101,6 @@ var _starmap: Texture2D
 var _body_resources: Dictionary[StringName, Array] = {}
 var _rings_resources: Dictionary[String, Array] = {}
 var _map_regex := RegEx.new()
-
-
-## Applies each texture in [param channels] ([code]{TextureParam: Texture2D}[/code])
-## to [param material], enabling the matching material feature where one is
-## required (see [constant _CHANNEL_FEATURES]). Shared by the base spheroid model
-## and every render shell.
-static func apply_channels_to_material(material: BaseMaterial3D, channels: Dictionary) -> void:
-	for param: int in channels:
-		var texture: Texture2D = channels[param]
-		if !texture:
-			continue
-		material.set_texture(param, texture)
-		if _CHANNEL_FEATURES.has(param):
-			var feature: int = _CHANNEL_FEATURES[param]
-			material.set_feature(feature, true)
-
-
-## Feeds each texture in [param channels] to [param material] as a shader uniform
-## named by its [member texture_channels] tag (e.g. [code]&"albedo"[/code],
-## [code]&"normal"[/code]). Used for shells that specify a [code]shell<N>_shader[/code].
-func apply_channels_to_shader_material(material: ShaderMaterial, channels: Dictionary) -> void:
-	for param: int in channels:
-		var texture: Texture2D = channels[param]
-		if texture and texture_channels.has(param):
-			material.set_shader_parameter(texture_channels[param], texture)
 
 
 func _init() -> void:
@@ -189,10 +145,10 @@ func get_body_map_offset(body_name: StringName) -> float:
 
 
 ## Returns an ordered [Array] of shell specs for one body: element 0 is the base
-## surface; elements 1..N are extra render shells declared via [code]shell<N>[/code]
-## columns. Each spec is a Dictionary with keys [code]name, channels, process,
-## shader, overrides[/code] (plus [code]scale, opacity[/code] for shells 1..N).
-## Consumed by [IVSpheroidModel].
+## surface; elements 1..N are extra render shells, each anchored by a
+## [code]shell<N>_scale[/code] column. Each spec is a
+## Dictionary with keys [code]file_tag, channels, scale, process, shader,
+## overrides[/code]. Consumed by [IVSpheroidModel].
 func get_body_shell_specs(body_name: StringName) -> Array:
 	return _body_resources[body_name][7]
 
@@ -357,37 +313,32 @@ func _load_body_resources() -> void:
 				surface_channels[BaseMaterial3D.TEXTURE_ALBEDO] = fallback_albedo_map
 
 			# Ordered shell specs: [0] is the always-present surface; [1..N] are extra
-			# render shells declared by shell<N> columns (the value is the shell name,
-			# also the file token routing textures to it). The model interprets each
-			# spec into a Material and an optional per-frame process Callable.
+			# render shells, each defined by a shell<N>_scale (radius). Other shell<N>_*
+			# columns are optional: file_tag (texture token), albedo_color & other
+			# material_fields, shader, process. The model interprets each spec.
 			var shell_specs: Array = [{
-				&"name": &"surface",
+				&"file_tag": &"surface",
 				&"channels": surface_channels,
 				&"process": IVTableData.get_db_array(table, &"shell0_process", row),
 				&"shader": IVTableData.get_db_string_name(table, &"shell0_shader", row),
 				&"overrides": _read_shell_overrides(table, row, 0),
 			}]
 			for shell_index in range(1, max_shells + 1):
-				var shell_field := StringName("shell%d" % shell_index)
-				if not IVTableData.db_has_value(table, shell_field, row):
-					continue
-				var shell_name := IVTableData.get_db_string_name(table, shell_field, row)
-				var spec: Dictionary = {
-					&"name": shell_name,
-					&"channels": shell_channels.get(shell_name, {}),
+				var scale_field := StringName("shell%d_scale" % shell_index)
+				if not IVTableData.db_has_value(table, scale_field, row):
+					continue # shell<N>_scale (radius) anchors an overlay shell's existence
+				var file_tag := IVTableData.get_db_string_name(table,
+						StringName("shell%d_file_tag" % shell_index), row) # &"" if textureless
+				shell_specs.append({
+					&"file_tag": file_tag,
+					&"channels": shell_channels.get(file_tag, {}),
+					&"scale": IVTableData.get_db_float(table, scale_field, row),
 					&"process": IVTableData.get_db_array(table,
 							StringName("shell%d_process" % shell_index), row),
 					&"shader": IVTableData.get_db_string_name(table,
 							StringName("shell%d_shader" % shell_index), row),
 					&"overrides": _read_shell_overrides(table, row, shell_index),
-				}
-				var scale_field := StringName("shell%d_scale" % shell_index)
-				if IVTableData.db_has_value(table, scale_field, row):
-					spec[&"scale"] = IVTableData.get_db_float(table, scale_field, row)
-				var opacity_field := StringName("shell%d_opacity" % shell_index)
-				if IVTableData.db_has_value(table, opacity_field, row):
-					spec[&"opacity"] = IVTableData.get_db_float(table, opacity_field, row)
-				shell_specs.append(spec)
+				})
 
 			var resources := [
 				texture_2d,

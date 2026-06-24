@@ -1,182 +1,182 @@
-	moon	use_cardinal_directions	planetary_mass_object	planetary_mass_moon	non_planetary_mass_moon	show_in_nav_panel	lazy_model	sleep	file_prefix	shell1	shell1_scale	shell1_opacity	en.wikipedia	symbol	parent	orbit	body_class	model_type	hydrostatic_equilibrium	mean_radius	gravitational_parameter	mass	mean_density	surf_grav	esc_vel	albedo	tidally_locked	axis_locked	tumbles_chaotically	rotation_period	right_ascension	declination	surf_t	min_t	max_t	atmosphere	trace_atmosphere	surf_pres	trace_pres	trace_pres_low	trace_pres_high	one_bar_t	half_bar_t	tenth_bar_t	atmosphere_composition	trace_atmosphere_composition
-Type	BOOL	BOOL	BOOL	BOOL	BOOL	BOOL	BOOL	BOOL	STRING	STRING	FLOAT	FLOAT	STRING	STRING	STRING_NAME	TABLE_ROW	TABLE_ROW	TABLE_ROW	IVGlobal.Confidence	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	BOOL	BOOL	BOOL	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	BOOL	BOOL	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	STRING	STRING
-Default	TRUE	TRUE			TRUE			TRUE						\u25CC			NATURAL_SATELLITE	SMALL_C_BODY	NO	0			0			0																				
-Unit																				km	km^3/s^2	kg	g/cm^3	m/s^2	m/s					d	deg	deg	K	K	K			Pa	Pa	Pa	Pa	K	K	K		
-Prefix/MOON_															PLANET_	ORBIT_	BODY_CLASS_	MODEL_	CONFIDENCE_																											
-MOON			x	x	FALSE	x			Moon				Moon	\u263E	EARTH	MOON_MOON		ROCKY_WORLD	YES	1737.4	4904.8695	7.346e22	3.344	1.622	2380	0.136	x				270	66.54	250	100	390		x			1e-10	1e-7					Helium, Argon, Neon, Sodium, Potassium, Hydrogen, Radon
-PHOBOS						x			Phobos				Phobos_(moon)	I	MARS	MOON_PHOBOS				11.08	7.161e-4	1.060e16	1.861	0.0057	11.39	0.071	x	x					233													
-DEIMOS						x			Deimos				Deimos_(moon)	II	MARS	MOON_DEIMOS				6.27	9.464e-5	1.51e15	1.465	0.003	5.556	0.068	x	x					233													
-METIS									Metis				Metis_(moon)	XVI	JUPITER	MOON_METIS				21.5	0.0024	~3.6e16	~1.5			0.061	x	x																		
-ADRASTEA									Adrastea				Adrastea_(moon)	XV	JUPITER	MOON_ADRASTEA				8.2	0.0010	~1.9e16				0.10	x	x																		
-AMALTHEA									Amalthea				Amalthea_(moon)	V	JUPITER	MOON_AMALTHEA				83.5	0.141	2.1e18	0.86			0.09	x	x																		
-THEBE									Thebe				Thebe_(moon)	XIV	JUPITER	MOON_THEBE				49.3	0.013	~4.3e17	~0.86			0.047	x	x																		
-IO			x	x	FALSE	x			Io				Io_(moon)	I	JUPITER	MOON_IO		VOLCANO_WORLD	YES	1821.6	5959.916	8.931938e22	3.528	1.796500844	2558.3174910781	0.63	x	x					110	90	130		x			5e-4	4e-3					90% Sulfur Dioxide
-EUROPA			x	x	FALSE	x			Europa				Europa_(moon)	II	JUPITER	MOON_EUROPA		ICE_WORLD	YES	1560.8	3202.739	4.79984e22	3.013	1.314	2025	0.67	x	x					102	50	125		x		1e-7							
-GANYMEDE			x	x	FALSE	x			Ganymede				Ganymede_(moon)	III	JUPITER	MOON_GANYMEDE		ROCKY_WORLD	YES	2634.1	9887.834	1.4819e23	1.936	1.428	2741	0.43	x	x					110	70	152		x			2e-7	1.2e-6					Oxygen
-CALLISTO			x	x	FALSE	x			Callisto				Callisto_(moon)	IV	JUPITER	MOON_CALLISTO		ROCKY_WORLD	YES	2410.3	7179.289	1.075938e23	1.8344	1.235	2441	0.17	x	x					134	80	165		x		7.5e-7							Carbon Dioxide, trace Oxygen
-THEMISTO							x		Themisto				Themisto_(moon)	XVIII	JUPITER	MOON_THEMISTO				~4.5	0.000046								x																	
-LEDA							x		Leda				Leda_(moon)	XIII	JUPITER	MOON_LEDA				~10	0.00073					0.034			x																	
-HIMALIA							x		Himalia				Himalia_(moon)	VI	JUPITER	MOON_HIMALIA				70	0.28	4.2e18	1.63			0.057			x																	
-LYSITHEA							x		Lysithea				Lysithea_(moon)	X	JUPITER	MOON_LYSITHEA				21	0.006	~6.3e16				0.036			x																	
-ELARA							x		Elara				Elara_(moon)	VII	JUPITER	MOON_ELARA				40	0.035	~8.7e17				0.046			x																	
-DIA							x		S_2000_J_11				Dia_(moon)	LIII	JUPITER	MOON_DIA				2	0.000001								x																	
-CARPO							x		Carpo				Carpo_(moon)	XLVI	JUPITER	MOON_CARPO				~1.5	0.000003								x																	
-S_2003_J_12							x		S_2003_J_12				S/2003_J_12		JUPITER	MOON_S_2003_J_12				1.2	1.27e-6	1.9e13	2.6						x																	
-EUPORIE							x		Euporie				Euporie_(moon)	XXXIV	JUPITER	MOON_EUPORIE				1	0.000001								x																	
-EUPHEME							x		S_2003_J_3				Jupiter_LX	LX	JUPITER	MOON_EUPHEME				1	0.000001								x																	
-S_2003_J_18							x		S_2003_J_18				Jupiter_LV	LV	JUPITER	MOON_S_2003_J_18				1	0.000001								x																	
-S_2010_J_2							x		S_2010_J_2				Jupiter_LII	LII	JUPITER	MOON_S_2010_J_2				1	0.000001								x																	
-MNEME							x		Mneme				Mneme_(moon)	XL	JUPITER	MOON_MNEME				1	0.000001								x																	
-EUANTHE							x		Euanthe				Euanthe_(moon)	XXXIII	JUPITER	MOON_EUANTHE				1.5	0.000003								x																	
-HELIKE							x		Helike				Helike_(moon)	XLV	JUPITER	MOON_HELIKE				2	0.000006								x																	
-S_2003_J_16							x		S_2003_J_16				S/2003_J_16	LIV	JUPITER	MOON_S_2003_J_16				~1	0.000001								x																	
-HARPALYKE							x		Harpalyke				Harpalyke_(moon)	XXII	JUPITER	MOON_HARPALYKE				2	0.000008								x																	
-PRAXIDIKE							x		Praxidike				Praxidike_(moon)	XXVII	JUPITER	MOON_PRAXIDIKE				3.5	0.000029					0.029			x																	
-ORTHOSIE							x		Orthosie				Orthosie_(moon)	XXXV	JUPITER	MOON_ORTHOSIE				1	0.000001								x																	
-THELXINOE							x		Thelxinoe				Thelxinoe_(moon)	XLII	JUPITER	MOON_THELXINOE				1	0.000001								x																	
-THYONE							x		Thyone				Thyone_(moon)	XXIX	JUPITER	MOON_THYONE				2	0.000006								x																	
-ANANKE							x		Ananke				Ananke_(moon)	XII	JUPITER	MOON_ANANKE				14.5	0.003	~3e16	1.3			0.038			x																	
-IOCASTE							x		Iocaste				Iocaste_(moon)	XXIV	JUPITER	MOON_IOCASTE				2.6	0.000013								x																	
-HERMIPPE							x		Hermippe				Hermippe_(moon)	XXX	JUPITER	MOON_HERMIPPE				2	0.000006								x																	
-PHILOPHROSYNE							x		S_2003_J_15				Jupiter_LVIII	LVIII	JUPITER	MOON_PHILOPHROSYNE				1	0.000001								x																	
-S_2003_J_10							x		S_2003_J_10				S/2003_J_10		JUPITER	MOON_S_2003_J_10				~1	0.000001								x																	
-PASITHEE							x		Pasithee				Pasithee_(moon)	XXXVIII	JUPITER	MOON_PASITHEE				1	0.000001								x																	
-S_2011_J_2							x		S_2011_J_2				Jupiter_LVI	LVI	JUPITER	MOON_S_2011_J_2				0.5	0.000001								x																	
-EURYDOME							x		Eurydome				Eurydome_(moon)	XXXII	JUPITER	MOON_EURYDOME				1.5	0.000003								x																	
-CHALDENE							x		Chaldene				Chaldene	XXI	JUPITER	MOON_CHALDENE				2	0.000005								x																	
-ISONOE							x		Isonoe				Isonoe_(moon)	XXVI	JUPITER	MOON_ISONOE				2	0.000005								x																	
-KALLICHORE							x		Kallichore				Kallichore_(moon)	XLIV	JUPITER	MOON_KALLICHORE				1	0.000001								x																	
-ERINOME							x		Erinome				Erinome	XXV	JUPITER	MOON_ERINOME				1.5	0.000003								x																	
-KALE							x		Kale				Kale_(moon)	XXXVII	JUPITER	MOON_KALE				1	0.000001								x																	
-AITNE							x		Aitne				Aitne_(moon)	XXXI	JUPITER	MOON_AITNE				1.5	0.000003								x																	
-EUKELADE							x		Eukelade				Eukelade	XLVII	JUPITER	MOON_EUKELADE				2	0.000006								x																	
-ARCHE							x		Arche				Arche_(moon)	XLIII	JUPITER	MOON_ARCHE				1.5	0.000003								x																	
-TAYGETE							x		Taygete				Taygete_(moon)	XX	JUPITER	MOON_TAYGETE				2.5	0.000011								x																	
-S_2003_J_9							x		S_2003_J_9				S/2003_J_9		JUPITER	MOON_S_2003_J_9				~0.5	0.0000001								x																	
-CARME							x		Carme				Carme_(moon)	XI	JUPITER	MOON_CARME				23	0.007	~9.6e16	1.6			0.035			x																	
-HERSE							x		Herse				Herse_(moon)	L	JUPITER	MOON_HERSE				1	0.000001								x																	
-S_2011_J_1							x		S_2011_J_1				Jupiter_LXXII	LXXII	JUPITER	MOON_S_2011_J_1				1	0.000001								x																	
-S_2010_J_1							x		S_2010_J_1				Jupiter_LI	LI	JUPITER	MOON_S_2010_J_1				1	0.000001								x																	
-EIRENE							x		S_2003_J_5				Jupiter_LVII	LVII	JUPITER	MOON_EIRENE				2	0.000006								x																	
-S_2003_J_19							x		S_2003_J_19				Jupiter_LXI	LXI	JUPITER	MOON_S_2003_J_19				1	0.000001								x																	
-KALYKE							x		Kalyke				Kalyke	XXIII	JUPITER	MOON_KALYKE				3.4	0.000013					0.029			x																	
-S_2003_J_23							x		S_2003_J_23				S/2003_J_23		JUPITER	MOON_S_2003_J_23				~1	0.000001								x																	
-HEGEMONE							x		Hegemone				Hegemone_(moon)	XXXIX	JUPITER	MOON_HEGEMONE				1.5	0.000003								x																	
-PASIPHAE							x		Pasiphae				Pasiphae_(moon)	VIII	JUPITER	MOON_PASIPHAE				28	0.016	~3e17	1.7			0.044			x																	
-SPONDE							x		Sponde				Sponde	XXXVI	JUPITER	MOON_SPONDE				1	0.000001								x																	
-CYLLENE							x		Cyllene				Cyllene_(moon)	XLVIII	JUPITER	MOON_CYLLENE				1	0.000001								x																	
-MEGACLITE							x		Megaclite				Megaclite	XIX	JUPITER	MOON_MEGACLITE				~3	0.000014								x																	
-S_2003_J_4							x		S_2003_J_4				S/2003_J_4		JUPITER	MOON_S_2003_J_4				~1	0.000001								x																	
-SINOPE							x		Sinope				Sinope_(moon)	IX	JUPITER	MOON_SINOPE				17.5	0.007	~7.5e16				0.042			x																	
-AOEDE							x		Aoede				Aoede_(moon)	XLI	JUPITER	MOON_AOEDE				2.5	9.34e-5	1.4e15							x																	
-AUTONOE							x		Autonoe				Autonoe_(moon)	XXVIII	JUPITER	MOON_AUTONOE				2	0.000006								x																	
-CALLIRRHOE							x		Callirrhoe				Callirrhoe_(moon)	XVII	JUPITER	MOON_CALLIRRHOE				4.8	0.000058					0.052			x																	
-KORE							x		Kore				Kore_(moon)	XLIX	JUPITER	MOON_KORE				1	0.000001								x																	
-S_2003_J_2							x		S_2003_J_2				S/2003_J_2		JUPITER	MOON_S_2003_J_2				~1	0.000001								x																	
-PAN									Pan				Pan_(moon)	XVIII	SATURN	MOON_PAN				13.7	2.87e-4	4.30e15	0.400	0.014	0.006	0.5	x	x																		
-DAPHNIS									Daphnis				Daphnis_(moon)	XXXV	SATURN	MOON_DAPHNIS				3.9	4.54e-6	6.8e13	0.276	0.0004	0.001	0.5	x	x																		
-ATLAS									Atlas				Atlas_(moon)	XV	SATURN	MOON_ATLAS				14.9	3.66e-4	5.49e15	0.3935	0.0013	0.007	0.4	x	x																		
-PROMETHEUS									Prometheus				Prometheus_(moon)	XVI	SATURN	MOON_PROMETHEUS				42.8	1.07e-2	1.59720e17	0.4873	0.006	0.02	0.6	x	x																		
-PANDORA									Pandora				Pandora_(moon)	XVII	SATURN	MOON_PANDORA				40.0	9.06e-3	1.357e17	05045	0.004	0.02	0.6	x	x																		
-JANUS									Janus				Janus_(moon)	X	SATURN	MOON_JANUS				89.0	1.26e-1	1.893e18	0.6413	0.013	0.05	0.71	x	x																		
-EPIMETHEUS									Epimetheus				Epimetheus_(moon)	XI	SATURN	MOON_EPIMETHEUS				58.6	3.51e-2	5.256e17	0.6233	0.08	0.034	0.73	x	x																		
-AEGAEON									Aegaeon				Aegaeon_(moon)	LIII	SATURN	MOON_AEGAEON				0.33	5.22e-9	7.82e10	0.539			0.15	x	x																		
-MIMAS						x			Mimas				Mimas_(moon)	I	SATURN	MOON_MIMAS		ROCKY_WORLD	NO	198.2	2.502	3.75094e19	1.1501	0.064	0.159	0.962	x	x																		
-METHONE									Methone				Methone_(moon)	XXXII	SATURN	MOON_METHONE				1.45	2.62e-7	3.92e12	0.307			0.65	x	x																		
-ANTHE									Anthe				Anthe_(moon)	XLIX	SATURN	MOON_ANTHE				0.9	1.00e-7	1.5e12	0.5	0.00012	0.56		x	x																		
-PALLENE									Pallene				Pallene_(moon)	XXXIII	SATURN	MOON_PALLENE				2.23	7.68e-7	1.15e13	0.251	0.00013	0.0008		x	x																		
-ENCELADUS			x	x	FALSE	x			Enceladus				Enceladus	II	SATURN	MOON_ENCELADUS		ICE_WORLD	PROBABLY	252.1	7.210	1.080318e20	1.6097	0.113	0.239	1.375	x	x									x		?							91% Water Vapor, 4% Nitrogen, 3.2% Carbon Dioxide, 1.7% Methane
-TETHYS			x	x	FALSE	x			Tethys				Tethys_(moon)	III	SATURN	MOON_TETHYS		ICE_WORLD	YES	531.1	41.206	6.1749e20	0.9840	0.146	0.394	1.229	x	x																		
-TELESTO									Telesto				Telesto_(moon)	XIII	SATURN	MOON_TELESTO				12.3	2.67e-4	~4e15	~0.5				x	x																		
-CALYPSO									Calypso				Calypso_(moon)	XIV	SATURN	MOON_CALYPSO				9.5	1.33e-4	~2e15	~0.5			1.34	x	x																		
-POLYDEUCES									Polydeuces				Polydeuces_(moon)	XXXIV	SATURN	MOON_POLYDEUCES				1.5	5.34e-7	~8e12	~0.5				x	x																		
-DIONE			x	x	FALSE	x			Dione				Dione_(moon)	IV	SATURN	MOON_DIONE		ICE_WORLD	YES	561.4	73.114	1.0954868e21	1.4781	0.212	0.51	0.998	x	x																		
-HELENE									Helene				Helene_(moon)	XII	SATURN	MOON_HELENE				17.1	4.74e-4	7.1e15	0.2926	0.002	0.007	1.67	x	x																		
-RHEA			x	x	FALSE	x			Rhea				Rhea_(moon)	V	SATURN	MOON_RHEA		ICE_WORLD	YES	763.5	153.942	2.3064854e21	1.2372	0.26	0.3911	0.949	x	x																		
-TITAN			x	x	FALSE	x			Titan	limb	1.05		Titan_(moon)	VI	SATURN	MOON_TITAN		THICK_ATM_WORLD	YES	2574.73	8978.138	1.34518e23	1.8798	1.352	2641	0.22	x	x					93.7			x		146700							97% Nitrogen, 2.7% Methane, 0.2% Hydrogen	
-HYPERION						x			Hyperion				Hyperion_(moon)	VII	SATURN	MOON_HYPERION				135	0.372	5.5510e18	0.5386	0.02	60	0.3			x	13																
-IAPETUS						x			Iapetus				Iapetus_(moon)	VIII	SATURN	MOON_IAPETUS		ICE_WORLD		734.4	120.504	1.80565e21	1.0887	0.223	0.573	0.25	x	x																		
-KIVIUQ							x		Kiviuq				Kiviuq_(moon)	XXIV	SATURN	MOON_KIVIUQ				8	0.00012	~1.5e15							x																	
-IJIRAQ							x		Ijiraq				Ijiraq_(moon)	XXII	SATURN	MOON_IJIRAQ				7	0.00008	~1e15							x																	
-PHOEBE							x		Phoebe				Phoebe_(moon)	IX	SATURN	MOON_PHOEBE				106.5	0.553	8.3123e18	1.6428	0.045	0.1	0.100			x																	
-PAALIAQ							x		Paaliaq				Paaliaq	XX	SATURN	MOON_PAALIAQ				14.5	1.94e-3	2.9e16							x																	
-SKATHI							x		Skathi				Skathi_(moon)	XXVII	SATURN	MOON_SKATHI				4	0.000021								x																	
-ALBIORIX							x		Albiorix				Albiorix_(moon)	XXVI	SATURN	MOON_ALBIORIX				14.3	0.0014					0.062			x																	
-S_2007_S_2							x		S_2007_S_2				S/2007_S_2		SATURN	MOON_S_2007_S_2				2.5									x																	
-BEBHIONN							x		Bebhionn				Bebhionn_(moon)	XXXVII	SATURN	MOON_BEBHIONN				3									x																	
-ERRIAPUS							x		Erriapus				Erriapus	XXVIII	SATURN	MOON_ERRIAPUS				5	0.000051								x																	
-SKOLL							x		Skoll				Skoll_(moon)	XLVII	SATURN	MOON_SKOLL				2.5									x																	
-TARQEQ							x		Tarqeq				Tarqeq	LII	SATURN	MOON_TARQEQ				3									x																	
-SIARNAQ							x		Siarnaq				Siarnaq	XXIX	SATURN	MOON_SIARNAQ				20	0.0026					0.050			x																	
-TARVOS							x		Tarvos				Tarvos_(moon)	XXI	SATURN	MOON_TARVOS				7.5	0.00018								x																	
-S_2004_S_13							x		S_2004_S_13				S/2004_S_13		SATURN	MOON_S_2004_S_13				~3									x																	
-HYRROKKIN							x		Hyrrokkin				Hyrrokkin_(moon)	XLIV	SATURN	MOON_HYRROKKIN				4									x																	
-GREIP							x		Greip				Greip_(moon)	LI	SATURN	MOON_GREIP				2.5									x																	
-MUNDILFARI							x		Mundilfari				Mundilfari_(moon)	XXV	SATURN	MOON_MUNDILFARI				3.5	0.000014								x																	
-S_2006_S_1							x		S_2006_S_1				S/2006_S_1		SATURN	MOON_S_2006_S_1				~2									x																	
-S_2007_S_3							x		S_2007_S_3				S/2007_S_3		SATURN	MOON_S_2007_S_3				~2.5									x																	
-BERGELMIR							x		Bergelmir				Bergelmir_(moon)	XXXVIII	SATURN	MOON_BERGELMIR				2.5									x																	
-NARVI							x		Narvi				Narvi_(moon)	XXXI	SATURN	MOON_NARVI				3.5	0.000023								x																	
-JARNSAXA							x		Jarnsaxa				Jarnsaxa_(moon)	L	SATURN	MOON_JARNSAXA				2									x																	
-S_2004_S_17							x		S_2004_S_17				S/2004_S_17		SATURN	MOON_S_2004_S_17				~2									x																	
-SUTTUNGR							x		Suttungr				Suttungr_(moon)	XXIII	SATURN	MOON_SUTTUNGR				3.5	0.000014								x																	
-HATI							x		Hati				Hati_(moon)	XLIII	SATURN	MOON_HATI				2.5									x																	
-S_2004_S_12							x		S_2004_S_12				S/2004_S_12		SATURN	MOON_S_2004_S_12				~2.5									x																	
-BESTLA							x		Bestla				Bestla_(moon)	XXXIX	SATURN	MOON_BESTLA				3.5									x																	
-FARBAUTI							x		Farbauti				Farbauti_(moon)	XL	SATURN	MOON_FARBAUTI				2									x																	
-THRYMR							x		Thrymr				Thrymr_(moon)	XXX	SATURN	MOON_THRYMR				4	0.000014								x																	
-AEGIR							x		Aegir				Aegir_(moon)	XXXVI	SATURN	MOON_AEGIR				2									x																	
-S_2004_S_7							x		S_2004_S_7				S/2004_S_7		SATURN	MOON_S_2004_S_7				~3									x																	
-KARI							x		Kari				Kari_(moon)	XLV	SATURN	MOON_KARI				3									x																	
-S_2006_S_3							x		S_2006_S_3				S/2006_S_3		SATURN	MOON_S_2006_S_3				2									x																	
-FENRIR							x		Fenrir				Fenrir_(moon)	XLI	SATURN	MOON_FENRIR				2									x																	
-SURTUR							x		Surtur				Surtur_(moon)	XLVIII	SATURN	MOON_SURTUR				2									x																	
-LOGE							x		Loge				Loge_(moon)	XLVI	SATURN	MOON_LOGE				2.5									x																	
-YMIR							x		Ymir				Ymir_(moon)	XIX	SATURN	MOON_YMIR				10	0.00010	~1.3e15							x																	
-FORNJOT							x		Fornjot				Fornjot_(moon)	XLII	SATURN	MOON_FORNJOT				3									x																	
-CORDELIA									Cordelia				Cordelia_(moon)	VI	URANUS	MOON_CORDELIA				20.3	4.07e-3	6.1e16	1.79	0.01	0.02	0.06	x	x																		
-OPHELIA									Ophelia				Ophelia_(moon)	VII	URANUS	MOON_OPHELIA				21.6	2.40e-3	3.6e16	0.87	0.005	0.015		x	x																		
-BIANCA									Bianca				Bianca_(moon)	VIII	URANUS	MOON_BIANCA				26	4.27e-3	6.4e16	0.79	0.006	0.017	0.08	x	x																		
-CRESSIDA									Cressida				Cressida_(moon)	IX	URANUS	MOON_CRESSIDA				40	1.20e-2	1.8e17	0.70	0.007	0.024	0.08	x	x																		
-DESDEMONA									Desdemona				Desdemona_(moon)	X	URANUS	MOON_DESDEMONA				33	8.01e-3	1.2e17	0.66			0.08	x	x																		
-JULIET									Juliet				Juliet_(moon)	XI	URANUS	MOON_JULIET				49.7	2.60e-2	3.9e17	0.61			0.08	x	x																		
-PORTIA									Portia				Portia_(moon)	XII	URANUS	MOON_PORTIA				68	8.01e-2	1.2e18	0.57			0.08	x	x																		
-ROSALIND									Rosalind				Rosalind_(moon)	XIII	URANUS	MOON_ROSALIND				36	1.00e-2	~1.5e17				0.08	x	x																		
-CUPID									Cupid				Cupid_(moon)	XXVII	URANUS	MOON_CUPID				8.9	1.67e-4	~2.5e15					x	x																		
-BELINDA									Belinda				Belinda_(moon)	XIV	URANUS	MOON_BELINDA				43	1.20e-2	~1.8e17				0.08	x	x																		
-PERDITA									Perdita				Perdita_(moon)	XXV	URANUS	MOON_PERDITA				13.3	4.67e-4	~7e15					x	x																		
-PUCK									Puck				Puck_(moon)	XV	URANUS	MOON_PUCK				81	1.33e-1	2e18				0.11	x	x																		
-MAB									Mab				Mab_(moon)	XXVI	URANUS	MOON_MAB				~10	0.0006						x	x																		
-MIRANDA						x			Miranda				Miranda_(moon)	V	URANUS	MOON_MIRANDA		ROCKY_WORLD	UNKNOWN	235.8	4.20	6.3e19	1.15	0.076	189	0.32	x	x																		
-ARIEL			x	x	FALSE	x			Ariel				Ariel_(moon)	I	URANUS	MOON_ARIEL		ICE_WORLD	YES	578.9	8.23e1	1.233e21	1.517	0.246	533	0.53	x	x																		
-UMBRIEL			x	x	FALSE	x			Umbriel				Umbriel_(moon)	II	URANUS	MOON_UMBRIEL		ICE_WORLD	YES	584.7	8.60e1	1.289e21	1.539	0.195	542	0.26	x	x																		
-TITANIA			x	x	FALSE	x			Titania				Titania_(moon)	III	URANUS	MOON_TITANIA		ICE_WORLD	YES	788.4	2.31e2	3.455e21	1.683	0.371	765	0.35	x	x																		
-OBERON			x	x	FALSE	x			Oberon				Oberon_(moon)	IV	URANUS	MOON_OBERON		ICE_WORLD	YES	761.4	2.08e2	3.11e21	1.682	0.358	738	0.31	x	x																		
-FRANCISCO							x		Francisco				Francisco_(moon)	XXII	URANUS	MOON_FRANCISCO				~11	0.00056								x																	
-CALIBAN							x		Caliban				Caliban_(moon)	XVI	URANUS	MOON_CALIBAN				21	0.02					0.22			x																	
-STEPHANO							x		Stephano				Stephano_(moon)	XX	URANUS	MOON_STEPHANO				~16	0.0017								x																	
-TRINCULO							x		Trinculo				Trinculo_(moon)	XXI	URANUS	MOON_TRINCULO				~9	0.00031								x																	
-SYCORAX							x		Sycorax				Sycorax_(moon)	XVII	URANUS	MOON_SYCORAX				80	0.18					0.06			x																	
-MARGARET							x		Margaret				Margaret_(moon)	XXIII	URANUS	MOON_MARGARET				~10	0.00042								x																	
-PROSPERO							x		Prospero				Prospero_(moon)	XVIII	URANUS	MOON_PROSPERO				~25	0.0066								x																	
-SETEBOS							x		Setebos				Setebos_(moon)	XIX	URANUS	MOON_SETEBOS				~24	0.0058								x																	
-FERDINAND							x		Ferdinand				Ferdinand_(moon)	XXIV	URANUS	MOON_FERDINAND				~6	0.00042								x																	
-NAIAD									Naiad				Naiad_(moon)	III	NEPTUNE	MOON_NAIAD				33	8.01e-3	~1.2e17	0.80			0.072	x	x																		
-THALASSA									Thalassa				Thalassa_(moon)	IV	NEPTUNE	MOON_THALASSA				41	2.34e-2	~3.5e17	1.23			0.091	x	x																		
-DESPINA									Despina				Despina_(moon)	V	NEPTUNE	MOON_DESPINA				75	6.67e-2	~1e18	~0.6			0.09	x	x																		
-GALATEA									Galatea				Galatea_(moon)	VI	NEPTUNE	MOON_GALATEA				88	1.27e-1	~1.9e18	~0.7			0.08	x	x																		
-LARISSA									Larissa				Larissa_(moon)	VII	NEPTUNE	MOON_LARISSA				97	0.33					0.09	x	x																		
-HIPPOCAMP									Hippocamp				Hippocamp_(moon)	XIV	NEPTUNE	MOON_HIPPOCAMP				17	0.0003						x	x																		
-PROTEUS									Proteus				Proteus_(moon)	VIII	NEPTUNE	MOON_PROTEUS				210	3.36					0.096	x	x																		
-TRITON			x	x	FALSE	x			Triton				Triton_(moon)	I	NEPTUNE	MOON_TRITON		ICE_WORLD	YES	1353.4	1.43e3	2.1389e22	2.061	0.779	1455	0.76	x	x									x		?							Nitrogen, trace Methane
-NEREID							x		Nereid				Nereid_(moon)	II	NEPTUNE	MOON_NEREID				180	2.06					0.24			x																	
-HALIMEDE							x		Halimede				Halimede_(moon)	IX	NEPTUNE	MOON_HALIMEDE				~31	0.012								x																	
-SAO							x		Sao				Sao_(moon)	XI	NEPTUNE	MOON_SAO				~22	0.0045								x																	
-LAOMEDEIA							x		Laomedeia				Laomedeia	XII	NEPTUNE	MOON_LAOMEDEIA				~21	0.0039								x																	
-PSAMATHE							x		Psamathe				Psamathe_(moon)	X	NEPTUNE	MOON_PSAMATHE				~20	0.0033								x																	
-NESO							x		Neso				Neso_(moon)	XIII	NEPTUNE	MOON_NESO				30	0.011		1.5						x																	
-CHARON			x	x	FALSE	x			Charon				Charon_(moon)	I	PLUTO	MOON_CHARON		ICE_WORLD	YES	606.0	1.06e2	1.590e21	1.705	0.288	590	0.38	x	x																		
-STYX									Styx				Styx_(moon)	V	PLUTO	MOON_STYX				5.5	5.01e-4	~7.5e15				0.65			x																	
-NIX									Nix				Nix_(moon)	II	PLUTO	MOON_NIX				19	1.74e-3	~2.6e16				0.56			x																	
-KERBEROS									Kerberos				Kerberos_(moon)	IV	PLUTO	MOON_KERBEROS				6.3	1.13e-3	~1.7e16				0.56			x																	
-HYDRA									Hydra				Hydra_(moon)	III	PLUTO	MOON_HYDRA				19	2.00e-3	~3e16				0.83			x																	
+	moon	use_cardinal_directions	planetary_mass_object	planetary_mass_moon	non_planetary_mass_moon	show_in_nav_panel	lazy_model	sleep	file_prefix	shell1_scale	shell1_albedo_color	en.wikipedia	symbol	parent	orbit	body_class	model_type	hydrostatic_equilibrium	mean_radius	gravitational_parameter	mass	mean_density	surf_grav	esc_vel	albedo	tidally_locked	axis_locked	tumbles_chaotically	rotation_period	right_ascension	declination	surf_t	min_t	max_t	atmosphere	trace_atmosphere	surf_pres	trace_pres	trace_pres_low	trace_pres_high	one_bar_t	half_bar_t	tenth_bar_t	atmosphere_composition	trace_atmosphere_composition
+Type	BOOL	BOOL	BOOL	BOOL	BOOL	BOOL	BOOL	BOOL	STRING	FLOAT	COLOR	STRING	STRING	STRING_NAME	TABLE_ROW	TABLE_ROW	TABLE_ROW	IVGlobal.Confidence	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	BOOL	BOOL	BOOL	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	BOOL	BOOL	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	STRING	STRING
+Default	TRUE	TRUE			TRUE			TRUE					\u25CC			NATURAL_SATELLITE	SMALL_C_BODY	NO	0			0			0																				
+Unit																			km	km^3/s^2	kg	g/cm^3	m/s^2	m/s					d	deg	deg	K	K	K			Pa	Pa	Pa	Pa	K	K	K		
+Prefix/MOON_														PLANET_	ORBIT_	BODY_CLASS_	MODEL_	CONFIDENCE_																											
+MOON			x	x	FALSE	x			Moon			Moon	\u263E	EARTH	MOON_MOON		ROCKY_WORLD	YES	1737.4	4904.8695	7.346e22	3.344	1.622	2380	0.136	x				270	66.54	250	100	390		x			1e-10	1e-7					Helium, Argon, Neon, Sodium, Potassium, Hydrogen, Radon
+PHOBOS						x			Phobos			Phobos_(moon)	I	MARS	MOON_PHOBOS				11.08	7.161e-4	1.060e16	1.861	0.0057	11.39	0.071	x	x					233													
+DEIMOS						x			Deimos			Deimos_(moon)	II	MARS	MOON_DEIMOS				6.27	9.464e-5	1.51e15	1.465	0.003	5.556	0.068	x	x					233													
+METIS									Metis			Metis_(moon)	XVI	JUPITER	MOON_METIS				21.5	0.0024	~3.6e16	~1.5			0.061	x	x																		
+ADRASTEA									Adrastea			Adrastea_(moon)	XV	JUPITER	MOON_ADRASTEA				8.2	0.0010	~1.9e16				0.10	x	x																		
+AMALTHEA									Amalthea			Amalthea_(moon)	V	JUPITER	MOON_AMALTHEA				83.5	0.141	2.1e18	0.86			0.09	x	x																		
+THEBE									Thebe			Thebe_(moon)	XIV	JUPITER	MOON_THEBE				49.3	0.013	~4.3e17	~0.86			0.047	x	x																		
+IO			x	x	FALSE	x			Io			Io_(moon)	I	JUPITER	MOON_IO		VOLCANO_WORLD	YES	1821.6	5959.916	8.931938e22	3.528	1.796500844	2558.3174910781	0.63	x	x					110	90	130		x			5e-4	4e-3					90% Sulfur Dioxide
+EUROPA			x	x	FALSE	x			Europa			Europa_(moon)	II	JUPITER	MOON_EUROPA		ICE_WORLD	YES	1560.8	3202.739	4.79984e22	3.013	1.314	2025	0.67	x	x					102	50	125		x		1e-7							
+GANYMEDE			x	x	FALSE	x			Ganymede			Ganymede_(moon)	III	JUPITER	MOON_GANYMEDE		ROCKY_WORLD	YES	2634.1	9887.834	1.4819e23	1.936	1.428	2741	0.43	x	x					110	70	152		x			2e-7	1.2e-6					Oxygen
+CALLISTO			x	x	FALSE	x			Callisto			Callisto_(moon)	IV	JUPITER	MOON_CALLISTO		ROCKY_WORLD	YES	2410.3	7179.289	1.075938e23	1.8344	1.235	2441	0.17	x	x					134	80	165		x		7.5e-7							Carbon Dioxide, trace Oxygen
+THEMISTO							x		Themisto			Themisto_(moon)	XVIII	JUPITER	MOON_THEMISTO				~4.5	0.000046								x																	
+LEDA							x		Leda			Leda_(moon)	XIII	JUPITER	MOON_LEDA				~10	0.00073					0.034			x																	
+HIMALIA							x		Himalia			Himalia_(moon)	VI	JUPITER	MOON_HIMALIA				70	0.28	4.2e18	1.63			0.057			x																	
+LYSITHEA							x		Lysithea			Lysithea_(moon)	X	JUPITER	MOON_LYSITHEA				21	0.006	~6.3e16				0.036			x																	
+ELARA							x		Elara			Elara_(moon)	VII	JUPITER	MOON_ELARA				40	0.035	~8.7e17				0.046			x																	
+DIA							x		S_2000_J_11			Dia_(moon)	LIII	JUPITER	MOON_DIA				2	0.000001								x																	
+CARPO							x		Carpo			Carpo_(moon)	XLVI	JUPITER	MOON_CARPO				~1.5	0.000003								x																	
+S_2003_J_12							x		S_2003_J_12			S/2003_J_12		JUPITER	MOON_S_2003_J_12				1.2	1.27e-6	1.9e13	2.6						x																	
+EUPORIE							x		Euporie			Euporie_(moon)	XXXIV	JUPITER	MOON_EUPORIE				1	0.000001								x																	
+EUPHEME							x		S_2003_J_3			Jupiter_LX	LX	JUPITER	MOON_EUPHEME				1	0.000001								x																	
+S_2003_J_18							x		S_2003_J_18			Jupiter_LV	LV	JUPITER	MOON_S_2003_J_18				1	0.000001								x																	
+S_2010_J_2							x		S_2010_J_2			Jupiter_LII	LII	JUPITER	MOON_S_2010_J_2				1	0.000001								x																	
+MNEME							x		Mneme			Mneme_(moon)	XL	JUPITER	MOON_MNEME				1	0.000001								x																	
+EUANTHE							x		Euanthe			Euanthe_(moon)	XXXIII	JUPITER	MOON_EUANTHE				1.5	0.000003								x																	
+HELIKE							x		Helike			Helike_(moon)	XLV	JUPITER	MOON_HELIKE				2	0.000006								x																	
+S_2003_J_16							x		S_2003_J_16			S/2003_J_16	LIV	JUPITER	MOON_S_2003_J_16				~1	0.000001								x																	
+HARPALYKE							x		Harpalyke			Harpalyke_(moon)	XXII	JUPITER	MOON_HARPALYKE				2	0.000008								x																	
+PRAXIDIKE							x		Praxidike			Praxidike_(moon)	XXVII	JUPITER	MOON_PRAXIDIKE				3.5	0.000029					0.029			x																	
+ORTHOSIE							x		Orthosie			Orthosie_(moon)	XXXV	JUPITER	MOON_ORTHOSIE				1	0.000001								x																	
+THELXINOE							x		Thelxinoe			Thelxinoe_(moon)	XLII	JUPITER	MOON_THELXINOE				1	0.000001								x																	
+THYONE							x		Thyone			Thyone_(moon)	XXIX	JUPITER	MOON_THYONE				2	0.000006								x																	
+ANANKE							x		Ananke			Ananke_(moon)	XII	JUPITER	MOON_ANANKE				14.5	0.003	~3e16	1.3			0.038			x																	
+IOCASTE							x		Iocaste			Iocaste_(moon)	XXIV	JUPITER	MOON_IOCASTE				2.6	0.000013								x																	
+HERMIPPE							x		Hermippe			Hermippe_(moon)	XXX	JUPITER	MOON_HERMIPPE				2	0.000006								x																	
+PHILOPHROSYNE							x		S_2003_J_15			Jupiter_LVIII	LVIII	JUPITER	MOON_PHILOPHROSYNE				1	0.000001								x																	
+S_2003_J_10							x		S_2003_J_10			S/2003_J_10		JUPITER	MOON_S_2003_J_10				~1	0.000001								x																	
+PASITHEE							x		Pasithee			Pasithee_(moon)	XXXVIII	JUPITER	MOON_PASITHEE				1	0.000001								x																	
+S_2011_J_2							x		S_2011_J_2			Jupiter_LVI	LVI	JUPITER	MOON_S_2011_J_2				0.5	0.000001								x																	
+EURYDOME							x		Eurydome			Eurydome_(moon)	XXXII	JUPITER	MOON_EURYDOME				1.5	0.000003								x																	
+CHALDENE							x		Chaldene			Chaldene	XXI	JUPITER	MOON_CHALDENE				2	0.000005								x																	
+ISONOE							x		Isonoe			Isonoe_(moon)	XXVI	JUPITER	MOON_ISONOE				2	0.000005								x																	
+KALLICHORE							x		Kallichore			Kallichore_(moon)	XLIV	JUPITER	MOON_KALLICHORE				1	0.000001								x																	
+ERINOME							x		Erinome			Erinome	XXV	JUPITER	MOON_ERINOME				1.5	0.000003								x																	
+KALE							x		Kale			Kale_(moon)	XXXVII	JUPITER	MOON_KALE				1	0.000001								x																	
+AITNE							x		Aitne			Aitne_(moon)	XXXI	JUPITER	MOON_AITNE				1.5	0.000003								x																	
+EUKELADE							x		Eukelade			Eukelade	XLVII	JUPITER	MOON_EUKELADE				2	0.000006								x																	
+ARCHE							x		Arche			Arche_(moon)	XLIII	JUPITER	MOON_ARCHE				1.5	0.000003								x																	
+TAYGETE							x		Taygete			Taygete_(moon)	XX	JUPITER	MOON_TAYGETE				2.5	0.000011								x																	
+S_2003_J_9							x		S_2003_J_9			S/2003_J_9		JUPITER	MOON_S_2003_J_9				~0.5	0.0000001								x																	
+CARME							x		Carme			Carme_(moon)	XI	JUPITER	MOON_CARME				23	0.007	~9.6e16	1.6			0.035			x																	
+HERSE							x		Herse			Herse_(moon)	L	JUPITER	MOON_HERSE				1	0.000001								x																	
+S_2011_J_1							x		S_2011_J_1			Jupiter_LXXII	LXXII	JUPITER	MOON_S_2011_J_1				1	0.000001								x																	
+S_2010_J_1							x		S_2010_J_1			Jupiter_LI	LI	JUPITER	MOON_S_2010_J_1				1	0.000001								x																	
+EIRENE							x		S_2003_J_5			Jupiter_LVII	LVII	JUPITER	MOON_EIRENE				2	0.000006								x																	
+S_2003_J_19							x		S_2003_J_19			Jupiter_LXI	LXI	JUPITER	MOON_S_2003_J_19				1	0.000001								x																	
+KALYKE							x		Kalyke			Kalyke	XXIII	JUPITER	MOON_KALYKE				3.4	0.000013					0.029			x																	
+S_2003_J_23							x		S_2003_J_23			S/2003_J_23		JUPITER	MOON_S_2003_J_23				~1	0.000001								x																	
+HEGEMONE							x		Hegemone			Hegemone_(moon)	XXXIX	JUPITER	MOON_HEGEMONE				1.5	0.000003								x																	
+PASIPHAE							x		Pasiphae			Pasiphae_(moon)	VIII	JUPITER	MOON_PASIPHAE				28	0.016	~3e17	1.7			0.044			x																	
+SPONDE							x		Sponde			Sponde	XXXVI	JUPITER	MOON_SPONDE				1	0.000001								x																	
+CYLLENE							x		Cyllene			Cyllene_(moon)	XLVIII	JUPITER	MOON_CYLLENE				1	0.000001								x																	
+MEGACLITE							x		Megaclite			Megaclite	XIX	JUPITER	MOON_MEGACLITE				~3	0.000014								x																	
+S_2003_J_4							x		S_2003_J_4			S/2003_J_4		JUPITER	MOON_S_2003_J_4				~1	0.000001								x																	
+SINOPE							x		Sinope			Sinope_(moon)	IX	JUPITER	MOON_SINOPE				17.5	0.007	~7.5e16				0.042			x																	
+AOEDE							x		Aoede			Aoede_(moon)	XLI	JUPITER	MOON_AOEDE				2.5	9.34e-5	1.4e15							x																	
+AUTONOE							x		Autonoe			Autonoe_(moon)	XXVIII	JUPITER	MOON_AUTONOE				2	0.000006								x																	
+CALLIRRHOE							x		Callirrhoe			Callirrhoe_(moon)	XVII	JUPITER	MOON_CALLIRRHOE				4.8	0.000058					0.052			x																	
+KORE							x		Kore			Kore_(moon)	XLIX	JUPITER	MOON_KORE				1	0.000001								x																	
+S_2003_J_2							x		S_2003_J_2			S/2003_J_2		JUPITER	MOON_S_2003_J_2				~1	0.000001								x																	
+PAN									Pan			Pan_(moon)	XVIII	SATURN	MOON_PAN				13.7	2.87e-4	4.30e15	0.400	0.014	0.006	0.5	x	x																		
+DAPHNIS									Daphnis			Daphnis_(moon)	XXXV	SATURN	MOON_DAPHNIS				3.9	4.54e-6	6.8e13	0.276	0.0004	0.001	0.5	x	x																		
+ATLAS									Atlas			Atlas_(moon)	XV	SATURN	MOON_ATLAS				14.9	3.66e-4	5.49e15	0.3935	0.0013	0.007	0.4	x	x																		
+PROMETHEUS									Prometheus			Prometheus_(moon)	XVI	SATURN	MOON_PROMETHEUS				42.8	1.07e-2	1.59720e17	0.4873	0.006	0.02	0.6	x	x																		
+PANDORA									Pandora			Pandora_(moon)	XVII	SATURN	MOON_PANDORA				40.0	9.06e-3	1.357e17	05045	0.004	0.02	0.6	x	x																		
+JANUS									Janus			Janus_(moon)	X	SATURN	MOON_JANUS				89.0	1.26e-1	1.893e18	0.6413	0.013	0.05	0.71	x	x																		
+EPIMETHEUS									Epimetheus			Epimetheus_(moon)	XI	SATURN	MOON_EPIMETHEUS				58.6	3.51e-2	5.256e17	0.6233	0.08	0.034	0.73	x	x																		
+AEGAEON									Aegaeon			Aegaeon_(moon)	LIII	SATURN	MOON_AEGAEON				0.33	5.22e-9	7.82e10	0.539			0.15	x	x																		
+MIMAS						x			Mimas			Mimas_(moon)	I	SATURN	MOON_MIMAS		ROCKY_WORLD	NO	198.2	2.502	3.75094e19	1.1501	0.064	0.159	0.962	x	x																		
+METHONE									Methone			Methone_(moon)	XXXII	SATURN	MOON_METHONE				1.45	2.62e-7	3.92e12	0.307			0.65	x	x																		
+ANTHE									Anthe			Anthe_(moon)	XLIX	SATURN	MOON_ANTHE				0.9	1.00e-7	1.5e12	0.5	0.00012	0.56		x	x																		
+PALLENE									Pallene			Pallene_(moon)	XXXIII	SATURN	MOON_PALLENE				2.23	7.68e-7	1.15e13	0.251	0.00013	0.0008		x	x																		
+ENCELADUS			x	x	FALSE	x			Enceladus			Enceladus	II	SATURN	MOON_ENCELADUS		ICE_WORLD	PROBABLY	252.1	7.210	1.080318e20	1.6097	0.113	0.239	1.375	x	x									x		?							91% Water Vapor, 4% Nitrogen, 3.2% Carbon Dioxide, 1.7% Methane
+TETHYS			x	x	FALSE	x			Tethys			Tethys_(moon)	III	SATURN	MOON_TETHYS		ICE_WORLD	YES	531.1	41.206	6.1749e20	0.9840	0.146	0.394	1.229	x	x																		
+TELESTO									Telesto			Telesto_(moon)	XIII	SATURN	MOON_TELESTO				12.3	2.67e-4	~4e15	~0.5				x	x																		
+CALYPSO									Calypso			Calypso_(moon)	XIV	SATURN	MOON_CALYPSO				9.5	1.33e-4	~2e15	~0.5			1.34	x	x																		
+POLYDEUCES									Polydeuces			Polydeuces_(moon)	XXXIV	SATURN	MOON_POLYDEUCES				1.5	5.34e-7	~8e12	~0.5				x	x																		
+DIONE			x	x	FALSE	x			Dione			Dione_(moon)	IV	SATURN	MOON_DIONE		ICE_WORLD	YES	561.4	73.114	1.0954868e21	1.4781	0.212	0.51	0.998	x	x																		
+HELENE									Helene			Helene_(moon)	XII	SATURN	MOON_HELENE				17.1	4.74e-4	7.1e15	0.2926	0.002	0.007	1.67	x	x																		
+RHEA			x	x	FALSE	x			Rhea			Rhea_(moon)	V	SATURN	MOON_RHEA		ICE_WORLD	YES	763.5	153.942	2.3064854e21	1.2372	0.26	0.3911	0.949	x	x																		
+TITAN			x	x	FALSE	x			Titan	1.05	0.471, 0.647, 0.882, 0.051	Titan_(moon)	VI	SATURN	MOON_TITAN		THICK_ATM_WORLD	YES	2574.73	8978.138	1.34518e23	1.8798	1.352	2641	0.22	x	x					93.7			x		146700							97% Nitrogen, 2.7% Methane, 0.2% Hydrogen	
+HYPERION						x			Hyperion			Hyperion_(moon)	VII	SATURN	MOON_HYPERION				135	0.372	5.5510e18	0.5386	0.02	60	0.3			x	13																
+IAPETUS						x			Iapetus			Iapetus_(moon)	VIII	SATURN	MOON_IAPETUS		ICE_WORLD		734.4	120.504	1.80565e21	1.0887	0.223	0.573	0.25	x	x																		
+KIVIUQ							x		Kiviuq			Kiviuq_(moon)	XXIV	SATURN	MOON_KIVIUQ				8	0.00012	~1.5e15							x																	
+IJIRAQ							x		Ijiraq			Ijiraq_(moon)	XXII	SATURN	MOON_IJIRAQ				7	0.00008	~1e15							x																	
+PHOEBE							x		Phoebe			Phoebe_(moon)	IX	SATURN	MOON_PHOEBE				106.5	0.553	8.3123e18	1.6428	0.045	0.1	0.100			x																	
+PAALIAQ							x		Paaliaq			Paaliaq	XX	SATURN	MOON_PAALIAQ				14.5	1.94e-3	2.9e16							x																	
+SKATHI							x		Skathi			Skathi_(moon)	XXVII	SATURN	MOON_SKATHI				4	0.000021								x																	
+ALBIORIX							x		Albiorix			Albiorix_(moon)	XXVI	SATURN	MOON_ALBIORIX				14.3	0.0014					0.062			x																	
+S_2007_S_2							x		S_2007_S_2			S/2007_S_2		SATURN	MOON_S_2007_S_2				2.5									x																	
+BEBHIONN							x		Bebhionn			Bebhionn_(moon)	XXXVII	SATURN	MOON_BEBHIONN				3									x																	
+ERRIAPUS							x		Erriapus			Erriapus	XXVIII	SATURN	MOON_ERRIAPUS				5	0.000051								x																	
+SKOLL							x		Skoll			Skoll_(moon)	XLVII	SATURN	MOON_SKOLL				2.5									x																	
+TARQEQ							x		Tarqeq			Tarqeq	LII	SATURN	MOON_TARQEQ				3									x																	
+SIARNAQ							x		Siarnaq			Siarnaq	XXIX	SATURN	MOON_SIARNAQ				20	0.0026					0.050			x																	
+TARVOS							x		Tarvos			Tarvos_(moon)	XXI	SATURN	MOON_TARVOS				7.5	0.00018								x																	
+S_2004_S_13							x		S_2004_S_13			S/2004_S_13		SATURN	MOON_S_2004_S_13				~3									x																	
+HYRROKKIN							x		Hyrrokkin			Hyrrokkin_(moon)	XLIV	SATURN	MOON_HYRROKKIN				4									x																	
+GREIP							x		Greip			Greip_(moon)	LI	SATURN	MOON_GREIP				2.5									x																	
+MUNDILFARI							x		Mundilfari			Mundilfari_(moon)	XXV	SATURN	MOON_MUNDILFARI				3.5	0.000014								x																	
+S_2006_S_1							x		S_2006_S_1			S/2006_S_1		SATURN	MOON_S_2006_S_1				~2									x																	
+S_2007_S_3							x		S_2007_S_3			S/2007_S_3		SATURN	MOON_S_2007_S_3				~2.5									x																	
+BERGELMIR							x		Bergelmir			Bergelmir_(moon)	XXXVIII	SATURN	MOON_BERGELMIR				2.5									x																	
+NARVI							x		Narvi			Narvi_(moon)	XXXI	SATURN	MOON_NARVI				3.5	0.000023								x																	
+JARNSAXA							x		Jarnsaxa			Jarnsaxa_(moon)	L	SATURN	MOON_JARNSAXA				2									x																	
+S_2004_S_17							x		S_2004_S_17			S/2004_S_17		SATURN	MOON_S_2004_S_17				~2									x																	
+SUTTUNGR							x		Suttungr			Suttungr_(moon)	XXIII	SATURN	MOON_SUTTUNGR				3.5	0.000014								x																	
+HATI							x		Hati			Hati_(moon)	XLIII	SATURN	MOON_HATI				2.5									x																	
+S_2004_S_12							x		S_2004_S_12			S/2004_S_12		SATURN	MOON_S_2004_S_12				~2.5									x																	
+BESTLA							x		Bestla			Bestla_(moon)	XXXIX	SATURN	MOON_BESTLA				3.5									x																	
+FARBAUTI							x		Farbauti			Farbauti_(moon)	XL	SATURN	MOON_FARBAUTI				2									x																	
+THRYMR							x		Thrymr			Thrymr_(moon)	XXX	SATURN	MOON_THRYMR				4	0.000014								x																	
+AEGIR							x		Aegir			Aegir_(moon)	XXXVI	SATURN	MOON_AEGIR				2									x																	
+S_2004_S_7							x		S_2004_S_7			S/2004_S_7		SATURN	MOON_S_2004_S_7				~3									x																	
+KARI							x		Kari			Kari_(moon)	XLV	SATURN	MOON_KARI				3									x																	
+S_2006_S_3							x		S_2006_S_3			S/2006_S_3		SATURN	MOON_S_2006_S_3				2									x																	
+FENRIR							x		Fenrir			Fenrir_(moon)	XLI	SATURN	MOON_FENRIR				2									x																	
+SURTUR							x		Surtur			Surtur_(moon)	XLVIII	SATURN	MOON_SURTUR				2									x																	
+LOGE							x		Loge			Loge_(moon)	XLVI	SATURN	MOON_LOGE				2.5									x																	
+YMIR							x		Ymir			Ymir_(moon)	XIX	SATURN	MOON_YMIR				10	0.00010	~1.3e15							x																	
+FORNJOT							x		Fornjot			Fornjot_(moon)	XLII	SATURN	MOON_FORNJOT				3									x																	
+CORDELIA									Cordelia			Cordelia_(moon)	VI	URANUS	MOON_CORDELIA				20.3	4.07e-3	6.1e16	1.79	0.01	0.02	0.06	x	x																		
+OPHELIA									Ophelia			Ophelia_(moon)	VII	URANUS	MOON_OPHELIA				21.6	2.40e-3	3.6e16	0.87	0.005	0.015		x	x																		
+BIANCA									Bianca			Bianca_(moon)	VIII	URANUS	MOON_BIANCA				26	4.27e-3	6.4e16	0.79	0.006	0.017	0.08	x	x																		
+CRESSIDA									Cressida			Cressida_(moon)	IX	URANUS	MOON_CRESSIDA				40	1.20e-2	1.8e17	0.70	0.007	0.024	0.08	x	x																		
+DESDEMONA									Desdemona			Desdemona_(moon)	X	URANUS	MOON_DESDEMONA				33	8.01e-3	1.2e17	0.66			0.08	x	x																		
+JULIET									Juliet			Juliet_(moon)	XI	URANUS	MOON_JULIET				49.7	2.60e-2	3.9e17	0.61			0.08	x	x																		
+PORTIA									Portia			Portia_(moon)	XII	URANUS	MOON_PORTIA				68	8.01e-2	1.2e18	0.57			0.08	x	x																		
+ROSALIND									Rosalind			Rosalind_(moon)	XIII	URANUS	MOON_ROSALIND				36	1.00e-2	~1.5e17				0.08	x	x																		
+CUPID									Cupid			Cupid_(moon)	XXVII	URANUS	MOON_CUPID				8.9	1.67e-4	~2.5e15					x	x																		
+BELINDA									Belinda			Belinda_(moon)	XIV	URANUS	MOON_BELINDA				43	1.20e-2	~1.8e17				0.08	x	x																		
+PERDITA									Perdita			Perdita_(moon)	XXV	URANUS	MOON_PERDITA				13.3	4.67e-4	~7e15					x	x																		
+PUCK									Puck			Puck_(moon)	XV	URANUS	MOON_PUCK				81	1.33e-1	2e18				0.11	x	x																		
+MAB									Mab			Mab_(moon)	XXVI	URANUS	MOON_MAB				~10	0.0006						x	x																		
+MIRANDA						x			Miranda			Miranda_(moon)	V	URANUS	MOON_MIRANDA		ROCKY_WORLD	UNKNOWN	235.8	4.20	6.3e19	1.15	0.076	189	0.32	x	x																		
+ARIEL			x	x	FALSE	x			Ariel			Ariel_(moon)	I	URANUS	MOON_ARIEL		ICE_WORLD	YES	578.9	8.23e1	1.233e21	1.517	0.246	533	0.53	x	x																		
+UMBRIEL			x	x	FALSE	x			Umbriel			Umbriel_(moon)	II	URANUS	MOON_UMBRIEL		ICE_WORLD	YES	584.7	8.60e1	1.289e21	1.539	0.195	542	0.26	x	x																		
+TITANIA			x	x	FALSE	x			Titania			Titania_(moon)	III	URANUS	MOON_TITANIA		ICE_WORLD	YES	788.4	2.31e2	3.455e21	1.683	0.371	765	0.35	x	x																		
+OBERON			x	x	FALSE	x			Oberon			Oberon_(moon)	IV	URANUS	MOON_OBERON		ICE_WORLD	YES	761.4	2.08e2	3.11e21	1.682	0.358	738	0.31	x	x																		
+FRANCISCO							x		Francisco			Francisco_(moon)	XXII	URANUS	MOON_FRANCISCO				~11	0.00056								x																	
+CALIBAN							x		Caliban			Caliban_(moon)	XVI	URANUS	MOON_CALIBAN				21	0.02					0.22			x																	
+STEPHANO							x		Stephano			Stephano_(moon)	XX	URANUS	MOON_STEPHANO				~16	0.0017								x																	
+TRINCULO							x		Trinculo			Trinculo_(moon)	XXI	URANUS	MOON_TRINCULO				~9	0.00031								x																	
+SYCORAX							x		Sycorax			Sycorax_(moon)	XVII	URANUS	MOON_SYCORAX				80	0.18					0.06			x																	
+MARGARET							x		Margaret			Margaret_(moon)	XXIII	URANUS	MOON_MARGARET				~10	0.00042								x																	
+PROSPERO							x		Prospero			Prospero_(moon)	XVIII	URANUS	MOON_PROSPERO				~25	0.0066								x																	
+SETEBOS							x		Setebos			Setebos_(moon)	XIX	URANUS	MOON_SETEBOS				~24	0.0058								x																	
+FERDINAND							x		Ferdinand			Ferdinand_(moon)	XXIV	URANUS	MOON_FERDINAND				~6	0.00042								x																	
+NAIAD									Naiad			Naiad_(moon)	III	NEPTUNE	MOON_NAIAD				33	8.01e-3	~1.2e17	0.80			0.072	x	x																		
+THALASSA									Thalassa			Thalassa_(moon)	IV	NEPTUNE	MOON_THALASSA				41	2.34e-2	~3.5e17	1.23			0.091	x	x																		
+DESPINA									Despina			Despina_(moon)	V	NEPTUNE	MOON_DESPINA				75	6.67e-2	~1e18	~0.6			0.09	x	x																		
+GALATEA									Galatea			Galatea_(moon)	VI	NEPTUNE	MOON_GALATEA				88	1.27e-1	~1.9e18	~0.7			0.08	x	x																		
+LARISSA									Larissa			Larissa_(moon)	VII	NEPTUNE	MOON_LARISSA				97	0.33					0.09	x	x																		
+HIPPOCAMP									Hippocamp			Hippocamp_(moon)	XIV	NEPTUNE	MOON_HIPPOCAMP				17	0.0003						x	x																		
+PROTEUS									Proteus			Proteus_(moon)	VIII	NEPTUNE	MOON_PROTEUS				210	3.36					0.096	x	x																		
+TRITON			x	x	FALSE	x			Triton			Triton_(moon)	I	NEPTUNE	MOON_TRITON		ICE_WORLD	YES	1353.4	1.43e3	2.1389e22	2.061	0.779	1455	0.76	x	x									x		?							Nitrogen, trace Methane
+NEREID							x		Nereid			Nereid_(moon)	II	NEPTUNE	MOON_NEREID				180	2.06					0.24			x																	
+HALIMEDE							x		Halimede			Halimede_(moon)	IX	NEPTUNE	MOON_HALIMEDE				~31	0.012								x																	
+SAO							x		Sao			Sao_(moon)	XI	NEPTUNE	MOON_SAO				~22	0.0045								x																	
+LAOMEDEIA							x		Laomedeia			Laomedeia	XII	NEPTUNE	MOON_LAOMEDEIA				~21	0.0039								x																	
+PSAMATHE							x		Psamathe			Psamathe_(moon)	X	NEPTUNE	MOON_PSAMATHE				~20	0.0033								x																	
+NESO							x		Neso			Neso_(moon)	XIII	NEPTUNE	MOON_NESO				30	0.011		1.5						x																	
+CHARON			x	x	FALSE	x			Charon			Charon_(moon)	I	PLUTO	MOON_CHARON		ICE_WORLD	YES	606.0	1.06e2	1.590e21	1.705	0.288	590	0.38	x	x																		
+STYX									Styx			Styx_(moon)	V	PLUTO	MOON_STYX				5.5	5.01e-4	~7.5e15				0.65			x																	
+NIX									Nix			Nix_(moon)	II	PLUTO	MOON_NIX				19	1.74e-3	~2.6e16				0.56			x																	
+KERBEROS									Kerberos			Kerberos_(moon)	IV	PLUTO	MOON_KERBEROS				6.3	1.13e-3	~1.7e16				0.56			x																	
+HYDRA									Hydra			Hydra_(moon)	III	PLUTO	MOON_HYDRA				19	2.00e-3	~3e16				0.83			x																	

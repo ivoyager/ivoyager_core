@@ -31,33 +31,77 @@ extends MeshInstance3D
 ## Configured by body-table columns named [code]shell<N>_<suffix>[/code]. The
 ## [b]number[/b] selects the shell: [code]shell0[/code] is the base surface, while
 ## [code]shell1[/code], [code]shell2[/code]… are overlays — each built only if its
-## [code]shell<N>[/code] name column (also the texture file token) is set. The
-## [b]suffix[/b] selects what it sets:[br]
-## - [code]_scale[/code]: overlay radius multiplier (the surface is 1.0).[br]
+## [code]shell<N>_scale[/code] is set. The [b]suffix[/b] selects what it sets:[br]
+## - [code]_scale[/code]: radius multiplier; required for an overlay (surface = 1.0;
+## a value < 1.0 places the shell under the surface).[br]
+## - [code]_file_tag[/code] ([StringName], optional): texture filename token
+## ([code]<file_prefix>.<file_tag>.<channel>[/code]); omit for a textureless shell.
+## Suffix invalid on shell 0, whose textures use [code]file_prefix[/code] alone.[br]
 ## - [code]_shader[/code] ([StringName]): give the shell a [ShaderMaterial] using
 ## the named [Shader] in [member IVGlobal.resources], instead of a [StandardMaterial3D].[br]
 ## - [code]_process[/code] ([code]ARRAY[VARIANT][/code] of [code][method, ...args][/code]):
 ## call that [IVSpheroidModel] method on the shell each frame as
-## [code]method(delta, ...args)[/code] (e.g. [method _dynamic_star]).[br]
-## - any element of [member material_fields] (e.g. [code]_roughness[/code],
-## [code]_rim[/code]): set that [StandardMaterial3D] property. Shell 0 also takes
-## these as per-[code]model_type[/code] defaults from models.tsv, which a body-table
-## [code]shell<N>_<field>[/code] overrides. Overlays also accept [code]_opacity[/code]
-## (alpha).[br][br]
+## [code]method(delta, ...args)[/code] (e.g. [method _rotate]).[br]
+## - any element of [member material_fields] (e.g. [code]_albedo_color[/code],
+## [code]_roughness[/code]): set that [StandardMaterial3D] property. Shell 0 takes
+## these as per-[code]model_type[/code] defaults from models.tsv, overridden per body.
+## A uniform shell needs only [code]_albedo_color[/code] (RGBA) — no texture.[br][br]
+##
+## Overlapping translucent shells auto-order back-to-front by scale (outer on top,
+## via material [code]render_priority[/code]); give shells distinct scales (equal
+## scales z-fight).[br][br]
 ##
 ## Not persisted.
 
 ## [StandardMaterial3D] properties that shells set from data tables: per-[code]model_type[/code]
 ## defaults (models.tsv) for shell 0, and per-shell [code]shell<N>_<field>[/code]
-## overrides (body tables). Append before bodies build to data-drive any other
-## StandardMaterial3D property.
+## overrides (body tables). List only value properties — a feature's [code]*_enabled[/code]
+## toggle is auto-set via [constant PROPERTY_FEATURES] when its value is set. Append
+## before bodies build to data-drive any other StandardMaterial3D property.
 static var material_fields: Array[StringName] = [
+	&"albedo_color",
 	&"metallic",
 	&"roughness",
-	&"rim_enabled",
 	&"rim",
 	&"rim_tint"
 ]
+
+## Texture channel → the [enum BaseMaterial3D.Feature] enabled when that channel is
+## applied (channels absent here are always active). Used by [method _apply_channels_to_material].
+const CHANNEL_FEATURES := {
+	BaseMaterial3D.TEXTURE_EMISSION: BaseMaterial3D.FEATURE_EMISSION,
+	BaseMaterial3D.TEXTURE_NORMAL: BaseMaterial3D.FEATURE_NORMAL_MAPPING,
+	BaseMaterial3D.TEXTURE_BENT_NORMAL: BaseMaterial3D.FEATURE_BENT_NORMAL_MAPPING,
+	BaseMaterial3D.TEXTURE_RIM: BaseMaterial3D.FEATURE_RIM,
+	BaseMaterial3D.TEXTURE_CLEARCOAT: BaseMaterial3D.FEATURE_CLEARCOAT,
+	BaseMaterial3D.TEXTURE_FLOWMAP: BaseMaterial3D.FEATURE_ANISOTROPY,
+	BaseMaterial3D.TEXTURE_AMBIENT_OCCLUSION: BaseMaterial3D.FEATURE_AMBIENT_OCCLUSION,
+	BaseMaterial3D.TEXTURE_HEIGHTMAP: BaseMaterial3D.FEATURE_HEIGHT_MAPPING,
+	BaseMaterial3D.TEXTURE_SUBSURFACE_SCATTERING: BaseMaterial3D.FEATURE_SUBSURFACE_SCATTERING,
+	BaseMaterial3D.TEXTURE_SUBSURFACE_TRANSMITTANCE: BaseMaterial3D.FEATURE_SUBSURFACE_TRANSMITTANCE,
+	BaseMaterial3D.TEXTURE_BACKLIGHT: BaseMaterial3D.FEATURE_BACKLIGHT,
+	BaseMaterial3D.TEXTURE_REFRACTION: BaseMaterial3D.FEATURE_REFRACTION,
+	BaseMaterial3D.TEXTURE_DETAIL_ALBEDO: BaseMaterial3D.FEATURE_DETAIL,
+}
+
+## Material value property → the [enum BaseMaterial3D.Feature] enabled when that
+## property is set from a data table — the non-texture analog of [constant CHANNEL_FEATURES],
+## so setting e.g. [code]rim[/code] enables [code]rim_enabled[/code] automatically.
+const PROPERTY_FEATURES := {
+	&"emission": BaseMaterial3D.FEATURE_EMISSION,
+	&"normal_scale": BaseMaterial3D.FEATURE_NORMAL_MAPPING,
+	&"rim": BaseMaterial3D.FEATURE_RIM,
+	&"rim_tint": BaseMaterial3D.FEATURE_RIM,
+	&"clearcoat": BaseMaterial3D.FEATURE_CLEARCOAT,
+	&"clearcoat_roughness": BaseMaterial3D.FEATURE_CLEARCOAT,
+	&"anisotropy": BaseMaterial3D.FEATURE_ANISOTROPY,
+	&"ao_light_affect": BaseMaterial3D.FEATURE_AMBIENT_OCCLUSION,
+	&"heightmap_scale": BaseMaterial3D.FEATURE_HEIGHT_MAPPING,
+	&"subsurf_scatter_strength": BaseMaterial3D.FEATURE_SUBSURFACE_SCATTERING,
+	&"subsurf_scatter_transmittance_color": BaseMaterial3D.FEATURE_SUBSURFACE_TRANSMITTANCE,
+	&"backlight": BaseMaterial3D.FEATURE_BACKLIGHT,
+	&"refraction_scale": BaseMaterial3D.FEATURE_REFRACTION,
+}
 
 
 var _shell: int # 0 is the surface and orchestrator; 1..N are child shells
@@ -66,6 +110,8 @@ var _model_type: int
 var _mean_radius: float
 var _reference_basis: Basis # this shell's base basis (before any process scaling)
 var _process_callable: Callable
+
+var _times := IVGlobal.times
 
 
 
@@ -86,7 +132,8 @@ func _ready() -> void:
 	var shell_specs := asset_preloader.get_body_shell_specs(_body_name)
 	var spec: Dictionary = shell_specs[_shell]
 	var process_spec: Array = spec[&"process"]
-	_build_material(spec, asset_preloader)
+	var render_priority := _compute_render_priority(shell_specs)
+	_build_material(spec, asset_preloader, render_priority)
 	_set_cast_shadow()
 	_set_visibility_and_layers()
 	_resolve_process(process_spec)
@@ -99,29 +146,27 @@ func _process(delta: float) -> void:
 
 
 
-func _build_material(spec: Dictionary, asset_preloader: IVAssetPreloader) -> void:
+func _build_material(spec: Dictionary, asset_preloader: IVAssetPreloader,
+		render_priority: int) -> void:
 	var channels: Dictionary = spec[&"channels"]
 	var shader_name: StringName = spec[&"shader"]
 	if shader_name:
-		_build_shader_material(shader_name, channels, asset_preloader)
+		_build_shader_material(shader_name, channels, asset_preloader, render_priority)
 		return
 	var material := StandardMaterial3D.new()
+	material.render_priority = render_priority
 	if _shell == 0:
-		IVTableData.db_build_object(material, &"models", _model_type, material_fields)
+		var defaults: Dictionary = {}
+		IVTableData.db_build_dictionary(defaults, &"models", _model_type, material_fields)
+		_apply_material_fields(material, defaults)
 	else:
+		# An overlay is translucent; its color/alpha come from a texture
+		# (shell<N>_file_tag), a shell<N>_albedo_color, or both (color tints texture).
 		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		# Optional per-shell opacity scales the texture's alpha. Unset (NAN) leaves
-		# the texture's own alpha untouched. (Every other StandardMaterial3D field —
-		# rim_enabled/rim/rim_tint included — is set explicitly via a shell<N>_<field>
-		# column in material_fields.)
-		var opacity: float = spec.get(&"opacity", NAN)
-		if not is_nan(opacity):
-			material.albedo_color.a = opacity
 	# Body-table shell<N>_<field> values override the model_type material defaults.
 	var overrides: Dictionary = spec[&"overrides"]
-	for field: StringName in overrides:
-		material.set(field, overrides[field])
-	IVAssetPreloader.apply_channels_to_material(material, channels)
+	_apply_material_fields(material, overrides)
+	_apply_channels_to_material(material, channels)
 	if _shell == 0 and channels.has(BaseMaterial3D.TEXTURE_EMISSION):
 		material.emission_energy_multiplier = IVTableData.get_db_float(&"models",
 				&"emission_energy_multiplier", _model_type)
@@ -129,7 +174,7 @@ func _build_material(spec: Dictionary, asset_preloader: IVAssetPreloader) -> voi
 
 
 func _build_shader_material(shader_name: StringName, channels: Dictionary,
-		asset_preloader: IVAssetPreloader) -> void:
+		asset_preloader: IVAssetPreloader, render_priority: int) -> void:
 	# A shell may opt into a ShaderMaterial (shell<N>_shader naming a Shader in
 	# IVGlobal.resources). Discovered channel textures feed it as named uniforms;
 	# the StandardMaterial3D fields (material_fields, overrides) don't apply.
@@ -141,8 +186,41 @@ func _build_shader_material(shader_name: StringName, channels: Dictionary,
 		return
 	var material := ShaderMaterial.new()
 	material.shader = shader
-	asset_preloader.apply_channels_to_shader_material(material, channels)
+	material.render_priority = render_priority
+	_apply_channels_to_shader_material(material, channels, asset_preloader)
 	set_surface_override_material(0, material)
+
+
+func _apply_channels_to_material(material: BaseMaterial3D, channels: Dictionary) -> void:
+	for param: int in channels:
+		var texture: Texture2D = channels[param]
+		if not texture:
+			continue
+		material.set_texture(param, texture)
+		if CHANNEL_FEATURES.has(param):
+			var feature: int = CHANNEL_FEATURES[param]
+			material.set_feature(feature, true)
+
+
+func _apply_channels_to_shader_material(material: ShaderMaterial, channels: Dictionary,
+		asset_preloader: IVAssetPreloader) -> void:
+	# Feed each discovered channel texture as a shader uniform named by its
+	# asset_preloader.texture_channels tag (e.g. &"albedo", &"normal").
+	var texture_channels: Dictionary[int, StringName] = asset_preloader.texture_channels
+	for param: int in channels:
+		var texture: Texture2D = channels[param]
+		if texture and texture_channels.has(param):
+			material.set_shader_parameter(texture_channels[param], texture)
+
+
+func _apply_material_fields(material: BaseMaterial3D, fields: Dictionary) -> void:
+	# Set each property, then auto-enable its feature so a table never needs a
+	# *_enabled toggle (setting e.g. rim enables rim_enabled). See PROPERTY_FEATURES.
+	for property: StringName in fields:
+		material.set(property, fields[property])
+		if PROPERTY_FEATURES.has(property):
+			var feature: int = PROPERTY_FEATURES[property]
+			material.set_feature(feature, true)
 
 
 func _set_cast_shadow() -> void:
@@ -165,19 +243,43 @@ func _set_visibility_and_layers() -> void:
 
 func _build_child_shells(shell_specs: Array) -> void:
 	# Each extra shell is a translucent child reusing the shared sphere mesh at a
-	# larger radius, inheriting the body's oblateness, orientation and spin.
+	# larger (or smaller) radius, inheriting the body's oblateness, orientation and spin.
 	for shell_index in range(1, shell_specs.size()):
 		var spec: Dictionary = shell_specs[shell_index]
 		var channels: Dictionary = spec[&"channels"]
-		if channels.is_empty():
-			push_warning("Body %s shell '%s' has no textures; skipping" % [_body_name, spec[&"name"]])
+		var overrides: Dictionary = spec[&"overrides"]
+		var shader: StringName = spec[&"shader"]
+		# A shell needs an appearance source (texture, material override or shader);
+		# otherwise it would render as an opaque white sphere.
+		if channels.is_empty() and overrides.is_empty() and not shader:
+			push_warning("Body %s shell %d has no texture, material override or shader; skipping"
+					% [_body_name, shell_index])
 			continue
-		var shell_scale: float = spec.get(&"scale", NAN)
-		if is_nan(shell_scale):
-			push_warning("Body %s shell '%s' has no scale; skipping" % [_body_name, spec[&"name"]])
-			continue
+		var shell_scale: float = spec[&"scale"]
 		var child_basis := Basis().scaled(Vector3.ONE * shell_scale)
 		add_child(IVSpheroidModel.new(_body_name, _model_type, _mean_radius, child_basis, shell_index))
+
+
+## Render priority = this shell's rank by scale (ascending; shell index breaks ties),
+## so overlapping translucent shells blend back-to-front (outer over inner). The
+## surface (shell 0) ranks as scale 1.0.
+func _compute_render_priority(shell_specs: Array) -> int:
+	var my_spec: Dictionary = shell_specs[_shell]
+	var my_scale := _spec_scale(my_spec)
+	var priority := 0
+	for i in shell_specs.size():
+		if i == _shell:
+			continue
+		var other_spec: Dictionary = shell_specs[i]
+		var other_scale := _spec_scale(other_spec)
+		if other_scale < my_scale or (other_scale == my_scale and i < _shell):
+			priority += 1
+	return priority
+
+
+func _spec_scale(spec: Dictionary) -> float:
+	var shell_scale: float = spec.get(&"scale", 1.0) # surface (shell 0) has no scale; rank as 1.0
+	return shell_scale
 
 
 func _resolve_process(process_spec: Array) -> void:
@@ -203,6 +305,12 @@ func _resolve_process(process_spec: Array) -> void:
 
 
 # process methods (named by a shell<N>_process column)
+
+func _rotate(delta: float, deg_per_sec: float) -> void:
+	const CONVERSION := PI / (180.0 * IVUnits.SECOND)
+	delta *= _times[1] / Engine.time_scale
+	rotate_y(delta * deg_per_sec * CONVERSION) # y up in model self reference
+
 
 func _dynamic_star(_delta: float) -> void:
 	# Grow the star past GROW_DIST so it stays visible and prominent relative to the
