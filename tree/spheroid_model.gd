@@ -54,7 +54,10 @@ extends MeshInstance3D
 ## via material [code]render_priority[/code]); give shells distinct scales (equal
 ## scales z-fight).[br][br]
 ##
-## Not persisted.
+## Developer note: Process methods must gate themselves on [member IVStateManager.paused_tree]
+## as needed. This is because some methods need to run in a project setup where
+## the camera is able to move during pause.
+
 
 ## Texture channel → the [enum BaseMaterial3D.Feature] enabled when that channel is
 ## applied (channels absent here are always active). Used by [method _apply_channels_to_material].
@@ -294,17 +297,19 @@ func _resolve_process(process_spec: Array) -> void:
 	set_process(true)
 
 
-# process methods (named by a shell<N>_process column)
+# process methods named by 'process' field in shells.tsv
 
-## Method can be specified by `process` field in shells.tsv. Rotates the shell
+## Method can be specified by 'process' field in shells.tsv. Rotates the shell
 ## at specified degrees per second.
 func _rotate(delta: float, deg_per_sec: float) -> void:
 	const CONVERSION := PI / (180.0 * IVUnits.SECOND)
+	if IVStateManager.paused_tree:
+		return
 	delta *= _times[1] / Engine.time_scale
 	rotate_y(delta * deg_per_sec * CONVERSION) # y up in model self reference
 
 
-## Method can be specified by `process` field in shells.tsv. Grows a star when
+## Method can be specified by 'process' field in shells.tsv. Grows a star when
 ## beyond GROW_DIST so it stays visible relative to the star field at many au.
 ## Grow settings are subjective: currently calibrated so the Sun is prominant
 ## at Jupiter and visible at Pluto. 
