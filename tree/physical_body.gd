@@ -20,7 +20,7 @@
 class_name IVPhysicalBody
 extends Node3D
 
-## Provides a model reference frame and instantiates a body's model. 
+## Provides a model reference frame and instantiates a body's model.
 ##
 ## This node is oriented and rotated by [IVBody], but is not scaled.[br][br]
 ##
@@ -28,7 +28,7 @@ extends Node3D
 ## [IVBody] only if/when needed and remains through the current user session.
 ## (Lazy init is applicable if [IVLazyModelInitializer] is present and [IVBody]
 ## has [enum IVBody.BodyFlags].BODYFLAGS_LAZY_MODEL.)[br][br]
-## 
+##
 ## Children can be added that share the model's axial tilt and rotation.
 ## In base Solar System setup, [IVBodyFinisher] adds [IVRings] for Saturn.[br][br]
 ##
@@ -41,7 +41,8 @@ extends Node3D
 ## Body-frame reference basis used for orienting the model and rings.
 var reference_basis: Basis
 ## Optional Script used in place of [IVSpheroidModel] when no PackedScene model
-## is present. Must extend [IVSpheroidModel].
+## is present. Must extend [IVSpheroidModel] and share its
+## [code]_init(body_name, model_type, mean_radius, model_basis, shell)[/code] signature.
 var replacement_spheroid_model_class: Script
 
 
@@ -99,22 +100,19 @@ func _build_packed_model(asset_preloader: IVAssetPreloader, packed_model: Packed
 
 
 func _build_spheroid_model(asset_preloader: IVAssetPreloader) -> void:
+	# Compute the oblate, map-offset, z-up reference basis; the model self-builds
+	# its surface, child shells, visibility ranges and layers from there.
 	const RIGHT_ANGLE := PI / 2
-	var polar_radius: = 3.0 * _m_radius - 2.0 * _e_radius
+	var polar_radius := 3.0 * _m_radius - 2.0 * _e_radius
 	reference_basis = Basis().scaled(Vector3(_e_radius, polar_radius, _e_radius))
-	var albedo_map := asset_preloader.get_body_albedo_map(_body_name)
-	var emission_map := asset_preloader.get_body_emission_map(_body_name)
 	var map_offset := asset_preloader.get_body_map_offset(_body_name)
 	reference_basis = reference_basis.rotated(Vector3(0.0, 1.0, 0.0), -RIGHT_ANGLE - map_offset)
 	reference_basis = reference_basis.rotated(Vector3(1.0, 0.0, 0.0), RIGHT_ANGLE) # z-up!
 	if replacement_spheroid_model_class:
 		@warning_ignore("unsafe_method_access")
-		_model = replacement_spheroid_model_class.new(_model_type, reference_basis, albedo_map,
-				emission_map)
+		_model = replacement_spheroid_model_class.new(_body_name, _model_type, _m_radius, reference_basis)
 	else:
-		_model = IVSpheroidModel.new(_model_type, reference_basis, albedo_map, emission_map)
-	_set_visibility_ranges()
-	_set_layers()
+		_model = IVSpheroidModel.new(_body_name, _model_type, _m_radius, reference_basis)
 
 
 func _build_fallback_nonspheroid_model(asset_preloader: IVAssetPreloader) -> void:
@@ -124,6 +122,9 @@ func _build_fallback_nonspheroid_model(asset_preloader: IVAssetPreloader) -> voi
 	_build_spheroid_model(asset_preloader)
 
 
+# Packed-scene models are foreign node trees, so [IVPhysicalBody] still recurses
+# to set their visibility ranges and layers. Spheroid models self-configure (see
+# [IVSpheroidModel]).
 func _set_visibility_ranges() -> void:
 	if IVTableData.get_db_bool(&"models", &"inf_visibility", _model_type):
 		return # default 0.0 is no distance cull

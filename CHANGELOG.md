@@ -17,6 +17,7 @@ Under development using Godot 4.7.
 
 
 ### Added
+* "Shells" configuration via table [shells.tsv](https://github.com/ivoyager/ivoyager_core/blob/master/tables/shells.tsv) for full customization of surface and atmospheric effects on spheroid models. 
 * Editor 2D image capture tool (Project/Tools menu) for generating missing 256 PNG alpha flat images in ivoyager_assets/bodies_2d/ for existing models and spheroid maps.
 * Patched conics via new [IVTrajectory](https://github.com/ivoyager/ivoyager_core/blob/master/tree_components/trajectory.gd). Allows construction of complex flight paths with planet flybys. It's essentially a scheduler that specifies a series of IVOrbit instances and parent bodies. Can be defined in data tables or built by code in running game. Demonstrated with additions: Voyager 1 & 2, Pioneer 10, and New Horizons.
 * IVBody signal `sleep_changed(is_sleeping: bool)`.
