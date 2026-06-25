@@ -91,6 +91,19 @@ var texture_channels: Dictionary[int, StringName] = {
 ## You own its correctness; it is validated at load and ignored if invalid.
 var map_filename_regex_override := ""
 
+## [code]shells.tsv[/code] columns that are NOT [StandardMaterial3D] properties (read
+## explicitly into the shell spec). Every other column is set on the shell material
+## directly by [IVSpheroidModel] — to add a material override, just add that property's
+## column. Enforced at load by [method _assert_material_table].
+static var shells_nonmaterial_fields: Array[StringName] = [
+	&"scale", &"file_tag", &"shader", &"process",
+]
+## [code]models.tsv[/code] columns that are NOT [StandardMaterial3D] properties. Every
+## other column is a per-[code]model_type[/code] material default for the surface (shell 0).
+static var models_nonmaterial_fields: Array[StringName] = [
+	&"spheroid", &"inf_visibility", &"is_star",
+]
+
 
 var _blue_noise_1024: Texture2D
 var _starmap: Texture2D
@@ -198,6 +211,41 @@ func _load_starmap() -> void:
 	_starmap = load(path)
 
 
+## Returns a [code]{property: value}[/code] dictionary of [StandardMaterial3D] fields from
+## [param table] [param row] — every set value field except the entity name and
+## [param nonmaterial_fields]. Each remaining field must name a [StandardMaterial3D]
+## property (it is [code]set()[/code] blindly by [IVSpheroidModel]; see [method
+## _assert_material_table]). Used for per-shell overrides ([code]shells.tsv[/code]) and
+## per-[code]model_type[/code] surface defaults ([code]models.tsv[/code]).
+func read_material_fields(table: StringName, row: int,
+		nonmaterial_fields: Array[StringName]) -> Dictionary:
+	var fields: Dictionary = {}
+	IVTableData.db_build_dictionary(fields, table, row)
+	fields.erase(&"name")
+	for nonmaterial_field in nonmaterial_fields:
+		fields.erase(nonmaterial_field)
+	return fields
+
+
+func _assert_material_table(table: StringName, nonmaterial_fields: Array[StringName]) -> void:
+	# Dev guard: every non-excluded column is set() blindly on a StandardMaterial3D by
+	# [IVSpheroidModel], which silently no-ops an unknown property. Catch a typo'd or
+	# unsupported column here rather than as a body that renders wrong.
+	if not OS.is_debug_build() or not IVTableData.db_tables.has(table):
+		return
+	var properties: Dictionary[StringName, bool] = {}
+	for property: Dictionary in StandardMaterial3D.new().get_property_list():
+		var usage: int = property[&"usage"]
+		if usage & PROPERTY_USAGE_DEFAULT:
+			var property_name: String = property[&"name"]
+			properties[StringName(property_name)] = true
+	for field: StringName in IVTableData.db_tables[table]:
+		if field == &"name" or field in nonmaterial_fields:
+			continue
+		assert(properties.has(field), "Table '%s' column '%s' is not a StandardMaterial3D"
+				% [table, field] + " property; add it to the non-material exclusion list")
+
+
 ## Builds one shell's spec [Dictionary] from its [code]shells[/code]-table row, or
 ## model defaults if [param shell_row] is -1 (a surface with no row). [param is_surface]
 ## (shell 0) omits [code]scale[/code] (the surface ranks as 1.0) and has no file_tag.
@@ -207,17 +255,13 @@ func _read_shell_spec(channels: Dictionary, shell_row: int, is_surface: bool) ->
 			&"channels": channels,
 			&"shader": &"",
 			&"process": [],
-			&"transparency": BaseMaterial3D.TRANSPARENCY_DISABLED,
 			&"overrides": {},
 		}
-	var overrides: Dictionary = {}
-	IVTableData.db_build_dictionary(overrides, &"shells", shell_row, IVSpheroidModel.material_fields)
 	var spec: Dictionary = {
 		&"channels": channels,
 		&"shader": IVTableData.get_db_string_name(&"shells", &"shader", shell_row),
 		&"process": IVTableData.get_db_array(&"shells", &"process", shell_row),
-		&"transparency": IVTableData.get_db_int(&"shells", &"transparency", shell_row),
-		&"overrides": overrides,
+		&"overrides": read_material_fields(&"shells", shell_row, shells_nonmaterial_fields),
 	}
 	if not is_surface:
 		spec[&"scale"] = IVTableData.get_db_float(&"shells", &"scale", shell_row)
@@ -226,7 +270,9 @@ func _read_shell_spec(channels: Dictionary, shell_row: int, is_surface: bool) ->
 
 func _load_body_resources() -> void:
 	const METER := IVUnits.METER
-	
+
+	_assert_material_table(&"shells", shells_nonmaterial_fields)
+	_assert_material_table(&"models", models_nonmaterial_fields)
 	_compose_map_regex()
 	var maps_index := _build_maps_index() # prefix(lower) -> shell -> {TextureParam: res_path}
 	

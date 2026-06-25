@@ -45,31 +45,16 @@ extends MeshInstance3D
 ## [code]method(delta, ...args)[/code] (e.g. [method _rotate]).[br]
 ## - [code]transparency[/code] ([enum BaseMaterial3D.Transparency]): per-shell, with no
 ## shell-0 assumption; it also decides shadow-casting (opaque, non-star shells cast).[br]
-## - any element of [member material_fields] (e.g. [code]albedo_color[/code],
-## [code]roughness[/code]): set that [StandardMaterial3D] property. Shell 0 also takes
-## these as per-[code]model_type[/code] defaults from models.tsv, overridden per row.
-## A uniform shell needs only [code]albedo_color[/code] (RGBA) — no texture.[br][br]
+## - any other column: set directly as the named [StandardMaterial3D] property (e.g.
+## [code]albedo_color[/code], [code]roughness[/code]). Shell 0 also takes these as
+## per-[code]model_type[/code] defaults from models.tsv, overridden per row. A uniform
+## shell needs only [code]albedo_color[/code] (RGBA) — no texture.[br][br]
 ##
 ## Overlapping translucent shells auto-order back-to-front by scale (outer on top,
 ## via material [code]render_priority[/code]); give shells distinct scales (equal
 ## scales z-fight).[br][br]
 ##
 ## Not persisted.
-
-## [StandardMaterial3D] properties that shells set from data tables: per-[code]model_type[/code]
-## defaults (models.tsv) for shell 0, and per-shell [code]<field>[/code] overrides
-## (shells.tsv). List only value properties — a feature's [code]*_enabled[/code]
-## toggle is auto-set via [constant PROPERTY_FEATURES] when its value is set. Append
-## before bodies build to data-drive any other StandardMaterial3D property.
-static var material_fields: Array[StringName] = [
-	&"albedo_color",
-	&"metallic",
-	&"roughness",
-	&"rim",
-	&"rim_tint",
-	&"emission_energy_multiplier",
-	&"normal_scale",
-]
 
 ## Texture channel → the [enum BaseMaterial3D.Feature] enabled when that channel is
 ## applied (channels absent here are always active). Used by [method _apply_channels_to_material].
@@ -137,7 +122,8 @@ func _ready() -> void:
 	var shell_specs := asset_preloader.get_body_shell_specs(_body_name)
 	var spec: Dictionary = shell_specs[_shell]
 	var process_spec: Array = spec[&"process"]
-	var transparency_mode: int = spec[&"transparency"]
+	var overrides: Dictionary = spec[&"overrides"]
+	var transparency_mode: int = overrides.get(&"transparency", BaseMaterial3D.TRANSPARENCY_DISABLED)
 	var render_priority := _compute_render_priority(shell_specs)
 	_build_material(spec, asset_preloader, render_priority)
 	_set_cast_shadow(transparency_mode)
@@ -161,14 +147,13 @@ func _build_material(spec: Dictionary, asset_preloader: IVAssetPreloader,
 		return
 	var material := StandardMaterial3D.new()
 	material.render_priority = render_priority
-	material.transparency = spec[&"transparency"] # per-shell data; no shell-0 assumption
 	if _shell == 0:
 		# The surface seeds its material from per-model_type defaults (models.tsv);
 		# overlays start from a bare StandardMaterial3D.
-		var defaults: Dictionary = {}
-		IVTableData.db_build_dictionary(defaults, &"models", _model_type, material_fields)
+		var defaults := asset_preloader.read_material_fields(&"models", _model_type,
+				IVAssetPreloader.models_nonmaterial_fields)
 		_apply_material_fields(material, defaults)
-	# shells.tsv material-field columns override the model_type material defaults.
+	# shells.tsv columns (incl. transparency) override the model_type material defaults.
 	var overrides: Dictionary = spec[&"overrides"]
 	_apply_material_fields(material, overrides)
 	_apply_channels_to_material(material, channels)
@@ -179,13 +164,13 @@ func _build_shader_material(shader_name: StringName, channels: Dictionary,
 		asset_preloader: IVAssetPreloader, render_priority: int) -> void:
 	# A shell may opt into a ShaderMaterial (its shells.tsv "shader" column naming a
 	# Shader in IVGlobal.resources). Discovered channel textures feed it as named
-	# uniforms; the StandardMaterial3D fields (material_fields, overrides) and the
-	# "transparency" column don't apply (the shader controls its own blending).
+	# uniforms; the StandardMaterial3D override columns (incl. transparency) don't
+	# apply (the shader controls its own blending).
 	var resource: Resource = IVGlobal.resources.get(shader_name)
 	var shader := resource as Shader
 	if not shader:
-		push_warning("Body %s shell %d: shell%d_shader '%s' not in IVGlobal.resources"
-				% [_body_name, _shell, _shell, shader_name])
+		push_warning("Body %s shell %d: shader '%s' not in IVGlobal.resources"
+				% [_body_name, _shell, shader_name])
 		return
 	var material := ShaderMaterial.new()
 	material.shader = shader
@@ -311,15 +296,19 @@ func _resolve_process(process_spec: Array) -> void:
 
 # process methods (named by a shell<N>_process column)
 
+## Method can be specified by `process` field in shells.tsv. Rotates the shell
+## at specified degrees per second.
 func _rotate(delta: float, deg_per_sec: float) -> void:
 	const CONVERSION := PI / (180.0 * IVUnits.SECOND)
 	delta *= _times[1] / Engine.time_scale
 	rotate_y(delta * deg_per_sec * CONVERSION) # y up in model self reference
 
 
-func _dynamic_star(_delta: float) -> void:
-	# Grow the star past GROW_DIST so it stays visible and prominent relative to the
-	# star field at great distances. Grow settings are subjective.
+## Method can be specified by `process` field in shells.tsv. Grows a star when
+## beyond GROW_DIST so it stays visible relative to the star field at many au.
+## Grow settings are subjective: currently calibrated so the Sun is prominant
+## at Jupiter and visible at Pluto. 
+func _grow_star(_delta: float) -> void:
 	const GROW_DIST := 2.0 * IVUnits.AU
 	const GROW_FACTOR := 0.3
 	var viewport := get_viewport()
