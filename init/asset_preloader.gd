@@ -79,7 +79,7 @@ var fallback_starmap := &"starmap_8k" # starmap_16k possibly removed for size re
 ## Add entries (e.g. [code]BaseMaterial3D.TEXTURE_ROUGHNESS: &"roughness"[/code])
 ## before [signal IVStateManager.core_initialized] to ingest more channels; each
 ## tag must match [code][A-Za-z0-9_]+[/code]. A discovered file
-## [code]<file_prefix>[.<shell>].<tag>.*[/code] is applied to the body's (or a
+## [code]<file_prefix>[.<file_tag>].<tag>.*[/code] is applied to the body's (or a
 ## shell's) material by [IVSpheroidModel].
 var texture_channels: Dictionary[int, StringName] = {
 	BaseMaterial3D.TEXTURE_ALBEDO: &"albedo",
@@ -90,10 +90,6 @@ var texture_channels: Dictionary[int, StringName] = {
 ## named groups [code]prefix[/code] and [code]tag[/code] (optionally [code]shell[/code]).
 ## You own its correctness; it is validated at load and ignored if invalid.
 var map_filename_regex_override := ""
-## Highest [code]shell<N>[/code] body-table column scanned for an extra render shell
-## ([code]shell0[/code] is the base surface). Raise if a body needs more concentric
-## shells. Set before [signal IVStateManager.core_initialized].
-var max_shells := 4
 
 
 var _blue_noise_1024: Texture2D
@@ -144,11 +140,11 @@ func get_body_map_offset(body_name: StringName) -> float:
 	return _body_resources[body_name][6]
 
 
-## Returns an ordered [Array] of shell specs for one body: element 0 is the base
-## surface; elements 1..N are extra render shells, each anchored by a
-## [code]shell<N>_scale[/code] column. Each spec is a
-## Dictionary with keys [code]file_tag, channels, scale, process, shader,
-## overrides[/code]. Consumed by [IVSpheroidModel].
+## Returns an ordered [Array] of shell specs for one body: element 0 is the
+## surface (shell 0); elements 1..N are overlay render shells. Each spec is a
+## [Dictionary] with keys [code]channels, shader, process, transparency,
+## overrides[/code] (plus [code]scale[/code] for overlays). Built from the body's
+## [code]shells[/code] field and the [code]shells[/code] table. Consumed by [IVSpheroidModel].
 func get_body_shell_specs(body_name: StringName) -> Array:
 	return _body_resources[body_name][7]
 
@@ -202,20 +198,30 @@ func _load_starmap() -> void:
 	_starmap = load(path)
 
 
-## Reads body-table [code]shell<N>_<field>[/code] overrides for each material field
-## in [member IVSpheroidModel.material_fields], returned keyed by the bare field
-## name (prefix stripped). Empty if the table has no such columns.
-func _read_shell_overrides(table: StringName, row: int, shell_index: int) -> Dictionary:
-	var prefix := "shell%d_" % shell_index
-	var prefixed_fields: Array[StringName] = []
-	for material_field in IVSpheroidModel.material_fields:
-		prefixed_fields.append(StringName(prefix + material_field))
-	var prefixed: Dictionary = {}
-	IVTableData.db_build_dictionary(prefixed, table, row, prefixed_fields)
+## Builds one shell's spec [Dictionary] from its [code]shells[/code]-table row, or
+## model defaults if [param shell_row] is -1 (a surface with no row). [param is_surface]
+## (shell 0) omits [code]scale[/code] (the surface ranks as 1.0) and has no file_tag.
+func _read_shell_spec(channels: Dictionary, shell_row: int, is_surface: bool) -> Dictionary:
+	if shell_row == -1:
+		return {
+			&"channels": channels,
+			&"shader": &"",
+			&"process": [],
+			&"transparency": BaseMaterial3D.TRANSPARENCY_DISABLED,
+			&"overrides": {},
+		}
 	var overrides: Dictionary = {}
-	for key: StringName in prefixed:
-		overrides[StringName(String(key).trim_prefix(prefix))] = prefixed[key]
-	return overrides
+	IVTableData.db_build_dictionary(overrides, &"shells", shell_row, IVSpheroidModel.material_fields)
+	var spec: Dictionary = {
+		&"channels": channels,
+		&"shader": IVTableData.get_db_string_name(&"shells", &"shader", shell_row),
+		&"process": IVTableData.get_db_array(&"shells", &"process", shell_row),
+		&"transparency": IVTableData.get_db_int(&"shells", &"transparency", shell_row),
+		&"overrides": overrides,
+	}
+	if not is_surface:
+		spec[&"scale"] = IVTableData.get_db_float(&"shells", &"scale", shell_row)
+	return spec
 
 
 func _load_body_resources() -> void:
@@ -312,33 +318,29 @@ func _load_body_resources() -> void:
 			if not has_surface_color:
 				surface_channels[BaseMaterial3D.TEXTURE_ALBEDO] = fallback_albedo_map
 
-			# Ordered shell specs: [0] is the always-present surface; [1..N] are extra
-			# render shells, each defined by a shell<N>_scale (radius). Other shell<N>_*
-			# columns are optional: file_tag (texture token), albedo_color & other
-			# material_fields, shader, process. The model interprets each spec.
-			var shell_specs: Array = [{
-				&"file_tag": &"surface",
-				&"channels": surface_channels,
-				&"process": IVTableData.get_db_array(table, &"shell0_process", row),
-				&"shader": IVTableData.get_db_string_name(table, &"shell0_shader", row),
-				&"overrides": _read_shell_overrides(table, row, 0),
-			}]
-			for shell_index in range(1, max_shells + 1):
-				var scale_field := StringName("shell%d_scale" % shell_index)
-				if not IVTableData.db_has_value(table, scale_field, row):
-					continue # shell<N>_scale (radius) anchors an overlay shell's existence
-				var file_tag := IVTableData.get_db_string_name(table,
-						StringName("shell%d_file_tag" % shell_index), row) # &"" if textureless
-				shell_specs.append({
-					&"file_tag": file_tag,
-					&"channels": shell_channels.get(file_tag, {}),
-					&"scale": IVTableData.get_db_float(table, scale_field, row),
-					&"process": IVTableData.get_db_array(table,
-							StringName("shell%d_process" % shell_index), row),
-					&"shader": IVTableData.get_db_string_name(table,
-							StringName("shell%d_shader" % shell_index), row),
-					&"overrides": _read_shell_overrides(table, row, shell_index),
-				})
+			# Shell 0 (the surface) always exists and is the one shell with no
+			# "scale" value. Shells with a row in shells.tsv are listed in the body's
+			# "shells" field (ARRAY[STRING]); each tag names a row SHELL_<body_name>_<tag>.
+			var surface_row := -1
+			var overlay_rows: Array[int] = []
+			for tag: String in IVTableData.get_db_array(table, &"shells", row):
+				var shell_row := IVTableData.get_row(StringName("SHELL_%s_%s" % [body_name, tag]))
+				if shell_row == -1:
+					push_warning("Body %s: 'shells' lists '%s' with no matching shells.tsv row"
+							% [body_name, tag])
+					continue
+				if IVTableData.db_has_value(&"shells", &"scale", shell_row):
+					overlay_rows.append(shell_row)
+				elif surface_row == -1:
+					surface_row = shell_row # the surface: the one shell with no scale
+				else:
+					push_warning("Body %s: more than one shell without 'scale'; only one is the surface"
+							% body_name)
+			var shell_specs: Array = [_read_shell_spec(surface_channels, surface_row, true)]
+			for overlay_row in overlay_rows:
+				var file_tag := IVTableData.get_db_string_name(&"shells", &"file_tag", overlay_row)
+				var channels: Dictionary = shell_channels.get(file_tag, {})
+				shell_specs.append(_read_shell_spec(channels, overlay_row, false))
 
 			var resources := [
 				texture_2d,

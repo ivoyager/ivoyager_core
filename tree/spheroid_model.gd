@@ -25,27 +25,30 @@ extends MeshInstance3D
 ##
 ## The model used for stars and planetary-mass objects that have no packed-scene
 ## model. It is "shell 0" (the surface) and the parent of optional overlay shells
-## 1..N (cloud deck, atmospheric haze), each a child [IVSpheroidModel]. Created by
-## [IVPhysicalBody].[br][br]
+## 1..N (cloud deck, atmospheric haze, limb), each a child [IVSpheroidModel]. Created
+## by [IVPhysicalBody].[br][br]
 ##
-## Configured by body-table columns named [code]shell<N>_<suffix>[/code]. The
-## [b]number[/b] selects the shell: [code]shell0[/code] is the base surface, while
-## [code]shell1[/code], [code]shell2[/code]… are overlays — each built only if its
-## [code]shell<N>_scale[/code] is set. The [b]suffix[/b] selects what it sets:[br]
-## - [code]_scale[/code]: radius multiplier; required for an overlay (surface = 1.0;
-## a value < 1.0 places the shell under the surface).[br]
-## - [code]_file_tag[/code] ([StringName], optional): texture filename token
-## ([code]<file_prefix>.<file_tag>.<channel>[/code]); omit for a textureless shell.
-## Suffix invalid on shell 0, whose textures use [code]file_prefix[/code] alone.[br]
-## - [code]_shader[/code] ([StringName]): give the shell a [ShaderMaterial] using
-## the named [Shader] in [member IVGlobal.resources], instead of a [StandardMaterial3D].[br]
-## - [code]_process[/code] ([code]ARRAY[VARIANT][/code] of [code][method, ...args][/code]):
+## A body's shells are listed in its body-table [code]shells[/code] field
+## ([code]ARRAY[STRING][/code], e.g. [code]SURFACE;CLOUDS;LIMB[/code]); each tag names
+## a row [code]SHELL_<body_name>_<tag>[/code] in shells.tsv. The surface (shell 0) is
+## the one shell with no [code]scale[/code] and always exists, even with no row. Each
+## shells.tsv row sets:[br]
+## - [code]scale[/code] ([float]): radius multiplier; required for an overlay (surface
+## ranks 1.0; a value < 1.0 places the shell under the surface).[br]
+## - [code]file_tag[/code] ([StringName], optional): texture filename token
+## ([code]<file_prefix>.<file_tag>.<channel>[/code]); blank for a textureless shell and
+## for the surface, whose textures use [code]file_prefix[/code] alone.[br]
+## - [code]shader[/code] ([StringName]): give the shell a [ShaderMaterial] using the
+## named [Shader] in [member IVGlobal.resources], instead of a [StandardMaterial3D].[br]
+## - [code]process[/code] ([code]ARRAY[VARIANT][/code] of [code][method, ...args][/code]):
 ## call that [IVSpheroidModel] method on the shell each frame as
 ## [code]method(delta, ...args)[/code] (e.g. [method _rotate]).[br]
-## - any element of [member material_fields] (e.g. [code]_albedo_color[/code],
-## [code]_roughness[/code]): set that [StandardMaterial3D] property. Shell 0 takes
-## these as per-[code]model_type[/code] defaults from models.tsv, overridden per body.
-## A uniform shell needs only [code]_albedo_color[/code] (RGBA) — no texture.[br][br]
+## - [code]transparency[/code] ([enum BaseMaterial3D.Transparency]): per-shell, with no
+## shell-0 assumption; it also decides shadow-casting (opaque, non-star shells cast).[br]
+## - any element of [member material_fields] (e.g. [code]albedo_color[/code],
+## [code]roughness[/code]): set that [StandardMaterial3D] property. Shell 0 also takes
+## these as per-[code]model_type[/code] defaults from models.tsv, overridden per row.
+## A uniform shell needs only [code]albedo_color[/code] (RGBA) — no texture.[br][br]
 ##
 ## Overlapping translucent shells auto-order back-to-front by scale (outer on top,
 ## via material [code]render_priority[/code]); give shells distinct scales (equal
@@ -54,8 +57,8 @@ extends MeshInstance3D
 ## Not persisted.
 
 ## [StandardMaterial3D] properties that shells set from data tables: per-[code]model_type[/code]
-## defaults (models.tsv) for shell 0, and per-shell [code]shell<N>_<field>[/code]
-## overrides (body tables). List only value properties — a feature's [code]*_enabled[/code]
+## defaults (models.tsv) for shell 0, and per-shell [code]<field>[/code] overrides
+## (shells.tsv). List only value properties — a feature's [code]*_enabled[/code]
 ## toggle is auto-set via [constant PROPERTY_FEATURES] when its value is set. Append
 ## before bodies build to data-drive any other StandardMaterial3D property.
 static var material_fields: Array[StringName] = [
@@ -134,9 +137,10 @@ func _ready() -> void:
 	var shell_specs := asset_preloader.get_body_shell_specs(_body_name)
 	var spec: Dictionary = shell_specs[_shell]
 	var process_spec: Array = spec[&"process"]
+	var transparency_mode: int = spec[&"transparency"]
 	var render_priority := _compute_render_priority(shell_specs)
 	_build_material(spec, asset_preloader, render_priority)
-	_set_cast_shadow()
+	_set_cast_shadow(transparency_mode)
 	_set_visibility_and_layers()
 	_resolve_process(process_spec)
 	if _shell == 0:
@@ -157,15 +161,14 @@ func _build_material(spec: Dictionary, asset_preloader: IVAssetPreloader,
 		return
 	var material := StandardMaterial3D.new()
 	material.render_priority = render_priority
+	material.transparency = spec[&"transparency"] # per-shell data; no shell-0 assumption
 	if _shell == 0:
+		# The surface seeds its material from per-model_type defaults (models.tsv);
+		# overlays start from a bare StandardMaterial3D.
 		var defaults: Dictionary = {}
 		IVTableData.db_build_dictionary(defaults, &"models", _model_type, material_fields)
 		_apply_material_fields(material, defaults)
-	else:
-		# An overlay is translucent; its color/alpha come from a texture
-		# (shell<N>_file_tag), a shell<N>_albedo_color, or both (color tints texture).
-		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	# Body-table shell<N>_<field> values override the model_type material defaults.
+	# shells.tsv material-field columns override the model_type material defaults.
 	var overrides: Dictionary = spec[&"overrides"]
 	_apply_material_fields(material, overrides)
 	_apply_channels_to_material(material, channels)
@@ -174,9 +177,10 @@ func _build_material(spec: Dictionary, asset_preloader: IVAssetPreloader,
 
 func _build_shader_material(shader_name: StringName, channels: Dictionary,
 		asset_preloader: IVAssetPreloader, render_priority: int) -> void:
-	# A shell may opt into a ShaderMaterial (shell<N>_shader naming a Shader in
-	# IVGlobal.resources). Discovered channel textures feed it as named uniforms;
-	# the StandardMaterial3D fields (material_fields, overrides) don't apply.
+	# A shell may opt into a ShaderMaterial (its shells.tsv "shader" column naming a
+	# Shader in IVGlobal.resources). Discovered channel textures feed it as named
+	# uniforms; the StandardMaterial3D fields (material_fields, overrides) and the
+	# "transparency" column don't apply (the shader controls its own blending).
 	var resource: Resource = IVGlobal.resources.get(shader_name)
 	var shader := resource as Shader
 	if not shader:
@@ -222,9 +226,11 @@ func _apply_material_fields(material: BaseMaterial3D, fields: Dictionary) -> voi
 			material.set_feature(feature, true)
 
 
-func _set_cast_shadow() -> void:
-	# Stars and overlay shells don't cast shadows; opaque surfaces do.
-	if _shell == 0 and not IVTableData.get_db_bool(&"models", &"is_star", _model_type):
+func _set_cast_shadow(transparency_mode: int) -> void:
+	# Shadow-casting follows opacity, not shell index: an opaque, non-star shell
+	# casts; transparent overlays and stars don't.
+	var is_opaque := transparency_mode == BaseMaterial3D.TRANSPARENCY_DISABLED
+	if is_opaque and not IVTableData.get_db_bool(&"models", &"is_star", _model_type):
 		cast_shadow = SHADOW_CASTING_SETTING_ON
 	else:
 		cast_shadow = SHADOW_CASTING_SETTING_OFF
