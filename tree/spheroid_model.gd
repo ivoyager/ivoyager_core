@@ -106,6 +106,11 @@ var _process_callable: Callable
 
 var _times := IVGlobal.times
 
+# Debug-only caches for the per-shell override asserts in _build_material; built
+# lazily and kept for the session. Unused unless OS.is_debug_build().
+static var _material_property_names: Dictionary[StringName, bool] = {}
+static var _shader_uniform_names: Dictionary = {} # Shader -> Dictionary[StringName, bool]
+
 
 
 func _init(body_name: StringName, model_type: int, mean_radius: float, model_basis: Basis,
@@ -125,11 +130,9 @@ func _ready() -> void:
 	var shell_specs := asset_preloader.get_body_shell_specs(_body_name)
 	var spec: Dictionary = shell_specs[_shell]
 	var process_spec: Array = spec[&"process"]
-	var overrides: Dictionary = spec[&"overrides"]
-	var transparency_mode: int = overrides.get(&"transparency", BaseMaterial3D.TRANSPARENCY_DISABLED)
 	var render_priority := _compute_render_priority(shell_specs)
 	_build_material(spec, asset_preloader, render_priority)
-	_set_cast_shadow(transparency_mode)
+	cast_shadow = spec[&"cast_shadow"]
 	_set_visibility_and_layers()
 	_resolve_process(process_spec)
 	if _shell == 0:
@@ -144,9 +147,10 @@ func _process(delta: float) -> void:
 func _build_material(spec: Dictionary, asset_preloader: IVAssetPreloader,
 		render_priority: int) -> void:
 	var channels: Dictionary = spec[&"channels"]
+	var overrides: Dictionary = spec[&"overrides"]
 	var shader_name: StringName = spec[&"shader"]
 	if shader_name:
-		_build_shader_material(shader_name, channels, asset_preloader, render_priority)
+		_build_shader_material(shader_name, channels, overrides, asset_preloader, render_priority)
 		return
 	var material := StandardMaterial3D.new()
 	material.render_priority = render_priority
@@ -157,18 +161,19 @@ func _build_material(spec: Dictionary, asset_preloader: IVAssetPreloader,
 				IVAssetPreloader.models_nonmaterial_fields)
 		_apply_material_fields(material, defaults)
 	# shells.tsv columns (incl. transparency) override the model_type material defaults.
-	var overrides: Dictionary = spec[&"overrides"]
+	_assert_overrides_are_properties(overrides)
 	_apply_material_fields(material, overrides)
 	_apply_channels_to_material(material, channels)
 	set_surface_override_material(0, material)
 
 
 func _build_shader_material(shader_name: StringName, channels: Dictionary,
-		asset_preloader: IVAssetPreloader, render_priority: int) -> void:
+		overrides: Dictionary, asset_preloader: IVAssetPreloader, render_priority: int) -> void:
 	# A shell may opt into a ShaderMaterial (its shells.tsv "shader" column naming a
 	# Shader in IVGlobal.resources). Discovered channel textures feed it as named
-	# uniforms; the StandardMaterial3D override columns (incl. transparency) don't
-	# apply (the shader controls its own blending).
+	# uniforms, and each shells.tsv override column feeds the uniform of the same name
+	# (so e.g. a "clouds_detail_strength" column tunes the shader per body); a column
+	# that isn't a uniform is ignored. The shader owns its own blending.
 	var resource: Resource = IVGlobal.resources.get(shader_name)
 	var shader := resource as Shader
 	if not shader:
@@ -179,6 +184,8 @@ func _build_shader_material(shader_name: StringName, channels: Dictionary,
 	material.shader = shader
 	material.render_priority = render_priority
 	_apply_channels_to_shader_material(material, channels, asset_preloader)
+	_assert_overrides_are_uniforms(overrides, shader)
+	_apply_overrides_to_shader_material(material, overrides)
 	set_surface_override_material(0, material)
 
 
@@ -204,6 +211,14 @@ func _apply_channels_to_shader_material(material: ShaderMaterial, channels: Dict
 			material.set_shader_parameter(texture_channels[param], texture)
 
 
+func _apply_overrides_to_shader_material(material: ShaderMaterial, overrides: Dictionary) -> void:
+	# Each shells.tsv override column sets the shader uniform of the same name. An
+	# override that isn't a uniform is a silent no-op (debug builds flag it first; see
+	# _assert_overrides_are_uniforms).
+	for property: StringName in overrides:
+		material.set_shader_parameter(property, overrides[property])
+
+
 func _apply_material_fields(material: BaseMaterial3D, fields: Dictionary) -> void:
 	# Set each property, then auto-enable its feature so a table never needs a
 	# *_enabled toggle (setting e.g. rim enables rim_enabled). See PROPERTY_FEATURES.
@@ -214,14 +229,43 @@ func _apply_material_fields(material: BaseMaterial3D, fields: Dictionary) -> voi
 			material.set_feature(feature, true)
 
 
-func _set_cast_shadow(transparency_mode: int) -> void:
-	# Shadow-casting follows opacity, not shell index: an opaque, non-star shell
-	# casts; transparent overlays and stars don't.
-	var is_opaque := transparency_mode == BaseMaterial3D.TRANSPARENCY_DISABLED
-	if is_opaque and not IVTableData.get_db_bool(&"models", &"is_star", _model_type):
-		cast_shadow = SHADOW_CASTING_SETTING_ON
-	else:
-		cast_shadow = SHADOW_CASTING_SETTING_OFF
+func _assert_overrides_are_properties(overrides: Dictionary) -> void:
+	# Debug guard for a non-shader shell: its override columns are set() blindly on a
+	# StandardMaterial3D, which no-ops an unknown property — so catch a typo'd or
+	# unsupported shells.tsv column here. Per-shell replacement for the table-wide
+	# _assert_material_table (which can't validate shader-uniform columns without a
+	# shader-registration order dependency).
+	if not OS.is_debug_build():
+		return
+	if _material_property_names.is_empty():
+		for property: Dictionary in StandardMaterial3D.new().get_property_list():
+			var usage: int = property[&"usage"]
+			if usage & PROPERTY_USAGE_DEFAULT:
+				var property_name: String = property[&"name"]
+				_material_property_names[StringName(property_name)] = true
+	for field: StringName in overrides:
+		assert(_material_property_names.has(field),
+				"Body %s shell %d: shells.tsv column '%s' is not a StandardMaterial3D property"
+				% [_body_name, _shell, field])
+
+
+func _assert_overrides_are_uniforms(overrides: Dictionary, shader: Shader) -> void:
+	# Debug guard for a shader shell: its override columns set_shader_parameter()
+	# blindly, a silent no-op for an unknown uniform — so catch a typo'd shells.tsv
+	# column against this specific shader's uniforms.
+	if not OS.is_debug_build():
+		return
+	if not _shader_uniform_names.has(shader):
+		var names: Dictionary[StringName, bool] = {}
+		for uniform: Dictionary in shader.get_shader_uniform_list():
+			var uniform_name: String = uniform[&"name"]
+			names[StringName(uniform_name)] = true
+		_shader_uniform_names[shader] = names
+	var uniform_names: Dictionary = _shader_uniform_names[shader]
+	for field: StringName in overrides:
+		assert(uniform_names.has(field),
+				"Body %s shell %d: shells.tsv column '%s' is not a uniform of shader '%s'"
+				% [_body_name, _shell, field, shader.resource_path.get_file()])
 
 
 func _set_visibility_and_layers() -> void:

@@ -38,6 +38,34 @@ const _NORMAL_COLOR_FORMATS := [
 ]
 
 
+
+## Maps a [enum BaseMaterial3D.TextureParam] to the filename tag the preloader
+## searches for under [member maps_search].
+## Add entries (e.g. [code]BaseMaterial3D.TEXTURE_CLEARCOAT: &"clearcoat"[/code])
+## before [signal IVStateManager.core_initialized] to ingest more channels; each
+## tag must match [code][A-Za-z0-9_]+[/code]. A discovered file
+## [code]<file_prefix>[.<file_tag>].<tag>.*[/code] is applied to the body's (or a
+## shell's) material by [IVSpheroidModel].
+static var texture_channels: Dictionary[int, StringName] = {
+	BaseMaterial3D.TEXTURE_ALBEDO: &"albedo",
+	BaseMaterial3D.TEXTURE_EMISSION: &"emission",
+	BaseMaterial3D.TEXTURE_NORMAL: &"normal",
+	BaseMaterial3D.TEXTURE_ROUGHNESS: &"roughness",
+	BaseMaterial3D.TEXTURE_ORM: &"orm",
+}
+## [code]shells.tsv[/code] columns that are NOT [StandardMaterial3D] properties (read
+## explicitly into the shell spec). Every other column is set on the shell material
+## directly by [IVSpheroidModel] — to add a material override, just add that property's
+## column. Enforced at load by [method _assert_material_table].
+static var shells_nonmaterial_fields: Array[StringName] = [
+	&"scale", &"file_tag", &"shader", &"process", &"cast_shadow",
+]
+## [code]models.tsv[/code] columns that are NOT [StandardMaterial3D] properties. Every
+## other column is a per-[code]model_type[/code] material default for the surface (shell 0).
+static var models_nonmaterial_fields: Array[StringName] = [
+	&"spheroid", &"inf_visibility", &"is_star",
+]
+
 ## This setting AND IVCoreSettings.use_threads must be true for loading to
 ## occur on thread.
 ##
@@ -74,35 +102,10 @@ var asset_paths: Dictionary[StringName, String] = {
 ## isn't available.
 var fallback_starmap := &"starmap_8k" # starmap_16k possibly removed for size reduction
 
-## Maps a [enum BaseMaterial3D.TextureParam] to the filename tag the preloader
-## searches for under [member maps_search], prepopulated with the universal three.
-## Add entries (e.g. [code]BaseMaterial3D.TEXTURE_ROUGHNESS: &"roughness"[/code])
-## before [signal IVStateManager.core_initialized] to ingest more channels; each
-## tag must match [code][A-Za-z0-9_]+[/code]. A discovered file
-## [code]<file_prefix>[.<file_tag>].<tag>.*[/code] is applied to the body's (or a
-## shell's) material by [IVSpheroidModel].
-var texture_channels: Dictionary[int, StringName] = {
-	BaseMaterial3D.TEXTURE_ALBEDO: &"albedo",
-	BaseMaterial3D.TEXTURE_EMISSION: &"emission",
-	BaseMaterial3D.TEXTURE_NORMAL: &"normal",
-}
 ## If non-empty, replaces the auto-composed map-filename pattern. Must define
 ## named groups [code]prefix[/code] and [code]tag[/code] (optionally [code]shell[/code]).
 ## You own its correctness; it is validated at load and ignored if invalid.
 var map_filename_regex_override := ""
-
-## [code]shells.tsv[/code] columns that are NOT [StandardMaterial3D] properties (read
-## explicitly into the shell spec). Every other column is set on the shell material
-## directly by [IVSpheroidModel] — to add a material override, just add that property's
-## column. Enforced at load by [method _assert_material_table].
-static var shells_nonmaterial_fields: Array[StringName] = [
-	&"scale", &"file_tag", &"shader", &"process",
-]
-## [code]models.tsv[/code] columns that are NOT [StandardMaterial3D] properties. Every
-## other column is a per-[code]model_type[/code] material default for the surface (shell 0).
-static var models_nonmaterial_fields: Array[StringName] = [
-	&"spheroid", &"inf_visibility", &"is_star",
-]
 
 
 var _blue_noise_1024: Texture2D
@@ -155,7 +158,7 @@ func get_body_map_offset(body_name: StringName) -> float:
 
 ## Returns an ordered [Array] of shell specs for one body: element 0 is the
 ## surface (shell 0); elements 1..N are overlay render shells. Each spec is a
-## [Dictionary] with keys [code]channels, shader, process, transparency,
+## [Dictionary] with keys [code]channels, shader, process, cast_shadow,
 ## overrides[/code] (plus [code]scale[/code] for overlays). Built from the body's
 ## [code]shells[/code] field and the [code]shells[/code] table. Consumed by [IVSpheroidModel].
 func get_body_shell_specs(body_name: StringName) -> Array:
@@ -255,12 +258,14 @@ func _read_shell_spec(channels: Dictionary, shell_row: int, is_surface: bool) ->
 			&"channels": channels,
 			&"shader": &"",
 			&"process": [],
+			&"cast_shadow": GeometryInstance3D.SHADOW_CASTING_SETTING_ON,
 			&"overrides": {},
 		}
 	var spec: Dictionary = {
 		&"channels": channels,
 		&"shader": IVTableData.get_db_string_name(&"shells", &"shader", shell_row),
 		&"process": IVTableData.get_db_array(&"shells", &"process", shell_row),
+		&"cast_shadow": IVTableData.get_db_int(&"shells", &"cast_shadow", shell_row),
 		&"overrides": read_material_fields(&"shells", shell_row, shells_nonmaterial_fields),
 	}
 	if not is_surface:
@@ -271,7 +276,9 @@ func _read_shell_spec(channels: Dictionary, shell_row: int, is_surface: bool) ->
 func _load_body_resources() -> void:
 	const METER := IVUnits.METER
 
-	_assert_material_table(&"shells", shells_nonmaterial_fields)
+	# shells material columns are validated per-shell in IVSpheroidModel (which has the
+	# resolved shader, so it can also validate shader-uniform columns); models has no
+	# shader, so its columns are checked table-wide here.
 	_assert_material_table(&"models", models_nonmaterial_fields)
 	_compose_map_regex()
 	var maps_index := _build_maps_index() # prefix(lower) -> shell -> {TextureParam: res_path}
