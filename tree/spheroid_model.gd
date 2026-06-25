@@ -63,7 +63,9 @@ static var material_fields: Array[StringName] = [
 	&"metallic",
 	&"roughness",
 	&"rim",
-	&"rim_tint"
+	&"rim_tint",
+	&"emission_energy_multiplier",
+	&"normal_scale",
 ]
 
 ## Texture channel → the [enum BaseMaterial3D.Feature] enabled when that channel is
@@ -167,9 +169,6 @@ func _build_material(spec: Dictionary, asset_preloader: IVAssetPreloader,
 	var overrides: Dictionary = spec[&"overrides"]
 	_apply_material_fields(material, overrides)
 	_apply_channels_to_material(material, channels)
-	if _shell == 0 and channels.has(BaseMaterial3D.TEXTURE_EMISSION):
-		material.emission_energy_multiplier = IVTableData.get_db_float(&"models",
-				&"emission_energy_multiplier", _model_type)
 	set_surface_override_material(0, material)
 
 
