@@ -40,6 +40,7 @@ var preloads: Dictionary[StringName, Resource] = {
 	rings_shadow_caster_shader = preload(
 			"res://addons/ivoyager_core/shaders/rings_shadow_caster.gdshader"),
 	cloud_detail_shader = preload("res://addons/ivoyager_core/shaders/cloud_detail.gdshader"),
+	atmosphere_limb_shader = preload("res://addons/ivoyager_core/shaders/atmosphere_limb.gdshader"),
 }
 
 ## Callables that build shared resources (e.g., the common sphere mesh).
