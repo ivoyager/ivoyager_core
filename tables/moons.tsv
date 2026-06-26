@@ -3,7 +3,7 @@ Type	BOOL	BOOL	BOOL	BOOL	BOOL	BOOL	BOOL	BOOL	STRING	ARRAY[STRING]	STRING	STRING	
 Default	TRUE	TRUE			TRUE			TRUE				\u25CC			NATURAL_SATELLITE	SMALL_C_BODY	NO	0			0			0																				
 Unit																		km	km^3/s^2	kg	g/cm^3	m/s^2	m/s					d	deg	deg	K	K	K			Pa	Pa	Pa	Pa	K	K	K		
 Prefix/MOON_													PLANET_	ORBIT_	BODY_CLASS_	MODEL_	CONFIDENCE_																											
-MOON			x	x	FALSE	x			Moon		Moon	\u263E	EARTH	MOON_MOON		ROCKY_WORLD	YES	1737.4	4904.8695	7.346e22	3.344	1.622	2380	0.136	x				270	66.54	250	100	390		x			1e-10	1e-7					Helium, Argon, Neon, Sodium, Potassium, Hydrogen, Radon
+MOON			x	x	FALSE	x			Moon	SURFACE	Moon	\u263E	EARTH	MOON_MOON		ROCKY_WORLD	YES	1737.4	4904.8695	7.346e22	3.344	1.622	2380	0.136	x				270	66.54	250	100	390		x			1e-10	1e-7					Helium, Argon, Neon, Sodium, Potassium, Hydrogen, Radon
 PHOBOS						x			Phobos		Phobos_(moon)	I	MARS	MOON_PHOBOS				11.08	7.161e-4	1.060e16	1.861	0.0057	11.39	0.071	x	x					233													
 DEIMOS						x			Deimos		Deimos_(moon)	II	MARS	MOON_DEIMOS				6.27	9.464e-5	1.51e15	1.465	0.003	5.556	0.068	x	x					233													
 METIS									Metis		Metis_(moon)	XVI	JUPITER	MOON_METIS				21.5	0.0024	~3.6e16	~1.5			0.061	x	x																		
