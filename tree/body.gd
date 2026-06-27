@@ -794,8 +794,8 @@ func get_characteristic(key: StringName) -> Variant:
 			return get_body_class()
 		&"perspective_radius":
 			return get_perspective_radius()
-		&"model_type":
-			return get_model_type()
+		&"spheroid_type":
+			return get_spheroid_type()
 		&"file_prefix":
 			return get_file_prefix()
 		&"has_light":
@@ -857,8 +857,14 @@ func get_perspective_radius() -> float:
 	return mean_radius
 
 
-func get_model_type() -> int: # models.tsv
-	return characteristics.get(&"model_type", -1)
+func get_spheroid_type() -> int: # spheroids.tsv (intent; -1 = unspecified)
+	return characteristics.get(&"spheroid_type", -1)
+
+
+## Returns whether this body's model is exempt from distance culling (stars). Set
+## per body via the [code]inf_visibility[/code] column (currently only in stars.tsv).
+func get_inf_visibility() -> bool:
+	return characteristics.get(&"inf_visibility", false)
 
 
 func get_file_prefix() -> String:
@@ -1807,9 +1813,9 @@ func _add_physical_body() -> void:
 	var e_radius := get_equatorial_radius()
 	if replacement_physical_body_class:
 		@warning_ignore("unsafe_method_access")
-		physical_body = replacement_physical_body_class.new(name, mean_radius, e_radius)
+		physical_body = replacement_physical_body_class.new(name, mean_radius, e_radius, get_spheroid_type())
 	else:
-		physical_body = IVPhysicalBody.new(name, mean_radius, e_radius)
+		physical_body = IVPhysicalBody.new(name, mean_radius, e_radius, get_spheroid_type())
 	add_child(physical_body)
 
 

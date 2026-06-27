@@ -27,9 +27,10 @@ shader_type spatial;
 // plugin root for what was tried, why it didn't pay off, and the directions that would:
 // offline super-resolution of the source maps, and structure-guided shader synthesis).
 //
-// Name it in the body's SHELL_<body>_SURFACE shells.tsv "shader" column. Discovered channels
-// auto-bind to the like-named uniforms (albedo, normal, roughness, emission); each shells.tsv
-// override column feeds the uniform of the same name, so the scalars below are per-body tunable.
+// Set as a spheroid type's default in the spheroids.tsv "shader" column (the default for
+// rocky/desert/gas-giant/etc. types), or per-body in a SHELL_<body>_SURFACE shells.tsv shell-0 row.
+// Discovered channels auto-bind to the like-named uniforms (albedo, normal, roughness, emission);
+// each table override column feeds the uniform of the same name, so the scalars below are tunable.
 //
 // LIGHTING: no custom light(); writes ALBEDO/NORMAL_MAP/ROUGHNESS/EMISSION and lets the engine's
 // default PBR + shadow path light it (a custom light() would break the tuned METER=1e-3 shadows).

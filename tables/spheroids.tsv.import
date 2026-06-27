@@ -1,0 +1,14 @@
+[remap]
+
+importer="ivoyager.tables"
+type="IVTableResource"
+uid="uid://6y3llpbcp3xq"
+path="res://.godot/imported/spheroids.tsv-d64e0cec995406c1af490cf7e226a8bc.tres"
+
+[deps]
+
+source_file="res://addons/ivoyager_core/tables/spheroids.tsv"
+dest_files=["res://.godot/imported/spheroids.tsv-d64e0cec995406c1af490cf7e226a8bc.tres"]
+
+[params]
+
