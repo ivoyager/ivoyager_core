@@ -94,6 +94,7 @@ extends PopupPanel
 	],
 	LABEL_GRAPHICS_PERFORMANCE = [
 		[&"LABEL_STARMAP", &"starmap"],
+		[&"LABEL_SHADOW_RESOLUTION", &"directional_shadow_size"],
 		[&"LABEL_MSAA", &"msaa_3d"],
 		[&"LABEL_FXAA", &"fxaa"],
 		[&"LABEL_TAA", &"use_taa"],
@@ -110,6 +111,7 @@ extends PopupPanel
 	gui_size = [&"CoreSettings", &"gui_size_settings"],
 	starmap = [&"Global", &"StarmapSize"],
 	msaa_3d = [&"GraphicsManager", &"msaa_settings"],
+	directional_shadow_size = [&"GraphicsManager", &"shadow_size_settings"],
 }
 
 ## Each option Control can be a [CheckBox], [OptionButton], [SpinBox],
@@ -161,12 +163,13 @@ func _configure_after_core_inited() -> void:
 		for column in layout:
 			column.erase(&"LABEL_SAVE_LOAD")
 	if IVGlobal.is_gl_compatibility:
-		# FXAA and TAA are unsupported in the Compatibility renderer (incl. web).
+		# FXAA, TAA and directional shadows are unsupported in the Compatibility
+		# renderer (incl. web).
 		var graphics_section: Array = section_content[&"LABEL_GRAPHICS_PERFORMANCE"]
 		var supported_options: Array = []
 		for option_array: Array in graphics_section:
 			var setting: StringName = option_array[1]
-			if setting != &"fxaa" and setting != &"use_taa":
+			if setting != &"fxaa" and setting != &"use_taa" and setting != &"directional_shadow_size":
 				supported_options.append(option_array)
 		section_content[&"LABEL_GRAPHICS_PERFORMANCE"] = supported_options
 
