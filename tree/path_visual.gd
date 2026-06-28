@@ -83,7 +83,7 @@ func _ready() -> void:
 		var data := _body.get_fragment_data(FRAGMENT_BODY_ORBIT)
 		var fragment_id := _fragment_identifier.get_new_id_as_vec3(data)
 		var id_material := ShaderMaterial.new()
-		id_material.shader = IVGlobal.resources[&"uniform_id_shader"]
+		id_material.shader = IVGlobal.resources[&"id_shader"]
 		id_material.set_shader_parameter(&"fragment_id", fragment_id)
 		id_material.render_priority = 1 # draw the id stamp above the base pass
 		material_overlay = id_material

@@ -1,4 +1,4 @@
-// _orbit_math.gdshaderinc
+// _orbit.gdshaderinc
 // This file is part of I, Voyager
 // https://ivoyager.dev
 // *****************************************************************************

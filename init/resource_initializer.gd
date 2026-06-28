@@ -32,9 +32,11 @@ extends RefCounted
 ## and other resources.
 var preloads: Dictionary[StringName, Resource] = {
 	# shaders
-	points_id_shader = preload("res://addons/ivoyager_core/shaders/points.id.gdshader"),
-	points_l4l5_id_shader = preload("res://addons/ivoyager_core/shaders/points.l4l5.id.gdshader"),
-	uniform_id_shader = preload("res://addons/ivoyager_core/shaders/uniform_id.gdshader"),
+	orbiting_points_id_shader = preload(
+			"res://addons/ivoyager_core/shaders/orbiting_points_id.gdshader"),
+	orbiting_points_lp_id_shader = preload(
+			"res://addons/ivoyager_core/shaders/orbiting_points_lp_id.gdshader"),
+	id_shader = preload("res://addons/ivoyager_core/shaders/id.gdshader"),
 	instance_id_shader = preload("res://addons/ivoyager_core/shaders/instance_id.gdshader"),
 	rings_shader = preload("res://addons/ivoyager_core/shaders/rings.gdshader"),
 	rings_shadow_caster_shader = preload(
