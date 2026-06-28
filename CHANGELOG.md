@@ -17,6 +17,7 @@ Under development using Godot 4.7.
 
 
 ### Added
+* User antialiasing options (MSAA, FXAA, TAA) in IVOptionsPopup, applied live to the main viewport by new program node IVGraphicsManager. MSAA defaults to 2x. FXAA and TAA are hidden in the Compatibility renderer (including web exports) where they are unsupported; TAA is exposed as experimental (it ghosts orbit lines, which are positioned in the vertex shader). The IVFragmentIdentifier probe now reads the unresolved multisampled color buffer under MSAA, so mouse-over identification of orbit lines and asteroid points survives antialiasing.
 * "Shells" configuration via table [shells.tsv](https://github.com/ivoyager/ivoyager_core/blob/master/tables/shells.tsv) for full customization of surface and atmospheric effects on spheroid models. 
 * Editor 2D image capture tool (Project/Tools menu) for generating missing 256 PNG alpha flat images in ivoyager_assets/bodies_2d/ for existing models and spheroid maps.
 * Patched conics via new [IVTrajectory](https://github.com/ivoyager/ivoyager_core/blob/master/tree_components/trajectory.gd). Allows construction of complex flight paths with planet flybys. It's essentially a scheduler that specifies a series of IVOrbit instances and parent bodies. Can be defined in data tables or built by code in running game. Demonstrated with additions: Voyager 1 & 2, Pioneer 10, and New Horizons.
