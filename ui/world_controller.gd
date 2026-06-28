@@ -59,22 +59,18 @@ var mouse_position := Vector2.ZERO
 @onready var veiwport_height := get_viewport().get_visible_rect().size.y
 
 # private
-#var _pause_only_stops_time: bool = IVCoreSettings.pause_only_stops_time
+const _DRAG_BUTTONS := MOUSE_BUTTON_MASK_LEFT | MOUSE_BUTTON_MASK_RIGHT # left or right button drags
 var _drag_start := Vector2.ZERO
-var _drag_segment_start := Vector2.ZERO
-#var _suppress_mouse_control := true # blocks signals EXCEPT 'mouse_target_changed'
 var _current_target_dist := INF
 
 
 
 func _init() -> void:
 	IVStateManager.about_to_free_procedural_nodes.connect(_restore_init_state)
-	#IVStateManager.paused_changed.connect(_on_paused_changed)
 	IVGlobal.current_camera_changed.connect(_set_camera)
 
 
 func _ready() -> void:
-	#process_mode = PROCESS_MODE_ALWAYS # but some functionaly stops if !pause_only_stops_time
 	mouse_filter = MOUSE_FILTER_STOP
 	set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	IVGlobal.viewport_size_changed.connect(_on_viewport_size_changed)
@@ -100,16 +96,15 @@ func _gui_input(input_event: InputEvent) -> void:
 	var mouse_motion := event as InputEventMouseMotion
 	if mouse_motion:
 		mouse_position = mouse_motion.position
-		#if _suppress_mouse_control:
-			#return
-		if _drag_segment_start: # accumulated mouse drag motion
-			var drag_vector := mouse_position - _drag_segment_start
-			_drag_segment_start = mouse_position
-			mouse_dragged.emit(drag_vector, mouse_motion.button_mask,
+		var button_mask := mouse_motion.button_mask
+		# Gate on the live button state; a drag then can't outlive the physical release,
+		# even when that release is delivered to a popup instead of this Control.
+		if button_mask & _DRAG_BUTTONS:
+			mouse_dragged.emit(mouse_motion.relative, button_mask,
 					_get_key_modifier_mask(mouse_motion))
+		else:
+			_drag_start = Vector2.ZERO # clear a press anchor stranded by a release we never saw
 		return
-	#if _suppress_mouse_control:
-		#return
 	var mouse_button := event as InputEventMouseButton
 	if mouse_button:
 		var button_index: int = mouse_button.button_index
@@ -120,18 +115,16 @@ func _gui_input(input_event: InputEvent) -> void:
 		if button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			mouse_wheel_turned.emit(false)
 			return
-		# start/stop mouse drag or process a mouse click
+		# Left/right press records a click anchor; the release decides click vs. drag.
 		if button_index == MOUSE_BUTTON_LEFT or button_index == MOUSE_BUTTON_RIGHT:
-			if mouse_button.pressed: # start of drag or button-down for click selection
+			if mouse_button.pressed:
 				_drag_start = mouse_button.position
-				_drag_segment_start = _drag_start
-			else: # end of drag or button-up after click selection
-				if _drag_start == mouse_button.position: # was a mouse click!
-					if current_target: # mouse_target
-						mouse_target_clicked.emit(current_target, mouse_button.button_mask,
-								_get_key_modifier_mask(mouse_button))
+			else:
+				# Press and release on the same pixel (no motion between) is a click.
+				if _drag_start == mouse_button.position and current_target:
+					mouse_target_clicked.emit(current_target, mouse_button.button_mask,
+							_get_key_modifier_mask(mouse_button))
 				_drag_start = Vector2.ZERO
-				_drag_segment_start = Vector2.ZERO
 
 
 ## Returns 0.0 if there is no camera, (+) camera distance if [param node3d] is
@@ -185,7 +178,6 @@ func _restore_init_state() -> void:
 	current_target = null
 	_current_target_dist = INF
 	_drag_start = Vector2.ZERO
-	_drag_segment_start = Vector2.ZERO
 
 
 func _set_camera(camera_: Camera3D) -> void:
@@ -206,16 +198,6 @@ func _get_key_modifier_mask(event: InputEventMouse) -> int:
 #	if event.command:
 #		mask |= KEY_MASK_CMD
 	return mask
-
-
-#func _on_paused_changed(paused_tree: bool, _paused_by_user: bool) -> void:
-	#if paused_tree:
-		#if !_pause_only_stops_time:
-			#_suppress_mouse_control = true
-			#_drag_start = Vector2.ZERO
-			#_drag_segment_start = Vector2.ZERO
-	#else:
-		#_suppress_mouse_control = false
 
 
 func _on_viewport_size_changed(viewport_size: Vector2) -> void:
