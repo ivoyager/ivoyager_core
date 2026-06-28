@@ -1,13 +1,13 @@
-	asteroid	star_orbiting	lazy_model	file_prefix	en.wikipedia	hud_name	symbol	show_in_nav_panel	parent	orbit	body_class	model_type	rotation_period	right_ascension	declination	gravitational_parameter	mean_radius	mean_density	magnitude	albedo	#B-V	#U-B	#I-R	#tholen_spectral_type	#smassii_spectral_type
+	asteroid	star_orbiting	lazy_model	file_prefix	en.wikipedia	hud_name	symbol	show_in_nav_panel	parent	orbit	body_class	spheroid_type	rotation_period	right_ascension	declination	gravitational_parameter	mean_radius	mean_density	magnitude	albedo	#B-V	#U-B	#I-R	#tholen_spectral_type	#smassii_spectral_type
 Type	BOOL	BOOL	BOOL	STRING	STRING	STRING_NAME	STRING	BOOL	STRING_NAME	TABLE_ROW	TABLE_ROW	TABLE_ROW	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	STRING	STRING
-Default	TRUE	TRUE	TRUE				\u25CC		SUN		C_ASTEROID	SMALL_C_BODY				0	0	0	0	0
+Default	TRUE	TRUE	TRUE				\u25CC		SUN		C_ASTEROID					0	0	0	0	0
 Unit													h	deg	deg	km^3/s^2	km	g/cm^3
-Prefix/ASTEROID_									STAR_	ORBIT_	BODY_CLASS_	MODEL_
-101955_BENNU				Bennu	101955_Bennu		101955	x		ASTEROID_101955_BENNU	C_ASTEROID	SMALL_C_BODY	4.296061	85.4522	-60.3678	4.8904e-9	0.242	1.194	20.21	0.044	0.64	0.16	-0.33		B
-25143_ITOKAWA				Itokawa	25143_Itokawa		25143	x		ASTEROID_25143_ITOKAWA	S_ASTEROID	SMALL_S_BODY	12.132	90.53	-66.30	2.1e-9	0.17	1.9	19.26						S(IV)
-433_EROS				Eros	433_Eros		433	x		ASTEROID_433_EROS	S_ASTEROID	SMALL_S_BODY	5.27	0.0	0.0	4.463e-04	8.42	2.67	10.31	0.25	0.921	0.531		S	S
-4_VESTA				Vesta	4_Vesta		4	x		ASTEROID_4_VESTA	V_ASTEROID	SMALL_S_BODY	5.34212766	309.03	42.23	17.288245	262.7	3.456	3.20	0.4228	0.782	0.492		V	V
-486958_ARROKOTH				Arrokoth	486958_Arrokoth		486958	x		ASTEROID_486958_ARROKOTH	ASTEROID	SMALL_C_BODY	15.918	317.5	-24.89		9.2	0.235	11.06
+Prefix/ASTEROID_									STAR_	ORBIT_	BODY_CLASS_	SPHEROID_
+101955_BENNU				Bennu	101955_Bennu		101955	x		ASTEROID_101955_BENNU	C_ASTEROID		4.296061	85.4522	-60.3678	4.8904e-9	0.242	1.194	20.21	0.044	0.64	0.16	-0.33		B
+25143_ITOKAWA				Itokawa	25143_Itokawa		25143	x		ASTEROID_25143_ITOKAWA	S_ASTEROID		12.132	90.53	-66.30	2.1e-9	0.17	1.9	19.26						S(IV)
+433_EROS				Eros	433_Eros		433	x		ASTEROID_433_EROS	S_ASTEROID		5.27	0.0	0.0	4.463e-04	8.42	2.67	10.31	0.25	0.921	0.531		S	S
+4_VESTA				Vesta	4_Vesta		4	x		ASTEROID_4_VESTA	V_ASTEROID		5.34212766	309.03	42.23	17.288245	262.7	3.456	3.20	0.4228	0.782	0.492		V	V
+486958_ARROKOTH				Arrokoth	486958_Arrokoth		486958	x		ASTEROID_486958_ARROKOTH	ASTEROID		15.918	317.5	-24.89		9.2	0.235	11.06
 # We're including visited asteroids for I, Voyager:
 # https://en.wikipedia.org/wiki/List_of_minor_planets_and_comets_visited_by_spacecraft
 # We need more open source models!

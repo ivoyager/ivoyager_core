@@ -1,8 +1,8 @@
-	spacecraft	parent	orbit	trajectory	begin	end	use_pitch_yaw	lazy_model	sleep	file_prefix	en.wikipedia	hud_name	symbol	show_in_nav_panel	body_class	model_type	tidally_locked	axis_locked	#rotation_period	right_ascension	declination	gravitational_parameter	mean_radius	mean_density	magnitude	albedo
+	spacecraft	parent	orbit	trajectory	begin	end	use_pitch_yaw	lazy_model	sleep	file_prefix	en.wikipedia	hud_name	symbol	show_in_nav_panel	body_class	spheroid_type	tidally_locked	axis_locked	#rotation_period	right_ascension	declination	gravitational_parameter	mean_radius	mean_density	magnitude	albedo
 Type	BOOL	STRING_NAME	TABLE_ROW	STRING_NAME	FLOAT	FLOAT	BOOL	BOOL	BOOL	STRING	STRING	STRING_NAME	STRING	BOOL	TABLE_ROW	TABLE_ROW	BOOL	BOOL	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT
-Default	TRUE						TRUE	TRUE	TRUE				\u25CC		SPACECRAFT	SPACECRAFT				0	0	0	0	0	0	0
+Default	TRUE						TRUE	TRUE	TRUE				\u25CC		SPACECRAFT					0	0	0	0	0	0	0
 Unit					s	s													d	deg	deg	km^3/s^2	m	g/cm^3		
-Prefix/SPACECRAFT_			ORBIT_	TRAJECTORY_								SPACECRAFT_			BODY_CLASS_	MODEL_										
+Prefix/SPACECRAFT_			ORBIT_	TRAJECTORY_								SPACECRAFT_			BODY_CLASS_	SPHEROID_										
 PIONEER_10		PLANET_EARTH	SEG_PIONEER_10_DEPARTURE	PIONEER_10	-878291890.084				FALSE	Pioneer_10	Pioneer_10			x									5			
 VOYAGER_2		PLANET_EARTH	SEG_VOYAGER_2_DEPARTURE	VOYAGER_2	-705789118.966				FALSE	Voyager	Voyager_2			x									5			
 VOYAGER_1		PLANET_EARTH	SEG_VOYAGER_1_DEPARTURE	VOYAGER_1	-704412292.518				FALSE	Voyager	Voyager_1			x									5			

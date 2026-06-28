@@ -18,6 +18,7 @@
 // limitations under the License.
 // *****************************************************************************
 shader_type spatial;
+//render_mode depth_prepass_alpha; // See note below
 
 // Lit, translucent cloud overlay for an IVSpheroidModel shell. Name it in the
 // shell's shells.tsv "shader" column; the shell's discovered "albedo" channel
@@ -33,15 +34,23 @@ shader_type spatial;
 // The clouds_* uniforms below are defaults; override any per body by adding a
 // shells.tsv column of the same name to the shell's row (IVSpheroidModel feeds
 // each such column to set_shader_parameter).
+//
+// "render_mode depth_prepass_alpha;" above in conjuction with default `cast_shadow`
+// ON in shells.tsv ought to provide shadows, which ought to provide a nice depth
+// effect when viewed from ISS. But I can't see it after carefull viewing, so
+// it's currently disabled at both ends now.
+
+#include "_detail.gdshaderinc"
 
 uniform sampler2D albedo : source_color; // auto-bound: <prefix>.<file_tag>.albedo.*
 uniform vec3 clouds_color : source_color = vec3(1.0); // tint over the map's own rgb
 uniform float clouds_opacity = 1.0; // overall coverage multiplier
-uniform float clouds_warp_scale = 24.0; // domain-warp frequency
-uniform float clouds_warp_strength = 0.006; // domain-warp amount, in uv units
+uniform float clouds_warp_scale = 6.0; // domain-warp frequency; keep scale*strength under ~0.08
+uniform float clouds_warp_strength = 0.01; // domain-warp amount, in uv units
 uniform float clouds_detail_scale = 90.0; // sub-texel detail frequency
-uniform float clouds_detail_strength = 0.35; // how hard detail erodes/extends coverage
+uniform float clouds_detail_strength = 0.45; // how hard detail erodes/extends coverage
 uniform float clouds_detail_floor = 0.04; // coverage below which sky stays clear
+uniform float clouds_edge_gamma = 1.0; // alpha-falloff shaping: >1 softens/thins the fringe, <1 hardens it
 
 const int OCTAVES = 5;
 
@@ -56,54 +65,30 @@ void vertex() {
 }
 
 
-float hash(vec3 p) {
-	p = fract(p * 0.3183099 + 0.1);
-	p *= 17.0;
-	return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
-}
-
-
-float value_noise(vec3 x) {
-	vec3 i = floor(x);
-	vec3 f = fract(x);
-	f = f * f * (3.0 - 2.0 * f); // smooth lattice interpolation
-	return mix(mix(mix(hash(i + vec3(0.0, 0.0, 0.0)), hash(i + vec3(1.0, 0.0, 0.0)), f.x),
-				   mix(hash(i + vec3(0.0, 1.0, 0.0)), hash(i + vec3(1.0, 1.0, 0.0)), f.x), f.y),
-			   mix(mix(hash(i + vec3(0.0, 0.0, 1.0)), hash(i + vec3(1.0, 0.0, 1.0)), f.x),
-				   mix(hash(i + vec3(0.0, 1.0, 1.0)), hash(i + vec3(1.0, 1.0, 1.0)), f.x), f.y), f.z);
-}
-
-
-float fbm(vec3 p) {
-	float sum = 0.0;
-	float amplitude = 0.5;
-	for (int octave = 0; octave < OCTAVES; octave++) {
-		sum += amplitude * value_noise(p);
-		p *= 2.0;
-		amplitude *= 0.5;
-	}
-	return sum; // ~[0, 1), midpoint ~0.5
-}
-
-
 void fragment() {
 	vec3 noise_position = normalize(model_position);
 
-	// Warp the lookup so the magnified texel grid reads as organic edges, not
-	// bilinear diamonds.
-	vec2 warp = vec2(fbm(noise_position * clouds_warp_scale),
-			fbm(noise_position * clouds_warp_scale + vec3(19.7))) - vec2(0.5);
-	vec4 cloud = texture(albedo, UV + warp * clouds_warp_strength);
+	// Warp the lookup to give cloud edges organic, non-repeating wander. (The bicubic
+	// fetch below is what removes the texel squares; this only adds drift.) A vector warp
+	// folds the texture onto itself once its Jacobian exceeds 1, printing bright caustic
+	// ridgelines that cross in "X" cusps along the edges — so keep it gentle: one smooth
+	// (quintic) octave, with clouds_warp_scale * clouds_warp_strength held under ~0.08.
+	vec2 warp = vec2(value_noise(noise_position * clouds_warp_scale),
+			value_noise(noise_position * clouds_warp_scale + vec3(19.7))) - vec2(0.5);
+	vec4 cloud = texture_bicubic(albedo, UV + warp * clouds_warp_strength);
 	float base_coverage = cloud.a;
 
 	// Gate detail by base coverage so clear sky stays clear and detail concentrates
 	// in and at the edges of clouds.
 	float gate = smoothstep(0.0, clouds_detail_floor + 0.15, base_coverage);
-	float detail = fbm(noise_position * clouds_detail_scale) - 0.5;
+	float detail = fbm(noise_position * clouds_detail_scale, OCTAVES) - 0.5;
 	float coverage = clamp(base_coverage + detail * clouds_detail_strength * gate, 0.0, 1.0);
 
 	ALBEDO = clouds_color * cloud.rgb;
 	ROUGHNESS = 1.0;
 	METALLIC = 0.0;
-	ALPHA = coverage * clouds_opacity;
+	// Shape the alpha rolloff at the boundary. The base map's edge is a straight bilinear
+	// ramp one (kilometers-wide) texel across, which reads as fake up close; the gamma
+	// curve bends it into a softer, more cloud-like falloff. Default 1.0 leaves it linear.
+	ALPHA = pow(coverage, clouds_edge_gamma) * clouds_opacity;
 }

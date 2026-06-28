@@ -56,14 +56,16 @@ static var texture_channels: Dictionary[int, StringName] = {
 ## [code]shells.tsv[/code] columns that are NOT [StandardMaterial3D] properties (read
 ## explicitly into the shell spec). Every other column is set on the shell material
 ## directly by [IVSpheroidModel] — to add a material override, just add that property's
-## column. Enforced at load by [method _assert_material_table].
+## column. Each material column is validated per shell by [IVSpheroidModel] (as a
+## [StandardMaterial3D] property, or a shader uniform when the shell names a shader).
 static var shells_nonmaterial_fields: Array[StringName] = [
-	&"scale", &"file_tag", &"shader", &"process", &"cast_shadow",
+	&"shell0", &"scale", &"file_tag", &"shader", &"process", &"cast_shadow",
 ]
-## [code]models.tsv[/code] columns that are NOT [StandardMaterial3D] properties. Every
-## other column is a per-[code]model_type[/code] material default for the surface (shell 0).
-static var models_nonmaterial_fields: Array[StringName] = [
-	&"spheroid", &"inf_visibility", &"is_star",
+## [code]spheroids.tsv[/code] columns that are NOT [StandardMaterial3D] properties (read
+## explicitly into the shell-0 spec). Every other column is a per-[code]spheroid_type[/code]
+## material default for the surface (shell 0). Parallels [member shells_nonmaterial_fields].
+static var spheroids_nonmaterial_fields: Array[StringName] = [
+	&"shader", &"process", &"cast_shadow",
 ]
 
 ## This setting AND IVCoreSettings.use_threads must be true for loading to
@@ -136,7 +138,7 @@ func get_body_texture_slice_2d(body_name: StringName) -> Texture2D:
 	return _body_resources[body_name][1]
 
 
-func get_body_model_type(body_name: StringName) -> int:
+func get_body_inf_visibility(body_name: StringName) -> bool:
 	return _body_resources[body_name][2]
 
 
@@ -159,8 +161,10 @@ func get_body_map_offset(body_name: StringName) -> float:
 ## Returns an ordered [Array] of shell specs for one body: element 0 is the
 ## surface (shell 0); elements 1..N are overlay render shells. Each spec is a
 ## [Dictionary] with keys [code]channels, shader, process, cast_shadow,
-## overrides[/code] (plus [code]scale[/code] for overlays). Built from the body's
-## [code]shells[/code] field and the [code]shells[/code] table. Consumed by [IVSpheroidModel].
+## overrides[/code] (plus [code]scale[/code] for overlays, and [code]from_shells[/code] on
+## shell 0). Built from the body's [code]shells[/code] field and the [code]shells[/code] table;
+## a shell 0 with no [code]shells[/code] row defaults from the body's [code]spheroids.tsv[/code]
+## type, resolved in [IVSpheroidModel]. Consumed by [IVSpheroidModel].
 func get_body_shell_specs(body_name: StringName) -> Array:
 	return _body_resources[body_name][7]
 
@@ -214,12 +218,11 @@ func _load_starmap() -> void:
 	_starmap = load(path)
 
 
-## Returns a [code]{property: value}[/code] dictionary of [StandardMaterial3D] fields from
-## [param table] [param row] — every set value field except the entity name and
-## [param nonmaterial_fields]. Each remaining field must name a [StandardMaterial3D]
-## property (it is [code]set()[/code] blindly by [IVSpheroidModel]; see [method
-## _assert_material_table]). Used for per-shell overrides ([code]shells.tsv[/code]) and
-## per-[code]model_type[/code] surface defaults ([code]models.tsv[/code]).
+## Returns a [code]{property: value}[/code] dictionary of material fields from [param table]
+## [param row] — every set field except the entity name and [param nonmaterial_fields]. Each
+## remaining field must name a [StandardMaterial3D] property or a shader uniform; it is applied
+## blindly by [IVSpheroidModel], which validates it per shell. Used for per-shell overrides
+## ([code]shells.tsv[/code]) and per-[code]spheroid_type[/code] surface defaults ([code]spheroids.tsv[/code]).
 func read_material_fields(table: StringName, row: int,
 		nonmaterial_fields: Array[StringName]) -> Dictionary:
 	var fields: Dictionary = {}
@@ -230,28 +233,11 @@ func read_material_fields(table: StringName, row: int,
 	return fields
 
 
-func _assert_material_table(table: StringName, nonmaterial_fields: Array[StringName]) -> void:
-	# Dev guard: every non-excluded column is set() blindly on a StandardMaterial3D by
-	# [IVSpheroidModel], which silently no-ops an unknown property. Catch a typo'd or
-	# unsupported column here rather than as a body that renders wrong.
-	if not OS.is_debug_build() or not IVTableData.db_tables.has(table):
-		return
-	var properties: Dictionary[StringName, bool] = {}
-	for property: Dictionary in StandardMaterial3D.new().get_property_list():
-		var usage: int = property[&"usage"]
-		if usage & PROPERTY_USAGE_DEFAULT:
-			var property_name: String = property[&"name"]
-			properties[StringName(property_name)] = true
-	for field: StringName in IVTableData.db_tables[table]:
-		if field == &"name" or field in nonmaterial_fields:
-			continue
-		assert(properties.has(field), "Table '%s' column '%s' is not a StandardMaterial3D"
-				% [table, field] + " property; add it to the non-material exclusion list")
-
-
-## Builds one shell's spec [Dictionary] from its [code]shells[/code]-table row, or
-## model defaults if [param shell_row] is -1 (a surface with no row). [param is_surface]
-## (shell 0) omits [code]scale[/code] (the surface ranks as 1.0) and has no file_tag.
+## Builds one shell's spec [Dictionary] from its [code]shells[/code]-table row. For
+## [param shell_row] -1 (a surface with no [code]shells[/code] row) it returns a
+## channels-only placeholder that [IVSpheroidModel] fills from the body's
+## [code]spheroids.tsv[/code] type. [param is_surface] (shell 0) omits [code]scale[/code]
+## (the surface ranks as 1.0) and has no file_tag.
 func _read_shell_spec(channels: Dictionary, shell_row: int, is_surface: bool) -> Dictionary:
 	if shell_row == -1:
 		return {
@@ -261,11 +247,15 @@ func _read_shell_spec(channels: Dictionary, shell_row: int, is_surface: bool) ->
 			&"cast_shadow": GeometryInstance3D.SHADOW_CASTING_SETTING_ON,
 			&"overrides": {},
 		}
+	# cast_shadow has no table Default; an unset cell defaults to the engine value.
+	var cast_shadow: int = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	if IVTableData.db_has_value(&"shells", &"cast_shadow", shell_row):
+		cast_shadow = IVTableData.get_db_int(&"shells", &"cast_shadow", shell_row)
 	var spec: Dictionary = {
 		&"channels": channels,
 		&"shader": IVTableData.get_db_string_name(&"shells", &"shader", shell_row),
 		&"process": IVTableData.get_db_array(&"shells", &"process", shell_row),
-		&"cast_shadow": IVTableData.get_db_int(&"shells", &"cast_shadow", shell_row),
+		&"cast_shadow": cast_shadow,
 		&"overrides": read_material_fields(&"shells", shell_row, shells_nonmaterial_fields),
 	}
 	if not is_surface:
@@ -276,10 +266,9 @@ func _read_shell_spec(channels: Dictionary, shell_row: int, is_surface: bool) ->
 func _load_body_resources() -> void:
 	const METER := IVUnits.METER
 
-	# shells material columns are validated per-shell in IVSpheroidModel (which has the
-	# resolved shader, so it can also validate shader-uniform columns); models has no
-	# shader, so its columns are checked table-wide here.
-	_assert_material_table(&"models", models_nonmaterial_fields)
+	# spheroids/shells material columns are validated per-shell in IVSpheroidModel, which
+	# has the resolved shader so it can check both StandardMaterial3D properties and shader
+	# uniforms; a spheroids row may be either, so there is no table-wide check.
 	_compose_map_regex()
 	var maps_index := _build_maps_index() # prefix(lower) -> shell -> {TextureParam: res_path}
 	
@@ -313,7 +302,7 @@ func _load_body_resources() -> void:
 				texture_slice_2d = IVFiles.find_and_load_resource(bodies_2d_search,
 						file_prefix + "_slice")
 			
-			var model_type := IVTableData.get_db_int(table, &"model_type", row)
+			var inf_visibility := IVTableData.get_db_bool(table, &"inf_visibility", row)
 			var packed_model: PackedScene = null
 			var model_scale := METER
 			var disable_auto_visual_range := false
@@ -371,9 +360,10 @@ func _load_body_resources() -> void:
 			if not has_surface_color:
 				surface_channels[BaseMaterial3D.TEXTURE_ALBEDO] = fallback_albedo_map
 
-			# Shell 0 (the surface) always exists and is the one shell with no
-			# "scale" value. Shells with a row in shells.tsv are listed in the body's
-			# "shells" field (ARRAY[STRING]); each tag names a row SHELL_<body_name>_<tag>.
+			# Shell 0 (the surface) is the shell flagged shell0 in shells.tsv (mutually
+			# exclusive with "scale"); when absent, the surface defaults from the body's
+			# spheroids.tsv type row (resolved in IVSpheroidModel). Shells are listed in the
+			# body's "shells" field (ARRAY[STRING]); each tag names a row SHELL_<body_name>_<tag>.
 			var surface_row := -1
 			var overlay_rows: Array[int] = []
 			for tag: String in IVTableData.get_db_array(table, &"shells", row):
@@ -382,14 +372,21 @@ func _load_body_resources() -> void:
 					push_warning("Body %s: 'shells' lists '%s' with no matching shells.tsv row"
 							% [body_name, tag])
 					continue
-				if IVTableData.db_has_value(&"shells", &"scale", shell_row):
+				var is_shell0 := IVTableData.get_db_bool(&"shells", &"shell0", shell_row)
+				var has_scale := IVTableData.db_has_value(&"shells", &"scale", shell_row)
+				assert(is_shell0 != has_scale, "shells.tsv '%s': shell0 is mutually exclusive with scale"
+						% IVTableData.get_db_entity_name(&"shells", shell_row))
+				assert(not (is_shell0 and IVTableData.db_has_value(&"shells", &"file_tag", shell_row)),
+						"shells.tsv '%s': file_tag is not allowed on a shell0 row"
+						% IVTableData.get_db_entity_name(&"shells", shell_row))
+				if not is_shell0:
 					overlay_rows.append(shell_row)
 				elif surface_row == -1:
-					surface_row = shell_row # the surface: the one shell with no scale
+					surface_row = shell_row
 				else:
-					push_warning("Body %s: more than one shell without 'scale'; only one is the surface"
-							% body_name)
+					push_warning("Body %s: more than one shell0 row; only one is the surface" % body_name)
 			var shell_specs: Array = [_read_shell_spec(surface_channels, surface_row, true)]
+			shell_specs[0][&"from_shells"] = surface_row != -1
 			for overlay_row in overlay_rows:
 				var file_tag := IVTableData.get_db_string_name(&"shells", &"file_tag", overlay_row)
 				var channels: Dictionary = shell_channels.get(file_tag, {})
@@ -398,7 +395,7 @@ func _load_body_resources() -> void:
 			var resources := [
 				texture_2d,
 				texture_slice_2d,
-				model_type,
+				inf_visibility,
 				packed_model,
 				model_scale,
 				disable_auto_visual_range,

@@ -35,16 +35,16 @@ const ASSETS_REPOSITORY := "https://github.com/ivoyager/asset_downloads"
 ## ivoyager_assets directory is present.
 const MISSING_FORMAT := """I, Voyager requires assets to run!
 
-Press "Download" to download assets v%s and install at res://addons/ivoyager_assets.
+Press "Download" to download assets %s and install at res://addons/ivoyager_assets.
 
 Press "Close" to manage assets manually.
 """
 
 ## Dialog text (with three [code]%s[/code] slots for present, expected, expected
 ## versions) used when ivoyager_assets is present but at the wrong version.
-const MISMATCH_FORMAT := """res://addons/ivoyager_assets v%s does not match expected v%s.
+const MISMATCH_FORMAT := """res://addons/ivoyager_assets %s does not match expected %s.
 
-Press "Download" to download v%s and replace existing ivoyager_assets.
+Press "Download" to download %s and replace existing ivoyager_assets.
 
 Press "Close" to manage assets manually.
 """

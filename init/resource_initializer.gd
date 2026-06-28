@@ -32,21 +32,26 @@ extends RefCounted
 ## and other resources.
 var preloads: Dictionary[StringName, Resource] = {
 	# shaders
-	points_id_shader = preload("res://addons/ivoyager_core/shaders/points.id.gdshader"),
-	points_l4l5_id_shader = preload("res://addons/ivoyager_core/shaders/points.l4l5.id.gdshader"),
-	orbit_id_shader = preload("res://addons/ivoyager_core/shaders/orbit.id.gdshader"),
-	orbits_id_shader = preload("res://addons/ivoyager_core/shaders/orbits.id.gdshader"),
+	orbiting_points_id_shader = preload(
+			"res://addons/ivoyager_core/shaders/orbiting_points_id.gdshader"),
+	orbiting_points_lp_id_shader = preload(
+			"res://addons/ivoyager_core/shaders/orbiting_points_lp_id.gdshader"),
+	id_shader = preload("res://addons/ivoyager_core/shaders/id.gdshader"),
+	instance_id_shader = preload("res://addons/ivoyager_core/shaders/instance_id.gdshader"),
 	rings_shader = preload("res://addons/ivoyager_core/shaders/rings.gdshader"),
 	rings_shadow_caster_shader = preload(
 			"res://addons/ivoyager_core/shaders/rings_shadow_caster.gdshader"),
 	cloud_detail_shader = preload("res://addons/ivoyager_core/shaders/cloud_detail.gdshader"),
+	atmosphere_limb_shader = preload("res://addons/ivoyager_core/shaders/atmosphere_limb.gdshader"),
+	depixelation_shader = preload("res://addons/ivoyager_core/shaders/depixelation.gdshader"),
 }
 
 ## Callables that build shared resources (e.g., the common sphere mesh).
 ## Each Callable is invoked with no arguments and its return value is stored
 ## under the matching key in [member IVGlobal.resources].
 var constructors: Dictionary[StringName, Callable]= {
-	&"sphere_mesh" : _make_sphere_mesh,
+	&"sphere_mesh" : _make_sphere_mesh.bind(IVCoreSettings.sphere_radial_segments,
+			IVCoreSettings.sphere_rings),
 	&"circle_mesh" : _make_circle_mesh.bind(IVCoreSettings.vertecies_per_orbit),
 	&"circle_mesh_low_res" : _make_circle_mesh.bind(IVCoreSettings.vertecies_per_orbit_low_res),
 	&"parabola_mesh" : _make_open_conic_mesh.bind(IVCoreSettings.vertecies_per_orbit,
@@ -83,9 +88,14 @@ func _make_shared_resources() -> void:
 
 # constructor callables
 
-func _make_sphere_mesh() -> SphereMesh:
-	# Shared SphereMesh for stars, planets and moons. Scaled for oblateness.
+## Shared [SphereMesh] for stars, planets and moons. Instantiated here as a
+## unit sphere (radius = 1.0; height = 2.0) at specified resolution. Scaled for
+## indivudual [IVBody] oblateness by [IVPhysicalBody].
+func _make_sphere_mesh(radial_segments := 64, rings := 32) -> SphereMesh:
+	# Signature has Godot defaults; IVProjectSettings likely specifies higher value.
 	var sphere_mesh := SphereMesh.new()
+	sphere_mesh.radial_segments = radial_segments
+	sphere_mesh.rings = rings
 	sphere_mesh.radius = 1.0
 	sphere_mesh.height = 2.0
 	return sphere_mesh

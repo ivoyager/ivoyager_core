@@ -25,27 +25,20 @@ extends Camera3D
 ## This camera can have any Node3D as target. To do so, is uses method duck
 ## typing. These methods are used if they exist in the camera target Node3D:[br][br]
 ##
-## get_camera_radius() -> float
-## get_camera_ground_basis() -> Basis
-## get_camera_orbit_basis() -> Basis
-## get_camera_lat_lon_type() -> IVQFormat.LatitudeLongitudeType
+## get_camera_radius() -> float[br]
+## get_camera_ground_basis() -> Basis[br]
+## get_camera_orbit_basis() -> Basis[br]
+## get_camera_lat_lon_type() -> IVQFormat.LatitudeLongitudeType[br][br]
 ##
+## Camera framing uses a "perspective distance" system: the z component of
+## [member view_position] is [b]not[/b] meters. Near the target it is scaled by
+## the target's radius (so different-sized bodies show at a similar on-screen
+## size); far away it blends toward an absolute distance. Because of this,
+## callers should not hand-build [member view_position]. The normal way to frame
+## the camera is to apply a named [IVView] via
+## [method IVViewManager.set_table_view] (the surface the GUI view buttons use);
+## a view carries a [member view_position] captured from the running camera.
 
-
-# Old...
-
-##
-## This class can be replaced together with [IVCameraHandler] and a few specific
-## GUI widgets that depend on IVCamera.[br][br]
-##
-## This camera uses a 'perspective distance' when moving from body to body at
-## close range. This distance is adjusted for body 'perspective_radius' (usually
-## the same as 'mean_radius') so that it appears the same size in the view. At far
-## distances there is no adjustment. (There is a transition between the two.)
-## Hence, distance vars with name '_radii_meters' that are on the order of
-## meters are adjusted to 'target radii'. Distance vars in units AU are what
-## they appear to be. In the transition distance they are intermediate.
-## This system *may* break for objects smaller than meters (not tested yet).
 
 ## Emitted at the start of a [method move_to] transition. [param to_node3d]
 ## becomes the new parent only after the move completes.
@@ -92,18 +85,11 @@ enum CameraDisabledFlags {
 	CAMERADISABLEDFLAGS_TRACK_SUPERGALACIC = 1 << 4, # not implemented yet
 }
 
-
-
-
-
-
-
 const IDENTITY_BASIS := Basis.IDENTITY
 const ECLIPTIC_X := IDENTITY_BASIS.x # primary direction
 const ECLIPTIC_Y := IDENTITY_BASIS.y
 const ECLIPTIC_Z := IDENTITY_BASIS.z # ecliptic north
 const NULL_VECTOR3 := Vector3(-INF, -INF, -INF)
-
 
 const METER := IVUnits.METER
 const KM := IVUnits.KM
@@ -112,7 +98,7 @@ const DPRINT := false
 const NEAR_MULTIPLIER := 0.1
 const FAR_MULTIPLIER := 1e6 # see Note below
 const POLE_LIMITER := PI / 2.1
-const MIN_DIST_RADII_METERS := 1.5 * METER # really target radii; see 'perspective distance'
+const MIN_DIST_RADII_METERS := 1.2 * METER # really target radii; see 'perspective distance'
 
 # Note: As of Godot 3.2.3, we had to lower FAR_MULTIPLIER from 1e9 to 1e6.
 # It used to be that ~10 orders of magnitude was allowed between near and far.
@@ -148,7 +134,10 @@ var target: Node3D # Node3D we are at or going to (not parant during 1st half of
 ## for the perspective-distance system.
 var perspective_radius := KM
 ## Spherical view position relative to the current reference basis: x is right
-## ascension, y is declination, z is "perspective distance". Read-only.
+## ascension (longitude), y is declination (latitude), z is "perspective
+## distance" — radius-scaled near the target, blending to absolute distance when
+## far (see class docs). Not meters; do not hand-build this. Set it by applying
+## an [IVView], e.g. [method IVViewManager.set_table_view]. Read-only.
 var view_position := Vector3(0.5, 2.5, 3.0) # spherical, relative to ref frame; r is 'perspective'
 ## Euler offsets applied after [code]looking_at(-origin, up)[/code]. Read-only.
 var view_rotations := Vector3.ZERO # euler, relative to looking_at(-origin, 'up')

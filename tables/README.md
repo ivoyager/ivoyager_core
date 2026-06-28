@@ -18,7 +18,7 @@ This table includes only the individually instantiated asteroids, which are all 
 
 ## body_classes.tsv
 
-Used only for GUI info display of "Classification". E.g., "Terrestrial Planet", "Gas Giant", "C-Type Asteroid", etc. See [models.tsv](#modelstsv) for types that affect 3D model representation.
+Used only for GUI info display of "Classification". E.g., "Terrestrial Planet", "Gas Giant", "C-Type Asteroid", etc. See [spheroids.tsv](#spheroidstsv) for types that affect 3D model representation.
 
 ## camera_attributes.tsv
 
@@ -40,11 +40,11 @@ Maps are assumed to have prime meridian at center and longitude 180° at edge, a
 
 Model scale is assumed to be 1 meter (1:1). If different, include here with `model_scale`. Asteroids more commonly have a scale of 1000 m (1:1000).
 
-## models.tsv
+## spheroids.tsv
 
-Fields are used by [IVModelSpace](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/model_space.gd) to build or modify 3D models for IVBody instances. All `spheroid` models share the same sphere mesh, scaled for size and oblateness.
+Per-`spheroid_type` defaults for a procedurally built spheroid model's surface (shell 0): material properties plus an optional `shader` and per-frame `process` method. Consumed by [IVSpheroidModel](https://github.com/ivoyager/ivoyager_core/blob/master/tree/spheroid_model.gd); all spheroid models share the same sphere mesh, scaled for size and oblateness. A body's `spheroid_type` column selects the row; `SPHEROID_FALLBACK` (row 0) is used when none is specified. A body with a packed-scene 3D model ignores this table.
 
-Many of the model types are meant to facilitate graphic differences for different kinds of worlds or bodies such as "icy", "thick atmosphere", "volcanic", etc. But we haven't implemented actual graphic differences yet. (We need help from someone competent in 3D visuals!)
+This table is parallel in capability to [shells.tsv](#shellstsv) (minus the structural `shell0`/`scale`/`file_tag` columns): a `shells.tsv` shell-0 row, when present, wholly overrides these defaults for that one body (never a merge of the two).
 
 ## moons.tsv
 

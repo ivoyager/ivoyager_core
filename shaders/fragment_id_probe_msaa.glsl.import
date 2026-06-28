@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://cgriissx40gly"
+path="res://.godot/imported/fragment_id_probe_msaa.glsl-8af40b045b8986a79bb3027b0371cb3a.res"
+
+[deps]
+
+source_file="res://addons/ivoyager_core/shaders/fragment_id_probe_msaa.glsl"
+dest_files=["res://.godot/imported/fragment_id_probe_msaa.glsl-8af40b045b8986a79bb3027b0371cb3a.res"]
+
+[params]
+

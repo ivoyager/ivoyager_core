@@ -1,4 +1,4 @@
-// points.l4l5.id.gdshader
+// orbiting_points_lp_id.gdshader
 // This file is part of I, Voyager
 // https://ivoyager.dev
 // *****************************************************************************
@@ -20,7 +20,11 @@
 shader_type spatial;
 render_mode unshaded, cull_disabled, skip_vertex_transform;
 
-// See comments in points.id.gdshader.
+// A vertex shader that calculates its own Lagrange point position from orbit
+// elements and Lagrange point information encoded in a mesh array. Supports
+// only L4 & L5 at this time.
+//
+// See comments in orbiting_points_id.gdshader.
 //
 // For L4/L5 objects, a & m are determined by da, dl, f & th0 together with
 // characteristic_length (semi-major axis of the secondary body) and mean
@@ -33,10 +37,10 @@ render_mode unshaded, cull_disabled, skip_vertex_transform;
 // e, i, s, g: same as non-lagrange-point orbits
 // de (not used): e ocillation, I think. If so, what is the frequency & phase?
 //
-// We're using a harmonic ocillator as a *very* rough approximation. There are
-// no closed-form solutions so we can only approximate L-point librations.
-// TODO: Notwithstanding above, we could improve our ocillator functions to
-// give more 'tadpole'-shaped librations.
+// We're using a modified harmonic ocillator as a *very* rough approximation.
+// The "modified" part gives the long leading and lagging tails. There are no
+// closed-form solutions so we can only approximate L-point librations.
+
 
 const float TAIL_FACTOR = 1.0; // Nonlinear distal-to-secondondary effect
 
@@ -53,8 +57,8 @@ uniform float lp_longitude; // of the L4 or L5 point
 
 varying flat vec3 fragment_id;
 
+#include "_orbit.gdshaderinc"
 #include "_fragment_id.gdshaderinc"
-#include "_orbit_math.gdshaderinc"
 
 
 float longitude_ocillator(float dl, float th){

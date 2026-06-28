@@ -42,35 +42,33 @@ extends Node3D
 var reference_basis: Basis
 ## Optional Script used in place of [IVSpheroidModel] when no PackedScene model
 ## is present. Must extend [IVSpheroidModel] and share its
-## [code]_init(body_name, model_type, mean_radius, model_basis, shell)[/code] signature.
+## [code]_init(body_name, spheroid_type, mean_radius, model_basis, shell)[/code] signature.
 var replacement_spheroid_model_class: Script
 
 
 var _body_name: StringName
 var _m_radius: float
 var _e_radius: float
-var _model_type: int
+var _spheroid_type: int
 var _model: Node3D
 
 
 
-func _init(body_name: StringName, mean_radius: float, equatorial_radius: float) -> void:
+func _init(body_name: StringName, mean_radius: float, equatorial_radius: float,
+		spheroid_type: int) -> void:
 	_body_name = body_name
 	_m_radius = mean_radius
 	_e_radius = equatorial_radius
 	name = &"PhysicalBody"
-	# Always use PackedScene model if there is one. Otherwise, generate
-	# a spheroid model w/ maps or use a fallback.
+	# A PackedScene model (self-defining) always wins. Otherwise build a spheroid from the
+	# spheroids.tsv type intent; an unspecified type (-1) resolves to row 0 (the fallback).
 	var asset_preloader: IVAssetPreloader = IVGlobal.program[&"AssetPreloader"]
-	_model_type = asset_preloader.get_body_model_type(_body_name)
 	var packed_model := asset_preloader.get_body_packed_model(_body_name)
 	if packed_model:
 		_build_packed_model(asset_preloader, packed_model)
 		return
-	if IVTableData.get_db_bool(&"models", &"spheroid", _model_type):
-		_build_spheroid_model(asset_preloader)
-		return
-	_build_fallback_nonspheroid_model(asset_preloader)
+	_spheroid_type = spheroid_type if spheroid_type >= 0 else 0
+	_build_spheroid_model(asset_preloader)
 
 
 func _ready() -> void:
@@ -110,23 +108,17 @@ func _build_spheroid_model(asset_preloader: IVAssetPreloader) -> void:
 	reference_basis = reference_basis.rotated(Vector3(1.0, 0.0, 0.0), RIGHT_ANGLE) # z-up!
 	if replacement_spheroid_model_class:
 		@warning_ignore("unsafe_method_access")
-		_model = replacement_spheroid_model_class.new(_body_name, _model_type, _m_radius, reference_basis)
+		_model = replacement_spheroid_model_class.new(_body_name, _spheroid_type, _m_radius, reference_basis)
 	else:
-		_model = IVSpheroidModel.new(_body_name, _model_type, _m_radius, reference_basis)
-
-
-func _build_fallback_nonspheroid_model(asset_preloader: IVAssetPreloader) -> void:
-	# TODO: We need a fallback asteroid/comet PackedScene model here, since the
-	# vast majority of no-model bodies are probably asteroids or tiny moons.
-	# For now, user sees generic grey sphere with grids.
-	_build_spheroid_model(asset_preloader)
+		_model = IVSpheroidModel.new(_body_name, _spheroid_type, _m_radius, reference_basis)
 
 
 # Packed-scene models are foreign node trees, so [IVPhysicalBody] still recurses
 # to set their visibility ranges and layers. Spheroid models self-configure (see
 # [IVSpheroidModel]).
 func _set_visibility_ranges() -> void:
-	if IVTableData.get_db_bool(&"models", &"inf_visibility", _model_type):
+	var asset_preloader: IVAssetPreloader = IVGlobal.program[&"AssetPreloader"]
+	if asset_preloader.get_body_inf_visibility(_body_name):
 		return # default 0.0 is no distance cull
 	var visibility_range_end := _m_radius * IVCoreSettings.radius_multiplier_visibility_range_end
 	_set_visibility_ranges_recursive(_model, visibility_range_end)

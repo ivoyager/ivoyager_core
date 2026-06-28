@@ -1,10 +1,9 @@
-	scale	file_tag	shader	process	cast_shadow	transparency	albedo_color	emission_energy_multiplier	normal_scale	clouds_detail_strength	clouds_detail_scale	clouds_warp_strength	clouds_opacity
-Type	FLOAT	STRING_NAME	STRING_NAME	ARRAY[VARIANT]	GeometryInstance3D.ShadowCastingSetting	BaseMaterial3D.Transparency	COLOR	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT
-Default					ON								
-Prefix/SHELL_					SHADOW_CASTING_SETTING_	TRANSPARENCY_							
-STAR_SUN_SURFACE				&"_grow_star"	OFF								
-PLANET_EARTH_SURFACE								0.1	1.0				
-PLANET_EARTH_CLOUDS	1.005	clouds	cloud_detail_shader	&"_rotate";0.0003						0.35	90.0	0.006	1.0
-PLANET_EARTH_LIMB	1.02				OFF	ALPHA	0.431, 0.627, 0.922, 0.0196						
-PLANET_VENUS_LIMB	1.02				OFF	ALPHA	0.922, 0.882, 0.725, 0.0314						
-MOON_TITAN_LIMB	1.05				OFF	ALPHA	0.471, 0.647, 0.882, 0.051						
+	shell0	scale	file_tag	shader	process	cast_shadow	transparency	emission_energy_multiplier	normal_scale	metallic_specular	limb_color	limb_intensity	limb_falloff	limb_day_glow	limb_forward_scatter	limb_phase_exponent	limb_twilight
+Type	BOOL	FLOAT	STRING_NAME	STRING_NAME	ARRAY[VARIANT]	GeometryInstance3D.ShadowCastingSetting	BaseMaterial3D.Transparency	FLOAT	FLOAT	FLOAT	COLOR	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT
+Prefix/SHELL_						SHADOW_CASTING_SETTING_	TRANSPARENCY_										
+PLANET_EARTH_SURFACE	x							0.1	1.0	0.35							
+PLANET_EARTH_CLOUDS		1.0016	clouds	cloud_detail_shader	&"_rotate";0.0003	OFF											
+PLANET_EARTH_LIMB		1.02		atmosphere_limb_shader		OFF					0.431, 0.627, 0.922, 1.0	0.01	25	1.0	2.5	4.0	0.15
+PLANET_VENUS_LIMB		1.02		atmosphere_limb_shader		OFF					0.922, 0.882, 0.725, 1.0	0.01	25	1.0	3.0	4.0	0.2
+MOON_TITAN_LIMB		1.05		atmosphere_limb_shader		OFF					0.471, 0.647, 0.882, 1.0	0.05	20	1.2	3.5	3.0	0.25
+# shell0 overrides spheroids.tsv																	

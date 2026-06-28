@@ -20,7 +20,15 @@
 class_name IVCameraHandler
 extends Node
 
-## Handles input for [IVCamera] movements and click selection.
+## Handles input for [IVCamera] movements and click selection.[br][br]
+##
+## [method move_to] and [method move_to_by_name] are low-level: their
+## [param view_position] uses [IVCamera]'s perspective-distance system (the z
+## component is radius-scaled, not meters — see [member IVCamera.view_position]).
+## To simply frame the camera on a body, apply a named [IVView] via
+## [method IVViewManager.set_table_view] instead (the surface the GUI view
+## buttons use); reach for the methods here only when you need explicit per-axis
+## control beyond what a view provides.[br][br]
 ##
 ## Remove or replace this class if you have a different camera.
 
@@ -235,7 +243,11 @@ func _shortcut_input(event: InputEvent) -> void:
 
 ## Forwards a move request to the active [IVCamera]. Null or null-equivalent
 ## args (see [constant NULL_VECTOR3]) tell the camera to keep its current
-## value. Some parameters override others.
+## value. Some parameters override others.[br][br]
+##
+## Low-level: [param view_position] uses the perspective-distance system (see
+## [member IVCamera.view_position]). For the common "look at a body" case, apply
+## an [IVView] via [method IVViewManager.set_table_view] instead.
 func move_to(to_node3d: Node3D, camera_flags := 0, view_position := NULL_VECTOR3,
 		view_rotations := NULL_VECTOR3, is_instant_move := false) -> void:
 
@@ -250,7 +262,9 @@ func move_to(to_node3d: Node3D, camera_flags := 0, view_position := NULL_VECTOR3
 
 
 ## As [method move_to] but resolves [param selection_name] to an [IVBody] via
-## [member IVBody.bodies] before forwarding.
+## [member IVBody.bodies] before forwarding. Same low-level contract as
+## [method move_to]; prefer [method IVViewManager.set_table_view] to frame the
+## camera on a body.
 func move_to_by_name(selection_name: StringName, camera_flags := 0, view_position := NULL_VECTOR3,
 		view_rotations := NULL_VECTOR3, is_instant_move := false) -> void:
 	# Null or null-equivilant args tell the camera to keep its current value.

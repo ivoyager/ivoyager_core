@@ -5,6 +5,6 @@
 [node name="ConfirmationDialog" type="ConfirmationDialog"]
 process_mode = 3
 initial_position = 1
-transient = false
-always_on_top = true
+transient_to_focused = true
+exclusive = true
 script = ExtResource("1_o1hj8")

@@ -75,6 +75,10 @@ var _defaults: Dictionary[StringName, Variant] = {
 	
 	# graphics/performance
 	&"starmap" : IVGlobal.StarmapSize.STARMAP_16K,
+	&"msaa_3d" : 1, # 0,1,2,3 = disabled,2x,4x,8x (== Viewport.MSAA_*)
+	&"fxaa" : false, # not available in Compatibility renderer (incl. web)
+	&"use_taa" : false, # Forward+ only; ghosts vertex-shader-positioned orbit lines
+	&"directional_shadow_size" : 2, # 0,1,2,3 = 2048,4096,8192,16384 (2 = 8192)
 }
 
 var _settings: Dictionary[StringName, Variant] = {}

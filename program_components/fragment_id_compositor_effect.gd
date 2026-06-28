@@ -26,9 +26,11 @@ extends CompositorEffect
 ## Runs at [code]EFFECT_CALLBACK_TYPE_POST_TRANSPARENT[/code] each frame:[br]
 ## 1. Iterates a sparse 3-pixel grid around [member _world_mouse], bounded by
 ##    the fragment range passed in to [method _init].[br]
-## 2. Each sample reads a pixel from the resolved HDR color buffer and decodes
-##    [code]ivec3(round(rgb))[/code]. Channel values in [code][1, 2048][/code]
-##    are valid id-encoded pixels (offset-by-1 sentinel; any zero rejects).[br]
+## 2. Each grid pixel is decoded as [code]ivec3(round(rgb))[/code]; channel
+##    values in [code][1, 2048][/code] are valid id-encoded pixels (offset-by-1
+##    sentinel; any zero rejects). Without MSAA this reads the resolved HDR color
+##    buffer; with MSAA it reads the unresolved multisampled buffer and scans
+##    samples, since a resolve would average the exact encoding away.[br]
 ## 3. Tracks the closest-to-center valid sample and writes it to a small SSBO.[br]
 ## 4. Issues an asynchronous readback. The callback decodes the id and emits
 ##    [signal fragment_decoded] on the main thread via [code]call_deferred[/code].[br][br]
@@ -45,7 +47,9 @@ extends CompositorEffect
 ## CUSTOM_BUFFER0, CUSTOM_BUFFER1, etc. 
 
 const _PROBE_SHADER_PATH := "res://addons/ivoyager_core/shaders/fragment_id_probe.glsl"
+const _PROBE_SHADER_MSAA_PATH := "res://addons/ivoyager_core/shaders/fragment_id_probe_msaa.glsl"
 const _PUSH_CONSTANT_SIZE := 16 # ivec2 probe_pixel + int fragment_range + int pad
+const _PUSH_CONSTANT_MSAA_SIZE := 24 # adds ivec2 buffer_size for the multisample probe
 const _SSBO_BYTE_SIZE := 16 # ivec3 best_channels + int best_dist_sq
 
 ## Emitted from the main thread with the latest decoded fragment id, or
@@ -64,6 +68,8 @@ var _world_mouse := Vector2.ZERO
 var _rd: RenderingDevice
 var _shader_rid := RID()
 var _pipeline_rid := RID()
+var _shader_msaa_rid := RID() # texture2DMS probe; used when msaa_3d is enabled
+var _pipeline_msaa_rid := RID()
 var _ssbo_rid := RID()
 var _sampler_rid := RID()
 
@@ -87,6 +93,10 @@ func _notification(what: int) -> void:
 		_rd.free_rid(_pipeline_rid)
 	if _shader_rid.is_valid():
 		_rd.free_rid(_shader_rid)
+	if _pipeline_msaa_rid.is_valid():
+		_rd.free_rid(_pipeline_msaa_rid)
+	if _shader_msaa_rid.is_valid():
+		_rd.free_rid(_shader_msaa_rid)
 	if _ssbo_rid.is_valid():
 		_rd.free_rid(_ssbo_rid)
 	if _sampler_rid.is_valid():
@@ -114,6 +124,17 @@ func _init_render_resources() -> void:
 	_shader_rid = _rd.shader_create_from_spirv(shader_file.get_spirv())
 	_pipeline_rid = _rd.compute_pipeline_create(_shader_rid)
 
+	# Optional MSAA pipeline. If it fails to load, _render_callback falls back to
+	# the resolved path (degraded id reads under MSAA, but no crash).
+	var msaa_resource := load(_PROBE_SHADER_MSAA_PATH)
+	if msaa_resource is RDShaderFile:
+		var msaa_shader_file: RDShaderFile = msaa_resource
+		_shader_msaa_rid = _rd.shader_create_from_spirv(msaa_shader_file.get_spirv())
+		_pipeline_msaa_rid = _rd.compute_pipeline_create(_shader_msaa_rid)
+	else:
+		push_error("Fragment id MSAA probe shader missing or wrong type at %s"
+				% _PROBE_SHADER_MSAA_PATH)
+
 	var initial_bytes := PackedByteArray()
 	initial_bytes.resize(_SSBO_BYTE_SIZE)
 	_ssbo_rid = _rd.storage_buffer_create(_SSBO_BYTE_SIZE, initial_bytes)
@@ -136,37 +157,59 @@ func _render_callback(callback_type: int, render_data: RenderData) -> void:
 	var internal_size := rd_scene_buffers.get_internal_size()
 	if internal_size.x <= 0 or internal_size.y <= 0:
 		return
-	var color_tex := rd_scene_buffers.get_color_layer(0)
-	if !color_tex.is_valid():
-		return
+	# MSAA averages the resolved buffer, destroying the exact per-fragment id
+	# encoding. When MSAA is on we read the UNRESOLVED multisampled buffer and
+	# scan samples (see fragment_id_probe_msaa.glsl). num_samples maps the
+	# TextureSamples enum (SAMPLES_2 -> 2, SAMPLES_4 -> 4, ...) to a sample count.
+	var num_samples := 1 << rd_scene_buffers.get_texture_samples()
+	var use_msaa := num_samples > 1 and _pipeline_msaa_rid.is_valid()
+	var shader_rid := _shader_msaa_rid if use_msaa else _shader_rid
+	var pipeline_rid := _pipeline_msaa_rid if use_msaa else _pipeline_rid
 
 	var color_uniform := RDUniform.new()
-	color_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_SAMPLER_WITH_TEXTURE
 	color_uniform.binding = 0
-	color_uniform.add_id(_sampler_rid)
-	color_uniform.add_id(color_tex)
-	var color_uniform_set := UniformSetCacheRD.get_cache(_shader_rid, 0, [color_uniform])
+	if use_msaa:
+		var color_tex := rd_scene_buffers.get_color_layer(0, true) # unresolved MSAA buffer
+		if !color_tex.is_valid():
+			return
+		color_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_SAMPLER_WITH_TEXTURE
+		color_uniform.add_id(_sampler_rid)
+		color_uniform.add_id(color_tex)
+	else:
+		var color_tex := rd_scene_buffers.get_color_layer(0)
+		if !color_tex.is_valid():
+			return
+		color_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_SAMPLER_WITH_TEXTURE
+		color_uniform.add_id(_sampler_rid)
+		color_uniform.add_id(color_tex)
+	# Uniform-set caches must be keyed to the shader owning the bound pipeline.
+	var color_uniform_set := UniformSetCacheRD.get_cache(shader_rid, 0, [color_uniform])
 
 	var ssbo_uniform := RDUniform.new()
 	ssbo_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER
 	ssbo_uniform.binding = 0
 	ssbo_uniform.add_id(_ssbo_rid)
-	var ssbo_uniform_set := UniformSetCacheRD.get_cache(_shader_rid, 1, [ssbo_uniform])
+	var ssbo_uniform_set := UniformSetCacheRD.get_cache(shader_rid, 1, [ssbo_uniform])
 
 	var probe_pixel := Vector2i(_world_mouse)
 
+	var push_size := _PUSH_CONSTANT_MSAA_SIZE if use_msaa else _PUSH_CONSTANT_SIZE
 	var push_constant := PackedByteArray()
-	push_constant.resize(_PUSH_CONSTANT_SIZE)
+	push_constant.resize(push_size)
 	push_constant.encode_s32(0, probe_pixel.x)
 	push_constant.encode_s32(4, probe_pixel.y)
 	push_constant.encode_s32(8, _fragment_range)
-	push_constant.encode_s32(12, 0)
+	push_constant.encode_s32(12, num_samples if use_msaa else 0)
+	if use_msaa:
+		# The multisample probe takes the buffer size via push constant.
+		push_constant.encode_s32(16, internal_size.x)
+		push_constant.encode_s32(20, internal_size.y)
 
 	var compute_list := _rd.compute_list_begin()
-	_rd.compute_list_bind_compute_pipeline(compute_list, _pipeline_rid)
+	_rd.compute_list_bind_compute_pipeline(compute_list, pipeline_rid)
 	_rd.compute_list_bind_uniform_set(compute_list, color_uniform_set, 0)
 	_rd.compute_list_bind_uniform_set(compute_list, ssbo_uniform_set, 1)
-	_rd.compute_list_set_push_constant(compute_list, push_constant, _PUSH_CONSTANT_SIZE)
+	_rd.compute_list_set_push_constant(compute_list, push_constant, push_size)
 	_rd.compute_list_dispatch(compute_list, 1, 1, 1)
 	_rd.compute_list_end()
 

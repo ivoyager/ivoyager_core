@@ -1,4 +1,4 @@
-// points.id.gdshader
+// orbiting_points_id.gdshader
 // This file is part of I, Voyager
 // https://ivoyager.dev
 // *****************************************************************************
@@ -20,10 +20,12 @@
 shader_type spatial;
 render_mode unshaded, cull_disabled, skip_vertex_transform;
 
-// VERTEX encodes the fragment_id (see IVFragmentIdentifier).
-// We set POSITION directly here so VERTEX remains unchanged.
+// A vertex shader that calculates its own Keplerian orbit position from
+// elements encoded in a mesh array.
 //
-// Orbital parameters are set via CUSTOMx channels by IVSBGPoints.
+// VERTEX encodes the fragment_id (see IVFragmentIdentifier). We set POSITION
+// directly here so VERTEX remains unchanged. Orbital parameters are set via
+// CUSTOMx channels by IVSBGPoints.
 
 global uniform float iv_time;
 
@@ -32,8 +34,8 @@ uniform vec3 color : source_color = vec3(0.0, 1.0, 0.0);
 
 varying flat vec3 fragment_id;
 
+#include "_orbit.gdshaderinc"
 #include "_fragment_id.gdshaderinc"
-#include "_orbit_math.gdshaderinc"
 
 
 void vertex() {
