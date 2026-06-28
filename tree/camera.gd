@@ -28,7 +28,16 @@ extends Camera3D
 ## get_camera_radius() -> float[br]
 ## get_camera_ground_basis() -> Basis[br]
 ## get_camera_orbit_basis() -> Basis[br]
-## get_camera_lat_lon_type() -> IVQFormat.LatitudeLongitudeType[br]
+## get_camera_lat_lon_type() -> IVQFormat.LatitudeLongitudeType[br][br]
+##
+## Camera framing uses a "perspective distance" system: the z component of
+## [member view_position] is [b]not[/b] meters. Near the target it is scaled by
+## the target's radius (so different-sized bodies show at a similar on-screen
+## size); far away it blends toward an absolute distance. Because of this,
+## callers should not hand-build [member view_position]. The normal way to frame
+## the camera is to apply a named [IVView] via
+## [method IVViewManager.set_table_view] (the surface the GUI view buttons use);
+## a view carries a [member view_position] captured from the running camera.
 
 
 ## Emitted at the start of a [method move_to] transition. [param to_node3d]
@@ -125,7 +134,10 @@ var target: Node3D # Node3D we are at or going to (not parant during 1st half of
 ## for the perspective-distance system.
 var perspective_radius := KM
 ## Spherical view position relative to the current reference basis: x is right
-## ascension, y is declination, z is "perspective distance". Read-only.
+## ascension (longitude), y is declination (latitude), z is "perspective
+## distance" — radius-scaled near the target, blending to absolute distance when
+## far (see class docs). Not meters; do not hand-build this. Set it by applying
+## an [IVView], e.g. [method IVViewManager.set_table_view]. Read-only.
 var view_position := Vector3(0.5, 2.5, 3.0) # spherical, relative to ref frame; r is 'perspective'
 ## Euler offsets applied after [code]looking_at(-origin, up)[/code]. Read-only.
 var view_rotations := Vector3.ZERO # euler, relative to looking_at(-origin, 'up')

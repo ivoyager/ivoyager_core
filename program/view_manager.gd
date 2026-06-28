@@ -56,7 +56,11 @@ func _init() -> void:
 
 
 ## Applies the named built-in [IVView] (from [member table_views]) to the
-## simulator. No-op if the name is unknown.
+## simulator. This is the standard "apply a named view" entry point — the same
+## call the GUI's default view buttons make (see [IVViewButton]). Prefer it over
+## driving [IVCameraHandler] directly when the goal is to frame the camera on a
+## body. No-op if [param view_name] is unknown; check [method has_table_view]
+## first when the name is not statically known.
 func set_table_view(view_name: StringName, is_camera_instant_move := false) -> void:
 	if !table_views.has(view_name):
 		return
