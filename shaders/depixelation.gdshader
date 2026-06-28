@@ -51,6 +51,7 @@ uniform sampler2D emission : source_color, hint_default_black;  // city lights; 
 uniform float normal_scale = 1.0;      // strength of the bound tangent normal map
 uniform float roughness_scale = 1.0;   // multiplies the sampled roughness (white if unbound)
 uniform float metallic = 0.0;
+uniform float metallic_specular = 0.5; // dielectric specular reflectance; 0.5 = StandardMaterial3D default
 uniform float emission_energy_multiplier = 1.0;
 
 
@@ -60,6 +61,7 @@ void fragment() {
 	ALBEDO = texture_bicubic(albedo, UV).rgb;
 	ROUGHNESS = clamp(texture(roughness, UV).r * roughness_scale, 0.0, 1.0);
 	METALLIC = metallic;
+	SPECULAR = metallic_specular;
 
 	vec3 n = texture_bicubic(normal, UV).xyz * 2.0 - 1.0;
 	n.xy *= normal_scale;
