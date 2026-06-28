@@ -22,11 +22,14 @@ extends MultiMeshInstance3D
 
 ## Visual orbits of an [IVSmallBodiesGroup].
 ##
-## If FragmentIdentifier exists, then a shader is used to allow screen
-## identification of the orbit lines.[br][br]
+## If [IVFragmentIdentifier] exists, a pure id-overlay (the [code]instance_id[/code] shader,
+## attached as [member GeometryInstance3D.material_overlay]) provides screen identification of
+## the orbit lines, orthogonal to the base material's appearance.[br][br]
 ##
-## Several subclass _init() overrides are provided to override above behavior,
-## supply a different shader, or change other aspects of the MultiMesh.
+## Several subclass [code]_init()[/code] overrides are provided: [code]_shader_override[/code]
+## sets the base appearance only (the id overlay is still added);
+## [code]_bypass_fragment_identifier[/code] suppresses the id overlay. Other overrides change
+## aspects of the MultiMesh.
 
 const FRAGMENT_SBG_ORBIT := IVFragmentIdentifier.FRAGMENT_SBG_ORBIT
 
@@ -71,20 +74,24 @@ func _init(sbg: IVSmallBodiesGroup) -> void:
 	multimesh.use_colors = _multimesh_use_colors
 	multimesh.use_custom_data = _multimesh_use_custom_data # may be forced true below
 	
+	# base (visible) material
 	if _shader_override:
 		var shader_material := ShaderMaterial.new()
 		shader_material.shader = _shader_override
 		material_override = shader_material
-	elif _fragment_identifier and !_bypass_fragment_identifier: # use self-identifying shader
-		multimesh.use_custom_data = true
-		var shader_material := ShaderMaterial.new()
-		shader_material.shader = IVGlobal.resources[&"orbits_id_shader"]
-		material_override = shader_material
 	else:
 		var standard_material := StandardMaterial3D.new()
 		standard_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		standard_material.vertex_color_use_as_albedo = _multimesh_use_custom_data
+		standard_material.vertex_color_use_as_albedo = _multimesh_use_colors
 		material_override = standard_material
+
+	# id overlay, orthogonal to appearance (_bypass_fragment_identifier suppresses it)
+	if _fragment_identifier and !_bypass_fragment_identifier:
+		multimesh.use_custom_data = true
+		var id_material := ShaderMaterial.new()
+		id_material.shader = IVGlobal.resources[&"instance_id_shader"]
+		id_material.render_priority = 1
+		material_overlay = id_material
 	
 	multimesh.instance_count = number # must be set after above!
 	
@@ -118,7 +125,7 @@ func _set_color() -> void:
 	if _color == color:
 		return
 	_color = color
-	if _shader_override or (_fragment_identifier and !_bypass_fragment_identifier):
+	if _shader_override:
 		var shader_material: ShaderMaterial = material_override
 		shader_material.set_shader_parameter(&"color", color)
 	else:

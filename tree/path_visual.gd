@@ -41,8 +41,9 @@ extends MeshInstance3D
 ## [method _on_orbit_changed] is the single switchboard that, on each segment change (via
 ## [signal IVBody.orbit_changed]), selects the mode, reparents, and sets the mesh.[br][br]
 ##
-## If [IVFragmentIdentifier] is present, an "id" shader allows mouse-over
-## identification of the line.
+## If [IVFragmentIdentifier] is present, a pure id-overlay (the [code]uniform_id[/code] shader,
+## attached as [member GeometryInstance3D.material_overlay]) provides mouse-over identification
+## of the line without constraining the base material's appearance.
 
 
 const FRAGMENT_BODY_ORBIT := IVFragmentIdentifier.FRAGMENT_BODY_ORBIT
@@ -75,17 +76,17 @@ func _ready() -> void:
 	_body.huds_visibility_changed.connect(_on_body_huds_changed)
 	_body.visibility_changed.connect(_on_body_visibility_changed)
 	cast_shadow = SHADOW_CASTING_SETTING_OFF
-	if _fragment_identifier: # use self-identifying fragment shader
+	var standard_material := StandardMaterial3D.new()
+	standard_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material_override = standard_material
+	if _fragment_identifier: # add self-identifying id overlay pass
 		var data := _body.get_fragment_data(FRAGMENT_BODY_ORBIT)
 		var fragment_id := _fragment_identifier.get_new_id_as_vec3(data)
-		var shader_material := ShaderMaterial.new()
-		shader_material.shader = IVGlobal.resources[&"orbit_id_shader"]
-		shader_material.set_shader_parameter(&"fragment_id", fragment_id)
-		material_override = shader_material
-	else:
-		var standard_material := StandardMaterial3D.new()
-		standard_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		material_override = standard_material
+		var id_material := ShaderMaterial.new()
+		id_material.shader = IVGlobal.resources[&"uniform_id_shader"]
+		id_material.set_shader_parameter(&"fragment_id", fragment_id)
+		id_material.render_priority = 1 # draw the id stamp above the base pass
+		material_overlay = id_material
 	_set_color()
 	# Parenting and display mode (orbit vs trajectory) are resolved per segment in
 	# _on_orbit_changed, the single switchboard; nothing to reparent eagerly here.
@@ -187,9 +188,5 @@ func _set_color() -> void:
 	if _color == color:
 		return
 	_color = color
-	if _fragment_identifier:
-		var shader_material: ShaderMaterial = material_override
-		shader_material.set_shader_parameter(&"color", color)
-	else:
-		var standard_material: StandardMaterial3D = material_override
-		standard_material.albedo_color = color
+	var standard_material: StandardMaterial3D = material_override
+	standard_material.albedo_color = color

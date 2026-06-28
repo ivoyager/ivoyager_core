@@ -34,8 +34,8 @@ var preloads: Dictionary[StringName, Resource] = {
 	# shaders
 	points_id_shader = preload("res://addons/ivoyager_core/shaders/points.id.gdshader"),
 	points_l4l5_id_shader = preload("res://addons/ivoyager_core/shaders/points.l4l5.id.gdshader"),
-	orbit_id_shader = preload("res://addons/ivoyager_core/shaders/orbit.id.gdshader"),
-	orbits_id_shader = preload("res://addons/ivoyager_core/shaders/orbits.id.gdshader"),
+	uniform_id_shader = preload("res://addons/ivoyager_core/shaders/uniform_id.gdshader"),
+	instance_id_shader = preload("res://addons/ivoyager_core/shaders/instance_id.gdshader"),
 	rings_shader = preload("res://addons/ivoyager_core/shaders/rings.gdshader"),
 	rings_shadow_caster_shader = preload(
 			"res://addons/ivoyager_core/shaders/rings_shadow_caster.gdshader"),

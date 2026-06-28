@@ -1,4 +1,4 @@
-// orbits.id.gdshader
+// uniform_id.gdshader
 // This file is part of I, Voyager
 // https://ivoyager.dev
 // *****************************************************************************
@@ -20,25 +20,19 @@
 shader_type spatial;
 render_mode unshaded, cull_disabled;
 
-// Used by IVSBGOrbits (a MultiMeshInstance3D) for identification of individual
-// orbit lines from many.
+// Pure fragment-id overlay for a single-instance line (e.g. an IVPathVisual orbit or
+// trajectory). Attach as material_overlay over the visible material; it stamps the encoded
+// id at the sparse probe grid near the mouse and discards elsewhere. Single id via uniform.
 
-uniform vec3 color : source_color = vec3(0.0, 0.0, 1.0);
-
-varying flat vec3 fragment_id;
+uniform vec3 fragment_id;
 
 #include "_fragment_id.gdshaderinc"
 
 
-void vertex() {
-	fragment_id = INSTANCE_CUSTOM.xyz;
-}
-
-
 void fragment() {
-	ALBEDO = color;
 	if (is_id_fragment(FRAGCOORD.xy)) {
 		ALBEDO = fragment_id;
+	} else {
+		discard;
 	}
 }
-
