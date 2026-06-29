@@ -17,6 +17,7 @@ Under development using Godot 4.7.
 
 
 ### Added
+* IVOYAGER_WORKS.md now documents *our* derived works (compliments existing 3RD_PARTY.md).
 * IVBody signal `parent_changed` (emitted on parent change for bodies with an IVTrajectory).
 * Directional shadow resolution is now a user graphics option (IVOptionsPopup), applied live via RenderingServer by IVGraphicsManager. Options 2048/4096/8192/16384; default 8192. Hidden on the Compatibility renderer where directional shadows are disabled.
 * User antialiasing options (MSAA, FXAA, TAA) in IVOptionsPopup, applied live to the main viewport by new program node IVGraphicsManager. MSAA defaults to 2x. FXAA and TAA are hidden in the Compatibility renderer (including web exports) where they are unsupported; TAA is exposed as experimental (it ghosts orbit lines, which are positioned in the vertex shader). The IVFragmentIdentifier probe now reads the unresolved multisampled color buffer under MSAA, so mouse-over identification of orbit lines and asteroid points survives antialiasing.
