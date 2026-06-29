@@ -271,10 +271,13 @@ func move_to_by_name(selection_name: StringName, camera_flags := 0, view_positio
 	# Some parameters override others.
 	if not _camera:
 		return
-	# TEMP
 	var body: IVBody
 	if selection_name:
-		body = IVBody.bodies[selection_name]
+		if IVBody.bodies.has(selection_name):
+			body = IVBody.bodies[selection_name]
+		else:
+			push_warning("move_to_by_name: no body named '%s'; keeping current target"
+					% selection_name)
 
 	move_to(body, camera_flags, view_position, view_rotations, is_instant_move)
 

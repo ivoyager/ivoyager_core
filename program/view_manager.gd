@@ -244,9 +244,9 @@ func _read_cache() -> void:
 		return
 	var bad_cache_data := false
 	for key: StringName in file_dict:
-		var data: Array = file_dict[key]
+		var data: Variant = file_dict[key] # untyped; set_data_from_cache() validates
 		var view := IVView.create()
-		if !view.set_data_from_cache(data): # may be prior version
+		if !view.set_data_from_cache(data): # may be prior version or corrupt
 			bad_cache_data = true
 			continue
 		cached_views[key] = view
