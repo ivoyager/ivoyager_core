@@ -135,6 +135,11 @@ extends Node3D
 ## time-dependent precession). [param precession_only] indicates that only
 ## precession has updated.
 signal orbit_changed(orbit: IVOrbit, is_intrinsic: bool, precession_only: bool)
+## Emitted when this body is reparented at runtime to [param new_parent] — an
+## [IVTrajectory] segment change in [method set_orbit_and_parent] that moves the body
+## under a different parent. NOT emitted during initial system build. Fires on the main
+## thread, after the reparent (this body's [member parent] already equals [param new_parent]).
+signal parent_changed(new_parent: IVBody)
 ## Emitted when rotation parameters change. [param is_intrinsic] distinguishes
 ## an externally-imposed rotation change from time-driven rotation evolution.
 signal rotation_chaged(is_intrinsic: bool)
@@ -754,16 +759,20 @@ func has_trajectory() -> bool:
 ## [member IVOrbit.parent_name] should name [param new_parent]. Position is recomputed
 ## from the new orbit later in the same [method _process] frame, so there is no visible jump.
 ## Emits [signal orbit_changed] so an [IVPathVisual] can switch display mode and reparent.
+## When the parent actually changes, also emits [signal parent_changed] after the reparent.
 func set_orbit_and_parent(new_orbit: IVOrbit, new_parent: IVBody) -> void:
+	var is_reparent := new_parent != parent
 	if _orbit:
 		_orbit.changed.disconnect(_on_orbit_changed)
 	_orbit = new_orbit # set before reparent so satellite re-indexing sorts by the new orbit
-	if new_parent != parent:
+	if is_reparent:
 		get_parent().remove_child(self)
 		new_parent.add_child(self) # _exit_tree -> _clear_indexing; _enter_tree -> _index
 	# _enter_tree's is_node_ready() guard skips the orbit reconnect on reparent, so do it here
 	new_orbit.changed.connect(_on_orbit_changed)
 	orbit_changed.emit(new_orbit, false, false)
+	if is_reparent:
+		parent_changed.emit(new_parent)
 
 
 # *****************************************************************************
