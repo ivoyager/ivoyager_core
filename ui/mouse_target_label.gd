@@ -51,7 +51,7 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	if _world_controller.cursor_shape == CURSOR_MOVE:
+	if !_world_controller.is_mouse_in_world or _world_controller.cursor_shape == CURSOR_MOVE:
 		hide()
 		return
 	if _object_text: # has priority over fragment
