@@ -62,6 +62,11 @@ signal camera_tree_changed(camera: Camera3D, parent: Node3D, star_orbiter: Node3
 ## This signal should be emitted by any Camera3D class used in the simulator.
 ## It's used for things like size compensation in [IVBodyLabel].
 signal camera_fov_changed(fov: float)
+## Emit from anywhere when the named selectable [param name] becomes an invalid
+## selection target — e.g. an [IVBody] leaving its [member IVBody.begin]/[member
+## IVBody.end] lifespan (see [signal IVBody.within_lifespan_changed]). [IVSelectionManager]
+## listens and, if [param name] is the current selection, bumps selection up to its parent.
+signal selection_invalidated(name: StringName)
 ## This signal is emitted by [IVGlobal] code connected to the root viewport.
 ## Signals when the viewport size changes and also on [signal ui_dirty].
 signal viewport_size_changed(size: Vector2)

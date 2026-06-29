@@ -25,6 +25,7 @@ offset_bottom = 8.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_styles/normal = SubResource("StyleBoxEmpty_tglot")
+theme_override_styles/disabled = SubResource("StyleBoxEmpty_tglot")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_tglot")
 theme_override_styles/hover = SubResource("StyleBoxFlat_rq18b")
 toggle_mode = true

@@ -148,6 +148,10 @@ signal huds_visibility_changed(is_visible: bool)
 ## Emitted when this body's sleep state changes. This is managed by
 ## [IVSleepManager], if present.
 signal sleep_changed(is_sleeping: bool)
+## Emitted when [member within_lifespan] toggles as simulator time crosses this
+## body's [member begin] or [member end]. Never emitted for a body with no
+## [member begin] set (such a body is always within its lifespan).
+signal within_lifespan_changed(is_within_lifespan: bool)
 
 
 ## Bits to 1 << 39 are reserved for ivoyager_core future use. Higher bits are
@@ -303,6 +307,10 @@ var physical_body: Node3D
 ## Current visibility state for associated HUD elements, including IVBodyLabel
 ## and IVPathVisual. Read-only!
 var huds_visible := false
+## True while simulator time is within [member begin]/[member end], or always true
+## if no [member begin] is set. Maintained in [method _process]; see
+## [signal within_lifespan_changed]. Read-only!
+var within_lifespan := true
 ## GUI graphic representation of this body. Read-only!
 var texture_2d: Texture2D
 ## GUI graphic representation of this body as a "slice" for a system star. Read-only!
@@ -543,11 +551,16 @@ func _process(delta: float) -> void:
 		# Only here if begin was set. This is mainly for spacecraft beginning
 		# and end of life (if you don't add or remove by code). Handle visual
 		# orbit using orbit segment_begin and segment_end.
-		if time < begin or time > end:
-			hide()
+		# NAN-safe: 'time > NAN' is always false, so a NAN end means "no end bound".
+		var is_within := not (time < begin or time > end)
+		if is_within != within_lifespan:
+			within_lifespan = is_within
+			visible = is_within
+			within_lifespan_changed.emit(is_within)
+			if not is_within:
+				IVGlobal.selection_invalidated.emit(name)
+		if not is_within:
 			return
-		else:
-			show()
 
 	if _trajectory:
 		time = _clamp_trajectory_time(time)

@@ -34,6 +34,8 @@ extends Button
 ## the container sizing isn't correct).
 
 const SCENE := "res://addons/ivoyager_core/ui_widgets/nav_button.tscn"
+## Texture modulate applied while the body is outside its lifespan (greyed out).
+const DISABLED_MODULATE := Color(1.0, 1.0, 1.0, 0.3)
 
 ## E.g., "PLANET_EARTH", "MOON_EUROPA", etc.
 @export var body_name: StringName
@@ -112,8 +114,15 @@ func _configure_for_system_tree(_dummy := false) -> void:
 	_selection_manager = IVSelectionManager.get_selection_manager(self)
 	_selection_manager.selection_changed.connect(_update_selection)
 
+	# Grey out & disable the button whenever the body is outside its lifespan.
+	# Init from current state: the body's first _process emit may precede this connect.
+	_body.within_lifespan_changed.connect(_update_lifespan)
+	_update_lifespan(_body.within_lifespan)
+
 
 func _clear_procedural() -> void: # always before another tree is built
+	if _body:
+		_body.within_lifespan_changed.disconnect(_update_lifespan)
 	_body = null
 	_texture_rect.texture = null # looks better during quit deconstruction...
 	if _selection_manager:
@@ -130,3 +139,8 @@ func _on_sim_started() -> void:
 func _update_selection(_dummy := false) -> void:
 	if _body:
 		button_pressed = _selection_manager.get_body() == _body
+
+
+func _update_lifespan(is_within_lifespan: bool) -> void:
+	disabled = not is_within_lifespan
+	_texture_rect.modulate = Color.WHITE if is_within_lifespan else DISABLED_MODULATE
