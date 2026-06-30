@@ -6,9 +6,9 @@ File format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 See cloning and downloading instructions [here](https://www.ivoyager.dev/developers/).
 
-## [v0.1.2] - UNRELEASED
+## [v0.1.2] - 2025-06-29
 
-Under development using Godot 4.7.
+Released using Godot 4.7.
 
 **Project Breaking note:** IVFragmentIdentifier is no longer a SubViewport added in your scene tree! It's now a regular program node added by IVCoreInitializer. Suggested project update:
 1. Remove node "FragmentIdentifier" in your scene tree, if present (it was optional).
@@ -17,6 +17,8 @@ Under development using Godot 4.7.
 
 
 ### Added
+* IVOYAGER_WORKS.md now documents *our* derived works (compliments existing 3RD_PARTY.md).
+* IVBody signal `parent_changed` (emitted on parent change for bodies with an IVTrajectory).
 * Directional shadow resolution is now a user graphics option (IVOptionsPopup), applied live via RenderingServer by IVGraphicsManager. Options 2048/4096/8192/16384; default 8192. Hidden on the Compatibility renderer where directional shadows are disabled.
 * User antialiasing options (MSAA, FXAA, TAA) in IVOptionsPopup, applied live to the main viewport by new program node IVGraphicsManager. MSAA defaults to 2x. FXAA and TAA are hidden in the Compatibility renderer (including web exports) where they are unsupported; TAA is exposed as experimental (it ghosts orbit lines, which are positioned in the vertex shader). The IVFragmentIdentifier probe now reads the unresolved multisampled color buffer under MSAA, so mouse-over identification of orbit lines and asteroid points survives antialiasing.
 * "Shells" configuration via table [shells.tsv](https://github.com/ivoyager/ivoyager_core/blob/master/tables/shells.tsv) for full customization of surface and atmospheric effects on spheroid models. 
@@ -46,6 +48,7 @@ Under development using Godot 4.7.
 * IVSelectionManager "body" functions return Object rather than IVBody.
 
 ### Fixed
+* [#15](https://github.com/ivoyager/ivoyager_core/issues/15) Mouse-over tooltip stuck on screen after the cursor moved from an orbit line or body directly onto a GUI panel. IVWorldController updates its mouse position only from `_gui_input`, which a GUI panel drawn on top suppresses once it takes over hover, so the frozen position kept resolving the last target. IVWorldController now tracks `is_mouse_in_world` via its `mouse_entered`/`mouse_exited` signals (dropping the world target on exit), and IVMouseTargetLabel hides whenever the mouse is not in the world.
 * [#11](https://github.com/ivoyager/ivoyager_core/issues/11) Phantom camera drag after closing a dialog. A mouse press in the 3D view behind a popup could leave IVWorldController's drag state latched, so the camera panned with the mouse once the dialog closed. Mouse drag is now driven by `InputEventMouseMotion.relative` gated on the live `button_mask`, so a drag cannot outlive its physical button release. Admin popups (including IVConfirmationDialog) are now modal (`exclusive`) so clicks can't fall through to the world behind them.
 * [#12](https://github.com/ivoyager/ivoyager_core/issues/12) Mouse-over target identification now requires body to have minimum visual separation from parent (same logic that show/hides visual HUD element).
 * [#7](https://github.com/ivoyager/ivoyager_core/issues/7) Moon positions diverged from ephemeris (e.g., Earth's Moon ~120° ahead at 2026-01-01). IVTableOrbitBuilder misinterpreted two values from the JPL satellite mean elements source data: table `mean_motion` is the sidereal rate (dL/dt), not the mean anomaly rate; and `apsidal_period` (JPL "Pw") is the cycle period of the argument of periapsis ω measured from the moving node, not of the longitude of periapsis ϖ. Together these made mean longitude drift ahead by 360°/Pw per year (~60°/year for Earth's Moon).
@@ -284,7 +287,7 @@ Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_tab
 ##
 I, Voyager projects v0.0.16 and earlier used a different core submodule [ivoyager](https://github.com/ivoyager/ivoyager) (now depreciated); see previous changelog [here](https://github.com/ivoyager/ivoyager/blob/master/CHANGELOG.md).
 
-[v0.1.2]: https://github.com/ivoyager/ivoyager_core/compare/v0.1.1...HEAD
+[v0.1.2]: https://github.com/ivoyager/ivoyager_core/compare/v0.1.1...v0.1.2
 [v0.1.1]: https://github.com/ivoyager/ivoyager_core/compare/v0.1...v0.1.1
 [v0.1]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.25...v0.1
 [v0.0.25]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.24...v0.0.25

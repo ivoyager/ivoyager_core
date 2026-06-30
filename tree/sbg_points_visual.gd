@@ -22,16 +22,16 @@ extends MeshInstance3D
 
 ## Visual points of an [IVSmallBodiesGroup].
 ##
-## Uses one of the points shaders "points.x.x.gdshader", where x.x represents
-## shader variants. Point shaders maintain vertex positions using their own
-## orbital calculations.[br][br]
+## Uses the [code]orbiting_points_id[/code] shader, or [code]orbiting_points_lp_id[/code] for
+## Lagrange point groups (L4 & L5). Both compute vertex positions from orbital elements and
+## can broadcast a per-point fragment id for [IVFragmentIdentifier].[br][br]
 ##
-## Points shader variants:[br]
-##    "l4l5" - for lagrange points L4 & L5.[br]
-##    "id" - broadcasts identity for IVFragmentIdentifier.[br][br]
+## The id broadcast is enabled (via the shaders' [code]broadcast_id[/code] uniform) only when
+## an [IVFragmentIdentifier] is present; without it (e.g. on the Compatibility renderer) the
+## points render their normal appearance and write no ids.[br][br]
 ##
-## Several subclass _init() overrides are provided to bypass IVFragmentIdentifier
-## or to supply a different shader.
+## Several subclass [code]_init()[/code] overrides are provided to bypass
+## [IVFragmentIdentifier] or to supply a different shader.
 
 
 const FRAGMENT_SBG_POINT := IVFragmentIdentifier.FRAGMENT_SBG_POINT
@@ -85,14 +85,19 @@ func _init(sbg: IVSmallBodiesGroup) -> void:
 	var number := sbg.get_number()
 	
 	# fragment ids
-	_vec3ids.resize(number) # needs resize whether we use ids or not
-	if _fragment_identifier and !_bypass_fragment_identifier:
+	# Broadcast ids only when an IVFragmentIdentifier exists to read them back (it is
+	# absent on the Compatibility renderer). The shader's 'broadcast_id' uniform gates
+	# the write; _vec3ids holds real ids only when broadcasting but always doubles as
+	# the mesh vertex array (one vertex per point), so it is sized either way.
+	var broadcast_id := _fragment_identifier != null and !_bypass_fragment_identifier
+	_vec3ids.resize(number)
+	if broadcast_id:
 		var i := 0
 		while i < number:
 			var data := sbg.get_fragment_data(FRAGMENT_SBG_POINT, i)
 			_vec3ids[i] = _fragment_identifier.get_new_id_as_vec3(data)
 			i += 1
-	
+
 	# set shader
 	var shader_material := ShaderMaterial.new()
 	if _lp_integer == -1: # not trojans
@@ -102,6 +107,7 @@ func _init(sbg: IVSmallBodiesGroup) -> void:
 		_secondary_body = sbg.secondary_body
 		shader_material.shader = (_points_l4l5_shader_override if _points_l4l5_shader_override
 				else IVGlobal.resources[&"orbiting_points_lp_id_shader"])
+	shader_material.set_shader_parameter(&"broadcast_id", broadcast_id)
 	material_override = shader_material
 	
 	# ArrayMesh construction

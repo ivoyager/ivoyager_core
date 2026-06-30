@@ -205,6 +205,19 @@ func set_data_from_cache(data: Variant) -> bool:
 	return true
 
 
+## Returns false if this view references a runtime object that no longer exists
+## (e.g., a camera target body removed in a version update). Callers restoring a
+## cached view should discard it when this returns false. Other persisted
+## references (SBG groups/colors, body-flag orbit colors, speed_index) are not
+## checked here because they self-heal on apply — stale keys are ignored and
+## speed_index is clamped — so a cosmetic change shouldn't throw away the view.
+func is_valid() -> bool:
+	if flags & ViewFlags.VIEWFLAGS_CAMERA_SELECTION and target_name:
+		if not IVBody.bodies.has(target_name):
+			return false
+	return true
+
+
 # private
 
 func _save_camera_state() -> void:

@@ -122,6 +122,7 @@ func _init() -> void:
 	IVStateManager.system_tree_built.connect(_on_system_tree_built)
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
 	IVGlobal.ui_dirty.connect(_on_ui_dirty)
+	IVGlobal.selection_invalidated.connect(_on_selection_invalidated)
 
 
 ## Pass shortcut input here if this manager needs to handle it. Returns true
@@ -651,6 +652,14 @@ func _on_system_tree_built(is_new_game: bool) -> void:
 
 func _on_ui_dirty() -> void:
 	selection_changed.emit(true)
+
+
+func _on_selection_invalidated(name: StringName) -> void:
+	# A named selectable (e.g. an IVBody that left its lifespan) is no longer a valid
+	# target. If it's the current selection, bump up to the parent. Deferred so selection
+	# and camera updates don't run inside the emitter's frame (e.g. IVBody._process).
+	if name == get_name():
+		select_up.call_deferred()
 
 
 func _add_selection_to_history() -> void:

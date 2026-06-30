@@ -56,7 +56,7 @@ var manage_engine_time_scale := true
 var dynamic_lights := true
 ## See [IVDynamicLight]. Values just over 1.0 give a small but realistic
 ## looking blowout Earth.
-var nonphysical_energy_at_1_au := 1.2
+var nonphysical_energy_at_1_au := 1.6
 ## See [IVDynamicLight]. Real-world physical is 2.0 (1/r^2). A much smaller
 ## value is needed unless there is camera compensation.
 var nonphysical_attenuation_exponent := 0.5

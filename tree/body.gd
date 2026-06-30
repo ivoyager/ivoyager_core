@@ -135,6 +135,11 @@ extends Node3D
 ## time-dependent precession). [param precession_only] indicates that only
 ## precession has updated.
 signal orbit_changed(orbit: IVOrbit, is_intrinsic: bool, precession_only: bool)
+## Emitted when this body is reparented at runtime to [param new_parent] — an
+## [IVTrajectory] segment change in [method set_orbit_and_parent] that moves the body
+## under a different parent. NOT emitted during initial system build. Fires on the main
+## thread, after the reparent (this body's [member parent] already equals [param new_parent]).
+signal parent_changed(new_parent: IVBody)
 ## Emitted when rotation parameters change. [param is_intrinsic] distinguishes
 ## an externally-imposed rotation change from time-driven rotation evolution.
 signal rotation_chaged(is_intrinsic: bool)
@@ -143,6 +148,10 @@ signal huds_visibility_changed(is_visible: bool)
 ## Emitted when this body's sleep state changes. This is managed by
 ## [IVSleepManager], if present.
 signal sleep_changed(is_sleeping: bool)
+## Emitted when [member within_lifespan] toggles as simulator time crosses this
+## body's [member begin] or [member end]. Never emitted for a body with no
+## [member begin] set (such a body is always within its lifespan).
+signal within_lifespan_changed(is_within_lifespan: bool)
 
 
 ## Bits to 1 << 39 are reserved for ivoyager_core future use. Higher bits are
@@ -298,6 +307,10 @@ var physical_body: Node3D
 ## Current visibility state for associated HUD elements, including IVBodyLabel
 ## and IVPathVisual. Read-only!
 var huds_visible := false
+## True while simulator time is within [member begin]/[member end], or always true
+## if no [member begin] is set. Maintained in [method _process]; see
+## [signal within_lifespan_changed]. Read-only!
+var within_lifespan := true
 ## GUI graphic representation of this body. Read-only!
 var texture_2d: Texture2D
 ## GUI graphic representation of this body as a "slice" for a system star. Read-only!
@@ -538,11 +551,16 @@ func _process(delta: float) -> void:
 		# Only here if begin was set. This is mainly for spacecraft beginning
 		# and end of life (if you don't add or remove by code). Handle visual
 		# orbit using orbit segment_begin and segment_end.
-		if time < begin or time > end:
-			hide()
+		# NAN-safe: 'time > NAN' is always false, so a NAN end means "no end bound".
+		var is_within := not (time < begin or time > end)
+		if is_within != within_lifespan:
+			within_lifespan = is_within
+			visible = is_within
+			within_lifespan_changed.emit(is_within)
+			if not is_within:
+				IVGlobal.selection_invalidated.emit(name)
+		if not is_within:
 			return
-		else:
-			show()
 
 	if _trajectory:
 		time = _clamp_trajectory_time(time)
@@ -754,16 +772,20 @@ func has_trajectory() -> bool:
 ## [member IVOrbit.parent_name] should name [param new_parent]. Position is recomputed
 ## from the new orbit later in the same [method _process] frame, so there is no visible jump.
 ## Emits [signal orbit_changed] so an [IVPathVisual] can switch display mode and reparent.
+## When the parent actually changes, also emits [signal parent_changed] after the reparent.
 func set_orbit_and_parent(new_orbit: IVOrbit, new_parent: IVBody) -> void:
+	var is_reparent := new_parent != parent
 	if _orbit:
 		_orbit.changed.disconnect(_on_orbit_changed)
 	_orbit = new_orbit # set before reparent so satellite re-indexing sorts by the new orbit
-	if new_parent != parent:
+	if is_reparent:
 		get_parent().remove_child(self)
 		new_parent.add_child(self) # _exit_tree -> _clear_indexing; _enter_tree -> _index
 	# _enter_tree's is_node_ready() guard skips the orbit reconnect on reparent, so do it here
 	new_orbit.changed.connect(_on_orbit_changed)
 	orbit_changed.emit(new_orbit, false, false)
+	if is_reparent:
+		parent_changed.emit(new_parent)
 
 
 # *****************************************************************************

@@ -55,6 +55,9 @@ var current_target: Node3D
 var cursor_shape := CURSOR_ARROW
 ## Most recent mouse position in viewport coordinates. Read-only.
 var mouse_position := Vector2.ZERO
+## True while the mouse is over the 3D world, false while it is over a GUI panel
+## or outside the window. Read-only.
+var is_mouse_in_world := false
 
 @onready var veiwport_height := get_viewport().get_visible_rect().size.y
 
@@ -73,6 +76,8 @@ func _init() -> void:
 func _ready() -> void:
 	mouse_filter = MOUSE_FILTER_STOP
 	set_anchors_and_offsets_preset(PRESET_FULL_RECT)
+	mouse_entered.connect(_on_mouse_entered)
+	mouse_exited.connect(_on_mouse_exited)
 	IVGlobal.viewport_size_changed.connect(_on_viewport_size_changed)
 
 
@@ -178,6 +183,22 @@ func _restore_init_state() -> void:
 	current_target = null
 	_current_target_dist = INF
 	_drag_start = Vector2.ZERO
+	is_mouse_in_world = false
+
+
+func _on_mouse_entered() -> void:
+	is_mouse_in_world = true
+
+
+func _on_mouse_exited() -> void:
+	# Moving onto a GUI panel (a sibling Control drawn on top) or off the window
+	# stops _gui_input here, freezing mouse_position over the last world target.
+	# Drop the target so the mouse-target label and fragment tooltip don't stick.
+	is_mouse_in_world = false
+	if current_target:
+		current_target = null
+		_current_target_dist = INF
+		mouse_target_changed.emit(null)
 
 
 func _set_camera(camera_: Camera3D) -> void:

@@ -52,6 +52,9 @@ uniform float characteristic_length; // semi-major axis of the secondary body
 uniform float point_size = 3.0;
 uniform vec3 color : source_color = vec3(0.0, 1.0, 0.0);
 
+// See orbiting_points_id.gdshader. True only when an IVFragmentIdentifier exists.
+uniform bool broadcast_id = false;
+
 // updated each frame
 uniform float lp_longitude; // of the L4 or L5 point
 
@@ -128,7 +131,7 @@ void vertex() {
 
 void fragment() {
 	ALBEDO = color;
-	if (is_id_fragment(FRAGCOORD.xy)) {
+	if (broadcast_id && is_id_fragment(FRAGCOORD.xy)) {
 		ALBEDO = fragment_id;
 	}
 }

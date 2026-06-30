@@ -34,9 +34,14 @@ extends WorldEnvironment
 ## If true, a starmap loaded from [IVAssetPreloader] is added to the
 ## Environment's sky as a [PanoramaSkyMaterial] at startup.
 @export var add_starmap := true
+## Multiplies all scene radiance (emission + lit surfaces + sky) before tonemapping;
+## applied only under the Compatibility renderer to offset its dimmer output.
+@export var gl_compatibility_exposure := 1.2  # tune by eye
 
 
 func _ready() -> void:
+	if IVGlobal.is_gl_compatibility:
+		environment.tonemap_exposure = gl_compatibility_exposure
 	IVStateManager.assets_preloaded.connect(_on_asset_preloader_finished)
 
 
