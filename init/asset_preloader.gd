@@ -109,6 +109,9 @@ var fallback_starmap := &"starmap_8k" # starmap_16k possibly removed for size re
 ## You own its correctness; it is validated at load and ignored if invalid.
 var map_filename_regex_override := ""
 
+## Neaded for visible Earth lights at night. Adjust by eye.
+var gl_compatibility_emission_energy_multiplier_multiplier := 2.5
+
 
 var _blue_noise_1024: Texture2D
 var _starmap: Texture2D
@@ -230,6 +233,11 @@ func read_material_fields(table: StringName, row: int,
 	fields.erase(&"name")
 	for nonmaterial_field in nonmaterial_fields:
 		fields.erase(nonmaterial_field)
+		
+	if IVGlobal.is_gl_compatibility:
+		if fields.has(&"emission_energy_multiplier"):
+			fields[&"emission_energy_multiplier"] *= gl_compatibility_emission_energy_multiplier_multiplier
+	
 	return fields
 
 
