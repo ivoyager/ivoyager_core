@@ -59,7 +59,7 @@ static var texture_channels: Dictionary[int, StringName] = {
 ## column. Each material column is validated per shell by [IVSpheroidModel] (as a
 ## [StandardMaterial3D] property, or a shader uniform when the shell names a shader).
 static var shells_nonmaterial_fields: Array[StringName] = [
-	&"shell0", &"scale", &"file_tag", &"shader", &"process", &"cast_shadow",
+	&"shell0", &"scale", &"file_tag", &"shader", &"process", &"process_args", &"cast_shadow",
 ]
 ## [code]spheroids.tsv[/code] columns that are NOT [StandardMaterial3D] properties (read
 ## explicitly into the shell-0 spec). Every other column is a per-[code]spheroid_type[/code]
@@ -163,7 +163,7 @@ func get_body_map_offset(body_name: StringName) -> float:
 
 ## Returns an ordered [Array] of shell specs for one body: element 0 is the
 ## surface (shell 0); elements 1..N are overlay render shells. Each spec is a
-## [Dictionary] with keys [code]channels, shader, process, cast_shadow,
+## [Dictionary] with keys [code]channels, shader, process, process_args, cast_shadow,
 ## overrides[/code] (plus [code]scale[/code] for overlays, and [code]from_shells[/code] on
 ## shell 0). Built from the body's [code]shells[/code] field and the [code]shells[/code] table;
 ## a shell 0 with no [code]shells[/code] row defaults from the body's [code]spheroids.tsv[/code]
@@ -251,7 +251,8 @@ func _read_shell_spec(channels: Dictionary, shell_row: int, is_surface: bool) ->
 		return {
 			&"channels": channels,
 			&"shader": &"",
-			&"process": [],
+			&"process": &"",
+			&"process_args": [],
 			&"cast_shadow": GeometryInstance3D.SHADOW_CASTING_SETTING_ON,
 			&"overrides": {},
 		}
@@ -262,7 +263,8 @@ func _read_shell_spec(channels: Dictionary, shell_row: int, is_surface: bool) ->
 	var spec: Dictionary = {
 		&"channels": channels,
 		&"shader": IVTableData.get_db_string_name(&"shells", &"shader", shell_row),
-		&"process": IVTableData.get_db_array(&"shells", &"process", shell_row),
+		&"process": IVTableData.get_db_string_name(&"shells", &"process", shell_row),
+		&"process_args": IVTableData.get_db_array(&"shells", &"process_args", shell_row),
 		&"cast_shadow": cast_shadow,
 		&"overrides": read_material_fields(&"shells", shell_row, shells_nonmaterial_fields),
 	}
@@ -509,7 +511,7 @@ func _warn_channel_texture(param: int, texture: Texture2D, map_path: String) -> 
 func _deep_freeze_body_resources() -> void:
 	# make_read_only() freezes only the immediate container; recurse into the
 	# ordered shell specs (index 7) and their nested channel dicts so worker-thread
-	# reads are race-free. (Each spec's "process" array is already frozen by the
+	# reads are race-free. (Each spec's "process_args" array is already frozen by the
 	# table postprocessor, or is an empty literal.)
 	for body_name in _body_resources:
 		var resources: Array = _body_resources[body_name]

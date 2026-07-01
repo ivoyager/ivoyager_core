@@ -1,8 +1,8 @@
 	shader	process	cast_shadow	transparency	emission_energy_multiplier	metallic	roughness	roughness_scale	metallic_specular
-Type	STRING_NAME	ARRAY[VARIANT]	GeometryInstance3D.ShadowCastingSetting	BaseMaterial3D.Transparency	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT
+Type	STRING_NAME	STRING_NAME	GeometryInstance3D.ShadowCastingSetting	BaseMaterial3D.Transparency	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT
 Prefix/SPHEROID_			SHADOW_CASTING_SETTING_	TRANSPARENCY_					
 FALLBACK									
-G_STAR		&"_grow_star"	OFF		1e5				
+G_STAR		_grow_star	OFF		1e5				
 ROCKY_WORLD	depixelation_shader								
 DESERT_WORLD	depixelation_shader								
 CONTINENTAL_WORLD	depixelation_shader								0.35
@@ -11,4 +11,4 @@ ICE_WORLD	depixelation_shader							0.5	0.35
 VOLCANO_WORLD	depixelation_shader								
 GAS_GIANT	depixelation_shader								
 ICE_GIANT	depixelation_shader								
-See shell0 overrides in shells.tsv									
+# See shell0 overrides in shells.tsv									
