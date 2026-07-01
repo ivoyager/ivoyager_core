@@ -6,6 +6,12 @@ File format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 See cloning and downloading instructions [here](https://www.ivoyager.dev/developers/).
 
+## [v0.2] - UNRELEASED
+
+Under development using Godot 4.7.
+
+
+
 ## [v0.1.2] - 2025-06-29
 
 Released using Godot 4.7.
@@ -287,6 +293,7 @@ Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_tab
 ##
 I, Voyager projects v0.0.16 and earlier used a different core submodule [ivoyager](https://github.com/ivoyager/ivoyager) (now depreciated); see previous changelog [here](https://github.com/ivoyager/ivoyager/blob/master/CHANGELOG.md).
 
+[v0.2]: https://github.com/ivoyager/ivoyager_core/compare/v0.1.2...HEAD
 [v0.1.2]: https://github.com/ivoyager/ivoyager_core/compare/v0.1.1...v0.1.2
 [v0.1.1]: https://github.com/ivoyager/ivoyager_core/compare/v0.1...v0.1.1
 [v0.1]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.25...v0.1
