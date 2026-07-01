@@ -41,9 +41,10 @@ extends MeshInstance3D
 ## for the surface, whose textures use [code]file_prefix[/code] alone.[br]
 ## - [code]shader[/code] ([StringName]): give the shell a [ShaderMaterial] using the
 ## named [Shader] in [member IVGlobal.resources], instead of a [StandardMaterial3D].[br]
-## - [code]process[/code] ([code]ARRAY[VARIANT][/code] of [code][method, ...args][/code]):
-## call that [IVSpheroidModel] method on the shell each frame as
-## [code]method(delta, ...args)[/code] (e.g. [method _rotate]).[br]
+## - [code]process[/code] ([StringName]): name an [IVSpheroidModel] method called on the
+## shell each frame as [code]method(delta, ...process_args)[/code] (e.g. [method _rotate]).[br]
+## - [code]process_args[/code] ([code]ARRAY[VARIANT][/code]): extra arguments bound after
+## [code]delta[/code] in the [code]process[/code] call (shells.tsv only).[br]
 ## - [code]transparency[/code] ([enum BaseMaterial3D.Transparency]): per-shell material
 ## override, no shell-0 assumption. (Shadow-casting is the separate [code]cast_shadow[/code] column.)[br]
 ## - any other column: set directly as the named [StandardMaterial3D] property (e.g.
@@ -132,12 +133,13 @@ func _ready() -> void:
 	var spec: Dictionary = shell_specs[_shell]
 	if _shell == 0:
 		spec = _resolve_shell0_spec(asset_preloader, spec)
-	var process_spec: Array = spec[&"process"]
+	var process_method: StringName = spec[&"process"]
+	var process_args: Array = spec[&"process_args"]
 	var render_priority := _compute_render_priority(shell_specs)
 	_build_material(spec, asset_preloader, render_priority)
 	cast_shadow = spec[&"cast_shadow"]
 	_set_visibility_and_layers()
-	_resolve_process(process_spec)
+	_resolve_process(process_method, process_args)
 	if _shell == 0:
 		_build_child_shells(shell_specs)
 
@@ -159,7 +161,8 @@ func _resolve_shell0_spec(asset_preloader: IVAssetPreloader, surface_spec: Dicti
 	return {
 		&"channels": surface_spec[&"channels"],
 		&"shader": IVTableData.get_db_string_name(&"spheroids", &"shader", _spheroid_type),
-		&"process": IVTableData.get_db_array(&"spheroids", &"process", _spheroid_type),
+		&"process": IVTableData.get_db_string_name(&"spheroids", &"process", _spheroid_type),
+		&"process_args": [],
 		&"cast_shadow": shadow_setting,
 		&"overrides": asset_preloader.read_material_fields(&"spheroids", _spheroid_type,
 				IVAssetPreloader.spheroids_nonmaterial_fields),
@@ -335,25 +338,19 @@ func _spec_scale(spec: Dictionary) -> float:
 	return shell_scale
 
 
-func _resolve_process(process_spec: Array) -> void:
-	# shell<N>_process is [method_name, arg1, arg2, ...]. The method is called on
-	# this shell each frame as method(delta, arg1, arg2, ...). Defining _process()
-	# enables idle processing by default, so we must disable it on shells with no
-	# (or an invalid) process spec.
+func _resolve_process(method: StringName, process_args: Array) -> void:
+	# The 'process' field names an IVSpheroidModel method called on this shell each
+	# frame as method(delta, ...process_args) (extra args from the 'process_args'
+	# field). Defining _process() enables idle processing by default, so disable it
+	# on a shell with no (or an unknown) process method.
 	set_process(false)
-	if process_spec.is_empty():
+	if not method:
 		return
-	var method_name: Variant = process_spec[0]
-	if not (method_name is String or method_name is StringName):
-		push_warning("Body %s shell %d: shell%d_process first element must name a method"
-				% [_body_name, _shell, _shell])
-		return
-	var method := StringName(str(method_name))
 	if not has_method(method):
-		push_warning("Body %s shell %d: shell%d_process names unknown method '%s'"
-				% [_body_name, _shell, _shell, method])
+		push_warning("Body %s shell %d: process names unknown method '%s'"
+				% [_body_name, _shell, method])
 		return
-	_process_callable = Callable(self, method).bindv(process_spec.slice(1))
+	_process_callable = Callable(self, method).bindv(process_args)
 	set_process(true)
 
 
