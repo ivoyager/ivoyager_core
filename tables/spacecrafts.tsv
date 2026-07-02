@@ -1,12 +1,12 @@
-	spacecraft	parent	orbit	trajectory	begin	end	use_pitch_yaw	lazy_model	sleep	file_prefix	en.wikipedia	hud_name	symbol	show_in_nav_panel	body_class	spheroid_type	tidally_locked	axis_locked	#rotation_period	right_ascension	declination	gravitational_parameter	mean_radius	mean_density	magnitude	albedo
-Type	BOOL	STRING_NAME	TABLE_ROW	STRING_NAME	FLOAT	FLOAT	BOOL	BOOL	BOOL	STRING	STRING	STRING_NAME	STRING	BOOL	TABLE_ROW	TABLE_ROW	BOOL	BOOL	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT
-Default	TRUE						TRUE	TRUE	TRUE				\u25CC		SPACECRAFT					0	0	0	0	0	0	0
-Unit					s	s													d	deg	deg	km^3/s^2	m	g/cm^3		
-Prefix/SPACECRAFT_			ORBIT_	TRAJECTORY_								SPACECRAFT_			BODY_CLASS_	SPHEROID_										
-PIONEER_10		PLANET_EARTH	SEG_PIONEER_10_DEPARTURE	PIONEER_10	-878291890.084				FALSE	Pioneer_10	Pioneer_10			x									5			
-VOYAGER_2		PLANET_EARTH	SEG_VOYAGER_2_DEPARTURE	VOYAGER_2	-705789118.966				FALSE	Voyager	Voyager_2			x									5			
-VOYAGER_1		PLANET_EARTH	SEG_VOYAGER_1_DEPARTURE	VOYAGER_1	-704412292.518				FALSE	Voyager	Voyager_1			x									5			
-INTERNATIONAL_SPACE_STATION		PLANET_EARTH	SPACECRAFT_INTERNATIONAL_SPACE_STATION		-35184000					ISS	International_Space_Station	INTERNATIONAL_SPACE_STATION_HUD		x			TRUE	TRUE	-365.256363				30			
-HUBBLE_SPACE_TELESCOPE		PLANET_EARTH	SPACECRAFT_HUBBLE_SPACE_TELESCOPE		-305767569					Hubble	Hubble_Space_Telescope	HUBBLE_SPACE_TELESCOPE_HUD		x			TRUE	TRUE	-365.256363				10			
-NEW_HORIZONS		PLANET_EARTH	SEG_NEW_HORIZONS_DEPARTURE	NEW_HORIZONS	190971533.373				FALSE	New_Horizons	New_Horizons			x									5			
-JUNO		PLANET_EARTH	SEG_JUNO_DEPARTURE	JUNO	365836333.511				FALSE	Juno	Juno_(spacecraft)			x									5			
+	spacecraft	parent	orbit	trajectory	begin	end	process	process_args	use_pitch_yaw	lazy_model	sleep	file_prefix	en.wikipedia	hud_name	symbol	show_in_nav_panel	body_class	spheroid_type	tidally_locked	axis_locked	#rotation_period	right_ascension	declination	gravitational_parameter	mean_radius	mean_density	magnitude	albedo
+Type	BOOL	STRING_NAME	TABLE_ROW	STRING_NAME	FLOAT	FLOAT	STRING_NAME	ARRAY[VARIANT]	BOOL	BOOL	BOOL	STRING	STRING	STRING_NAME	STRING	BOOL	TABLE_ROW	TABLE_ROW	BOOL	BOOL	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT
+Default	TRUE								TRUE	TRUE	TRUE				\u25CC		SPACECRAFT					0	0	0	0	0	0	0
+Unit					s	s															d	deg	deg	km^3/s^2	m	g/cm^3		
+Prefix/SPACECRAFT_			ORBIT_	TRAJECTORY_										SPACECRAFT_			BODY_CLASS_	SPHEROID_										
+PIONEER_10		PLANET_EARTH	SEG_PIONEER_10_DEPARTURE	PIONEER_10	-878291890.084		_earth_pointing	Vector3(0,-1,0);Vector3(0,0,1)			FALSE	Pioneer_10	Pioneer_10			x									5			
+VOYAGER_2		PLANET_EARTH	SEG_VOYAGER_2_DEPARTURE	VOYAGER_2	-705789118.966		_earth_pointing	Vector3(0,0,1);Vector3(0,-1,0)			FALSE	Voyager	Voyager_2			x									5			
+VOYAGER_1		PLANET_EARTH	SEG_VOYAGER_1_DEPARTURE	VOYAGER_1	-704412292.518		_earth_pointing	Vector3(0,0,1);Vector3(0,-1,0)			FALSE	Voyager	Voyager_1			x									5			
+INTERNATIONAL_SPACE_STATION		PLANET_EARTH	SPACECRAFT_INTERNATIONAL_SPACE_STATION		-35184000		_process_iss	Vector3(0,-1,0);Vector3(0,0,-1)				ISS	International_Space_Station	INTERNATIONAL_SPACE_STATION_HUD		x					-365.256363				30			
+HUBBLE_SPACE_TELESCOPE		PLANET_EARTH	SPACECRAFT_HUBBLE_SPACE_TELESCOPE		-305767569		_process_hubble	Vector3(0,0,1);2.0				Hubble	Hubble_Space_Telescope	HUBBLE_SPACE_TELESCOPE_HUD		x					-365.256363				10			
+NEW_HORIZONS		PLANET_EARTH	SEG_NEW_HORIZONS_DEPARTURE	NEW_HORIZONS	190971533.373		_earth_pointing	Vector3(0,0,1);Vector3(0,-1,0)			FALSE	New_Horizons	New_Horizons			x									5			
+JUNO		PLANET_EARTH	SEG_JUNO_DEPARTURE	JUNO	365836333.511		_sun_pointing	Vector3(0,0,1);0.05			FALSE	Juno	Juno_(spacecraft)			x									5			

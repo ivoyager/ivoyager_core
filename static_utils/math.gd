@@ -51,6 +51,31 @@ static func get_z_rotation_matrix(th: float) -> Basis:
 	)
 
 
+## Returns a right-handed orthonormal [Basis] whose x-axis is [param primary] and whose
+## y-axis lies toward [param secondary] (Gram-Schmidt). Inputs need not be unit length or
+## orthogonal; if the two are parallel an arbitrary perpendicular is chosen for y.
+static func get_basis_from_two_axes(primary: Vector3, secondary: Vector3) -> Basis:
+	var x_axis := primary.normalized()
+	var y_axis := secondary - x_axis * secondary.dot(x_axis)
+	if y_axis.is_zero_approx():
+		y_axis = x_axis.cross(Vector3(0, 0, 1))
+		if y_axis.is_zero_approx():
+			y_axis = x_axis.cross(Vector3(0, 1, 0))
+	y_axis = y_axis.normalized()
+	return Basis(x_axis, y_axis, x_axis.cross(y_axis))
+
+
+## Returns the rotation [Basis] that maps [param from_primary] onto [param to_primary] and
+## [param from_secondary] as near as possible onto [param to_secondary] (the TRIAD solution).
+## Inputs need not be unit length or orthogonal. Useful to aim one axis at a target direction
+## while constraining roll with a second axis pair.
+static func get_alignment_basis(from_primary: Vector3, from_secondary: Vector3,
+		to_primary: Vector3, to_secondary: Vector3) -> Basis:
+	var from_basis := get_basis_from_two_axes(from_primary, from_secondary)
+	var to_basis := get_basis_from_two_axes(to_primary, to_secondary)
+	return to_basis * from_basis.transposed()
+
+
 # Spherical
 
 ## Returns [code](right_ascension, declination)[/code] in radians for

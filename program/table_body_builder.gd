@@ -101,6 +101,8 @@ var characteristics_fields: Array[StringName] = [
 	&"atmosphere",
 	&"gas_giant",
 	&"trajectory",
+	&"process",
+	&"process_args",
 ]
 
 ## Maps table-column names to [enum IVBody.BodyFlags] bits. Each true value in
