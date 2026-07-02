@@ -54,10 +54,6 @@ extends FoldableContainer
 ## (default), this will be set automatically as the union of all child
 ## [member IVHUDsHBox.sbg_aliases].
 @export var sbg_aliases: Array[StringName] = []
-## See [member IVHUDsHBox.names_symbols].
-@export var names_symbols := true
-## See [member IVHUDsHBox.points].
-@export var points := true
 ## See [member IVHUDsHBox.orbits].
 @export var orbits := true
 ## See [member IVHUDsHBox.ancestor_column_groups].
@@ -72,8 +68,8 @@ func _ready() -> void:
 		_set_union_properties()
 	else:
 		assert((!body_flags) != (!sbg_aliases), "Set either 'body_flags' or 'sbg_aliases', not both")
-	var huds_hbox := IVHUDsHBox.create(&"", &"", true, body_flags, sbg_aliases, names_symbols,
-			points, orbits, ancestor_column_groups)
+	var huds_hbox := IVHUDsHBox.create(&"", &"", true, body_flags, sbg_aliases, orbits,
+			ancestor_column_groups)
 	add_title_bar_control(huds_hbox)
 	
 	if not theme_type_variation:

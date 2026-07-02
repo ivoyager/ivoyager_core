@@ -32,10 +32,10 @@ extends RefCounted
 ## and other resources.
 var preloads: Dictionary[StringName, Resource] = {
 	# shaders
-	orbiting_points_id_shader = preload(
-			"res://addons/ivoyager_core/shaders/orbiting_points_id.gdshader"),
-	orbiting_points_lp_id_shader = preload(
-			"res://addons/ivoyager_core/shaders/orbiting_points_lp_id.gdshader"),
+	orbiting_positions_id_shader = preload(
+			"res://addons/ivoyager_core/shaders/orbiting_positions_id.gdshader"),
+	orbiting_positions_lp_id_shader = preload(
+			"res://addons/ivoyager_core/shaders/orbiting_positions_lp_id.gdshader"),
 	id_shader = preload("res://addons/ivoyager_core/shaders/id.gdshader"),
 	instance_id_shader = preload("res://addons/ivoyager_core/shaders/instance_id.gdshader"),
 	rings_shader = preload("res://addons/ivoyager_core/shaders/rings.gdshader"),
@@ -44,6 +44,8 @@ var preloads: Dictionary[StringName, Resource] = {
 	cloud_detail_shader = preload("res://addons/ivoyager_core/shaders/cloud_detail.gdshader"),
 	atmosphere_limb_shader = preload("res://addons/ivoyager_core/shaders/atmosphere_limb.gdshader"),
 	depixelation_shader = preload("res://addons/ivoyager_core/shaders/depixelation.gdshader"),
+	# textures
+	symbol_atlas = preload("res://addons/ivoyager_core/resources/symbol_atlas.png"),
 }
 
 ## Callables that build shared resources (e.g., the common sphere mesh).

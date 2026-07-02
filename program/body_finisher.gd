@@ -38,7 +38,7 @@ extends RefCounted
 ## Overrides [member IVCoreSettings.use_threads] for this object.
 var disable_threads := false
 
-var replacement_body_label_class: Script
+var replacement_body_position_visual_class: Script
 var replacement_path_visual_class: Script
 var replacement_dynamic_light_class: Script
 var replacement_rings_class: Script
@@ -75,7 +75,7 @@ func _finish(body: IVBody) -> void:
 	var siblings: Array[Node] = []
 	var physical_body_nodes: Array[Node3D] = []
 	
-	_get_body_label(body, children)
+	_get_body_position_visual(body, children)
 	
 	if body.has_orbit():
 		_get_path_visual(body, siblings)
@@ -105,16 +105,14 @@ func _deffered_finish(body: IVBody, children: Array[Node], siblings: Array[Node]
 # All below happen on thread...
 
 
-func _get_body_label(body: IVBody, children: Array[Node]) -> void:
-	var body_label: Node
-	if replacement_body_label_class:
+func _get_body_position_visual(body: IVBody, children: Array[Node]) -> void:
+	var body_position_visual: Node
+	if replacement_body_position_visual_class:
 		@warning_ignore("unsafe_method_access")
-		body_label = replacement_body_label_class.new(body, IVCoreSettings.body_labels_color,
-			IVCoreSettings.body_labels_use_orbit_color)
+		body_position_visual = replacement_body_position_visual_class.new(body)
 	else:
-		body_label = IVBodyLabel.new(body, IVCoreSettings.body_labels_color,
-			IVCoreSettings.body_labels_use_orbit_color)
-	children.append(body_label)
+		body_position_visual = IVBodyPositionVisual.new(body)
+	children.append(body_position_visual)
 
 
 func _get_path_visual(body: IVBody, siblings: Array[Node]) -> void:

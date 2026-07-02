@@ -20,19 +20,18 @@
 class_name IVHUDsCheckBox
 extends CheckBox
 
-## A CheckBox widget that toggles an HUD element (names, symbols, points or
-## orbits) for a class of [IVBody] or [IVSmallBodiesGroup]
+## A CheckBox widget that toggles an HUD element (symbol, name or orbit) for a
+## class of [IVBody] or [IVSmallBodiesGroup]
 ##
 ## Specify either [member body_flags] or [sbg_aliases], not both. For bodies,
-## [member hud_type] must be one of NAMES, SYMBOLS or ORBITS. For SBGs, it must
-## be either POINTS or ORBITS.[br][br]
+## [member hud_type] may be SYMBOLS, NAMES or ORBITS. For SBGs, it may be SYMBOLS
+## or ORBITS (SYMBOLS toggles the group's point/shape display).[br][br]
 
-enum HUDsType {NAMES, SYMBOLS, POINTS, ORBITS}
+enum HUDsType {SYMBOLS, NAMES, ORBITS}
 
 const SCENE := "res://addons/ivoyager_core/ui_widgets/huds_checkbox.tscn"
 
-## For bodies, must be one of NAMES, SYMBOLS or ORBITS. For SBGs, must be
-## either POINTS or ORBITS.
+## For bodies, one of SYMBOLS, NAMES or ORBITS. For SBGs, SYMBOLS or ORBITS.
 @export var hud_type: HUDsType
 ## Specify a class of body by [enum IVBody.BodyFlags]. In most cases this should
 ## be one of the exclusive flags defined in data table "visual_groups.tsv"
@@ -54,10 +53,7 @@ var _is_visible_test: Callable
 static func create(hud_type: HUDsType, body_flags: int, sbg_aliases: Array[StringName] = []
 		) -> IVHUDsCheckBox:
 	assert((!body_flags) != (!sbg_aliases), "Set either 'body_flags' or 'sbg_aliases', not both")
-	assert(!body_flags or [HUDsType.NAMES, HUDsType.SYMBOLS, HUDsType.ORBITS].has(hud_type),
-			"Bodies HUD must be one of NAMES, SYMBOLS or ORBITS")
-	assert(!sbg_aliases or [HUDsType.POINTS, HUDsType.ORBITS].has(hud_type),
-			"SBGs HUD must be either POINTS or ORBITS")
+	assert(!sbg_aliases or hud_type != HUDsType.NAMES, "SBGs have no NAMES HUD")
 	var ckbx: IVHUDsCheckBox = (load(SCENE) as PackedScene).instantiate()
 	ckbx.hud_type = hud_type
 	ckbx.body_flags = body_flags
@@ -67,10 +63,7 @@ static func create(hud_type: HUDsType, body_flags: int, sbg_aliases: Array[Strin
 
 func _ready() -> void:
 	assert((!body_flags) != (!sbg_aliases), "Set either 'body_flags' or 'sbg_aliases', not both")
-	assert(!body_flags or [HUDsType.NAMES, HUDsType.SYMBOLS, HUDsType.ORBITS].has(hud_type),
-			"Bodies HUD must be one of NAMES, SYMBOLS or ORBITS")
-	assert(!sbg_aliases or [HUDsType.POINTS, HUDsType.ORBITS].has(hud_type),
-			"SBGs HUD must be either POINTS or ORBITS")
+	assert(!sbg_aliases or hud_type != HUDsType.NAMES, "SBGs have no NAMES HUD")
 	if IVStateManager.initialized_core:
 		_configure_after_core_inited()
 	else:
@@ -105,11 +98,11 @@ func _configure_bodies() -> void:
 
 func _configure_sbgs() -> void:
 	var sbg_huds_state: IVSBGHUDsState = IVGlobal.program[&"SBGHUDsState"]
-	if hud_type == HUDsType.POINTS:
-		sbg_huds_state.points_visibility_changed.connect(_on_state_changed)
-		_on_action = sbg_huds_state.set_visible_points_groups.bind(sbg_aliases, true)
-		_off_action = sbg_huds_state.set_visible_points_groups.bind(sbg_aliases, false)
-		_is_visible_test = sbg_huds_state.is_visible_points_groups.bind(sbg_aliases)
+	if hud_type == HUDsType.SYMBOLS:
+		sbg_huds_state.symbols_visibility_changed.connect(_on_state_changed)
+		_on_action = sbg_huds_state.set_visible_symbols_groups.bind(sbg_aliases, true)
+		_off_action = sbg_huds_state.set_visible_symbols_groups.bind(sbg_aliases, false)
+		_is_visible_test = sbg_huds_state.is_visible_symbols_groups.bind(sbg_aliases)
 	else:
 		sbg_huds_state.orbits_visibility_changed.connect(_on_state_changed)
 		_on_action = sbg_huds_state.set_visible_orbits_groups.bind(sbg_aliases, true)

@@ -25,10 +25,12 @@ extends HBoxContainer
 ##
 ## Specify either [member body_flags] or [member sbg_aliases], not both.[br][br]
 ##
-## The row is constructed according to properties set, in the order[br]
-## [code]    [Label or IVLinkLabel]  [names/symbols OR points]  [orbits]  [/code],[br]
-## where "names/symbols", "points" and "orbits" are HBoxContainers each with two
-## widgets (see property descriptions).
+## The row is [code][Label] [visibility checkboxes] [symbol & color pickers][/code].
+## Checkboxes are symbol/name/orbit for a body or symbol/orbit for an SBG; the two
+## pickers are an [IVSymbolPickerButton] and a shared [IVHUDsColorPickerButton]
+## (one color for symbol, name and orbit). The checkbox group and the picker group
+## each align across rows via ancestor [IVControlSizeGroup]s (see
+## [member ancestor_column_groups]).
 
 const SCENE := "res://addons/ivoyager_core/ui_widgets/huds_hbox.tscn"
 
@@ -52,19 +54,13 @@ const SCENE := "res://addons/ivoyager_core/ui_widgets/huds_hbox.tscn"
 ## [member IVSmallBodiesGroup.sbg_alias] (e.g., ["JT4", "JT5"] for both Trojan
 ## groups). If not empty, [member body_flags] must be 0.
 @export var sbg_aliases: Array[StringName] = []
-## Used only for bodies. Add two [IVHUDsCheckBox]es for names and symbols in an
-## HBoxContainer.
-@export var names_symbols := true
-## Used only for SBGs. Add an [IVHUDsCheckBox] and an [IVHUDsColorPickerButton] for
-## points in an HBoxContainer.
-@export var points := true
-## Add an [IVHUDsCheckBox] and an [IVHUDsColorPickerButton] for orbits in an
-## HBoxContainer.
+## Add an orbit-visibility [IVHUDsCheckBox]. Set false for bodies with no orbit
+## (e.g., the Sun).
 @export var orbits := true
 ## For coordinating "column" spacing among rows. If true, an ancestor Control is
-## expected to have properties "column_group_1" and/or "column_group_2" (as
-## needed), each specifying a [IVControlSizeGroup]. Column 1 is always
-## "names/symbols" or "points", and column 2 is always "orbits".
+## expected to have properties "column_group_1" and "column_group_2", each a
+## [IVControlSizeGroup]. Column 1 is the visibility checkboxes; column 2 is the
+## symbol and color pickers.
 @export var ancestor_column_groups := false
 
 
@@ -79,8 +75,6 @@ static func create(
 		require_links_enabled := true,
 		body_flags := 0,
 		sbg_aliases: Array[StringName] = [],
-		names_symbols := true,
-		points := true,
 		orbits := true,
 		ancestor_column_groups := false
 		) -> IVHUDsHBox:
@@ -91,8 +85,6 @@ static func create(
 	hbox.require_links_enabled = require_links_enabled
 	hbox.body_flags = body_flags
 	hbox.sbg_aliases = sbg_aliases
-	hbox.names_symbols = names_symbols
-	hbox.points = points
 	hbox.orbits = orbits
 	hbox.ancestor_column_groups = ancestor_column_groups
 	return hbox
@@ -107,11 +99,12 @@ func _ready() -> void:
 
 
 func _configure_after_core_inited() -> void:
-	
+
 	if IVGlobal.program.has(&"WikiManager"):
 		_enable_links = (!require_links_enabled or
 				IVTree.get_ancestor_bool(self, &"enable_huds_hbox_links"))
-	
+
+	# label
 	if label_text:
 		if _enable_links and link_label_key:
 			var bbcode := "[url=%s]%s[/url]" % [link_label_key, tr(label_text)]
@@ -123,53 +116,31 @@ func _configure_after_core_inited() -> void:
 			label.text = label_text
 			label.size_flags_horizontal = SIZE_EXPAND_FILL
 			add_child(label)
+
+	# column 1: visibility checkboxes
+	var checkboxes := HBoxContainer.new()
+	checkboxes.size_flags_horizontal = SIZE_SHRINK_END
+	checkboxes.alignment = ALIGNMENT_BEGIN
 	if body_flags:
-		if names_symbols:
-			var hbox := HBoxContainer.new()
-			hbox.size_flags_horizontal = SIZE_SHRINK_CENTER
-			hbox.alignment = ALIGNMENT_CENTER
-			var names_ckbx := IVHUDsCheckBox.create(IVHUDsCheckBox.HUDsType.NAMES, body_flags)
-			var symbols_ckbx := IVHUDsCheckBox.create(IVHUDsCheckBox.HUDsType.SYMBOLS, body_flags)
-			hbox.add_child(names_ckbx)
-			hbox.add_child(symbols_ckbx)
-			add_child(hbox)
-			_add_to_group(hbox, 1)
-		else:
-			var spacer := Control.new()
-			add_child(spacer)
-			_add_to_group(spacer, 1)
-	else: # SBGs
-		if points:
-			var hbox := HBoxContainer.new()
-			hbox.size_flags_horizontal = SIZE_SHRINK_CENTER
-			hbox.alignment = ALIGNMENT_CENTER
-			var points_ckbx := IVHUDsCheckBox.create(IVHUDsCheckBox.HUDsType.POINTS, 0, sbg_aliases)
-			var points_cpb := IVHUDsColorPickerButton.create(
-					IVHUDsColorPickerButton.ColorHUDsType.POINTS, 0, sbg_aliases)
-			hbox.add_child(points_ckbx)
-			hbox.add_child(points_cpb)
-			add_child(hbox)
-			_add_to_group(hbox, 1)
-		else:
-			var spacer := Control.new()
-			add_child(spacer)
-			_add_to_group(spacer, 1)
-	if orbits:
-		var hbox := HBoxContainer.new()
-		hbox.size_flags_horizontal = SIZE_SHRINK_CENTER
-		hbox.alignment = ALIGNMENT_CENTER
-		var orbits_ckbx := IVHUDsCheckBox.create(IVHUDsCheckBox.HUDsType.ORBITS, body_flags,
-				sbg_aliases)
-		var orbits_cpb := IVHUDsColorPickerButton.create(
-				IVHUDsColorPickerButton.ColorHUDsType.ORBITS, body_flags, sbg_aliases)
-		hbox.add_child(orbits_ckbx)
-		hbox.add_child(orbits_cpb)
-		add_child(hbox)
-		_add_to_group(hbox, 2)
+		checkboxes.add_child(IVHUDsCheckBox.create(IVHUDsCheckBox.HUDsType.SYMBOLS, body_flags))
+		checkboxes.add_child(IVHUDsCheckBox.create(IVHUDsCheckBox.HUDsType.NAMES, body_flags))
+		if orbits:
+			checkboxes.add_child(IVHUDsCheckBox.create(IVHUDsCheckBox.HUDsType.ORBITS, body_flags))
 	else:
-		var spacer := Control.new()
-		add_child(spacer)
-		_add_to_group(spacer, 2)
+		checkboxes.add_child(IVHUDsCheckBox.create(IVHUDsCheckBox.HUDsType.SYMBOLS, 0, sbg_aliases))
+		if orbits:
+			checkboxes.add_child(IVHUDsCheckBox.create(IVHUDsCheckBox.HUDsType.ORBITS, 0, sbg_aliases))
+	add_child(checkboxes)
+	_add_to_group(checkboxes, 1)
+
+	# column 2: symbol picker + shared color picker
+	var pickers := HBoxContainer.new()
+	pickers.size_flags_horizontal = SIZE_SHRINK_END
+	pickers.alignment = ALIGNMENT_CENTER
+	pickers.add_child(IVSymbolPickerButton.create(body_flags, sbg_aliases))
+	pickers.add_child(IVHUDsColorPickerButton.create(body_flags, sbg_aliases))
+	add_child(pickers)
+	_add_to_group(pickers, 2)
 
 
 func _add_to_group(control: Control, column: int) -> void:

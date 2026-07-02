@@ -1,13 +1,13 @@
-	body_flag	default_name_visible	default_symbol_visible	default_orbit_visible	default_orbit_color
-Type	IVBody.BodyFlags	BOOL	BOOL	BOOL	COLOR
-Default					
-Unit					
-Prefix/VISUAL_GROUP_	BODYFLAGS_				
-STARS	STAR	x		x	9925EA
-TRUE_PLANETS	PLANET	x		x	26FF26
-DWARF_PLANETS	DWARF_PLANET	x		x	FF46FF
-PMO_MOONS	PLANETARY_MASS_MOON	x		x	FFFF26
-NON_PMO_MOONS	NON_PLANETARY_MASS_MOON	x		x	3E69FF
-ASTEROIDS	ASTEROID				FF4646
-SPACECRAFT	SPACECRAFT				3BFFFF
+	body_flag	default_name_visible	default_symbol_visible	default_orbit_visible	default_color	symbol_type
+Type	IVBody.BodyFlags	BOOL	BOOL	BOOL	COLOR	IVGlobal.Symbols
+Default						
+Unit						
+Prefix/VISUAL_GROUP_	BODYFLAGS_					
+STARS	STAR	x		x	9925EA	CIRCLE
+TRUE_PLANETS	PLANET	x		x	26FF26	CIRCLE
+DWARF_PLANETS	DWARF_PLANET	x		x	FF46FF	CIRCLE
+PMO_MOONS	PLANETARY_MASS_MOON	x		x	FFFF26	CIRCLE
+NON_PMO_MOONS	NON_PLANETARY_MASS_MOON	x		x	3E69FF	CIRCLE
+ASTEROIDS	ASTEROID				FF4646	CIRCLE
+SPACECRAFT	SPACECRAFT				3BFFFF	CIRCLE
 # Exclusive sets from BodyFlags					

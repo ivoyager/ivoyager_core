@@ -20,63 +20,70 @@
 class_name IVSBGHUDsState
 extends Node
 
-## Maintains visibility and color state for [IVSmallBodiesGroup] HUDs.
+## Maintains visibility, color and symbol state for [IVSmallBodiesGroup] HUDs.
 ##
-## HUD Nodes must connect and set visibility and color on changed signals.
+## HUD Nodes must connect and set state on changed signals. A group's single
+## [member colors] entry is shared by its symbol points and its orbits. The
+## symbol shape is a per-group [enum IVGlobal.Symbols] value in
+## [member symbol_types], or -1 for a plain point (the default).
 
-## Emitted whenever any entry of [member points_visibilities] changes.
-signal points_visibility_changed()
+## Emitted whenever any entry of [member symbols_visibilities] changes.
+signal symbols_visibility_changed()
 ## Emitted whenever any entry of [member orbits_visibilities] changes.
 signal orbits_visibility_changed()
-## Emitted whenever any entry of [member points_colors] changes.
-signal points_color_changed()
-## Emitted whenever any entry of [member orbits_colors] changes.
-signal orbits_color_changed()
+## Emitted whenever any entry of [member colors] changes.
+signal color_changed()
+## Emitted whenever any entry of [member symbol_types] changes.
+signal symbol_changed()
 
 
-## Sentinel returned by [method get_consensus_points_color] /
-## [method get_consensus_orbits_color] when the queried groups don't agree.
+## Sentinel returned by [method get_consensus_color] when the queried groups
+## don't agree.
 const NULL_COLOR := Color.BLACK
+## Sentinel returned by [method get_consensus_symbol_type] when the queried
+## groups don't agree.
+const NULL_SYMBOL := -2
 
 const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY
 const PERSIST_PROPERTIES: Array[StringName] = [
-	&"points_visibilities",
+	&"symbols_visibilities",
 	&"orbits_visibilities",
-	&"points_colors",
-	&"orbits_colors",
+	&"colors",
+	&"symbol_types",
 ]
 
 
 # persisted - read-only!
 ## Indexed by [code]sbg_alias[/code]; missing keys mean false.
-var points_visibilities: Dictionary[StringName, bool] = {} # indexed by sbg_alias; missing same as false
+var symbols_visibilities: Dictionary[StringName, bool] = {} # indexed by sbg_alias; missing same as false
 ## Indexed by [code]sbg_alias[/code]; missing keys mean false.
 var orbits_visibilities: Dictionary[StringName, bool] = {} # "
+## Indexed by [code]sbg_alias[/code], shared by symbol points and orbits; missing
+## keys fall back to [member fallback_color].
+var colors: Dictionary[StringName, Color] = {} # indexed by sbg_alias; missing same as fallback color
+## Per-group symbol shape ([enum IVGlobal.Symbols], or -1 for a plain point).
 ## Indexed by [code]sbg_alias[/code]; missing keys fall back to
-## [member fallback_points_color].
-var points_colors: Dictionary[StringName, Color] = {} # indexed by sbg_alias; missing same as fallback color
-## Indexed by [code]sbg_alias[/code]; missing keys fall back to
-## [member fallback_orbits_color].
-var orbits_colors: Dictionary[StringName, Color] = {} # "
+## [member fallback_symbol_type].
+var symbol_types: Dictionary[StringName, int] = {} # indexed by sbg_alias; missing same as fallback
 
 # project vars - set at project init
-## Color used by [method get_points_color] when a group has no entry.
-var fallback_points_color := Color(0.0, 0.6, 0.0)
-## Color used by [method get_orbits_color] when a group has no entry.
-var fallback_orbits_color := Color(0.8, 0.2, 0.2)
-## Default value for [member points_visibilities]. Empty by default; can be
+## Color used by [method get_color] when a group has no entry.
+var fallback_color := Color(0.0, 0.6, 0.0)
+## Symbol used by [method get_symbol_type] when a group has no entry (-1 = point).
+var fallback_symbol_type := -1
+## Default value for [member symbols_visibilities]. Empty by default; can be
 ## populated by a project preinitializer.
-var default_points_visibilities: Dictionary[StringName, bool] = {} # default is none, unless project changes
+var default_symbols_visibilities: Dictionary[StringName, bool] = {} # default is none, unless project changes
 ## Default value for [member orbits_visibilities].
 var default_orbits_visibilities: Dictionary[StringName, bool] = {}
 
 # imported from small_bodies_groups.tsv - ready-only!
-## Default value for [member points_colors], populated from
+## Default value for [member colors], populated from
 ## [code]small_bodies_groups.tsv[/code] (read-only).
-var default_points_colors: Dictionary[StringName, Color] = {}
-## Default value for [member orbits_colors], populated from
+var default_colors: Dictionary[StringName, Color] = {}
+## Default value for [member symbol_types], populated from
 ## [code]small_bodies_groups.tsv[/code] (read-only).
-var default_orbits_colors: Dictionary[StringName, Color] = {}
+var default_symbol_types: Dictionary[StringName, int] = {}
 
 
 
@@ -92,42 +99,42 @@ func _on_program_objects_instantiated() -> void:
 		if IVTableData.get_db_bool(&"small_bodies_groups", &"skip", row):
 			continue
 		var sbg_alias := IVTableData.get_db_string_name(&"small_bodies_groups", &"sbg_alias", row)
-		var points_color := IVTableData.get_db_color(&"small_bodies_groups", &"points_color", row)
-		var orbits_color := IVTableData.get_db_color(&"small_bodies_groups", &"orbits_color", row)
-		default_points_colors[sbg_alias] = points_color
-		default_orbits_colors[sbg_alias] = orbits_color
+		var color := IVTableData.get_db_color(&"small_bodies_groups", &"color", row)
+		var symbol_type := IVTableData.get_db_int(&"small_bodies_groups", &"symbol_type", row)
+		default_colors[sbg_alias] = color
+		default_symbol_types[sbg_alias] = symbol_type
 	_set_current_to_default()
 
 
 # visibility
 
 func hide_all() -> void:
-	for key: StringName in points_visibilities:
-		points_visibilities[key] = false
+	for key: StringName in symbols_visibilities:
+		symbols_visibilities[key] = false
 	for key: StringName in orbits_visibilities:
 		orbits_visibilities[key] = false
-	points_visibility_changed.emit()
+	symbols_visibility_changed.emit()
 	orbits_visibility_changed.emit()
 
 
 func set_default_visibilities() -> void:
-	if points_visibilities != default_points_visibilities:
-		points_visibilities.clear()
-		points_visibilities.merge(default_points_visibilities)
-		points_visibility_changed.emit()
+	if symbols_visibilities != default_symbols_visibilities:
+		symbols_visibilities.clear()
+		symbols_visibilities.merge(default_symbols_visibilities)
+		symbols_visibility_changed.emit()
 	if orbits_visibilities != default_orbits_visibilities:
 		orbits_visibilities.clear()
 		orbits_visibilities.merge(default_orbits_visibilities)
 		orbits_visibility_changed.emit()
 
 
-func is_points_visible(group: StringName) -> bool:
-	return points_visibilities.get(group, false)
+func is_symbols_visible(group: StringName) -> bool:
+	return symbols_visibilities.get(group, false)
 
 
-func change_points_visibility(group: StringName, is_show: bool) -> void:
-	points_visibilities[group] = is_show
-	points_visibility_changed.emit()
+func change_symbols_visibility(group: StringName, is_show: bool) -> void:
+	symbols_visibilities[group] = is_show
+	symbols_visibility_changed.emit()
 
 
 func is_orbits_visible(group: StringName) -> bool:
@@ -139,10 +146,10 @@ func change_orbits_visibility(group: StringName, is_show: bool) -> void:
 	orbits_visibility_changed.emit()
 
 
-func get_visible_points_groups() -> Array[StringName]:
+func get_visible_symbols_groups() -> Array[StringName]:
 	var array: Array[StringName] = []
-	for key in points_visibilities:
-		if points_visibilities[key]:
+	for key in symbols_visibilities:
+		if symbols_visibilities[key]:
 			array.append(key)
 	return array
 
@@ -155,14 +162,14 @@ func get_visible_orbits_groups() -> Array[StringName]:
 	return array
 
 
-func is_visible_points_groups(groups: Array[StringName], all := true) -> bool:
+func is_visible_symbols_groups(groups: Array[StringName], all := true) -> bool:
 	if all:
 		for group in groups:
-			if not points_visibilities.get(group):
+			if not symbols_visibilities.get(group):
 				return false
 		return true
 	for group in groups:
-		if points_visibilities.get(group):
+		if symbols_visibilities.get(group):
 			return true
 	return false
 
@@ -179,13 +186,13 @@ func is_visible_orbits_groups(groups: Array[StringName], all := true) -> bool:
 	return false
 
 
-func set_visible_points_groups(groups: Array[StringName], is_show := true, hide_others := false
+func set_visible_symbols_groups(groups: Array[StringName], is_show := true, hide_others := false
 		) -> void:
 	if hide_others:
-		points_visibilities.clear()
+		symbols_visibilities.clear()
 	for key in groups:
-		points_visibilities[key] = is_show
-	points_visibility_changed.emit()
+		symbols_visibilities[key] = is_show
+	symbols_visibility_changed.emit()
 
 
 func set_visible_orbits_groups(groups: Array[StringName], is_show := true, hide_others := false
@@ -197,49 +204,32 @@ func set_visible_orbits_groups(groups: Array[StringName], is_show := true, hide_
 	orbits_visibility_changed.emit()
 
 
-# color
+# color (shared by symbol points and orbits)
 
 func set_default_colors() -> void:
-	# TEST34
-	if points_colors != default_points_colors:
-		points_colors.clear()
-		points_colors.merge(default_points_colors)
-		points_color_changed.emit()
-	if orbits_colors != default_orbits_colors:
-		orbits_colors.clear()
-		orbits_colors.merge(default_orbits_colors)
-		orbits_color_changed.emit()
+	if colors != default_colors:
+		colors.clear()
+		colors.merge(default_colors)
+		color_changed.emit()
 
 
-func get_default_points_color(group: StringName) -> Color:
-	if default_points_colors.has(group):
-		return default_points_colors[group]
-	return fallback_points_color
+func get_default_color(group: StringName) -> Color:
+	if default_colors.has(group):
+		return default_colors[group]
+	return fallback_color
 
 
-func get_default_orbits_color(group: StringName) -> Color:
-	if default_orbits_colors.has(group):
-		return default_orbits_colors[group]
-	return fallback_orbits_color
+func get_color(group: StringName) -> Color:
+	if colors.has(group):
+		return colors[group]
+	return fallback_color
 
 
-func get_points_color(group: StringName) -> Color:
-	if points_colors.has(group):
-		return points_colors[group]
-	return fallback_points_color
-
-
-func get_orbits_color(group: StringName) -> Color:
-	if orbits_colors.has(group):
-		return orbits_colors[group]
-	return fallback_orbits_color
-
-
-func get_consensus_points_color(groups: Array[StringName], is_default := false) -> Color:
+func get_consensus_color(groups: Array[StringName], is_default := false) -> Color:
 	var has_theme_color := false
 	var consensus_color := NULL_COLOR
 	for group in groups:
-		var color := get_default_points_color(group) if is_default else get_points_color(group)
+		var color := get_default_color(group) if is_default else get_color(group)
 		if !has_theme_color:
 			has_theme_color = true
 			consensus_color = color
@@ -248,95 +238,116 @@ func get_consensus_points_color(groups: Array[StringName], is_default := false) 
 	return consensus_color
 
 
-func get_consensus_orbits_color(groups: Array[StringName], is_default := false) -> Color:
-	var has_theme_color := false
-	var consensus_color := NULL_COLOR
+func set_color(group: StringName, color: Color) -> void:
+	if colors.has(group):
+		if color == colors[group]:
+			return
+	elif color == fallback_color:
+		return
+	colors[group] = color
+	color_changed.emit()
+
+
+## Returns a dictionary of only those entries from [member colors] that differ
+## from [member default_colors].
+func get_non_default_colors() -> Dictionary[StringName, Color]:
+	# key-values equal to default are skipped
+	var dict: Dictionary[StringName, Color] = {}
+	for key: StringName in colors:
+		if colors[key] != default_colors[key]:
+			dict[key] = colors[key]
+	return dict
+
+
+## Bulk-applies [param dict] to [member colors]. Any group not present in
+## [param dict] is reset to its default color.
+func set_all_colors(dict: Dictionary[StringName, Color]) -> void:
+	# missing key-values are set to default
+	var is_change := false
+	for key: StringName in colors:
+		if dict.has(key):
+			if colors[key] != dict[key]:
+				is_change = true
+				colors[key] = dict[key]
+		else:
+			if colors[key] != default_colors[key]:
+				is_change = true
+				colors[key] = default_colors[key]
+	if is_change:
+		color_changed.emit()
+
+
+# symbol
+
+func set_default_symbols() -> void:
+	if symbol_types != default_symbol_types:
+		symbol_types.clear()
+		symbol_types.merge(default_symbol_types)
+		symbol_changed.emit()
+
+
+func get_default_symbol_type(group: StringName) -> int:
+	if default_symbol_types.has(group):
+		return default_symbol_types[group]
+	return fallback_symbol_type
+
+
+func get_symbol_type(group: StringName) -> int:
+	if symbol_types.has(group):
+		return symbol_types[group]
+	return fallback_symbol_type
+
+
+func get_consensus_symbol_type(groups: Array[StringName], is_default := false) -> int:
+	var has_first := false
+	var consensus_symbol := NULL_SYMBOL
 	for group in groups:
-		var color := get_default_orbits_color(group) if is_default else get_orbits_color(group)
-		if !has_theme_color:
-			has_theme_color = true
-			consensus_color = color
-		elif color != consensus_color:
-			return NULL_COLOR
-	return consensus_color
+		var symbol := get_default_symbol_type(group) if is_default else get_symbol_type(group)
+		if !has_first:
+			has_first = true
+			consensus_symbol = symbol
+		elif symbol != consensus_symbol:
+			return NULL_SYMBOL
+	return consensus_symbol
 
 
-func set_points_color(group: StringName, color: Color) -> void:
-	if points_colors.has(group):
-		if color == points_colors[group]:
+func set_symbol_type(group: StringName, symbol: int) -> void:
+	if symbol_types.has(group):
+		if symbol == symbol_types[group]:
 			return
-	elif color == fallback_points_color:
+	elif symbol == fallback_symbol_type:
 		return
-	points_colors[group] = color
-	points_color_changed.emit()
+	symbol_types[group] = symbol
+	symbol_changed.emit()
 
 
-func set_orbits_color(group: StringName, color: Color) -> void:
-	if orbits_colors.has(group):
-		if color == orbits_colors[group]:
-			return
-	elif color == fallback_orbits_color:
-		return
-	orbits_colors[group] = color
-	orbits_color_changed.emit()
-
-
-## Returns a dictionary of only those entries from [member points_colors] that
-## differ from [member default_points_colors].
-func get_non_default_points_colors() -> Dictionary[StringName, Color]:
+## Returns a dictionary of only those entries from [member symbol_types] that
+## differ from [member default_symbol_types].
+func get_non_default_symbol_types() -> Dictionary[StringName, int]:
 	# key-values equal to default are skipped
-	var dict: Dictionary[StringName, Color] = {}
-	for key: StringName in points_colors:
-		if points_colors[key] != default_points_colors[key]:
-			dict[key] = points_colors[key]
+	var dict: Dictionary[StringName, int] = {}
+	for key: StringName in symbol_types:
+		if symbol_types[key] != default_symbol_types[key]:
+			dict[key] = symbol_types[key]
 	return dict
 
 
-## Returns a dictionary of only those entries from [member orbits_colors] that
-## differ from [member default_orbits_colors].
-func get_non_default_orbits_colors() -> Dictionary[StringName, Color]:
-	# key-values equal to default are skipped
-	var dict: Dictionary[StringName, Color] = {}
-	for key: StringName in orbits_colors:
-		if orbits_colors[key] != default_orbits_colors[key]:
-			dict[key] = orbits_colors[key]
-	return dict
-
-
-## Bulk-applies [param dict] to [member points_colors]. Any group not present
-## in [param dict] is reset to its default color.
-func set_all_points_colors(dict: Dictionary[StringName, Color]) -> void:
+## Bulk-applies [param dict] to [member symbol_types]. Any group not present in
+## [param dict] is reset to its default symbol.
+func set_all_symbol_types(dict: Dictionary[StringName, int]) -> void:
 	# missing key-values are set to default
 	var is_change := false
-	for key: StringName in points_colors:
+	for key: StringName in symbol_types:
 		if dict.has(key):
-			if points_colors[key] != dict[key]:
+			if symbol_types[key] != dict[key]:
 				is_change = true
-				points_colors[key] = dict[key]
+				symbol_types[key] = dict[key]
 		else:
-			if points_colors[key] != default_points_colors[key]:
+			if symbol_types[key] != default_symbol_types[key]:
 				is_change = true
-				points_colors[key] = default_points_colors[key]
+				symbol_types[key] = default_symbol_types[key]
 	if is_change:
-		points_color_changed.emit()
-
-
-## Bulk-applies [param dict] to [member orbits_colors]. Any group not present
-## in [param dict] is reset to its default color.
-func set_all_orbits_colors(dict: Dictionary[StringName, Color]) -> void:
-	# missing key-values are set to default
-	var is_change := false
-	for key: StringName in orbits_colors:
-		if dict.has(key):
-			if orbits_colors[key] != dict[key]:
-				is_change = true
-				orbits_colors[key] = dict[key]
-		else:
-			if orbits_colors[key] != default_orbits_colors[key]:
-				is_change = true
-				orbits_colors[key] = default_orbits_colors[key]
-	if is_change:
-		orbits_color_changed.emit()
+		symbol_changed.emit()
 
 
 # private
@@ -344,10 +355,11 @@ func set_all_orbits_colors(dict: Dictionary[StringName, Color]) -> void:
 func _set_current_to_default() -> void:
 	set_default_visibilities()
 	set_default_colors()
+	set_default_symbols()
 
 
 func _on_ui_dirty() -> void:
-	points_visibility_changed.emit()
+	symbols_visibility_changed.emit()
 	orbits_visibility_changed.emit()
-	points_color_changed.emit()
-	orbits_color_changed.emit()
+	color_changed.emit()
+	symbol_changed.emit()

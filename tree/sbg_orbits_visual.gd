@@ -54,7 +54,7 @@ func _init(sbg: IVSmallBodiesGroup) -> void:
 	_sbg_alias = sbg.sbg_alias
 	cast_shadow = SHADOW_CASTING_SETTING_OFF
 	_sbg_huds_state.orbits_visibility_changed.connect(_set_visibility)
-	_sbg_huds_state.orbits_color_changed.connect(_set_color)
+	_sbg_huds_state.color_changed.connect(_set_color)
 	
 	var number := sbg.get_number()
 	
@@ -121,7 +121,7 @@ func _set_visibility() -> void:
 
 func _set_color() -> void:
 	# subclass override if you don't want this for your shader_override
-	var color := _sbg_huds_state.get_orbits_color(_sbg_alias)
+	var color := _sbg_huds_state.get_color(_sbg_alias)
 	if _color == color:
 		return
 	_color = color

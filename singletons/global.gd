@@ -60,7 +60,7 @@ signal current_camera_changed(camera: Camera3D)
 ## It tells the simulator where the camera is for graphic and other updating purposes.
 signal camera_tree_changed(camera: Camera3D, parent: Node3D, star_orbiter: Node3D, star: Node3D)
 ## This signal should be emitted by any Camera3D class used in the simulator.
-## It's used for things like size compensation in [IVBodyLabel].
+## It's used for things like size compensation in [IVBodyPositionVisual].
 signal camera_fov_changed(fov: float)
 ## Emit from anywhere when the named selectable [param name] becomes an invalid
 ## selection target — e.g. an [IVBody] leaving its [member IVBody.begin]/[member
@@ -122,6 +122,31 @@ enum ShadowMask {
 	SHADOW_MASK_13 = 0b1101_0000_0000,
 	SHADOW_MASK_14 = 0b1110_0000_0000,
 	SHADOW_MASK_FULL = 0b1111_0000_0000, # full shadow
+}
+
+## Position symbols for [IVBody] classes and [IVSmallBodiesGroup] sets, set per
+## grouping in the HUDs GUI and shared by symbol, name and orbit color.[br][br]
+##
+## Values index the symbol atlas
+## ([code]addons/ivoyager_core/resources/symbol_atlas.png[/code]) row-major in a
+## 3-column grid ([code]col = symbol_type % 3[/code], [code]row = symbol_type / 3[/code]).
+## This mapping is hard-coded in [code]shaders/_symbol.gdshaderinc[/code] and the
+## [IVSymbolPicker] atlas helper; keep all three in sync. A symbol type of -1
+## (deliberately not an enum value) means "no shape": an [IVSmallBodiesGroup]
+## draws a flat point, and it is not offered for bodies.
+enum Symbols {
+	CIRCLE, ## Open circle; the default symbol for all bodies.
+	CIRCLE_PLUS, ## Open circle enclosing a plus.
+	CLOSED_CIRCLE,
+	SQUARE,
+	SQUARE_X, ## Open square enclosing an x.
+	CLOSED_SQUARE,
+	UP_TRIANGLE,
+	CLOSED_UP_TRIANGLE,
+	DOWN_TRIANGLE,
+	CLOSED_DOWN_TRIANGLE,
+	X,
+	PLUS,
 }
 
 ## Duplicated from I, Voyager's Save plugin ([enum IVSaveUtils.PersistMode]).

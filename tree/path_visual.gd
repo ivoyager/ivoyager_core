@@ -184,7 +184,7 @@ func _set_visibility_state() -> void:
 
 
 func _set_color() -> void:
-	var color := _body_huds_state.get_orbit_color(_body.flags)
+	var color := _body_huds_state.get_color(_body.flags)
 	if _color == color:
 		return
 	_color = color

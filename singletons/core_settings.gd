@@ -135,13 +135,6 @@ var max_camera_distance: float = 5e3 * IVUnits.AU
 ## Radius multiplier used to set [member GeometryInstance3D.visibility_range_end]
 ## in [IVPhysicalBody] and [IVRings].
 var radius_multiplier_visibility_range_end := 4000.0
-## Font color used for [IVBodyLabel] instances. See also [member
-## body_labels_use_orbit_color].
-var body_labels_color := Color.WHITE
-## If true, [IVBodyLabel] font colors will maintain the same values as the
-## corresponding orbit lines, which vary and are user settable. Overrides
-## [member body_labels_color].
-var body_labels_use_orbit_color := false
 ## Directory used (created if needed) for cache files. See [IVCacheHandler].
 var cache_dir := "user://cache"
 ## Enables float precisions in [IVTableData]. This is used by Planetarium to

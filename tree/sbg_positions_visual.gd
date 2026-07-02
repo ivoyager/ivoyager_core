@@ -1,4 +1,4 @@
-# sbg_points_visual.gd
+# sbg_positions_visual.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -17,14 +17,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVSBGPointsVisual
+class_name IVSBGPositionsVisual
 extends MeshInstance3D
 
-## Visual points of an [IVSmallBodiesGroup].
+## Visual positions of an [IVSmallBodiesGroup], drawn as point sprites.
 ##
-## Uses the [code]orbiting_points_id[/code] shader, or [code]orbiting_points_lp_id[/code] for
+## Uses the [code]orbiting_positions_id[/code] shader, or [code]orbiting_positions_lp_id[/code] for
 ## Lagrange point groups (L4 & L5). Both compute vertex positions from orbital elements and
 ## can broadcast a per-point fragment id for [IVFragmentIdentifier].[br][br]
+##
+## Each point renders as the group's [enum IVGlobal.Symbols] shape (masked from the
+## symbol atlas in the fragment shader) or, for [member IVSBGHUDsState.symbol_types] value
+## -1, as a plain point. Point size is the "small_bodies_symbol_size" setting for a shape or
+## the smaller "small_bodies_point_size" setting for a plain point.[br][br]
 ##
 ## The id broadcast is enabled (via the shaders' [code]broadcast_id[/code] uniform) only when
 ## an [IVFragmentIdentifier] is present; without it (e.g. on the Compatibility renderer) the
@@ -54,7 +59,9 @@ var _sbg_huds_state: IVSBGHUDsState = IVGlobal.program[&"SBGHUDsState"]
 
 var _sbg_alias: StringName
 var _color: Color
-var _point_size: int = IVSettingsManager.get_setting(&"point_size")
+var _symbol_type := -1 # set from _sbg_huds_state in _init (after _sbg_alias)
+var _point_size: int = IVSettingsManager.get_setting(&"small_bodies_point_size")
+var _symbol_size: int = IVSettingsManager.get_setting(&"small_bodies_symbol_size")
 var _vec3ids := PackedVector3Array() # point ids for FragmentIdentifier
 
 # Lagrange point
@@ -70,20 +77,22 @@ var _bypass_fragment_identifier := false
 
 
 func _init(sbg: IVSmallBodiesGroup) -> void:
-	name = "SBGPoints" + sbg.sbg_alias
+	name = "SBGPositions" + sbg.sbg_alias
 	_sbg_alias = sbg.sbg_alias
+	_symbol_type = _sbg_huds_state.get_symbol_type(_sbg_alias)
 	_lp_integer = sbg.lp_integer
 	if _lp_integer == 4:
 		_longitude_offset = PI / 3
 	elif _lp_integer == 5:
 		_longitude_offset = -PI / 3
 	cast_shadow = SHADOW_CASTING_SETTING_OFF
-	_sbg_huds_state.points_visibility_changed.connect(_set_visibility)
-	_sbg_huds_state.points_color_changed.connect(_set_color)
+	_sbg_huds_state.symbols_visibility_changed.connect(_set_visibility)
+	_sbg_huds_state.color_changed.connect(_set_color)
+	_sbg_huds_state.symbol_changed.connect(_set_symbol)
 	IVSettingsManager.changed.connect(_settings_listener)
-	
+
 	var number := sbg.get_number()
-	
+
 	# fragment ids
 	# Broadcast ids only when an IVFragmentIdentifier exists to read them back (it is
 	# absent on the Compatibility renderer). The shader's 'broadcast_id' uniform gates
@@ -102,14 +111,14 @@ func _init(sbg: IVSmallBodiesGroup) -> void:
 	var shader_material := ShaderMaterial.new()
 	if _lp_integer == -1: # not trojans
 		shader_material.shader = (_points_shader_override if _points_shader_override
-				else IVGlobal.resources[&"orbiting_points_id_shader"])
+				else IVGlobal.resources[&"orbiting_positions_id_shader"])
 	elif _lp_integer >= 4: # trojans
 		_secondary_body = sbg.secondary_body
 		shader_material.shader = (_points_l4l5_shader_override if _points_l4l5_shader_override
-				else IVGlobal.resources[&"orbiting_points_lp_id_shader"])
+				else IVGlobal.resources[&"orbiting_positions_lp_id_shader"])
 	shader_material.set_shader_parameter(&"broadcast_id", broadcast_id)
 	material_override = shader_material
-	
+
 	# ArrayMesh construction
 	var points_mesh := ArrayMesh.new()
 	var arrays := [] # packed arrays
@@ -123,9 +132,11 @@ func _init(sbg: IVSmallBodiesGroup) -> void:
 	var half_aabb := Vector3.ONE * sbg.max_apoapsis
 	points_mesh.custom_aabb = AABB(-half_aabb, 2.0 * half_aabb)
 	mesh = points_mesh
-	
+
 	# set shader parameters
-	shader_material.set_shader_parameter(&"point_size", float(_point_size))
+	shader_material.set_shader_parameter(&"symbol_atlas", IVGlobal.resources[&"symbol_atlas"])
+	shader_material.set_shader_parameter(&"symbol_type", _symbol_type)
+	shader_material.set_shader_parameter(&"point_size", _get_point_size())
 	if _lp_integer >= 4: # trojans
 		shader_material.set_shader_parameter(&"leading_sign", 1.0 if _lp_integer == 4 else -1.0)
 		var characteristic_length := _secondary_body.get_orbit_semi_major_axis(0.0)
@@ -147,12 +158,18 @@ func _process(_delta: float) -> void:
 	shader_material.set_shader_parameter(&"lp_longitude", lp_longitude)
 
 
+# Point-sprite pixel size: the larger "symbol" size for a shaped symbol, or the
+# smaller "point" size for a plain point (symbol_type -1).
+func _get_point_size() -> float:
+	return float(_symbol_size if _symbol_type != -1 else _point_size)
+
+
 func _set_visibility() -> void:
-	visible = _sbg_huds_state.is_points_visible(_sbg_alias)
+	visible = _sbg_huds_state.is_symbols_visible(_sbg_alias)
 
 
 func _set_color() -> void:
-	var color := _sbg_huds_state.get_points_color(_sbg_alias)
+	var color := _sbg_huds_state.get_color(_sbg_alias)
 	if _color == color:
 		return
 	_color = color
@@ -160,9 +177,22 @@ func _set_color() -> void:
 	shader_material.set_shader_parameter(&"color", color)
 
 
+func _set_symbol() -> void:
+	var symbol_type := _sbg_huds_state.get_symbol_type(_sbg_alias)
+	if _symbol_type == symbol_type:
+		return
+	_symbol_type = symbol_type
+	var shader_material: ShaderMaterial = material_override
+	shader_material.set_shader_parameter(&"symbol_type", _symbol_type)
+	shader_material.set_shader_parameter(&"point_size", _get_point_size()) # size depends on symbol_type
+
+
 func _settings_listener(setting: StringName, value: Variant) -> void:
-	if setting == &"point_size":
+	if setting == &"small_bodies_point_size":
 		_point_size = value
-		var shader_material: ShaderMaterial = material_override
-		# setting value is int; shader parameter is float
-		shader_material.set_shader_parameter(&"point_size", float(_point_size))
+	elif setting == &"small_bodies_symbol_size":
+		_symbol_size = value
+	else:
+		return
+	var shader_material: ShaderMaterial = material_override
+	shader_material.set_shader_parameter(&"point_size", _get_point_size())

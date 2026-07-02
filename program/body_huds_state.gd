@@ -20,11 +20,15 @@
 class_name IVBodyHUDsState
 extends Node
 
-## Maintains visibility and color state for [IVBody] HUDs.
+## Maintains visibility, color and symbol state for [IVBody] HUDs.
 ##
-## Body HUDs must connect and set their own visibility on changed signals.
-## A complete set of group 'keys' is defined in data table 'visual_groups.tsv'
-## based on exclusive bit flags in [enum IVBody.BodyFlags].[br][br]
+## Body HUDs must connect and set their own state on changed signals. A complete
+## set of group 'keys' is defined in data table 'visual_groups.tsv' based on
+## exclusive bit flags in [enum IVBody.BodyFlags].[br][br]
+##
+## Symbol and name visibility are independent (either, both or neither may show).
+## A group's single [member colors] entry is shared by its symbol, name and orbit.
+## The symbol shape is a per-group [enum IVGlobal.Symbols] value in [member symbol_types].[br][br]
 ##
 ## See also [IVSBGHUDsState] for [IVSmallBodiesGroup] HUDs.
 
@@ -35,13 +39,19 @@ extends Node
 ## Emitted whenever any of [member name_visible_flags],
 ## [member symbol_visible_flags], or [member orbit_visible_flags] changes.
 signal visibility_changed()
-## Emitted whenever any entry of [member orbit_colors] changes.
+## Emitted whenever any entry of [member colors] changes.
 signal color_changed()
+## Emitted whenever any entry of [member symbol_types] changes.
+signal symbol_changed()
 
 
-## Sentinel returned by [method get_orbit_color] when a multi-bit query has no
+## Sentinel returned by [method get_color] when a multi-bit query has no
 ## consensus color across the matching groups.
 const NULL_COLOR := Color.BLACK
+## Sentinel returned by [method get_symbol_type] when a multi-bit query has no
+## consensus symbol across the matching groups. Distinct from -1 ("point"), which
+## bodies never use.
+const NULL_SYMBOL := -2
 ## Convenience alias for [enum IVBody.BodyFlags].
 const BodyFlags: Dictionary = IVBody.BodyFlags
 
@@ -50,40 +60,50 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"name_visible_flags",
 	&"symbol_visible_flags",
 	&"orbit_visible_flags",
-	&"orbit_colors",
+	&"colors",
+	&"symbol_types",
 ]
 
 
 # persisted - read-only!
 ## Bitwise OR of [enum IVBody.BodyFlags] for body groups whose name labels are
-## currently visible. Mutually exclusive with [member symbol_visible_flags].
+## currently visible. Independent of [member symbol_visible_flags].
 ## Read-only; modify via setter methods.
-var name_visible_flags := 0 # exclusive w/ symbol_visible_flags
-## Bitwise OR of [enum IVBody.BodyFlags] for body groups whose symbol labels
-## are currently visible. Mutually exclusive with [member name_visible_flags].
-var symbol_visible_flags := 0 # exclusive w/ name_visible_flags
+var name_visible_flags := 0
+## Bitwise OR of [enum IVBody.BodyFlags] for body groups whose symbols are
+## currently visible. Independent of [member name_visible_flags].
+var symbol_visible_flags := 0
 ## Bitwise OR of [enum IVBody.BodyFlags] for body groups whose orbits are
 ## currently visible.
 var orbit_visible_flags := 0
-## Per-flag orbit color. Must have a full key set from [member all_flags] bits.
-var orbit_colors: Dictionary[int, Color] = {} # must have full key set from all_flags bits!
+## Per-flag color, shared by each group's symbol, name and orbit. Must have a
+## full key set from [member all_flags] bits.
+var colors: Dictionary[int, Color] = {} # must have full key set from all_flags bits!
+## Per-flag symbol shape ([enum IVGlobal.Symbols]). Must have a full key set from
+## [member all_flags] bits.
+var symbol_types: Dictionary[int, int] = {} # must have full key set from all_flags bits!
 
 # project vars - set at project init
-## Color returned by [method get_default_orbit_color] when no single-flag match
+## Color returned by [method get_default_color] when no single-flag match
 ## is found.
-var fallback_orbit_color := Color("FE9C33") # orange
+var fallback_color := Color("FE9C33") # orange
+## Symbol returned by [method get_default_symbol_type] when no single-flag match
+## is found.
+var fallback_symbol_type := IVGlobal.Symbols.CIRCLE
 
 # imported from visual_groups.tsv - ready-only!
 ## Bitwise OR of every body-flag in [code]visual_groups.tsv[/code] (read-only).
 var all_flags := 0
 ## Default value for [member name_visible_flags] (read-only).
-var default_name_visible_flags := 0 # exclusive w/ symbol_visible_flags
+var default_name_visible_flags := 0
 ## Default value for [member symbol_visible_flags] (read-only).
-var default_symbol_visible_flags := 0 # exclusive w/ name_visible_flags
+var default_symbol_visible_flags := 0
 ## Default value for [member orbit_visible_flags] (read-only).
 var default_orbit_visible_flags := 0
-## Default value for [member orbit_colors] (read-only).
-var default_orbit_colors: Dictionary[int, Color] = {}
+## Default value for [member colors] (read-only).
+var default_colors: Dictionary[int, Color] = {}
+## Default value for [member symbol_types] (read-only).
+var default_symbol_types: Dictionary[int, int] = {}
 
 
 # *****************************************************************************
@@ -171,7 +191,6 @@ func set_name_visibility(body_flags: int, is_show: bool) -> void:
 		if name_visible_flags & body_flags == body_flags:
 			return
 		name_visible_flags |= body_flags
-		symbol_visible_flags &= ~body_flags # exclusive
 		visibility_changed.emit()
 	else:
 		if name_visible_flags & body_flags == 0:
@@ -186,7 +205,6 @@ func set_symbol_visibility(body_flags: int, is_show: bool) -> void:
 		if symbol_visible_flags & body_flags == body_flags:
 			return
 		symbol_visible_flags |= body_flags
-		name_visible_flags &= ~body_flags # exclusive
 		visibility_changed.emit()
 	else:
 		if symbol_visible_flags & body_flags == 0:
@@ -207,7 +225,6 @@ func set_orbit_visibility(body_flags: int, is_show: bool) -> void:
 			return
 		orbit_visible_flags &= ~body_flags
 		visibility_changed.emit()
-	visibility_changed.emit()
 
 
 func set_all_names_visibility(is_show: bool) -> void:
@@ -215,7 +232,6 @@ func set_all_names_visibility(is_show: bool) -> void:
 		if name_visible_flags == all_flags:
 			return
 		name_visible_flags = all_flags
-		symbol_visible_flags = 0 # exclusive
 	else:
 		if name_visible_flags == 0:
 			return
@@ -228,7 +244,6 @@ func set_all_symbols_visibility(is_show: bool) -> void:
 		if symbol_visible_flags == all_flags:
 			return
 		symbol_visible_flags = all_flags
-		name_visible_flags = 0 # exclusive
 	else:
 		if symbol_visible_flags == 0:
 			return
@@ -252,7 +267,6 @@ func set_name_visible_flags(name_visible_flags_: int) -> void:
 	if name_visible_flags == name_visible_flags_:
 		return
 	name_visible_flags = name_visible_flags_
-	symbol_visible_flags &= ~name_visible_flags_ # exclusive
 	visibility_changed.emit()
 
 
@@ -260,7 +274,6 @@ func set_symbol_visible_flags(symbol_visible_flags_: int) -> void:
 	if symbol_visible_flags == symbol_visible_flags_:
 		return
 	symbol_visible_flags = symbol_visible_flags_
-	name_visible_flags &= ~symbol_visible_flags_ # exclusive
 	visibility_changed.emit()
 
 
@@ -272,32 +285,32 @@ func set_orbit_visible_flags(orbit_visible_flags_: int) -> void:
 
 
 # *****************************************************************************
-# color
+# color (shared by symbol, name and orbit)
 
 func set_default_colors() -> void:
-	if orbit_colors == default_orbit_colors:
+	if colors == default_colors:
 		return
-	orbit_colors.merge(default_orbit_colors, true)
+	colors.merge(default_colors, true)
 	color_changed.emit()
 
 
-func get_default_orbit_color(body_flags: int) -> Color:
-	# If >1 bit from all_flags, will return fallback_orbit_color
+func get_default_color(body_flags: int) -> Color:
+	# If >1 bit from all_flags, will return fallback_color
 	body_flags &= all_flags
-	return default_orbit_colors.get(body_flags, fallback_orbit_color)
+	return default_colors.get(body_flags, fallback_color)
 
 
-func get_orbit_color(body_flags: int) -> Color:
+func get_color(body_flags: int) -> Color:
 	# If >1 bit from all_flags, all must agree or returns NULL_COLOR
 	body_flags &= all_flags
 	if body_flags and !(body_flags & (body_flags - 1)): # single bit test
-		return orbit_colors[body_flags]
+		return colors[body_flags]
 	var has_first := false
 	var consensus_color := NULL_COLOR
 	var flag := 1
 	while body_flags:
 		if body_flags & 1:
-			var color: Color = orbit_colors[flag]
+			var color: Color = colors[flag]
 			if has_first and color != consensus_color:
 				return NULL_COLOR
 			has_first = true
@@ -307,20 +320,20 @@ func get_orbit_color(body_flags: int) -> Color:
 	return consensus_color
 
 
-func set_orbit_color(body_flags: int, color: Color) -> void:
+func set_color(body_flags: int, color: Color) -> void:
 	# Can set any number from all_flags.
 	body_flags &= all_flags
 	if body_flags and !(body_flags & (body_flags - 1)): # single bit test
-		if orbit_colors[body_flags] != color:
-			orbit_colors[body_flags] = color
+		if colors[body_flags] != color:
+			colors[body_flags] = color
 			color_changed.emit()
 		return
 	var changed := false
 	var flag := 1
 	while body_flags:
 		if body_flags & 1:
-			if orbit_colors[flag] != color:
-				orbit_colors[flag] = color
+			if colors[flag] != color:
+				colors[flag] = color
 				changed = true
 		flag <<= 1
 		body_flags >>= 1
@@ -328,29 +341,111 @@ func set_orbit_color(body_flags: int, color: Color) -> void:
 		color_changed.emit()
 
 
-func get_non_default_orbit_colors() -> Dictionary[int, Color]:
+func get_non_default_colors() -> Dictionary[int, Color]:
 	# key-values equal to default are skipped
 	var dict: Dictionary[int, Color] = {}
-	for flag: int in orbit_colors:
-		if orbit_colors[flag] != default_orbit_colors[flag]:
-			dict[flag] = orbit_colors[flag]
+	for flag: int in colors:
+		if colors[flag] != default_colors[flag]:
+			dict[flag] = colors[flag]
 	return dict
 
 
-func set_all_orbit_colors(dict: Dictionary[int, Color]) -> void:
+func set_all_colors(dict: Dictionary[int, Color]) -> void:
 	# missing key-values are set to default
 	var is_change := false
-	for flag: int in orbit_colors:
+	for flag: int in colors:
 		if dict.has(flag):
-			if orbit_colors[flag] != dict[flag]:
+			if colors[flag] != dict[flag]:
 				is_change = true
-				orbit_colors[flag] = dict[flag]
+				colors[flag] = dict[flag]
 		else:
-			if orbit_colors[flag] != default_orbit_colors[flag]:
+			if colors[flag] != default_colors[flag]:
 				is_change = true
-				orbit_colors[flag] = default_orbit_colors[flag]
+				colors[flag] = default_colors[flag]
 	if is_change:
 		color_changed.emit()
+
+
+# *****************************************************************************
+# symbol
+
+func set_default_symbols() -> void:
+	if symbol_types == default_symbol_types:
+		return
+	symbol_types.merge(default_symbol_types, true)
+	symbol_changed.emit()
+
+
+func get_default_symbol_type(body_flags: int) -> int:
+	# If >1 bit from all_flags, will return fallback_symbol_type
+	body_flags &= all_flags
+	return default_symbol_types.get(body_flags, fallback_symbol_type)
+
+
+func get_symbol_type(body_flags: int) -> int:
+	# If >1 bit from all_flags, all must agree or returns NULL_SYMBOL
+	body_flags &= all_flags
+	if body_flags and !(body_flags & (body_flags - 1)): # single bit test
+		return symbol_types[body_flags]
+	var has_first := false
+	var consensus_symbol := NULL_SYMBOL
+	var flag := 1
+	while body_flags:
+		if body_flags & 1:
+			var symbol: int = symbol_types[flag]
+			if has_first and symbol != consensus_symbol:
+				return NULL_SYMBOL
+			has_first = true
+			consensus_symbol = symbol
+		flag <<= 1
+		body_flags >>= 1
+	return consensus_symbol
+
+
+func set_symbol_type(body_flags: int, symbol: int) -> void:
+	# Can set any number from all_flags.
+	body_flags &= all_flags
+	if body_flags and !(body_flags & (body_flags - 1)): # single bit test
+		if symbol_types[body_flags] != symbol:
+			symbol_types[body_flags] = symbol
+			symbol_changed.emit()
+		return
+	var changed := false
+	var flag := 1
+	while body_flags:
+		if body_flags & 1:
+			if symbol_types[flag] != symbol:
+				symbol_types[flag] = symbol
+				changed = true
+		flag <<= 1
+		body_flags >>= 1
+	if changed:
+		symbol_changed.emit()
+
+
+func get_non_default_symbol_types() -> Dictionary[int, int]:
+	# key-values equal to default are skipped
+	var dict: Dictionary[int, int] = {}
+	for flag: int in symbol_types:
+		if symbol_types[flag] != default_symbol_types[flag]:
+			dict[flag] = symbol_types[flag]
+	return dict
+
+
+func set_all_symbol_types(dict: Dictionary[int, int]) -> void:
+	# missing key-values are set to default
+	var is_change := false
+	for flag: int in symbol_types:
+		if dict.has(flag):
+			if symbol_types[flag] != dict[flag]:
+				is_change = true
+				symbol_types[flag] = dict[flag]
+		else:
+			if symbol_types[flag] != default_symbol_types[flag]:
+				is_change = true
+				symbol_types[flag] = default_symbol_types[flag]
+	if is_change:
+		symbol_changed.emit()
 
 
 # *****************************************************************************
@@ -363,8 +458,9 @@ func _on_program_objects_instantiated() -> void:
 		var name_visible := IVTableData.get_db_bool(&"visual_groups", &"default_name_visible", row)
 		var symbol_visible := IVTableData.get_db_bool(&"visual_groups", &"default_symbol_visible", row)
 		var orbit_visible := IVTableData.get_db_bool(&"visual_groups", &"default_orbit_visible", row)
-		var orbit_color := IVTableData.get_db_color(&"visual_groups", &"default_orbit_color", row)
-		
+		var color := IVTableData.get_db_color(&"visual_groups", &"default_color", row)
+		var symbol_type := IVTableData.get_db_int(&"visual_groups", &"symbol_type", row)
+
 		all_flags |= body_flag
 		if name_visible:
 			default_name_visible_flags |= body_flag
@@ -372,16 +468,19 @@ func _on_program_objects_instantiated() -> void:
 			default_symbol_visible_flags |= body_flag
 		if orbit_visible:
 			default_orbit_visible_flags |= body_flag
-		default_orbit_colors[body_flag] = orbit_color
-	
+		default_colors[body_flag] = color
+		default_symbol_types[body_flag] = symbol_type
+
 	_set_current_to_default()
 
 
 func _set_current_to_default() -> void:
 	set_default_visibilities()
 	set_default_colors()
+	set_default_symbols()
 
 
 func _on_ui_dirty() -> void:
 	visibility_changed.emit()
 	color_changed.emit()
+	symbol_changed.emit()

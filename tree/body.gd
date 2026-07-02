@@ -82,7 +82,7 @@ extends Node3D
 ## to many of these characteristics with sensible fallbacks for missing keys.[br][br]
 ##
 ## Many body-associated "graphic" nodes are added by [IVBodyFinisher] including
-## [IVRings], [IVDynamicLight], [IVPathVisual], and [IVBodyLabel]. Dependency
+## [IVRings], [IVDynamicLight], [IVPathVisual], and [IVBodyPositionVisual]. Dependency
 ## is inverted for these classes: they have reference to their [IVBody] but
 ## [IVBody] has no reference to them.[br][br]
 ## 
@@ -228,8 +228,6 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 static var replacement_subclass: Script
 ## Set this script to replace the [IVPhysicalBody] class.
 static var replacement_physical_body_class: Script
-## Static class setting. Default value is a dashed circle.
-static var default_symbol := "\u25CC"
 ## Static class setting.
 static var system_mean_radius_multiplier := 15.0
 ## Static class setting.
@@ -304,8 +302,8 @@ var ordered_satellites: Array[IVBody]
 ## representation (model). If data table value [param lazy_model] == TRUE, then
 ## this value will be null until needed. Read-only!
 var physical_body: Node3D
-## Current visibility state for associated HUD elements, including IVBodyLabel
-## and IVPathVisual. Read-only!
+## Current visibility state for associated HUD elements, including
+## IVBodyPositionVisual and IVPathVisual. Read-only!
 var huds_visible := false
 ## True while simulator time is within [member begin]/[member end], or always true
 ## if no [member begin] is set. Maintained in [method _process]; see
@@ -820,8 +818,6 @@ func get_characteristic(key: StringName) -> Variant:
 			return get_polar_radius()
 		&"hud_name":
 			return get_hud_name()
-		&"symbol":
-			return get_symbol()
 		&"body_class":
 			return get_body_class()
 		&"perspective_radius":
@@ -868,11 +864,6 @@ func get_polar_radius() -> float:
 ## Returns a specific name for HUD use, if different from [member Node.name].
 func get_hud_name() -> String:
 	return characteristics.get(&"hud_name", name)
-
-
-## Returns the symbol used by [IVBodyLabel].
-func get_symbol() -> String:
-	return characteristics.get(&"symbol", default_symbol) # default is dashed circle
 
 
 ## Returns this body's body_class. See data table [param body_classes.tsv].

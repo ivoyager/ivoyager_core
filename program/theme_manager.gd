@@ -38,10 +38,9 @@ extends RefCounted
 ## [member IVCoreSettings.gui_size_settings]).[br][br]
 
 
-## Signal provided for managing Label3D font sizing. Name and symbol sizes are
-## the main theme's default_font_size modified by global settings
-## "label3d_names_size_percent" and "label3d_symbols_size_percent", respectively.
-signal label3d_font_size_changed(name_size: int, symbol_size: int)
+## Emitted when the body-name Label3D font size changes: the main theme's
+## default_font_size modified by the "label3d_names_size_percent" setting.
+signal label3d_font_size_changed(name_size: int)
 
 
 ## If set, ignore ProjectSettings/gui/theme/custom and [member fallback_theme_path].
@@ -169,14 +168,6 @@ func get_label3d_names_font_size() -> int:
 	return roundi(default_font_size * names_percent / 100.0)
 
 
-## Returns the current Label3D font size for body symbol labels.
-func get_label3d_symbols_font_size() -> int:
-	var gui_size: int = IVSettingsManager.get_setting(&"gui_size")
-	var symbols_percent: int = IVSettingsManager.get_setting(&"label3d_symbols_size_percent")
-	var default_font_size := _default_font_sizes[gui_size]
-	return roundi(default_font_size * symbols_percent / 100.0)
-
-
 func _set_gui_font_sizes(gui_size: int) -> void:
 	_main_theme.default_font_size = _default_font_sizes[gui_size]
 	_main_theme.set_font_size(&"font_size", &"MediumFont", _medium_font_sizes[gui_size])
@@ -187,11 +178,9 @@ func _set_gui_font_sizes(gui_size: int) -> void:
 func _set_label3d_sizes() -> void:
 	var gui_size: int = IVSettingsManager.get_setting(&"gui_size")
 	var names_percent: int = IVSettingsManager.get_setting(&"label3d_names_size_percent")
-	var symbols_percent: int = IVSettingsManager.get_setting(&"label3d_symbols_size_percent")
 	var default_font_size := _default_font_sizes[gui_size]
 	var names_size := roundi(default_font_size * names_percent / 100.0)
-	var symbols_size := roundi(default_font_size * symbols_percent / 100.0)
-	label3d_font_size_changed.emit(names_size, symbols_size)
+	label3d_font_size_changed.emit(names_size)
 
 
 func _settings_listener(setting: StringName, value: Variant) -> void:
@@ -199,5 +188,5 @@ func _settings_listener(setting: StringName, value: Variant) -> void:
 		&"gui_size":
 			var gui_size: int = value
 			_set_gui_font_sizes(gui_size)
-		&"label3d_names_size_percent", &"label3d_symbols_size_percent":
+		&"label3d_names_size_percent":
 			_set_label3d_sizes()

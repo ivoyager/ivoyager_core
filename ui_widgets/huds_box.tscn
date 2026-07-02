@@ -21,13 +21,13 @@ size_flags_horizontal = 3
 [node name="NamesSymbolsHeader" type="Label" parent="BodiesHeaders"]
 layout_mode = 2
 size_flags_horizontal = 4
-text = "LABEL_NAMES_SLASH_SYMBOLS"
+text = "LABEL_SYMBOL_NAME_ORBIT"
 horizontal_alignment = 1
 
 [node name="OrbitsHeader" type="Label" parent="BodiesHeaders"]
 layout_mode = 2
 size_flags_horizontal = 4
-text = "LABEL_ORBITS"
+text = ""
 horizontal_alignment = 1
 
 [node name="Sun" parent="." instance=ExtResource("2_5wuu7")]
@@ -107,13 +107,13 @@ size_flags_horizontal = 3
 [node name="PointsHeader" type="Label" parent="SBGsHeaders"]
 layout_mode = 2
 size_flags_horizontal = 4
-text = "LABEL_POINTS"
+text = "LABEL_SYMBOL_ORBIT"
 horizontal_alignment = 1
 
 [node name="OrbitsHeader" type="Label" parent="SBGsHeaders"]
 layout_mode = 2
 size_flags_horizontal = 4
-text = "LABEL_ORBITS"
+text = ""
 horizontal_alignment = 1
 
 [node name="AsteroidsFoldable" parent="." instance=ExtResource("3_q41io")]
