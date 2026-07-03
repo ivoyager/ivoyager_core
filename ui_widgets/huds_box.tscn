@@ -16,12 +16,41 @@ script = ExtResource("1_55y42")
 
 [node name="BodiesHeaders" type="HBoxContainer" parent="." unique_id=1837507227]
 layout_mode = 2
+alignment = 2
 
-[node name="Header" type="Label" parent="BodiesHeaders" unique_id=1761724755]
+[node name="Names" type="HBoxContainer" parent="BodiesHeaders" unique_id=605747285]
 layout_mode = 2
-size_flags_horizontal = 3
-text = "LABEL_NAME_SYMBOL_ORBIT"
-horizontal_alignment = 2
+
+[node name="Label" type="Label" parent="BodiesHeaders/Names" unique_id=19367795]
+layout_mode = 2
+text = "LABEL_NAMES"
+
+[node name="SpinBox" type="SpinBox" parent="BodiesHeaders/Names" unique_id=170293420]
+layout_mode = 2
+min_value = 20.0
+max_value = 500.0
+step = 10.0
+value = 100.0
+rounded = true
+alignment = 2
+suffix = "%"
+
+[node name="Symbols" type="HBoxContainer" parent="BodiesHeaders" unique_id=1651322772]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="BodiesHeaders/Symbols" unique_id=1922895650]
+layout_mode = 2
+text = "LABEL_SYMBOLS"
+
+[node name="SpinBox" type="SpinBox" parent="BodiesHeaders/Symbols" unique_id=960945984]
+layout_mode = 2
+min_value = 20.0
+max_value = 500.0
+step = 10.0
+value = 100.0
+rounded = true
+alignment = 2
+suffix = "%"
 
 [node name="Sun" parent="." unique_id=1674394147 instance=ExtResource("2_5wuu7")]
 layout_mode = 2
@@ -83,12 +112,39 @@ body_flags = 8192
 
 [node name="SBGsHeaders" type="HBoxContainer" parent="." unique_id=1935416933]
 layout_mode = 2
+alignment = 2
 
-[node name="Header" type="Label" parent="SBGsHeaders" unique_id=1820547354]
+[node name="Points" type="HBoxContainer" parent="SBGsHeaders" unique_id=1868655721]
 layout_mode = 2
-size_flags_horizontal = 3
-text = "LABEL_SYMBOL_ORBIT"
-horizontal_alignment = 2
+
+[node name="Label" type="Label" parent="SBGsHeaders/Points" unique_id=378552555]
+layout_mode = 2
+text = "LABEL_POINTS"
+
+[node name="SpinBox" type="SpinBox" parent="SBGsHeaders/Points" unique_id=1915597418]
+layout_mode = 2
+min_value = 1.0
+max_value = 20.0
+value = 3.0
+rounded = true
+alignment = 2
+
+[node name="Symbols" type="HBoxContainer" parent="SBGsHeaders" unique_id=2036325483]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="SBGsHeaders/Symbols" unique_id=199443751]
+layout_mode = 2
+text = "LABEL_SYMBOLS"
+
+[node name="SpinBox" type="SpinBox" parent="SBGsHeaders/Symbols" unique_id=709496165]
+layout_mode = 2
+min_value = 10.0
+max_value = 250.0
+step = 10.0
+value = 40.0
+rounded = true
+alignment = 2
+suffix = "%"
 
 [node name="AsteroidsFoldable" parent="." unique_id=226119850 instance=ExtResource("3_q41io")]
 layout_mode = 2

@@ -124,7 +124,7 @@ extends PopupPanel
 	label3d_names_size_percent = {min_value = 20, max_value = 500, step = 10, suffix = "%"},
 	body_symbol_size_percent = {min_value = 20, max_value = 500, step = 10, suffix = "%"},
 	small_bodies_symbol_size_percent = {min_value = 10, max_value = 250, step = 10, suffix = "%"},
-	small_bodies_point_size = {min_value = 3, max_value = 20},
+	small_bodies_point_size = {min_value = 1, max_value = 20},
 }
 
 var _enumerations: Dictionary[StringName, Dictionary] = {}
