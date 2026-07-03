@@ -2,6 +2,7 @@ id,en
 HINT_ALL_ASTEROIDS,Show all asteroids
 HINT_CAMERA_LOCK,Camera follows selection
 HINT_CENTAURS,Show Centaurs
+HINT_COLOR_PICKER,Color Picker
 HINT_DECREASE_FOCAL_LENGTH,Decrease camera focal length
 HINT_INCREASE_FOCAL_LENGTH,Increase camera focal length
 HINT_L4_TROJANS,Show Jupiter L4 (Greek Camp) Trojans
@@ -25,6 +26,10 @@ HINT_SELECTION_BACK,Select last
 HINT_SELECTION_FORWARD,Select next
 HINT_SELECTION_UP,Select parent object
 HINT_SET_AND_CLOSE,Set and close
+HINT_SHOW_NAME,Show Name
+HINT_SHOW_ORBIT,Show Orbit
+HINT_SHOW_SYMBOL,Show Symbol
+HINT_SYMBOL_PICKER,Symbol Picker
 HINT_SYMBOLS,Show symbols
 HINT_TIME_SLOW,Decrease speed
 HINT_TIME_SPEED,Increase speed

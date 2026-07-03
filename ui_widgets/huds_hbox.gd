@@ -25,12 +25,10 @@ extends HBoxContainer
 ##
 ## Specify either [member body_flags] or [member sbg_aliases], not both.[br][br]
 ##
-## The row is [code][Label] [visibility checkboxes] [symbol & color pickers][/code].
-## Checkboxes are symbol/name/orbit for a body or symbol/orbit for an SBG; the two
-## pickers are an [IVSymbolPickerButton] and a shared [IVHUDsColorPickerButton]
-## (one color for symbol, name and orbit). The checkbox group and the picker group
-## each align across rows via ancestor [IVControlSizeGroup]s (see
-## [member ancestor_column_groups]).
+## The row is an optional left-aligned [Label] followed by a right-aligned control
+## block. The block holds visibility checkboxes (names/symbols/orbits for a body,
+## or symbols/orbits for an SBG) then an [IVSymbolPickerButton] and a shared
+## [IVHUDsColorPickerButton] (one color for symbol, name and orbit).
 
 const SCENE := "res://addons/ivoyager_core/ui_widgets/huds_hbox.tscn"
 
@@ -57,11 +55,6 @@ const SCENE := "res://addons/ivoyager_core/ui_widgets/huds_hbox.tscn"
 ## Add an orbit-visibility [IVHUDsCheckBox]. Set false for bodies with no orbit
 ## (e.g., the Sun).
 @export var orbits := true
-## For coordinating "column" spacing among rows. If true, an ancestor Control is
-## expected to have properties "column_group_1" and "column_group_2", each a
-## [IVControlSizeGroup]. Column 1 is the visibility checkboxes; column 2 is the
-## symbol and color pickers.
-@export var ancestor_column_groups := false
 
 
 var _enable_links := false
@@ -75,8 +68,7 @@ static func create(
 		require_links_enabled := true,
 		body_flags := 0,
 		sbg_aliases: Array[StringName] = [],
-		orbits := true,
-		ancestor_column_groups := false
+		orbits := true
 		) -> IVHUDsHBox:
 	assert((!body_flags) != (!sbg_aliases), "Set either 'body_flags' or 'sbg_aliases', not both")
 	var hbox: IVHUDsHBox = (load(SCENE) as PackedScene).instantiate()
@@ -86,7 +78,6 @@ static func create(
 	hbox.body_flags = body_flags
 	hbox.sbg_aliases = sbg_aliases
 	hbox.orbits = orbits
-	hbox.ancestor_column_groups = ancestor_column_groups
 	return hbox
 
 
@@ -109,44 +100,45 @@ func _configure_after_core_inited() -> void:
 		if _enable_links and link_label_key:
 			var bbcode := "[url=%s]%s[/url]" % [link_label_key, tr(label_text)]
 			var link_label := IVLinkLabel.create(bbcode)
-			link_label.size_flags_horizontal = SIZE_EXPAND_FILL
 			add_child(link_label)
 		else:
 			var label := Label.new()
 			label.text = label_text
-			label.size_flags_horizontal = SIZE_EXPAND_FILL
 			add_child(label)
 
-	# column 1: visibility checkboxes
-	var checkboxes := HBoxContainer.new()
-	checkboxes.size_flags_horizontal = SIZE_SHRINK_END
-	checkboxes.alignment = ALIGNMENT_BEGIN
+	# control block (right): visibility checkboxes, then symbol & color pickers
+	var control_block := HBoxContainer.new()
+	control_block.size_flags_horizontal = SIZE_EXPAND_FILL
+	control_block.alignment = ALIGNMENT_END
+	control_block.custom_minimum_size = Vector2(155, 0)
 	if body_flags:
-		checkboxes.add_child(IVHUDsCheckBox.create(IVHUDsCheckBox.HUDsType.SYMBOLS, body_flags))
-		checkboxes.add_child(IVHUDsCheckBox.create(IVHUDsCheckBox.HUDsType.NAMES, body_flags))
-		if orbits:
-			checkboxes.add_child(IVHUDsCheckBox.create(IVHUDsCheckBox.HUDsType.ORBITS, body_flags))
+		_add_checkbox(control_block, IVHUDsCheckBox.HUDsType.NAMES, "HINT_SHOW_NAME")
+	_add_checkbox(control_block, IVHUDsCheckBox.HUDsType.SYMBOLS, "HINT_SHOW_SYMBOL")
+	if orbits:
+		_add_checkbox(control_block, IVHUDsCheckBox.HUDsType.ORBITS, "HINT_SHOW_ORBIT")
 	else:
-		checkboxes.add_child(IVHUDsCheckBox.create(IVHUDsCheckBox.HUDsType.SYMBOLS, 0, sbg_aliases))
-		if orbits:
-			checkboxes.add_child(IVHUDsCheckBox.create(IVHUDsCheckBox.HUDsType.ORBITS, 0, sbg_aliases))
-	add_child(checkboxes)
-	_add_to_group(checkboxes, 1)
-
-	# column 2: symbol picker + shared color picker
-	var pickers := HBoxContainer.new()
-	pickers.size_flags_horizontal = SIZE_SHRINK_END
-	pickers.alignment = ALIGNMENT_CENTER
-	pickers.add_child(IVSymbolPickerButton.create(body_flags, sbg_aliases))
-	pickers.add_child(IVHUDsColorPickerButton.create(body_flags, sbg_aliases))
-	add_child(pickers)
-	_add_to_group(pickers, 2)
+		_add_checkbox_spacer(control_block) # reserve orbit slot to keep rows aligned
+	var symbol_picker := IVSymbolPickerButton.create(body_flags, sbg_aliases)
+	symbol_picker.tooltip_text = "HINT_SYMBOL_PICKER"
+	control_block.add_child(symbol_picker)
+	var color_picker := IVHUDsColorPickerButton.create(body_flags, sbg_aliases)
+	color_picker.tooltip_text = "HINT_COLOR_PICKER"
+	control_block.add_child(color_picker)
+	add_child(control_block)
 
 
-func _add_to_group(control: Control, column: int) -> void:
-	if !ancestor_column_groups:
-		return
-	var group_name := StringName("column_group_%s" % column)
-	var group: IVControlSizeGroup = IVTree.get_ancestor_object(self, group_name)
-	assert(group, "An ancestor must have property '%s' with an IVControlSizeGroup" % group_name)
-	group.add_control(control)
+func _add_checkbox(container: HBoxContainer, hud_type: IVHUDsCheckBox.HUDsType, hint: String) -> void:
+	var checkbox := IVHUDsCheckBox.create(hud_type, body_flags, sbg_aliases)
+	checkbox.tooltip_text = hint
+	container.add_child(checkbox)
+
+
+func _add_checkbox_spacer(container: HBoxContainer) -> void:
+	# A row without an orbit checkbox (e.g., the Sun) still reserves that slot so its
+	# other checkboxes stay aligned with sibling rows. An inert, invisible CheckBox
+	# matches the checkbox width exactly under any theme or GUI scale.
+	var spacer := CheckBox.new()
+	spacer.modulate = Color(1, 1, 1, 0)
+	spacer.mouse_filter = MOUSE_FILTER_IGNORE
+	spacer.focus_mode = FOCUS_NONE
+	container.add_child(spacer)
