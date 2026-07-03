@@ -29,8 +29,8 @@ extends Sprite3D
 ## slightly above the centered symbol, otherwise the name is centered on the
 ## body. Symbol shape and color are per group, shared with the body's orbit.[br][br]
 ##
-## Symbol screen size is the "body_symbol_size" setting; name font size follows
-## [IVThemeManager] (the "label3d_names_size_percent" setting).
+## Symbol screen size and name font size both follow [IVThemeManager] (the
+## "body_symbol_size_percent" and "label3d_names_size_percent" settings).
 
 
 ## Name-label offset from the centered symbol when both are shown, as a fraction
@@ -52,7 +52,7 @@ var _body_huds_visible: bool # this body (e.g., too close / too far)
 var _symbol_type := 0 # IVGlobal.Symbols
 var _color := Color.WHITE
 var _name_font_size: int
-var _symbol_size: int = IVSettingsManager.get_setting(&"body_symbol_size")
+var _symbol_size: float
 var _camera_fov: float
 var _viewport_size: Vector2
 
@@ -72,14 +72,15 @@ func _ready() -> void:
 	_body_huds_state.color_changed.connect(_set_color)
 	_body_huds_state.symbol_changed.connect(_set_symbol)
 	_body.huds_visibility_changed.connect(_on_body_huds_changed)
-	IVSettingsManager.changed.connect(_settings_listener)
 	_body_huds_visible = _body.huds_visible
 	_symbol_type = _body_huds_state.get_symbol_type(_body.flags)
 	_color = _body_huds_state.get_color(_body.flags)
 
 	var theme_manager: IVThemeManager = IVGlobal.program[&"ThemeManager"]
 	_name_font_size = theme_manager.get_label3d_names_font_size()
+	_symbol_size = theme_manager.get_body_symbol_size()
 	theme_manager.label3d_font_size_changed.connect(_on_name_font_size_changed)
+	theme_manager.body_symbol_size_changed.connect(_on_body_symbol_size_changed)
 
 	# self = symbol sprite
 	billboard = StandardMaterial3D.BILLBOARD_ENABLED
@@ -128,20 +129,20 @@ func _set_visual_state() -> void:
 func _update_name_offset(show_symbol: bool) -> void:
 	if show_symbol:
 		_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		_name_label.offset = name_offset_ratio * float(_symbol_size)
+		_name_label.offset = name_offset_ratio * _symbol_size
 	else:
 		_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_name_label.offset = Vector2.ZERO
 
 
 # Screen-fixed sizing: the name label renders font_size ~= screen px; the symbol
-# sprite renders its atlas cell at "body_symbol_size" screen px.
+# sprite renders its atlas cell at _symbol_size screen px.
 func _update_pixel_sizes() -> void:
 	# Godot errors if fov set > 179, so tan() won't go to INF here...
 	var factor := 2.0 * tan(deg_to_rad(_camera_fov) * 0.5) / _viewport_size.y
 	_name_label.pixel_size = factor
 	if texture:
-		pixel_size = factor * float(_symbol_size) / float(texture.get_height())
+		pixel_size = factor * _symbol_size / float(texture.get_height())
 
 
 func _set_color() -> void:
@@ -190,8 +191,8 @@ func _on_viewport_size_changed(size: Vector2) -> void:
 	_update_pixel_sizes()
 
 
-func _settings_listener(setting: StringName, value: Variant) -> void:
-	if setting != &"body_symbol_size":
+func _on_body_symbol_size_changed(symbol_size: float) -> void:
+	if _symbol_size == symbol_size:
 		return
-	_symbol_size = value
+	_symbol_size = symbol_size
 	_set_visual_state()
