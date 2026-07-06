@@ -1139,10 +1139,10 @@ func get_orientation(time := NAN) -> Basis:
 	return orientation_at_epoch.rotated(rotation_axis, rotation_angle)
 
 
-## Returns a valid current "postion" or projected position at specified time.
-## Return is valid even if this instance is currently sleeping (unlike
-## [member Node3D.position]). Supply [param time] only if you don't want the
-## current value.
+## Returns a valid current or projected position at [param time] as a 32-bit [Vector3]
+## (graphics idiom; see [method get_translation] for orbit precision). Valid even while
+## sleeping (unlike [member Node3D.position]). Supply [param time] only if you don't want
+## the current value.
 func get_position_vector(time := NAN) -> Vector3:
 	if is_nan(time):
 		if !_sleeping:
@@ -1150,17 +1150,47 @@ func get_position_vector(time := NAN) -> Vector3:
 		time = _times[0]
 	if _orbit:
 		var orbit_time := _clamp_trajectory_time(time)
-		return _get_orbit_at_time(orbit_time).get_position(orbit_time)
+		return _get_orbit_at_time(orbit_time).get_position_vector(orbit_time)
 	# TODO: "top" bodies may have position and velocity eventually,
 	# probably as fixed values relative to galaxy center.
 	return Vector3.ZERO
 
 
-## Returns current [position, velocity] or projected [position, velocity] at
-## specified time as a Vector3 array. Return is valid even if this instance is
-## currently sleeping. Supply [param time] only if you don't want the current
-## value.
-func get_state_vectors(time := NAN) -> Array[Vector3]:
+## Returns a valid current or projected orbit-precision translation [x, y, z] (64-bit
+## [PackedFloat64Array]) at [param time], relative to the parent. Valid even while sleeping.
+## Supply [param time] only if you don't want the current value. See also
+## [method get_position_vector] (32-bit).
+func get_translation(time := NAN) -> PackedFloat64Array:
+	if is_nan(time):
+		time = _times[0]
+	if _orbit:
+		var orbit_time := _clamp_trajectory_time(time)
+		return _get_orbit_at_time(orbit_time).get_translation(orbit_time)
+	# TODO: "top" bodies may have position and velocity eventually,
+	# probably as fixed values relative to galaxy center.
+	return PackedFloat64Array([0.0, 0.0, 0.0])
+
+
+## Returns this body's orbit-precision translation [x, y, z] (size-3 [PackedFloat64Array])
+## in [param ancestor]'s frame at [param time], summed up the parent chain. IVBody nodes are
+## never rotated/scaled, so frame conversion is pure vector addition. If [param ancestor] is
+## not on the parent chain, sums to the top body (best effort).
+func get_translation_to_ancestor(ancestor: IVBody, time := NAN) -> PackedFloat64Array:
+	var offset := PackedFloat64Array([0.0, 0.0, 0.0])
+	var node := self
+	while node and node != ancestor:
+		var translation := node.get_translation(time)
+		offset[0] += translation[0]
+		offset[1] += translation[1]
+		offset[2] += translation[2]
+		node = node.parent
+	return offset
+
+
+## Returns current or projected [code][position, velocity][/code] at [param time] as a
+## 32-bit [PackedVector3Array] (graphics idiom; see [method get_state] for orbit precision).
+## Valid even while sleeping. Supply [param time] only if you don't want the current value.
+func get_state_vectors(time := NAN) -> PackedVector3Array:
 	if is_nan(time):
 		time = _times[0]
 	if _orbit:
@@ -1168,7 +1198,7 @@ func get_state_vectors(time := NAN) -> Array[Vector3]:
 		return _get_orbit_at_time(orbit_time).get_state_vectors(orbit_time)
 	# TODO: "top" bodies may have position and velocity eventually,
 	# probably as fixed values relative to galaxy center.
-	return [Vector3.ZERO, Vector3.ZERO]
+	return PackedVector3Array([Vector3.ZERO, Vector3.ZERO])
 
 
 ## Returns Vector2(latitude, longitude) of [param vector] with respect to this
@@ -1222,7 +1252,7 @@ func get_orbit_tracking_basis(time := NAN) -> Basis:
 		time = _times[0]
 	time = _clamp_trajectory_time(time)
 	var active_orbit := _get_orbit_at_time(time)
-	x_axis = -active_orbit.get_position(time).normalized()
+	x_axis = -active_orbit.get_position_vector(time).normalized()
 	z_axis = active_orbit.get_normal_at_time(time, true, true)
 	y_axis = z_axis.cross(x_axis)
 	return Basis(x_axis, y_axis, z_axis)

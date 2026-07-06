@@ -210,6 +210,7 @@ func _ready() -> void:
 	if not IVStateManager.loaded_game:
 		fov = IVCoreSettings.start_camera_fov
 	IVGlobal.current_camera_changed.emit(self)
+	#process_priority = 1
 	set_process(false) # don't process until sim started
 	
 	#process_mode = PROCESS_MODE_ALWAYS

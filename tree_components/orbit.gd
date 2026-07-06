@@ -91,9 +91,12 @@ extends RefCounted
 ## cases. Code based changes to elements should be implemented in a subclass
 ## (see Roadmap below).[br][br]
 ##
-## Get methods are generally threadsafe, but element values may be inconsistant
-## if an orbit change is being set concurently. Set methods cause [signal changed]
-## signal so are NOT threadsafe.[br][br][br]
+## [b]Thread safety.[/b] All get methods are threadsafe. The 64-bit getters
+## [method get_translation] / [method get_state] populate a main-thread-only member buffer and
+## return a copy-on-write duplicate on the main thread, or allocate a fresh [PackedFloat64Array]
+## from a worker thread. [method update] and all set methods mutate state and/or emit
+## [signal changed], so are main-thread only. Get results may be inconsistent if an orbit
+## change is being set concurrently.[br][br][br]
 ##
 ## [b]Method naming conventions (gets/sets)[/b][br][br]
 ##
@@ -135,19 +138,16 @@ extends RefCounted
 ## get_parameter_from_something(...) # static
 ## [/codeblock][br]
 ##
-## [b]Roadmap[/b][br][br]
+## [b]Precision idiom (64/32-bit).[/b] Euclidean coordinates for real spatial calculations
+## are ALWAYS 64-bit [PackedFloat64Array] (ivoyager does NOT require a 64-bit Godot build). To
+## avoid confusion with [member Node3D.position], these are called "translation" (size-3
+## [PackedFloat64Array]), "velocity" (size 3), "state" (size 6), and "basis" (size 9; see
+## [IVMath64]). Any method that outputs a [Vector3] / [Basis] / [PackedVector3Array] is flagging
+## its result as low precision, for graphics or similar use. Compare [method get_translation] /
+## [method get_state] (64-bit) with [method get_position_vector] / [method get_state_vectors] /
+## [method update] (32-bit).[br][br]
 ##
-## TODO: Planned v0.2 API-breaking update. It's getting too cognitively difficult
-## to remember when float (64 bit) <-> Vector3 (32 bit) round trips are benign
-## and when they are sim breaking. We're committed to NOT requiring 64-bit Godot
-## compilation (which would up Vector types to 64 bit). Instead, we're going to
-## adhere to a new ivoyager requirement that Euclidean coordinates for real
-## spatial calculations are ALWAYS PackedFloat64Array. To not confuse with Godot
-## `Node3D.position`, we use "translation". So real coordinates are "translation"
-## (size 3 PackedFloat64Array), "velocity" (size 3), "state" (size 6), etc. Any
-## function that outputs Vector type data is essentially flagging its output as
-## "low precision, suitable for graphic consumption or similar use". That's our
-## new ideom, to be implemented and maintained throught Core submodule.[br][br]
+## [b]Roadmap[/b][br][br]
 ##
 ## TODO: Multiplayer RPC. We REALLY don't want to make this a Node. The reason
 ## is that IVOrbit is supposed to be a cheap data container that can be instanced
@@ -326,7 +326,7 @@ var argument_periapsis_rate: float:
 
 # defining elements
 var _reference_plane_type: ReferencePlane
-var _reference_basis: Basis
+var _reference_basis := PackedFloat64Array([1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]) # size-9 row-major; see [IVMath64]
 var _semi_parameter: float
 var _eccentricity: float
 var _inclination: float
@@ -350,6 +350,11 @@ var _argument_periapsis_rate: float
 # state params from update()
 var _mean_anomaly := 0.0
 var _true_anomaly := 0.0
+
+# Reusable main-thread return buffers for get_translation() / get_state(); see class doc
+# thread-safety. Main-thread-exclusive (worker calls allocate fresh), so never shared across threads.
+var _translation_buffer := PackedFloat64Array([0.0, 0.0, 0.0])
+var _state_buffer := PackedFloat64Array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
 
 
@@ -400,7 +405,7 @@ static func create_from_elements(
 	
 	# defining args
 	orbit._reference_plane_type = reference_plane_type
-	orbit._reference_basis = reference_basis
+	orbit._reference_basis = IVMath64.from_basis(reference_basis)
 	orbit._semi_parameter = semi_parameter
 	orbit._eccentricity = eccentricity
 	orbit._inclination = inclination
@@ -548,23 +553,23 @@ static func create_from_state_and_environment(
 ## Universal-variable (Vallado) formulation; valid for elliptic and hyperbolic transfers
 ## (not parabolic). Returns the two velocities as double-precision scalars in a
 ## [PackedFloat64Array] [code][vx1, vy1, vz1, vx2, vy2, vz2][/code] (input frame and units),
-## or an empty array if the geometry is degenerate or it fails to converge. Double precision
-## is deliberate: the result feeds [method create_from_state_and_precessions] without a
-## float32 round trip. Pass [param prograde] = false for the retrograde (clockwise about +Z)
-## transfer.
+## or an empty array if the geometry is degenerate or it fails to converge. [param position_1]
+## and [param position_2] are size-3 orbit-precision [PackedFloat64Array]; the result feeds
+## [method create_from_state_and_precessions] without a float32 round trip. Pass
+## [param prograde] = false for the retrograde (clockwise about +Z) transfer.
 @warning_ignore("shadowed_variable")
-static func solve_lambert(position_1: Vector3, position_2: Vector3, time_of_flight: float,
-		gravitational_parameter: float, prograde := true) -> PackedFloat64Array:
+static func solve_lambert(position_1: PackedFloat64Array, position_2: PackedFloat64Array,
+		time_of_flight: float, gravitational_parameter: float, prograde := true) -> PackedFloat64Array:
 
 	var velocities := PackedFloat64Array()
-	# Double-precision scalars: a near-180° transfer drives 1+cos_transfer toward 0,
-	# where float32 Vector3 ops lose ~1e4 km at planetary distances.
-	var x1 := position_1.x
-	var y1 := position_1.y
-	var z1 := position_1.z
-	var x2 := position_2.x
-	var y2 := position_2.y
-	var z2 := position_2.z
+	# Full double precision end to end: a near-180° transfer drives 1+cos_transfer toward 0,
+	# where a float32 round trip would lose ~1e4 km at planetary distances.
+	var x1 := position_1[0]
+	var y1 := position_1[1]
+	var z1 := position_1[2]
+	var x2 := position_2[0]
+	var y2 := position_2[1]
+	var z2 := position_2[2]
 	var radius_1 := sqrt(x1 * x1 + y1 * y1 + z1 * z1)
 	var radius_2 := sqrt(x2 * x2 + y2 * y2 + z2 * z2)
 	var sum_radii := radius_1 + radius_2
@@ -950,90 +955,147 @@ func update(time: float, rotate_to_ecliptic := true) -> Vector3:
 	
 	var position := get_position_from_elements_at_true_anomaly(_semi_parameter, _eccentricity,
 			_inclination, lan, ap, _true_anomaly)
-	
+
 	if rotate_to_ecliptic and _reference_plane_type != REFERENCE_PLANE_ECLIPTIC:
-		return _reference_basis * position
+		return IVMath64.to_basis(_reference_basis) * position
 	return position
 
 
-## Returns instantaneous position at [param time]. Return can be in the ecliptic
-## basis or the orbit [member reference_basis] (the former by default).
-## Position is relative to the parent body regardless of basis conversion.
-func get_position(time: float, rotate_to_ecliptic := true) -> Vector3:
-	
-	const REFERENCE_PLANE_ECLIPTIC := ReferencePlane.REFERENCE_PLANE_ECLIPTIC
-	
-	# evolve orbit
+## Returns instantaneous position at [param time] as a 32-bit [Vector3] (graphics idiom;
+## see [method get_translation] for orbit precision). Return can be in the ecliptic basis
+## or the orbit [member reference_basis] (the former by default). Position is relative to
+## the parent body regardless of basis conversion.
+func get_position_vector(time: float, rotate_to_ecliptic := true) -> Vector3:
 	var lan := fposmod(_longitude_ascending_node_at_epoch + _longitude_ascending_node_rate * time, TAU)
 	var ap := fposmod(_argument_periapsis_at_epoch + _argument_periapsis_rate * time, TAU)
-	
-	# some inline static methods below...
-	var nu: float # true anomaly
-	if _eccentricity < 1.0:
-		var m := fposmod(_mean_motion * (time - _time_periapsis) + PI, TAU) - PI
-		nu = get_true_anomaly_from_mean_anomaly_elliptic(_eccentricity, m)
-	elif _eccentricity > 1.0:
-		var m := _mean_motion * (time - _time_periapsis)
-		nu = get_true_anomaly_from_mean_anomaly_hyperbolic(_eccentricity, m)
-	else:
-		var m := get_mean_anomaly_from_elements_parabolic(_semi_parameter, _time_periapsis,
-				_gravitational_parameter, time)
-		nu = get_true_anomaly_from_mean_anomaly_parabolic(m)
-	
+	var nu := get_true_anomaly(time)
 	var position := get_position_from_elements_at_true_anomaly(_semi_parameter, _eccentricity,
 			_inclination, lan, ap, nu)
-	
-	if rotate_to_ecliptic and _reference_plane_type != REFERENCE_PLANE_ECLIPTIC:
-		return _reference_basis * position
+	if rotate_to_ecliptic and _reference_plane_type != ReferencePlane.REFERENCE_PLANE_ECLIPTIC:
+		return IVMath64.to_basis(_reference_basis) * position
 	return position
 
 
-## Returns instantaneous position and velocity at [param time]. Return can be in
-## the ecliptic basis or the orbit [member reference_basis] (the former by default).
-## Position and velocity are relative to the parent body regardless of basis conversion.
+## Returns instantaneous position [x, y, z] at [param time] as an orbit-precision (64-bit)
+## [PackedFloat64Array]. Return can be in the ecliptic basis or the orbit
+## [member reference_basis] (the former by default). Position is relative to the parent
+## body regardless of basis conversion. Threadsafe (see class doc).
+func get_translation(time: float, rotate_to_ecliptic := true) -> PackedFloat64Array:
+	if Thread.is_main_thread():
+		_write_translation(time, rotate_to_ecliptic, _translation_buffer, 0)
+		return _translation_buffer.duplicate()
+	var out := PackedFloat64Array()
+	out.resize(3)
+	_write_translation(time, rotate_to_ecliptic, out, 0)
+	return out
+
+
+## Returns instantaneous state [x, y, z, vx, vy, vz] at [param time] as an orbit-precision
+## (64-bit) [PackedFloat64Array]. Return can be in the ecliptic basis or the orbit
+## [member reference_basis] (the former by default). State is relative to the parent body
+## regardless of basis conversion. Threadsafe (see class doc).
 ## @experimental: The velocity component has not been tested yet!
-func get_state_vectors(time: float, rotate_to_ecliptic := true) -> Array[Vector3]:
-	
-	const REFERENCE_PLANE_ECLIPTIC := ReferencePlane.REFERENCE_PLANE_ECLIPTIC
-	
-	# evolve orbit
+func get_state(time: float, rotate_to_ecliptic := true) -> PackedFloat64Array:
+	if Thread.is_main_thread():
+		_write_state(time, rotate_to_ecliptic, _state_buffer, 0)
+		return _state_buffer.duplicate()
+	var out := PackedFloat64Array()
+	out.resize(6)
+	_write_state(time, rotate_to_ecliptic, out, 0)
+	return out
+
+
+## Returns instantaneous position and velocity at [param time] as a 32-bit
+## [PackedVector3Array] [code][position, velocity][/code] (graphics idiom; see
+## [method get_state] for orbit precision). Return can be in the ecliptic basis or the
+## orbit [member reference_basis] (the former by default). Relative to the parent body
+## regardless of basis conversion.
+## @experimental: The velocity component has not been tested yet!
+func get_state_vectors(time: float, rotate_to_ecliptic := true) -> PackedVector3Array:
 	var lan := fposmod(_longitude_ascending_node_at_epoch + _longitude_ascending_node_rate * time, TAU)
 	var ap := fposmod(_argument_periapsis_at_epoch + _argument_periapsis_rate * time, TAU)
-	
-	# some inline static methods below...
-	var nu: float # true anomaly
-	if _eccentricity < 1.0:
-		var m := fposmod(_mean_motion * (time - _time_periapsis) + PI, TAU) - PI
-		nu = get_true_anomaly_from_mean_anomaly_elliptic(_eccentricity, m)
-	elif _eccentricity > 1.0:
-		var m := _mean_motion * (time - _time_periapsis)
-		nu = get_true_anomaly_from_mean_anomaly_hyperbolic(_eccentricity, m)
-	else:
-		var m := get_mean_anomaly_from_elements_parabolic(_semi_parameter, _time_periapsis,
-				_gravitational_parameter, time)
-		nu = get_true_anomaly_from_mean_anomaly_parabolic(m)
-	
+	var nu := get_true_anomaly(time)
 	var vectors := get_state_vectors_from_elements_at_true_anomaly(_semi_parameter, _eccentricity,
 			_inclination, lan, ap, _specific_angular_momentum, nu)
-	
-	if rotate_to_ecliptic and _reference_plane_type != REFERENCE_PLANE_ECLIPTIC:
-		return [_reference_basis * vectors[0], _reference_basis * vectors[1]]
-	return vectors
+	if rotate_to_ecliptic and _reference_plane_type != ReferencePlane.REFERENCE_PLANE_ECLIPTIC:
+		var basis := IVMath64.to_basis(_reference_basis)
+		return PackedVector3Array([basis * vectors[0], basis * vectors[1]])
+	return PackedVector3Array(vectors)
+
+
+# Writes ecliptic (or reference-basis) translation [x, y, z] into [param out] at [param offset]
+# (out must be pre-sized). 64-bit core shared by get_translation() and sample_arc().
+func _write_translation(time: float, rotate_to_ecliptic: bool, out: PackedFloat64Array,
+		offset: int) -> void:
+	var lan := fposmod(_longitude_ascending_node_at_epoch + _longitude_ascending_node_rate * time, TAU)
+	var ap := fposmod(_argument_periapsis_at_epoch + _argument_periapsis_rate * time, TAU)
+	var nu := get_true_anomaly(time)
+	var r := _semi_parameter / (1.0 + _eccentricity * cos(nu))
+	var sin_i := sin(_inclination)
+	var cos_i := cos(_inclination)
+	var sin_lan := sin(lan)
+	var cos_lan := cos(lan)
+	var sin_ap_nu := sin(ap + nu)
+	var cos_ap_nu := cos(ap + nu)
+	var x := r * (cos_lan * cos_ap_nu - sin_lan * sin_ap_nu * cos_i)
+	var y := r * (sin_lan * cos_ap_nu + cos_lan * sin_ap_nu * cos_i)
+	var z := r * (sin_ap_nu * sin_i)
+	if rotate_to_ecliptic and _reference_plane_type != ReferencePlane.REFERENCE_PLANE_ECLIPTIC:
+		IVMath64.rotate_into(_reference_basis, x, y, z, out, offset)
+	else:
+		out[offset] = x
+		out[offset + 1] = y
+		out[offset + 2] = z
+
+
+# Writes ecliptic (or reference-basis) state [x, y, z, vx, vy, vz] into [param out] at
+# [param offset] (out must be pre-sized). 64-bit core for get_state().
+func _write_state(time: float, rotate_to_ecliptic: bool, out: PackedFloat64Array,
+		offset: int) -> void:
+	var lan := fposmod(_longitude_ascending_node_at_epoch + _longitude_ascending_node_rate * time, TAU)
+	var ap := fposmod(_argument_periapsis_at_epoch + _argument_periapsis_rate * time, TAU)
+	var nu := get_true_anomaly(time)
+	var r := _semi_parameter / (1.0 + _eccentricity * cos(nu))
+	var sin_i := sin(_inclination)
+	var cos_i := cos(_inclination)
+	var sin_lan := sin(lan)
+	var cos_lan := cos(lan)
+	var sin_ap_nu := sin(ap + nu)
+	var cos_ap_nu := cos(ap + nu)
+	var x := r * (cos_lan * cos_ap_nu - sin_lan * sin_ap_nu * cos_i)
+	var y := r * (sin_lan * cos_ap_nu + cos_lan * sin_ap_nu * cos_i)
+	var z := r * (sin_ap_nu * sin_i)
+	var c := _specific_angular_momentum * _eccentricity * sin(nu) / (r * _semi_parameter)
+	var angular_v := _specific_angular_momentum / r
+	var vx := c * x - angular_v * (cos_lan * sin_ap_nu + sin_lan * cos_ap_nu * cos_i)
+	var vy := c * y - angular_v * (sin_lan * sin_ap_nu - cos_lan * cos_ap_nu * cos_i)
+	var vz := c * z - angular_v * (cos_ap_nu * sin_i)
+	if rotate_to_ecliptic and _reference_plane_type != ReferencePlane.REFERENCE_PLANE_ECLIPTIC:
+		IVMath64.rotate_into(_reference_basis, x, y, z, out, offset)
+		IVMath64.rotate_into(_reference_basis, vx, vy, vz, out, offset + 3)
+	else:
+		out[offset] = x
+		out[offset + 1] = y
+		out[offset + 2] = z
+		out[offset + 3] = vx
+		out[offset + 4] = vy
+		out[offset + 5] = vz
 
 
 ## Returns a curvature-weighted polyline sampling of this orbit between
-## [param begin_time] and [param end_time] as [[PackedVector3Array] positions,
-## [PackedFloat64Array] times]. Positions are relative to the parent body in the
-## ecliptic basis (via [method get_position], so precession-correct). Vertices are
+## [param begin_time] and [param end_time] as [flat [PackedFloat64Array] positions
+## (orbit precision; [x, y, z] per vertex, size 3 * [param n_vertices]),
+## [PackedFloat64Array] times]. Positions are relative to the parent body in the ecliptic
+## basis (via [method get_translation], so precession-correct). Vertices are
 ## spaced by uniform eccentric / hyperbolic / parabolic anomaly to concentrate near
 ## periapsis, mirroring the unit orbit meshes. An unbounded end (±INF) clamps to one
 ## full period (closed orbit) or to [param max_radius], in units of [member semi_parameter]
 ## (open orbit). Used by [IVTrajectory] to build its path. Requires [param n_vertices] >= 2.
 func sample_arc(begin_time: float, end_time: float, n_vertices: int, max_radius: float) -> Array:
 	assert(n_vertices >= 2)
-	var positions := PackedVector3Array()
+	var positions := PackedFloat64Array()
 	var times := PackedFloat64Array()
-	positions.resize(n_vertices)
+	positions.resize(3 * n_vertices)
 	times.resize(n_vertices)
 	var t_p := _time_periapsis
 	if _eccentricity < 1.0: # elliptic; step uniform eccentric anomaly
@@ -1054,7 +1116,7 @@ func sample_arc(begin_time: float, end_time: float, n_vertices: int, max_radius:
 		for k in n_vertices:
 			var ea := lerpf(ea_begin, ea_end, float(k) / (n_vertices - 1))
 			var time := t_p + (ea - e * sin(ea)) / n
-			positions[k] = get_position(time)
+			_write_translation(time, true, positions, 3 * k)
 			times[k] = time
 	elif _eccentricity > 1.0: # hyperbolic; step uniform hyperbolic anomaly
 		var e := _eccentricity
@@ -1070,7 +1132,7 @@ func sample_arc(begin_time: float, end_time: float, n_vertices: int, max_radius:
 		for k in n_vertices:
 			var ha := lerpf(ha_begin, ha_end, float(k) / (n_vertices - 1))
 			var time := t_p + (e * sinh(ha) - ha) / n
-			positions[k] = get_position(time)
+			_write_translation(time, true, positions, 3 * k)
 			times[k] = time
 	else: # parabolic; step uniform parabolic anomaly D (Barker's equation)
 		var q := 0.5 * _semi_parameter
@@ -1085,7 +1147,7 @@ func sample_arc(begin_time: float, end_time: float, n_vertices: int, max_radius:
 		for k in n_vertices:
 			var d := lerpf(d_begin, d_end, float(k) / (n_vertices - 1))
 			var time := t_p + (d + d * d * d / 3.0) / factor
-			positions[k] = get_position(time)
+			_write_translation(time, true, positions, 3 * k)
 			times[k] = time
 	return [positions, times]
 
@@ -1186,15 +1248,17 @@ func get_reference_plane_type() -> ReferencePlane:
 	return _reference_plane_type
 
 
+## Returns the reference basis as a 32-bit [Basis] (graphics idiom). The 64-bit
+## backing store is used internally; see [IVMath64].
 func get_reference_basis() -> Basis:
-	return _reference_basis
+	return IVMath64.to_basis(_reference_basis)
 
 
 func set_reference_plane_and_basis(plane_type: ReferencePlane, basis: Basis) -> void:
 	assert(plane_type != ReferencePlane.REFERENCE_PLANE_ECLIPTIC or basis == Basis.IDENTITY)
 	assert(basis.is_conformal() and basis.x.is_normalized())
 	_reference_plane_type = plane_type
-	_reference_basis = basis
+	_reference_basis = IVMath64.from_basis(basis)
 	changed.emit(false, false)
 
 
@@ -1686,7 +1750,7 @@ func get_normal(rotate_to_ecliptic := true, flip_retrograde := false) -> Vector3
 	const REFERENCE_PLANE_ECLIPTIC := ReferencePlane.REFERENCE_PLANE_ECLIPTIC
 	var normal := get_normal_from_elements(_inclination, _longitude_ascending_node, flip_retrograde)
 	if rotate_to_ecliptic and _reference_plane_type != REFERENCE_PLANE_ECLIPTIC:
-		return _reference_basis * normal
+		return IVMath64.to_basis(_reference_basis) * normal
 	return normal
 
 
@@ -1700,7 +1764,7 @@ func get_normal_at_time(time: float, rotate_to_ecliptic := true, flip_retrograde
 	
 	var normal := get_normal_from_elements(_inclination, lan, flip_retrograde)
 	if rotate_to_ecliptic and _reference_plane_type != REFERENCE_PLANE_ECLIPTIC:
-		return _reference_basis * normal
+		return IVMath64.to_basis(_reference_basis) * normal
 	return normal
 
 
@@ -1712,7 +1776,7 @@ func get_basis(rotate_to_ecliptic := true) -> Basis:
 	const REFERENCE_PLANE_ECLIPTIC := ReferencePlane.REFERENCE_PLANE_ECLIPTIC
 	var basis := get_basis_from_elements(_inclination, _longitude_ascending_node, _argument_periapsis)
 	if rotate_to_ecliptic and _reference_plane_type != REFERENCE_PLANE_ECLIPTIC:
-		return _reference_basis * basis
+		return IVMath64.to_basis(_reference_basis) * basis
 	return basis
 
 
@@ -1728,7 +1792,7 @@ func get_basis_at_time(time: float, rotate_to_ecliptic := true) -> Basis:
 	
 	var basis := get_basis_from_elements(_inclination, lan, ap)
 	if rotate_to_ecliptic and _reference_plane_type != REFERENCE_PLANE_ECLIPTIC:
-		return _reference_basis * basis
+		return IVMath64.to_basis(_reference_basis) * basis
 	return basis
 
 
@@ -1807,15 +1871,15 @@ func serialize() -> PackedFloat64Array:
 	var data := PackedFloat64Array()
 	data.resize(29)
 	data[0] = float(_reference_plane_type)
-	data[1] = _reference_basis[0][0]
-	data[2] = _reference_basis[0][1]
-	data[3] = _reference_basis[0][2]
-	data[4] = _reference_basis[1][0]
-	data[5] = _reference_basis[1][1]
-	data[6] = _reference_basis[1][2]
-	data[7] = _reference_basis[2][0]
-	data[8] = _reference_basis[2][1]
-	data[9] = _reference_basis[2][2]
+	data[1] = _reference_basis[0]
+	data[2] = _reference_basis[1]
+	data[3] = _reference_basis[2]
+	data[4] = _reference_basis[3]
+	data[5] = _reference_basis[4]
+	data[6] = _reference_basis[5]
+	data[7] = _reference_basis[6]
+	data[8] = _reference_basis[7]
+	data[9] = _reference_basis[8]
 	data[10] = _semi_parameter
 	data[11] = _eccentricity
 	data[12] = _inclination
@@ -1840,15 +1904,15 @@ func serialize() -> PackedFloat64Array:
 
 func deserialize(data: PackedFloat64Array) -> void:
 	_reference_plane_type = int(data[0]) as ReferencePlane
-	_reference_basis[0][0] = data[1]
-	_reference_basis[0][1] = data[2]
-	_reference_basis[0][2] = data[3]
-	_reference_basis[1][0] = data[4]
-	_reference_basis[1][1] = data[5]
-	_reference_basis[1][2] = data[6]
-	_reference_basis[2][0] = data[7]
-	_reference_basis[2][1] = data[8]
-	_reference_basis[2][2] = data[9]
+	_reference_basis[0] = data[1]
+	_reference_basis[1] = data[2]
+	_reference_basis[2] = data[3]
+	_reference_basis[3] = data[4]
+	_reference_basis[4] = data[5]
+	_reference_basis[5] = data[6]
+	_reference_basis[6] = data[7]
+	_reference_basis[7] = data[8]
+	_reference_basis[8] = data[9]
 	_semi_parameter = data[10]
 	_eccentricity = data[11]
 	_inclination = data[12]
