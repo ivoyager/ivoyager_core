@@ -1,4 +1,4 @@
-// orbiting_points_lp_id.gdshader
+// orbiting_positions_lp_id.gdshader
 // This file is part of I, Voyager
 // https://ivoyager.dev
 // *****************************************************************************
@@ -24,7 +24,7 @@ render_mode unshaded, cull_disabled, skip_vertex_transform;
 // elements and Lagrange point information encoded in a mesh array. Supports
 // only L4 & L5 at this time.
 //
-// See comments in orbiting_points_id.gdshader.
+// See comments in orbiting_positions_id.gdshader.
 //
 // For L4/L5 objects, a & m are determined by da, dl, f & th0 together with
 // characteristic_length (semi-major axis of the secondary body) and mean
@@ -52,7 +52,7 @@ uniform float characteristic_length; // semi-major axis of the secondary body
 uniform float point_size = 3.0;
 uniform vec3 color : source_color = vec3(0.0, 1.0, 0.0);
 
-// See orbiting_points_id.gdshader. True only when an IVFragmentIdentifier exists.
+// See orbiting_positions_id.gdshader. True only when an IVFragmentIdentifier exists.
 uniform bool broadcast_id = false;
 
 // updated each frame
@@ -62,6 +62,8 @@ varying flat vec3 fragment_id;
 
 #include "_orbit.gdshaderinc"
 #include "_fragment_id.gdshaderinc"
+#include "_symbol.gdshaderinc"
+#include "_farwarp.gdshaderinc"
 
 
 float longitude_ocillator(float dl, float th){
@@ -120,10 +122,8 @@ void vertex() {
 
 	vec3 position = get_orbit_position(a, e, i, lan, aop, m);
 
-	// We skip VERTEX here, but this is the 2-step version...
-	// VERTEX = (MODELVIEW_MATRIX * vec4(x, y, z, 1.0)).xyz;
-	// POSITION = PROJECTION_MATRIX * vec4(VERTEX, 1.0);
-	POSITION = PROJECTION_MATRIX * (MODELVIEW_MATRIX * vec4(position, 1.0));
+	vec3 view_position = farwarp((MODELVIEW_MATRIX * vec4(position, 1.0)).xyz);
+	POSITION = PROJECTION_MATRIX * vec4(view_position, 1.0);
 
 	POINT_SIZE = point_size;
 }
@@ -131,6 +131,9 @@ void vertex() {
 
 void fragment() {
 	ALBEDO = color;
+	if (symbol_type >= 0 && get_symbol_alpha(POINT_COORD) < 0.5) {
+		discard; // shape mask; symbol_type == -1 keeps the flat point sprite
+	}
 	if (broadcast_id && is_id_fragment(FRAGCOORD.xy)) {
 		ALBEDO = fragment_id;
 	}

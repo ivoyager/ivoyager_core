@@ -100,9 +100,17 @@ const FAR_MULTIPLIER := 1e6 # see Note below
 const POLE_LIMITER := PI / 2.1
 const MIN_DIST_RADII_METERS := 1.2 * METER # really target radii; see 'perspective distance'
 
-# Note: As of Godot 3.2.3, we had to lower FAR_MULTIPLIER from 1e9 to 1e6.
-# It used to be that ~10 orders of magnitude was allowed between near and far.
-# As of Godot 4.1.1, still breaks above 1e6. 
+# Note: The near:far ratio is hard-capped at ~2^24 (~1.7e7) by float32 CPU math
+# in the engine: Projection::get_projection_planes() extracts the far plane as
+# (w row - z row), which catastrophically cancels when far/near exceeds the
+# float32 mantissa. First loud failure (at NEAR_MULTIPLIER 0.1, FAR_MULTIPLIER
+# 1e7) is RenderingLightCuller::create_frustum_points() erroring every frame,
+# with garbage frustum points feeding directional shadow-caster culling.
+# Verified in Godot 4.7-stable and 4.8-dev master (2026-07); the GPU depth
+# buffer is NOT the limit (reversed-Z + float depth since 4.3). Historical
+# ceilings (1e9 in Godot 3.2, then 1e6) were earlier symptoms of the same wall.
+# Do not push the ratio past ~1e7. Objects beyond the far plane are kept
+# renderable by farwarp compression instead (see IVFarwarpManager).
 
 const PERSIST_MODE := IVGlobal.PERSIST_PROCEDURAL
 const PERSIST_PROPERTIES: Array[StringName] = [
@@ -210,6 +218,7 @@ func _ready() -> void:
 	if not IVStateManager.loaded_game:
 		fov = IVCoreSettings.start_camera_fov
 	IVGlobal.current_camera_changed.emit(self)
+	#process_priority = 1
 	set_process(false) # don't process until sim started
 	
 	#process_mode = PROCESS_MODE_ALWAYS
@@ -234,11 +243,10 @@ func _process(delta: float) -> void:
 	transform = _transform
 	_signal_range_latitude_longitude()
 	
-	# We set our visual range based on current parent range. Note that setting
-	# far too high breaks near, making small objects invisible. Unfortunately,
-	# limiting far causes distant objects (e.g., orbit lines) to disappear when
-	# zoomed in to small objects. The allowed orders of magnitude between near
-	# and far has changed over Godot development, so experimentation is needed.
+	# We set our visual range based on current parent range. The near:far ratio
+	# is capped at ~2^24 (see Note above), so distant objects necessarily fall
+	# beyond the far plane when zoomed in to small objects; farwarp compression
+	# re-renders them inside it (see IVFarwarpManager).
 	var dist := position.length()
 	near = dist * NEAR_MULTIPLIER
 	far = dist * FAR_MULTIPLIER

@@ -1,4 +1,4 @@
-// orbiting_points_id.gdshader
+// orbiting_positions_id.gdshader
 // This file is part of I, Voyager
 // https://ivoyager.dev
 // *****************************************************************************
@@ -25,7 +25,7 @@ render_mode unshaded, cull_disabled, skip_vertex_transform;
 //
 // VERTEX encodes the fragment_id (see IVFragmentIdentifier). We set POSITION
 // directly here so VERTEX remains unchanged. Orbital parameters are set via
-// CUSTOMx channels by IVSBGPoints.
+// CUSTOMx channels by IVSBGPositionsVisual.
 
 global uniform float iv_time;
 
@@ -33,7 +33,7 @@ uniform float point_size = 3.0;
 uniform vec3 color : source_color = vec3(0.0, 1.0, 0.0);
 
 // True only when an IVFragmentIdentifier exists to read the id back (set by
-// IVSBGPointsVisual from its presence). Gates the id write in fragment() so the
+// IVSBGPositionsVisual from its presence). Gates the id write in fragment() so the
 // points render only their normal appearance otherwise.
 uniform bool broadcast_id = false;
 
@@ -41,6 +41,8 @@ varying flat vec3 fragment_id;
 
 #include "_orbit.gdshaderinc"
 #include "_fragment_id.gdshaderinc"
+#include "_symbol.gdshaderinc"
+#include "_farwarp.gdshaderinc"
 
 
 void vertex() {
@@ -72,10 +74,8 @@ void vertex() {
 
 	vec3 position = get_orbit_position(a, e, i, lan, aop, m);
 
-	// We skip VERTEX here, but this is the 2-step version...
-	// VERTEX = (MODELVIEW_MATRIX * vec4(x, y, z, 1.0)).xyz;
-	// POSITION = PROJECTION_MATRIX * vec4(VERTEX, 1.0);
-	POSITION = PROJECTION_MATRIX * (MODELVIEW_MATRIX * vec4(position, 1.0));
+	vec3 view_position = farwarp((MODELVIEW_MATRIX * vec4(position, 1.0)).xyz);
+	POSITION = PROJECTION_MATRIX * vec4(view_position, 1.0);
 
 	POINT_SIZE = point_size;
 }
@@ -83,6 +83,9 @@ void vertex() {
 
 void fragment() {
 	ALBEDO = color;
+	if (symbol_type >= 0 && get_symbol_alpha(POINT_COORD) < 0.5) {
+		discard; // shape mask; symbol_type == -1 keeps the flat point sprite
+	}
 	if (broadcast_id && is_id_fragment(FRAGCOORD.xy)) {
 		ALBEDO = fragment_id;
 	}

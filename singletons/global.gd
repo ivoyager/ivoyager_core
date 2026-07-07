@@ -60,7 +60,7 @@ signal current_camera_changed(camera: Camera3D)
 ## It tells the simulator where the camera is for graphic and other updating purposes.
 signal camera_tree_changed(camera: Camera3D, parent: Node3D, star_orbiter: Node3D, star: Node3D)
 ## This signal should be emitted by any Camera3D class used in the simulator.
-## It's used for things like size compensation in [IVBodyLabel].
+## It's used for things like size compensation in [IVBodyPositionVisual].
 signal camera_fov_changed(fov: float)
 ## Emit from anywhere when the named selectable [param name] becomes an invalid
 ## selection target — e.g. an [IVBody] leaving its [member IVBody.begin]/[member

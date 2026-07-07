@@ -38,10 +38,17 @@ extends RefCounted
 ## [member IVCoreSettings.gui_size_settings]).[br][br]
 
 
-## Signal provided for managing Label3D font sizing. Name and symbol sizes are
-## the main theme's default_font_size modified by global settings
-## "label3d_names_size_percent" and "label3d_symbols_size_percent", respectively.
-signal label3d_font_size_changed(name_size: int, symbol_size: int)
+## Emitted when the body-name Label3D font size changes: the main theme's
+## default_font_size modified by the "label3d_names_size_percent" setting.
+signal label3d_font_size_changed(name_size: int)
+
+## Emitted when the body symbol screen size changes: [member symbol_base_size] for
+## the active GUI size modified by the "body_symbol_size_percent" setting.
+signal body_symbol_size_changed(symbol_size: float)
+
+## Emitted when the small-bodies symbol point size changes: [member symbol_base_size]
+## for the active GUI size modified by the "small_bodies_symbol_size_percent" setting.
+signal small_bodies_symbol_size_changed(symbol_size: float)
 
 
 ## If set, ignore ProjectSettings/gui/theme/custom and [member fallback_theme_path].
@@ -74,6 +81,10 @@ var large_font_base_size := 24
 var medium_font_fixed_size := 20
 ## Fixed (gui_size-independent) font size for type variation "LargeFixedFont".
 var large_font_fixed_size := 24
+## Value multiplied by [member IVCoreSettings.gui_size_multipliers] for the
+## 100%-reference symbol screen size (body and small-bodies symbols); the relevant
+## percent setting is then applied. See [method get_body_symbol_size].
+var symbol_base_size := 20
 
 
 var _main_theme: Theme
@@ -81,6 +92,7 @@ var _main_font: Font
 var _default_font_sizes: Array[int] = []
 var _medium_font_sizes: Array[int] = []
 var _large_font_sizes: Array[int] = []
+var _default_symbol_sizes: Array[float] = []
 
 
 ## Returns a [Theme] specified by [member override_theme_path],
@@ -129,10 +141,12 @@ func _init() -> void:
 	_default_font_sizes.resize(n_gui_sizes)
 	_medium_font_sizes.resize(n_gui_sizes)
 	_large_font_sizes.resize(n_gui_sizes)
+	_default_symbol_sizes.resize(n_gui_sizes)
 	for i in n_gui_sizes:
 		_default_font_sizes[i] = roundi(multipliers[i] * default_font_base_size)
 		_medium_font_sizes[i] = roundi(multipliers[i] * medium_font_base_size)
 		_large_font_sizes[i] = roundi(multipliers[i] * large_font_base_size)
+		_default_symbol_sizes[i] = multipliers[i] * symbol_base_size
 	if set_default_font:
 		_main_theme.default_font = _main_font
 	for mod in main_theme_mods:
@@ -169,12 +183,20 @@ func get_label3d_names_font_size() -> int:
 	return roundi(default_font_size * names_percent / 100.0)
 
 
-## Returns the current Label3D font size for body symbol labels.
-func get_label3d_symbols_font_size() -> int:
+## Returns the current body symbol screen size (px), derived from the active GUI
+## size and the "body_symbol_size_percent" user setting.
+func get_body_symbol_size() -> float:
 	var gui_size: int = IVSettingsManager.get_setting(&"gui_size")
-	var symbols_percent: int = IVSettingsManager.get_setting(&"label3d_symbols_size_percent")
-	var default_font_size := _default_font_sizes[gui_size]
-	return roundi(default_font_size * symbols_percent / 100.0)
+	var percent: int = IVSettingsManager.get_setting(&"body_symbol_size_percent")
+	return _default_symbol_sizes[gui_size] * percent / 100.0
+
+
+## Returns the current small-bodies symbol point size (px), derived from the
+## active GUI size and the "small_bodies_symbol_size_percent" user setting.
+func get_small_bodies_symbol_size() -> float:
+	var gui_size: int = IVSettingsManager.get_setting(&"gui_size")
+	var percent: int = IVSettingsManager.get_setting(&"small_bodies_symbol_size_percent")
+	return _default_symbol_sizes[gui_size] * percent / 100.0
 
 
 func _set_gui_font_sizes(gui_size: int) -> void:
@@ -187,11 +209,14 @@ func _set_gui_font_sizes(gui_size: int) -> void:
 func _set_label3d_sizes() -> void:
 	var gui_size: int = IVSettingsManager.get_setting(&"gui_size")
 	var names_percent: int = IVSettingsManager.get_setting(&"label3d_names_size_percent")
-	var symbols_percent: int = IVSettingsManager.get_setting(&"label3d_symbols_size_percent")
 	var default_font_size := _default_font_sizes[gui_size]
 	var names_size := roundi(default_font_size * names_percent / 100.0)
-	var symbols_size := roundi(default_font_size * symbols_percent / 100.0)
-	label3d_font_size_changed.emit(names_size, symbols_size)
+	label3d_font_size_changed.emit(names_size)
+
+
+func _set_symbol_sizes() -> void:
+	body_symbol_size_changed.emit(get_body_symbol_size())
+	small_bodies_symbol_size_changed.emit(get_small_bodies_symbol_size())
 
 
 func _settings_listener(setting: StringName, value: Variant) -> void:
@@ -199,5 +224,10 @@ func _settings_listener(setting: StringName, value: Variant) -> void:
 		&"gui_size":
 			var gui_size: int = value
 			_set_gui_font_sizes(gui_size)
-		&"label3d_names_size_percent", &"label3d_symbols_size_percent":
+			_set_symbol_sizes()
+		&"label3d_names_size_percent":
 			_set_label3d_sizes()
+		&"body_symbol_size_percent":
+			body_symbol_size_changed.emit(get_body_symbol_size())
+		&"small_bodies_symbol_size_percent":
+			small_bodies_symbol_size_changed.emit(get_small_bodies_symbol_size())

@@ -54,7 +54,7 @@ func _init(sbg: IVSmallBodiesGroup) -> void:
 	_sbg_alias = sbg.sbg_alias
 	cast_shadow = SHADOW_CASTING_SETTING_OFF
 	_sbg_huds_state.orbits_visibility_changed.connect(_set_visibility)
-	_sbg_huds_state.orbits_color_changed.connect(_set_color)
+	_sbg_huds_state.color_changed.connect(_set_color)
 	
 	var number := sbg.get_number()
 	
@@ -75,15 +75,16 @@ func _init(sbg: IVSmallBodiesGroup) -> void:
 	multimesh.use_custom_data = _multimesh_use_custom_data # may be forced true below
 	
 	# base (visible) material
-	if _shader_override:
-		var shader_material := ShaderMaterial.new()
-		shader_material.shader = _shader_override
-		material_override = shader_material
-	else:
-		var standard_material := StandardMaterial3D.new()
-		standard_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		standard_material.vertex_color_use_as_albedo = _multimesh_use_colors
-		material_override = standard_material
+	var shader_material := ShaderMaterial.new()
+	shader_material.shader = (_shader_override if _shader_override
+			else IVGlobal.resources[&"farwarp_line_shader"])
+	material_override = shader_material
+	if IVCoreSettings.apply_farwarp:
+		# Frustum culling tests the true-scale AABB against the far plane, but
+		# farwarp-remapped vertices are on-screen even when that test fails;
+		# make the test always pass wherever the camera can be.
+		var extent := IVCoreSettings.max_camera_distance
+		custom_aabb = AABB(-Vector3.ONE * extent, 2.0 * Vector3.ONE * extent)
 
 	# id overlay, orthogonal to appearance (_bypass_fragment_identifier suppresses it)
 	if _fragment_identifier and !_bypass_fragment_identifier:
@@ -121,13 +122,9 @@ func _set_visibility() -> void:
 
 func _set_color() -> void:
 	# subclass override if you don't want this for your shader_override
-	var color := _sbg_huds_state.get_orbits_color(_sbg_alias)
+	var color := _sbg_huds_state.get_color(_sbg_alias)
 	if _color == color:
 		return
 	_color = color
-	if _shader_override:
-		var shader_material: ShaderMaterial = material_override
-		shader_material.set_shader_parameter(&"color", color)
-	else:
-		var standard_material: StandardMaterial3D = material_override
-		standard_material.albedo_color = color
+	var shader_material: ShaderMaterial = material_override
+	shader_material.set_shader_parameter(&"color", color)

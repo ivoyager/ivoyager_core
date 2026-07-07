@@ -47,7 +47,6 @@ var as_is_fields: Array[StringName] = [
 var dictionary_fields: Array[StringName] = [
 	&"body_orbit_colors",
 	&"sbg_points_colors",
-	&"sbg_orbits_colors",
 ]
 
 

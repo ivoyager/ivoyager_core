@@ -32,12 +32,13 @@ extends RefCounted
 ## and other resources.
 var preloads: Dictionary[StringName, Resource] = {
 	# shaders
-	orbiting_points_id_shader = preload(
-			"res://addons/ivoyager_core/shaders/orbiting_points_id.gdshader"),
-	orbiting_points_lp_id_shader = preload(
-			"res://addons/ivoyager_core/shaders/orbiting_points_lp_id.gdshader"),
+	orbiting_positions_id_shader = preload(
+			"res://addons/ivoyager_core/shaders/orbiting_positions_id.gdshader"),
+	orbiting_positions_lp_id_shader = preload(
+			"res://addons/ivoyager_core/shaders/orbiting_positions_lp_id.gdshader"),
 	id_shader = preload("res://addons/ivoyager_core/shaders/id.gdshader"),
 	instance_id_shader = preload("res://addons/ivoyager_core/shaders/instance_id.gdshader"),
+	farwarp_line_shader = preload("res://addons/ivoyager_core/shaders/farwarp_line.gdshader"),
 	rings_shader = preload("res://addons/ivoyager_core/shaders/rings.gdshader"),
 	rings_shadow_caster_shader = preload(
 			"res://addons/ivoyager_core/shaders/rings_shadow_caster.gdshader"),
@@ -90,7 +91,7 @@ func _make_shared_resources() -> void:
 
 ## Shared [SphereMesh] for stars, planets and moons. Instantiated here as a
 ## unit sphere (radius = 1.0; height = 2.0) at specified resolution. Scaled for
-## indivudual [IVBody] oblateness by [IVPhysicalBody].
+## indivudual [IVBody] oblateness by [IVBodyVisual].
 func _make_sphere_mesh(radial_segments := 64, rings := 32) -> SphereMesh:
 	# Signature has Godot defaults; IVProjectSettings likely specifies higher value.
 	var sphere_mesh := SphereMesh.new()

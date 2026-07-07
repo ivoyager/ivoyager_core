@@ -51,14 +51,16 @@ extends Node3D
 ## can evolve over time (e.g., the base class supports orbit precessions) or
 ## change in other ways. See [IVOrbit] file docs for thrust implementation.[br][br]
 ##
-## This node adds its own [IVPhysicalBody] if needed. [IVBody] maintains the
-## rotation of its [IVPhysicalBody] if present. [IVPhysicalBody] instantiates
-## and scales the visual representation (i.e., model) of this body. Note that
-## ivoyager_core does not implement collisions. ([IVBody] and [IVPhysicalBody]
+## This node adds its own [IVBodyVisual] if needed, parented under an
+## interposed [member farwarp_space] Node3D that carries only the farwarp
+## position offset and uniform scale (see [IVFarwarpManager]). [IVBody]
+## maintains the rotation of its [IVBodyVisual] if present. [IVBodyVisual]
+## instantiates and scales the visual representation (i.e., model) of this body. Note that
+## ivoyager_core does not implement collisions. ([IVBody] and [IVBodyVisual]
 ## subclasses would likely be needed to do that.) If [IVLazyModelInitializer] is
 ## present and this body has [enum BodyFlags].BODYFLAGS_LAZY_MODEL (from data
 ## table field [param lazy_model]),
-## then [IVPhysicalBody] won't be added until the camera visits this body or a
+## then [IVBodyVisual] won't be added until the camera visits this body or a
 ## closely associated "lazy" body. This is generally set for spacecraft (which
 ## are small but have large models) and for the 100s of small outer moons of
 ## the gas giants (but not for inner moons because these can be seen from
@@ -82,7 +84,7 @@ extends Node3D
 ## to many of these characteristics with sensible fallbacks for missing keys.[br][br]
 ##
 ## Many body-associated "graphic" nodes are added by [IVBodyFinisher] including
-## [IVRings], [IVDynamicLight], [IVPathVisual], and [IVBodyLabel]. Dependency
+## [IVRings], [IVDynamicLight], [IVPathVisual], and [IVBodyPositionVisual]. Dependency
 ## is inverted for these classes: they have reference to their [IVBody] but
 ## [IVBody] has no reference to them.[br][br]
 ## 
@@ -224,12 +226,18 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 
 
 ## Set this script to generate a subclass in place of IVBody in create methods.
-## A subclass can do this in their _static_init() for project-wide replacement.
+## Set [code]IVBody.replacement_subclass = MyBody[/code] for project-wide
+## replacement.
 static var replacement_subclass: Script
-## Set this script to replace the [IVPhysicalBody] class.
-static var replacement_physical_body_class: Script
-## Static class setting. Default value is a dashed circle.
-static var default_symbol := "\u25CC"
+## Set this script to replace the [IVBodyVisual] class.
+static var replacement_body_visual_class: Script
+## Registry of model-attitude 'process' methods, keyed by the name used in the spacecrafts.tsv
+## 'process' field. Each [Callable] runs every frame as
+## [code]method(body, delta, ...process_args)[/code] and returns [code]true[/code] to own the
+## body's model attitude (skipping the default axial rotation) or [code]false[/code] to fall
+## through to it. Register entries in [method _static_init] or from project code to add a
+## process method without subclassing.
+static var process_methods: Dictionary[StringName, Callable] = {}
 ## Static class setting.
 static var system_mean_radius_multiplier := 15.0
 ## Static class setting.
@@ -281,7 +289,7 @@ var characteristics: Dictionary[StringName, Variant] = {} # non-object values
 ## Persisted dictionary of object-valued components (e.g. an [IVComposition]).
 var components: Dictionary[StringName, RefCounted] = {} # objects (persisted only)
 
-# redirect
+# redirect (authoritative value in private variable)
 ## This body's [IVOrbit]; null if "top" body.
 var orbit: IVOrbit: get = get_orbit, set = set_orbit
 
@@ -294,18 +302,29 @@ var star: IVBody
 var star_orbiter: IVBody
 ## Bodies in orbit around (children of) this body. Read-only!
 var satellites: Dictionary[StringName, IVBody]
-
 ## Orbiting bodies sorted by semi-parameter. Order isn't maintained during
 ## game session and can be lost due to orbit changes (e.g., spacecraft changing
 ## semi-parameter). It will be restored after every game load.
 var ordered_satellites: Array[IVBody]
-
 ## If present, the Node3D that has this body's visual
 ## representation (model). If data table value [param lazy_model] == TRUE, then
 ## this value will be null until needed. Read-only!
-var physical_body: Node3D
-## Current visibility state for associated HUD elements, including IVBodyLabel
-## and IVPathVisual. Read-only!
+var body_visual: Node3D
+## If present, the Node3D interposed between this body and [member body_visual]
+## that carries the farwarp position and uniform scale (rotation is never
+## applied here). It is [member Node3D.top_level] when farwarp is enabled:
+## positioned per-frame in world space from camera-relative math, because
+## summing true-scale translations through the ancestor chain loses the
+## compressed position to float32 rounding (one ulp of the true distance can
+## exceed the whole compressed distance). See [IVFarwarpManager]. Read-only!
+var farwarp_space: Node3D
+## Current farwarp-compressed global position of this body's visuals; equals
+## the true global position inside the farwarp start distance. Consumed
+## per-frame by [IVBodyPositionVisual] (also top_level). Not maintained when
+## farwarp is disabled. Read-only!
+var farwarp_position := Vector3.ZERO
+## Current visibility state for associated HUD elements, including
+## IVBodyPositionVisual and IVPathVisual. Read-only!
 var huds_visible := false
 ## True while simulator time is within [member begin]/[member end], or always true
 ## if no [member begin] is set. Maintained in [method _process]; see
@@ -327,8 +346,10 @@ var _hill_sphere: float
 var _lazy_model_uninited := false
 var _sleeping := false
 var _min_hud_dist: float
+var _farwarp_no_cutoff := false # stars bypass the farwarp angular-size gate
 var _times: Array[float] = IVGlobal.times
 var _world_controller: IVWorldController = IVGlobal.program[&"WorldController"]
+var _process_callable: Callable # bespoke model attitude named by spacecrafts.tsv 'process'
 
 var _stroboscope_frame_rate := IVCoreSettings.stroboscope_frames_per_second / IVUnits.SECOND
 var _stroboscope_minimum_blur := IVCoreSettings.stroboscope_minimum_blur
@@ -499,6 +520,84 @@ static func _add_selection_recursive(body: IVBody) -> void:
 
 
 # *****************************************************************************
+# model attitude 'process' methods & registry
+
+# process_methods maps a spacecrafts.tsv 'process' name to one of the static methods below,
+# resolved once per body in _resolve_process() and called every frame via _process_callable as
+# method(body, delta, ...process_args). A method returns true to own the body's model attitude
+# (skipping the default axial rotation in _process()) or false to fall through to it. Mirrors the
+# IVSpheroidModel 'process' mechanism. Per the table-method convention these methods may reference
+# bodies by name (&"PLANET_EARTH", &"STAR_SUN") and must convert any unit-tagged argument
+# in-method, since the table cannot specify a unit for a VARIANT. All operate on body_visual.basis,
+# a world-oriented frame because IVBody nodes are never rotated; model-frame axis args are tunable.
+
+static func _static_init() -> void:
+	process_methods[&"_earth_pointing"] = _earth_pointing
+	process_methods[&"_sun_pointing"] = _sun_pointing
+	process_methods[&"_process_iss"] = _process_iss
+	process_methods[&"_process_hubble"] = _process_hubble
+
+
+## Named by a 'process' field (spacecrafts.tsv). Aims [param body]'s model [param boresight_axis]
+## (model frame) at Earth, rolling so [param up_axis] (model frame) stays near ecliptic north — a
+## deep-space craft holding its high-gain antenna on Earth (Pioneer, Voyager, New Horizons).
+## Always owns the attitude (returns [code]true[/code]).
+static func _earth_pointing(body: IVBody, _delta: float, boresight_axis: Vector3,
+		up_axis: Vector3) -> bool:
+	const ECLIPTIC_NORTH := Vector3(0, 0, 1)
+	var earth: IVBody = bodies.get(&"PLANET_EARTH")
+	if not earth:
+		return true
+	var to_earth := earth.global_position - body.global_position
+	if to_earth.is_zero_approx():
+		return true
+	body.body_visual.basis = IVMath.get_alignment_basis(boresight_axis, up_axis, to_earth, ECLIPTIC_NORTH)
+	return true
+
+
+## Named by a 'process' field (spacecrafts.tsv). Aims [param body]'s model [param spin_axis]
+## (model frame) at the Sun and spins the model about it once per [param spin_period_days] — a
+## spin-stabilized, solar-powered craft (Juno). Always owns the attitude (returns [code]true[/code]).
+static func _sun_pointing(body: IVBody, _delta: float, spin_axis: Vector3,
+		spin_period_days: float) -> bool:
+	const ECLIPTIC_NORTH := Vector3(0, 0, 1)
+	var sun: IVBody = bodies.get(&"STAR_SUN")
+	if not sun:
+		return true
+	var to_sun := sun.global_position - body.global_position
+	if to_sun.is_zero_approx():
+		return true
+	to_sun = to_sun.normalized()
+	var base := IVMath.get_alignment_basis(spin_axis, Vector3(1, 0, 0), to_sun, ECLIPTIC_NORTH)
+	var spin_rate := TAU / (spin_period_days * IVUnits.DAY) # turns/day -> internal rad/s
+	body.body_visual.basis = base.rotated(to_sun, fposmod(body._times[0] * spin_rate, TAU))
+	return true
+
+
+## Named by a 'process' field (spacecrafts.tsv). Holds a nadir-locked LVLH attitude:
+## [param nadir_axis] (model frame) points at Earth's center and [param forward_axis]
+## (model frame) tracks the orbital velocity, so the station keeps the same face toward
+## Earth (ISS). Always owns the attitude (returns [code]true[/code]).
+static func _process_iss(body: IVBody, _delta: float, forward_axis: Vector3,
+		nadir_axis: Vector3) -> bool:
+	var lvlh := body.get_orbit_tracking_basis() # world: x = nadir, y = along-track, z = orbit normal
+	body.body_visual.basis = IVMath.get_alignment_basis(nadir_axis, forward_axis, lvlh.x, lvlh.y)
+	return true
+
+
+## Named by a 'process' field (spacecrafts.tsv). Holds an inertial attitude that slews
+## slowly about [param slew_axis] (world frame) at [param slew_deg_per_day] — a space
+## telescope holding and re-pointing a celestial aim rather than tracking Earth (Hubble).
+## Always owns the attitude (returns [code]true[/code]).
+static func _process_hubble(body: IVBody, _delta: float, slew_axis: Vector3,
+		slew_deg_per_day: float) -> bool:
+	const CONVERSION := IVUnits.DEG / IVUnits.DAY # deg/day -> internal rad/s
+	var slew_rate := slew_deg_per_day * CONVERSION
+	body.body_visual.basis = Basis(slew_axis.normalized(), fposmod(body._times[0] * slew_rate, TAU))
+	return true
+
+
+# *****************************************************************************
 # virtual
 
 
@@ -516,7 +615,7 @@ func _enter_tree() -> void:
 	if flags & LAZY_MODEL and IVGlobal.program.has(&"LazyModelInitializer"):
 		_lazy_model_uninited = true
 	else:
-		_add_physical_body()
+		_add_body_visual()
 
 
 func _exit_tree() -> void:
@@ -531,8 +630,13 @@ func _ready() -> void:
 	IVSettingsManager.changed.connect(_settings_listener)
 	_set_resources()
 	_set_min_hud_dist()
+	_farwarp_no_cutoff = get_inf_visibility()
 	_stroboscope_rotation = randf() * TAU if _stroboscope_frame_rate else 0.0
-	
+
+	var process_method: StringName = characteristics.get(&"process", &"")
+	var process_args: Array = characteristics.get(&"process_args", [])
+	_resolve_process(process_method, process_args)
+
 	# Below for body added after system tree is already built
 	if not IVStateManager.built_system: # currently building from tables or savefile
 		return
@@ -593,22 +697,28 @@ func _process(delta: float) -> void:
 	if huds_visible != show_huds:
 		huds_visible = show_huds
 		huds_visibility_changed.emit(show_huds)
-	
+
 	# update model if needed
-	if not physical_body:
+	if not body_visual:
 		return
+
+	if _process_callable.is_valid():
+		# A spacecrafts.tsv 'process' method drives this body's model attitude; it returns
+		# true to own it (skip the rotation below) or false to fall through to that rotation.
+		if _process_callable.call(self, delta):
+			return
 
 	var rotation_angle: float
 	if !_stroboscope_frame_rate or _tree.paused:
 		rotation_angle = fposmod(time * rotation_rate, TAU)
-		physical_body.basis = orientation_at_epoch.rotated(rotation_axis, rotation_angle)
+		body_visual.basis = orientation_at_epoch.rotated(rotation_axis, rotation_angle)
 		return
 	
 	# Stroboscope effect uses a simulated frame rate. (True frame rate doesn't matter.)
 	var rotation_per_frame := rotation_rate * _times[1] / _stroboscope_frame_rate
 	if absf(rotation_per_frame) < PI: # no stroboscopic effect; show true rotation
 		rotation_angle = fposmod(time * rotation_rate, TAU)
-		physical_body.basis = orientation_at_epoch.rotated(rotation_axis, rotation_angle)
+		body_visual.basis = orientation_at_epoch.rotated(rotation_axis, rotation_angle)
 		return
 	
 	var visual_rotation_per_frame := angle_difference(0.0, rotation_per_frame)
@@ -621,7 +731,7 @@ func _process(delta: float) -> void:
 		# shift every other frame is the most pleasing at ~60 Hz actual frame rate.
 		rotation_angle += _stroboscope_minimum_blur
 		rotation_angle += _stroboscope_motion_blur * absf(visual_rotation_per_frame)
-	physical_body.basis = orientation_at_epoch.rotated(rotation_axis, rotation_angle)
+	body_visual.basis = orientation_at_epoch.rotated(rotation_axis, rotation_angle)
 
 
 # *****************************************************************************
@@ -810,8 +920,6 @@ func get_characteristic(key: StringName) -> Variant:
 			return get_polar_radius()
 		&"hud_name":
 			return get_hud_name()
-		&"symbol":
-			return get_symbol()
 		&"body_class":
 			return get_body_class()
 		&"perspective_radius":
@@ -858,11 +966,6 @@ func get_polar_radius() -> float:
 ## Returns a specific name for HUD use, if different from [member Node.name].
 func get_hud_name() -> String:
 	return characteristics.get(&"hud_name", name)
-
-
-## Returns the symbol used by [IVBodyLabel].
-func get_symbol() -> String:
-	return characteristics.get(&"symbol", default_symbol) # default is dashed circle
 
 
 ## Returns this body's body_class. See data table [param body_classes.tsv].
@@ -1131,17 +1234,17 @@ func get_hill_sphere() -> float:
 ## Supply [param time] only if you don't want the current value.
 func get_orientation(time := NAN) -> Basis:
 	if is_nan(time):
-		if physical_body and !_sleeping:
-			return physical_body.basis
+		if body_visual and !_sleeping:
+			return body_visual.basis
 		time = _times[0]
 	var rotation_angle := wrapf(time * rotation_rate, 0.0, TAU)
 	return orientation_at_epoch.rotated(rotation_axis, rotation_angle)
 
 
-## Returns a valid current "postion" or projected position at specified time.
-## Return is valid even if this instance is currently sleeping (unlike
-## [member Node3D.position]). Supply [param time] only if you don't want the
-## current value.
+## Returns a valid current or projected position at [param time] as a 32-bit [Vector3]
+## (graphics idiom; see [method get_translation] for orbit precision). Valid even while
+## sleeping (unlike [member Node3D.position]). Supply [param time] only if you don't want
+## the current value.
 func get_position_vector(time := NAN) -> Vector3:
 	if is_nan(time):
 		if !_sleeping:
@@ -1149,17 +1252,47 @@ func get_position_vector(time := NAN) -> Vector3:
 		time = _times[0]
 	if _orbit:
 		var orbit_time := _clamp_trajectory_time(time)
-		return _get_orbit_at_time(orbit_time).get_position(orbit_time)
+		return _get_orbit_at_time(orbit_time).get_position_vector(orbit_time)
 	# TODO: "top" bodies may have position and velocity eventually,
 	# probably as fixed values relative to galaxy center.
 	return Vector3.ZERO
 
 
-## Returns current [position, velocity] or projected [position, velocity] at
-## specified time as a Vector3 array. Return is valid even if this instance is
-## currently sleeping. Supply [param time] only if you don't want the current
-## value.
-func get_state_vectors(time := NAN) -> Array[Vector3]:
+## Returns a valid current or projected orbit-precision translation [x, y, z] (64-bit
+## [PackedFloat64Array]) at [param time], relative to the parent. Valid even while sleeping.
+## Supply [param time] only if you don't want the current value. See also
+## [method get_position_vector] (32-bit).
+func get_translation(time := NAN) -> PackedFloat64Array:
+	if is_nan(time):
+		time = _times[0]
+	if _orbit:
+		var orbit_time := _clamp_trajectory_time(time)
+		return _get_orbit_at_time(orbit_time).get_translation(orbit_time)
+	# TODO: "top" bodies may have position and velocity eventually,
+	# probably as fixed values relative to galaxy center.
+	return PackedFloat64Array([0.0, 0.0, 0.0])
+
+
+## Returns this body's orbit-precision translation [x, y, z] (size-3 [PackedFloat64Array])
+## in [param ancestor]'s frame at [param time], summed up the parent chain. IVBody nodes are
+## never rotated/scaled, so frame conversion is pure vector addition. If [param ancestor] is
+## not on the parent chain, sums to the top body (best effort).
+func get_translation_to_ancestor(ancestor: IVBody, time := NAN) -> PackedFloat64Array:
+	var offset := PackedFloat64Array([0.0, 0.0, 0.0])
+	var node := self
+	while node and node != ancestor:
+		var translation := node.get_translation(time)
+		offset[0] += translation[0]
+		offset[1] += translation[1]
+		offset[2] += translation[2]
+		node = node.parent
+	return offset
+
+
+## Returns current or projected [code][position, velocity][/code] at [param time] as a
+## 32-bit [PackedVector3Array] (graphics idiom; see [method get_state] for orbit precision).
+## Valid even while sleeping. Supply [param time] only if you don't want the current value.
+func get_state_vectors(time := NAN) -> PackedVector3Array:
 	if is_nan(time):
 		time = _times[0]
 	if _orbit:
@@ -1167,7 +1300,7 @@ func get_state_vectors(time := NAN) -> Array[Vector3]:
 		return _get_orbit_at_time(orbit_time).get_state_vectors(orbit_time)
 	# TODO: "top" bodies may have position and velocity eventually,
 	# probably as fixed values relative to galaxy center.
-	return [Vector3.ZERO, Vector3.ZERO]
+	return PackedVector3Array([Vector3.ZERO, Vector3.ZERO])
 
 
 ## Returns Vector2(latitude, longitude) of [param vector] with respect to this
@@ -1221,7 +1354,7 @@ func get_orbit_tracking_basis(time := NAN) -> Basis:
 		time = _times[0]
 	time = _clamp_trajectory_time(time)
 	var active_orbit := _get_orbit_at_time(time)
-	x_axis = -active_orbit.get_position(time).normalized()
+	x_axis = -active_orbit.get_position_vector(time).normalized()
 	z_axis = active_orbit.get_normal_at_time(time, true, true)
 	y_axis = z_axis.cross(x_axis)
 	return Basis(x_axis, y_axis, z_axis)
@@ -1560,26 +1693,27 @@ func unindex_satellite(satellite: IVBody) -> void:
 	ordered_satellites.erase(satellite)
 
 
-## Adds a child Node3D to this body's [IVPhysicalBody]. Use for nodes that need to
+## Adds a child Node3D to this body's [IVBodyVisual]. Use for nodes that need to
 ## share the model's orientation and rotation in space, but not its scale. Used
 ## by [IVRings] (e.g., Saturn's Rings).
-func add_child_to_physical_body(node3d: Node3D) -> void:
-	if !physical_body:
-		_add_physical_body()
-	physical_body.add_child(node3d)
+func add_child_to_body_visual(node3d: Node3D) -> void:
+	if !body_visual:
+		_add_body_visual()
+	body_visual.add_child(node3d)
 
 
-## Removes a child Node3D from this body's [IVPhysicalBody]. See [method add_child_to_physical_body].
-func remove_child_from_physical_body(node3d: Node3D) -> void:
-	physical_body.remove_child(node3d)
+## Removes a child Node3D from this body's [IVBodyVisual]. See [method add_child_to_body_visual].
+func remove_child_from_body_visual(node3d: Node3D) -> void:
+	body_visual.remove_child(node3d)
 
 
 ## Removes model(s) but everything else remains (label & orbit HUDs, etc.).
-func remove_and_disable_physical_body() -> void:
+func remove_and_disable_body_visual() -> void:
 	flags |= BodyFlags.BODYFLAGS_DISABLE_MODEL_SPACE
-	if physical_body:
-		physical_body.queue_free()
-	physical_body = null
+	if farwarp_space:
+		farwarp_space.queue_free() # frees body_visual with it
+	farwarp_space = null
+	body_visual = null
 
 
 ## Returns true if this body has [member BodyFlags.BODYFLAGS_LAZY_MODEL] set
@@ -1590,7 +1724,37 @@ func is_lazy_model_uninited() -> bool:
 
 ## Use to init a lazy model, if needed. Normally called by [IVLazyModelInitializer].
 func lazy_model_init() -> void:
-	_add_physical_body()
+	_add_body_visual()
+
+
+## Called by [IVFarwarpManager] once per frame AFTER the camera has moved and
+## origin-shifted the Universe, so the world-space (top_level) placements of
+## [member farwarp_space] and [member farwarp_position] land in the frame's
+## final coordinates. A placement computed before the origin shift is one frame
+## of camera world-motion behind, which reads as violent shake on fast nearby
+## orbiters and off-center models during fast camera rotation. With
+## [param farwarp_start] <= 0.0 (no camera), places visuals at true positions.
+func update_farwarp(camera_global_position: Vector3, farwarp_start: float) -> void:
+	var camera_vector := global_position - camera_global_position
+	var farwarp_dist := camera_vector.length()
+	var factor := IVFarwarpManager.get_farwarp_factor(farwarp_dist, farwarp_start)
+	# Assembled camera-relative: scaling the true-scale vector keeps float32
+	# rounding proportional to the compressed distance (origin shifting keeps
+	# camera_global_position small). Never derive this by offsetting true-scale
+	# positions - the rounding of the large terms swamps the small result.
+	farwarp_position = camera_global_position + camera_vector * factor
+	if !farwarp_space:
+		return
+	if factor != 1.0 and (_farwarp_no_cutoff
+			or mean_radius > farwarp_dist * IVFarwarpManager.angular_cutoff):
+		farwarp_space.position = farwarp_position
+		farwarp_space.basis = Basis.from_scale(factor * Vector3.ONE)
+	else:
+		# Not remapped: track the true global position (top_level node doesn't
+		# follow this body). Sub-cutoff models beyond the far plane are
+		# distance-culled; the always-remapped HUD symbol represents the body.
+		farwarp_space.position = global_position
+		farwarp_space.basis = Basis.IDENTITY
 
 
 ## Current sleeping state. See [IVSleepManager].
@@ -1647,7 +1811,8 @@ func _clear_procedural() -> void:
 	parent = null
 	star = null
 	star_orbiter = null
-	physical_body = null
+	body_visual = null
+	farwarp_space = null
 	satellites.clear()
 	ordered_satellites.clear()
 	# static re-clearing is redundant but not expensive
@@ -1826,21 +1991,40 @@ func _update_rotations(is_intrinsic: bool) -> void:
 	rotation_chaged.emit(is_intrinsic)
 
 
-func _add_physical_body() -> void:
+func _add_body_visual() -> void:
 	const DISABLE_MODEL_SPACE := BodyFlags.BODYFLAGS_DISABLE_MODEL_SPACE
-	assert(!physical_body)
+	assert(!body_visual)
 	_lazy_model_uninited = false
 	if flags & DISABLE_MODEL_SPACE:
 		return
 	var e_radius := get_equatorial_radius()
-	if replacement_physical_body_class:
+	if replacement_body_visual_class:
 		@warning_ignore("unsafe_method_access")
-		physical_body = replacement_physical_body_class.new(name, mean_radius, e_radius, get_spheroid_type())
+		body_visual = replacement_body_visual_class.new(name, mean_radius, e_radius, get_spheroid_type())
 	else:
-		physical_body = IVPhysicalBody.new(name, mean_radius, e_radius, get_spheroid_type())
-	add_child(physical_body)
+		body_visual = IVBodyVisual.new(name, mean_radius, e_radius, get_spheroid_type())
+	farwarp_space = Node3D.new()
+	farwarp_space.name = &"FarwarpSpace"
+	# World-space placement (see farwarp_space doc); an inert identity child
+	# when farwarp is disabled.
+	farwarp_space.top_level = IVCoreSettings.apply_farwarp
+	farwarp_space.add_child(body_visual)
+	add_child(farwarp_space)
 
 
 func _settings_listener(setting: StringName, _value: Variant) -> void:
 	if setting == &"hide_hud_when_close":
 		_set_min_hud_dist()
+
+
+# *****************************************************************************
+# model attitude 'process' resolver (methods & registry are in the static section above)
+
+func _resolve_process(method: StringName, process_args: Array) -> void:
+	if not method:
+		return
+	var callable: Callable = process_methods.get(method, Callable())
+	if not callable.is_valid():
+		push_warning("Body %s: 'process' names unregistered method '%s'" % [name, method])
+		return
+	_process_callable = callable.bindv(process_args)

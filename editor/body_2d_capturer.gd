@@ -115,7 +115,7 @@ func bind_nodes(viewport: SubViewport, camera: Camera3D, key_light: DirectionalL
 
 
 ## Instantiates the packed model at [param glb_path], orients it with the shared
-## body convention ([method IVPhysicalBody.get_packed_model_reference_basis]), and
+## body convention ([method IVBodyVisual.get_packed_model_reference_basis]), and
 ## stages it. Returns its origin-centered AABB (pass back to [method frame_camera]);
 ## empty AABB on load failure.
 func load_model(glb_path: String) -> AABB:
@@ -123,7 +123,7 @@ func load_model(glb_path: String) -> AABB:
 	if !packed_scene:
 		return AABB()
 	var model := packed_scene.instantiate() as Node3D
-	model.basis = IVPhysicalBody.get_packed_model_reference_basis(1.0)
+	model.basis = IVBodyVisual.get_packed_model_reference_basis(1.0)
 	return _finish_load(model)
 
 

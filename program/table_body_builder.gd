@@ -49,7 +49,6 @@ var create_fields: Array[StringName] = [
 
 ## Add to IVBody.characteristics if non-missing value in table.
 var characteristics_fields: Array[StringName] = [
-	&"symbol",
 	&"hud_name",
 	&"body_class",
 	&"spheroid_type",
@@ -101,6 +100,8 @@ var characteristics_fields: Array[StringName] = [
 	&"atmosphere",
 	&"gas_giant",
 	&"trajectory",
+	&"process",
+	&"process_args",
 ]
 
 ## Maps table-column names to [enum IVBody.BodyFlags] bits. Each true value in

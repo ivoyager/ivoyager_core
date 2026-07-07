@@ -88,8 +88,9 @@ extends PopupPanel
 		[&"LABEL_LANGUAGE", &"language"],
 		[&"LABEL_GUI_SIZE", &"gui_size"],
 		[&"LABEL_NAMES_SIZE", &"label3d_names_size_percent"],
-		[&"LABEL_SYMBOLS_SIZE", &"label3d_symbols_size_percent"],
-		[&"LABEL_POINT_SIZE", &"point_size"],
+		[&"LABEL_SYMBOLS_SIZE", &"body_symbol_size_percent"],
+		[&"LABEL_SMALL_BODIES_SYMBOL_SIZE", &"small_bodies_symbol_size_percent"],
+		[&"LABEL_SMALL_BODIES_POINT_SIZE", &"small_bodies_point_size"],
 		[&"LABEL_HIDE_HUDS_WHEN_CLOSE", &"hide_hud_when_close"],
 	],
 	LABEL_GRAPHICS_PERFORMANCE = [
@@ -121,8 +122,9 @@ extends PopupPanel
 @export var option_control_properties: Dictionary[StringName, Dictionary] = {
 	camera_transfer_time = {max_value = 10.0},
 	label3d_names_size_percent = {min_value = 20, max_value = 500, step = 10, suffix = "%"},
-	label3d_symbols_size_percent = {min_value = 20, max_value = 500, step = 10, suffix = "%"},
-	point_size = {min_value = 3, max_value = 20},
+	body_symbol_size_percent = {min_value = 20, max_value = 500, step = 10, suffix = "%"},
+	small_bodies_symbol_size_percent = {min_value = 10, max_value = 250, step = 10, suffix = "%"},
+	small_bodies_point_size = {min_value = 1, max_value = 20},
 }
 
 var _enumerations: Dictionary[StringName, Dictionary] = {}

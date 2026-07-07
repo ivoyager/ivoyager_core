@@ -20,20 +20,15 @@
 class_name IVHUDsColorPickerButton
 extends ColorPickerButton
 
-## A ColorPickerButton widget for setting color of an HUD element (points or
-## orbits) for a class of [IVBody] or [IVSmallBodiesGroup]
+## A ColorPickerButton widget for setting the shared HUD color (symbol, name and
+## orbit) of a class of [IVBody] or [IVSmallBodiesGroup].
 ##
-## Specify either [member body_flags] or [sbg_aliases], not both. For bodies,
-## [member hud_type] can only be ORBITS. For SBGs, it can be POINTS or ORBITS.[br][br]
-
-enum ColorHUDsType {POINTS, ORBITS}
+## Specify either [member body_flags] or [member sbg_aliases], not both.[br][br]
 
 const SCENE := "res://addons/ivoyager_core/ui_widgets/huds_color_picker_button.tscn"
 const NULL_COLOR := Color.BLACK
 
 
-## For bodies, must be ORBITS. For SBGs, can be POINTS or ORBITS.
-@export var hud_type: ColorHUDsType
 ## Specify a class of body by [enum IVBody.BodyFlags]. In most cases this should
 ## be one of the exclusive flags defined in data table "visual_groups.tsv"
 ## field "body_flags" (only these have default colors and visibilities).
@@ -51,13 +46,10 @@ var _suppress_state_update := false
 
 ## Creates a new [IVHUDsColorPickerButton] instance using specified parameters.
 @warning_ignore("shadowed_variable")
-static func create(hud_type: ColorHUDsType, body_flags: int, sbg_aliases: Array[StringName] = []
+static func create(body_flags: int, sbg_aliases: Array[StringName] = []
 		) -> IVHUDsColorPickerButton:
 	assert((!body_flags) != (!sbg_aliases), "Set either 'body_flags' or 'sbg_aliases', not both")
-	assert(!body_flags or hud_type == ColorHUDsType.ORBITS,
-			"Bodies HUD must be ORBITS")
 	var button: IVHUDsColorPickerButton = (load(SCENE) as PackedScene).instantiate()
-	button.hud_type = hud_type
 	button.body_flags = body_flags
 	button.sbg_aliases = sbg_aliases
 	return button
@@ -82,8 +74,8 @@ func _configure_after_core_inited() -> void:
 func _configure_bodies() -> void:
 	_body_huds_state = IVGlobal.program[&"BodyHUDsState"]
 	_body_huds_state.color_changed.connect(_on_state_changed)
-	_current_color_test = _body_huds_state.get_orbit_color.bind(body_flags)
-	var default_color := _body_huds_state.get_default_orbit_color(body_flags)
+	_current_color_test = _body_huds_state.get_color.bind(body_flags)
+	var default_color := _body_huds_state.get_default_color(body_flags)
 	if default_color != NULL_COLOR:
 		get_picker().add_preset(default_color)
 		# Godot ISSUE: As of 4.5.1, add_preset() adds to ALL ColorPickers,
@@ -92,18 +84,11 @@ func _configure_bodies() -> void:
 
 func _configure_sbgs() -> void:
 	_sbg_huds_state = IVGlobal.program[&"SBGHUDsState"]
-	if hud_type == ColorHUDsType.POINTS:
-		_sbg_huds_state.points_color_changed.connect(_on_state_changed)
-		_current_color_test = _sbg_huds_state.get_consensus_points_color.bind(sbg_aliases)
-		var default_color := _sbg_huds_state.get_consensus_points_color(sbg_aliases, true)
-		if default_color != NULL_COLOR:
-			get_picker().add_preset(default_color)
-	else:
-		_sbg_huds_state.orbits_color_changed.connect(_on_state_changed)
-		_current_color_test = _sbg_huds_state.get_consensus_orbits_color.bind(sbg_aliases)
-		var default_color := _sbg_huds_state.get_consensus_orbits_color(sbg_aliases, true)
-		if default_color != NULL_COLOR:
-			get_picker().add_preset(default_color)
+	_sbg_huds_state.color_changed.connect(_on_state_changed)
+	_current_color_test = _sbg_huds_state.get_consensus_color.bind(sbg_aliases)
+	var default_color := _sbg_huds_state.get_consensus_color(sbg_aliases, true)
+	if default_color != NULL_COLOR:
+		get_picker().add_preset(default_color)
 
 
 func _on_color_changed(picker_color: Color) -> void:
@@ -111,13 +96,10 @@ func _on_color_changed(picker_color: Color) -> void:
 		return
 	_suppress_state_update = true
 	if body_flags:
-		_body_huds_state.set_orbit_color(body_flags, picker_color)
-	elif hud_type == ColorHUDsType.POINTS:
-		for alias in sbg_aliases:
-			_sbg_huds_state.set_points_color(alias, picker_color)
+		_body_huds_state.set_color(body_flags, picker_color)
 	else:
 		for alias in sbg_aliases:
-			_sbg_huds_state.set_orbits_color(alias, picker_color)
+			_sbg_huds_state.set_color(alias, picker_color)
 	_suppress_state_update = false
 
 

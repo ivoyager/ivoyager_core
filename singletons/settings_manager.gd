@@ -69,8 +69,9 @@ var _defaults: Dictionary[StringName, Variant] = {
 	&"language" : 0, # see IVLanguageManager
 	&"gui_size" : 1, # see IVCoreSettings.gui_size_settings
 	&"label3d_names_size_percent" : 100,
-	&"label3d_symbols_size_percent" : 100,
-	&"point_size" : 3,
+	&"body_symbol_size_percent" : 100, # % of IVThemeManager GUI-scaled symbol_base_size (IVBodyPositionVisual)
+	&"small_bodies_symbol_size_percent" : 40, # % of IVThemeManager GUI-scaled symbol_base_size (shaped symbols)
+	&"small_bodies_point_size" : 3, # point-sprite px for plain points (symbol_type -1)
 	&"hide_hud_when_close" : true, # restart or load required
 	
 	# graphics/performance

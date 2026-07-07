@@ -21,7 +21,7 @@ class_name IVSBGFinisher
 extends RefCounted
 
 ## Adds non-persistant [IVSmallBodiesGroup]-associated nodes including orbits
-## and points visuals.
+## and positions visuals.
 ##
 ## Graphic nodes added here are not referenced anywhere else so can be fully
 ## replaced by modifying script members here. Replacement classes must have
@@ -41,7 +41,7 @@ var disable_threads := false
 ## replace with any Node3D.
 var replacement_sbg_orbits_visual_class: Script
 ## replace with any Node3D.
-var replacement_sbg_points_visual_class: Script
+var replacement_sbg_positions_visual_class: Script
 
 
 var _use_threads: bool
@@ -67,7 +67,7 @@ func _on_node_added(node: Node) -> void:
 	# Count doesn't matter here, but might if we implement thread as for IVBody...
 	_state_auxiliary.change_tree_building_count(1)
 	_add_sbg_orbits(sbg)
-	_add_sbg_points(sbg)
+	_add_sbg_positions(sbg)
 	_state_auxiliary.change_tree_building_count(-1)
 
 
@@ -82,12 +82,12 @@ func _add_sbg_orbits(sbg: IVSmallBodiesGroup) -> void:
 	parent.add_child(sbg_orbits_visual)
 
 
-func _add_sbg_points(sbg: IVSmallBodiesGroup) -> void:
-	var sbg_points_visual: Node3D
-	if replacement_sbg_points_visual_class:
+func _add_sbg_positions(sbg: IVSmallBodiesGroup) -> void:
+	var sbg_positions_visual: Node3D
+	if replacement_sbg_positions_visual_class:
 		@warning_ignore("unsafe_method_access")
-		sbg_points_visual = replacement_sbg_points_visual_class.new()
+		sbg_positions_visual = replacement_sbg_positions_visual_class.new()
 	else:
-		sbg_points_visual = IVSBGPointsVisual.new(sbg)
+		sbg_positions_visual = IVSBGPositionsVisual.new(sbg)
 	var parent: Node3D = sbg.get_parent()
-	parent.add_child(sbg_points_visual)
+	parent.add_child(sbg_positions_visual)

@@ -10,6 +10,7 @@
 content_margin_bottom = 4.0
 
 [resource]
+CheckBox/colors/checkbox_unchecked_color = Color(5.5, 5.5, 5.5, 0.5)
 ClearFoldable/base_type = &"FoldableContainer"
 ClearFoldable/styles/panel = SubResource("StyleBoxEmpty_87s7r")
 ClearFoldable/styles/title_collapsed_hover_panel = SubResource("StyleBoxEmpty_axr0f")

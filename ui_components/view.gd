@@ -76,7 +76,8 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"visible_orbits_groups",
 	&"body_orbit_colors",
 	&"sbg_points_colors",
-	&"sbg_orbits_colors",
+	&"body_symbol_types",
+	&"sbg_symbol_types",
 	&"speed_index",
 	&"user_paused",
 	&"time",
@@ -104,14 +105,15 @@ var camera_flags := 0
 var view_position := NULL_VECTOR3
 ## Camera orientation relative to target. See [IVCamera].
 var view_rotations := NULL_VECTOR3
-var name_visible_flags := 0 # exclusive w/ symbol_visible_flags
-var symbol_visible_flags := 0 # exclusive w/ name_visible_flags
+var name_visible_flags := 0
+var symbol_visible_flags := 0
 var orbit_visible_flags := 0
-var visible_points_groups: Array[StringName] = []
+var visible_points_groups: Array[StringName] = [] # sbg symbol visibility
 var visible_orbits_groups: Array[StringName] = []
-var body_orbit_colors: Dictionary[int, Color] = {} # has non-default only
-var sbg_points_colors: Dictionary[StringName, Color] = {} # has non-default only
-var sbg_orbits_colors: Dictionary[StringName, Color] = {} # has non-default only
+var body_orbit_colors: Dictionary[int, Color] = {} # shared group color; non-default only
+var sbg_points_colors: Dictionary[StringName, Color] = {} # shared group color; non-default only
+var body_symbol_types: Dictionary[int, int] = {} # non-default only
+var sbg_symbol_types: Dictionary[StringName, int] = {} # non-default only
 var speed_index := 0
 var user_paused := false
 ## Requires [member IVCoreSettings.allow_time_setting] == true.
@@ -171,7 +173,8 @@ func reset() -> void:
 	visible_orbits_groups.clear()
 	body_orbit_colors.clear()
 	sbg_points_colors.clear()
-	sbg_orbits_colors.clear()
+	body_symbol_types.clear()
+	sbg_symbol_types.clear()
 	time = 0.0
 	speed_index = 0
 	user_paused = false
@@ -248,12 +251,14 @@ func _save_huds_state() -> void:
 		name_visible_flags = _body_huds_state.name_visible_flags
 		symbol_visible_flags = _body_huds_state.symbol_visible_flags
 		orbit_visible_flags = _body_huds_state.orbit_visible_flags
-		visible_points_groups = _sbg_huds_state.get_visible_points_groups()
+		visible_points_groups = _sbg_huds_state.get_visible_symbols_groups()
 		visible_orbits_groups = _sbg_huds_state.get_visible_orbits_groups()
 	if flags & ViewFlags.VIEWFLAGS_HUDS_COLOR:
-		body_orbit_colors = _body_huds_state.get_non_default_orbit_colors()
-		sbg_points_colors = _sbg_huds_state.get_non_default_points_colors()
-		sbg_orbits_colors = _sbg_huds_state.get_non_default_orbits_colors()
+		# HUDS_COLOR also carries symbol shapes (both are per-group appearance).
+		body_orbit_colors = _body_huds_state.get_non_default_colors()
+		sbg_points_colors = _sbg_huds_state.get_non_default_colors()
+		body_symbol_types = _body_huds_state.get_non_default_symbol_types()
+		sbg_symbol_types = _sbg_huds_state.get_non_default_symbol_types()
 
 
 func _set_huds_state() -> void:
@@ -261,14 +266,15 @@ func _set_huds_state() -> void:
 		_body_huds_state.set_name_visible_flags(name_visible_flags)
 		_body_huds_state.set_symbol_visible_flags(symbol_visible_flags)
 		_body_huds_state.set_orbit_visible_flags(orbit_visible_flags)
-		_sbg_huds_state.set_visible_points_groups(
+		_sbg_huds_state.set_visible_symbols_groups(
 				Array(visible_points_groups, TYPE_STRING_NAME, &"", null), true, true)
 		_sbg_huds_state.set_visible_orbits_groups(
 				Array(visible_orbits_groups, TYPE_STRING_NAME, &"", null), true, true)
 	if flags & ViewFlags.VIEWFLAGS_HUDS_COLOR:
-		_body_huds_state.set_all_orbit_colors(body_orbit_colors) # ref safe
-		_sbg_huds_state.set_all_points_colors(sbg_points_colors)
-		_sbg_huds_state.set_all_orbits_colors(sbg_orbits_colors)
+		_body_huds_state.set_all_colors(body_orbit_colors) # ref safe
+		_sbg_huds_state.set_all_colors(sbg_points_colors)
+		_body_huds_state.set_all_symbol_types(body_symbol_types)
+		_sbg_huds_state.set_all_symbol_types(sbg_symbol_types)
 
 
 # time state
