@@ -51,16 +51,16 @@ extends Node3D
 ## can evolve over time (e.g., the base class supports orbit precessions) or
 ## change in other ways. See [IVOrbit] file docs for thrust implementation.[br][br]
 ##
-## This node adds its own [IVPhysicalBody] if needed, parented under an
+## This node adds its own [IVBodyVisual] if needed, parented under an
 ## interposed [member farwarp_space] Node3D that carries only the farwarp
 ## position offset and uniform scale (see [IVFarwarpManager]). [IVBody]
-## maintains the rotation of its [IVPhysicalBody] if present. [IVPhysicalBody]
+## maintains the rotation of its [IVBodyVisual] if present. [IVBodyVisual]
 ## instantiates and scales the visual representation (i.e., model) of this body. Note that
-## ivoyager_core does not implement collisions. ([IVBody] and [IVPhysicalBody]
+## ivoyager_core does not implement collisions. ([IVBody] and [IVBodyVisual]
 ## subclasses would likely be needed to do that.) If [IVLazyModelInitializer] is
 ## present and this body has [enum BodyFlags].BODYFLAGS_LAZY_MODEL (from data
 ## table field [param lazy_model]),
-## then [IVPhysicalBody] won't be added until the camera visits this body or a
+## then [IVBodyVisual] won't be added until the camera visits this body or a
 ## closely associated "lazy" body. This is generally set for spacecraft (which
 ## are small but have large models) and for the 100s of small outer moons of
 ## the gas giants (but not for inner moons because these can be seen from
@@ -228,8 +228,8 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 ## Set this script to generate a subclass in place of IVBody in create methods.
 ## A subclass can do this in their _static_init() for project-wide replacement.
 static var replacement_subclass: Script
-## Set this script to replace the [IVPhysicalBody] class.
-static var replacement_physical_body_class: Script
+## Set this script to replace the [IVBodyVisual] class.
+static var replacement_body_visual_class: Script
 ## Static class setting.
 static var system_mean_radius_multiplier := 15.0
 ## Static class setting.
@@ -281,7 +281,7 @@ var characteristics: Dictionary[StringName, Variant] = {} # non-object values
 ## Persisted dictionary of object-valued components (e.g. an [IVComposition]).
 var components: Dictionary[StringName, RefCounted] = {} # objects (persisted only)
 
-# redirect
+# redirect (authoritative value in private variable)
 ## This body's [IVOrbit]; null if "top" body.
 var orbit: IVOrbit: get = get_orbit, set = set_orbit
 
@@ -294,17 +294,15 @@ var star: IVBody
 var star_orbiter: IVBody
 ## Bodies in orbit around (children of) this body. Read-only!
 var satellites: Dictionary[StringName, IVBody]
-
 ## Orbiting bodies sorted by semi-parameter. Order isn't maintained during
 ## game session and can be lost due to orbit changes (e.g., spacecraft changing
 ## semi-parameter). It will be restored after every game load.
 var ordered_satellites: Array[IVBody]
-
 ## If present, the Node3D that has this body's visual
 ## representation (model). If data table value [param lazy_model] == TRUE, then
 ## this value will be null until needed. Read-only!
-var physical_body: Node3D
-## If present, the Node3D interposed between this body and [member physical_body]
+var body_visual: Node3D
+## If present, the Node3D interposed between this body and [member body_visual]
 ## that carries the farwarp position and uniform scale (rotation is never
 ## applied here). It is [member Node3D.top_level] when farwarp is enabled:
 ## positioned per-frame in world space from camera-relative math, because
@@ -531,7 +529,7 @@ func _enter_tree() -> void:
 	if flags & LAZY_MODEL and IVGlobal.program.has(&"LazyModelInitializer"):
 		_lazy_model_uninited = true
 	else:
-		_add_physical_body()
+		_add_body_visual()
 
 
 func _exit_tree() -> void:
@@ -615,7 +613,7 @@ func _process(delta: float) -> void:
 		huds_visibility_changed.emit(show_huds)
 
 	# update model if needed
-	if not physical_body:
+	if not body_visual:
 		return
 
 	if _process_callable.is_valid():
@@ -626,14 +624,14 @@ func _process(delta: float) -> void:
 	var rotation_angle: float
 	if !_stroboscope_frame_rate or _tree.paused:
 		rotation_angle = fposmod(time * rotation_rate, TAU)
-		physical_body.basis = orientation_at_epoch.rotated(rotation_axis, rotation_angle)
+		body_visual.basis = orientation_at_epoch.rotated(rotation_axis, rotation_angle)
 		return
 	
 	# Stroboscope effect uses a simulated frame rate. (True frame rate doesn't matter.)
 	var rotation_per_frame := rotation_rate * _times[1] / _stroboscope_frame_rate
 	if absf(rotation_per_frame) < PI: # no stroboscopic effect; show true rotation
 		rotation_angle = fposmod(time * rotation_rate, TAU)
-		physical_body.basis = orientation_at_epoch.rotated(rotation_axis, rotation_angle)
+		body_visual.basis = orientation_at_epoch.rotated(rotation_axis, rotation_angle)
 		return
 	
 	var visual_rotation_per_frame := angle_difference(0.0, rotation_per_frame)
@@ -646,7 +644,7 @@ func _process(delta: float) -> void:
 		# shift every other frame is the most pleasing at ~60 Hz actual frame rate.
 		rotation_angle += _stroboscope_minimum_blur
 		rotation_angle += _stroboscope_motion_blur * absf(visual_rotation_per_frame)
-	physical_body.basis = orientation_at_epoch.rotated(rotation_axis, rotation_angle)
+	body_visual.basis = orientation_at_epoch.rotated(rotation_axis, rotation_angle)
 
 
 # *****************************************************************************
@@ -1149,8 +1147,8 @@ func get_hill_sphere() -> float:
 ## Supply [param time] only if you don't want the current value.
 func get_orientation(time := NAN) -> Basis:
 	if is_nan(time):
-		if physical_body and !_sleeping:
-			return physical_body.basis
+		if body_visual and !_sleeping:
+			return body_visual.basis
 		time = _times[0]
 	var rotation_angle := wrapf(time * rotation_rate, 0.0, TAU)
 	return orientation_at_epoch.rotated(rotation_axis, rotation_angle)
@@ -1608,27 +1606,27 @@ func unindex_satellite(satellite: IVBody) -> void:
 	ordered_satellites.erase(satellite)
 
 
-## Adds a child Node3D to this body's [IVPhysicalBody]. Use for nodes that need to
+## Adds a child Node3D to this body's [IVBodyVisual]. Use for nodes that need to
 ## share the model's orientation and rotation in space, but not its scale. Used
 ## by [IVRings] (e.g., Saturn's Rings).
-func add_child_to_physical_body(node3d: Node3D) -> void:
-	if !physical_body:
-		_add_physical_body()
-	physical_body.add_child(node3d)
+func add_child_to_body_visual(node3d: Node3D) -> void:
+	if !body_visual:
+		_add_body_visual()
+	body_visual.add_child(node3d)
 
 
-## Removes a child Node3D from this body's [IVPhysicalBody]. See [method add_child_to_physical_body].
-func remove_child_from_physical_body(node3d: Node3D) -> void:
-	physical_body.remove_child(node3d)
+## Removes a child Node3D from this body's [IVBodyVisual]. See [method add_child_to_body_visual].
+func remove_child_from_body_visual(node3d: Node3D) -> void:
+	body_visual.remove_child(node3d)
 
 
 ## Removes model(s) but everything else remains (label & orbit HUDs, etc.).
-func remove_and_disable_physical_body() -> void:
+func remove_and_disable_body_visual() -> void:
 	flags |= BodyFlags.BODYFLAGS_DISABLE_MODEL_SPACE
 	if farwarp_space:
-		farwarp_space.queue_free() # frees physical_body with it
+		farwarp_space.queue_free() # frees body_visual with it
 	farwarp_space = null
-	physical_body = null
+	body_visual = null
 
 
 ## Returns true if this body has [member BodyFlags.BODYFLAGS_LAZY_MODEL] set
@@ -1639,7 +1637,7 @@ func is_lazy_model_uninited() -> bool:
 
 ## Use to init a lazy model, if needed. Normally called by [IVLazyModelInitializer].
 func lazy_model_init() -> void:
-	_add_physical_body()
+	_add_body_visual()
 
 
 ## Called by [IVFarwarpManager] once per frame AFTER the camera has moved and
@@ -1726,7 +1724,7 @@ func _clear_procedural() -> void:
 	parent = null
 	star = null
 	star_orbiter = null
-	physical_body = null
+	body_visual = null
 	farwarp_space = null
 	satellites.clear()
 	ordered_satellites.clear()
@@ -1906,24 +1904,24 @@ func _update_rotations(is_intrinsic: bool) -> void:
 	rotation_chaged.emit(is_intrinsic)
 
 
-func _add_physical_body() -> void:
+func _add_body_visual() -> void:
 	const DISABLE_MODEL_SPACE := BodyFlags.BODYFLAGS_DISABLE_MODEL_SPACE
-	assert(!physical_body)
+	assert(!body_visual)
 	_lazy_model_uninited = false
 	if flags & DISABLE_MODEL_SPACE:
 		return
 	var e_radius := get_equatorial_radius()
-	if replacement_physical_body_class:
+	if replacement_body_visual_class:
 		@warning_ignore("unsafe_method_access")
-		physical_body = replacement_physical_body_class.new(name, mean_radius, e_radius, get_spheroid_type())
+		body_visual = replacement_body_visual_class.new(name, mean_radius, e_radius, get_spheroid_type())
 	else:
-		physical_body = IVPhysicalBody.new(name, mean_radius, e_radius, get_spheroid_type())
+		body_visual = IVBodyVisual.new(name, mean_radius, e_radius, get_spheroid_type())
 	farwarp_space = Node3D.new()
 	farwarp_space.name = &"FarwarpSpace"
 	# World-space placement (see farwarp_space doc); an inert identity child
 	# when farwarp is disabled.
 	farwarp_space.top_level = IVCoreSettings.apply_farwarp
-	farwarp_space.add_child(physical_body)
+	farwarp_space.add_child(body_visual)
 	add_child(farwarp_space)
 
 
@@ -1941,7 +1939,7 @@ func _settings_listener(setting: StringName, _value: Variant) -> void:
 # IVSpheroidModel 'process' mechanism. Per the table-method convention these methods
 # may reference bodies by name (&"PLANET_EARTH", &"STAR_SUN") and must convert any
 # unit-tagged argument in-method, since the table cannot specify a unit for a VARIANT.
-# All operate on physical_body.basis, which is a world-oriented frame because IVBody
+# All operate on body_visual.basis, which is a world-oriented frame because IVBody
 # nodes are never rotated; the model-frame axis arguments are tunable per body.
 
 func _resolve_process(method: StringName, process_args: Array) -> void:
@@ -1965,7 +1963,7 @@ func _earth_pointing(_delta: float, boresight_axis: Vector3, up_axis: Vector3) -
 	var to_earth := earth.global_position - global_position
 	if to_earth.is_zero_approx():
 		return
-	physical_body.basis = IVMath.get_alignment_basis(boresight_axis, up_axis, to_earth, ECLIPTIC_NORTH)
+	body_visual.basis = IVMath.get_alignment_basis(boresight_axis, up_axis, to_earth, ECLIPTIC_NORTH)
 
 
 ## Named by a 'process' field (spacecrafts.tsv). Aims the model's [param spin_axis]
@@ -1982,7 +1980,7 @@ func _sun_pointing(_delta: float, spin_axis: Vector3, spin_period_days: float) -
 	to_sun = to_sun.normalized()
 	var base := IVMath.get_alignment_basis(spin_axis, Vector3(1, 0, 0), to_sun, ECLIPTIC_NORTH)
 	var spin_rate := TAU / (spin_period_days * IVUnits.DAY) # turns/day -> internal rad/s
-	physical_body.basis = base.rotated(to_sun, fposmod(_times[0] * spin_rate, TAU))
+	body_visual.basis = base.rotated(to_sun, fposmod(_times[0] * spin_rate, TAU))
 
 
 ## Named by a 'process' field (spacecrafts.tsv). Holds a nadir-locked LVLH attitude:
@@ -1991,7 +1989,7 @@ func _sun_pointing(_delta: float, spin_axis: Vector3, spin_period_days: float) -
 ## Earth (ISS).
 func _process_iss(_delta: float, forward_axis: Vector3, nadir_axis: Vector3) -> void:
 	var lvlh := get_orbit_tracking_basis() # world: x = nadir, y = along-track, z = orbit normal
-	physical_body.basis = IVMath.get_alignment_basis(nadir_axis, forward_axis, lvlh.x, lvlh.y)
+	body_visual.basis = IVMath.get_alignment_basis(nadir_axis, forward_axis, lvlh.x, lvlh.y)
 
 
 ## Named by a 'process' field (spacecrafts.tsv). Holds an inertial attitude that slews
@@ -2000,4 +1998,4 @@ func _process_iss(_delta: float, forward_axis: Vector3, nadir_axis: Vector3) -> 
 func _process_hubble(_delta: float, slew_axis: Vector3, slew_deg_per_day: float) -> void:
 	const CONVERSION := IVUnits.DEG / IVUnits.DAY # deg/day -> internal rad/s
 	var slew_rate := slew_deg_per_day * CONVERSION
-	physical_body.basis = Basis(slew_axis.normalized(), fposmod(_times[0] * slew_rate, TAU))
+	body_visual.basis = Basis(slew_axis.normalized(), fposmod(_times[0] * slew_rate, TAU))

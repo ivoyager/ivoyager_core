@@ -133,7 +133,7 @@ var open_conic_max_radius := 1000.0
 ## Limits camera distance. Used by [IVCamera].
 var max_camera_distance: float = 5e3 * IVUnits.AU
 ## Radius multiplier used to set [member GeometryInstance3D.visibility_range_end]
-## in [IVPhysicalBody] and [IVRings].
+## in [IVBodyVisual] and [IVRings].
 var radius_multiplier_visibility_range_end := 4000.0
 ## Enables "farwarp" compression: beyond a camera-relative start distance (see
 ## [member farwarp_start_ratio]), body model spaces, HUD position symbols, and

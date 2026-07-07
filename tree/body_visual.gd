@@ -1,4 +1,4 @@
-# physical_body.gd
+# body_visual.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -17,12 +17,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVPhysicalBody
+class_name IVBodyVisual
 extends Node3D
 
 ## Provides a model reference frame and instantiates a body's model.
 ##
-## This node is oriented and rotated by [IVBody], but is not scaled.[br][br]
+## This node is oriented and rotated by [IVBody], but is not itself scaled. It
+## scales the model that it instantiates.[br][br]
 ##
 ## This node is not persisted. If "lazy init" is applicable, it is created by
 ## [IVBody] only if/when needed and remains through the current user session.
@@ -32,10 +33,9 @@ extends Node3D
 ## Children can be added that share the model's axial tilt and rotation.
 ## In base Solar System setup, [IVBodyFinisher] adds [IVRings] for Saturn.[br][br]
 ##
-## Note: It's not planned to implement collisions in ivoyager_core. Perhaps a
-## subclass of [IVPhysicalBody] would be the best approach for that. We could
-## accept changes to this class that help facilitate collisions (as long as
-## they don't cost much when not used).
+## Note: It's not planned to implement collisions in ivoyager_core. It would be
+## challenging (to say the least) to feed model shape interactions back to our
+## own orbit physics.
 
 
 ## Body-frame reference basis used for orienting the model and rings.
@@ -59,7 +59,7 @@ func _init(body_name: StringName, mean_radius: float, equatorial_radius: float,
 	_body_name = body_name
 	_m_radius = mean_radius
 	_e_radius = equatorial_radius
-	name = &"PhysicalBody"
+	name = &"BodyVisual"
 	# A PackedScene model (self-defining) always wins. Otherwise build a spheroid from the
 	# spheroids.tsv type intent; an unspecified type (-1) resolves to row 0 (the fallback).
 	var asset_preloader: IVAssetPreloader = IVGlobal.program[&"AssetPreloader"]
@@ -113,7 +113,7 @@ func _build_spheroid_model(asset_preloader: IVAssetPreloader) -> void:
 		_model = IVSpheroidModel.new(_body_name, _spheroid_type, _m_radius, reference_basis)
 
 
-# Packed-scene models are foreign node trees, so [IVPhysicalBody] still recurses
+# Packed-scene models are foreign node trees, so [IVBodyVisual] still recurses
 # to set their visibility ranges and layers. Spheroid models self-configure (see
 # [IVSpheroidModel]).
 func _set_visibility_ranges() -> void:

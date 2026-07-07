@@ -26,7 +26,7 @@ extends MeshInstance3D
 ## The model used for stars and planetary-mass objects that have no packed-scene
 ## model. It is "shell 0" (the surface) and the parent of optional overlay shells
 ## 1..N (cloud deck, atmospheric haze, limb), each a child [IVSpheroidModel]. Created
-## by [IVPhysicalBody].[br][br]
+## by [IVBodyVisual].[br][br]
 ##
 ## A body's shells are listed in its body-table [code]shells[/code] field
 ## ([code]ARRAY[STRING][/code], e.g. [code]SURFACE;CLOUDS;LIMB[/code]); each tag names
@@ -288,7 +288,7 @@ func _assert_overrides_are_uniforms(overrides: Dictionary, shader: Shader) -> vo
 
 
 func _set_visibility_and_layers() -> void:
-	# Each shell self-configures (vs. a parent recursing) so [IVPhysicalBody] need
+	# Each shell self-configures (vs. a parent recursing) so [IVBodyVisual] need
 	# not know the shell structure. Mirrors the packed-model path's settings.
 	var asset_preloader: IVAssetPreloader = IVGlobal.program[&"AssetPreloader"]
 	if not asset_preloader.get_body_inf_visibility(_body_name):
