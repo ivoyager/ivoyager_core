@@ -231,6 +231,13 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 static var replacement_subclass: Script
 ## Set this script to replace the [IVBodyVisual] class.
 static var replacement_body_visual_class: Script
+## Registry of model-attitude 'process' methods, keyed by the name used in the spacecrafts.tsv
+## 'process' field. Each [Callable] runs every frame as
+## [code]method(body, delta, ...process_args)[/code] and returns [code]true[/code] to own the
+## body's model attitude (skipping the default axial rotation) or [code]false[/code] to fall
+## through to it. Register entries in [method _static_init] or from project code to add a
+## process method without subclassing.
+static var process_methods: Dictionary[StringName, Callable] = {}
 ## Static class setting.
 static var system_mean_radius_multiplier := 15.0
 ## Static class setting.
@@ -513,6 +520,84 @@ static func _add_selection_recursive(body: IVBody) -> void:
 
 
 # *****************************************************************************
+# model attitude 'process' methods & registry
+
+# process_methods maps a spacecrafts.tsv 'process' name to one of the static methods below,
+# resolved once per body in _resolve_process() and called every frame via _process_callable as
+# method(body, delta, ...process_args). A method returns true to own the body's model attitude
+# (skipping the default axial rotation in _process()) or false to fall through to it. Mirrors the
+# IVSpheroidModel 'process' mechanism. Per the table-method convention these methods may reference
+# bodies by name (&"PLANET_EARTH", &"STAR_SUN") and must convert any unit-tagged argument
+# in-method, since the table cannot specify a unit for a VARIANT. All operate on body_visual.basis,
+# a world-oriented frame because IVBody nodes are never rotated; model-frame axis args are tunable.
+
+static func _static_init() -> void:
+	process_methods[&"_earth_pointing"] = _earth_pointing
+	process_methods[&"_sun_pointing"] = _sun_pointing
+	process_methods[&"_process_iss"] = _process_iss
+	process_methods[&"_process_hubble"] = _process_hubble
+
+
+## Named by a 'process' field (spacecrafts.tsv). Aims [param body]'s model [param boresight_axis]
+## (model frame) at Earth, rolling so [param up_axis] (model frame) stays near ecliptic north — a
+## deep-space craft holding its high-gain antenna on Earth (Pioneer, Voyager, New Horizons).
+## Always owns the attitude (returns [code]true[/code]).
+static func _earth_pointing(body: IVBody, _delta: float, boresight_axis: Vector3,
+		up_axis: Vector3) -> bool:
+	const ECLIPTIC_NORTH := Vector3(0, 0, 1)
+	var earth: IVBody = bodies.get(&"PLANET_EARTH")
+	if not earth:
+		return true
+	var to_earth := earth.global_position - body.global_position
+	if to_earth.is_zero_approx():
+		return true
+	body.body_visual.basis = IVMath.get_alignment_basis(boresight_axis, up_axis, to_earth, ECLIPTIC_NORTH)
+	return true
+
+
+## Named by a 'process' field (spacecrafts.tsv). Aims [param body]'s model [param spin_axis]
+## (model frame) at the Sun and spins the model about it once per [param spin_period_days] — a
+## spin-stabilized, solar-powered craft (Juno). Always owns the attitude (returns [code]true[/code]).
+static func _sun_pointing(body: IVBody, _delta: float, spin_axis: Vector3,
+		spin_period_days: float) -> bool:
+	const ECLIPTIC_NORTH := Vector3(0, 0, 1)
+	var sun: IVBody = bodies.get(&"STAR_SUN")
+	if not sun:
+		return true
+	var to_sun := sun.global_position - body.global_position
+	if to_sun.is_zero_approx():
+		return true
+	to_sun = to_sun.normalized()
+	var base := IVMath.get_alignment_basis(spin_axis, Vector3(1, 0, 0), to_sun, ECLIPTIC_NORTH)
+	var spin_rate := TAU / (spin_period_days * IVUnits.DAY) # turns/day -> internal rad/s
+	body.body_visual.basis = base.rotated(to_sun, fposmod(body._times[0] * spin_rate, TAU))
+	return true
+
+
+## Named by a 'process' field (spacecrafts.tsv). Holds a nadir-locked LVLH attitude:
+## [param nadir_axis] (model frame) points at Earth's center and [param forward_axis]
+## (model frame) tracks the orbital velocity, so the station keeps the same face toward
+## Earth (ISS). Always owns the attitude (returns [code]true[/code]).
+static func _process_iss(body: IVBody, _delta: float, forward_axis: Vector3,
+		nadir_axis: Vector3) -> bool:
+	var lvlh := body.get_orbit_tracking_basis() # world: x = nadir, y = along-track, z = orbit normal
+	body.body_visual.basis = IVMath.get_alignment_basis(nadir_axis, forward_axis, lvlh.x, lvlh.y)
+	return true
+
+
+## Named by a 'process' field (spacecrafts.tsv). Holds an inertial attitude that slews
+## slowly about [param slew_axis] (world frame) at [param slew_deg_per_day] — a space
+## telescope holding and re-pointing a celestial aim rather than tracking Earth (Hubble).
+## Always owns the attitude (returns [code]true[/code]).
+static func _process_hubble(body: IVBody, _delta: float, slew_axis: Vector3,
+		slew_deg_per_day: float) -> bool:
+	const CONVERSION := IVUnits.DEG / IVUnits.DAY # deg/day -> internal rad/s
+	var slew_rate := slew_deg_per_day * CONVERSION
+	body.body_visual.basis = Basis(slew_axis.normalized(), fposmod(body._times[0] * slew_rate, TAU))
+	return true
+
+
+# *****************************************************************************
 # virtual
 
 
@@ -618,9 +703,10 @@ func _process(delta: float) -> void:
 		return
 
 	if _process_callable.is_valid():
-		# A spacecrafts.tsv 'process' method owns this body's model attitude.
-		_process_callable.call(delta)
-		return
+		# A spacecrafts.tsv 'process' method drives this body's model attitude; it returns
+		# true to own it (skip the rotation below) or false to fall through to that rotation.
+		if _process_callable.call(self, delta):
+			return
 
 	var rotation_angle: float
 	if !_stroboscope_frame_rate or _tree.paused:
@@ -1932,71 +2018,13 @@ func _settings_listener(setting: StringName, _value: Variant) -> void:
 
 
 # *****************************************************************************
-# model attitude 'process' methods
-
-# The spacecrafts.tsv 'process' field names one of the methods below, called every
-# frame as method(delta, ...process_args) via _process_callable to drive a bespoke
-# model attitude in place of the default axial rotation in _process(). Mirrors the
-# IVSpheroidModel 'process' mechanism. Per the table-method convention these methods
-# may reference bodies by name (&"PLANET_EARTH", &"STAR_SUN") and must convert any
-# unit-tagged argument in-method, since the table cannot specify a unit for a VARIANT.
-# All operate on body_visual.basis, which is a world-oriented frame because IVBody
-# nodes are never rotated; the model-frame axis arguments are tunable per body.
+# model attitude 'process' resolver (methods & registry are in the static section above)
 
 func _resolve_process(method: StringName, process_args: Array) -> void:
 	if not method:
 		return
-	if not has_method(method):
-		push_warning("Body %s: 'process' names unknown method '%s'" % [name, method])
+	var callable: Callable = process_methods.get(method, Callable())
+	if not callable.is_valid():
+		push_warning("Body %s: 'process' names unregistered method '%s'" % [name, method])
 		return
-	_process_callable = Callable(self, method).bindv(process_args)
-
-
-## Named by a 'process' field (spacecrafts.tsv). Aims the model's [param boresight_axis]
-## (model frame) at Earth, rolling so [param up_axis] (model frame) stays near ecliptic
-## north — a deep-space craft holding its high-gain antenna on Earth (Pioneer, Voyager,
-## New Horizons).
-func _earth_pointing(_delta: float, boresight_axis: Vector3, up_axis: Vector3) -> void:
-	const ECLIPTIC_NORTH := Vector3(0, 0, 1)
-	var earth: IVBody = bodies.get(&"PLANET_EARTH")
-	if not earth:
-		return
-	var to_earth := earth.global_position - global_position
-	if to_earth.is_zero_approx():
-		return
-	body_visual.basis = IVMath.get_alignment_basis(boresight_axis, up_axis, to_earth, ECLIPTIC_NORTH)
-
-
-## Named by a 'process' field (spacecrafts.tsv). Aims the model's [param spin_axis]
-## (model frame) at the Sun and spins the model about it once per [param spin_period_days]
-## — a spin-stabilized, solar-powered craft (Juno).
-func _sun_pointing(_delta: float, spin_axis: Vector3, spin_period_days: float) -> void:
-	const ECLIPTIC_NORTH := Vector3(0, 0, 1)
-	var sun: IVBody = bodies.get(&"STAR_SUN")
-	if not sun:
-		return
-	var to_sun := sun.global_position - global_position
-	if to_sun.is_zero_approx():
-		return
-	to_sun = to_sun.normalized()
-	var base := IVMath.get_alignment_basis(spin_axis, Vector3(1, 0, 0), to_sun, ECLIPTIC_NORTH)
-	var spin_rate := TAU / (spin_period_days * IVUnits.DAY) # turns/day -> internal rad/s
-	body_visual.basis = base.rotated(to_sun, fposmod(_times[0] * spin_rate, TAU))
-
-
-## Named by a 'process' field (spacecrafts.tsv). Holds a nadir-locked LVLH attitude:
-## [param nadir_axis] (model frame) points at Earth's center and [param forward_axis]
-## (model frame) tracks the orbital velocity, so the station keeps the same face toward
-## Earth (ISS).
-func _process_iss(_delta: float, forward_axis: Vector3, nadir_axis: Vector3) -> void:
-	var lvlh := get_orbit_tracking_basis() # world: x = nadir, y = along-track, z = orbit normal
-	body_visual.basis = IVMath.get_alignment_basis(nadir_axis, forward_axis, lvlh.x, lvlh.y)
-
-
-## Named by a 'process' field (spacecrafts.tsv). Holds an inertial attitude that slews
-## slowly about [param slew_axis] (world frame) at [param slew_deg_per_day] — a space
-## telescope holding and re-pointing a celestial aim rather than tracking Earth (Hubble).
-func _process_hubble(_delta: float, slew_axis: Vector3, slew_deg_per_day: float) -> void:
-	const CONVERSION := IVUnits.DEG / IVUnits.DAY # deg/day -> internal rad/s
-	var slew_rate := slew_deg_per_day * CONVERSION
-	body_visual.basis = Basis(slew_axis.normalized(), fposmod(_times[0] * slew_rate, TAU))
+	_process_callable = callable.bindv(process_args)

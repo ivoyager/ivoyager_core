@@ -41,7 +41,7 @@ extends MeshInstance3D
 ## for the surface, whose textures use [code]file_prefix[/code] alone.[br]
 ## - [code]shader[/code] ([StringName]): give the shell a [ShaderMaterial] using the
 ## named [Shader] in [member IVGlobal.resources], instead of a [StandardMaterial3D].[br]
-## - [code]process[/code] ([StringName]): name an [IVSpheroidModel] method called on the
+## - [code]process[/code] ([StringName]): name a [member process_methods] entry called on the
 ## shell each frame as [code]method(delta, ...process_args)[/code] (e.g. [method _rotate]).[br]
 ## - [code]process_args[/code] ([code]ARRAY[VARIANT][/code]): extra arguments bound after
 ## [code]delta[/code] in the [code]process[/code] call (shells.tsv only).[br]
@@ -99,6 +99,17 @@ const PROPERTY_FEATURES := {
 }
 
 
+## Registry of 'process' methods, keyed by the name used in the spheroids.tsv or shells.tsv
+## 'process' field. Each [Callable] runs on the shell every frame as
+## [code]method(spheroid_model, delta, ...process_args)[/code]. Register entries in
+## [method _static_init] or from project code to add a process method without subclassing.
+static var process_methods: Dictionary[StringName, Callable] = {}
+
+# Debug-only caches for the per-shell override asserts in _build_material; built
+# lazily and kept for the session. Unused unless OS.is_debug_build().
+static var _material_property_names: Dictionary[StringName, bool] = {}
+static var _shader_uniform_names: Dictionary = {} # Shader -> Dictionary[StringName, bool]
+
 var _shell: int # 0 is the surface and orchestrator; 1..N are child shells
 var _body_name: StringName
 var _spheroid_type: int
@@ -109,11 +120,58 @@ var _star_body: IVBody # lazy init; true (never farwarp-remapped) position for _
 
 var _times := IVGlobal.times
 
-# Debug-only caches for the per-shell override asserts in _build_material; built
-# lazily and kept for the session. Unused unless OS.is_debug_build().
-static var _material_property_names: Dictionary[StringName, bool] = {}
-static var _shader_uniform_names: Dictionary = {} # Shader -> Dictionary[StringName, bool]
 
+
+
+# *****************************************************************************
+# 'process' methods & registry
+
+# process_methods maps a spheroids.tsv/shells.tsv 'process' name to one of the static methods
+# below, resolved once per shell in _resolve_process() and called every frame via _process_callable
+# as method(spheroid_model, delta, ...process_args). Each method owns the shell's whole per-frame
+# behavior (there is no default to fall through to). Add entries without subclassing.
+
+static func _static_init() -> void:
+	process_methods[&"_rotate"] = _rotate
+	process_methods[&"_grow_star"] = _grow_star
+
+
+## Named by a 'process' field (shells.tsv or spheroids.tsv). Rotates [param spheroid_model]
+## at [param deg_per_sec] degrees per second.
+static func _rotate(spheroid_model: IVSpheroidModel, delta: float, deg_per_sec: float) -> void:
+	const CONVERSION := PI / (180.0 * IVUnits.SECOND)
+	if IVStateManager.paused_tree:
+		return
+	delta *= spheroid_model._times[1] / Engine.time_scale
+	spheroid_model.rotate_y(delta * deg_per_sec * CONVERSION) # y up in model self reference
+
+
+## Named by a 'process' field (the G_STAR row in spheroids.tsv). Grows [param spheroid_model]
+## (a star) when beyond GROW_DIST so it stays visible relative to the star field at many au.
+## Grow settings are subjective: currently calibrated so the Sun is prominant at Jupiter and
+## visible at Pluto.
+static func _grow_star(spheroid_model: IVSpheroidModel, _delta: float) -> void:
+	const GROW_DIST := 2.0 * IVUnits.AU
+	const GROW_FACTOR := 0.3
+	var viewport := spheroid_model.get_viewport()
+	if not viewport:
+		return
+	var camera := viewport.get_camera_3d()
+	if not camera:
+		return
+	if not spheroid_model._star_body:
+		spheroid_model._star_body = IVBody.bodies.get(spheroid_model._body_name)
+		if not spheroid_model._star_body:
+			return
+	# True body-to-camera distance: this model's own global_position is the
+	# farwarp-compressed position, which would under-grow the star.
+	var camera_dist := spheroid_model._star_body.global_position.distance_to(camera.global_position)
+	if camera_dist < GROW_DIST:
+		spheroid_model.transform.basis = spheroid_model._reference_basis
+		return
+	var excess := camera_dist / GROW_DIST - 1.0
+	var factor := GROW_FACTOR * excess + 1.0
+	spheroid_model.transform.basis = spheroid_model._reference_basis.scaled(Vector3(factor, factor, factor))
 
 
 func _init(body_name: StringName, spheroid_type: int, mean_radius: float, model_basis: Basis,
@@ -146,7 +204,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	_process_callable.call(delta)
+	_process_callable.call(self, delta)
 
 
 
@@ -340,56 +398,17 @@ func _spec_scale(spec: Dictionary) -> float:
 
 
 func _resolve_process(method: StringName, process_args: Array) -> void:
-	# The 'process' field names an IVSpheroidModel method called on this shell each
-	# frame as method(delta, ...process_args) (extra args from the 'process_args'
-	# field). Defining _process() enables idle processing by default, so disable it
-	# on a shell with no (or an unknown) process method.
+	# The 'process' field names a process_methods entry called on this shell each frame as
+	# method(spheroid_model, delta, ...process_args) (extra args from the 'process_args' field).
+	# Defining _process() enables idle processing by default, so disable it on a shell with no
+	# (or an unregistered) process method.
 	set_process(false)
 	if not method:
 		return
-	if not has_method(method):
-		push_warning("Body %s shell %d: process names unknown method '%s'"
+	var callable: Callable = process_methods.get(method, Callable())
+	if not callable.is_valid():
+		push_warning("Body %s shell %d: process names unregistered method '%s'"
 				% [_body_name, _shell, method])
 		return
-	_process_callable = Callable(self, method).bindv(process_args)
+	_process_callable = callable.bindv(process_args)
 	set_process(true)
-
-
-# process methods named by a 'process' field in shells.tsv or spheroids.tsv
-
-## Named by a 'process' field (shells.tsv or spheroids.tsv). Rotates the shell
-## at specified degrees per second.
-func _rotate(delta: float, deg_per_sec: float) -> void:
-	const CONVERSION := PI / (180.0 * IVUnits.SECOND)
-	if IVStateManager.paused_tree:
-		return
-	delta *= _times[1] / Engine.time_scale
-	rotate_y(delta * deg_per_sec * CONVERSION) # y up in model self reference
-
-
-## Named by a 'process' field (the G_STAR row in spheroids.tsv). Grows a star when
-## beyond GROW_DIST so it stays visible relative to the star field at many au.
-## Grow settings are subjective: currently calibrated so the Sun is prominant
-## at Jupiter and visible at Pluto.
-func _grow_star(_delta: float) -> void:
-	const GROW_DIST := 2.0 * IVUnits.AU
-	const GROW_FACTOR := 0.3
-	var viewport := get_viewport()
-	if not viewport:
-		return
-	var camera := viewport.get_camera_3d()
-	if not camera:
-		return
-	if not _star_body:
-		_star_body = IVBody.bodies.get(_body_name)
-		if not _star_body:
-			return
-	# True body-to-camera distance: this model's own global_position is the
-	# farwarp-compressed position, which would under-grow the star.
-	var camera_dist := _star_body.global_position.distance_to(camera.global_position)
-	if camera_dist < GROW_DIST:
-		transform.basis = _reference_basis
-		return
-	var excess := camera_dist / GROW_DIST - 1.0
-	var factor := GROW_FACTOR * excess + 1.0
-	transform.basis = _reference_basis.scaled(Vector3(factor, factor, factor))
