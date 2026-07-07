@@ -230,6 +230,12 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"_true_anomaly",
 ]
 
+## Set this script to generate a subclass in place of IVOrbit in create methods.
+## Set [code]IVOrbit.replacement_subclass = MyOrbit[/code] for project-wide
+## replacement.
+static var replacement_subclass: Script
+
+
 # persist
 ## Name of the parent body (gravitational primary) about which this orbit is
 ## defined. Required only if this [IVOrbit] is part of an [IVTrajectory]. Assumed
@@ -401,7 +407,11 @@ static func create_from_elements(
 	
 	var orbit := from_orbit
 	if !orbit:
-		orbit = IVOrbit.new()
+		if replacement_subclass:
+			@warning_ignore("unsafe_method_access")
+			orbit = replacement_subclass.new()
+		else:
+			orbit = IVOrbit.new()
 	
 	# defining args
 	orbit._reference_plane_type = reference_plane_type

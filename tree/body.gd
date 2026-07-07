@@ -226,7 +226,8 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 
 
 ## Set this script to generate a subclass in place of IVBody in create methods.
-## A subclass can do this in their _static_init() for project-wide replacement.
+## Set [code]IVBody.replacement_subclass = MyBody[/code] for project-wide
+## replacement.
 static var replacement_subclass: Script
 ## Set this script to replace the [IVBodyVisual] class.
 static var replacement_body_visual_class: Script

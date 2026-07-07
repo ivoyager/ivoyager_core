@@ -11,6 +11,7 @@ See cloning and downloading instructions [here](https://www.ivoyager.dev/develop
 Under development using Godot 4.7.
 
 ### Added
+* Add IVOrbit.replacement_subclass to enable project-wide replacement (e.g., for [this proposal](https://github.com/orgs/ivoyager/discussions/25)).
 * [#18](https://github.com/ivoyager/ivoyager_core/issues/18) "Farwarp" compression keeps large and distant objects visible when zoomed in to small spacecraft. Affects "visual" nodes and vertex shaders. Managed by IVFarwarpManager and IVBody, but does not affect IVBody itself. Opt-out available in IVCoreSetting. See [commit](https://github.com/charliewhitfield/ivoyager_core/commit/b9e5731b3521c8494290356b052752de8794f32e).
 * [#16](https://github.com/ivoyager/ivoyager_core/issues/16) Added spacecraft pointing methods. These can be specified by name in body tables (e.g., see `process` and `process_args` in [spacecrafts.tsv](https://github.com/ivoyager/ivoyager_core/blob/master/tables/spacecrafts.tsv)). The methods are in IVBody and can be added to by extending IVBody. (TODO: Move these to a static Callable dictionary to make it possible to add without subclassing.)
 
