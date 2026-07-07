@@ -22,39 +22,41 @@ extends PopupPanel
 
 ## Popup grid for choosing a position symbol, analogous to Godot's [ColorPicker].
 ##
-## Shows the 12 [enum IVGlobal.Symbols] shapes in a 3-column grid. For SBGs an
-## additional "point" toggle button selects the plain-point display (symbol -1),
+## Shows the symbol-atlas shapes in a grid (shape count and grid width both from
+## [IVCoreSettings]). For SBGs an additional "point" toggle button selects the
+## plain-point display (symbol -1),
 ## mutually exclusive with the shapes. Created and driven by [IVSymbolPickerButton];
 ## emits [signal symbol_selected] on a user pick.
 
-## Emitted when the user picks a symbol (an [enum IVGlobal.Symbols] value, or -1
+## Emitted when the user picks a symbol (a symbol-atlas index, or -1
 ## for "point").
 signal symbol_selected(symbol_type: int)
 
-const N_SYMBOLS := 12
-const GRID_COLS := 3
 const BUTTON_SIZE := 34
 
 var _button_group := ButtonGroup.new()
 var _symbol_buttons: Array[Button] = []
 var _point_button: Button
+var _n_symbols: int # symbol_atlas_columns * symbol_atlas_rows; set in build()
 
 
 ## Builds the grid; include a "Point" checkbox if [param include_point] (SBGs only).
 func build(include_point: bool) -> void:
+	var asset_preloader: IVAssetPreloader = IVGlobal.program[&"AssetPreloader"]
+	_n_symbols = IVCoreSettings.symbol_atlas_columns * IVCoreSettings.symbol_atlas_rows
 	var vbox := VBoxContainer.new()
 	add_child(vbox)
 	var grid := GridContainer.new()
-	grid.columns = GRID_COLS
+	grid.columns = IVCoreSettings.symbol_atlas_columns
 	vbox.add_child(grid)
-	_symbol_buttons.resize(N_SYMBOLS)
-	for i in N_SYMBOLS:
+	_symbol_buttons.resize(_n_symbols)
+	for i in _n_symbols:
 		var button := Button.new()
 		button.toggle_mode = true
 		button.button_group = _button_group
 		button.custom_minimum_size = Vector2(BUTTON_SIZE, BUTTON_SIZE)
 		button.expand_icon = true
-		button.icon = IVSymbolTextures.get_atlas_texture(i)
+		button.icon = asset_preloader.get_symbol_texture(i)
 		button.pressed.connect(_on_symbol_pressed.bind(i))
 		grid.add_child(button)
 		_symbol_buttons[i] = button
@@ -77,7 +79,7 @@ func set_current(symbol_type: int) -> void:
 	if symbol_type == -1:
 		if _point_button:
 			_point_button.set_pressed_no_signal(true)
-	elif symbol_type >= 0 and symbol_type < N_SYMBOLS:
+	elif symbol_type >= 0 and symbol_type < _n_symbols:
 		_symbol_buttons[symbol_type].set_pressed_no_signal(true)
 
 

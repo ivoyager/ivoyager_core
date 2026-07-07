@@ -124,31 +124,6 @@ enum ShadowMask {
 	SHADOW_MASK_FULL = 0b1111_0000_0000, # full shadow
 }
 
-## Position symbols for [IVBody] classes and [IVSmallBodiesGroup] sets, set per
-## grouping in the HUDs GUI and shared by symbol, name and orbit color.[br][br]
-##
-## Values index the symbol atlas
-## ([code]addons/ivoyager_core/resources/symbol_atlas.png[/code]) row-major in a
-## 3-column grid ([code]col = symbol_type % 3[/code], [code]row = symbol_type / 3[/code]).
-## This mapping is hard-coded in [code]shaders/_symbol.gdshaderinc[/code] and the
-## [IVSymbolPicker] atlas helper; keep all three in sync. A symbol type of -1
-## (deliberately not an enum value) means "no shape": an [IVSmallBodiesGroup]
-## draws a flat point, and it is not offered for bodies.
-enum Symbols {
-	CIRCLE, ## Open circle; the default symbol for all bodies.
-	CIRCLE_PLUS, ## Open circle enclosing a plus.
-	CLOSED_CIRCLE,
-	SQUARE,
-	SQUARE_X, ## Open square enclosing an x.
-	CLOSED_SQUARE,
-	UP_TRIANGLE,
-	CLOSED_UP_TRIANGLE,
-	DOWN_TRIANGLE,
-	CLOSED_DOWN_TRIANGLE,
-	X,
-	PLUS,
-}
-
 ## Duplicated from I, Voyager's Save plugin ([enum IVSaveUtils.PersistMode]).
 ## This is used in the Core plugin because the Save plugin may not be present.
 enum PersistMode {

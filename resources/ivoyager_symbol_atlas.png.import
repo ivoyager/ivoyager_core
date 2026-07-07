@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dkwjbaew44pn5"
-path.s3tc="res://.godot/imported/symbol_atlas.png-10812264d22ccd7a740dfb351c5f2f6a.s3tc.ctex"
+path.s3tc="res://.godot/imported/ivoyager_symbol_atlas.png-f836091675ab977705811525f2e9c9fa.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
@@ -11,8 +11,8 @@ metadata={
 
 [deps]
 
-source_file="res://addons/ivoyager_core/resources/symbol_atlas.png"
-dest_files=["res://.godot/imported/symbol_atlas.png-10812264d22ccd7a740dfb351c5f2f6a.s3tc.ctex"]
+source_file="res://addons/ivoyager_core/resources/ivoyager_symbol_atlas.png"
+dest_files=["res://.godot/imported/ivoyager_symbol_atlas.png-f836091675ab977705811525f2e9c9fa.s3tc.ctex"]
 
 [params]
 

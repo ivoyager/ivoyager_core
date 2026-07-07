@@ -26,7 +26,7 @@ extends MeshInstance3D
 ## Lagrange point groups (L4 & L5). Both compute vertex positions from orbital elements and
 ## can broadcast a per-point fragment id for [IVFragmentIdentifier].[br][br]
 ##
-## Each point renders as the group's [enum IVGlobal.Symbols] shape (masked from the
+## Each point renders as the group's symbol shape (masked from the
 ## symbol atlas in the fragment shader) or, for [member IVSBGHUDsState.symbol_types] value
 ## -1, as a plain point. A shaped symbol's point size follows [IVThemeManager] (the
 ## "small_bodies_symbol_size_percent" setting); a plain point uses the smaller
@@ -145,7 +145,10 @@ func _init(sbg: IVSmallBodiesGroup) -> void:
 	mesh = points_mesh
 
 	# set shader parameters
-	shader_material.set_shader_parameter(&"symbol_atlas", IVGlobal.resources[&"symbol_atlas"])
+	var asset_preloader: IVAssetPreloader = IVGlobal.program[&"AssetPreloader"]
+	shader_material.set_shader_parameter(&"symbol_atlas", asset_preloader.get_symbol_atlas())
+	shader_material.set_shader_parameter(&"symbol_cols", IVCoreSettings.symbol_atlas_columns)
+	shader_material.set_shader_parameter(&"symbol_rows", IVCoreSettings.symbol_atlas_rows)
 	shader_material.set_shader_parameter(&"symbol_type", _symbol_type)
 	shader_material.set_shader_parameter(&"point_size", _get_point_size())
 	if _lp_integer >= 4: # trojans

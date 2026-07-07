@@ -45,8 +45,6 @@ var preloads: Dictionary[StringName, Resource] = {
 	cloud_detail_shader = preload("res://addons/ivoyager_core/shaders/cloud_detail.gdshader"),
 	atmosphere_limb_shader = preload("res://addons/ivoyager_core/shaders/atmosphere_limb.gdshader"),
 	depixelation_shader = preload("res://addons/ivoyager_core/shaders/depixelation.gdshader"),
-	# textures
-	symbol_atlas = preload("res://addons/ivoyager_core/resources/symbol_atlas.png"),
 }
 
 ## Callables that build shared resources (e.g., the common sphere mesh).

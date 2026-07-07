@@ -17,7 +17,7 @@ Under development using Godot 4.7.
 ### Changed
 * Renamed "IVPhysicalBody" to "IVBodyVisual". Rename motivated by new "farwarp" system, which further disassociates an IVBody from its visual representation.
 * [API Breaking] Fully support 64-bit in IVOrbit and formalize a new 64-/32-bit API idiom. New idiom: "Vector" = 32-bit = "for graphics use". New methods `get_translation()` and `get_state()` return PackedFloat64Array. Old methods renamed `get_position_vector()` and `get_state_vectors()` return Vector3 and PackedVector3Array. New static utility IVMath64 supports 64-bit rotations, etc. See [commit](https://github.com/charliewhitfield/ivoyager_core/commit/55f18cebdd7b7ec4804c5e1a4311fac9f1fd5287).
-* [Feature](https://github.com/orgs/ivoyager/discussions/24): New and better symbols can be shown with or without body names, and set by group similar to color. See [preview](https://github.com/orgs/ivoyager/discussions/24#discussioncomment-17525851).
+* [Feature](https://github.com/orgs/ivoyager/discussions/24): New and better symbols can be shown with or without body names, and set by group similar to color. See [preview](https://github.com/orgs/ivoyager/discussions/24#discussioncomment-17525851). Core provides a default symbol atlas resources/ivoyager_symbol_atlas.png, which can be replaced by setting "symbol_atlas_" values in IVCoreSettings.
 
 ### Fixed
 * [#17](https://github.com/ivoyager/ivoyager_core/issues/17) Jagged and offset orbit/trajectory lines at Neptune and beyond fixed in "Fully support 64-bit..." change above.

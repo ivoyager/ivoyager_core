@@ -115,6 +115,9 @@ var gl_compatibility_emission_energy_multiplier_multiplier := 2.5
 
 var _blue_noise_1024: Texture2D
 var _starmap: Texture2D
+var _symbol_atlas: Texture2D
+var _symbol_textures: Array[AtlasTexture] = []
+var _symbol_point_texture: Texture2D
 var _body_resources: Dictionary[StringName, Array] = {}
 var _rings_resources: Dictionary[String, Array] = {}
 var _map_regex := RegEx.new()
@@ -131,6 +134,23 @@ func get_blue_noise_1024() -> Texture2D:
 
 func get_starmap() -> Texture2D:
 	return _starmap
+
+
+func get_symbol_atlas() -> Texture2D:
+	return _symbol_atlas
+
+
+## Returns the shared [AtlasTexture] for [param symbol_type], a row-major index
+## into the atlas (see [member IVCoreSettings.symbol_atlas_path]). Not valid for
+## -1 ("point"); use [method get_symbol_point_texture] for that.
+func get_symbol_texture(symbol_type: int) -> AtlasTexture:
+	return _symbol_textures[symbol_type]
+
+
+## Returns a shared small-dot texture for the "point" (symbol type -1) indicator,
+## so a picker button's icon (and thus height) stays consistent with the shapes.
+func get_symbol_point_texture() -> Texture2D:
+	return _symbol_point_texture
 
 
 func get_body_texture_2d(body_name: StringName) -> Texture2D:
@@ -191,6 +211,7 @@ func _on_core_inited() -> void:
 func _load_resources(start_msec: int) -> void:
 	_load_starmap()
 	_load_blue_noise_1024()
+	_load_symbol_textures()
 	_load_body_resources()
 	_load_rings_resources()
 	# Freeze published containers (incl. the nested per-shell dicts) so any future
@@ -219,6 +240,46 @@ func _load_starmap() -> void:
 		path = asset_paths[fallback_starmap]
 	assert(ResourceLoader.exists(path))
 	_starmap = load(path)
+
+
+func _load_symbol_textures() -> void:
+	var path := IVCoreSettings.symbol_atlas_path
+	assert(ResourceLoader.exists(path))
+	_symbol_atlas = load(path)
+	# Slice the atlas into per-cell AtlasTextures (row-major), shared by the 2D
+	# symbol sprite ([IVBodyPositionVisual]) and the picker widgets. The 3D point
+	# shader samples the whole atlas directly instead (see [IVSBGPositionsVisual]).
+	var columns := IVCoreSettings.symbol_atlas_columns
+	var rows := IVCoreSettings.symbol_atlas_rows
+	var cell_w := _symbol_atlas.get_width() / float(columns)
+	var cell_h := _symbol_atlas.get_height() / float(rows)
+	_symbol_textures.resize(columns * rows)
+	for i in columns * rows:
+		var col := i % columns
+		@warning_ignore("integer_division")
+		var row := i / columns
+		var atlas_texture := AtlasTexture.new()
+		atlas_texture.atlas = _symbol_atlas
+		atlas_texture.region = Rect2(col * cell_w, row * cell_h, cell_w, cell_h)
+		_symbol_textures[i] = atlas_texture
+	_symbol_point_texture = _make_symbol_point_texture()
+
+
+# Procedural white dot with a ~1px AA edge, for the "point" (symbol type -1)
+# indicator; keeps a picker button's icon height consistent with the shapes.
+func _make_symbol_point_texture() -> ImageTexture:
+	const SIZE := 64
+	var image := Image.create_empty(SIZE, SIZE, false, Image.FORMAT_RGBA8)
+	image.fill(Color(1.0, 1.0, 1.0, 0.0))
+	var center := SIZE / 2.0
+	var radius := SIZE * 0.18
+	for y in SIZE:
+		for x in SIZE:
+			var dist := Vector2(x + 0.5 - center, y + 0.5 - center).length()
+			var alpha := clampf(radius - dist + 0.75, 0.0, 1.0) # ~1px edge AA
+			if alpha > 0.0:
+				image.set_pixel(x, y, Color(1.0, 1.0, 1.0, alpha))
+	return ImageTexture.create_from_image(image)
 
 
 ## Returns a [code]{property: value}[/code] dictionary of material fields from [param table]

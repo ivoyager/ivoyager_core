@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-# symbol_atlas_generator.py
+# ivoyager_symbol_atlas_generator.py
 # This file is part of I, Voyager (https://ivoyager.dev)
 # Copyright 2019-2026 Charlie Whitfield; Apache License, Version 2.0
 # *****************************************************************************
-"""Generate symbol_atlas.png for I, Voyager position symbols.
+"""Generate ivoyager_symbol_atlas.png for I, Voyager position symbols.
 
-A 3-column x 4-row grid of 12 white-on-transparent shapes, in IVGlobal.Symbols
+A 3-column x 4-row grid of 12 white-on-transparent shapes, in the default
 order:
 
     CIRCLE,               CIRCLE_PLUS,          CLOSED_CIRCLE,
@@ -13,12 +13,13 @@ order:
     UP_TRIANGLE,          CLOSED_UP_TRIANGLE,   DOWN_TRIANGLE,
     CLOSED_DOWN_TRIANGLE, X,                    PLUS
 
-The enum index maps to atlas cell col = i % 3, row = i // 3 (row-major, top-left
-origin) -- the same mapping hard-coded in shaders/_symbol.gdshaderinc and in the
-GDScript AtlasTexture helper. Shapes are white (RGB) with coverage in alpha, so
-consumers tint via modulate/ALBEDO and read alpha for the shape mask.
+The cell index maps to atlas cell col = i % 3, row = i // 3 (row-major, top-left
+origin) -- the same row-major mapping the shader (shaders/_symbol.gdshaderinc) and
+IVAssetPreloader apply, driven by IVCoreSettings.symbol_atlas_columns/rows. Shapes
+are white (RGB) with coverage in alpha, so consumers tint via modulate/ALBEDO and
+read alpha for the shape mask.
 
-Regenerable: tune the ratios below and re-run `python symbol_atlas_generator.py`.
+Regenerable: tune the ratios below and re-run `python ivoyager_symbol_atlas_generator.py`.
 """
 
 import os
@@ -130,7 +131,7 @@ def main():
         col, row = i % COLS, i // COLS
         draw_symbol(img, name, col * D, row * D)
     img = img.resize((COLS * CELL, ROWS * CELL), Image.LANCZOS)
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "symbol_atlas.png")
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ivoyager_symbol_atlas.png")
     img.save(out)
     print("wrote", out, img.size)
 

@@ -28,7 +28,7 @@ extends Node
 ##
 ## Symbol and name visibility are independent (either, both or neither may show).
 ## A group's single [member colors] entry is shared by its symbol, name and orbit.
-## The symbol shape is a per-group [enum IVGlobal.Symbols] value in [member symbol_types].[br][br]
+## The symbol shape is a per-group symbol-atlas index in [member symbol_types].[br][br]
 ##
 ## See also [IVSBGHUDsState] for [IVSmallBodiesGroup] HUDs.
 
@@ -79,7 +79,7 @@ var orbit_visible_flags := 0
 ## Per-flag color, shared by each group's symbol, name and orbit. Must have a
 ## full key set from [member all_flags] bits.
 var colors: Dictionary[int, Color] = {} # must have full key set from all_flags bits!
-## Per-flag symbol shape ([enum IVGlobal.Symbols]). Must have a full key set from
+## Per-flag symbol shape (a symbol-atlas index). Must have a full key set from
 ## [member all_flags] bits.
 var symbol_types: Dictionary[int, int] = {} # must have full key set from all_flags bits!
 
@@ -89,7 +89,7 @@ var symbol_types: Dictionary[int, int] = {} # must have full key set from all_fl
 var fallback_color := Color("FE9C33") # orange
 ## Symbol returned by [method get_default_symbol_type] when no single-flag match
 ## is found.
-var fallback_symbol_type := IVGlobal.Symbols.CIRCLE
+var fallback_symbol_type := 0 # CIRCLE in the default atlas
 
 # imported from visual_groups.tsv - ready-only!
 ## Bitwise OR of every body-flag in [code]visual_groups.tsv[/code] (read-only).

@@ -38,6 +38,7 @@ extends Button
 var _picker: IVSymbolPicker
 var _body_huds_state: IVBodyHUDsState
 var _sbg_huds_state: IVSBGHUDsState
+var _asset_preloader: IVAssetPreloader
 var _current_symbol_test: Callable
 
 
@@ -60,13 +61,14 @@ func _ready() -> void:
 	add_child(_picker)
 	_picker.symbol_selected.connect(_on_symbol_selected)
 	_picker.visibility_changed.connect(_on_picker_visibility_changed)
-	if IVStateManager.initialized_core:
-		_configure_after_core_inited()
+	if IVStateManager.has_assets:
+		_configure_after_assets_preloaded()
 	else:
-		IVStateManager.core_initialized.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
+		IVStateManager.assets_preloaded.connect(_configure_after_assets_preloaded, CONNECT_ONE_SHOT)
 
 
-func _configure_after_core_inited() -> void:
+func _configure_after_assets_preloaded() -> void:
+	_asset_preloader = IVGlobal.program[&"AssetPreloader"]
 	toggled.connect(_on_toggled)
 	if body_flags:
 		_body_huds_state = IVGlobal.program[&"BodyHUDsState"]
@@ -110,8 +112,8 @@ func _update_icon() -> void:
 	var symbol_type: int = _current_symbol_test.call()
 	# Always icon-based so the button height stays constant between point and shape.
 	if symbol_type == -1:
-		icon = IVSymbolTextures.get_point_texture()
+		icon = _asset_preloader.get_symbol_point_texture()
 	elif symbol_type >= 0:
-		icon = IVSymbolTextures.get_atlas_texture(symbol_type)
+		icon = _asset_preloader.get_symbol_texture(symbol_type)
 	else:
 		icon = null # NULL_SYMBOL (mixed group)

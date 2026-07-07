@@ -23,7 +23,7 @@ extends Sprite3D
 ## Visual symbol and/or name of an [IVBody] in the 3D world.
 ##
 ## This node is the symbol: a billboarded, screen-fixed [Sprite3D] textured from
-## the symbol atlas (see [IVSymbolTextures]) and tinted by the group color. Its
+## the symbol atlas (see [IVAssetPreloader]) and tinted by the group color. Its
 ## child [Label3D] is the name. Symbol and name visibilities are independent
 ## ([IVBodyHUDsState]); when both show, the name sits to the right of and
 ## slightly above the centered symbol, otherwise the name is centered on the
@@ -43,13 +43,14 @@ static var name_offset_ratio := Vector2(0.7, 0.3)
 
 var _body: IVBody
 var _body_huds_state: IVBodyHUDsState = IVGlobal.program[&"BodyHUDsState"]
+var _asset_preloader: IVAssetPreloader = IVGlobal.program[&"AssetPreloader"]
 var _name_label: Label3D
 
 # set on _ready() and changed signals
 var _names_visible: bool
 var _symbols_visible: bool
 var _body_huds_visible: bool # this body (e.g., too close / too far)
-var _symbol_type := 0 # IVGlobal.Symbols
+var _symbol_type := 0 # symbol atlas index; -1 = point (no shape)
 var _color := Color.WHITE
 var _name_font_size: int
 var _symbol_size: float
@@ -127,7 +128,7 @@ func _set_visual_state() -> void:
 		visible = false
 		return
 	visible = true
-	texture = IVSymbolTextures.get_atlas_texture(_symbol_type) if show_symbol else null
+	texture = _asset_preloader.get_symbol_texture(_symbol_type) if show_symbol else null
 	_name_label.visible = show_name
 	if show_name:
 		_name_label.text = _body.get_hud_name()

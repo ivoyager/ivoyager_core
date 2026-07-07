@@ -24,7 +24,7 @@ extends Node
 ##
 ## HUD Nodes must connect and set state on changed signals. A group's single
 ## [member colors] entry is shared by its symbol points and its orbits. The
-## symbol shape is a per-group [enum IVGlobal.Symbols] value in
+## symbol shape is a per-group symbol-atlas index in
 ## [member symbol_types], or -1 for a plain point (the default).
 
 ## Emitted whenever any entry of [member symbols_visibilities] changes.
@@ -61,7 +61,7 @@ var orbits_visibilities: Dictionary[StringName, bool] = {} # "
 ## Indexed by [code]sbg_alias[/code], shared by symbol points and orbits; missing
 ## keys fall back to [member fallback_color].
 var colors: Dictionary[StringName, Color] = {} # indexed by sbg_alias; missing same as fallback color
-## Per-group symbol shape ([enum IVGlobal.Symbols], or -1 for a plain point).
+## Per-group symbol shape (a symbol-atlas index, or -1 for a plain point).
 ## Indexed by [code]sbg_alias[/code]; missing keys fall back to
 ## [member fallback_symbol_type].
 var symbol_types: Dictionary[StringName, int] = {} # indexed by sbg_alias; missing same as fallback

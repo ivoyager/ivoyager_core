@@ -200,6 +200,19 @@ var size_layers: Array[float] = [
 ## [IVAssetPreloader], [IVTableSystemBuilder], and possibly elsewhere.
 var body_tables: Array[StringName] = [&"stars", &"planets", &"asteroids", &"moons", &"spacecrafts"]
 
+## Path to the position-symbol atlas: a grid of white-on-transparent shapes (see
+## [code]resources/ivoyager_symbol_atlas_generator.py[/code] for the shipped default).
+## Loaded at runtime by [IVAssetPreloader]. Replace with a project atlas by overriding
+## this path together with [member symbol_atlas_columns] and [member symbol_atlas_rows].
+var symbol_atlas_path := "res://addons/ivoyager_core/resources/ivoyager_symbol_atlas.png"
+## Columns in [member symbol_atlas_path]. A body or [IVSmallBodiesGroup] symbol type
+## is a row-major index into the atlas ([code]col = symbol_type % symbol_atlas_columns[/code],
+## [code]row = symbol_type / symbol_atlas_columns[/code]); a symbol type of -1 means
+## "no shape" (a flat point). The grid must cover the largest symbol type used in data tables.
+var symbol_atlas_columns := 3
+## Rows in [member symbol_atlas_path]. See [member symbol_atlas_columns].
+var symbol_atlas_rows := 4
+
 
 ## If >0.0, an artificial stroboscopic visual effect is generated for fast
 ## rotating bodies that is more stable and pleasing than the "natural"
@@ -238,6 +251,7 @@ func assert_valid_settings() -> void:
 	assert(stroboscope_frames_per_second >= 0.0)
 	assert(farwarp_start_ratio > 0.0)
 	assert(farwarp_angular_cutoff > 0.0)
+	assert(symbol_atlas_columns > 0 and symbol_atlas_rows > 0)
 
 
 ## Return is the appropriate layer mask for [param mean_radius] specified
