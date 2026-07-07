@@ -1,4 +1,4 @@
-// instance_id.gdshader
+// _farwarp.gdshaderinc
 // This file is part of I, Voyager
 // https://ivoyager.dev
 // *****************************************************************************
@@ -17,32 +17,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // *****************************************************************************
-shader_type spatial;
-render_mode unshaded, cull_disabled, skip_vertex_transform;
 
-// Pure fragment-id overlay for a MultiMesh of lines (e.g. IVSBGOrbitsVisual). Attach as
-// material_overlay over the visible material; it stamps the per-instance encoded id at the
-// sparse probe grid near the mouse and discards elsewhere. Each id arrives via
-// INSTANCE_CUSTOM (requires multimesh.use_custom_data = true).
-// The vertex farwarp remap must match the base material's, so the id overlay
-// covers the same pixels as the visible lines.
+// Farwarp compression for vertex shaders: beyond iv_farwarp_start, a
+// view-space position is pulled inward along its view ray to the compressed
+// distance T * (1 + ln(d / T)), preserving screen direction and angular size
+// exactly, so content beyond the camera far plane stays renderable. Monotonic,
+// so occlusion order is preserved. Keep the curve in exact sync with the
+// GDScript source of truth in IVFarwarpManager, which also sets the global
+// each frame (<= 0.0 disables).
 
-varying flat vec3 fragment_id;
-
-#include "_fragment_id.gdshaderinc"
-#include "_farwarp.gdshaderinc"
+global uniform float iv_farwarp_start;
 
 
-void vertex() {
-	fragment_id = INSTANCE_CUSTOM.xyz;
-	VERTEX = farwarp((MODELVIEW_MATRIX * vec4(VERTEX, 1.0)).xyz);
-}
-
-
-void fragment() {
-	if (is_id_fragment(FRAGCOORD.xy)) {
-		ALBEDO = fragment_id;
-	} else {
-		discard;
+vec3 farwarp(vec3 position) {
+	if (iv_farwarp_start <= 0.0) {
+		return position;
 	}
+	float dist = length(position);
+	if (dist <= iv_farwarp_start) {
+		return position;
+	}
+	float compressed = iv_farwarp_start * (1.0 + log(dist / iv_farwarp_start));
+	return position * (compressed / dist);
 }

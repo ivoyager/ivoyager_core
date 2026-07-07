@@ -38,6 +38,7 @@ var preloads: Dictionary[StringName, Resource] = {
 			"res://addons/ivoyager_core/shaders/orbiting_positions_lp_id.gdshader"),
 	id_shader = preload("res://addons/ivoyager_core/shaders/id.gdshader"),
 	instance_id_shader = preload("res://addons/ivoyager_core/shaders/instance_id.gdshader"),
+	farwarp_line_shader = preload("res://addons/ivoyager_core/shaders/farwarp_line.gdshader"),
 	rings_shader = preload("res://addons/ivoyager_core/shaders/rings.gdshader"),
 	rings_shadow_caster_shader = preload(
 			"res://addons/ivoyager_core/shaders/rings_shadow_caster.gdshader"),

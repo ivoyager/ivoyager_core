@@ -1,4 +1,4 @@
-// instance_id.gdshader
+// farwarp_line.gdshader
 // This file is part of I, Voyager
 // https://ivoyager.dev
 // *****************************************************************************
@@ -20,29 +20,24 @@
 shader_type spatial;
 render_mode unshaded, cull_disabled, skip_vertex_transform;
 
-// Pure fragment-id overlay for a MultiMesh of lines (e.g. IVSBGOrbitsVisual). Attach as
-// material_overlay over the visible material; it stamps the per-instance encoded id at the
-// sparse probe grid near the mouse and discards elsewhere. Each id arrives via
-// INSTANCE_CUSTOM (requires multimesh.use_custom_data = true).
-// The vertex farwarp remap must match the base material's, so the id overlay
-// covers the same pixels as the visible lines.
+// Visible base pass for line visuals (IVPathVisual, IVSBGOrbitsVisual):
+// unshaded color with the per-vertex farwarp remap, replacing what was a
+// StandardMaterial3D (which can't remap, so distant line vertices would be
+// culled by the camera far plane). COLOR is white unless the mesh/multimesh
+// supplies vertex or instance colors, so 'color' alone tints the simple case.
+// Any id overlay on the same visual applies the same remap, keeping overlay
+// and base on identical pixels.
 
-varying flat vec3 fragment_id;
+uniform vec4 color : source_color = vec4(1.0);
 
-#include "_fragment_id.gdshaderinc"
 #include "_farwarp.gdshaderinc"
 
 
 void vertex() {
-	fragment_id = INSTANCE_CUSTOM.xyz;
 	VERTEX = farwarp((MODELVIEW_MATRIX * vec4(VERTEX, 1.0)).xyz);
 }
 
 
 void fragment() {
-	if (is_id_fragment(FRAGCOORD.xy)) {
-		ALBEDO = fragment_id;
-	} else {
-		discard;
-	}
+	ALBEDO = color.rgb * COLOR.rgb;
 }

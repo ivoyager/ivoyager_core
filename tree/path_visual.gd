@@ -116,9 +116,15 @@ func _ready() -> void:
 	IVGlobal.camera_tree_changed.connect(_on_camera_tree_changed)
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_rebased)
 	cast_shadow = SHADOW_CASTING_SETTING_OFF
-	var standard_material := StandardMaterial3D.new()
-	standard_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material_override = standard_material
+	var shader_material := ShaderMaterial.new()
+	shader_material.shader = IVGlobal.resources[&"farwarp_line_shader"]
+	material_override = shader_material
+	if IVCoreSettings.apply_farwarp:
+		# Frustum culling tests the true-scale AABB against the far plane, but
+		# farwarp-remapped vertices are on-screen even when that test fails;
+		# make the test always pass wherever the camera can be.
+		var extent := IVCoreSettings.max_camera_distance
+		custom_aabb = AABB(-Vector3.ONE * extent, 2.0 * Vector3.ONE * extent)
 	if _fragment_identifier: # add self-identifying id overlay pass
 		var data := _body.get_fragment_data(FRAGMENT_BODY_ORBIT)
 		var fragment_id := _fragment_identifier.get_new_id_as_vec3(data)
@@ -520,5 +526,5 @@ func _set_color() -> void:
 	if _color == color:
 		return
 	_color = color
-	var standard_material: StandardMaterial3D = material_override
-	standard_material.albedo_color = color
+	var shader_material: ShaderMaterial = material_override
+	shader_material.set_shader_parameter(&"color", color)

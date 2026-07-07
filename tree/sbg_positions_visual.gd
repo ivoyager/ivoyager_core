@@ -134,7 +134,13 @@ func _init(sbg: IVSmallBodiesGroup) -> void:
 	arrays[Mesh.ARRAY_CUSTOM2] = sbg.s_g_mag_de
 	var array_flags := ARRAY_FLAGS if _lp_integer == -1 else L4L5_ARRAY_FLAGS
 	points_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_POINTS, arrays, [], {}, array_flags)
-	var half_aabb := Vector3.ONE * sbg.max_apoapsis
+	var half_aabb_size := sbg.max_apoapsis
+	if IVCoreSettings.apply_farwarp:
+		# Frustum culling tests this true-scale AABB against the far plane, but
+		# farwarp-remapped points are on-screen even when that test fails;
+		# make the test always pass wherever the camera can be.
+		half_aabb_size = maxf(half_aabb_size, IVCoreSettings.max_camera_distance)
+	var half_aabb := Vector3.ONE * half_aabb_size
 	points_mesh.custom_aabb = AABB(-half_aabb, 2.0 * half_aabb)
 	mesh = points_mesh
 

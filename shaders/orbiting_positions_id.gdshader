@@ -42,6 +42,7 @@ varying flat vec3 fragment_id;
 #include "_orbit.gdshaderinc"
 #include "_fragment_id.gdshaderinc"
 #include "_symbol.gdshaderinc"
+#include "_farwarp.gdshaderinc"
 
 
 void vertex() {
@@ -73,10 +74,8 @@ void vertex() {
 
 	vec3 position = get_orbit_position(a, e, i, lan, aop, m);
 
-	// We skip VERTEX here, but this is the 2-step version...
-	// VERTEX = (MODELVIEW_MATRIX * vec4(x, y, z, 1.0)).xyz;
-	// POSITION = PROJECTION_MATRIX * vec4(VERTEX, 1.0);
-	POSITION = PROJECTION_MATRIX * (MODELVIEW_MATRIX * vec4(position, 1.0));
+	vec3 view_position = farwarp((MODELVIEW_MATRIX * vec4(position, 1.0)).xyz);
+	POSITION = PROJECTION_MATRIX * vec4(view_position, 1.0);
 
 	POINT_SIZE = point_size;
 }

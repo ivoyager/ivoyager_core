@@ -18,15 +18,23 @@
 // limitations under the License.
 // *****************************************************************************
 shader_type spatial;
-render_mode unshaded, cull_disabled;
+render_mode unshaded, cull_disabled, skip_vertex_transform;
 
 // Pure fragment-id overlay for a single-instance line (e.g. an IVPathVisual orbit or
 // trajectory). Attach as material_overlay over the visible material; it stamps the encoded
 // id at the sparse probe grid near the mouse and discards elsewhere. Single id via uniform.
+// The vertex farwarp remap must match the base material's, so the id overlay
+// covers the same pixels as the visible line.
 
 uniform vec3 fragment_id;
 
 #include "_fragment_id.gdshaderinc"
+#include "_farwarp.gdshaderinc"
+
+
+void vertex() {
+	VERTEX = farwarp((MODELVIEW_MATRIX * vec4(VERTEX, 1.0)).xyz);
+}
 
 
 void fragment() {

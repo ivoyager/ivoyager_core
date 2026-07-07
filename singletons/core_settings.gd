@@ -135,6 +135,29 @@ var max_camera_distance: float = 5e3 * IVUnits.AU
 ## Radius multiplier used to set [member GeometryInstance3D.visibility_range_end]
 ## in [IVPhysicalBody] and [IVRings].
 var radius_multiplier_visibility_range_end := 4000.0
+## Enables "farwarp" compression: beyond a camera-relative start distance (see
+## [member farwarp_start_ratio]), body model spaces, HUD position symbols, and
+## line/point shaders are re-rendered along the camera ray at logarithmically
+## compressed distance with angular size exactly preserved, so distant objects
+## (e.g., the Moon and Sun viewed from a spacecraft) are not culled by the
+## camera far plane. True [IVBody] positions are never modified. See
+## [IVFarwarpManager].
+var apply_farwarp := true
+## Farwarp compression starts at camera-to-target distance times this ratio;
+## everything closer is untouched (the remap is exactly identity inside the
+## start distance). Must stay well under 1e6 (the [IVCamera] far-plane
+## multiplier); 1e4 leaves 100x headroom while the compressed universe spans
+## less than ~29x the start distance. See [member apply_farwarp].
+var farwarp_start_ratio := 1e4
+## A body's model space is farwarp-remapped only while its true angular radius
+## ([member IVBody.mean_radius] / camera distance, in radians) exceeds this
+## cutoff; smaller bodies keep true model positions (their models are
+## distance-culled and their always-offset HUD symbols represent them). Keep at
+## or below [code]1.0 / radius_multiplier_visibility_range_end[/code] so every
+## model that would pass its visibility range is pulled inside the far plane.
+## Bodies exempt from distance culling (stars) bypass the cutoff. See
+## [member apply_farwarp].
+var farwarp_angular_cutoff := 0.00025
 ## Directory used (created if needed) for cache files. See [IVCacheHandler].
 var cache_dir := "user://cache"
 ## Enables float precisions in [IVTableData]. This is used by Planetarium to
@@ -213,6 +236,8 @@ func _enter_tree() -> void:
 func assert_valid_settings() -> void:
 	assert(gui_size_multipliers.size() == gui_size_settings.size())
 	assert(stroboscope_frames_per_second >= 0.0)
+	assert(farwarp_start_ratio > 0.0)
+	assert(farwarp_angular_cutoff > 0.0)
 
 
 ## Return is the appropriate layer mask for [param mean_radius] specified

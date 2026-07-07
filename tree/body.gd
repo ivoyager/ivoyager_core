@@ -51,9 +51,11 @@ extends Node3D
 ## can evolve over time (e.g., the base class supports orbit precessions) or
 ## change in other ways. See [IVOrbit] file docs for thrust implementation.[br][br]
 ##
-## This node adds its own [IVPhysicalBody] if needed. [IVBody] maintains the
-## rotation of its [IVPhysicalBody] if present. [IVPhysicalBody] instantiates
-## and scales the visual representation (i.e., model) of this body. Note that
+## This node adds its own [IVPhysicalBody] if needed, parented under an
+## interposed [member farwarp_space] Node3D that carries only the farwarp
+## position offset and uniform scale (see [IVFarwarpManager]). [IVBody]
+## maintains the rotation of its [IVPhysicalBody] if present. [IVPhysicalBody]
+## instantiates and scales the visual representation (i.e., model) of this body. Note that
 ## ivoyager_core does not implement collisions. ([IVBody] and [IVPhysicalBody]
 ## subclasses would likely be needed to do that.) If [IVLazyModelInitializer] is
 ## present and this body has [enum BodyFlags].BODYFLAGS_LAZY_MODEL (from data
@@ -302,6 +304,19 @@ var ordered_satellites: Array[IVBody]
 ## representation (model). If data table value [param lazy_model] == TRUE, then
 ## this value will be null until needed. Read-only!
 var physical_body: Node3D
+## If present, the Node3D interposed between this body and [member physical_body]
+## that carries the farwarp position and uniform scale (rotation is never
+## applied here). It is [member Node3D.top_level] when farwarp is enabled:
+## positioned per-frame in world space from camera-relative math, because
+## summing true-scale translations through the ancestor chain loses the
+## compressed position to float32 rounding (one ulp of the true distance can
+## exceed the whole compressed distance). See [IVFarwarpManager]. Read-only!
+var farwarp_space: Node3D
+## Current farwarp-compressed global position of this body's visuals; equals
+## the true global position inside the farwarp start distance. Consumed
+## per-frame by [IVBodyPositionVisual] (also top_level). Not maintained when
+## farwarp is disabled. Read-only!
+var farwarp_position := Vector3.ZERO
 ## Current visibility state for associated HUD elements, including
 ## IVBodyPositionVisual and IVPathVisual. Read-only!
 var huds_visible := false
@@ -325,6 +340,7 @@ var _hill_sphere: float
 var _lazy_model_uninited := false
 var _sleeping := false
 var _min_hud_dist: float
+var _farwarp_no_cutoff := false # stars bypass the farwarp angular-size gate
 var _times: Array[float] = IVGlobal.times
 var _world_controller: IVWorldController = IVGlobal.program[&"WorldController"]
 var _process_callable: Callable # bespoke model attitude named by spacecrafts.tsv 'process'
@@ -530,6 +546,7 @@ func _ready() -> void:
 	IVSettingsManager.changed.connect(_settings_listener)
 	_set_resources()
 	_set_min_hud_dist()
+	_farwarp_no_cutoff = get_inf_visibility()
 	_stroboscope_rotation = randf() * TAU if _stroboscope_frame_rate else 0.0
 
 	var process_method: StringName = characteristics.get(&"process", &"")
@@ -596,7 +613,7 @@ func _process(delta: float) -> void:
 	if huds_visible != show_huds:
 		huds_visible = show_huds
 		huds_visibility_changed.emit(show_huds)
-	
+
 	# update model if needed
 	if not physical_body:
 		return
@@ -1608,8 +1625,9 @@ func remove_child_from_physical_body(node3d: Node3D) -> void:
 ## Removes model(s) but everything else remains (label & orbit HUDs, etc.).
 func remove_and_disable_physical_body() -> void:
 	flags |= BodyFlags.BODYFLAGS_DISABLE_MODEL_SPACE
-	if physical_body:
-		physical_body.queue_free()
+	if farwarp_space:
+		farwarp_space.queue_free() # frees physical_body with it
+	farwarp_space = null
 	physical_body = null
 
 
@@ -1622,6 +1640,36 @@ func is_lazy_model_uninited() -> bool:
 ## Use to init a lazy model, if needed. Normally called by [IVLazyModelInitializer].
 func lazy_model_init() -> void:
 	_add_physical_body()
+
+
+## Called by [IVFarwarpManager] once per frame AFTER the camera has moved and
+## origin-shifted the Universe, so the world-space (top_level) placements of
+## [member farwarp_space] and [member farwarp_position] land in the frame's
+## final coordinates. A placement computed before the origin shift is one frame
+## of camera world-motion behind, which reads as violent shake on fast nearby
+## orbiters and off-center models during fast camera rotation. With
+## [param farwarp_start] <= 0.0 (no camera), places visuals at true positions.
+func update_farwarp(camera_global_position: Vector3, farwarp_start: float) -> void:
+	var camera_vector := global_position - camera_global_position
+	var farwarp_dist := camera_vector.length()
+	var factor := IVFarwarpManager.get_farwarp_factor(farwarp_dist, farwarp_start)
+	# Assembled camera-relative: scaling the true-scale vector keeps float32
+	# rounding proportional to the compressed distance (origin shifting keeps
+	# camera_global_position small). Never derive this by offsetting true-scale
+	# positions - the rounding of the large terms swamps the small result.
+	farwarp_position = camera_global_position + camera_vector * factor
+	if !farwarp_space:
+		return
+	if factor != 1.0 and (_farwarp_no_cutoff
+			or mean_radius > farwarp_dist * IVFarwarpManager.angular_cutoff):
+		farwarp_space.position = farwarp_position
+		farwarp_space.basis = Basis.from_scale(factor * Vector3.ONE)
+	else:
+		# Not remapped: track the true global position (top_level node doesn't
+		# follow this body). Sub-cutoff models beyond the far plane are
+		# distance-culled; the always-remapped HUD symbol represents the body.
+		farwarp_space.position = global_position
+		farwarp_space.basis = Basis.IDENTITY
 
 
 ## Current sleeping state. See [IVSleepManager].
@@ -1679,6 +1727,7 @@ func _clear_procedural() -> void:
 	star = null
 	star_orbiter = null
 	physical_body = null
+	farwarp_space = null
 	satellites.clear()
 	ordered_satellites.clear()
 	# static re-clearing is redundant but not expensive
@@ -1869,7 +1918,13 @@ func _add_physical_body() -> void:
 		physical_body = replacement_physical_body_class.new(name, mean_radius, e_radius, get_spheroid_type())
 	else:
 		physical_body = IVPhysicalBody.new(name, mean_radius, e_radius, get_spheroid_type())
-	add_child(physical_body)
+	farwarp_space = Node3D.new()
+	farwarp_space.name = &"FarwarpSpace"
+	# World-space placement (see farwarp_space doc); an inert identity child
+	# when farwarp is disabled.
+	farwarp_space.top_level = IVCoreSettings.apply_farwarp
+	farwarp_space.add_child(physical_body)
+	add_child(farwarp_space)
 
 
 func _settings_listener(setting: StringName, _value: Variant) -> void:

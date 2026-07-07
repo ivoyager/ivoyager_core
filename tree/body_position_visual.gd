@@ -99,6 +99,19 @@ func _ready() -> void:
 	_viewport_size = viewport.get_visible_rect().size
 
 	_set_global_visibilities()
+	# World-space placement per frame, matching IVBody.farwarp_space: position
+	# assembled at true scale through the ancestor chain would lose the
+	# compressed position to float32 rounding.
+	top_level = IVCoreSettings.apply_farwarp
+	set_process(IVCoreSettings.apply_farwarp)
+	process_priority = 101 # after IVFarwarpManager (+100) sets this frame's farwarp_position
+
+
+func _process(_delta: float) -> void:
+	# Track the body's farwarp position so far-culled bodies keep their symbol
+	# and name (position only, never scale: node scale would corrupt the
+	# screen-fixed sizing in _update_pixel_sizes).
+	position = _body.farwarp_position
 
 
 func _set_global_visibilities() -> void:

@@ -105,6 +105,7 @@ var _spheroid_type: int
 var _mean_radius: float
 var _reference_basis: Basis # this shell's base basis (before any process scaling)
 var _process_callable: Callable
+var _star_body: IVBody # lazy init; true (never farwarp-remapped) position for _grow_star
 
 var _times := IVGlobal.times
 
@@ -369,7 +370,7 @@ func _rotate(delta: float, deg_per_sec: float) -> void:
 ## Named by a 'process' field (the G_STAR row in spheroids.tsv). Grows a star when
 ## beyond GROW_DIST so it stays visible relative to the star field at many au.
 ## Grow settings are subjective: currently calibrated so the Sun is prominant
-## at Jupiter and visible at Pluto. 
+## at Jupiter and visible at Pluto.
 func _grow_star(_delta: float) -> void:
 	const GROW_DIST := 2.0 * IVUnits.AU
 	const GROW_FACTOR := 0.3
@@ -379,7 +380,13 @@ func _grow_star(_delta: float) -> void:
 	var camera := viewport.get_camera_3d()
 	if not camera:
 		return
-	var camera_dist := global_position.distance_to(camera.global_position)
+	if not _star_body:
+		_star_body = IVBody.bodies.get(_body_name)
+		if not _star_body:
+			return
+	# True body-to-camera distance: this model's own global_position is the
+	# farwarp-compressed position, which would under-grow the star.
+	var camera_dist := _star_body.global_position.distance_to(camera.global_position)
 	if camera_dist < GROW_DIST:
 		transform.basis = _reference_basis
 		return
