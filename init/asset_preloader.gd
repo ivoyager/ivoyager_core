@@ -92,17 +92,12 @@ var bodies_2d_search: Array[String] = ["res://addons/ivoyager_assets/bodies_2d"]
 var rings_search: Array[String] = ["res://addons/ivoyager_assets/rings"]
 
 ## Resolved paths for individually loaded assets. Keys correspond to the
-## [code]get_*[/code] accessors below and to entries in [member fallback_starmap].
+## [code]get_*[/code] accessors below.
 var asset_paths: Dictionary[StringName, String] = {
 	blue_noise_1024 = "res://addons/ivoyager_assets/noise/blue_noise_1024.png",
-	starmap_8k = "res://addons/ivoyager_assets/starmaps/starmap_8k.jpg",
-	starmap_16k = "res://addons/ivoyager_assets/starmaps/starmap_16k.jpg",
 	fallback_body_texture_2d = "res://addons/ivoyager_assets/fallbacks/blank_grid_2d_globe.256.png",
 	fallback_body_albedo_map = "res://addons/ivoyager_assets/fallbacks/blank_grid.jpg",
 }
-## Key in [member asset_paths] used as starmap when the user-selected starmap
-## isn't available.
-var fallback_starmap := &"starmap_8k" # starmap_16k possibly removed for size reduction
 
 ## If non-empty, replaces the auto-composed map-filename pattern. Must define
 ## named groups [code]prefix[/code] and [code]tag[/code] (optionally [code]shell[/code]).
@@ -114,7 +109,6 @@ var gl_compatibility_emission_energy_multiplier_multiplier := 2.5
 
 
 var _blue_noise_1024: Texture2D
-var _starmap: Texture2D
 var _symbol_atlas: Texture2D
 var _symbol_textures: Array[AtlasTexture] = []
 var _symbol_point_texture: Texture2D
@@ -130,10 +124,6 @@ func _init() -> void:
 
 func get_blue_noise_1024() -> Texture2D:
 	return _blue_noise_1024
-
-
-func get_starmap() -> Texture2D:
-	return _starmap
 
 
 func get_symbol_atlas() -> Texture2D:
@@ -209,7 +199,6 @@ func _on_core_inited() -> void:
 
 
 func _load_resources(start_msec: int) -> void:
-	_load_starmap()
 	_load_blue_noise_1024()
 	_load_symbol_textures()
 	_load_body_resources()
@@ -227,19 +216,6 @@ func _load_blue_noise_1024() -> void:
 	var path := asset_paths[&"blue_noise_1024"]
 	assert(ResourceLoader.exists(path))
 	_blue_noise_1024 = load(path)
-
-
-func _load_starmap() -> void:
-	var path: String
-	match IVSettingsManager.get_setting(&"starmap"):
-		IVGlobal.StarmapSize.STARMAP_8K:
-			path = asset_paths[&"starmap_8k"]
-		IVGlobal.StarmapSize.STARMAP_16K:
-			path = asset_paths[&"starmap_16k"]
-	if !ResourceLoader.exists(path):
-		path = asset_paths[fallback_starmap]
-	assert(ResourceLoader.exists(path))
-	_starmap = load(path)
 
 
 func _load_symbol_textures() -> void:
