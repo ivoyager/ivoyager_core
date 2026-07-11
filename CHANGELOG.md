@@ -21,7 +21,7 @@ Under development using Godot 4.7.
 * [Feature](https://github.com/orgs/ivoyager/discussions/24): New and better symbols can be shown with or without body names, and set by group similar to color. See [preview](https://github.com/orgs/ivoyager/discussions/24#discussioncomment-17525851). Core provides a default symbol atlas resources/ivoyager_symbol_atlas.png, which can be replaced by setting "symbol_atlas_" values in IVCoreSettings.
 
 ### Fixed
-* [#17](https://github.com/ivoyager/ivoyager_core/issues/17) Jagged and offset orbit/trajectory lines at Neptune and beyond fixed in "Fully support 64-bit..." change above.
+* [#17](https://github.com/ivoyager/ivoyager_core/issues/17) Fixed jagged and offset orbit/trajectory lines at Neptune and beyond.
 
 
 ## [v0.1.2] - 2025-06-29

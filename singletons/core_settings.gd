@@ -120,9 +120,24 @@ var sphere_radial_segments := 128
 ## [IVResourceInitializer] for mesh construction. See also [member
 ## sphere_radial_segments].
 var sphere_rings := 64
-## Sets resolution of orbit/trajectory lines used by [IVPathVisual]. See
-## [IVResourceInitializer] for construction of common orbit/trajectory meshes. 
+## Sets closed-orbit state-path resolution ([method IVOrbit.refresh_state_path]): knots per family
+## (uniform anomaly + uniform tangent-turn, so up to ~2x total at high eccentricity). [IVPathVisual]'s
+## rebased line Hermite-refines between these knots for smoothness, and its render-frame pin holds the
+## line ON the body at any density — so the worst mid-knot Hermite bow (scales as N^-4; meters-scale
+## for a Juno-class e = 0.98 orbit at 500) shows only mid-field, where there is no reference to see it
+## against. Density's real cost is the per-knot scan on every rebake.
 var vertecies_per_orbit: int = 500
+## Sets state-path knots per [IVTrajectory] segment (uniform anomaly). A transfer segment spans years
+## to decades, so its mid-knot Hermite bow is larger than a closed orbit's (~340 m worst on Voyager
+## Sun legs at 500, N^-4) — but the render-frame pin holds the line ON the body at any density, and
+## the bow shows only mid-field, unreferenced. This is also the Tier-1 coarse polyline density; the
+## whole-trajectory knot total sets the per-rebake scan cost, which dominates rebased-mode CPU.
+var vertecies_per_trajectory_segment: int = 500
+## Sets resolution of the shared unit conic meshes drawing all non-rebased orbit lines in
+## [IVPathVisual]. Facet angle peaks at the apsides at ~(2 pi / N) / sqrt(1 - e^2), so N must cover
+## the highest-eccentricity orbit displayed (4096 keeps e = 0.98 under ~0.5 deg). The meshes are
+## shared, so the cost is per drawn vertex, not per body.
+var vertecies_per_conic_mesh: int = 4096
 ## Sets resolution of orbit/trajectory lines used by [IVSBGOrbitsVisual] (e.g.,
 ## for 10000s of asteroid orbits as [MultiMeshInstance3D]). See
 ## [IVResourceInitializer] for construction of common orbit/trajectory meshes. 

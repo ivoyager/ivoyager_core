@@ -1289,6 +1289,73 @@ func get_translation_to_ancestor(ancestor: IVBody, time := NAN) -> PackedFloat64
 	return offset
 
 
+# *****************************************************************************
+# Path display facade (for IVPathVisual)
+#
+# IVPathVisual talks only to IVBody through these; it never references IVOrbit or IVTrajectory. This
+# body already owns the orbit<->trajectory-segment swap (set_orbit_and_parent), so it also owns which
+# frame the line lives in, whether it draws as a standalone orbit, and the drawable state-path sub-paths.
+
+
+## Returns true if the path renders as a standalone orbit (no trajectory, or the body is in a trajectory
+## segment flagged as a parking/capture orbit) rather than as part of the trajectory polyline.
+func is_showing_orbit() -> bool:
+	if not _trajectory:
+		return true
+	return _trajectory.is_orbit_segment(_trajectory.orbits.find(_orbit))
+
+
+## Returns the [IVBody] frame the (non-rebased) path is expressed in and the correct scene-tree parent
+## for an [IVPathVisual]: this body's current gravitational parent in orbit mode, or the trajectory's
+## lowest common ancestor in trajectory mode.
+func get_path_frame() -> IVBody:
+	if is_showing_orbit():
+		return parent
+	return _trajectory.get_lca()
+
+
+## Returns the coarse (far / unfocused) orbit representation as [code][Mesh, Transform3D][/code]: a
+## shared unit conic mesh plus the transform mapping it onto the current orbit. Orbit mode only (see
+## [method is_showing_orbit]); a trajectory's coarse line uses [method get_display_state_paths] directly.
+func get_orbit_display() -> Array:
+	var eccentricity := _orbit.get_eccentricity()
+	if eccentricity < 1.0:
+		return [IVGlobal.resources[&"circle_mesh"], _orbit.get_unit_circle_transform()]
+	if eccentricity > 1.0:
+		return [IVGlobal.resources[&"rectangular_hyperbola_mesh"],
+				_orbit.get_unit_rectangular_hyperbola_transform()]
+	return [IVGlobal.resources[&"parabola_mesh"], _orbit.get_unit_parabola_transform()]
+
+
+## Returns the drawable path as a list of independent state-path sub-paths, each a flat
+## orbit-precision (64-bit) [PackedFloat64Array] of stride-7 knots [x, y, z, vx, vy, vz, t] —
+## position, velocity (the Hermite tangent), and passage time (s) — in the
+## [method get_path_frame] frame. Orbit mode returns one closed-loop sub-path (rebuilt on the
+## current epoch); trajectory mode returns one sub-path per drawn transfer segment (see
+## [method IVTrajectory.get_display_state_paths]).
+func get_display_state_paths(time := NAN) -> Array[PackedFloat64Array]:
+	if is_nan(time):
+		time = _times[0]
+	if is_showing_orbit():
+		_orbit.refresh_state_path(time, IVCoreSettings.vertecies_per_orbit)
+		var orbit_path: Array[PackedFloat64Array] = [_orbit.path]
+		return orbit_path
+	return _trajectory.get_display_state_paths()
+
+
+## Returns true if [param camera_body] is the body this path should rebase against for issue-#17
+## precision: this body itself, or — during a trajectory flyby — the segment's current primary. Gates
+## whether an [IVPathVisual] runs its per-frame rebase check.
+func is_camera_focused(camera_body: IVBody, time := NAN) -> bool:
+	if camera_body == self:
+		return true
+	if is_showing_orbit():
+		return false
+	if is_nan(time):
+		time = _times[0]
+	return camera_body == _trajectory.get_parent(time)
+
+
 ## Returns current or projected [code][position, velocity][/code] at [param time] as a
 ## 32-bit [PackedVector3Array] (graphics idiom; see [method get_state] for orbit precision).
 ## Valid even while sleeping. Supply [param time] only if you don't want the current value.

@@ -36,9 +36,10 @@ var preloads: Dictionary[StringName, Resource] = {
 			"res://addons/ivoyager_core/shaders/orbiting_positions_id.gdshader"),
 	orbiting_positions_lp_id_shader = preload(
 			"res://addons/ivoyager_core/shaders/orbiting_positions_lp_id.gdshader"),
-	id_shader = preload("res://addons/ivoyager_core/shaders/id.gdshader"),
+	path_id_shader = preload("res://addons/ivoyager_core/shaders/path_id.gdshader"),
 	instance_id_shader = preload("res://addons/ivoyager_core/shaders/instance_id.gdshader"),
-	farwarp_line_shader = preload("res://addons/ivoyager_core/shaders/farwarp_line.gdshader"),
+	path_shader = preload("res://addons/ivoyager_core/shaders/path.gdshader"),
+	farwarp_vertex_shader = preload("res://addons/ivoyager_core/shaders/farwarp_vertex.gdshader"),
 	rings_shader = preload("res://addons/ivoyager_core/shaders/rings.gdshader"),
 	rings_shadow_caster_shader = preload(
 			"res://addons/ivoyager_core/shaders/rings_shadow_caster.gdshader"),
@@ -53,11 +54,11 @@ var preloads: Dictionary[StringName, Resource] = {
 var constructors: Dictionary[StringName, Callable]= {
 	&"sphere_mesh" : _make_sphere_mesh.bind(IVCoreSettings.sphere_radial_segments,
 			IVCoreSettings.sphere_rings),
-	&"circle_mesh" : _make_circle_mesh.bind(IVCoreSettings.vertecies_per_orbit),
+	&"circle_mesh" : _make_circle_mesh.bind(IVCoreSettings.vertecies_per_conic_mesh),
 	&"circle_mesh_low_res" : _make_circle_mesh.bind(IVCoreSettings.vertecies_per_orbit_low_res),
-	&"parabola_mesh" : _make_open_conic_mesh.bind(IVCoreSettings.vertecies_per_orbit,
+	&"parabola_mesh" : _make_open_conic_mesh.bind(IVCoreSettings.vertecies_per_conic_mesh,
 			1.0, IVCoreSettings.open_conic_max_radius),
-	&"rectangular_hyperbola_mesh" : _make_open_conic_mesh.bind(IVCoreSettings.vertecies_per_orbit,
+	&"rectangular_hyperbola_mesh" : _make_open_conic_mesh.bind(IVCoreSettings.vertecies_per_conic_mesh,
 			sqrt(2.0), IVCoreSettings.open_conic_max_radius),
 }
 

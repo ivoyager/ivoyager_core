@@ -64,6 +64,12 @@ const PERSIST_PROPERTIES2: Array[StringName] = [
 	&"_inclination_at_epoch",
 	&"_inclination_rate",
 	&"_time_periapsis_at_epoch",
+
+	&"_signaled_semi_major_axis",
+	&"_signaled_eccentricity",
+	&"_signaled_inclination",
+	&"_signaled_semi_parameter",
+	&"_signaled_time_periapsis",
 ]
 
 # redirect public
@@ -98,6 +104,17 @@ var _eccentricity_rate: float
 var _inclination_at_epoch: float
 var _inclination_rate: float
 var _time_periapsis_at_epoch: float
+
+# Hysteresis detectors for the changed signal only. a/e/i/p/t₀ evolve in this subclass, so it needs its
+# own last-signaled snapshot (the base's Ω/ω detectors still cover precession). Updated in update() when
+# accumulated change crosses CHANGED_THRESHOLD; these LAG the true elements — the current value is always
+# get_<element>_at_time(). The base's _semi_major_axis/_eccentricity/_inclination/_semi_parameter/
+# _time_periapsis fields are the base's current-element store and stay at their epoch values in this subclass.
+var _signaled_semi_major_axis: float
+var _signaled_eccentricity: float
+var _signaled_inclination: float
+var _signaled_semi_parameter: float
+var _signaled_time_periapsis: float
 
 
 ## Creates a new [IVRealPlanetOrbit] instance. Takes argument of periapsis (ω)
@@ -176,9 +193,9 @@ static func create_real_planet_orbit(
 			-mean_anomaly_at_epoch / mean_anomaly_rate, mean_anomaly_rate)
 	orbit._gravitational_parameter = semi_major_axis ** 3 * mean_anomaly_rate ** 2
 	
-	# set evolving parameters to epoch (precessing)
-	orbit._longitude_ascending_node = longitude_ascending_node
-	orbit._argument_periapsis = argument_periapsis
+	# seed the changed-signal hysteresis detectors at epoch (precessing)
+	orbit._signaled_longitude_ascending_node = longitude_ascending_node
+	orbit._signaled_argument_periapsis = argument_periapsis
 	
 	# derived
 	orbit._semi_major_axis = semi_major_axis
@@ -196,6 +213,13 @@ static func create_real_planet_orbit(
 	orbit._inclination_at_epoch = inclination
 	orbit._inclination_rate = inclination_rate
 	orbit._time_periapsis_at_epoch = orbit._time_periapsis
+
+	# seed the subclass changed-signal hysteresis detectors at epoch
+	orbit._signaled_semi_major_axis = semi_major_axis
+	orbit._signaled_eccentricity = eccentricity
+	orbit._signaled_inclination = inclination
+	orbit._signaled_semi_parameter = orbit._semi_parameter
+	orbit._signaled_time_periapsis = orbit._time_periapsis
 	
 	orbit.m_correction_b = mean_anomaly_correction_b
 	orbit.m_correction_f = mean_anomaly_correction_f
@@ -222,15 +246,17 @@ func update(time: float, rotate_to_ecliptic := true) -> Vector3:
 	const CHANGED_ANGLE_THRESHOLD := CHANGED_THRESHOLD / TAU
 	const REFERENCE_PLANE_ECLIPTIC := ReferencePlane.REFERENCE_PLANE_ECLIPTIC
 	
+	_update_time = time
+
 	# evolve orbit (precession only)
 	var lan := fposmod(_longitude_ascending_node_at_epoch + _longitude_ascending_node_rate * time, TAU)
 	var ap := fposmod(_argument_periapsis_at_epoch + _argument_periapsis_rate * time, TAU)
 	
-	# update & signal if accumulated change is significant (precession only)
-	if (absf(lan - _longitude_ascending_node) > CHANGED_ANGLE_THRESHOLD
-			or absf(ap - _argument_periapsis) > CHANGED_ANGLE_THRESHOLD):
-		_longitude_ascending_node = lan
-		_argument_periapsis = ap
+	# signal if accumulated precession since the last emit crosses the threshold
+	if (absf(lan - _signaled_longitude_ascending_node) > CHANGED_ANGLE_THRESHOLD
+			or absf(ap - _signaled_argument_periapsis) > CHANGED_ANGLE_THRESHOLD):
+		_signaled_longitude_ascending_node = lan
+		_signaled_argument_periapsis = ap
 		changed.emit(true, true)
 	
 	# Note: a double changed signal is possible here, but is only an edge-case
@@ -249,17 +275,17 @@ func update(time: float, rotate_to_ecliptic := true) -> Vector3:
 		correction += m_correction_c * cos(ft) + m_correction_s * sin(ft)
 		t0 = _time_periapsis_at_epoch - correction / _mean_motion
 	
-	# update & signal if accumulated change is significant (non-precession)
-	if (absf(a - _semi_major_axis) / a > CHANGED_THRESHOLD
-			or absf(e - _eccentricity) > CHANGED_THRESHOLD
-			or absf(i - _inclination) > CHANGED_ANGLE_THRESHOLD
-			or absf(p - _semi_parameter) / p > CHANGED_THRESHOLD
-			or absf(t0 - _time_periapsis) * _mean_motion > CHANGED_ANGLE_THRESHOLD):
-		_semi_major_axis = a
-		_eccentricity = e
-		_inclination = i
-		_semi_parameter = p
-		_time_periapsis = t0
+	# signal if accumulated element change since the last emit crosses the threshold
+	if (absf(a - _signaled_semi_major_axis) / a > CHANGED_THRESHOLD
+			or absf(e - _signaled_eccentricity) > CHANGED_THRESHOLD
+			or absf(i - _signaled_inclination) > CHANGED_ANGLE_THRESHOLD
+			or absf(p - _signaled_semi_parameter) / p > CHANGED_THRESHOLD
+			or absf(t0 - _signaled_time_periapsis) * _mean_motion > CHANGED_ANGLE_THRESHOLD):
+		_signaled_semi_major_axis = a
+		_signaled_eccentricity = e
+		_signaled_inclination = i
+		_signaled_semi_parameter = p
+		_signaled_time_periapsis = t0
 		changed.emit(true, false)
 	
 	# BELOW COPIED FROM BASE W/ SUBSTITUTIONS
@@ -291,7 +317,6 @@ func get_position_vector(time: float, rotate_to_ecliptic := true) -> Vector3:
 
 
 ## See [method IVOrbit.get_state_vectors].
-## @experimental: The velocity component has not been tested yet!
 func get_state_vectors(time: float, rotate_to_ecliptic := true) -> PackedVector3Array:
 	var out := PackedFloat64Array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 	_write_state(time, rotate_to_ecliptic, out, 0)
@@ -357,7 +382,7 @@ func _write_state(time: float, rotate_to_ecliptic: bool, out: PackedFloat64Array
 	var angular_v := _specific_angular_momentum / r
 	var vx := c * x - angular_v * (cos_lan * sin_ap_nu + sin_lan * cos_ap_nu * cos_i)
 	var vy := c * y - angular_v * (sin_lan * sin_ap_nu - cos_lan * cos_ap_nu * cos_i)
-	var vz := c * z - angular_v * (cos_ap_nu * sin_i)
+	var vz := c * z + angular_v * (cos_ap_nu * sin_i)
 	if rotate_to_ecliptic and _reference_plane_type != ReferencePlane.REFERENCE_PLANE_ECLIPTIC:
 		IVMath64.rotate_into(_reference_basis, x, y, z, out, offset)
 		IVMath64.rotate_into(_reference_basis, vx, vy, vz, out, offset + 3)
