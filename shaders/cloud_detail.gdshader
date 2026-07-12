@@ -18,6 +18,7 @@
 // limitations under the License.
 // *****************************************************************************
 shader_type spatial;
+render_mode skip_vertex_transform; // for the farwarp vertex remap; see _farwarp.gdshaderinc
 //render_mode depth_prepass_alpha; // See note below
 
 // Lit, translucent cloud overlay for an IVSpheroidModel shell. Name it in the
@@ -41,6 +42,7 @@ shader_type spatial;
 // it's currently disabled at both ends now.
 
 #include "_detail.gdshaderinc"
+#include "_farwarp.gdshaderinc"
 
 uniform sampler2D albedo : source_color; // auto-bound: <prefix>.<file_tag>.albedo.*
 uniform vec3 clouds_color : source_color = vec3(1.0); // tint over the map's own rgb
@@ -61,7 +63,8 @@ varying vec3 model_position;
 
 
 void vertex() {
-	model_position = VERTEX; // unit-sphere local position
+	model_position = VERTEX; // unit-sphere local position (captured before farwarp overwrites VERTEX)
+	farwarp_lit_vertex(MODELVIEW_MATRIX, MODELVIEW_NORMAL_MATRIX, VERTEX, NORMAL);
 }
 
 

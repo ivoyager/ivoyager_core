@@ -100,9 +100,9 @@ func _ready() -> void:
 	_viewport_size = viewport.get_visible_rect().size
 
 	_set_global_visibilities()
-	# World-space placement per frame, matching IVBody.farwarp_space: position
-	# assembled at true scale through the ancestor chain would lose the
-	# compressed position to float32 rounding.
+	# World-space (top_level) placement per frame: the compressed farwarp_position is tiny
+	# relative to the true distance, so assembling it at true scale through the ancestor chain
+	# would lose it to float32 rounding. See [IVFarwarpManager] and IVBody.farwarp_position.
 	top_level = IVCoreSettings.apply_farwarp
 	set_process(IVCoreSettings.apply_farwarp)
 	process_priority = 101 # after IVFarwarpManager (+100) sets this frame's farwarp_position

@@ -120,6 +120,10 @@ var sphere_radial_segments := 128
 ## [IVResourceInitializer] for mesh construction. See also [member
 ## sphere_radial_segments].
 var sphere_rings := 64
+## Sets subdivision of the shared [PlaneMesh] used by [IVRings] and its shadow casters (see
+## [IVResourceInitializer]). Enough subdivision lets the per-vertex farwarp remap approximate the
+## compression curve across the ring span.
+var plane_mesh_subdivisions := 64
 ## Sets closed-orbit state-path resolution ([method IVOrbit.refresh_state_path]): knots per family
 ## (uniform anomaly + uniform tangent-turn, so up to ~2x total at high eccentricity). [IVPathVisual]'s
 ## rebased line Hermite-refines between these knots for smoothness, and its render-frame pin holds the
@@ -164,15 +168,6 @@ var apply_farwarp := true
 ## multiplier); 1e4 leaves 100x headroom while the compressed universe spans
 ## less than ~29x the start distance. See [member apply_farwarp].
 var farwarp_start_ratio := 1e4
-## A body's model space is farwarp-remapped only while its true angular radius
-## ([member IVBody.mean_radius] / camera distance, in radians) exceeds this
-## cutoff; smaller bodies keep true model positions (their models are
-## distance-culled and their always-offset HUD symbols represent them). Keep at
-## or below [code]1.0 / radius_multiplier_visibility_range_end[/code] so every
-## model that would pass its visibility range is pulled inside the far plane.
-## Bodies exempt from distance culling (stars) bypass the cutoff. See
-## [member apply_farwarp].
-var farwarp_angular_cutoff := 0.00025
 ## Directory used (created if needed) for cache files. See [IVCacheHandler].
 var cache_dir := "user://cache"
 ## Enables float precisions in [IVTableData]. This is used by Planetarium to
@@ -265,7 +260,6 @@ func assert_valid_settings() -> void:
 	assert(gui_size_multipliers.size() == gui_size_settings.size())
 	assert(stroboscope_frames_per_second >= 0.0)
 	assert(farwarp_start_ratio > 0.0)
-	assert(farwarp_angular_cutoff > 0.0)
 	assert(symbol_atlas_columns > 0 and symbol_atlas_rows > 0)
 
 

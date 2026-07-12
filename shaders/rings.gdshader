@@ -18,7 +18,7 @@
 // limitations under the License.
 // *****************************************************************************
 shader_type spatial;
-render_mode cull_disabled;
+render_mode cull_disabled, skip_vertex_transform; // skip: for the farwarp vertex remap
 
 // Source data and color/phase-angle tips: https://bjj.mmedia.is/data/s_rings.
 // See https://github.com/ivoyager/ivbinary_maker for conversion of source data
@@ -44,6 +44,8 @@ render_mode cull_disabled;
 //
 // WARNING! FRONT_FACING is not reliable as of Godot 4.2.2. It's sometimes
 // wrong on my laptop (NVIDIA GeForce GTX 1650 Ti).
+
+#include "_farwarp.gdshaderinc"
 
 const float DFDR_MULTIPLIER = 1.0; // smaller for more detail & more aliasing
 const float PHASE_EXPONENT = 6.0; // larger narrows the low phase-angle effect
@@ -80,6 +82,9 @@ varying flat float camera_model_elevation; // >0.0 for lit side
 void vertex() {
 	illumination_direction = normalize((VIEW_MATRIX * vec4(illumination_position, 1.0)).xyz);
 	camera_model_elevation = (inverse(MODEL_MATRIX) * vec4(CAMERA_POSITION_WORLD, 1.0)).y;
+	// Farwarp remap under skip_vertex_transform. NORMAL is transformed identically to the engine
+	// default (farwarp_lit_vertex), so ring lighting is unchanged; only the depth is compressed.
+	farwarp_lit_vertex(MODELVIEW_MATRIX, MODELVIEW_NORMAL_MATRIX, VERTEX, NORMAL);
 }
 
 

@@ -18,6 +18,7 @@
 // limitations under the License.
 // *****************************************************************************
 shader_type spatial;
+render_mode skip_vertex_transform; // for the farwarp vertex remap; see _farwarp.gdshaderinc
 
 // Lit surface shader for a solid IVSpheroidModel surface (shell 0) that removes the texel
 // "squares" a fixed-resolution map shows when magnified at close (orbital) range. It does
@@ -39,6 +40,7 @@ shader_type spatial;
 // emits nothing; one that ships a map gets additive emission (night side, washed out by day).
 
 #include "_detail.gdshaderinc"
+#include "_farwarp.gdshaderinc"
 
 // Auto-bound channels. Default hints make an unbound map a no-op (see asset_preloader.gd
 // texture_channels). normal/roughness stay LINEAR (no source_color); albedo/emission decode sRGB.
@@ -53,6 +55,13 @@ uniform float roughness_scale = 1.0;   // multiplies the sampled roughness (whit
 uniform float metallic = 0.0;
 uniform float metallic_specular = 0.5; // dielectric specular reflectance; 0.5 = StandardMaterial3D default
 uniform float emission_energy_multiplier = 1.0;
+
+
+void vertex() {
+	// Farwarp compresses the surface along the camera ray so a large body's depth stays
+	// consistent with the per-vertex-warped orbit lines around it. _tbn: the normal map needs TBN.
+	farwarp_lit_vertex_tbn(MODELVIEW_MATRIX, MODELVIEW_NORMAL_MATRIX, VERTEX, NORMAL, TANGENT, BINORMAL);
+}
 
 
 void fragment() {

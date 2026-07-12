@@ -56,6 +56,7 @@ var preloads: Dictionary[StringName, Resource] = {
 var constructors: Dictionary[StringName, Callable]= {
 	&"sphere_mesh" : _make_sphere_mesh.bind(IVCoreSettings.sphere_radial_segments,
 			IVCoreSettings.sphere_rings),
+	&"plane_mesh" : _make_plane_mesh.bind(IVCoreSettings.plane_mesh_subdivisions),
 	&"circle_mesh" : _make_circle_mesh.bind(IVCoreSettings.vertecies_per_conic_mesh),
 	&"circle_mesh_low_res" : _make_circle_mesh.bind(IVCoreSettings.vertecies_per_orbit_low_res),
 	&"parabola_mesh" : _make_open_conic_mesh.bind(IVCoreSettings.vertecies_per_conic_mesh,
@@ -103,6 +104,17 @@ func _make_sphere_mesh(radial_segments := 64, rings := 32) -> SphereMesh:
 	sphere_mesh.radius = 1.0
 	sphere_mesh.height = 2.0
 	return sphere_mesh
+
+
+## Shared subdivided [PlaneMesh] for [IVRings] and its shadow casters. Kept at the default 2x2
+## size (so the ring shaders' [code]length(UV * 2.0 - 1.0)[/code] radius math is unchanged) and
+## subdivided so the per-vertex farwarp remap approximates the compression curve across the ring
+## span. Instances set their own scale and rotation.
+func _make_plane_mesh(subdivisions := 64) -> PlaneMesh:
+	var plane_mesh := PlaneMesh.new()
+	plane_mesh.subdivide_width = subdivisions
+	plane_mesh.subdivide_depth = subdivisions
+	return plane_mesh
 
 
 func _make_circle_mesh(n_vertecies: int) -> ArrayMesh:

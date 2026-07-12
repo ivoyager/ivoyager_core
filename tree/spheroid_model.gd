@@ -354,6 +354,11 @@ func _set_visibility_and_layers() -> void:
 	var node_layers := IVCoreSettings.get_visualinstance3d_layer_for_size(_mean_radius)
 	node_layers |= IVGlobal.ShadowMask.SHADOW_MASK_FULL
 	layers = node_layers
+	if IVCoreSettings.apply_farwarp:
+		# Frustum culling tests the true-scale AABB against the far plane, but the farwarp vertex
+		# remap keeps the surface on-screen even when that test fails; make it always pass.
+		var extent := IVCoreSettings.max_camera_distance
+		custom_aabb = AABB(-Vector3.ONE * extent, 2.0 * Vector3.ONE * extent)
 
 
 func _build_child_shells(shell_specs: Array) -> void:

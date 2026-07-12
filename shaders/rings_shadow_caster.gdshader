@@ -18,6 +18,7 @@
 // limitations under the License.
 // *****************************************************************************
 shader_type spatial;
+render_mode skip_vertex_transform; // for the farwarp vertex remap; see _farwarp.gdshaderinc
 
 // Maintained sun-facing by parent IVRings node.
 //
@@ -39,6 +40,8 @@ shader_type spatial;
 // 6. Widening the alpha sample in fragment() below. This reduces banding
 //    patterns without the downsides of #3 and #4. But it adds overhead.
 
+#include "_farwarp.gdshaderinc"
+
 const float alpha_noise_multiplier = 0.1;
 
 // set once
@@ -55,6 +58,14 @@ uniform sampler2D blue_noise_1024;
 uniform float alpha_exponent; // 1.0 (sun above) -> 0.001 min (sun edge-on)
 uniform float radial_noise_multiplier; // adjusted with distance
 
+
+
+void vertex() {
+	// Warp the caster geometry to match the visible rings' compressed depth. NOTE: this runs in
+	// light space (the shadow pass), so it does not by itself make shadows correct under farwarp -
+	// that is deferred; it just keeps the caster in the same compressed frame as the visible ring.
+	VERTEX = farwarp((MODELVIEW_MATRIX * vec4(VERTEX, 1.0)).xyz);
+}
 
 
 void fragment() {

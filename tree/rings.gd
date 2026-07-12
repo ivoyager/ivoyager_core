@@ -87,7 +87,7 @@ func _init(body: IVBody) -> void:
 	_shadow_caster_texture = asset_preloader.get_rings_shadow_caster_texture(name)
 	_blue_noise_1024 = asset_preloader.get_blue_noise_1024()
 	cast_shadow = SHADOW_CASTING_SETTING_OFF # semi-transparancy can't cast shadows
-	mesh = PlaneMesh.new() # default 2x2
+	mesh = IVGlobal.resources[&"plane_mesh"] # shared subdivided 2x2 plane (farwarp needs subdivision)
 	rotation.x = PI / 2.0 # z up astronomy
 
 
@@ -111,7 +111,12 @@ func _ready() -> void:
 	
 	scale = Vector3(outer_texture, 1.0, outer_texture)
 	visibility_range_end = outer_radius * IVCoreSettings.radius_multiplier_visibility_range_end
-	
+	if IVCoreSettings.apply_farwarp:
+		# Frustum culling tests the true-scale AABB against the far plane, but the farwarp
+		# vertex remap keeps the ring on-screen even when that test fails; make it always pass.
+		var extent := IVCoreSettings.max_camera_distance
+		custom_aabb = AABB(-Vector3.ONE * extent, 2.0 * Vector3.ONE * extent)
+
 	_rings_material.shader = IVGlobal.resources[&"rings_shader"]
 	for lod in LOD_LEVELS:
 		_rings_material.set_shader_parameter("textures%s" % lod, _texture_arrays[lod])
@@ -216,9 +221,13 @@ class IVRingsShadowCaster extends MeshInstance3D:
 		_blue_noise_1024 = blue_noise_1024
 		layers = shadow_mask
 		cast_shadow = SHADOW_CASTING_SETTING_SHADOWS_ONLY
-		mesh = PlaneMesh.new() # default 2x2
+		mesh = IVGlobal.resources[&"plane_mesh"] # shared subdivided 2x2 plane (farwarp needs subdivision)
 		name = "RingsShadowCaster" + str(low_alpha).replace(".", "p")
 		visibility_range_end = outer_radius * IVCoreSettings.radius_multiplier_visibility_range_end
+		if IVCoreSettings.apply_farwarp:
+			# Match the visible ring so the caster's past-far-plane geometry isn't frustum-culled.
+			var extent := IVCoreSettings.max_camera_distance
+			custom_aabb = AABB(-Vector3.ONE * extent, 2.0 * Vector3.ONE * extent)
 
 
 	func _ready() -> void:
