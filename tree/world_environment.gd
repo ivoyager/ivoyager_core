@@ -25,15 +25,32 @@ extends WorldEnvironment
 ## This node uses default Environment and CameraAttributes resources from
 ## res://addons/ivoyager_core/resources.[br][br]
 ##
-## If [member add_starmap] is true (default), this node will add a starmap
-## from the assets directory to the Environment resource at startup. The default
-## Environment doesn't have this because the Core plugin is stand-alone without
-## assets. (It can't run that way but we don't want it to generate missing
-## resource errors.)[br][br]
+## If [member add_starmap] is true (default), this node adds a low-resolution
+## background panorama (the diffuse Milky Way / nebula sky) from the assets
+## directory to the Environment's sky at startup, discovered by file prefix (see
+## [member starmap_background_file_prefix]). The default Environment omits it
+## because the Core plugin is stand-alone without assets; a missing file simply
+## leaves the black clear-color background. Discrete stars are drawn separately
+## by [IVStarsVisual].[br][br]
 
-## If true, a starmap loaded from [IVAssetPreloader] is added to the
-## Environment's sky as a [PanoramaSkyMaterial] at startup.
+## If true, a background panorama discovered under [member starmaps_search] by
+## [member starmap_background_file_prefix] is added to the Environment's sky as a
+## [PanoramaSkyMaterial] at startup. A missing file leaves the clear-color background.
 @export var add_starmap := true
+## File prefix (see [IVFiles]) of the background sky panorama in [member
+## starmaps_search]; e.g. [code]starmap_background[/code] matches
+## [code]starmap_background.1024.jpg[/code], so the asset resolution can change
+## without a code edit.
+@export var starmap_background_file_prefix := &"starmap_background"
+## Directories searched for the background panorama. Prepend a directory to
+## prioritize a custom override.
+var starmaps_search: Array[String] = ["res://addons/ivoyager_assets/starmaps"]
+## Energy multiplier applied to the background sky ([code]starmap_background[/code]
+## shader). The NASA Milky Way image is near-white in the galactic bulge at full
+## energy; lower this to dim the diffuse band and lift star contrast [b]without
+## rebaking the image[/b]. (For a scene-wide alternative, set
+## [code]bg_energy_multiplier[/code] on the shared Environment resource instead.)
+@export_range(0.0, 2.0, 0.01, "or_greater") var starmap_background_energy := 0.05
 ## Multiplies all scene radiance (emission + lit surfaces + sky) before tonemapping;
 ## applied only under the Compatibility renderer to offset its dimmer output.
 @export var gl_compatibility_exposure := 1.2  # tune by eye
@@ -51,13 +68,19 @@ func _on_asset_preloader_finished() -> void:
 
 
 func _add_starmap_sky() -> void:
-	var asset_preloader: IVAssetPreloader = IVGlobal.program[&"AssetPreloader"]
-	var starmap := asset_preloader.get_starmap()
-	if !starmap:
+	var background: Texture2D = IVFiles.find_and_load_resource(starmaps_search,
+			String(starmap_background_file_prefix))
+	if !background:
 		return
-	
-	var sky_material := PanoramaSkyMaterial.new()
-	sky_material.panorama = starmap
+
+	# Depixelating sky shader (bicubic resample) that samples the equatorial background
+	# image as-is and rotates it into the ecliptic frame; see starmap_background.gdshader
+	# for why Environment.sky_rotation can't do this (handedness).
+	var sky_material := ShaderMaterial.new()
+	sky_material.shader = IVGlobal.resources[&"starmap_background_shader"]
+	sky_material.set_shader_parameter(&"panorama", background)
+	sky_material.set_shader_parameter(&"energy_multiplier", starmap_background_energy)
+	sky_material.set_shader_parameter(&"obliquity", IVAstronomy.OBLIQUITY_OF_THE_ECLIPTIC)
 	var sky := Sky.new()
 	sky.sky_material = sky_material
 	environment.sky = sky

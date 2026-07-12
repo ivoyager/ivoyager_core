@@ -94,7 +94,6 @@ extends PopupPanel
 		[&"LABEL_HIDE_HUDS_WHEN_CLOSE", &"hide_hud_when_close"],
 	],
 	LABEL_GRAPHICS_PERFORMANCE = [
-		[&"LABEL_STARMAP", &"starmap"],
 		[&"LABEL_SHADOW_RESOLUTION", &"directional_shadow_size"],
 		[&"LABEL_MSAA", &"msaa_3d"],
 		[&"LABEL_FXAA", &"fxaa"],
@@ -110,7 +109,6 @@ extends PopupPanel
 @export var option_enumerations: Dictionary[StringName, Array] = {
 	language = [&"LanguageManager", &"language_settings"],
 	gui_size = [&"CoreSettings", &"gui_size_settings"],
-	starmap = [&"Global", &"StarmapSize"],
 	msaa_3d = [&"GraphicsManager", &"msaa_settings"],
 	directional_shadow_size = [&"GraphicsManager", &"shadow_size_settings"],
 }

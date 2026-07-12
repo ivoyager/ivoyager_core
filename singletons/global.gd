@@ -88,12 +88,6 @@ signal close_admin_popups_required()
 signal show_hide_gui_requested(is_toggle: bool, is_show: bool)
 
 
-## Resolution choice for the background starmap; see [IVAssetPreloader].
-enum StarmapSize {
-	STARMAP_8K,
-	STARMAP_16K,
-}
-
 ## Generic confidence levels for table-driven values. Used by data tables
 ## where a fact may be doubtful, unknown, or probable.
 enum Confidence {
