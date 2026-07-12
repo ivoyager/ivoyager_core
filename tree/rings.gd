@@ -27,6 +27,10 @@ extends MeshInstance3D
 ## Shadow casting is disabled for Compatibility renderer (see comments in
 ## [IVDynamicLight]).[br][br]
 ##
+## With [constant USE_ANALYTIC_SURFACE_SHADOW], the shadow casters are replaced
+## by an analytic ring-shadow term this node feeds to the parent body's surface
+## shader each frame (see [code]shaders/_sun_occlusion.gdshaderinc[/code]).[br][br]
+##
 ## All properties are set from data table rings.tsv.[br][br]
 ##
 ## These classes use rings.shader and rings_shadow_caster.shader. See comments
@@ -35,6 +39,12 @@ extends MeshInstance3D
 ## Not persisted. [IVBodyFinisher] adds when [IVBody] is added to the tree.[br][br]
 
 const ShadowMask := IVGlobal.ShadowMask
+
+## Experiment toggle: shadow the parent body's surface analytically (per-fragment
+## ring-plane transmission in the surface shader) instead of via the shadow-map
+## caster rig. Unlike the casters, this path also works with the Compatibility
+## renderer.
+const USE_ANALYTIC_SURFACE_SHADOW := true
 
 const END_PADDING := 0.05 # must be same as ivbinary_maker that generated images
 const RENDER_MARGIN := 0.01 # render outside of image data for smoothing
@@ -65,14 +75,18 @@ var _texture_arrays: Array[Texture2DArray] # backscatter/forwardscatter/unlitsid
 var _texture_start: float
 var _inner_margin: float
 var _outer_margin: float
+var _inner_texture: float # texture-range inner radius (inside inner_radius by END_PADDING)
+var _outer_texture: float # texture-range outer radius (edge of plane)
 var _shadow_caster_texture: Texture2D
 var _shadow_caster_shared: Array[float] = [1.0, 0.005] # alpha_exponent, noise_strength
+var _shadow_profile_texture: Texture2D
+var _surface_material: ShaderMaterial # analytic ring-shadow target (parent body's shell 0)
 var _blue_noise_1024: Texture2D
 var _body: IVBody
 var _illuminating_star: IVBody
 var _camera: Camera3D
 
-var _has_shadows := !IVGlobal.is_gl_compatibility
+var _has_shadows := !IVGlobal.is_gl_compatibility and not USE_ANALYTIC_SURFACE_SHADOW
 
 
 func _init(body: IVBody) -> void:
@@ -85,6 +99,7 @@ func _init(body: IVBody) -> void:
 	var asset_preloader: IVAssetPreloader = IVGlobal.program[&"AssetPreloader"]
 	_texture_arrays = asset_preloader.get_rings_texture_arrays(name)
 	_shadow_caster_texture = asset_preloader.get_rings_shadow_caster_texture(name)
+	_shadow_profile_texture = asset_preloader.get_rings_shadow_profile_texture(name)
 	_blue_noise_1024 = asset_preloader.get_blue_noise_1024()
 	cast_shadow = SHADOW_CASTING_SETTING_OFF # semi-transparancy can't cast shadows
 	mesh = IVGlobal.resources[&"plane_mesh"] # shared subdivided 2x2 plane (farwarp needs subdivision)
@@ -101,15 +116,21 @@ func _ready() -> void:
 	
 	# distances in sim scale
 	var ring_span := outer_radius - inner_radius
-	var outer_texture := outer_radius + END_PADDING * ring_span # edge of plane
-	var inner_texture := inner_radius - END_PADDING * ring_span # texture start from center
-	
+	_outer_texture = outer_radius + END_PADDING * ring_span # edge of plane
+	_inner_texture = inner_radius - END_PADDING * ring_span # texture start from center
+
 	# normalized distances from center of 2x2 plane
-	_texture_start = inner_texture / outer_texture
-	_inner_margin = (inner_radius - RENDER_MARGIN * ring_span) / outer_texture # render boundary
-	_outer_margin = (outer_radius + RENDER_MARGIN * ring_span) / outer_texture # render boundary
-	
-	scale = Vector3(outer_texture, 1.0, outer_texture)
+	_texture_start = _inner_texture / _outer_texture
+	_inner_margin = (inner_radius - RENDER_MARGIN * ring_span) / _outer_texture # render boundary
+	_outer_margin = (outer_radius + RENDER_MARGIN * ring_span) / _outer_texture # render boundary
+
+	scale = Vector3(_outer_texture, 1.0, _outer_texture)
+
+	if USE_ANALYTIC_SURFACE_SHADOW:
+		# The shadow uniforms carry global positions, so they must be read after
+		# IVCamera (0) origin-shifts the Universe - same reason IVFarwarpManager
+		# processes late.
+		process_priority = 100
 	visibility_range_end = outer_radius * IVCoreSettings.radius_multiplier_visibility_range_end
 	if IVCoreSettings.apply_farwarp:
 		# Frustum culling tests the true-scale AABB against the far plane, but the farwarp
@@ -150,7 +171,10 @@ func _process(_delta: float) -> void:
 		cos_illumination_angle *= -1
 	
 	_rings_material.set_shader_parameter(&"illumination_position", illumination_position)
-	
+
+	if USE_ANALYTIC_SURFACE_SHADOW:
+		_update_surface_shadow()
+
 	if !_has_shadows:
 		return
 	
@@ -172,10 +196,41 @@ func _clear_procedural() -> void:
 	_body = null
 	_illuminating_star = null
 	_camera = null
+	_surface_material = null
 
 
 func _set_camera(camera: Camera3D) -> void:
 	_camera = camera
+
+
+# Feeds the analytic ring-shadow uniforms on the parent body's surface material
+# (see _sun_occlusion.gdshaderinc). The material is fetched lazily: the sibling
+# spheroid model may not exist yet when this node enters the tree.
+func _update_surface_shadow() -> void:
+	if not _surface_material:
+		_surface_material = _find_surface_material()
+		if not _surface_material:
+			return
+		_surface_material.set_shader_parameter(&"ring_alpha_r8", _shadow_profile_texture)
+		_surface_material.set_shader_parameter(&"ring_alpha_width",
+				float(_shadow_profile_texture.get_width()))
+		_surface_material.set_shader_parameter(&"ring_texture_inner", _inner_texture)
+		_surface_material.set_shader_parameter(&"ring_texture_outer", _outer_texture)
+	var star_vector := _illuminating_star.global_position - global_position
+	var star_distance := star_vector.length()
+	_surface_material.set_shader_parameter(&"ring_center", global_position)
+	_surface_material.set_shader_parameter(&"ring_normal", global_basis.y.normalized())
+	_surface_material.set_shader_parameter(&"sun_direction", star_vector / star_distance)
+	_surface_material.set_shader_parameter(&"sun_angular_radius",
+			_illuminating_star.mean_radius / star_distance)
+
+
+func _find_surface_material() -> ShaderMaterial:
+	# IVBodyFinisher adds this node to IVBodyVisual, the spheroid model's parent.
+	var spheroid_model := get_node_or_null(^"../SpheroidModel") as MeshInstance3D
+	if not spheroid_model:
+		return null
+	return spheroid_model.get_surface_override_material(0) as ShaderMaterial
 
 
 func _add_shadow_casters() -> void:

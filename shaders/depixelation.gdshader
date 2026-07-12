@@ -21,9 +21,11 @@ shader_type spatial;
 render_mode skip_vertex_transform; // for the farwarp vertex remap; see _farwarp.gdshaderinc
 
 // Lit surface shader for a solid IVSpheroidModel surface (shell 0) that removes the texel
-// "squares" a fixed-resolution map shows when magnified at close (orbital) range. It does
-// ONE thing: resample the albedo and normal maps BICUBIC (C2-continuous) so the magnified
-// map reads smooth instead of blocky. No synthesized or sharpened detail is added — that was
+// "squares" a fixed-resolution map shows when magnified at close (orbital) range. Its core
+// job: resample the albedo and normal maps BICUBIC (C2-continuous) so the magnified
+// map reads smooth instead of blocky. It also hosts the analytic ring-shadow term (see
+// _sun_occlusion.gdshaderinc), enabled per body by its IVRings node; off by default.
+// No synthesized or sharpened detail is added — that was
 // explored on the Moon and intentionally dropped (see IMAGE_ENHANCEMENT_EXPLORATION.md in the
 // plugin root for what was tried, why it didn't pay off, and the directions that would:
 // offline super-resolution of the source maps, and structure-guided shader synthesis).
@@ -41,6 +43,7 @@ render_mode skip_vertex_transform; // for the farwarp vertex remap; see _farwarp
 
 #include "_detail.gdshaderinc"
 #include "_farwarp.gdshaderinc"
+#include "_sun_occlusion.gdshaderinc"
 
 // Auto-bound channels. Default hints make an unbound map a no-op (see asset_preloader.gd
 // texture_channels). normal/roughness stay LINEAR (no source_color); albedo/emission decode sRGB.
@@ -48,6 +51,18 @@ uniform sampler2D albedo : source_color;                        // surface color
 uniform sampler2D normal : hint_normal;                         // tangent-space; unbound = flat
 uniform sampler2D roughness : hint_default_white;               // unbound = white -> roughness_scale
 uniform sampler2D emission : source_color, hint_default_black;  // city lights; unbound = no emission
+
+// Analytic ring shadow (see _sun_occlusion.gdshaderinc). Set per-frame by the body's
+// IVRings node on this material; ring_texture_outer <= 0.0 (the default) disables.
+// World space, true (un-farwarped) positions.
+uniform sampler2D ring_alpha_r8 : filter_linear_mipmap, repeat_disable, hint_default_black;
+uniform float ring_alpha_width = 1.0;
+uniform vec3 ring_center;
+uniform vec3 ring_normal = vec3(0.0, 0.0, 1.0);
+uniform float ring_texture_inner = 0.0;
+uniform float ring_texture_outer = 0.0;
+uniform vec3 sun_direction = vec3(0.0, 0.0, 1.0);
+uniform float sun_angular_radius = 0.0;
 
 // Material scalars (per-body tunable via shells.tsv columns of the same name).
 uniform float normal_scale = 1.0;      // strength of the bound tangent normal map
@@ -57,7 +72,11 @@ uniform float metallic_specular = 0.5; // dielectric specular reflectance; 0.5 =
 uniform float emission_energy_multiplier = 1.0;
 
 
+varying vec3 v_world_position; // true world position; VERTEX is farwarp-remapped
+
+
 void vertex() {
+	v_world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	// Farwarp compresses the surface along the camera ray so a large body's depth stays
 	// consistent with the per-vertex-warped orbit lines around it. _tbn: the normal map needs TBN.
 	farwarp_lit_vertex_tbn(MODELVIEW_MATRIX, MODELVIEW_NORMAL_MATRIX, VERTEX, NORMAL, TANGENT, BINORMAL);
@@ -79,4 +98,11 @@ void fragment() {
 	NORMAL_MAP_DEPTH = 1.0;
 
 	EMISSION = texture_bicubic(emission, UV).rgb * emission_energy_multiplier; // black if no map
+
+	if (ring_texture_outer > 0.0) {
+		AO = sun_occlusion_ring_transmission(v_world_position, sun_direction, ring_center,
+				ring_normal, ring_texture_inner, ring_texture_outer, sun_angular_radius,
+				ring_alpha_r8, ring_alpha_width);
+		AO_LIGHT_AFFECT = 1.0; // AO attenuates direct light, not just ambient
+	}
 }

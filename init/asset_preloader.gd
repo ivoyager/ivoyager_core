@@ -190,6 +190,14 @@ func get_rings_shadow_caster_texture(rings_name: StringName) -> Texture2D:
 	return _rings_resources[rings_name][1]
 
 
+## Full-resolution (LOD 0) mipmapped alpha profile for the analytic ring-shadow
+## term (see [code]shaders/_sun_occlusion.gdshaderinc[/code]). Unlike the shadow
+## caster texture, this is not pre-smoothed to a coarser LOD: the shader picks
+## the mip that matches the physical penumbra footprint.
+func get_rings_shadow_profile_texture(rings_name: StringName) -> Texture2D:
+	return _rings_resources[rings_name][2]
+
+
 func _on_core_inited() -> void:
 	var start_msec := Time.get_ticks_msec()
 	if use_thread and IVCoreSettings.use_threads:
@@ -578,6 +586,7 @@ func _load_rings_resources() -> void:
 		
 		var texture_arrays: Array[Texture2DArray] = []
 		var shadow_image_rgba: Image
+		var profile_image_rgba: Image
 		for lod in RINGS_LOD_LEVELS:
 			var file_elements := [file_prefix, lod]
 			var backscatter_file := BACKSCATTER_FILE_FORMAT % file_elements
@@ -603,16 +612,32 @@ func _load_rings_resources() -> void:
 			texture_arrays.append(texture_array)
 			if lod == shadow_lod:
 				shadow_image_rgba = backscatter_image # all have the same alpha channel
-		
+			if lod == 0:
+				profile_image_rgba = backscatter_image
+
 		# Rebuild the shadow caster texture as smaller FORMAT_R8, alpha only.
 		# We could have this premade in ivoyager_assets, but it gives us
 		# flexibility with LOD to do here.
-		var shadow_width := shadow_image_rgba.get_width()
-		var shadow_image_r8 := Image.create_empty(shadow_width, 1, false, Image.FORMAT_R8)
-		for x in shadow_width:
-			var color := shadow_image_rgba.get_pixel(x, 0)
-			color.r = color.a
-			shadow_image_r8.set_pixel(x, 0, color)
-		var shadow_caster_texture := ImageTexture.create_from_image(shadow_image_r8)
-		
-		_rings_resources[rings_name] = [texture_arrays, shadow_caster_texture]
+		var shadow_caster_texture := _make_alpha_r8_texture(shadow_image_rgba, false)
+
+		# Full-resolution mipmapped alpha profile for the analytic ring-shadow
+		# term; see get_rings_shadow_profile_texture().
+		var shadow_profile_texture := _make_alpha_r8_texture(profile_image_rgba, true)
+
+		_rings_resources[rings_name] = [texture_arrays, shadow_caster_texture,
+				shadow_profile_texture]
+
+
+## Returns a width x 1 FORMAT_R8 texture holding [param image_rgba]'s alpha
+## channel; [param mipmaps] is needed for samplers that select LOD explicitly.
+func _make_alpha_r8_texture(image_rgba: Image, mipmaps: bool) -> ImageTexture:
+	var width := image_rgba.get_width()
+	var image_r8 := Image.create_empty(width, 1, false, Image.FORMAT_R8)
+	for x in width:
+		var color := image_rgba.get_pixel(x, 0)
+		color.r = color.a
+		image_r8.set_pixel(x, 0, color)
+	if mipmaps:
+		@warning_ignore("return_value_discarded")
+		image_r8.generate_mipmaps() # can't fail: R8 is uncompressed
+	return ImageTexture.create_from_image(image_r8)
