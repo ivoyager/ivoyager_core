@@ -1,8 +1,7 @@
-	bodies	illuminating_star	file_prefix	inner_radius	outer_radius	shadow_lod	shadow_radial_noise_a	shadow_radial_noise_b	shadow_radial_noise_c
-Type	ARRAY[STRING_NAME]	STRING_NAME	STRING	FLOAT	FLOAT	INT	FLOAT	FLOAT	FLOAT
-Default						5	0.0001	0.00002	0.006
-Unit				km	km				
-Prefix/RINGS_									
-SATURN	PLANET_SATURN	STAR_SUN	saturn.rings	74510	140390				
-# See comments in rings.gdshader									
-# and rings_shadow_caster.gdshader.									
+	bodies	illuminating_star	file_prefix	inner_radius	outer_radius
+Type	ARRAY[STRING_NAME]	STRING_NAME	STRING	FLOAT	FLOAT
+Unit				km	km
+Prefix/RINGS_					
+SATURN	PLANET_SATURN	STAR_SUN	saturn.rings	74510	140390
+# See comments in rings.gdshader. Ring shadows (both directions) are analytic;					
+# see IVSunOcclusionManager and shaders/_sun_occlusion.gdshaderinc.					

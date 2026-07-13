@@ -41,11 +41,9 @@ var preloads: Dictionary[StringName, Resource] = {
 	path_shader = preload("res://addons/ivoyager_core/shaders/path.gdshader"),
 	farwarp_vertex_shader = preload("res://addons/ivoyager_core/shaders/farwarp_vertex.gdshader"),
 	rings_shader = preload("res://addons/ivoyager_core/shaders/rings.gdshader"),
-	rings_shadow_caster_shader = preload(
-			"res://addons/ivoyager_core/shaders/rings_shadow_caster.gdshader"),
-	cloud_detail_shader = preload("res://addons/ivoyager_core/shaders/cloud_detail.gdshader"),
+	cloud_shell_shader = preload("res://addons/ivoyager_core/shaders/cloud_shell.gdshader"),
 	atmosphere_limb_shader = preload("res://addons/ivoyager_core/shaders/atmosphere_limb.gdshader"),
-	depixelation_shader = preload("res://addons/ivoyager_core/shaders/depixelation.gdshader"),
+	spheroid_surface_shader = preload("res://addons/ivoyager_core/shaders/spheroid_surface.gdshader"),
 	stars_shader = preload("res://addons/ivoyager_core/shaders/stars.gdshader"),
 	starmap_background_shader = preload("res://addons/ivoyager_core/shaders/starmap_background.gdshader"),
 }
@@ -106,7 +104,7 @@ func _make_sphere_mesh(radial_segments := 64, rings := 32) -> SphereMesh:
 	return sphere_mesh
 
 
-## Shared subdivided [PlaneMesh] for [IVRings] and its shadow casters. Kept at the default 2x2
+## Shared subdivided [PlaneMesh] for [IVRings]. Kept at the default 2x2
 ## size (so the ring shaders' [code]length(UV * 2.0 - 1.0)[/code] radius math is unchanged) and
 ## subdivided so the per-vertex farwarp remap approximates the compression curve across the ring
 ## span. Instances set their own scale and rotation.

@@ -1788,7 +1788,8 @@ func lazy_model_init() -> void:
 ## [member farwarp_position] lands in the frame's final coordinates. A placement
 ## computed before the origin shift is one frame of camera world-motion behind,
 ## which reads as violent shake on fast nearby orbiters. With [param farwarp_start]
-## <= 0.0 (no camera), gives the true position.
+## <= 0.0 (no camera), gives the true position. Also grants/clears this body's
+## LOCAL_SHADOW_CASTER state (see [method IVBodyVisual.set_local_shadow_caster]).
 func update_farwarp(camera_global_position: Vector3, farwarp_start: float) -> void:
 	# Only the HUD position symbol ([IVBodyPositionVisual]) consumes farwarp_position now; the
 	# body model is farwarp-remapped per-vertex in its shaders (see [IVFarwarpManager]).
@@ -1800,6 +1801,16 @@ func update_farwarp(camera_global_position: Vector3, farwarp_start: float) -> vo
 	# small). Never derive this by offsetting true-scale positions - the rounding of the large
 	# terms swamps the small result.
 	farwarp_position = camera_global_position + camera_vector * factor
+	# A body casts into the local (near/middle) shadow maps only while it is
+	# true-position "terrain": inside the farwarp start (never warp-remapped)
+	# and inside a ceiling that keeps sunward planets at astronomical distances
+	# from being extruded into the maps.
+	var body_visual_typed := body_visual as IVBodyVisual
+	if body_visual_typed:
+		var local_limit := IVCoreSettings.local_shadow_caster_ceiling
+		if farwarp_start > 0.0:
+			local_limit = minf(local_limit, farwarp_start)
+		body_visual_typed.set_local_shadow_caster(farwarp_dist < local_limit)
 
 
 ## Current sleeping state. See [IVSleepManager].

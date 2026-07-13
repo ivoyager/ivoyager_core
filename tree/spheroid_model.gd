@@ -352,13 +352,28 @@ func _set_visibility_and_layers() -> void:
 	if not asset_preloader.get_body_inf_visibility(_body_name):
 		visibility_range_end = _mean_radius * IVCoreSettings.radius_multiplier_visibility_range_end
 	var node_layers := IVCoreSettings.get_visualinstance3d_layer_for_size(_mean_radius)
-	node_layers |= IVGlobal.ShadowMask.SHADOW_MASK_FULL
+	if _is_local_shadow_caster():
+		node_layers |= IVGlobal.LOCAL_SHADOW_CASTER
 	layers = node_layers
 	if IVCoreSettings.apply_farwarp:
 		# Frustum culling tests the true-scale AABB against the far plane, but the farwarp vertex
 		# remap keeps the surface on-screen even when that test fails; make it always pass.
 		var extent := IVCoreSettings.max_camera_distance
 		custom_aabb = AABB(-Vector3.ONE * extent, 2.0 * Vector3.ONE * extent)
+
+
+# A shell that readies after a dynamic grant would miss the caster bit until
+# the next state change (the ancestor's recursion is change-gated), so adopt
+# the ancestor IVBodyVisual's current state; static rule when there is none
+# (e.g., a replacement body visual class).
+func _is_local_shadow_caster() -> bool:
+	var node := get_parent()
+	while node:
+		var ancestor_body_visual := node as IVBodyVisual
+		if ancestor_body_visual:
+			return ancestor_body_visual.is_local_shadow_caster()
+		node = node.get_parent()
+	return IVCoreSettings.get_static_local_shadow_caster(_mean_radius)
 
 
 func _build_child_shells(shell_specs: Array) -> void:

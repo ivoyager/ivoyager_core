@@ -32,7 +32,8 @@ extends Node
 ##
 ## Renderer support differs: MSAA works in all renderers; FXAA is unavailable in
 ## the Compatibility renderer (including web exports); TAA is Forward+ only; and
-## directional shadows are disabled on Compatibility (see [IVDynamicLight]).
+## directional shadows on Compatibility depend on
+## [member IVCoreSettings.apply_gl_compatibility_shadows] (see [IVDynamicLight]).
 ## Unsupported settings are skipped here and hidden by [IVOptionsPopup].
 
 ## Enumeration backing the [code]msaa_3d[/code] dropdown in [IVOptionsPopup].
@@ -96,8 +97,8 @@ func _apply_taa() -> void:
 
 
 func _apply_shadow_size() -> void:
-	if IVGlobal.is_gl_compatibility:
-		return # directional shadows are disabled on the Compatibility renderer
+	if IVGlobal.is_gl_compatibility and not IVCoreSettings.apply_gl_compatibility_shadows:
+		return # single unshadowed light on Compatibility; no shadow map to size
 	var setting: int = IVSettingsManager.get_setting(&"directional_shadow_size")
 	var size := 4096
 	match setting:
