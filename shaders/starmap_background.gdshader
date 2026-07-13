@@ -33,7 +33,7 @@ shader_type sky;
 // RA 90/270 meridian). This is also why Environment.sky_rotation cannot orient the
 // raw map: a rotation (det +1) cannot undo the reflection; the sampling must.
 //
-// texture_bicubic (shared with depixelation.gdshader) resamples smoothly so the
+// texture_bicubic (shared with spheroid_surface.gdshader) resamples smoothly so the
 // low-resolution image is not blocky when magnified. energy_multiplier mirrors
 // PanoramaSkyMaterial's exposure; obliquity is set from IVAstronomy.
 

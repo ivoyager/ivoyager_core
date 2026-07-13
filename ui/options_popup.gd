@@ -163,14 +163,18 @@ func _configure_after_core_inited() -> void:
 		for column in layout:
 			column.erase(&"LABEL_SAVE_LOAD")
 	if IVGlobal.is_gl_compatibility:
-		# FXAA, TAA and directional shadows are unsupported in the Compatibility
-		# renderer (incl. web).
+		# FXAA and TAA are unsupported in the Compatibility renderer (incl. web);
+		# the shadow-size option applies only when Compatibility shadows are on
+		# (see IVCoreSettings.apply_gl_compatibility_shadows).
 		var graphics_section: Array = section_content[&"LABEL_GRAPHICS_PERFORMANCE"]
 		var supported_options: Array = []
 		for option_array: Array in graphics_section:
 			var setting: StringName = option_array[1]
-			if setting != &"fxaa" and setting != &"use_taa" and setting != &"directional_shadow_size":
-				supported_options.append(option_array)
+			if setting == &"fxaa" or setting == &"use_taa":
+				continue
+			if setting == &"directional_shadow_size" and not IVCoreSettings.apply_gl_compatibility_shadows:
+				continue
+			supported_options.append(option_array)
 		section_content[&"LABEL_GRAPHICS_PERFORMANCE"] = supported_options
 
 

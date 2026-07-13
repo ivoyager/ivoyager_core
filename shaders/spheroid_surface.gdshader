@@ -1,4 +1,4 @@
-// depixelation.gdshader
+// spheroid_surface.gdshader
 // This file is part of I, Voyager
 // https://ivoyager.dev
 // *****************************************************************************
@@ -18,7 +18,9 @@
 // limitations under the License.
 // *****************************************************************************
 shader_type spatial;
-render_mode skip_vertex_transform; // for the farwarp vertex remap; see _farwarp.gdshaderinc
+// skip_vertex_transform: for the farwarp vertex remap; see _farwarp.gdshaderinc.
+// ambient_light_disabled: ambient is rebuilt as emission; see _sun_occlusion.gdshaderinc.
+render_mode skip_vertex_transform, ambient_light_disabled;
 
 // Lit surface shader for a solid IVSpheroidModel surface (shell 0) that removes the texel
 // "squares" a fixed-resolution map shows when magnified at close (orbital) range. Its core
@@ -36,7 +38,7 @@ render_mode skip_vertex_transform; // for the farwarp vertex remap; see _farwarp
 // each table override column feeds the uniform of the same name, so the scalars below are tunable.
 //
 // LIGHTING: no custom light(); writes ALBEDO/NORMAL_MAP/ROUGHNESS/EMISSION and lets the engine's
-// default PBR + shadow path light it (a custom light() would break the tuned METER=1e-3 shadows).
+// default PBR + shadow path light it.
 //
 // CITY LIGHTS: emission defaults to black (hint_default_black), so a body with no emission map
 // emits nothing; one that ships a map gets additive emission (night side, washed out by day).
@@ -51,18 +53,6 @@ uniform sampler2D albedo : source_color;                        // surface color
 uniform sampler2D normal : hint_normal;                         // tangent-space; unbound = flat
 uniform sampler2D roughness : hint_default_white;               // unbound = white -> roughness_scale
 uniform sampler2D emission : source_color, hint_default_black;  // city lights; unbound = no emission
-
-// Analytic ring shadow (see _sun_occlusion.gdshaderinc). Set per-frame by the body's
-// IVRings node on this material; ring_texture_outer <= 0.0 (the default) disables.
-// World space, true (un-farwarped) positions.
-uniform sampler2D ring_alpha_r8 : filter_linear_mipmap, repeat_disable, hint_default_black;
-uniform float ring_alpha_width = 1.0;
-uniform vec3 ring_center;
-uniform vec3 ring_normal = vec3(0.0, 0.0, 1.0);
-uniform float ring_texture_inner = 0.0;
-uniform float ring_texture_outer = 0.0;
-uniform vec3 sun_direction = vec3(0.0, 0.0, 1.0);
-uniform float sun_angular_radius = 0.0;
 
 // Material scalars (per-body tunable via shells.tsv columns of the same name).
 uniform float normal_scale = 1.0;      // strength of the bound tangent normal map
@@ -99,10 +89,17 @@ void fragment() {
 
 	EMISSION = texture_bicubic(emission, UV).rgb * emission_energy_multiplier; // black if no map
 
-	if (ring_texture_outer > 0.0) {
-		AO = sun_occlusion_ring_transmission(v_world_position, sun_direction, ring_center,
-				ring_normal, ring_texture_inner, ring_texture_outer, sun_angular_radius,
-				ring_alpha_r8, ring_alpha_width);
-		AO_LIGHT_AFFECT = 1.0; // AO attenuates direct light, not just ambient
+	// Rebuilt ambient (engine ambient is disabled; see render_mode). Added before
+	// the shadow so occlusion removes sunlight, not starlight; see the include.
+	EMISSION += ALBEDO * ambient_light;
+
+	if (ring_texture_outer > 0.0 || occluder_count > 0) {
+		float sun_visible = sun_occlusion_visible_fraction(v_world_position);
+		if (compat_albedo_shadow) {
+			ALBEDO *= sun_visible;
+		} else {
+			AO = sun_visible;
+			AO_LIGHT_AFFECT = 1.0; // attenuates direct light, not just ambient
+		}
 	}
 }

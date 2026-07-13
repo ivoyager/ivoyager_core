@@ -170,3 +170,104 @@ func get_basis_from_z_axis_and_icrf_equator_node(z_axis: Vector3) -> Basis:
 	var x := CELESTIAL_NORTH.cross(z_axis).normalized() # ascending node on ICRF equator
 	var y := z_axis.cross(x)
 	return Basis(x, y, z_axis)
+
+
+# *****************************************************************************
+# Sun occlusion (eclipse/shadow) math. Each method has a GLSL twin in
+# shaders/_sun_occlusion.gdshaderinc; keep the math in exact sync.
+
+
+## Returns the visible fraction of the sun's disc given an occluding disc:
+## exact two-circle (lens) overlap in the planar small-angle approximation,
+## with exact containment tests, so totality, annularity and partial phases
+## all behave. All args in radians. GLSL twin:
+## [code]sun_occlusion_disc_fraction()[/code].
+func get_two_disc_visible_fraction(sun_angular_radius: float,
+		occluder_angular_radius: float, separation: float) -> float:
+	var a := maxf(sun_angular_radius, 1e-7)
+	var b := occluder_angular_radius
+	var c := separation
+	if c >= a + b:
+		return 1.0 # no overlap
+	if c <= b - a:
+		return 0.0 # total: occluder covers the sun disc
+	if c <= a - b:
+		return 1.0 - (b * b) / (a * a) # annular/transit: occluder inside the sun disc
+	if b > 20.0 * a:
+		# A much larger occluder disc (e.g. a planet seen from a nearby craft or
+		# its rings): its edge is locally straight across the small sun disc, and
+		# the exact lens formula below cancels catastrophically (an a^2-scale
+		# result from b^2-scale terms). Use the stable straight-edge chord
+		# fraction instead.
+		var x := clampf((c - b) / a, -1.0, 1.0) # sun-center distance past the edge, in sun radii
+		return 0.5 + (x * sqrt(1.0 - x * x) + asin(x)) / PI
+	var a2 := a * a
+	var b2 := b * b
+	var c2 := c * c
+	var lens := (a2 * acos(clampf((c2 + a2 - b2) / (2.0 * c * a), -1.0, 1.0))
+			+ b2 * acos(clampf((c2 + b2 - a2) / (2.0 * c * b), -1.0, 1.0))
+			- 0.5 * sqrt(maxf((a + b - c) * (c + a - b) * (c - a + b) * (c + a + b), 0.0)))
+	return 1.0 - lens / (PI * a2)
+
+
+## Returns the visible fraction of the sun's disc from [param position] past
+## one oblate-spheroid occluder. [param sun_direction] and [param occluder_pole]
+## are unit vectors; either pole sign works. All positions and lengths must
+## share one frame and unit. GLSL twin:
+## [code]sun_occlusion_spheroid_fraction()[/code].
+func get_spheroid_occlusion_fraction(position: Vector3, sun_direction: Vector3,
+		sun_angular_radius: float, occluder_center: Vector3, occluder_pole: Vector3,
+		equatorial_radius: float, polar_radius: float) -> float:
+	var offset := occluder_center - position
+	# Stretch space along the pole so the spheroid becomes a sphere of the
+	# equatorial radius; the same affine map applies to the sun ray.
+	var stretch := equatorial_radius / polar_radius - 1.0
+	var offset_stretched := offset + stretch * offset.dot(occluder_pole) * occluder_pole
+	var sun_direction_stretched := (sun_direction
+			+ stretch * sun_direction.dot(occluder_pole) * occluder_pole).normalized()
+	var dist := offset_stretched.length()
+	if dist <= equatorial_radius:
+		return 1.0 # at/inside the occluder
+	var to_occluder := offset_stretched / dist
+	if to_occluder.dot(sun_direction_stretched) <= 0.0:
+		return 1.0 # occluder is not sunward of the position
+	var occluder_angular_radius := asin(clampf(equatorial_radius / dist, 0.0, 1.0))
+	var separation := acos(clampf(to_occluder.dot(sun_direction_stretched), -1.0, 1.0))
+	return get_two_disc_visible_fraction(sun_angular_radius, occluder_angular_radius,
+			separation)
+
+
+## Returns the transmission of direct sunlight through an annular ring layer,
+## modeled as a 1D radial opacity profile ([param profile_image], width x 1,
+## FORMAT_R8, spanning radius [param texture_inner] to [param texture_outer] -
+## the padded texture range, not the physical ring edges). Includes the
+## slanted-path optical depth; averages the profile over the physical penumbra
+## footprint (this bounded box average is the CPU stand-in for the GLSL twin's
+## mip sampling). All positions and lengths share one frame and unit;
+## [param sun_direction] and [param ring_normal] are unit vectors, either
+## normal sign works. GLSL twin: [code]sun_occlusion_ring_transmission()[/code].
+func get_ring_transmission(profile_image: Image, position: Vector3,
+		sun_direction: Vector3, sun_angular_radius: float, ring_center: Vector3,
+		ring_normal: Vector3, texture_inner: float, texture_outer: float) -> float:
+	var cos_slant := ring_normal.dot(sun_direction)
+	var abs_cos := maxf(absf(cos_slant), 1e-4)
+	var signed_cos := abs_cos if cos_slant >= 0.0 else -abs_cos
+	var ray_length := ring_normal.dot(ring_center - position) / signed_cos
+	if ray_length <= 0.0:
+		return 1.0 # ring plane not sunward
+	var plane_hit := position + sun_direction * ray_length - ring_center
+	var texture_u := (plane_hit.length() - texture_inner) / (texture_outer - texture_inner)
+	if texture_u <= 0.0 or texture_u >= 1.0:
+		return 1.0 # outside the profile range
+	var width := profile_image.get_width()
+	var texel_size := (texture_outer - texture_inner) / width
+	var penumbra_texels := 2.0 * sun_angular_radius * ray_length / texel_size
+	var center_texel := texture_u * width
+	var samples := clampi(int(penumbra_texels) + 1, 1, 9)
+	var alpha_sum := 0.0
+	for i in samples:
+		var sample_texel := center_texel + ((i + 0.5) / samples - 0.5) * penumbra_texels
+		var x := clampi(int(sample_texel), 0, width - 1)
+		alpha_sum += profile_image.get_pixel(x, 0).r
+	var alpha := alpha_sum / samples
+	return pow(1.0 - alpha, 1.0 / abs_cos)

@@ -18,7 +18,9 @@
 // limitations under the License.
 // *****************************************************************************
 shader_type spatial;
-render_mode cull_disabled, skip_vertex_transform; // skip: for the farwarp vertex remap
+// skip_vertex_transform: for the farwarp vertex remap; see _farwarp.gdshaderinc.
+// ambient_light_disabled: ambient is rebuilt as emission; see _sun_occlusion.gdshaderinc.
+render_mode cull_disabled, skip_vertex_transform, ambient_light_disabled;
 
 // Source data and color/phase-angle tips: https://bjj.mmedia.is/data/s_rings.
 // See https://github.com/ivoyager/ivbinary_maker for conversion of source data
@@ -37,15 +39,13 @@ render_mode cull_disabled, skip_vertex_transform; // skip: for the farwarp verte
 // brightness given the 'thinness' (i.e., transparency) of our material with
 // black space as background.
 //
-// As of v0.0.24, IVRings flips to always keep the front face on the sun-
-// facing side. This is so the child ShadowCaster is correctly oriented.
-// (Because we can't have SHADOW_CASTING_SETTING_SHADOWS_ONLY and
-// SHADOW_CASTING_SETTING_DOUBLE_SIDED at the same time!)
-//
-// WARNING! FRONT_FACING is not reliable as of Godot 4.2.2. It's sometimes
-// wrong on my laptop (NVIDIA GeForce GTX 1650 Ti).
+// IVRings flips the plane to keep the front face on the sun-facing side so the
+// lit/unlit-side test below (the sign of camera_model_elevation) stays correct;
+// see IVRings._process. FRONT_FACING would be simpler but is unreliable (wrong
+// on some GPUs as of Godot 4.2.2), hence the model-space test.
 
 #include "_farwarp.gdshaderinc"
+#include "_sun_occlusion.gdshaderinc"
 
 const float DFDR_MULTIPLIER = 1.0; // smaller for more detail & more aliasing
 const float PHASE_EXPONENT = 6.0; // larger narrows the low phase-angle effect
@@ -77,11 +77,13 @@ uniform float unlitside_phase_boost = 2.0;
 // varyings
 varying vec3 illumination_direction;
 varying flat float camera_model_elevation; // >0.0 for lit side
+varying vec3 v_world_position; // true world position; VERTEX is farwarp-remapped
 
 
 void vertex() {
 	illumination_direction = normalize((VIEW_MATRIX * vec4(illumination_position, 1.0)).xyz);
 	camera_model_elevation = (inverse(MODEL_MATRIX) * vec4(CAMERA_POSITION_WORLD, 1.0)).y;
+	v_world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	// Farwarp remap under skip_vertex_transform. NORMAL is transformed identically to the engine
 	// default (farwarp_lit_vertex), so ring lighting is unchanged; only the depth is compressed.
 	farwarp_lit_vertex(MODELVIEW_MATRIX, MODELVIEW_NORMAL_MATRIX, VERTEX, NORMAL);
@@ -189,6 +191,23 @@ void fragment() {
 
 		ALBEDO = albedo;
 		ALPHA = color.a;
+
+		// Rebuilt ambient (engine ambient is disabled; see render_mode). Added
+		// before the shadow so occlusion removes sunlight, not starlight.
+		EMISSION += ALBEDO * ambient_light;
+
+		// Planet (and moon) shadows on the rings; the ring term itself stays
+		// disabled here (rings don't shadow themselves; also its fwidth() must
+		// not run in this non-uniform branch).
+		if (occluder_count > 0) {
+			float sun_visible = sun_occlusion_visible_fraction(v_world_position);
+			if (compat_albedo_shadow) {
+				ALBEDO *= sun_visible;
+			} else {
+				AO = sun_visible;
+				AO_LIGHT_AFFECT = 1.0; // attenuates direct light, not just ambient
+			}
+		}
 
 	}
 }

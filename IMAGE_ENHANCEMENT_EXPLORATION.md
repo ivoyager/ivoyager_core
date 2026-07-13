@@ -2,9 +2,9 @@
 
 **Status: exploratory — none of this is applied to shipped content.** This note records
 options (and dead ends) for making body surface maps look better at close range, captured
-while developing `shaders/depixelation.gdshader` against the Moon. It exists to steer a
+while developing `shaders/spheroid_surface.gdshader` (then named depixelation.gdshader) against the Moon. It exists to steer a
 future effort, not to document current behavior. The only thing actually shipped is
-`depixelation.gdshader`, which does bicubic resampling and nothing else.
+`spheroid_surface.gdshader`, whose de-pixelation core is bicubic resampling and nothing else.
 
 ### Background: the Moon effort
 
@@ -12,7 +12,7 @@ A fixed-resolution global map (the Moon ships a 4096 albedo and a 2048 normal) s
 texel "squares" when magnified from orbital range, and a smooth upscale that removes the
 blocks then looks soft. What we learned trying to do better:
 
-- **Bicubic de-pixelation is the clear, cheap win** and is all `depixelation.gdshader` does.
+- **Bicubic de-pixelation is the clear, cheap win** and is all `spheroid_surface.gdshader`'s de-pixelation does.
   Resampling albedo and normal C2-continuously removes the texel squares. Keep it minimal.
 - **Content-blind synthesis (FBM "relief" / grain) actively harms the image.** Procedural
   noise added uniformly reads as a rubble pile *everywhere*. That is fine where the surface

@@ -94,7 +94,6 @@ var rings_search: Array[String] = ["res://addons/ivoyager_assets/rings"]
 ## Resolved paths for individually loaded assets. Keys correspond to the
 ## [code]get_*[/code] accessors below.
 var asset_paths: Dictionary[StringName, String] = {
-	blue_noise_1024 = "res://addons/ivoyager_assets/noise/blue_noise_1024.png",
 	fallback_body_texture_2d = "res://addons/ivoyager_assets/fallbacks/blank_grid_2d_globe.256.png",
 	fallback_body_albedo_map = "res://addons/ivoyager_assets/fallbacks/blank_grid.jpg",
 }
@@ -108,7 +107,6 @@ var map_filename_regex_override := ""
 var gl_compatibility_emission_energy_multiplier_multiplier := 2.5
 
 
-var _blue_noise_1024: Texture2D
 var _symbol_atlas: Texture2D
 var _symbol_textures: Array[AtlasTexture] = []
 var _symbol_point_texture: Texture2D
@@ -120,10 +118,6 @@ var _map_regex := RegEx.new()
 func _init() -> void:
 	IVStateManager.core_initialized.connect(_on_core_inited)
 
-
-
-func get_blue_noise_1024() -> Texture2D:
-	return _blue_noise_1024
 
 
 func get_symbol_atlas() -> Texture2D:
@@ -186,15 +180,17 @@ func get_rings_texture_arrays(rings_name: StringName) -> Array[Texture2DArray]:
 	return _rings_resources[rings_name][0]
 
 
-func get_rings_shadow_caster_texture(rings_name: StringName) -> Texture2D:
+## Full-resolution (LOD 0) mipmapped alpha profile for the analytic ring-shadow
+## term (see [code]shaders/_sun_occlusion.gdshaderinc[/code]): the shader picks
+## the mip that matches the physical penumbra footprint.
+func get_rings_shadow_profile_texture(rings_name: StringName) -> Texture2D:
 	return _rings_resources[rings_name][1]
 
 
-## Full-resolution (LOD 0) mipmapped alpha profile for the analytic ring-shadow
-## term (see [code]shaders/_sun_occlusion.gdshaderinc[/code]). Unlike the shadow
-## caster texture, this is not pre-smoothed to a coarser LOD: the shader picks
-## the mip that matches the physical penumbra footprint.
-func get_rings_shadow_profile_texture(rings_name: StringName) -> Texture2D:
+## Source [Image] of [method get_rings_shadow_profile_texture], retained for
+## CPU sampling ([method IVAstronomy.get_ring_transmission]); reading back from
+## the texture would stall on VRAM.
+func get_rings_shadow_profile_image(rings_name: StringName) -> Image:
 	return _rings_resources[rings_name][2]
 
 
@@ -207,7 +203,6 @@ func _on_core_inited() -> void:
 
 
 func _load_resources(start_msec: int) -> void:
-	_load_blue_noise_1024()
 	_load_symbol_textures()
 	_load_body_resources()
 	_load_rings_resources()
@@ -218,12 +213,6 @@ func _load_resources(start_msec: int) -> void:
 	_rings_resources.make_read_only()
 	print("Loaded assets in %s msec" % (Time.get_ticks_msec() - start_msec))
 	IVStateManager.state_auxiliary.set_asset_preloader_finished.call_deferred()
-
-
-func _load_blue_noise_1024() -> void:
-	var path := asset_paths[&"blue_noise_1024"]
-	assert(ResourceLoader.exists(path))
-	_blue_noise_1024 = load(path)
 
 
 func _load_symbol_textures() -> void:
@@ -581,11 +570,8 @@ func _load_rings_resources() -> void:
 	for row in IVTableData.get_n_rows(&"rings"):
 		var rings_name := IVTableData.get_db_entity_name(&"rings", row)
 		var file_prefix := IVTableData.get_db_string(&"rings", &"file_prefix", row)
-		var shadow_lod := IVTableData.get_db_int(&"rings", &"shadow_lod", row)
-		shadow_lod = mini(shadow_lod, RINGS_LOD_LEVELS - 1)
-		
+
 		var texture_arrays: Array[Texture2DArray] = []
-		var shadow_image_rgba: Image
 		var profile_image_rgba: Image
 		for lod in RINGS_LOD_LEVELS:
 			var file_elements := [file_prefix, lod]
@@ -610,34 +596,27 @@ func _load_rings_resources() -> void:
 			var texture_array := Texture2DArray.new() # backscatter/forwardscatter/unlitside for LOD
 			texture_array.create_from_images(lod_images)
 			texture_arrays.append(texture_array)
-			if lod == shadow_lod:
-				shadow_image_rgba = backscatter_image # all have the same alpha channel
 			if lod == 0:
-				profile_image_rgba = backscatter_image
-
-		# Rebuild the shadow caster texture as smaller FORMAT_R8, alpha only.
-		# We could have this premade in ivoyager_assets, but it gives us
-		# flexibility with LOD to do here.
-		var shadow_caster_texture := _make_alpha_r8_texture(shadow_image_rgba, false)
+				profile_image_rgba = backscatter_image # all have the same alpha channel
 
 		# Full-resolution mipmapped alpha profile for the analytic ring-shadow
-		# term; see get_rings_shadow_profile_texture().
-		var shadow_profile_texture := _make_alpha_r8_texture(profile_image_rgba, true)
+		# term; the source image is retained for CPU sampling. See
+		# get_rings_shadow_profile_texture() / get_rings_shadow_profile_image().
+		var shadow_profile_image := _make_alpha_r8_image(profile_image_rgba)
+		@warning_ignore("return_value_discarded")
+		shadow_profile_image.generate_mipmaps() # can't fail: R8 is uncompressed
+		var shadow_profile_texture := ImageTexture.create_from_image(shadow_profile_image)
 
-		_rings_resources[rings_name] = [texture_arrays, shadow_caster_texture,
-				shadow_profile_texture]
+		_rings_resources[rings_name] = [texture_arrays, shadow_profile_texture,
+				shadow_profile_image]
 
 
-## Returns a width x 1 FORMAT_R8 texture holding [param image_rgba]'s alpha
-## channel; [param mipmaps] is needed for samplers that select LOD explicitly.
-func _make_alpha_r8_texture(image_rgba: Image, mipmaps: bool) -> ImageTexture:
+## Returns a width x 1 FORMAT_R8 image holding [param image_rgba]'s alpha channel.
+func _make_alpha_r8_image(image_rgba: Image) -> Image:
 	var width := image_rgba.get_width()
 	var image_r8 := Image.create_empty(width, 1, false, Image.FORMAT_R8)
 	for x in width:
 		var color := image_rgba.get_pixel(x, 0)
 		color.r = color.a
 		image_r8.set_pixel(x, 0, color)
-	if mipmaps:
-		@warning_ignore("return_value_discarded")
-		image_r8.generate_mipmaps() # can't fail: R8 is uncompressed
-	return ImageTexture.create_from_image(image_r8)
+	return image_r8
