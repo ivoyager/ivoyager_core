@@ -116,7 +116,13 @@ var _spheroid_type: int
 var _mean_radius: float
 var _reference_basis: Basis # this shell's base basis (before any process scaling)
 var _process_callable: Callable
-var _star_body: IVBody # lazy init; true (never farwarp-remapped) position for _grow_star
+var _star_body: IVBody # sun-mode: owning body, for its true (un-farwarped) position and photometry
+var _is_sun: bool # sun-mode (shell 0 with is_sun): dual disc + point; see the sun-mode section
+var _sun_bv := 0.63 # sun-mode: cached B-V (disc/point color); fallback if the characteristic is missing
+var _sun_abs_mag := 4.83 # sun-mode: cached V absolute magnitude (for the per-frame apparent magnitude)
+var _sun_surface_material: ShaderMaterial # sun-mode: the disc material, alpha driven each frame
+var _sun_point: MeshInstance3D # sun-mode: far point sprite, a child of _star_body (freed in _exit_tree)
+var _sun_point_material: ShaderMaterial # sun-mode: the point material, driven each frame
 
 var _times := IVGlobal.times
 
@@ -133,7 +139,6 @@ var _times := IVGlobal.times
 
 static func _static_init() -> void:
 	process_methods[&"_rotate"] = _rotate
-	process_methods[&"_grow_star"] = _grow_star
 
 
 ## Named by a 'process' field (shells.tsv or spheroids.tsv). Rotates [param spheroid_model]
@@ -144,34 +149,6 @@ static func _rotate(spheroid_model: IVSpheroidModel, delta: float, deg_per_sec: 
 		return
 	delta *= spheroid_model._times[1] / Engine.time_scale
 	spheroid_model.rotate_y(delta * deg_per_sec * CONVERSION) # y up in model self reference
-
-
-## Named by a 'process' field (the G_STAR row in spheroids.tsv). Grows [param spheroid_model]
-## (a star) when beyond GROW_DIST so it stays visible relative to the star field at many au.
-## Grow settings are subjective: currently calibrated so the Sun is prominant at Jupiter and
-## visible at Pluto.
-static func _grow_star(spheroid_model: IVSpheroidModel, _delta: float) -> void:
-	const GROW_DIST := 2.0 * IVUnits.AU
-	const GROW_FACTOR := 0.3
-	var viewport := spheroid_model.get_viewport()
-	if not viewport:
-		return
-	var camera := viewport.get_camera_3d()
-	if not camera:
-		return
-	if not spheroid_model._star_body:
-		spheroid_model._star_body = IVBody.bodies.get(spheroid_model._body_name)
-		if not spheroid_model._star_body:
-			return
-	# True body-to-camera distance: this model's own global_position is the
-	# farwarp-compressed position, which would under-grow the star.
-	var camera_dist := spheroid_model._star_body.global_position.distance_to(camera.global_position)
-	if camera_dist < GROW_DIST:
-		spheroid_model.transform.basis = spheroid_model._reference_basis
-		return
-	var excess := camera_dist / GROW_DIST - 1.0
-	var factor := GROW_FACTOR * excess + 1.0
-	spheroid_model.transform.basis = spheroid_model._reference_basis.scaled(Vector3(factor, factor, factor))
 
 
 func _init(body_name: StringName, spheroid_type: int, mean_radius: float, model_basis: Basis,
@@ -192,6 +169,7 @@ func _ready() -> void:
 	var spec: Dictionary = shell_specs[_shell]
 	if _shell == 0:
 		spec = _resolve_shell0_spec(asset_preloader, spec)
+		_is_sun = spec[&"is_sun"]
 	var process_method: StringName = spec[&"process"]
 	var process_args: Array = spec[&"process_args"]
 	var render_priority := _compute_render_priority(shell_specs)
@@ -199,18 +177,123 @@ func _ready() -> void:
 	cast_shadow = spec[&"cast_shadow"]
 	_set_visibility_and_layers()
 	_resolve_process(process_method, process_args)
+	if _is_sun:
+		_enter_sun_mode()
 	if _shell == 0:
 		_build_child_shells(shell_specs)
 
 
 func _process(delta: float) -> void:
-	_process_callable.call(self, delta)
+	if _process_callable.is_valid():
+		_process_callable.call(self, delta)
+	if _is_sun:
+		_process_sun_lod(delta)
 
+
+func _exit_tree() -> void:
+	# The far point is parented to the body (not this model's subtree), so free it explicitly
+	# when this model is torn down while the body lives (e.g. remove_and_disable_body_visual).
+	if is_instance_valid(_sun_point):
+		_sun_point.queue_free()
+
+
+
+# *****************************************************************************
+# sun-mode: near disc + far point for an in-scene star (shell 0 with is_sun)
+
+# A star spans many au of viewing distance: near, it is a resolved sphere (this model's disc,
+# the sun_surface shader); far, it shrinks below a pixel and must be a point on the same
+# photometric footing as the background star field (a child sun_point sprite of the body). The
+# driver below crossfades the two by the star's on-screen pixel radius, so neither the fake
+# growth of the old hack nor a vanishing sub-pixel disc occurs. The disc holds a constant
+# surface brightness (distance-invariant); the point carries the distance dimming.
+
+
+func _enter_sun_mode() -> void:
+	const DISC_BRIGHTNESS := 3.0 # HDR-capable; reads as a blinding disc, blooms once glow is enabled
+	_star_body = IVBody.bodies.get(_body_name)
+	if _star_body:
+		var color_bv: float = _star_body.characteristics.get(&"color_b_v", _sun_bv)
+		var absolute_magnitude: float = _star_body.characteristics.get(&"absolute_magnitude", _sun_abs_mag)
+		_sun_bv = color_bv
+		_sun_abs_mag = absolute_magnitude
+	var surface_material := get_surface_override_material(0)
+	if surface_material is ShaderMaterial:
+		_sun_surface_material = surface_material
+		_sun_surface_material.set_shader_parameter(&"color_bv", _sun_bv)
+		_sun_surface_material.set_shader_parameter(&"brightness", DISC_BRIGHTNESS)
+	# The empty 'process' column leaves idle processing off; the LOD driver needs it on.
+	set_process(true)
+
+
+func _process_sun_lod(_delta: float) -> void:
+	const HANDOFF_PIXELS_LOW := 1.0   # at/below this on-screen radius the point fully replaces the disc
+	const HANDOFF_PIXELS_HIGH := 2.5  # at/above this the disc fully replaces the point
+	const POINT_SIZE_FLOOR := 3.0     # px; a receding sun holds this minimum footprint
+	const FIVE_OVER_LN10 := 2.1714724095162594 # 5 / ln(10), for m = M + 5*log10(d / 10pc)
+	var viewport := get_viewport()
+	if not viewport:
+		return
+	var camera := viewport.get_camera_3d()
+	if not camera:
+		return
+	if not _star_body:
+		return
+	if not _sun_point:
+		_build_sun_point()
+	# True (un-farwarped) distance: the model sits at the body's true position (farwarp is a
+	# per-vertex shader remap), so the body's own global_position gives the real distance.
+	var camera_distance := _star_body.global_position.distance_to(camera.global_position)
+	if camera_distance <= 0.0:
+		return
+	# On-screen radius in pixels. projection.y.y = +-1/tan(fov_y/2) (Vulkan flips the sign),
+	# folding in fov and keep_aspect exactly as the star shader's PROJECTION_MATRIX[1][1] does.
+	var projection := camera.get_camera_projection()
+	var focal := absf(projection.y.y)
+	var viewport_height := viewport.get_visible_rect().size.y
+	var pixel_radius := (_mean_radius / camera_distance) * focal * viewport_height * 0.5
+	var disc_weight := smoothstep(HANDOFF_PIXELS_LOW, HANDOFF_PIXELS_HIGH, pixel_radius)
+	# Disc: alpha-fade toward the point, and hide once fully handed off (the re-enabled cull).
+	visible = disc_weight > 0.0
+	if _sun_surface_material:
+		_sun_surface_material.set_shader_parameter(&"alpha", disc_weight)
+	# Point: complementary fade-in, sized to the true angular radius (floored) with brightness
+	# from the live apparent magnitude m = M + 5*log10(d / 10pc).
+	_sun_point.visible = disc_weight < 1.0
+	if _sun_point_material:
+		var apparent_magnitude := _sun_abs_mag + FIVE_OVER_LN10 * log(camera_distance / (10.0 * IVUnits.PARSEC))
+		_sun_point_material.set_shader_parameter(&"apparent_magnitude", apparent_magnitude)
+		_sun_point_material.set_shader_parameter(&"point_size", maxf(2.0 * pixel_radius, POINT_SIZE_FLOOR))
+		_sun_point_material.set_shader_parameter(&"intensity_fade", 1.0 - disc_weight)
+
+
+func _build_sun_point() -> void:
+	# A 1-vertex points mesh mirroring IVStarsVisual: farwarp is applied in-shader, so the
+	# true-position AABB fails the frustum test -- size it to always contain the camera. Parented
+	# to the body (never rotated or scaled) so it sits at the true position; freed in _exit_tree.
+	var vertices := PackedVector3Array([Vector3.ZERO])
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	var points_mesh := ArrayMesh.new()
+	points_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_POINTS, arrays)
+	var half_extent := IVCoreSettings.max_camera_distance
+	points_mesh.custom_aabb = AABB(-Vector3.ONE * half_extent, 2.0 * Vector3.ONE * half_extent)
+	var shader: Shader = IVGlobal.resources.get(&"sun_point_shader")
+	_sun_point_material = ShaderMaterial.new()
+	_sun_point_material.shader = shader
+	_sun_point_material.set_shader_parameter(&"color_bv", _sun_bv)
+	_sun_point = MeshInstance3D.new()
+	_sun_point.name = &"SunPoint"
+	_sun_point.mesh = points_mesh
+	_sun_point.material_override = _sun_point_material
+	_sun_point.cast_shadow = SHADOW_CASTING_SETTING_OFF
+	_star_body.add_child(_sun_point)
 
 
 ## Shell 0 takes its whole spec from the body's spheroids.tsv [member _spheroid_type] row
-## (shader, process, cast_shadow, material columns) unless a shells.tsv shell-0 row overrides
-## it wholly (never a merge). The body's discovered surface channels are kept either way.
+## (shader, process, is_sun, cast_shadow, material columns) unless a shells.tsv shell-0 row
+## overrides it wholly (never a merge). The body's discovered surface channels are kept either way.
 func _resolve_shell0_spec(asset_preloader: IVAssetPreloader, surface_spec: Dictionary) -> Dictionary:
 	if surface_spec.get(&"from_shells", false):
 		return surface_spec
@@ -222,6 +305,7 @@ func _resolve_shell0_spec(asset_preloader: IVAssetPreloader, surface_spec: Dicti
 		&"shader": IVTableData.get_db_string_name(&"spheroids", &"shader", _spheroid_type),
 		&"process": IVTableData.get_db_string_name(&"spheroids", &"process", _spheroid_type),
 		&"process_args": [],
+		&"is_sun": IVTableData.get_db_bool(&"spheroids", &"is_sun", _spheroid_type),
 		&"cast_shadow": shadow_setting,
 		&"overrides": asset_preloader.read_material_fields(&"spheroids", _spheroid_type,
 				IVAssetPreloader.spheroids_nonmaterial_fields),
@@ -348,8 +432,9 @@ func _assert_overrides_are_uniforms(overrides: Dictionary, shader: Shader) -> vo
 func _set_visibility_and_layers() -> void:
 	# Each shell self-configures (vs. a parent recursing) so [IVBodyVisual] need
 	# not know the shell structure. Mirrors the packed-model path's settings.
-	var asset_preloader: IVAssetPreloader = IVGlobal.program[&"AssetPreloader"]
-	if not asset_preloader.get_body_inf_visibility(_body_name):
+	# Sun-mode owns the disc's visibility via the pixel-radius fade, so it opts out of the fixed
+	# distance cull (which is zoom-blind and would clip a still-resolved disc when zooming in).
+	if not _is_sun:
 		visibility_range_end = _mean_radius * IVCoreSettings.radius_multiplier_visibility_range_end
 	var node_layers := IVCoreSettings.get_visualinstance3d_layer_for_size(_mean_radius)
 	if _is_local_shadow_caster():

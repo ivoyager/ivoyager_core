@@ -65,7 +65,7 @@ static var shells_nonmaterial_fields: Array[StringName] = [
 ## explicitly into the shell-0 spec). Every other column is a per-[code]spheroid_type[/code]
 ## material default for the surface (shell 0). Parallels [member shells_nonmaterial_fields].
 static var spheroids_nonmaterial_fields: Array[StringName] = [
-	&"shader", &"process", &"cast_shadow",
+	&"shader", &"process", &"is_sun", &"cast_shadow",
 ]
 
 ## This setting AND IVCoreSettings.use_threads must be true for loading to
@@ -145,35 +145,31 @@ func get_body_texture_slice_2d(body_name: StringName) -> Texture2D:
 	return _body_resources[body_name][1]
 
 
-func get_body_inf_visibility(body_name: StringName) -> bool:
+func get_body_packed_model(body_name: StringName) -> PackedScene:
 	return _body_resources[body_name][2]
 
 
-func get_body_packed_model(body_name: StringName) -> PackedScene:
+func get_body_model_scale(body_name: StringName) -> float:
 	return _body_resources[body_name][3]
 
 
-func get_body_model_scale(body_name: StringName) -> float:
+func get_body_disable_auto_visual_range(body_name: StringName) -> bool:
 	return _body_resources[body_name][4]
 
 
-func get_body_disable_auto_visual_range(body_name: StringName) -> bool:
-	return _body_resources[body_name][5]
-
-
 func get_body_map_offset(body_name: StringName) -> float:
-	return _body_resources[body_name][6]
+	return _body_resources[body_name][5]
 
 
 ## Returns an ordered [Array] of shell specs for one body: element 0 is the
 ## surface (shell 0); elements 1..N are overlay render shells. Each spec is a
-## [Dictionary] with keys [code]channels, shader, process, process_args, cast_shadow,
-## overrides[/code] (plus [code]scale[/code] for overlays, and [code]from_shells[/code] on
+## [Dictionary] with keys [code]channels, shader, process, process_args, is_sun,
+## cast_shadow, overrides[/code] (plus [code]scale[/code] for overlays, and [code]from_shells[/code] on
 ## shell 0). Built from the body's [code]shells[/code] field and the [code]shells[/code] table;
 ## a shell 0 with no [code]shells[/code] row defaults from the body's [code]spheroids.tsv[/code]
 ## type, resolved in [IVSpheroidModel]. Consumed by [IVSpheroidModel].
 func get_body_shell_specs(body_name: StringName) -> Array:
-	return _body_resources[body_name][7]
+	return _body_resources[body_name][6]
 
 
 func get_rings_texture_arrays(rings_name: StringName) -> Array[Texture2DArray]:
@@ -287,6 +283,7 @@ func _read_shell_spec(channels: Dictionary, shell_row: int, is_surface: bool) ->
 			&"shader": &"",
 			&"process": &"",
 			&"process_args": [],
+			&"is_sun": false,
 			&"cast_shadow": GeometryInstance3D.SHADOW_CASTING_SETTING_ON,
 			&"overrides": {},
 		}
@@ -299,6 +296,7 @@ func _read_shell_spec(channels: Dictionary, shell_row: int, is_surface: bool) ->
 		&"shader": IVTableData.get_db_string_name(&"shells", &"shader", shell_row),
 		&"process": IVTableData.get_db_string_name(&"shells", &"process", shell_row),
 		&"process_args": IVTableData.get_db_array(&"shells", &"process_args", shell_row),
+		&"is_sun": IVTableData.get_db_bool(&"shells", &"is_sun", shell_row),
 		&"cast_shadow": cast_shadow,
 		&"overrides": read_material_fields(&"shells", shell_row, shells_nonmaterial_fields),
 	}
@@ -346,7 +344,6 @@ func _load_body_resources() -> void:
 				texture_slice_2d = IVFiles.find_and_load_resource(bodies_2d_search,
 						file_prefix + "_slice")
 			
-			var inf_visibility := IVTableData.get_db_bool(table, &"inf_visibility", row)
 			var packed_model: PackedScene = null
 			var model_scale := METER
 			var disable_auto_visual_range := false
@@ -439,7 +436,6 @@ func _load_body_resources() -> void:
 			var resources := [
 				texture_2d,
 				texture_slice_2d,
-				inf_visibility,
 				packed_model,
 				model_scale,
 				disable_auto_visual_range,
@@ -544,12 +540,12 @@ func _warn_channel_texture(param: int, texture: Texture2D, map_path: String) -> 
 
 func _deep_freeze_body_resources() -> void:
 	# make_read_only() freezes only the immediate container; recurse into the
-	# ordered shell specs (index 7) and their nested channel dicts so worker-thread
+	# ordered shell specs (index 6) and their nested channel dicts so worker-thread
 	# reads are race-free. (Each spec's "process_args" array is already frozen by the
 	# table postprocessor, or is an empty literal.)
 	for body_name in _body_resources:
 		var resources: Array = _body_resources[body_name]
-		var shell_specs: Array = resources[7]
+		var shell_specs: Array = resources[6]
 		for spec: Dictionary in shell_specs:
 			var channels: Dictionary = spec[&"channels"]
 			channels.make_read_only()

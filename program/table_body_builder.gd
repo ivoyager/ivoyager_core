@@ -52,7 +52,6 @@ var characteristics_fields: Array[StringName] = [
 	&"hud_name",
 	&"body_class",
 	&"spheroid_type",
-	&"inf_visibility",
 	&"has_light",
 	&"file_prefix",
 	&"has_rings",

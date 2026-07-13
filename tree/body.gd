@@ -976,12 +976,6 @@ func get_spheroid_type() -> int: # spheroids.tsv (intent; -1 = unspecified)
 	return characteristics.get(&"spheroid_type", -1)
 
 
-## Returns whether this body's model is exempt from distance culling (stars). Set
-## per body via the [code]inf_visibility[/code] column (currently only in stars.tsv).
-func get_inf_visibility() -> bool:
-	return characteristics.get(&"inf_visibility", false)
-
-
 func get_file_prefix() -> String:
 	return characteristics.get(&"file_prefix", "")
 

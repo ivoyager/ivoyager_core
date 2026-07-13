@@ -146,9 +146,10 @@ func _build_spheroid_model(asset_preloader: IVAssetPreloader) -> void:
 # to set their visibility ranges and layers. Spheroid models self-configure (see
 # [IVSpheroidModel]).
 func _set_visibility_ranges() -> void:
-	var asset_preloader: IVAssetPreloader = IVGlobal.program[&"AssetPreloader"]
-	if asset_preloader.get_body_inf_visibility(_body_name):
-		return # default 0.0 is no distance cull
+	# Sun-mode (is_sun) manages the disc's visibility itself (pixel-radius fade), so skip the
+	# fixed distance cull, matching the spheroid self-config path.
+	if IVTableData.get_db_bool(&"spheroids", &"is_sun", _spheroid_type):
+		return # is_sun disc self-culls; default 0.0 is no distance cull
 	var visibility_range_end := _m_radius * IVCoreSettings.radius_multiplier_visibility_range_end
 	_set_visibility_ranges_recursive(_model, visibility_range_end)
 

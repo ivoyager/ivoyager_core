@@ -71,6 +71,7 @@ varying flat float v_flux_comp;
 varying flat float v_fov_comp;
 
 #include "_farwarp.gdshaderinc"
+#include "_star_point.gdshaderinc"
 
 
 void vertex() {
@@ -78,49 +79,24 @@ void vertex() {
 	v_bv = CUSTOM0.y;
 	vec3 view_position = farwarp((MODELVIEW_MATRIX * vec4(VERTEX, 1.0)).xyz);
 	POSITION = PROJECTION_MATRIX * vec4(view_position, 1.0);
-	float t = clamp((size_faint_mag - v_mag) / (size_faint_mag - size_bright_mag), 0.0, 1.0);
+	float t = clamp(star_size_ramp(v_mag, size_faint_mag, size_bright_mag), 0.0, 1.0);
 	// Enlarge sub-floor stars to point_size_floor so they don't scintillate under
 	// motion; divide flux by the area gained to hold apparent magnitude fixed.
 	float ramp_size = mix(point_size_min, point_size_max, t);
 	float render_size = max(ramp_size, point_size_floor);
 	POINT_SIZE = render_size;
 	v_flux_comp = (ramp_size * ramp_size) / (render_size * render_size);
-	// Scale by the inverse pixel solid angle so the field's total luminance stays
-	// constant across zoom, matching the surface-brightness-conserving background.
-	// PROJECTION_MATRIX[1][1] is +-1/tan(fov/2) (its sign flips with the Vulkan Y-flip),
-	// so square before pow() -- pow() of a negative base is undefined in GLSL and
-	// collapses every star to zero. fov_ratio_sq = (tan(fov_ref/2)/tan(fov/2))^2.
-	float fov_ratio = PROJECTION_MATRIX[1][1] * reference_tan_half_fov;
-	v_fov_comp = pow(fov_ratio * fov_ratio, fov_compensation);
-}
-
-
-// Desaturated B-V -> RGB ramp; peaks at R = 1.0 so intensity alone sets brightness.
-vec3 star_color(float bv) {
-	bv = clamp(bv, -0.4, 2.0);
-	if (bv < 0.0) {
-		return mix(vec3(0.61, 0.70, 1.00), vec3(1.0), (bv + 0.4) / 0.4);
-	}
-	if (bv < 0.4) {
-		return mix(vec3(1.0), vec3(1.00, 0.98, 0.90), bv / 0.4);
-	}
-	if (bv < 0.8) {
-		return mix(vec3(1.00, 0.98, 0.90), vec3(1.00, 0.92, 0.75), (bv - 0.4) / 0.4);
-	}
-	if (bv < 1.5) {
-		return mix(vec3(1.00, 0.92, 0.75), vec3(1.00, 0.80, 0.55), (bv - 0.8) / 0.7);
-	}
-	return mix(vec3(1.00, 0.80, 0.55), vec3(1.00, 0.68, 0.45), (bv - 1.5) / 0.5);
+	// Hold the field's total luminance constant across zoom (see star_fov_compensation).
+	v_fov_comp = star_fov_compensation(PROJECTION_MATRIX[1][1], reference_tan_half_fov, fov_compensation);
 }
 
 
 void fragment() {
-	vec2 offset = POINT_COORD - vec2(0.5);
-	float dist_sq = dot(offset, offset) * 4.0; // 0 at center, 1 at the inscribed circle
+	float dist_sq = star_point_dist_sq(POINT_COORD); // 0 at center, 1 at the inscribed circle
 	if (dist_sq > 1.0) {
 		discard; // round mask; drops the square point-sprite corners
 	}
-	float flux = pow(10.0, -0.4 * (v_mag - intensity_faint_mag));
+	float flux = star_flux(v_mag, intensity_faint_mag);
 	float intensity = min(intensity_scale * pow(flux, intensity_gamma), intensity_max);
 	ALBEDO = star_color(v_bv) * intensity * v_flux_comp * v_fov_comp;
 	ALPHA = exp(-4.0 * dist_sq); // soft Gaussian core; blend_add scales the add by ALPHA
