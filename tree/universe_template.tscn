@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://u68wtpkv15lm" path="res://addons/ivoyager_core/tree/universe_template.gd" id="1_1jtrc"]
 [ext_resource type="PackedScene" uid="uid://b15j2rbaf1c4j" path="res://addons/ivoyager_core/tree/world_environment.tscn" id="2_g61p2"]
 [ext_resource type="PackedScene" uid="uid://dd1xhk38f1jmf" path="res://addons/ivoyager_core/ui/top_ui.tscn" id="2_ufcjy"]
+[ext_resource type="PackedScene" uid="uid://beaq440kp2utp" path="res://addons/ivoyager_core/tree/stars_visual.tscn" id="3_elbmc"]
 [ext_resource type="PackedScene" uid="uid://cij2gsmtnwhcb" path="res://addons/ivoyager_core/ui/world_controller.tscn" id="3_u0sc2"]
 [ext_resource type="PackedScene" uid="uid://c6yqdxh0igm7a" path="res://addons/ivoyager_core/ui/mouse_target_label.tscn" id="4_u0sc2"]
 [ext_resource type="PackedScene" uid="uid://cgv7mkfok4nux" path="res://addons/ivoyager_core/ui/show_hide_ui.tscn" id="5_fxq6q"]
@@ -14,7 +15,6 @@
 [ext_resource type="PackedScene" uid="uid://dcw1843unaohr" path="res://addons/ivoyager_core/ui_widgets/quit_button.tscn" id="11_xoakq"]
 [ext_resource type="PackedScene" uid="uid://4wg2jxr7g6t2" path="res://addons/ivoyager_core/ui_widgets/resume_button.tscn" id="12_d4hqr"]
 [ext_resource type="PackedScene" uid="uid://bq5sg1c26wm60" path="res://addons/ivoyager_core/ui/confirmation_dialog.tscn" id="13_ebhhe"]
-[ext_resource type="Script" uid="uid://bopo65wrmxwvt" path="res://addons/ivoyager_core/tree/stars_visual.gd" id="14_stars"]
 
 [node name="Universe" type="Node3D" unique_id=1544590847]
 process_mode = 3
@@ -22,8 +22,7 @@ script = ExtResource("1_1jtrc")
 
 [node name="WorldEnvironment" parent="." unique_id=167623687 instance=ExtResource("2_g61p2")]
 
-[node name="StarsVisual" type="MeshInstance3D" parent="." unique_id=900000002]
-script = ExtResource("14_stars")
+[node name="StarsVisual" parent="." unique_id=680322112 instance=ExtResource("3_elbmc")]
 
 [node name="TopUI" parent="." unique_id=485002845 instance=ExtResource("2_ufcjy")]
 mouse_filter = 1

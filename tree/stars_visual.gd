@@ -34,7 +34,11 @@ extends MeshInstance3D
 ## Authored as a fixed node under [code]Universe[/code] (no PERSIST_MODE), so it
 ## rides the [IVCamera] origin shift automatically, builds once, and survives
 ## system rebuilds. No-ops with a warning if no binaries resolve (e.g. when
-## ivoyager_assets is absent).
+## ivoyager_assets is absent).[br][br]
+##
+## Note: Godot Editor shows a scene warning for missing mesh. The mesh is built
+## procedurally, so you can ignore the warning.
+
 
 ## Magnitude-bin upper edges; must match the bins written by
 ## [code]tools/build_star_binaries.py[/code]. Each bin file holds stars up to its edge.

@@ -55,6 +55,7 @@ extends Node3D
 ##          |- ...                   #
 ##
 ##    |- IVWorldEnvironment
+##    |- IVStarsVisual
 ##    |- IVTopUI
 ##          |- IVWorldController
 ##          |- IVMouseTargetLabel
@@ -91,8 +92,8 @@ extends Node3D
 ## simply by naming it "Universe". (If the former, the node name doesn't matter.
 ## In any case, we call this root node "Universe" in plugin documentation.)[br][br]
 ##
-## [IVWorldEnvironment] is in directory "tree" with [IVUniverseTemplate]
-## and Node3D classes.[br][br]
+## [IVWorldEnvironment] and [IVStarsVisual] are in directory "tree" with
+## [IVUniverseTemplate] and Node3D classes.[br][br]
 ##
 ## UI classes above from the Core plugin are in directory "ui".
 ## See [IVTopUI], [IVWorldController], [IVMouseTargetLabel],
