@@ -93,7 +93,7 @@ var start_time_date_clock: Array[int] = [2026, 1, 1, 0, 0, 0]
 var start_time_is_terrestrial_time := false
 
 ## Used by [IVCamera].
-var start_camera_fov: float = IVMath.get_fov_from_focal_length(24.0)
+var start_camera_fov := IVMath.get_fov_from_focal_length(24.0)
 
 ## Enables time setting functionality in [IVTimekeeper] and GUI widgets. Also
 ## needed for OS time synchronization. (Used by Planetarium.)
@@ -115,11 +115,11 @@ var limit_stops_in_multiplayer := true # overrides most stops
 var allow_fullscreen_toggle := false
 ## Sets resolution of the common sphere mesh used by all spheroid bodies. See
 ## [IVResourceInitializer] for mesh construction. See also [member sphere_rings].
-var sphere_radial_segments := 128
+var sphere_radial_segments := 256
 ## Sets resolution of the common sphere mesh used by all spheroid bodies. See
 ## [IVResourceInitializer] for mesh construction. See also [member
 ## sphere_radial_segments].
-var sphere_rings := 64
+var sphere_rings := 128
 ## Sets subdivision of the shared [PlaneMesh] used by [IVRings] (see
 ## [IVResourceInitializer]). Enough subdivision lets the per-vertex farwarp remap approximate the
 ## compression curve across the ring span.
@@ -130,27 +130,27 @@ var plane_mesh_subdivisions := 64
 ## line ON the body at any density — so the worst mid-knot Hermite bow (scales as N^-4; meters-scale
 ## for a Juno-class e = 0.98 orbit at 500) shows only mid-field, where there is no reference to see it
 ## against. Density's real cost is the per-knot scan on every rebake.
-var vertecies_per_orbit: int = 500
+var vertecies_per_orbit := 500
 ## Sets state-path knots per [IVTrajectory] segment (uniform anomaly). A transfer segment spans years
 ## to decades, so its mid-knot Hermite bow is larger than a closed orbit's (~340 m worst on Voyager
 ## Sun legs at 500, N^-4) — but the render-frame pin holds the line ON the body at any density, and
 ## the bow shows only mid-field, unreferenced. This is also the Tier-1 coarse polyline density; the
 ## whole-trajectory knot total sets the per-rebake scan cost, which dominates rebased-mode CPU.
-var vertecies_per_trajectory_segment: int = 500
+var vertecies_per_trajectory_segment := 500
 ## Sets resolution of the shared unit conic meshes drawing all non-rebased orbit lines in
 ## [IVPathVisual]. Facet angle peaks at the apsides at ~(2 pi / N) / sqrt(1 - e^2), so N must cover
 ## the highest-eccentricity orbit displayed (4096 keeps e = 0.98 under ~0.5 deg). The meshes are
 ## shared, so the cost is per drawn vertex, not per body.
-var vertecies_per_conic_mesh: int = 4096
+var vertecies_per_conic_mesh := 4096
 ## Sets resolution of orbit/trajectory lines used by [IVSBGOrbitsVisual] (e.g.,
 ## for 10000s of asteroid orbits as [MultiMeshInstance3D]). See
 ## [IVResourceInitializer] for construction of common orbit/trajectory meshes. 
-var vertecies_per_orbit_low_res: int = 100
+var vertecies_per_orbit_low_res := 100
 ## Defines the maximum visual extent of open conics (i.e., parabolic and hyperbolic
 ## trajectories) relative to the unit conic. See [IVResourceInitializer].
-var open_conic_max_radius := 1000.0
+var open_conic_max_radius := 1e10
 ## Limits camera distance. Used by [IVCamera].
-var max_camera_distance: float = 5e3 * IVUnits.AU
+var max_camera_distance := 5e3 * IVUnits.AU
 ## Radius multiplier used to set [member GeometryInstance3D.visibility_range_end]
 ## in [IVBodyVisual] and [IVRings].
 var radius_multiplier_visibility_range_end := 4000.0
@@ -262,18 +262,6 @@ var stroboscope_minimum_blur := 0.025
 ## Motion blur multiplier when a body exhibits stroboscopic rotation. [member
 ## stroboscope_frames_per_second] must be greater than 0.0.
 var stroboscope_motion_blur := 0.1
-
-
-## @deprecated: This is not used by the plugin and will be removed.
-var text_colors: Dictionary[StringName, Color] = {
-	great = Color.CYAN,
-	good = Color.GREEN,
-	base = Color.WHITE,
-	caution = Color.YELLOW,
-	warning = Color.ORANGE,
-	danger = Color.RED,
-	flag = Color.FUCHSIA,
-}
 
 
 func _enter_tree() -> void:
