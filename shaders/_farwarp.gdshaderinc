@@ -40,3 +40,29 @@ vec3 farwarp(vec3 position) {
 	float compressed = iv_farwarp_start * (1.0 + log(dist / iv_farwarp_start));
 	return position * (compressed / dist);
 }
+
+
+// Farwarp for a LIT surface/shell, used under 'render_mode skip_vertex_transform' (which turns
+// off the engine's built-in vertex transform; see the local coordinates block in
+// scene_forward_*.glsl). These reproduce that transform exactly - VERTEX to view space, the
+// normal frame via modelview_normal - and add the farwarp remap on the position only. Pass
+// MODELVIEW_MATRIX and MODELVIEW_NORMAL_MATRIX; the latter already bakes in the oblate
+// (non-uniform) inverse-transpose, so the normal frame stays correct without a per-vertex
+// inverse. The normal keeps its TRUE (un-remapped) view orientation - farwarp is a render-depth
+// remap, not a deformation - so PBR shading and the day/night terminator are unchanged. Use the
+// _tbn variant on a shell that samples a normal map (needs TANGENT/BINORMAL); the plain one
+// otherwise.
+
+void farwarp_lit_vertex(mat4 modelview, mat3 modelview_normal, inout vec3 vertex,
+		inout vec3 normal) {
+	vertex = farwarp((modelview * vec4(vertex, 1.0)).xyz);
+	normal = modelview_normal * normal;
+}
+
+void farwarp_lit_vertex_tbn(mat4 modelview, mat3 modelview_normal, inout vec3 vertex,
+		inout vec3 normal, inout vec3 tangent, inout vec3 binormal) {
+	vertex = farwarp((modelview * vec4(vertex, 1.0)).xyz);
+	normal = modelview_normal * normal;
+	tangent = modelview_normal * tangent;
+	binormal = modelview_normal * binormal;
+}

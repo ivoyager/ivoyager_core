@@ -28,10 +28,10 @@ extends ConfirmationDialog
 signal hotkey_confirmed(action: StringName, index: int, keycode: int,
 		control: bool, alt: bool, shift: bool, meta: bool)
 
+@export var ok_color := Color.WHITE
+@export var in_use_color := Color.RED
 
 var _input_map_manager: IVInputMapManager
-var _ok_color: Color
-var _in_use_color: Color
 var _input_event_key: InputEventKey
 var _action: StringName
 var _index: int
@@ -64,8 +64,6 @@ func _configure_after_core_inited() -> void:
 	focus_exited.connect(_keep_focus)
 	_ok_button.disabled = true
 	_input_map_manager = IVGlobal.program[&"InputMapManager"]
-	_ok_color = IVCoreSettings.text_colors[&"base"]
-	_in_use_color = IVCoreSettings.text_colors[&"danger"]
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -84,19 +82,19 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	var key_as_text := OS.get_keycode_string(scancode_w_mods)
 	if _scancode_is_reserved(scancode_w_mods):
 		_key_label.text = tr(&"TXT_KEY_RESERVED_CONSTRUCTOR") % key_as_text
-		_key_label.set(&"theme_override_colors/font_color", _in_use_color)
+		_key_label.set(&"theme_override_colors/font_color", in_use_color)
 		_input_event_key = null
 		_ok_button.disabled = true
 		_key_delete.hide()
 	elif _scancode_is_present_action(scancode_w_mods):
 		_key_label.text = key_as_text
-		_key_label.set(&"theme_override_colors/font_color", _ok_color)
+		_key_label.set(&"theme_override_colors/font_color", ok_color)
 		_input_event_key = null
 		_ok_button.disabled = true
 		_key_delete.show()
 	elif _scancode_is_available(scancode_w_mods):
 		_key_label.text = key_as_text
-		_key_label.set(&"theme_override_colors/font_color", _ok_color)
+		_key_label.set(&"theme_override_colors/font_color", ok_color)
 		_input_event_key = key_event
 		_ok_button.disabled = false
 		_key_delete.show()
@@ -104,7 +102,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		var other_action_text := _get_scancode_action_text(scancode_w_mods)
 		
 		_key_label.text = tr(&"TXT_KEY_USED_BY_CONSTRUCTOR") % [key_as_text, other_action_text]
-		_key_label.set(&"theme_override_colors/font_color", _in_use_color)
+		_key_label.set(&"theme_override_colors/font_color", in_use_color)
 		_input_event_key = null
 		_ok_button.disabled = true
 		_key_delete.hide()
@@ -126,7 +124,7 @@ func open(action: StringName, index: int, action_label_str: StringName, key_as_t
 	title = action_label_str
 	_ok_button.disabled = true
 	_key_label.text = key_as_text
-	_key_label.set(&"theme_override_colors/font_color", _ok_color)
+	_key_label.set(&"theme_override_colors/font_color", ok_color)
 	popup_centered()
 	_keep_focus()
 

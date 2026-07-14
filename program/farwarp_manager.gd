@@ -35,27 +35,27 @@ extends Node
 ## [code]g(d) = T * (1 + ln(d / T))[/code] beyond (C1-continuous at T).[br][br]
 ##
 ## Monotonic g preserves occlusion order, including transits across T. True
-## [IVBody] positions are never modified; only visuals move. [IVBody] applies
-## the remap to its model space via an interposed top_level node positioned in
-## world space from camera-relative math (float32 rounding then stays
-## proportional to the compressed distance; see [member IVBody.farwarp_space]);
-## orbit lines and small-body points apply the same g() per-vertex in view
-## space (see [code]shaders/_farwarp.gdshaderinc[/code]). This node publishes
-## one consistent per-frame state for all consumers: static state below plus a
-## call to [method IVBody.update_farwarp] on every visible body, and the
-## [code]iv_farwarp_start[/code] global shader parameter ([code]<= 0.0[/code]
-## disables) for shaders.[br][br]
+## [IVBody] positions are never modified; only visuals move. Body models, orbit
+## lines and small-body points all apply g() per-vertex in view space in their own
+## shaders (see [code]shaders/_farwarp.gdshaderinc[/code]): the geometry sits at its
+## true position and the GPU does the compression. The one CPU-placed consumer is each
+## body's [IVBodyPositionVisual] HUD symbol - a single top_level point that can't ride
+## the vertex path - whose compressed position ([member IVBody.farwarp_position]) is
+## assembled from camera-relative math (float32 rounding stays proportional to the
+## compressed distance). This node publishes one consistent per-frame state for all
+## consumers: the static state below, a call to [method IVBody.update_farwarp] on every
+## visible body, and the [code]iv_farwarp_start[/code] global shader parameter
+## ([code]<= 0.0[/code] disables) that drives every farwarp shader.[br][br]
 ##
 ## Processes at priority +100: after the body tree AND after [IVCamera] (0) has
 ## moved and origin-shifted the Universe. Ordinary tree children ride the
-## origin shift automatically, but the world-space (top_level) farwarp nodes
+## origin shift automatically, but the world-space (top_level) HUD symbol nodes
 ## do not - placing them from pre-shift state leaves them one frame of camera
 ## world-motion behind, which reads as violent shake on fast nearby orbiters
-## (the camera's parent moves km per frame) and off-center models during fast
-## camera rotation. This late pass reads the settled post-shift camera and body
-## globals, so CPU placements land in the same frame coordinates the renderer
-## and the vertex shaders use. To disable the whole system, set
-## [member IVCoreSettings.apply_farwarp] false.
+## (the camera's parent moves km per frame). This late pass reads the settled
+## post-shift camera and body globals, so the CPU placement lands in the same frame
+## coordinates the renderer and the vertex shaders use. To disable the whole system,
+## set [member IVCoreSettings.apply_farwarp] false.
 
 
 ## Start distance T of the current frame's farwarp compression, in internal
@@ -64,8 +64,6 @@ static var farwarp_start := 0.0
 ## Post-origin-shift camera global position paired with [member farwarp_start].
 ## Read-only.
 static var camera_global_position := Vector3.ZERO
-## Mirror of [member IVCoreSettings.farwarp_angular_cutoff]. Read-only.
-static var angular_cutoff := 0.0
 
 var _start_ratio: float = IVCoreSettings.farwarp_start_ratio
 var _camera: Camera3D
@@ -91,7 +89,6 @@ static func get_farwarp_factor(distance: float, start: float) -> float:
 
 func _ready() -> void:
 	set_process_priority(100) # after the body tree and IVCamera's origin shift; see class doc
-	angular_cutoff = IVCoreSettings.farwarp_angular_cutoff
 	if !IVCoreSettings.apply_farwarp:
 		RenderingServer.global_shader_parameter_set(&"iv_farwarp_start", 0.0)
 		set_process(false)

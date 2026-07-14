@@ -1,4 +1,4 @@
-# shared_resource_initializer.gd
+# resource_initializer.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -36,15 +36,18 @@ var preloads: Dictionary[StringName, Resource] = {
 			"res://addons/ivoyager_core/shaders/orbiting_positions_id.gdshader"),
 	orbiting_positions_lp_id_shader = preload(
 			"res://addons/ivoyager_core/shaders/orbiting_positions_lp_id.gdshader"),
-	id_shader = preload("res://addons/ivoyager_core/shaders/id.gdshader"),
+	path_id_shader = preload("res://addons/ivoyager_core/shaders/path_id.gdshader"),
 	instance_id_shader = preload("res://addons/ivoyager_core/shaders/instance_id.gdshader"),
-	farwarp_line_shader = preload("res://addons/ivoyager_core/shaders/farwarp_line.gdshader"),
+	path_shader = preload("res://addons/ivoyager_core/shaders/path.gdshader"),
+	farwarp_vertex_shader = preload("res://addons/ivoyager_core/shaders/farwarp_vertex.gdshader"),
 	rings_shader = preload("res://addons/ivoyager_core/shaders/rings.gdshader"),
-	rings_shadow_caster_shader = preload(
-			"res://addons/ivoyager_core/shaders/rings_shadow_caster.gdshader"),
-	cloud_detail_shader = preload("res://addons/ivoyager_core/shaders/cloud_detail.gdshader"),
+	cloud_shell_shader = preload("res://addons/ivoyager_core/shaders/cloud_shell.gdshader"),
 	atmosphere_limb_shader = preload("res://addons/ivoyager_core/shaders/atmosphere_limb.gdshader"),
-	depixelation_shader = preload("res://addons/ivoyager_core/shaders/depixelation.gdshader"),
+	spheroid_surface_shader = preload("res://addons/ivoyager_core/shaders/spheroid_surface.gdshader"),
+	stars_shader = preload("res://addons/ivoyager_core/shaders/stars.gdshader"),
+	sun_surface_shader = preload("res://addons/ivoyager_core/shaders/sun_surface.gdshader"),
+	sun_point_shader = preload("res://addons/ivoyager_core/shaders/sun_point.gdshader"),
+	starmap_background_shader = preload("res://addons/ivoyager_core/shaders/starmap_background.gdshader"),
 }
 
 ## Callables that build shared resources (e.g., the common sphere mesh).
@@ -53,11 +56,12 @@ var preloads: Dictionary[StringName, Resource] = {
 var constructors: Dictionary[StringName, Callable]= {
 	&"sphere_mesh" : _make_sphere_mesh.bind(IVCoreSettings.sphere_radial_segments,
 			IVCoreSettings.sphere_rings),
-	&"circle_mesh" : _make_circle_mesh.bind(IVCoreSettings.vertecies_per_orbit),
+	&"plane_mesh" : _make_plane_mesh.bind(IVCoreSettings.plane_mesh_subdivisions),
+	&"circle_mesh" : _make_circle_mesh.bind(IVCoreSettings.vertecies_per_conic_mesh),
 	&"circle_mesh_low_res" : _make_circle_mesh.bind(IVCoreSettings.vertecies_per_orbit_low_res),
-	&"parabola_mesh" : _make_open_conic_mesh.bind(IVCoreSettings.vertecies_per_orbit,
+	&"parabola_mesh" : _make_open_conic_mesh.bind(IVCoreSettings.vertecies_per_conic_mesh,
 			1.0, IVCoreSettings.open_conic_max_radius),
-	&"rectangular_hyperbola_mesh" : _make_open_conic_mesh.bind(IVCoreSettings.vertecies_per_orbit,
+	&"rectangular_hyperbola_mesh" : _make_open_conic_mesh.bind(IVCoreSettings.vertecies_per_conic_mesh,
 			sqrt(2.0), IVCoreSettings.open_conic_max_radius),
 }
 
@@ -89,9 +93,9 @@ func _make_shared_resources() -> void:
 
 # constructor callables
 
-## Shared [SphereMesh] for stars, planets and moons. Instantiated here as a
-## unit sphere (radius = 1.0; height = 2.0) at specified resolution. Scaled for
-## indivudual [IVBody] oblateness by [IVBodyVisual].
+# Shared [SphereMesh] for stars, planets and moons. Instantiated here as a
+# unit sphere (radius = 1.0; height = 2.0) at specified resolution. Scaled for
+# indivudual [IVBody] oblateness by [IVBodyVisual].
 func _make_sphere_mesh(radial_segments := 64, rings := 32) -> SphereMesh:
 	# Signature has Godot defaults; IVProjectSettings likely specifies higher value.
 	var sphere_mesh := SphereMesh.new()
@@ -100,6 +104,17 @@ func _make_sphere_mesh(radial_segments := 64, rings := 32) -> SphereMesh:
 	sphere_mesh.radius = 1.0
 	sphere_mesh.height = 2.0
 	return sphere_mesh
+
+
+# Shared subdivided [PlaneMesh] for [IVRings]. Kept at the default 2x2
+# size (so the ring shaders' [code]length(UV * 2.0 - 1.0)[/code] radius math is unchanged) and
+# subdivided so the per-vertex farwarp remap approximates the compression curve across the ring
+# span. Instances set their own scale and rotation.
+func _make_plane_mesh(subdivisions := 64) -> PlaneMesh:
+	var plane_mesh := PlaneMesh.new()
+	plane_mesh.subdivide_width = subdivisions
+	plane_mesh.subdivide_depth = subdivisions
+	return plane_mesh
 
 
 func _make_circle_mesh(n_vertecies: int) -> ArrayMesh:

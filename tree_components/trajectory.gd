@@ -53,10 +53,6 @@ const GAP_SKIP_KM := 100.0 ## Cruise gap below this (× IVUnits.KM) is left as a
 const GAP_WARN_AU := 0.1 ## Cruise gap above this (× IVUnits.AU) is still re-fitted, but logged.
 const OPEN_TERMINAL_LOOKAHEAD_YEARS := 5.0 ## Far Lambert-point look-ahead for an open terminal cruise.
 
-# Adaptive rebased-line sampling (see [method sample_segment_adaptive_lca]).
-const ADAPTIVE_SEED_VERTICES := 24 # anomaly-uniform brackets per segment before screen-space refinement
-const ADAPTIVE_MAX_DEPTH := 34 # bisection recursion cap per bracket (drill AU seeds to meter chords; LOD + vertex cap bound the count)
-
 
 # persisted
 
@@ -81,12 +77,11 @@ var end_remove: bool
 
 # derived
 
-## Connected polyline of the whole trajectory in the [member lca] frame (ecliptic basis),
-## as flat orbit-precision [x, y, z] triples (size 3 * vertex count). Derived from
-## [member orbits]; consumed by [IVPathVisual].
+## Connected state path of the whole trajectory in the [member lca] frame (ecliptic basis), as
+## flat orbit-precision stride-7 knots [x, y, z, vx, vy, vz, t]: position, velocity (the Hermite
+## tangent used by [IVPathVisual]), and passage time (s). Derived from [member orbits];
+## consumed by [IVPathVisual].
 var path: PackedFloat64Array
-## Passage time (s) of each vertex in [member path] (size [member path].size() / 3).
-var path_times: PackedFloat64Array
 ## Lowest common ancestor (in the [IVBody] tree) of all segment primaries. This is
 ## the frame in which [member path] is expressed and the correct scene-tree parent
 ## for an [IVPathVisual] of this trajectory.
@@ -193,89 +188,50 @@ func get_clamped_time(time: float) -> float:
 	return clampf(time, orbits[0].segment_begin, orbits[-1].segment_end)
 
 
-## Returns flat orbit-precision [x, y, z] triples (size 3 * [param times].size()) for segment
-## [param index] evaluated at the ascending [param times], expressed in the [member lca] frame —
-## the same per-vertex frame math as [method _build_path] does for a whole segment. Lets
-## [IVPathVisual] redraw a transfer segment of the rebased line at a custom density instead of
-## reusing the fixed-density [member path].
-func sample_segment_lca(index: int, times: PackedFloat64Array) -> PackedFloat64Array:
-	var n_vertices := times.size()
-	var positions := PackedFloat64Array()
-	positions.resize(3 * n_vertices)
-	for j in n_vertices:
-		var position := _segment_position_lca(index, times[j])
-		positions[3 * j] = position[0]
-		positions[3 * j + 1] = position[1]
-		positions[3 * j + 2] = position[2]
-	return positions
+## Returns flat orbit-precision stride-7 state-path knots [x, y, z, vx, vy, vz, t] (size
+## 7 * [param times].size()) for segment [param index] evaluated at the ascending [param times],
+## expressed in the [member lca] frame. Used by [method _build_path] to fill [member path] one
+## segment at a time.
+func sample_segment_states_lca(index: int, times: PackedFloat64Array) -> PackedFloat64Array:
+	var n_knots := times.size()
+	var states := PackedFloat64Array()
+	states.resize(7 * n_knots)
+	for j in n_knots:
+		var time := times[j]
+		var position := _segment_position_lca(index, time)
+		var velocity := _segment_velocity_lca(index, time)
+		var base := 7 * j
+		states[base] = position[0]
+		states[base + 1] = position[1]
+		states[base + 2] = position[2]
+		states[base + 3] = velocity[0]
+		states[base + 4] = velocity[1]
+		states[base + 5] = velocity[2]
+		states[base + 6] = time
+	return states
 
 
-## Returns flat orbit-precision [x, y, z] triples for segment [param index], adaptively sampled for the
-## rebased line so it is dense where the camera looks and smooth where the path curves. A bracket is
-## subdivided while EITHER its chord is long relative to the viewing distance ([param chord_factor] — a
-## level-of-detail term keeping the line visibly dense near the camera) OR the curve's deviation from the
-## chord exceeds [param tolerance] of the viewing distance (curvature term — this is what keeps a tracked
-## body ON its line). Distances are to [param anchor] (the camera, in the [member lca] frame), floored at
-## [param min_distance] (the camera distance). [param swath] is the length the camera will sweep along the
-## path before the next rebake (the body's per-interval drift): within it the curvature term uses the true
-## camera distance, so the body stays on its line even at high game speed, while the (cosmetic) chord term
-## still relaxes with raw distance so the swath does not explode into meter-scale chords. Vertices thin out
-## where the segment is far and straight; capped at [param max_vertices].
-func sample_segment_adaptive_lca(index: int, anchor: PackedFloat64Array, min_distance: float, swath: float,
-		chord_factor: float, tolerance: float, max_vertices: int) -> PackedFloat64Array:
-	var orbit := orbits[index]
-	var max_radius := IVCoreSettings.open_conic_max_radius
-	# Anomaly-uniform seed brackets the whole segment (incl. a hyperbolic periapsis and any open-conic
-	# clamp); adaptive refinement then subdivides between seeds by viewing distance and curvature.
-	var seed_arc := orbit.sample_arc(orbit.segment_begin, orbit.segment_end, ADAPTIVE_SEED_VERTICES, max_radius)
-	var seed_times: PackedFloat64Array = seed_arc[1]
-	var n_seeds := seed_times.size()
-	var times := PackedFloat64Array()
-	for k in n_seeds - 1:
-		var ta := seed_times[k]
-		var tb := seed_times[k + 1]
-		times.append(ta)
-		_refine_segment(index, ta, tb, _segment_position_lca(index, ta), _segment_position_lca(index, tb),
-				anchor, min_distance, swath, chord_factor, tolerance, max_vertices, 0, times)
-	times.append(seed_times[n_seeds - 1])
-	return sample_segment_lca(index, times)
+## Returns the drawn transfer segments as a list of state-path sub-paths, each a flat
+## orbit-precision [PackedFloat64Array] of stride-7 knots [x, y, z, vx, vy, vz, t] in the
+## [member lca] frame, sliced from [member path]. Parking/capture segments
+## ([method is_orbit_segment]) are omitted — they render as standalone orbits while the body
+## is in them. Each sub-path is smoothed independently ([IVPathVisual]): velocity is
+## discontinuous at patch points, so a single Hermite must not span two segments.
+func get_display_state_paths() -> Array[PackedFloat64Array]:
+	var sub_paths: Array[PackedFloat64Array] = []
+	var n_segments := orbits.size()
+	if n_segments == 0 or path.is_empty():
+		return sub_paths
+	@warning_ignore("integer_division") # path is exactly n_segments * vertecies_per_trajectory_segment knots
+	var chunk := path.size() / n_segments # floats per segment (7 * knots)
+	for i in n_segments:
+		if is_orbit_segment(i):
+			continue
+		sub_paths.append(path.slice(i * chunk, (i + 1) * chunk))
+	return sub_paths
 
 
-# Recursively bisects (ta, tb) for [method sample_segment_adaptive_lca], appending interior midpoint times
-# (ascending) while the bracket's chord is too long for the viewing distance or its deviation from the chord
-# too large. [param pa]/[param pb] are the LCA positions at ta/tb. Distance is the nearest of the bracket's
-# three known points to [param anchor], so a bracket that passes near the camera keeps refining even when its
-# own midpoint is far. The curvature test subtracts [param swath] (the camera's coming sweep) from that
-# distance, so the stretch the body will traverse before the next rebake stays smooth at the true camera
-# distance instead of being judged "far enough to be coarse."
-func _refine_segment(index: int, ta: float, tb: float, pa: PackedFloat64Array, pb: PackedFloat64Array,
-		anchor: PackedFloat64Array, min_distance: float, swath: float, chord_factor: float, tolerance: float,
-		max_vertices: int, depth: int, out_times: PackedFloat64Array) -> void:
-	if depth >= ADAPTIVE_MAX_DEPTH or out_times.size() >= max_vertices:
-		return
-	var tm := 0.5 * (ta + tb)
-	var pm := _segment_position_lca(index, tm)
-	var dev_x := pm[0] - 0.5 * (pa[0] + pb[0])
-	var dev_y := pm[1] - 0.5 * (pa[1] + pb[1])
-	var dev_z := pm[2] - 0.5 * (pa[2] + pb[2])
-	var deviation := sqrt(dev_x * dev_x + dev_y * dev_y + dev_z * dev_z)
-	var chord := IVMath64.distance(pa, pb)
-	var bracket_distance := IVMath64.distance(pm, anchor)
-	var distance_a := IVMath64.distance(pa, anchor)
-	var distance_b := IVMath64.distance(pb, anchor)
-	if distance_a < bracket_distance:
-		bracket_distance = distance_a
-	if distance_b < bracket_distance:
-		bracket_distance = distance_b
-	var chord_view := maxf(min_distance, bracket_distance)
-	var curve_view := maxf(min_distance, bracket_distance - swath)
-	if chord <= chord_factor * chord_view and deviation <= tolerance * curve_view:
-		return
-	_refine_segment(index, ta, tm, pa, pm, anchor, min_distance, swath, chord_factor, tolerance,
-			max_vertices, depth + 1, out_times)
-	out_times.append(tm)
-	_refine_segment(index, tm, tb, pm, pb, anchor, min_distance, swath, chord_factor, tolerance,
-			max_vertices, depth + 1, out_times)
+# ********************************** private **********************************
 
 
 func _get_index(time: float) -> int:
@@ -387,6 +343,29 @@ func _segment_position_lca(index: int, time: float) -> PackedFloat64Array:
 	return PackedFloat64Array([pos[0] + offset[0], pos[1] + offset[1], pos[2] + offset[2]])
 
 
+# Velocity of segment [param index] at [param time] in the [member lca] frame (size-3): the segment's
+# orbital velocity about its primary plus the primary's own velocity relative to the LCA. The primary's
+# velocity is a central difference of its composed position, NOT its osculating two-body velocity, which
+# omits the element-rate drift of evolving
+# (real-planet) orbits — a ~m/s bias, common to an interval's two knots, that the cubic Hermite turns
+# into a knot-period line "sweep" of ~0.1 x bias x knot interval (measured km-scale on Saturn/Uranus
+# flyby legs), with zero error at the knots and interval midpoint.
+func _segment_velocity_lca(index: int, time: float) -> PackedFloat64Array:
+	var state := orbits[index].get_state(time)
+	var primary := _segment_parents[index]
+	if primary == lca:
+		return PackedFloat64Array([state[3], state[4], state[5]])
+	var half_step := 60.0 * IVUnits.SECOND
+	var plus := _offset_to_lca(primary, time + half_step)
+	var minus := _offset_to_lca(primary, time - half_step)
+	var inv_step := 0.5 / half_step
+	return PackedFloat64Array([
+		state[3] + (plus[0] - minus[0]) * inv_step,
+		state[4] + (plus[1] - minus[1]) * inv_step,
+		state[5] + (plus[2] - minus[2]) * inv_step,
+	])
+
+
 func _compute_lca() -> IVBody:
 	var common := _segment_parents[0]
 	for i in range(1, _segment_parents.size()):
@@ -409,16 +388,14 @@ func _lowest_common_ancestor(body_a: IVBody, body_b: IVBody) -> IVBody:
 
 
 func _build_path() -> void:
-	var n_vertices := IVCoreSettings.vertecies_per_orbit
+	var n_vertices := IVCoreSettings.vertecies_per_trajectory_segment
 	var max_radius := IVCoreSettings.open_conic_max_radius
 	path = PackedFloat64Array()
-	path_times = PackedFloat64Array()
 	for i in orbits.size():
 		var orbit := orbits[i]
 		var arc := orbit.sample_arc(orbit.segment_begin, orbit.segment_end, n_vertices, max_radius)
 		var times: PackedFloat64Array = arc[1]
-		path.append_array(sample_segment_lca(i, times))
-		path_times.append_array(times)
+		path.append_array(sample_segment_states_lca(i, times))
 
 
 # Returns the position of [param primary] relative to [member lca] at [param time] (size-3).
@@ -432,5 +409,4 @@ func _clear_procedural() -> void:
 	_segment_parents.clear()
 	orbits.clear()
 	path = PackedFloat64Array()
-	path_times = PackedFloat64Array()
 	_boundaries = PackedFloat64Array()

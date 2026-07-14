@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://beaq440kp2utp"]
+
+[ext_resource type="Script" uid="uid://bopo65wrmxwvt" path="res://addons/ivoyager_core/tree/stars_visual.gd" id="1_a6gii"]
+
+[node name="StarsVisual" type="MeshInstance3D" unique_id=680322112]
+script = ExtResource("1_a6gii")

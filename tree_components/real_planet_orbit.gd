@@ -64,6 +64,12 @@ const PERSIST_PROPERTIES2: Array[StringName] = [
 	&"_inclination_at_epoch",
 	&"_inclination_rate",
 	&"_time_periapsis_at_epoch",
+
+	&"_signaled_semi_major_axis",
+	&"_signaled_eccentricity",
+	&"_signaled_inclination",
+	&"_signaled_semi_parameter",
+	&"_signaled_time_periapsis",
 ]
 
 # redirect public
@@ -98,6 +104,17 @@ var _eccentricity_rate: float
 var _inclination_at_epoch: float
 var _inclination_rate: float
 var _time_periapsis_at_epoch: float
+
+# Hysteresis detectors for the changed signal only. a/e/i/p/t₀ evolve in this subclass, so it needs its
+# own last-signaled snapshot (the base's Ω/ω detectors still cover precession). Updated in update() when
+# accumulated change crosses CHANGED_THRESHOLD; these LAG the true elements — the current value is always
+# get_<element>_at_time(). The base's _semi_major_axis/_eccentricity/_inclination/_semi_parameter/
+# _time_periapsis fields are the base's current-element store and stay at their epoch values in this subclass.
+var _signaled_semi_major_axis: float
+var _signaled_eccentricity: float
+var _signaled_inclination: float
+var _signaled_semi_parameter: float
+var _signaled_time_periapsis: float
 
 
 ## Creates a new [IVRealPlanetOrbit] instance. Takes argument of periapsis (ω)
@@ -176,9 +193,9 @@ static func create_real_planet_orbit(
 			-mean_anomaly_at_epoch / mean_anomaly_rate, mean_anomaly_rate)
 	orbit._gravitational_parameter = semi_major_axis ** 3 * mean_anomaly_rate ** 2
 	
-	# set evolving parameters to epoch (precessing)
-	orbit._longitude_ascending_node = longitude_ascending_node
-	orbit._argument_periapsis = argument_periapsis
+	# seed the changed-signal hysteresis detectors at epoch (precessing)
+	orbit._signaled_longitude_ascending_node = longitude_ascending_node
+	orbit._signaled_argument_periapsis = argument_periapsis
 	
 	# derived
 	orbit._semi_major_axis = semi_major_axis
@@ -196,6 +213,13 @@ static func create_real_planet_orbit(
 	orbit._inclination_at_epoch = inclination
 	orbit._inclination_rate = inclination_rate
 	orbit._time_periapsis_at_epoch = orbit._time_periapsis
+
+	# seed the subclass changed-signal hysteresis detectors at epoch
+	orbit._signaled_semi_major_axis = semi_major_axis
+	orbit._signaled_eccentricity = eccentricity
+	orbit._signaled_inclination = inclination
+	orbit._signaled_semi_parameter = orbit._semi_parameter
+	orbit._signaled_time_periapsis = orbit._time_periapsis
 	
 	orbit.m_correction_b = mean_anomaly_correction_b
 	orbit.m_correction_f = mean_anomaly_correction_f
@@ -222,15 +246,17 @@ func update(time: float, rotate_to_ecliptic := true) -> Vector3:
 	const CHANGED_ANGLE_THRESHOLD := CHANGED_THRESHOLD / TAU
 	const REFERENCE_PLANE_ECLIPTIC := ReferencePlane.REFERENCE_PLANE_ECLIPTIC
 	
+	_update_time = time
+
 	# evolve orbit (precession only)
 	var lan := fposmod(_longitude_ascending_node_at_epoch + _longitude_ascending_node_rate * time, TAU)
 	var ap := fposmod(_argument_periapsis_at_epoch + _argument_periapsis_rate * time, TAU)
 	
-	# update & signal if accumulated change is significant (precession only)
-	if (absf(lan - _longitude_ascending_node) > CHANGED_ANGLE_THRESHOLD
-			or absf(ap - _argument_periapsis) > CHANGED_ANGLE_THRESHOLD):
-		_longitude_ascending_node = lan
-		_argument_periapsis = ap
+	# signal if accumulated precession since the last emit crosses the threshold
+	if (absf(lan - _signaled_longitude_ascending_node) > CHANGED_ANGLE_THRESHOLD
+			or absf(ap - _signaled_argument_periapsis) > CHANGED_ANGLE_THRESHOLD):
+		_signaled_longitude_ascending_node = lan
+		_signaled_argument_periapsis = ap
 		changed.emit(true, true)
 	
 	# Note: a double changed signal is possible here, but is only an edge-case
@@ -249,17 +275,17 @@ func update(time: float, rotate_to_ecliptic := true) -> Vector3:
 		correction += m_correction_c * cos(ft) + m_correction_s * sin(ft)
 		t0 = _time_periapsis_at_epoch - correction / _mean_motion
 	
-	# update & signal if accumulated change is significant (non-precession)
-	if (absf(a - _semi_major_axis) / a > CHANGED_THRESHOLD
-			or absf(e - _eccentricity) > CHANGED_THRESHOLD
-			or absf(i - _inclination) > CHANGED_ANGLE_THRESHOLD
-			or absf(p - _semi_parameter) / p > CHANGED_THRESHOLD
-			or absf(t0 - _time_periapsis) * _mean_motion > CHANGED_ANGLE_THRESHOLD):
-		_semi_major_axis = a
-		_eccentricity = e
-		_inclination = i
-		_semi_parameter = p
-		_time_periapsis = t0
+	# signal if accumulated element change since the last emit crosses the threshold
+	if (absf(a - _signaled_semi_major_axis) / a > CHANGED_THRESHOLD
+			or absf(e - _signaled_eccentricity) > CHANGED_THRESHOLD
+			or absf(i - _signaled_inclination) > CHANGED_ANGLE_THRESHOLD
+			or absf(p - _signaled_semi_parameter) / p > CHANGED_THRESHOLD
+			or absf(t0 - _signaled_time_periapsis) * _mean_motion > CHANGED_ANGLE_THRESHOLD):
+		_signaled_semi_major_axis = a
+		_signaled_eccentricity = e
+		_signaled_inclination = i
+		_signaled_semi_parameter = p
+		_signaled_time_periapsis = t0
 		changed.emit(true, false)
 	
 	# BELOW COPIED FROM BASE W/ SUBSTITUTIONS
@@ -291,107 +317,10 @@ func get_position_vector(time: float, rotate_to_ecliptic := true) -> Vector3:
 
 
 ## See [method IVOrbit.get_state_vectors].
-## @experimental: The velocity component has not been tested yet!
 func get_state_vectors(time: float, rotate_to_ecliptic := true) -> PackedVector3Array:
 	var out := PackedFloat64Array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 	_write_state(time, rotate_to_ecliptic, out, 0)
 	return PackedVector3Array([Vector3(out[0], out[1], out[2]), Vector3(out[3], out[4], out[5])])
-
-
-# Overrides the base 64-bit translation core to inject this subclass's a/e/i/t₀ evolution.
-# The base get_translation() / get_state() / sample_arc() and (via delegation) get_position_vector()
-# / get_state_vectors() all route through _write_translation() / _write_state(), so overriding
-# these two keeps every position/state path (32- and 64-bit) evolution-correct.
-func _write_translation(time: float, rotate_to_ecliptic: bool, out: PackedFloat64Array,
-		offset: int) -> void:
-	var clamp_time := clampf(time, validity_begin, validity_end)
-	var a := _semi_major_axis_at_epoch + _semi_major_axis_rate * clamp_time
-	var e := _eccentricity_at_epoch + _eccentricity_rate * clamp_time
-	var incl := _inclination_at_epoch + _inclination_rate * clamp_time
-	var p := a * (1.0 - e * e)
-	var t0 := _evolved_time_periapsis(time)
-	var lan := fposmod(_longitude_ascending_node_at_epoch + _longitude_ascending_node_rate * time, TAU)
-	var ap := fposmod(_argument_periapsis_at_epoch + _argument_periapsis_rate * time, TAU)
-	var nu := _evolved_true_anomaly(e, p, t0, time)
-	var r := p / (1.0 + e * cos(nu))
-	var sin_i := sin(incl)
-	var cos_i := cos(incl)
-	var sin_lan := sin(lan)
-	var cos_lan := cos(lan)
-	var sin_ap_nu := sin(ap + nu)
-	var cos_ap_nu := cos(ap + nu)
-	var x := r * (cos_lan * cos_ap_nu - sin_lan * sin_ap_nu * cos_i)
-	var y := r * (sin_lan * cos_ap_nu + cos_lan * sin_ap_nu * cos_i)
-	var z := r * (sin_ap_nu * sin_i)
-	if rotate_to_ecliptic and _reference_plane_type != ReferencePlane.REFERENCE_PLANE_ECLIPTIC:
-		IVMath64.rotate_into(_reference_basis, x, y, z, out, offset)
-	else:
-		out[offset] = x
-		out[offset + 1] = y
-		out[offset + 2] = z
-
-
-# As [method _write_translation] but also writes velocity (see base [method IVOrbit._write_state]).
-func _write_state(time: float, rotate_to_ecliptic: bool, out: PackedFloat64Array,
-		offset: int) -> void:
-	var clamp_time := clampf(time, validity_begin, validity_end)
-	var a := _semi_major_axis_at_epoch + _semi_major_axis_rate * clamp_time
-	var e := _eccentricity_at_epoch + _eccentricity_rate * clamp_time
-	var incl := _inclination_at_epoch + _inclination_rate * clamp_time
-	var p := a * (1.0 - e * e)
-	var t0 := _evolved_time_periapsis(time)
-	var lan := fposmod(_longitude_ascending_node_at_epoch + _longitude_ascending_node_rate * time, TAU)
-	var ap := fposmod(_argument_periapsis_at_epoch + _argument_periapsis_rate * time, TAU)
-	var nu := _evolved_true_anomaly(e, p, t0, time)
-	var r := p / (1.0 + e * cos(nu))
-	var sin_i := sin(incl)
-	var cos_i := cos(incl)
-	var sin_lan := sin(lan)
-	var cos_lan := cos(lan)
-	var sin_ap_nu := sin(ap + nu)
-	var cos_ap_nu := cos(ap + nu)
-	var x := r * (cos_lan * cos_ap_nu - sin_lan * sin_ap_nu * cos_i)
-	var y := r * (sin_lan * cos_ap_nu + cos_lan * sin_ap_nu * cos_i)
-	var z := r * (sin_ap_nu * sin_i)
-	var c := _specific_angular_momentum * e * sin(nu) / (r * p)
-	var angular_v := _specific_angular_momentum / r
-	var vx := c * x - angular_v * (cos_lan * sin_ap_nu + sin_lan * cos_ap_nu * cos_i)
-	var vy := c * y - angular_v * (sin_lan * sin_ap_nu - cos_lan * cos_ap_nu * cos_i)
-	var vz := c * z - angular_v * (cos_ap_nu * sin_i)
-	if rotate_to_ecliptic and _reference_plane_type != ReferencePlane.REFERENCE_PLANE_ECLIPTIC:
-		IVMath64.rotate_into(_reference_basis, x, y, z, out, offset)
-		IVMath64.rotate_into(_reference_basis, vx, vy, vz, out, offset + 3)
-	else:
-		out[offset] = x
-		out[offset + 1] = y
-		out[offset + 2] = z
-		out[offset + 3] = vx
-		out[offset + 4] = vy
-		out[offset + 5] = vz
-
-
-# Time of periapsis passage (t₀) at [param time], with the M corrections folded in as t₀ evolution.
-func _evolved_time_periapsis(time: float) -> float:
-	if not m_correction_b:
-		return _time_periapsis_at_epoch
-	var clamp_time := clampf(time, validity_begin, validity_end)
-	var ft := m_correction_f * time # no reason to clamp cyclic effect
-	var correction := m_correction_b * clamp_time * clamp_time
-	correction += m_correction_c * cos(ft) + m_correction_s * sin(ft)
-	return _time_periapsis_at_epoch - correction / _mean_motion
-
-
-# True anomaly (θ) at [param time] from the passed evolved [param e], [param p] and [param t0].
-# Mirrors the elliptic / hyperbolic / parabolic dispatch of the base solvers.
-func _evolved_true_anomaly(e: float, p: float, t0: float, time: float) -> float:
-	if e < 1.0:
-		var m := fposmod(_mean_motion * (time - t0) + PI, TAU) - PI
-		return get_true_anomaly_from_mean_anomaly_elliptic(e, m)
-	if e > 1.0:
-		var m := _mean_motion * (time - t0)
-		return get_true_anomaly_from_mean_anomaly_hyperbolic(e, m)
-	var mp := get_mean_anomaly_from_elements_parabolic(p, t0, _gravitational_parameter, time)
-	return get_true_anomaly_from_mean_anomaly_parabolic(mp)
 
 
 ## See [method IVOrbit.get_mean_anomaly].
@@ -726,3 +655,102 @@ func get_unit_parabola_transform_at_time(time: float, rotate_to_ecliptic := true
 	var orbit_basis := get_basis_at_time(time, rotate_to_ecliptic)
 	var basis := orbit_basis * Basis().scaled(Vector3(p, p, 1.0))
 	return Transform3D(basis, Vector3.ZERO)
+
+
+# ********************************** private **********************************
+
+
+# Overrides the base 64-bit translation core to inject this subclass's a/e/i/t₀ evolution.
+# The base get_translation() / get_state() / sample_arc() and (via delegation) get_position_vector()
+# / get_state_vectors() all route through _write_translation() / _write_state(), so overriding
+# these two keeps every position/state path (32- and 64-bit) evolution-correct.
+func _write_translation(time: float, rotate_to_ecliptic: bool, out: PackedFloat64Array,
+		offset: int) -> void:
+	var clamp_time := clampf(time, validity_begin, validity_end)
+	var a := _semi_major_axis_at_epoch + _semi_major_axis_rate * clamp_time
+	var e := _eccentricity_at_epoch + _eccentricity_rate * clamp_time
+	var incl := _inclination_at_epoch + _inclination_rate * clamp_time
+	var p := a * (1.0 - e * e)
+	var t0 := _evolved_time_periapsis(time)
+	var lan := fposmod(_longitude_ascending_node_at_epoch + _longitude_ascending_node_rate * time, TAU)
+	var ap := fposmod(_argument_periapsis_at_epoch + _argument_periapsis_rate * time, TAU)
+	var nu := _evolved_true_anomaly(e, p, t0, time)
+	var r := p / (1.0 + e * cos(nu))
+	var sin_i := sin(incl)
+	var cos_i := cos(incl)
+	var sin_lan := sin(lan)
+	var cos_lan := cos(lan)
+	var sin_ap_nu := sin(ap + nu)
+	var cos_ap_nu := cos(ap + nu)
+	var x := r * (cos_lan * cos_ap_nu - sin_lan * sin_ap_nu * cos_i)
+	var y := r * (sin_lan * cos_ap_nu + cos_lan * sin_ap_nu * cos_i)
+	var z := r * (sin_ap_nu * sin_i)
+	if rotate_to_ecliptic and _reference_plane_type != ReferencePlane.REFERENCE_PLANE_ECLIPTIC:
+		IVMath64.rotate_into(_reference_basis, x, y, z, out, offset)
+	else:
+		out[offset] = x
+		out[offset + 1] = y
+		out[offset + 2] = z
+
+
+# As [method _write_translation] but also writes velocity (see base [method IVOrbit._write_state]).
+func _write_state(time: float, rotate_to_ecliptic: bool, out: PackedFloat64Array,
+		offset: int) -> void:
+	var clamp_time := clampf(time, validity_begin, validity_end)
+	var a := _semi_major_axis_at_epoch + _semi_major_axis_rate * clamp_time
+	var e := _eccentricity_at_epoch + _eccentricity_rate * clamp_time
+	var incl := _inclination_at_epoch + _inclination_rate * clamp_time
+	var p := a * (1.0 - e * e)
+	var t0 := _evolved_time_periapsis(time)
+	var lan := fposmod(_longitude_ascending_node_at_epoch + _longitude_ascending_node_rate * time, TAU)
+	var ap := fposmod(_argument_periapsis_at_epoch + _argument_periapsis_rate * time, TAU)
+	var nu := _evolved_true_anomaly(e, p, t0, time)
+	var r := p / (1.0 + e * cos(nu))
+	var sin_i := sin(incl)
+	var cos_i := cos(incl)
+	var sin_lan := sin(lan)
+	var cos_lan := cos(lan)
+	var sin_ap_nu := sin(ap + nu)
+	var cos_ap_nu := cos(ap + nu)
+	var x := r * (cos_lan * cos_ap_nu - sin_lan * sin_ap_nu * cos_i)
+	var y := r * (sin_lan * cos_ap_nu + cos_lan * sin_ap_nu * cos_i)
+	var z := r * (sin_ap_nu * sin_i)
+	var c := _specific_angular_momentum * e * sin(nu) / (r * p)
+	var angular_v := _specific_angular_momentum / r
+	var vx := c * x - angular_v * (cos_lan * sin_ap_nu + sin_lan * cos_ap_nu * cos_i)
+	var vy := c * y - angular_v * (sin_lan * sin_ap_nu - cos_lan * cos_ap_nu * cos_i)
+	var vz := c * z + angular_v * (cos_ap_nu * sin_i)
+	if rotate_to_ecliptic and _reference_plane_type != ReferencePlane.REFERENCE_PLANE_ECLIPTIC:
+		IVMath64.rotate_into(_reference_basis, x, y, z, out, offset)
+		IVMath64.rotate_into(_reference_basis, vx, vy, vz, out, offset + 3)
+	else:
+		out[offset] = x
+		out[offset + 1] = y
+		out[offset + 2] = z
+		out[offset + 3] = vx
+		out[offset + 4] = vy
+		out[offset + 5] = vz
+
+
+# Time of periapsis passage (t₀) at [param time], with the M corrections folded in as t₀ evolution.
+func _evolved_time_periapsis(time: float) -> float:
+	if not m_correction_b:
+		return _time_periapsis_at_epoch
+	var clamp_time := clampf(time, validity_begin, validity_end)
+	var ft := m_correction_f * time # no reason to clamp cyclic effect
+	var correction := m_correction_b * clamp_time * clamp_time
+	correction += m_correction_c * cos(ft) + m_correction_s * sin(ft)
+	return _time_periapsis_at_epoch - correction / _mean_motion
+
+
+# True anomaly (θ) at [param time] from the passed evolved [param e], [param p] and [param t0].
+# Mirrors the elliptic / hyperbolic / parabolic dispatch of the base solvers.
+func _evolved_true_anomaly(e: float, p: float, t0: float, time: float) -> float:
+	if e < 1.0:
+		var m := fposmod(_mean_motion * (time - t0) + PI, TAU) - PI
+		return get_true_anomaly_from_mean_anomaly_elliptic(e, m)
+	if e > 1.0:
+		var m := _mean_motion * (time - t0)
+		return get_true_anomaly_from_mean_anomaly_hyperbolic(e, m)
+	var mp := get_mean_anomaly_from_elements_parabolic(p, t0, _gravitational_parameter, time)
+	return get_true_anomaly_from_mean_anomaly_parabolic(mp)

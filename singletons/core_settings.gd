@@ -93,7 +93,7 @@ var start_time_date_clock: Array[int] = [2026, 1, 1, 0, 0, 0]
 var start_time_is_terrestrial_time := false
 
 ## Used by [IVCamera].
-var start_camera_fov: float = IVMath.get_fov_from_focal_length(24.0)
+var start_camera_fov := IVMath.get_fov_from_focal_length(24.0)
 
 ## Enables time setting functionality in [IVTimekeeper] and GUI widgets. Also
 ## needed for OS time synchronization. (Used by Planetarium.)
@@ -115,23 +115,42 @@ var limit_stops_in_multiplayer := true # overrides most stops
 var allow_fullscreen_toggle := false
 ## Sets resolution of the common sphere mesh used by all spheroid bodies. See
 ## [IVResourceInitializer] for mesh construction. See also [member sphere_rings].
-var sphere_radial_segments := 128
+var sphere_radial_segments := 256
 ## Sets resolution of the common sphere mesh used by all spheroid bodies. See
 ## [IVResourceInitializer] for mesh construction. See also [member
 ## sphere_radial_segments].
-var sphere_rings := 64
-## Sets resolution of orbit/trajectory lines used by [IVPathVisual]. See
-## [IVResourceInitializer] for construction of common orbit/trajectory meshes. 
-var vertecies_per_orbit: int = 500
+var sphere_rings := 128
+## Sets subdivision of the shared [PlaneMesh] used by [IVRings] (see
+## [IVResourceInitializer]). Enough subdivision lets the per-vertex farwarp remap approximate the
+## compression curve across the ring span.
+var plane_mesh_subdivisions := 64
+## Sets closed-orbit state-path resolution ([method IVOrbit.refresh_state_path]): knots per family
+## (uniform anomaly + uniform tangent-turn, so up to ~2x total at high eccentricity). [IVPathVisual]'s
+## rebased line Hermite-refines between these knots for smoothness, and its render-frame pin holds the
+## line ON the body at any density — so the worst mid-knot Hermite bow (scales as N^-4; meters-scale
+## for a Juno-class e = 0.98 orbit at 500) shows only mid-field, where there is no reference to see it
+## against. Density's real cost is the per-knot scan on every rebake.
+var vertecies_per_orbit := 500
+## Sets state-path knots per [IVTrajectory] segment (uniform anomaly). A transfer segment spans years
+## to decades, so its mid-knot Hermite bow is larger than a closed orbit's (~340 m worst on Voyager
+## Sun legs at 500, N^-4) — but the render-frame pin holds the line ON the body at any density, and
+## the bow shows only mid-field, unreferenced. This is also the Tier-1 coarse polyline density; the
+## whole-trajectory knot total sets the per-rebake scan cost, which dominates rebased-mode CPU.
+var vertecies_per_trajectory_segment := 500
+## Sets resolution of the shared unit conic meshes drawing all non-rebased orbit lines in
+## [IVPathVisual]. Facet angle peaks at the apsides at ~(2 pi / N) / sqrt(1 - e^2), so N must cover
+## the highest-eccentricity orbit displayed (4096 keeps e = 0.98 under ~0.5 deg). The meshes are
+## shared, so the cost is per drawn vertex, not per body.
+var vertecies_per_conic_mesh := 4096
 ## Sets resolution of orbit/trajectory lines used by [IVSBGOrbitsVisual] (e.g.,
 ## for 10000s of asteroid orbits as [MultiMeshInstance3D]). See
 ## [IVResourceInitializer] for construction of common orbit/trajectory meshes. 
-var vertecies_per_orbit_low_res: int = 100
+var vertecies_per_orbit_low_res := 100
 ## Defines the maximum visual extent of open conics (i.e., parabolic and hyperbolic
 ## trajectories) relative to the unit conic. See [IVResourceInitializer].
-var open_conic_max_radius := 1000.0
+var open_conic_max_radius := 1e10
 ## Limits camera distance. Used by [IVCamera].
-var max_camera_distance: float = 5e3 * IVUnits.AU
+var max_camera_distance := 5e3 * IVUnits.AU
 ## Radius multiplier used to set [member GeometryInstance3D.visibility_range_end]
 ## in [IVBodyVisual] and [IVRings].
 var radius_multiplier_visibility_range_end := 4000.0
@@ -149,15 +168,23 @@ var apply_farwarp := true
 ## multiplier); 1e4 leaves 100x headroom while the compressed universe spans
 ## less than ~29x the start distance. See [member apply_farwarp].
 var farwarp_start_ratio := 1e4
-## A body's model space is farwarp-remapped only while its true angular radius
-## ([member IVBody.mean_radius] / camera distance, in radians) exceeds this
-## cutoff; smaller bodies keep true model positions (their models are
-## distance-culled and their always-offset HUD symbols represent them). Keep at
-## or below [code]1.0 / radius_multiplier_visibility_range_end[/code] so every
-## model that would pass its visibility range is pulled inside the far plane.
-## Bodies exempt from distance culling (stars) bypass the cutoff. See
-## [member apply_farwarp].
-var farwarp_angular_cutoff := 0.00025
+## Enables the analytic eclipse, transit and ring shadows in receiving shaders,
+## plus eclipse/ring dimming of the local lights. When false those terms stay
+## inert (astronomical-scale shadows are then absent entirely - shadow maps
+## don't serve them), but [IVSunOcclusionManager] keeps running for its
+## ambient_light feed, which receiving shaders rebuild their ambient from.
+var apply_analytic_shadows := true
+## Uses the shadowed multi-light setup (Godot directional shadow maps for the
+## local true-position scene, e.g. spacecraft self-shadowing) under the
+## Compatibility renderer too, instead of the single unshadowed light it
+## otherwise falls back to. Historically disabled for Compatibility-renderer
+## defects - light_cull_mask / shadow_caster_mask not respected, wrong energy
+## with multiple lights, and color handling shifting once any light casts
+## shadows (godotengine/godot#90259). Set false to restore the single-light
+## fallback if those resurface (notably on some web export targets). The
+## analytic astronomical shadows ([member apply_analytic_shadows]) are
+## independent of this and work either way.
+var apply_gl_compatibility_shadows := true
 ## Directory used (created if needed) for cache files. See [IVCacheHandler].
 var cache_dir := "user://cache"
 ## Enables float precisions in [IVTableData]. This is used by Planetarium to
@@ -172,12 +199,13 @@ var home_name := &"PLANET_EARTH"
 ## See [member size_layers].
 var apply_size_layers := true
 ## Defines size "scales" used to set [member VisualInstance3D.layer] values.
-## These layers are needed for shadows to work over vast scale differences,
-## from the rings of Saturn to small spacecraft. Shadows are cast by different
-## [IVDynamicLight] instances in each size scale defined in this array. If the
-## array has 2 values, that defines 3 "size scales" (>= index 0, >= index 1,
-## < index 1). These 3 scales will set bit 0b0001, 0b0010, and 0b0100
-## (respectively) in the layer value.[br][br]
+## These layers are needed for lighting to work over vast scale differences,
+## from planets to small spacecraft: each size scale is lit by its own
+## [IVDynamicLight] instance, and only the smaller-scale (shadow-mapped)
+## lights serve local-scene shadows (astronomical-scale shadows are analytic;
+## see [IVSunOcclusionManager]). If the array has 2 values, that defines 3
+## "size scales" (>= index 0, >= index 1, < index 1). These 3 scales will set
+## bit 0b0001, 0b0010, and 0b0100 (respectively) in the layer value.[br][br]
 ## 
 ## [member VisualInstance3D.layer] will be set for the visual model used by
 ## a body based on its [member IVBody.mean_radius].[br][br]
@@ -188,14 +216,21 @@ var apply_size_layers := true
 ## won't be modified and [IVDynamicLight] won't be used ([OmniLight3D] will be
 ## used instead).[br][br]
 ## 
-## Note: [IVDynamicLight] lighting is broken when using Compatibility
-## renderer (e.g., in an HTML5 export). The system will be deactivated
-## automatically in this situation.
+## Note: under the Compatibility renderer (e.g. HTML5 export) the shadowed
+## multi-light setup is used only if [member apply_gl_compatibility_shadows] is
+## true; otherwise a single unshadowed [IVDynamicLight] lights the scene.
 var size_layers: Array[float] = [
 	# larger mean_radius gets mask 0b0001
 	100.0 * IVUnits.KM, # smaller mean_radius gets mask 0b0010
 	0.1 * IVUnits.KM, # smaller mean_radius gets mask 0b0100
 ]
+## Bodies within this true distance (and within the farwarp start) hold
+## [constant IVGlobal.LOCAL_SHADOW_CASTER], letting nearby "terrain" cast into
+## the local shadow maps (e.g., crater walls shadowing a lander). Should cover
+## the largest shadowed [code]shadow_max_ceiling[/code] in dynamic_lights.tsv;
+## keeping it bounded stops sunward planets at astronomical distances from
+## being extruded into the maps. See [method IVBody.update_farwarp].
+var local_shadow_caster_ceiling := 1e5 * IVUnits.KM
 ## Contains all data tables that specify IVBody instances. Used by
 ## [IVAssetPreloader], [IVTableSystemBuilder], and possibly elsewhere.
 var body_tables: Array[StringName] = [&"stars", &"planets", &"asteroids", &"moons", &"spacecrafts"]
@@ -229,18 +264,6 @@ var stroboscope_minimum_blur := 0.025
 var stroboscope_motion_blur := 0.1
 
 
-## @deprecated: This is not used by the plugin and will be removed.
-var text_colors: Dictionary[StringName, Color] = {
-	great = Color.CYAN,
-	good = Color.GREEN,
-	base = Color.WHITE,
-	caution = Color.YELLOW,
-	warning = Color.ORANGE,
-	danger = Color.RED,
-	flag = Color.FUCHSIA,
-}
-
-
 func _enter_tree() -> void:
 	IVFiles.init_from_config(self, IVGlobal.ivoyager_config, "core_settings")
 
@@ -250,7 +273,6 @@ func assert_valid_settings() -> void:
 	assert(gui_size_multipliers.size() == gui_size_settings.size())
 	assert(stroboscope_frames_per_second >= 0.0)
 	assert(farwarp_start_ratio > 0.0)
-	assert(farwarp_angular_cutoff > 0.0)
 	assert(symbol_atlas_columns > 0 and symbol_atlas_rows > 0)
 
 
@@ -265,3 +287,14 @@ func get_visualinstance3d_layer_for_size(mean_radius: float) -> int:
 		if mean_radius < size:
 			layer <<= 1
 	return layer
+
+
+## True when a body of [param mean_radius] should hold [constant
+## IVGlobal.LOCAL_SHADOW_CASTER] statically: the smallest size scale
+## (spacecraft) is always local when visible, and everything is when farwarp
+## or size layers are off (no dynamic granting runs then; see
+## [method IVBody.update_farwarp]).
+func get_static_local_shadow_caster(mean_radius: float) -> bool:
+	if not apply_farwarp or not apply_size_layers:
+		return true
+	return mean_radius < size_layers[size_layers.size() - 1]

@@ -189,6 +189,7 @@ var program_nodes: Dictionary[StringName, Variant] = {
 	FragmentIdentifier = IVFragmentIdentifier, # self-removes on Compatibility renderer
 	GraphicsManager = IVGraphicsManager, # applies antialiasing user settings
 	FarwarpManager = IVFarwarpManager, # keeps distant objects renderable
+	SunOcclusionManager = IVSunOcclusionManager, # analytic eclipse & ring shadows
 }
 ## Include keys from [member program_nodes] that need to be instantiated or
 ## added first and in order. Note: all are instantiated in the specified order,

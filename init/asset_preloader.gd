@@ -28,8 +28,8 @@ extends RefCounted
 ## IVStateManager.assets_preloaded].
 
 ## Number of LOD textures expected per rings entry. Must agree with the asset
-## bundle, [IVBody] and [code]rings.shader[/code].
-const RINGS_LOD_LEVELS := 9 # must agree w/ assets, body.gd and rings.shader
+## bundle, [IVBody] ([code]body.gd[/code]) and [code]rings.shader[/code].
+const RINGS_LOD_LEVELS := 9
 
 # VRAM color formats a normal map must never have (would mean it was imported as
 # sRGB color, not as a Normal Map). Load-time push_warning only.
@@ -65,7 +65,7 @@ static var shells_nonmaterial_fields: Array[StringName] = [
 ## explicitly into the shell-0 spec). Every other column is a per-[code]spheroid_type[/code]
 ## material default for the surface (shell 0). Parallels [member shells_nonmaterial_fields].
 static var spheroids_nonmaterial_fields: Array[StringName] = [
-	&"shader", &"process", &"cast_shadow",
+	&"shader", &"process", &"is_sun", &"cast_shadow",
 ]
 
 ## This setting AND IVCoreSettings.use_threads must be true for loading to
@@ -79,11 +79,10 @@ static var spheroids_nonmaterial_fields: Array[StringName] = [
 ## is hazardous. That can happen here only if these "procedural" resources are
 ## loaded elsewhere in the preload time window.
 var use_thread := false
- ## Must exist in asset_paths.
 
 ## Directories searched for body 3D models. Prepend a directory to prioritize
 ## a custom override.
-var models_search: Array[String] = ["res://addons/ivoyager_assets/models"] # prepend to prioritize
+var models_search: Array[String] = ["res://addons/ivoyager_assets/models"]
 ## Directories searched for body texture maps (channel maps + shell overlays).
 var maps_search: Array[String] = ["res://addons/ivoyager_assets/maps"]
 ## Directories searched for 2D body textures (used in nav buttons, GUI, etc.).
@@ -92,17 +91,11 @@ var bodies_2d_search: Array[String] = ["res://addons/ivoyager_assets/bodies_2d"]
 var rings_search: Array[String] = ["res://addons/ivoyager_assets/rings"]
 
 ## Resolved paths for individually loaded assets. Keys correspond to the
-## [code]get_*[/code] accessors below and to entries in [member fallback_starmap].
+## [code]get_*[/code] accessors below.
 var asset_paths: Dictionary[StringName, String] = {
-	blue_noise_1024 = "res://addons/ivoyager_assets/noise/blue_noise_1024.png",
-	starmap_8k = "res://addons/ivoyager_assets/starmaps/starmap_8k.jpg",
-	starmap_16k = "res://addons/ivoyager_assets/starmaps/starmap_16k.jpg",
 	fallback_body_texture_2d = "res://addons/ivoyager_assets/fallbacks/blank_grid_2d_globe.256.png",
 	fallback_body_albedo_map = "res://addons/ivoyager_assets/fallbacks/blank_grid.jpg",
 }
-## Key in [member asset_paths] used as starmap when the user-selected starmap
-## isn't available.
-var fallback_starmap := &"starmap_8k" # starmap_16k possibly removed for size reduction
 
 ## If non-empty, replaces the auto-composed map-filename pattern. Must define
 ## named groups [code]prefix[/code] and [code]tag[/code] (optionally [code]shell[/code]).
@@ -113,8 +106,6 @@ var map_filename_regex_override := ""
 var gl_compatibility_emission_energy_multiplier_multiplier := 2.5
 
 
-var _blue_noise_1024: Texture2D
-var _starmap: Texture2D
 var _symbol_atlas: Texture2D
 var _symbol_textures: Array[AtlasTexture] = []
 var _symbol_point_texture: Texture2D
@@ -126,14 +117,6 @@ var _map_regex := RegEx.new()
 func _init() -> void:
 	IVStateManager.core_initialized.connect(_on_core_inited)
 
-
-
-func get_blue_noise_1024() -> Texture2D:
-	return _blue_noise_1024
-
-
-func get_starmap() -> Texture2D:
-	return _starmap
 
 
 func get_symbol_atlas() -> Texture2D:
@@ -161,43 +144,69 @@ func get_body_texture_slice_2d(body_name: StringName) -> Texture2D:
 	return _body_resources[body_name][1]
 
 
-func get_body_inf_visibility(body_name: StringName) -> bool:
+func get_body_packed_model(body_name: StringName) -> PackedScene:
 	return _body_resources[body_name][2]
 
 
-func get_body_packed_model(body_name: StringName) -> PackedScene:
+func get_body_model_scale(body_name: StringName) -> float:
 	return _body_resources[body_name][3]
 
 
-func get_body_model_scale(body_name: StringName) -> float:
+func get_body_disable_auto_visual_range(body_name: StringName) -> bool:
 	return _body_resources[body_name][4]
 
 
-func get_body_disable_auto_visual_range(body_name: StringName) -> bool:
-	return _body_resources[body_name][5]
-
-
 func get_body_map_offset(body_name: StringName) -> float:
-	return _body_resources[body_name][6]
+	return _body_resources[body_name][5]
 
 
 ## Returns an ordered [Array] of shell specs for one body: element 0 is the
 ## surface (shell 0); elements 1..N are overlay render shells. Each spec is a
-## [Dictionary] with keys [code]channels, shader, process, process_args, cast_shadow,
-## overrides[/code] (plus [code]scale[/code] for overlays, and [code]from_shells[/code] on
+## [Dictionary] with keys [code]channels, shader, process, process_args, is_sun,
+## cast_shadow, overrides[/code] (plus [code]scale[/code] for overlays, and [code]from_shells[/code] on
 ## shell 0). Built from the body's [code]shells[/code] field and the [code]shells[/code] table;
 ## a shell 0 with no [code]shells[/code] row defaults from the body's [code]spheroids.tsv[/code]
 ## type, resolved in [IVSpheroidModel]. Consumed by [IVSpheroidModel].
 func get_body_shell_specs(body_name: StringName) -> Array:
-	return _body_resources[body_name][7]
+	return _body_resources[body_name][6]
 
 
 func get_rings_texture_arrays(rings_name: StringName) -> Array[Texture2DArray]:
 	return _rings_resources[rings_name][0]
 
 
-func get_rings_shadow_caster_texture(rings_name: StringName) -> Texture2D:
+## Full-resolution (LOD 0) mipmapped alpha profile for the analytic ring-shadow
+## term (see [code]shaders/_sun_occlusion.gdshaderinc[/code]): the shader picks
+## the mip that matches the physical penumbra footprint.
+func get_rings_shadow_profile_texture(rings_name: StringName) -> Texture2D:
 	return _rings_resources[rings_name][1]
+
+
+## Source [Image] of [method get_rings_shadow_profile_texture], retained for
+## CPU sampling ([method IVAstronomy.get_ring_transmission]); reading back from
+## the texture would stall on VRAM.
+func get_rings_shadow_profile_image(rings_name: StringName) -> Image:
+	return _rings_resources[rings_name][2]
+
+
+## Returns a [code]{property: value}[/code] dictionary of material fields from [param table]
+## [param row] — every set field except the entity name and [param nonmaterial_fields]. Each
+## remaining field must name a [StandardMaterial3D] property or a shader uniform; it is applied
+## blindly by [IVSpheroidModel], which validates it per shell. Used for per-shell overrides
+## ([code]shells.tsv[/code]) and per-[code]spheroid_type[/code] surface defaults ([code]spheroids.tsv[/code]).
+func read_material_fields(table: StringName, row: int,
+		nonmaterial_fields: Array[StringName]) -> Dictionary:
+	var fields: Dictionary = {}
+	IVTableData.db_build_dictionary(fields, table, row)
+	fields.erase(&"name")
+	for nonmaterial_field in nonmaterial_fields:
+		fields.erase(nonmaterial_field)
+		
+	if IVGlobal.is_gl_compatibility:
+		if fields.has(&"emission_energy_multiplier"):
+			fields[&"emission_energy_multiplier"] *= gl_compatibility_emission_energy_multiplier_multiplier
+	
+	return fields
 
 
 func _on_core_inited() -> void:
@@ -209,8 +218,6 @@ func _on_core_inited() -> void:
 
 
 func _load_resources(start_msec: int) -> void:
-	_load_starmap()
-	_load_blue_noise_1024()
 	_load_symbol_textures()
 	_load_body_resources()
 	_load_rings_resources()
@@ -221,25 +228,6 @@ func _load_resources(start_msec: int) -> void:
 	_rings_resources.make_read_only()
 	print("Loaded assets in %s msec" % (Time.get_ticks_msec() - start_msec))
 	IVStateManager.state_auxiliary.set_asset_preloader_finished.call_deferred()
-
-
-func _load_blue_noise_1024() -> void:
-	var path := asset_paths[&"blue_noise_1024"]
-	assert(ResourceLoader.exists(path))
-	_blue_noise_1024 = load(path)
-
-
-func _load_starmap() -> void:
-	var path: String
-	match IVSettingsManager.get_setting(&"starmap"):
-		IVGlobal.StarmapSize.STARMAP_8K:
-			path = asset_paths[&"starmap_8k"]
-		IVGlobal.StarmapSize.STARMAP_16K:
-			path = asset_paths[&"starmap_16k"]
-	if !ResourceLoader.exists(path):
-		path = asset_paths[fallback_starmap]
-	assert(ResourceLoader.exists(path))
-	_starmap = load(path)
 
 
 func _load_symbol_textures() -> void:
@@ -282,31 +270,11 @@ func _make_symbol_point_texture() -> ImageTexture:
 	return ImageTexture.create_from_image(image)
 
 
-## Returns a [code]{property: value}[/code] dictionary of material fields from [param table]
-## [param row] — every set field except the entity name and [param nonmaterial_fields]. Each
-## remaining field must name a [StandardMaterial3D] property or a shader uniform; it is applied
-## blindly by [IVSpheroidModel], which validates it per shell. Used for per-shell overrides
-## ([code]shells.tsv[/code]) and per-[code]spheroid_type[/code] surface defaults ([code]spheroids.tsv[/code]).
-func read_material_fields(table: StringName, row: int,
-		nonmaterial_fields: Array[StringName]) -> Dictionary:
-	var fields: Dictionary = {}
-	IVTableData.db_build_dictionary(fields, table, row)
-	fields.erase(&"name")
-	for nonmaterial_field in nonmaterial_fields:
-		fields.erase(nonmaterial_field)
-		
-	if IVGlobal.is_gl_compatibility:
-		if fields.has(&"emission_energy_multiplier"):
-			fields[&"emission_energy_multiplier"] *= gl_compatibility_emission_energy_multiplier_multiplier
-	
-	return fields
-
-
-## Builds one shell's spec [Dictionary] from its [code]shells[/code]-table row. For
-## [param shell_row] -1 (a surface with no [code]shells[/code] row) it returns a
-## channels-only placeholder that [IVSpheroidModel] fills from the body's
-## [code]spheroids.tsv[/code] type. [param is_surface] (shell 0) omits [code]scale[/code]
-## (the surface ranks as 1.0) and has no file_tag.
+# Builds one shell's spec [Dictionary] from its [code]shells[/code]-table row. For
+# [param shell_row] -1 (a surface with no [code]shells[/code] row) it returns a
+# channels-only placeholder that [IVSpheroidModel] fills from the body's
+# [code]spheroids.tsv[/code] type. [param is_surface] (shell 0) omits [code]scale[/code]
+# (the surface ranks as 1.0) and has no file_tag.
 func _read_shell_spec(channels: Dictionary, shell_row: int, is_surface: bool) -> Dictionary:
 	if shell_row == -1:
 		return {
@@ -314,6 +282,7 @@ func _read_shell_spec(channels: Dictionary, shell_row: int, is_surface: bool) ->
 			&"shader": &"",
 			&"process": &"",
 			&"process_args": [],
+			&"is_sun": false,
 			&"cast_shadow": GeometryInstance3D.SHADOW_CASTING_SETTING_ON,
 			&"overrides": {},
 		}
@@ -326,6 +295,7 @@ func _read_shell_spec(channels: Dictionary, shell_row: int, is_surface: bool) ->
 		&"shader": IVTableData.get_db_string_name(&"shells", &"shader", shell_row),
 		&"process": IVTableData.get_db_string_name(&"shells", &"process", shell_row),
 		&"process_args": IVTableData.get_db_array(&"shells", &"process_args", shell_row),
+		&"is_sun": IVTableData.get_db_bool(&"shells", &"is_sun", shell_row),
 		&"cast_shadow": cast_shadow,
 		&"overrides": read_material_fields(&"shells", shell_row, shells_nonmaterial_fields),
 	}
@@ -373,7 +343,6 @@ func _load_body_resources() -> void:
 				texture_slice_2d = IVFiles.find_and_load_resource(bodies_2d_search,
 						file_prefix + "_slice")
 			
-			var inf_visibility := IVTableData.get_db_bool(table, &"inf_visibility", row)
 			var packed_model: PackedScene = null
 			var model_scale := METER
 			var disable_auto_visual_range := false
@@ -466,7 +435,6 @@ func _load_body_resources() -> void:
 			var resources := [
 				texture_2d,
 				texture_slice_2d,
-				inf_visibility,
 				packed_model,
 				model_scale,
 				disable_auto_visual_range,
@@ -571,12 +539,12 @@ func _warn_channel_texture(param: int, texture: Texture2D, map_path: String) -> 
 
 func _deep_freeze_body_resources() -> void:
 	# make_read_only() freezes only the immediate container; recurse into the
-	# ordered shell specs (index 7) and their nested channel dicts so worker-thread
+	# ordered shell specs (index 6) and their nested channel dicts so worker-thread
 	# reads are race-free. (Each spec's "process_args" array is already frozen by the
 	# table postprocessor, or is an empty literal.)
 	for body_name in _body_resources:
 		var resources: Array = _body_resources[body_name]
-		var shell_specs: Array = resources[7]
+		var shell_specs: Array = resources[6]
 		for spec: Dictionary in shell_specs:
 			var channels: Dictionary = spec[&"channels"]
 			channels.make_read_only()
@@ -597,11 +565,9 @@ func _load_rings_resources() -> void:
 	for row in IVTableData.get_n_rows(&"rings"):
 		var rings_name := IVTableData.get_db_entity_name(&"rings", row)
 		var file_prefix := IVTableData.get_db_string(&"rings", &"file_prefix", row)
-		var shadow_lod := IVTableData.get_db_int(&"rings", &"shadow_lod", row)
-		shadow_lod = mini(shadow_lod, RINGS_LOD_LEVELS - 1)
-		
+
 		var texture_arrays: Array[Texture2DArray] = []
-		var shadow_image_rgba: Image
+		var profile_image_rgba: Image
 		for lod in RINGS_LOD_LEVELS:
 			var file_elements := [file_prefix, lod]
 			var backscatter_file := BACKSCATTER_FILE_FORMAT % file_elements
@@ -625,18 +591,27 @@ func _load_rings_resources() -> void:
 			var texture_array := Texture2DArray.new() # backscatter/forwardscatter/unlitside for LOD
 			texture_array.create_from_images(lod_images)
 			texture_arrays.append(texture_array)
-			if lod == shadow_lod:
-				shadow_image_rgba = backscatter_image # all have the same alpha channel
-		
-		# Rebuild the shadow caster texture as smaller FORMAT_R8, alpha only.
-		# We could have this premade in ivoyager_assets, but it gives us
-		# flexibility with LOD to do here.
-		var shadow_width := shadow_image_rgba.get_width()
-		var shadow_image_r8 := Image.create_empty(shadow_width, 1, false, Image.FORMAT_R8)
-		for x in shadow_width:
-			var color := shadow_image_rgba.get_pixel(x, 0)
-			color.r = color.a
-			shadow_image_r8.set_pixel(x, 0, color)
-		var shadow_caster_texture := ImageTexture.create_from_image(shadow_image_r8)
-		
-		_rings_resources[rings_name] = [texture_arrays, shadow_caster_texture]
+			if lod == 0:
+				profile_image_rgba = backscatter_image # all have the same alpha channel
+
+		# Full-resolution mipmapped alpha profile for the analytic ring-shadow
+		# term; the source image is retained for CPU sampling. See
+		# get_rings_shadow_profile_texture() / get_rings_shadow_profile_image().
+		var shadow_profile_image := _make_alpha_r8_image(profile_image_rgba)
+		@warning_ignore("return_value_discarded")
+		shadow_profile_image.generate_mipmaps() # can't fail: R8 is uncompressed
+		var shadow_profile_texture := ImageTexture.create_from_image(shadow_profile_image)
+
+		_rings_resources[rings_name] = [texture_arrays, shadow_profile_texture,
+				shadow_profile_image]
+
+
+# Returns a width x 1 FORMAT_R8 image holding [param image_rgba]'s alpha channel.
+func _make_alpha_r8_image(image_rgba: Image) -> Image:
+	var width := image_rgba.get_width()
+	var image_r8 := Image.create_empty(width, 1, false, Image.FORMAT_R8)
+	for x in width:
+		var color := image_rgba.get_pixel(x, 0)
+		color.r = color.a
+		image_r8.set_pixel(x, 0, color)
+	return image_r8

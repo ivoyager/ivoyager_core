@@ -51,10 +51,10 @@ extends Node3D
 ## can evolve over time (e.g., the base class supports orbit precessions) or
 ## change in other ways. See [IVOrbit] file docs for thrust implementation.[br][br]
 ##
-## This node adds its own [IVBodyVisual] if needed, parented under an
-## interposed [member farwarp_space] Node3D that carries only the farwarp
-## position offset and uniform scale (see [IVFarwarpManager]). [IVBody]
-## maintains the rotation of its [IVBodyVisual] if present. [IVBodyVisual]
+## This node adds its own [IVBodyVisual] if needed, as a direct child at the body's
+## true position; farwarp compression is applied per-vertex in the model shaders (see
+## [IVFarwarpManager]). [IVBody] maintains the rotation of its [IVBodyVisual] if present.
+## [IVBodyVisual]
 ## instantiates and scales the visual representation (i.e., model) of this body. Note that
 ## ivoyager_core does not implement collisions. ([IVBody] and [IVBodyVisual]
 ## subclasses would likely be needed to do that.) If [IVLazyModelInitializer] is
@@ -285,9 +285,9 @@ var begin := NAN
 var end := NAN
 ## Persisted dictionary of non-object characteristics (mass, surface gravity,
 ## albedo, atmosphere data, etc.) loaded from data tables.
-var characteristics: Dictionary[StringName, Variant] = {} # non-object values
+var characteristics: Dictionary[StringName, Variant] = {}
 ## Persisted dictionary of object-valued components (e.g. an [IVComposition]).
-var components: Dictionary[StringName, RefCounted] = {} # objects (persisted only)
+var components: Dictionary[StringName, RefCounted] = {}
 
 # redirect (authoritative value in private variable)
 ## This body's [IVOrbit]; null if "top" body.
@@ -310,18 +310,10 @@ var ordered_satellites: Array[IVBody]
 ## representation (model). If data table value [param lazy_model] == TRUE, then
 ## this value will be null until needed. Read-only!
 var body_visual: Node3D
-## If present, the Node3D interposed between this body and [member body_visual]
-## that carries the farwarp position and uniform scale (rotation is never
-## applied here). It is [member Node3D.top_level] when farwarp is enabled:
-## positioned per-frame in world space from camera-relative math, because
-## summing true-scale translations through the ancestor chain loses the
-## compressed position to float32 rounding (one ulp of the true distance can
-## exceed the whole compressed distance). See [IVFarwarpManager]. Read-only!
-var farwarp_space: Node3D
-## Current farwarp-compressed global position of this body's visuals; equals
-## the true global position inside the farwarp start distance. Consumed
-## per-frame by [IVBodyPositionVisual] (also top_level). Not maintained when
-## farwarp is disabled. Read-only!
+## Current farwarp-compressed global position for this body's HUD position symbol
+## ([IVBodyPositionVisual], top_level); equals the true global position inside the farwarp
+## start distance. The body model itself is farwarp-remapped per-vertex in its shaders, not
+## via this value. Not maintained when farwarp is disabled. Read-only!
 var farwarp_position := Vector3.ZERO
 ## Current visibility state for associated HUD elements, including
 ## IVBodyPositionVisual and IVPathVisual. Read-only!
@@ -346,7 +338,6 @@ var _hill_sphere: float
 var _lazy_model_uninited := false
 var _sleeping := false
 var _min_hud_dist: float
-var _farwarp_no_cutoff := false # stars bypass the farwarp angular-size gate
 var _times: Array[float] = IVGlobal.times
 var _world_controller: IVWorldController = IVGlobal.program[&"WorldController"]
 var _process_callable: Callable # bespoke model attitude named by spacecrafts.tsv 'process'
@@ -360,6 +351,12 @@ var _stroboscope_rotation := 0.0
 
 @onready var _tree := get_tree()
 
+
+static func _static_init() -> void:
+	process_methods[&"_earth_pointing"] = _earth_pointing
+	process_methods[&"_sun_pointing"] = _sun_pointing
+	process_methods[&"_process_iss"] = _process_iss
+	process_methods[&"_process_hubble"] = _process_hubble
 
 
 # *****************************************************************************
@@ -531,13 +528,6 @@ static func _add_selection_recursive(body: IVBody) -> void:
 # in-method, since the table cannot specify a unit for a VARIANT. All operate on body_visual.basis,
 # a world-oriented frame because IVBody nodes are never rotated; model-frame axis args are tunable.
 
-static func _static_init() -> void:
-	process_methods[&"_earth_pointing"] = _earth_pointing
-	process_methods[&"_sun_pointing"] = _sun_pointing
-	process_methods[&"_process_iss"] = _process_iss
-	process_methods[&"_process_hubble"] = _process_hubble
-
-
 ## Named by a 'process' field (spacecrafts.tsv). Aims [param body]'s model [param boresight_axis]
 ## (model frame) at Earth, rolling so [param up_axis] (model frame) stays near ecliptic north — a
 ## deep-space craft holding its high-gain antenna on Earth (Pioneer, Voyager, New Horizons).
@@ -630,7 +620,6 @@ func _ready() -> void:
 	IVSettingsManager.changed.connect(_settings_listener)
 	_set_resources()
 	_set_min_hud_dist()
-	_farwarp_no_cutoff = get_inf_visibility()
 	_stroboscope_rotation = randf() * TAU if _stroboscope_frame_rate else 0.0
 
 	var process_method: StringName = characteristics.get(&"process", &"")
@@ -969,7 +958,7 @@ func get_hud_name() -> String:
 
 
 ## Returns this body's body_class. See data table [param body_classes.tsv].
-func get_body_class() -> int: # body_classes.tsv
+func get_body_class() -> int:
 	return characteristics.get(&"body_class", -1)
 
 
@@ -984,12 +973,6 @@ func get_perspective_radius() -> float:
 
 func get_spheroid_type() -> int: # spheroids.tsv (intent; -1 = unspecified)
 	return characteristics.get(&"spheroid_type", -1)
-
-
-## Returns whether this body's model is exempt from distance culling (stars). Set
-## per body via the [code]inf_visibility[/code] column (currently only in stars.tsv).
-func get_inf_visibility() -> bool:
-	return characteristics.get(&"inf_visibility", false)
 
 
 func get_file_prefix() -> String:
@@ -1018,22 +1001,6 @@ func get_float_precision(path: String) -> int:
 
 # *****************************************************************************
 # orbit API...
-
-
-# Clamps [param time] to the trajectory's validity window when this body has a
-# trajectory (so it parks at the path's endpoints instead of extrapolating the
-# first/last conic far off the drawn path); returns [param time] unchanged otherwise.
-func _clamp_trajectory_time(time: float) -> float:
-	return _trajectory.get_clamped_time(time) if _trajectory else time
-
-
-# Returns the orbit governing a projected/sleeping query at [param time]: the
-# trajectory's active segment for that time if this body has a trajectory, else
-# the single _orbit. Callers must have already guarded against null _orbit.
-func _get_orbit_at_time(time: float) -> IVOrbit:
-	if _trajectory:
-		return _trajectory.get_orbit(_clamp_trajectory_time(time))
-	return _orbit
 
 
 ## Returns this body's orbital mean longitude (L). Supply [param time] only if
@@ -1287,6 +1254,73 @@ func get_translation_to_ancestor(ancestor: IVBody, time := NAN) -> PackedFloat64
 		offset[2] += translation[2]
 		node = node.parent
 	return offset
+
+
+# *****************************************************************************
+# Path display facade (for IVPathVisual)
+#
+# IVPathVisual talks only to IVBody through these; it never references IVOrbit or IVTrajectory. This
+# body already owns the orbit<->trajectory-segment swap (set_orbit_and_parent), so it also owns which
+# frame the line lives in, whether it draws as a standalone orbit, and the drawable state-path sub-paths.
+
+
+## Returns true if the path renders as a standalone orbit (no trajectory, or the body is in a trajectory
+## segment flagged as a parking/capture orbit) rather than as part of the trajectory polyline.
+func is_showing_orbit() -> bool:
+	if not _trajectory:
+		return true
+	return _trajectory.is_orbit_segment(_trajectory.orbits.find(_orbit))
+
+
+## Returns the [IVBody] frame the (non-rebased) path is expressed in and the correct scene-tree parent
+## for an [IVPathVisual]: this body's current gravitational parent in orbit mode, or the trajectory's
+## lowest common ancestor in trajectory mode.
+func get_path_frame() -> IVBody:
+	if is_showing_orbit():
+		return parent
+	return _trajectory.get_lca()
+
+
+## Returns the coarse (far / unfocused) orbit representation as [code][Mesh, Transform3D][/code]: a
+## shared unit conic mesh plus the transform mapping it onto the current orbit. Orbit mode only (see
+## [method is_showing_orbit]); a trajectory's coarse line uses [method get_display_state_paths] directly.
+func get_orbit_display() -> Array:
+	var eccentricity := _orbit.get_eccentricity()
+	if eccentricity < 1.0:
+		return [IVGlobal.resources[&"circle_mesh"], _orbit.get_unit_circle_transform()]
+	if eccentricity > 1.0:
+		return [IVGlobal.resources[&"rectangular_hyperbola_mesh"],
+				_orbit.get_unit_rectangular_hyperbola_transform()]
+	return [IVGlobal.resources[&"parabola_mesh"], _orbit.get_unit_parabola_transform()]
+
+
+## Returns the drawable path as a list of independent state-path sub-paths, each a flat
+## orbit-precision (64-bit) [PackedFloat64Array] of stride-7 knots [x, y, z, vx, vy, vz, t] —
+## position, velocity (the Hermite tangent), and passage time (s) — in the
+## [method get_path_frame] frame. Orbit mode returns one closed-loop sub-path (rebuilt on the
+## current epoch); trajectory mode returns one sub-path per drawn transfer segment (see
+## [method IVTrajectory.get_display_state_paths]).
+func get_display_state_paths(time := NAN) -> Array[PackedFloat64Array]:
+	if is_nan(time):
+		time = _times[0]
+	if is_showing_orbit():
+		_orbit.refresh_state_path(time, IVCoreSettings.vertecies_per_orbit)
+		var orbit_path: Array[PackedFloat64Array] = [_orbit.path]
+		return orbit_path
+	return _trajectory.get_display_state_paths()
+
+
+## Returns true if [param camera_body] is the body this path should rebase against for issue-#17
+## precision: this body itself, or — during a trajectory flyby — the segment's current primary. Gates
+## whether an [IVPathVisual] runs its per-frame rebase check.
+func is_camera_focused(camera_body: IVBody, time := NAN) -> bool:
+	if camera_body == self:
+		return true
+	if is_showing_orbit():
+		return false
+	if is_nan(time):
+		time = _times[0]
+	return camera_body == _trajectory.get_parent(time)
 
 
 ## Returns current or projected [code][position, velocity][/code] at [param time] as a
@@ -1710,9 +1744,8 @@ func remove_child_from_body_visual(node3d: Node3D) -> void:
 ## Removes model(s) but everything else remains (label & orbit HUDs, etc.).
 func remove_and_disable_body_visual() -> void:
 	flags |= BodyFlags.BODYFLAGS_DISABLE_MODEL_SPACE
-	if farwarp_space:
-		farwarp_space.queue_free() # frees body_visual with it
-	farwarp_space = null
+	if body_visual:
+		body_visual.queue_free()
 	body_visual = null
 
 
@@ -1728,33 +1761,33 @@ func lazy_model_init() -> void:
 
 
 ## Called by [IVFarwarpManager] once per frame AFTER the camera has moved and
-## origin-shifted the Universe, so the world-space (top_level) placements of
-## [member farwarp_space] and [member farwarp_position] land in the frame's
-## final coordinates. A placement computed before the origin shift is one frame
-## of camera world-motion behind, which reads as violent shake on fast nearby
-## orbiters and off-center models during fast camera rotation. With
-## [param farwarp_start] <= 0.0 (no camera), places visuals at true positions.
+## origin-shifted the Universe, so the world-space (top_level) placement of
+## [member farwarp_position] lands in the frame's final coordinates. A placement
+## computed before the origin shift is one frame of camera world-motion behind,
+## which reads as violent shake on fast nearby orbiters. With [param farwarp_start]
+## <= 0.0 (no camera), gives the true position. Also grants/clears this body's
+## LOCAL_SHADOW_CASTER state (see [method IVBodyVisual.set_local_shadow_caster]).
 func update_farwarp(camera_global_position: Vector3, farwarp_start: float) -> void:
+	# Only the HUD position symbol ([IVBodyPositionVisual]) consumes farwarp_position now; the
+	# body model is farwarp-remapped per-vertex in its shaders (see [IVFarwarpManager]).
 	var camera_vector := global_position - camera_global_position
 	var farwarp_dist := camera_vector.length()
 	var factor := IVFarwarpManager.get_farwarp_factor(farwarp_dist, farwarp_start)
-	# Assembled camera-relative: scaling the true-scale vector keeps float32
-	# rounding proportional to the compressed distance (origin shifting keeps
-	# camera_global_position small). Never derive this by offsetting true-scale
-	# positions - the rounding of the large terms swamps the small result.
+	# Assembled camera-relative: scaling the true-scale vector keeps float32 rounding
+	# proportional to the compressed distance (origin shifting keeps camera_global_position
+	# small). Never derive this by offsetting true-scale positions - the rounding of the large
+	# terms swamps the small result.
 	farwarp_position = camera_global_position + camera_vector * factor
-	if !farwarp_space:
-		return
-	if factor != 1.0 and (_farwarp_no_cutoff
-			or mean_radius > farwarp_dist * IVFarwarpManager.angular_cutoff):
-		farwarp_space.position = farwarp_position
-		farwarp_space.basis = Basis.from_scale(factor * Vector3.ONE)
-	else:
-		# Not remapped: track the true global position (top_level node doesn't
-		# follow this body). Sub-cutoff models beyond the far plane are
-		# distance-culled; the always-remapped HUD symbol represents the body.
-		farwarp_space.position = global_position
-		farwarp_space.basis = Basis.IDENTITY
+	# A body casts into the local (near/middle) shadow maps only while it is
+	# true-position "terrain": inside the farwarp start (never warp-remapped)
+	# and inside a ceiling that keeps sunward planets at astronomical distances
+	# from being extruded into the maps.
+	var body_visual_typed := body_visual as IVBodyVisual
+	if body_visual_typed:
+		var local_limit := IVCoreSettings.local_shadow_caster_ceiling
+		if farwarp_start > 0.0:
+			local_limit = minf(local_limit, farwarp_start)
+		body_visual_typed.set_local_shadow_caster(farwarp_dist < local_limit)
 
 
 ## Current sleeping state. See [IVSleepManager].
@@ -1804,6 +1837,22 @@ func resort_satellites() -> void:
 # *****************************************************************************
 # private
 
+# Clamps [param time] to the trajectory's validity window when this body has a
+# trajectory (so it parks at the path's endpoints instead of extrapolating the
+# first/last conic far off the drawn path); returns [param time] unchanged otherwise.
+func _clamp_trajectory_time(time: float) -> float:
+	return _trajectory.get_clamped_time(time) if _trajectory else time
+
+
+# Returns the orbit governing a projected/sleeping query at [param time]: the
+# trajectory's active segment for that time if this body has a trajectory, else
+# the single _orbit. Callers must have already guarded against null _orbit.
+func _get_orbit_at_time(time: float) -> IVOrbit:
+	if _trajectory:
+		return _trajectory.get_orbit(_clamp_trajectory_time(time))
+	return _orbit
+
+
 func _clear_procedural() -> void:
 	if _orbit:
 		_orbit.changed.disconnect(_on_orbit_changed)
@@ -1812,7 +1861,6 @@ func _clear_procedural() -> void:
 	star = null
 	star_orbiter = null
 	body_visual = null
-	farwarp_space = null
 	satellites.clear()
 	ordered_satellites.clear()
 	# static re-clearing is redundant but not expensive
@@ -2003,13 +2051,10 @@ func _add_body_visual() -> void:
 		body_visual = replacement_body_visual_class.new(name, mean_radius, e_radius, get_spheroid_type())
 	else:
 		body_visual = IVBodyVisual.new(name, mean_radius, e_radius, get_spheroid_type())
-	farwarp_space = Node3D.new()
-	farwarp_space.name = &"FarwarpSpace"
-	# World-space placement (see farwarp_space doc); an inert identity child
-	# when farwarp is disabled.
-	farwarp_space.top_level = IVCoreSettings.apply_farwarp
-	farwarp_space.add_child(body_visual)
-	add_child(farwarp_space)
+	# Direct child at the body's true position; farwarp compression is applied per-vertex in the
+	# model shaders (see [IVFarwarpManager]). IVBody is never rotated, so body_visual.basis stays
+	# the world-oriented model frame.
+	add_child(body_visual)
 
 
 func _settings_listener(setting: StringName, _value: Variant) -> void:

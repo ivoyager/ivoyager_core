@@ -21,25 +21,29 @@ class_name IVDynamicLight
 extends DirectionalLight3D
 
 ## Dynamic system to generate proper light and shadows over vast scale
-## differences and for Saturn Rings semi-transparancy.
+## differences.
 ##
 ## This node self-adds IVDynamicLight children that (together with itself)
-## generate light and shadows on different mask levels and with different
-## shadow opacity.[br][br]
-## 
+## light different size domains via [member Light3D.light_cull_mask]. Only the
+## near/middle lights have shadow maps, serving the local (true-position)
+## scene; their casters carry [constant IVGlobal.LOCAL_SHADOW_CASTER], their
+## shadow reach is clamped to the farwarp boundary, and their energy scales by
+## [member IVSunOcclusionManager.camera_sun_visible_fraction] (which is how
+## craft-scale objects get eclipse and ring shadows). Astronomical-scale
+## shadows are analytic in the receiving shaders instead of shadow maps; see
+## [IVSunOcclusionManager].[br][br]
+##
 ## The parent light points in the direction from source to the camera.
 ## All lights are attenuated for source distance.[br][br]
 ##
-## Shadows are intentionally disabled if using Compatibility renderer. There
-## are many problems for Compatibility renderer:[br]
-##  1. The current implementation doesn't work correctly for far. Io shadow on
-##     Jupiter disappears when moving in.[br]
-##  2. There seems to be issues with light_cull_mask, shadow_caster_mask and/or
-##     shadow_opacity. One or more of these don't work correctly.[br]
-##  3. Lighting energy is wrong with multiple lights. See Godot issue:
-##     https://github.com/godotengine/godot/issues/90259.[br]
-##  4. All color handling changes if any light has shadows enabled. See
-##     comments in issue above.[br]
+## Under the Compatibility renderer this falls back to a single unshadowed light
+## unless [member IVCoreSettings.apply_gl_compatibility_shadows] re-enables the
+## shadowed multi-light path. That renderer has historically had defects that
+## broke the multi-light setup:[br]
+##  1. light_cull_mask and/or shadow_caster_mask not respected.[br]
+##  2. Wrong lighting energy with multiple lights (godotengine/godot#90259).[br]
+##  3. Color handling shifts once any light casts shadows (same issue).[br]
+## Re-test these on a given target before relying on Compatibility shadows.[br]
 
 
 # from table
@@ -48,6 +52,7 @@ var shadow_max_floor: float
 var shadow_max_ceiling: float
 var shadow_max_target_plus := NAN
 var shadow_max_star_orbiter_plus := NAN
+var apply_sun_occlusion := false
 
 
 var _body_name: StringName
@@ -72,13 +77,17 @@ func _init(body_name: StringName, top_light := true, row := -1,
 		shared: Array[float] = [0.0, 0.0, 0.0]) -> void:
 	_body_name = body_name
 	_top_light = top_light
-	var is_gl_compatibility := IVGlobal.is_gl_compatibility
+	# The Compatibility renderer falls back to a single unshadowed light (the
+	# gl_compatibility table row) unless apply_gl_compatibility_shadows re-enables
+	# the shadowed multi-light path used by Forward+.
+	var single_compat_light := (IVGlobal.is_gl_compatibility
+			and not IVCoreSettings.apply_gl_compatibility_shadows)
 	if top_light:
-		row = _get_top_light(is_gl_compatibility)
+		row = _get_top_light(single_compat_light)
 	_row = row
 	_shared = shared
 	IVTableData.db_build_object(self, &"dynamic_lights", row)
-	_process_shadow_distances = !is_gl_compatibility
+	_process_shadow_distances = not single_compat_light
 	_add_shadow_target_dist = !is_nan(shadow_max_target_plus)
 	_add_shadow_star_orbiter_dist = !is_nan(shadow_max_star_orbiter_plus)
 	name = "DynamicLight" + str(row)
@@ -90,7 +99,9 @@ func _ready() -> void:
 	# Only top light connects to camera or has children!
 	IVGlobal.camera_tree_changed.connect(_on_camera_tree_changed)
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
-	if !IVGlobal.is_gl_compatibility:
+	# The near/middle children carry the shadow maps; the single-light
+	# Compatibility fallback (no shadow distances processed) adds none.
+	if _process_shadow_distances:
 		_add_child_lights()
 
 
@@ -117,7 +128,13 @@ func _process(_delta: float) -> void:
 			_shared[2] = star_orbiter_dist
 	
 	# all lights
-	light_energy = _shared[0] * energy_multiplier
+	var total_energy := _shared[0] * energy_multiplier
+	if apply_sun_occlusion:
+		# Local-scene eclipse/ring shadowing: at craft scale the occlusion field
+		# is uniform, so it applies as a light-energy factor rather than
+		# per-fragment shading. One-frame lag (manager processes at 100).
+		total_energy *= IVSunOcclusionManager.camera_sun_visible_fraction
+	light_energy = total_energy
 	if _process_shadow_distances:
 		var shadow_max_dist := shadow_max_floor
 		if _add_shadow_target_dist:
@@ -125,6 +142,16 @@ func _process(_delta: float) -> void:
 		if _add_shadow_star_orbiter_dist:
 			shadow_max_dist = maxf(shadow_max_dist, shadow_max_star_orbiter_plus + _shared[2])
 		shadow_max_dist = minf(shadow_max_dist, shadow_max_ceiling)
+		# No map shadow may cross the farwarp boundary: everything farwarp-remapped
+		# renders at distance > farwarp_start, while every true-position receiver
+		# is inside it. Without this clamp, near casters stamp oversized shadows on
+		# warp-compressed bodies, and a warped body's own light-space imprint
+		# false-shadows its camera-space self. Reads last frame's value (lights
+		# process at 0, IVFarwarpManager at 100) - a one-frame lag on a smooth
+		# quantity.
+		var farwarp_start := IVFarwarpManager.farwarp_start
+		if farwarp_start > 0.0:
+			shadow_max_dist = minf(shadow_max_dist, farwarp_start)
 		directional_shadow_max_distance = shadow_max_dist
 
 

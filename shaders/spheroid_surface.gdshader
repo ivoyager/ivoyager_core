@@ -1,4 +1,4 @@
-// depixelation.gdshader
+// spheroid_surface.gdshader
 // This file is part of I, Voyager
 // https://ivoyager.dev
 // *****************************************************************************
@@ -18,11 +18,16 @@
 // limitations under the License.
 // *****************************************************************************
 shader_type spatial;
+// skip_vertex_transform: for the farwarp vertex remap; see _farwarp.gdshaderinc.
+// ambient_light_disabled: ambient is rebuilt as emission; see _sun_occlusion.gdshaderinc.
+render_mode skip_vertex_transform, ambient_light_disabled;
 
 // Lit surface shader for a solid IVSpheroidModel surface (shell 0) that removes the texel
-// "squares" a fixed-resolution map shows when magnified at close (orbital) range. It does
-// ONE thing: resample the albedo and normal maps BICUBIC (C2-continuous) so the magnified
-// map reads smooth instead of blocky. No synthesized or sharpened detail is added — that was
+// "squares" a fixed-resolution map shows when magnified at close (orbital) range. Its core
+// job: resample the albedo and normal maps BICUBIC (C2-continuous) so the magnified
+// map reads smooth instead of blocky. It also hosts the analytic ring-shadow term (see
+// _sun_occlusion.gdshaderinc), enabled per body by its IVRings node; off by default.
+// No synthesized or sharpened detail is added — that was
 // explored on the Moon and intentionally dropped (see IMAGE_ENHANCEMENT_EXPLORATION.md in the
 // plugin root for what was tried, why it didn't pay off, and the directions that would:
 // offline super-resolution of the source maps, and structure-guided shader synthesis).
@@ -33,12 +38,14 @@ shader_type spatial;
 // each table override column feeds the uniform of the same name, so the scalars below are tunable.
 //
 // LIGHTING: no custom light(); writes ALBEDO/NORMAL_MAP/ROUGHNESS/EMISSION and lets the engine's
-// default PBR + shadow path light it (a custom light() would break the tuned METER=1e-3 shadows).
+// default PBR + shadow path light it.
 //
 // CITY LIGHTS: emission defaults to black (hint_default_black), so a body with no emission map
 // emits nothing; one that ships a map gets additive emission (night side, washed out by day).
 
 #include "_detail.gdshaderinc"
+#include "_farwarp.gdshaderinc"
+#include "_sun_occlusion.gdshaderinc"
 
 // Auto-bound channels. Default hints make an unbound map a no-op (see asset_preloader.gd
 // texture_channels). normal/roughness stay LINEAR (no source_color); albedo/emission decode sRGB.
@@ -53,6 +60,17 @@ uniform float roughness_scale = 1.0;   // multiplies the sampled roughness (whit
 uniform float metallic = 0.0;
 uniform float metallic_specular = 0.5; // dielectric specular reflectance; 0.5 = StandardMaterial3D default
 uniform float emission_energy_multiplier = 1.0;
+
+
+varying vec3 v_world_position; // true world position; VERTEX is farwarp-remapped
+
+
+void vertex() {
+	v_world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	// Farwarp compresses the surface along the camera ray so a large body's depth stays
+	// consistent with the per-vertex-warped orbit lines around it. _tbn: the normal map needs TBN.
+	farwarp_lit_vertex_tbn(MODELVIEW_MATRIX, MODELVIEW_NORMAL_MATRIX, VERTEX, NORMAL, TANGENT, BINORMAL);
+}
 
 
 void fragment() {
@@ -70,4 +88,18 @@ void fragment() {
 	NORMAL_MAP_DEPTH = 1.0;
 
 	EMISSION = texture_bicubic(emission, UV).rgb * emission_energy_multiplier; // black if no map
+
+	// Rebuilt ambient (engine ambient is disabled; see render_mode). Added before
+	// the shadow so occlusion removes sunlight, not starlight; see the include.
+	EMISSION += ALBEDO * ambient_light;
+
+	if (ring_texture_outer > 0.0 || occluder_count > 0) {
+		float sun_visible = sun_occlusion_visible_fraction(v_world_position);
+		if (compat_albedo_shadow) {
+			ALBEDO *= sun_visible;
+		} else {
+			AO = sun_visible;
+			AO_LIGHT_AFFECT = 1.0; // attenuates direct light, not just ambient
+		}
+	}
 }

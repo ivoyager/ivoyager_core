@@ -1,4 +1,4 @@
-// farwarp_line.gdshader
+// farwarp_vertex.gdshader
 // This file is part of I, Voyager
 // https://ivoyager.dev
 // *****************************************************************************
@@ -20,13 +20,14 @@
 shader_type spatial;
 render_mode unshaded, cull_disabled, skip_vertex_transform;
 
-// Visible base pass for line visuals (IVPathVisual, IVSBGOrbitsVisual):
-// unshaded color with the per-vertex farwarp remap, replacing what was a
-// StandardMaterial3D (which can't remap, so distant line vertices would be
-// culled by the camera far plane). COLOR is white unless the mesh/multimesh
-// supplies vertex or instance colors, so 'color' alone tints the simple case.
-// Any id overlay on the same visual applies the same remap, keeping overlay
-// and base on identical pixels.
+// Farwarp-only base pass for simple unshaded, vertex-colored line geometry
+// (IVSBGOrbitsVisual). The per-vertex farwarp remap replaces a StandardMaterial3D
+// (which can't remap, so distant line vertices would be culled by the camera far
+// plane). COLOR is white unless the mesh/multimesh supplies vertex or instance
+// colors, so 'color' alone tints the simple case. Lit shaders that also need
+// farwarp (e.g. spheroid meshes) don't reuse this file — they #include
+// "_farwarp.gdshaderinc" in their own vertex(). The IVPathVisual line
+// (path.gdshader) is this shader plus the render-frame path pin.
 
 uniform vec4 color : source_color = vec4(1.0);
 

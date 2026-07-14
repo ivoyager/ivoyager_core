@@ -88,12 +88,6 @@ signal close_admin_popups_required()
 signal show_hide_gui_requested(is_toggle: bool, is_show: bool)
 
 
-## Resolution choice for the background starmap; see [IVAssetPreloader].
-enum StarmapSize {
-	STARMAP_8K,
-	STARMAP_16K,
-}
-
 ## Generic confidence levels for table-driven values. Used by data tables
 ## where a fact may be doubtful, unknown, or probable.
 enum Confidence {
@@ -102,26 +96,6 @@ enum Confidence {
 	CONFIDENCE_UNKNOWN,
 	CONFIDENCE_PROBABLY,
 	CONFIDENCE_YES,
-}
-
-## Shadow masking for semi-transparent shadows used by [IVDynamicLight] and
-## [IVRings] (for Saturn's rings).
-enum ShadowMask {
-	SHADOW_MASK_01 = 0b0001_0000_0000, # almost no shadow
-	SHADOW_MASK_02 = 0b0010_0000_0000,
-	SHADOW_MASK_03 = 0b0011_0000_0000,
-	SHADOW_MASK_04 = 0b0100_0000_0000,
-	SHADOW_MASK_05 = 0b0101_0000_0000,
-	SHADOW_MASK_06 = 0b0110_0000_0000,
-	SHADOW_MASK_07 = 0b0111_0000_0000,
-	SHADOW_MASK_08 = 0b1000_0000_0000,
-	SHADOW_MASK_09 = 0b1001_0000_0000,
-	SHADOW_MASK_10 = 0b1010_0000_0000,
-	SHADOW_MASK_11 = 0b1011_0000_0000,
-	SHADOW_MASK_12 = 0b1100_0000_0000,
-	SHADOW_MASK_13 = 0b1101_0000_0000,
-	SHADOW_MASK_14 = 0b1110_0000_0000,
-	SHADOW_MASK_FULL = 0b1111_0000_0000, # full shadow
 }
 
 ## Duplicated from I, Voyager's Save plugin ([enum IVSaveUtils.PersistMode]).
@@ -139,6 +113,16 @@ const NO_PERSIST := PersistMode.NO_PERSIST
 const PERSIST_PROPERTIES_ONLY := PersistMode.PERSIST_PROPERTIES_ONLY
 ## Persist mode for the ivoyager_save plugin. Safe to use if plugin is not present.
 const PERSIST_PROCEDURAL := PersistMode.PERSIST_PROCEDURAL
+
+
+## [member VisualInstance3D.layers] bit marking a shadow caster for the local
+## (near/middle) shadow-mapped [IVDynamicLight] instances. Near-domain objects
+## (spacecraft scale) carry it statically; larger bodies are granted it only
+## while close enough to be true-position "terrain" (see
+## [method IVBody.update_farwarp]), which keeps farwarp-remapped geometry out
+## of the shadow maps. Astronomical-scale shadows don't use shadow maps at all;
+## see [IVSunOcclusionManager].
+const LOCAL_SHADOW_CASTER := 0b1_0000_0000
 
 
 

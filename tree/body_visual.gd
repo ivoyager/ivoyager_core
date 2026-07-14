@@ -51,7 +51,17 @@ var _m_radius: float
 var _e_radius: float
 var _spheroid_type: int
 var _model: Node3D
+var _local_shadow_caster := false
 
+
+
+## Returns the body-frame reference [Basis] for a packed-scene model: uniformly
+## scaled by [param model_scale] and rotated so the model's z-up axis becomes
+## y-up. Shared by [method _build_packed_model] and the editor icon capturer so a
+## captured 2D icon matches the in-sim model orientation.
+static func get_packed_model_reference_basis(model_scale: float) -> Basis:
+	const RIGHT_ANGLE := PI / 2
+	return Basis().scaled(model_scale * Vector3.ONE).rotated(Vector3(1.0, 0.0, 0.0), RIGHT_ANGLE)
 
 
 func _init(body_name: StringName, mean_radius: float, equatorial_radius: float,
@@ -59,6 +69,7 @@ func _init(body_name: StringName, mean_radius: float, equatorial_radius: float,
 	_body_name = body_name
 	_m_radius = mean_radius
 	_e_radius = equatorial_radius
+	_local_shadow_caster = IVCoreSettings.get_static_local_shadow_caster(mean_radius)
 	name = &"BodyVisual"
 	# A PackedScene model (self-defining) always wins. Otherwise build a spheroid from the
 	# spheroids.tsv type intent; an unspecified type (-1) resolves to row 0 (the fallback).
@@ -75,13 +86,31 @@ func _ready() -> void:
 	add_child(_model)
 
 
-## Returns the body-frame reference [Basis] for a packed-scene model: uniformly
-## scaled by [param model_scale] and rotated so the model's z-up axis becomes
-## y-up. Shared by [method _build_packed_model] and the editor icon capturer so a
-## captured 2D icon matches the in-sim model orientation.
-static func get_packed_model_reference_basis(model_scale: float) -> Basis:
-	const RIGHT_ANGLE := PI / 2
-	return Basis().scaled(model_scale * Vector3.ONE).rotated(Vector3(1.0, 0.0, 0.0), RIGHT_ANGLE)
+func is_local_shadow_caster() -> bool:
+	return _local_shadow_caster
+
+
+## Grants/clears [constant IVGlobal.LOCAL_SHADOW_CASTER] on this visual's whole
+## tree (see the constant's doc for the granting rules). Called per frame by
+## [method IVBody.update_farwarp]; the recursion runs on state change only.
+func set_local_shadow_caster(on: bool) -> void:
+	if _local_shadow_caster == on:
+		return
+	_local_shadow_caster = on
+	_set_local_shadow_caster_recursive(self, on)
+
+
+func _set_local_shadow_caster_recursive(node3d: Node3D, on: bool) -> void:
+	var visualinstance3d := node3d as VisualInstance3D
+	if visualinstance3d:
+		if on:
+			visualinstance3d.layers |= IVGlobal.LOCAL_SHADOW_CASTER
+		else:
+			visualinstance3d.layers &= ~IVGlobal.LOCAL_SHADOW_CASTER
+	for child in node3d.get_children():
+		var child_node3d := child as Node3D
+		if child_node3d:
+			_set_local_shadow_caster_recursive(child_node3d, on)
 
 
 func _build_packed_model(asset_preloader: IVAssetPreloader, packed_model: PackedScene) -> void:
@@ -117,9 +146,10 @@ func _build_spheroid_model(asset_preloader: IVAssetPreloader) -> void:
 # to set their visibility ranges and layers. Spheroid models self-configure (see
 # [IVSpheroidModel]).
 func _set_visibility_ranges() -> void:
-	var asset_preloader: IVAssetPreloader = IVGlobal.program[&"AssetPreloader"]
-	if asset_preloader.get_body_inf_visibility(_body_name):
-		return # default 0.0 is no distance cull
+	# Sun-mode (is_sun) manages the disc's visibility itself (pixel-radius fade), so skip the
+	# fixed distance cull, matching the spheroid self-config path.
+	if IVTableData.get_db_bool(&"spheroids", &"is_sun", _spheroid_type):
+		return # is_sun disc self-culls; default 0.0 is no distance cull
 	var visibility_range_end := _m_radius * IVCoreSettings.radius_multiplier_visibility_range_end
 	_set_visibility_ranges_recursive(_model, visibility_range_end)
 
@@ -136,7 +166,8 @@ func _set_visibility_ranges_recursive(node3d: Node3D, visibility_range_end: floa
 
 func _set_layers() -> void:
 	var layers := IVCoreSettings.get_visualinstance3d_layer_for_size(_m_radius)
-	layers |= IVGlobal.ShadowMask.SHADOW_MASK_FULL
+	if _local_shadow_caster:
+		layers |= IVGlobal.LOCAL_SHADOW_CASTER
 	_set_layers_recursive(_model, layers)
 
 

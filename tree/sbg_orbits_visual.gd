@@ -77,7 +77,7 @@ func _init(sbg: IVSmallBodiesGroup) -> void:
 	# base (visible) material
 	var shader_material := ShaderMaterial.new()
 	shader_material.shader = (_shader_override if _shader_override
-			else IVGlobal.resources[&"farwarp_line_shader"])
+			else IVGlobal.resources[&"farwarp_vertex_shader"])
 	material_override = shader_material
 	if IVCoreSettings.apply_farwarp:
 		# Frustum culling tests the true-scale AABB against the far plane, but

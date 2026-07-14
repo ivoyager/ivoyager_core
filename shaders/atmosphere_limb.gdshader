@@ -18,7 +18,7 @@
 // limitations under the License.
 // *****************************************************************************
 shader_type spatial;
-render_mode blend_add, ambient_light_disabled, shadows_disabled;
+render_mode blend_add, ambient_light_disabled, shadows_disabled, skip_vertex_transform;
 
 // Additive atmospheric limb (haze ring) for an IVSpheroidModel overlay shell. Name it
 // in the shell's shells.tsv "shader" column on a slightly oversized shell (e.g. scale
@@ -47,6 +47,8 @@ render_mode blend_add, ambient_light_disabled, shadows_disabled;
 // The defaults below are generic; Earth, Venus and Titan each set their own limb_* columns.
 // All values are first-pass starting points, pending reference-image tuning.
 
+#include "_farwarp.gdshaderinc"
+
 uniform vec4 limb_color : source_color = vec4(0.5, 0.65, 0.95, 1.0); // rgb tint; a unused
 uniform float limb_intensity = 1.0; // master brightness
 uniform float limb_falloff = 3.0; // Fresnel rim exponent; higher = thinner edge
@@ -54,6 +56,13 @@ uniform float limb_day_glow = 1.0; // front-lit (low phase) limb brightness
 uniform float limb_forward_scatter = 3.0; // backlit (high phase) forward-scatter brightness
 uniform float limb_phase_exponent = 4.0; // forward-scatter sharpness (cf. rings PHASE_EXPONENT)
 uniform float limb_twilight = 0.2; // terminator softness; how far day glow wraps past the limb
+
+
+void vertex() {
+	// Farwarp remap (see _farwarp.gdshaderinc). The limb light() reads NORMAL and VIEW; both keep
+	// their true orientation under the remap (it scales along the view ray).
+	farwarp_lit_vertex(MODELVIEW_MATRIX, MODELVIEW_NORMAL_MATRIX, VERTEX, NORMAL);
+}
 
 
 void fragment() {

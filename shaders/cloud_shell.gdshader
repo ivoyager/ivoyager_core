@@ -1,4 +1,4 @@
-// cloud_detail.gdshader
+// cloud_shell.gdshader
 // This file is part of I, Voyager
 // https://ivoyager.dev
 // *****************************************************************************
@@ -18,6 +18,9 @@
 // limitations under the License.
 // *****************************************************************************
 shader_type spatial;
+// skip_vertex_transform: for the farwarp vertex remap; see _farwarp.gdshaderinc.
+// ambient_light_disabled: ambient is rebuilt as emission; see _sun_occlusion.gdshaderinc.
+render_mode skip_vertex_transform, ambient_light_disabled;
 //render_mode depth_prepass_alpha; // See note below
 
 // Lit, translucent cloud overlay for an IVSpheroidModel shell. Name it in the
@@ -41,6 +44,8 @@ shader_type spatial;
 // it's currently disabled at both ends now.
 
 #include "_detail.gdshaderinc"
+#include "_farwarp.gdshaderinc"
+#include "_sun_occlusion.gdshaderinc"
 
 uniform sampler2D albedo : source_color; // auto-bound: <prefix>.<file_tag>.albedo.*
 uniform vec3 clouds_color : source_color = vec3(1.0); // tint over the map's own rgb
@@ -58,10 +63,13 @@ const int OCTAVES = 5;
 // — the shell rotates via its _rotate process — and a sphere has no seam or pole
 // pinch here that a uv- or lat/long-based field would show.
 varying vec3 model_position;
+varying vec3 v_world_position; // true world position; VERTEX is farwarp-remapped
 
 
 void vertex() {
-	model_position = VERTEX; // unit-sphere local position
+	model_position = VERTEX; // unit-sphere local position (captured before farwarp overwrites VERTEX)
+	v_world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	farwarp_lit_vertex(MODELVIEW_MATRIX, MODELVIEW_NORMAL_MATRIX, VERTEX, NORMAL);
 }
 
 
@@ -91,4 +99,18 @@ void fragment() {
 	// ramp one (kilometers-wide) texel across, which reads as fake up close; the gamma
 	// curve bends it into a softer, more cloud-like falloff. Default 1.0 leaves it linear.
 	ALPHA = pow(coverage, clouds_edge_gamma) * clouds_opacity;
+
+	// Rebuilt ambient (engine ambient is disabled; see render_mode). Added before
+	// the shadow so occlusion removes sunlight, not starlight; see the include.
+	EMISSION += ALBEDO * ambient_light;
+
+	if (ring_texture_outer > 0.0 || occluder_count > 0) {
+		float sun_visible = sun_occlusion_visible_fraction(v_world_position);
+		if (compat_albedo_shadow) {
+			ALBEDO *= sun_visible;
+		} else {
+			AO = sun_visible;
+			AO_LIGHT_AFFECT = 1.0; // attenuates direct light, not just ambient
+		}
+	}
 }

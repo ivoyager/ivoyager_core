@@ -204,6 +204,10 @@ const MIN_INCLINATION := -0.001
 ## Inclination too near π/2 is bumped a titch to prevent math singularity.
 const INCLINATION_RIGHT_ANGLE_BUMP := 0.001
 
+## Dedupe threshold (radians of eccentric anomaly) when merging the two state-path knot families;
+## also floors the Hermite interval away from zero. See [method refresh_state_path].
+const STATE_PATH_MIN_KNOT_SEPARATION := 1e-4
+
 const PERSIST_MODE := IVGlobal.PERSIST_PROCEDURAL
 const PERSIST_PROPERTIES: Array[StringName] = [
 	&"parent_name",
@@ -214,8 +218,8 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"_semi_parameter",
 	&"_eccentricity",
 	&"_inclination",
-	&"_longitude_ascending_node",
-	&"_argument_periapsis",
+	&"_signaled_longitude_ascending_node",
+	&"_signaled_argument_periapsis",
 	&"_time_periapsis",
 	&"_gravitational_parameter",
 	&"_semi_major_axis",
@@ -228,6 +232,7 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"_argument_periapsis_rate",
 	&"_mean_anomaly",
 	&"_true_anomaly",
+	&"_update_time",
 ]
 
 ## Set this script to generate a subclass in place of IVOrbit in create methods.
@@ -336,8 +341,8 @@ var _reference_basis := PackedFloat64Array([1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0
 var _semi_parameter: float
 var _eccentricity: float
 var _inclination: float
-var _longitude_ascending_node: float
-var _argument_periapsis: float
+var _signaled_longitude_ascending_node: float # last-signaled Ω; hysteresis detector for changed (see update()), NOT current Ω
+var _signaled_argument_periapsis: float # last-signaled ω; hysteresis detector for changed (see update()), NOT current ω
 var _time_periapsis: float
 var _gravitational_parameter: float
 
@@ -356,12 +361,20 @@ var _argument_periapsis_rate: float
 # state params from update()
 var _mean_anomaly := 0.0
 var _true_anomaly := 0.0
+var _update_time := 0.0 # 'time' of the last update(); reference time for no-arg getters: get_element() == get_element_at_time(_update_time)
 
 # Reusable main-thread return buffers for get_translation() / get_state(); see class doc
 # thread-safety. Main-thread-exclusive (worker calls allocate fresh), so never shared across threads.
 var _translation_buffer := PackedFloat64Array([0.0, 0.0, 0.0])
 var _state_buffer := PackedFloat64Array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
+## Flat orbit-precision stride-7 knots [x, y, z, vx, vy, vz, t] for orbit-line display ([IVPathVisual]),
+## parallel to [member IVTrajectory.path]. One current period sampled at fixed curvature-aware density, in
+## the ecliptic basis relative to the parent. Anchored on the current time (NOT the J2000 epoch), so an
+## evolving orbit's line stays on its body. Non-persisted; (re)built by [method refresh_state_path],
+## invalidated on [signal changed].
+var path := PackedFloat64Array()
+var _path_dirty := true # rebuild the state path on next refresh_state_path()
 
 
 # *****************************************************************************
@@ -426,9 +439,9 @@ static func create_from_elements(
 	orbit._time_periapsis = time_periapsis
 	orbit._gravitational_parameter = gravitational_parameter
 	
-	# set evolving parameters to epoch
-	orbit._longitude_ascending_node = longitude_ascending_node
-	orbit._argument_periapsis = argument_periapsis
+	# seed the changed-signal hysteresis detectors at epoch
+	orbit._signaled_longitude_ascending_node = longitude_ascending_node
+	orbit._signaled_argument_periapsis = argument_periapsis
 	
 	# derived
 	if eccentricity != 1.0:
@@ -763,7 +776,6 @@ static func get_position_from_elements_at_true_anomaly(semi_parameter: float, ec
 
 ## Static method returns position and velocity for specified orbit elements at
 ## [param true_anomaly]. Reference basis is intrinsic.
-## @experimental: Velocity result has not been tested.
 @warning_ignore("shadowed_variable")
 static func get_state_vectors_from_elements_at_true_anomaly(semi_parameter: float,
 		eccentricity: float, inclination: float, longitude_ascending_node: float,
@@ -787,7 +799,7 @@ static func get_state_vectors_from_elements_at_true_anomaly(semi_parameter: floa
 	var angular_v := specific_angular_momentum / r
 	var vx := c * x - angular_v * (cos_lan * sin_ap_nu + sin_lan * cos_ap_nu * cos_i)
 	var vy := c * y - angular_v * (sin_lan * sin_ap_nu - cos_lan * cos_ap_nu * cos_i)
-	var vz := c * z - angular_v * (cos_ap_nu * sin_i)
+	var vz := c * z + angular_v * (cos_ap_nu * sin_i)
 	
 	return [Vector3(x, y, z), Vector3(vx, vy, vz)]
 
@@ -926,6 +938,10 @@ static func _lambert_dt_y(psi: float, sum_radii: float, a_geom: float,
 	return out
 
 
+func _init() -> void:
+	changed.connect(_mark_path_dirty)
+
+
 # *****************************************************************************
 # update and get state (position, velocity) methods
 
@@ -939,16 +955,18 @@ static func _lambert_dt_y(psi: float, sum_radii: float, a_geom: float,
 func update(time: float, rotate_to_ecliptic := true) -> Vector3:
 	const CHANGED_ANGLE_THRESHOLD := CHANGED_THRESHOLD / TAU
 	const REFERENCE_PLANE_ECLIPTIC := ReferencePlane.REFERENCE_PLANE_ECLIPTIC
-	
+
+	_update_time = time
+
 	# evolve orbit
 	var lan := fposmod(_longitude_ascending_node_at_epoch + _longitude_ascending_node_rate * time, TAU)
 	var ap := fposmod(_argument_periapsis_at_epoch + _argument_periapsis_rate * time, TAU)
-	
-	# update & signal if accumulated change is significant
-	if (absf(lan - _longitude_ascending_node) > CHANGED_ANGLE_THRESHOLD
-			or absf(ap - _argument_periapsis) > CHANGED_ANGLE_THRESHOLD):
-		_longitude_ascending_node = lan
-		_argument_periapsis = ap
+
+	# signal if accumulated precession since the last emit crosses the threshold
+	if (absf(lan - _signaled_longitude_ascending_node) > CHANGED_ANGLE_THRESHOLD
+			or absf(ap - _signaled_argument_periapsis) > CHANGED_ANGLE_THRESHOLD):
+		_signaled_longitude_ascending_node = lan
+		_signaled_argument_periapsis = ap
 		changed.emit(true, true)
 	
 	# some inline static methods below...
@@ -1004,7 +1022,6 @@ func get_translation(time: float, rotate_to_ecliptic := true) -> PackedFloat64Ar
 ## (64-bit) [PackedFloat64Array]. Return can be in the ecliptic basis or the orbit
 ## [member reference_basis] (the former by default). State is relative to the parent body
 ## regardless of basis conversion. Threadsafe (see class doc).
-## @experimental: The velocity component has not been tested yet!
 func get_state(time: float, rotate_to_ecliptic := true) -> PackedFloat64Array:
 	if Thread.is_main_thread():
 		_write_state(time, rotate_to_ecliptic, _state_buffer, 0)
@@ -1020,7 +1037,6 @@ func get_state(time: float, rotate_to_ecliptic := true) -> PackedFloat64Array:
 ## [method get_state] for orbit precision). Return can be in the ecliptic basis or the
 ## orbit [member reference_basis] (the former by default). Relative to the parent body
 ## regardless of basis conversion.
-## @experimental: The velocity component has not been tested yet!
 func get_state_vectors(time: float, rotate_to_ecliptic := true) -> PackedVector3Array:
 	var lan := fposmod(_longitude_ascending_node_at_epoch + _longitude_ascending_node_rate * time, TAU)
 	var ap := fposmod(_argument_periapsis_at_epoch + _argument_periapsis_rate * time, TAU)
@@ -1031,65 +1047,6 @@ func get_state_vectors(time: float, rotate_to_ecliptic := true) -> PackedVector3
 		var basis := IVMath64.to_basis(_reference_basis)
 		return PackedVector3Array([basis * vectors[0], basis * vectors[1]])
 	return PackedVector3Array(vectors)
-
-
-# Writes ecliptic (or reference-basis) translation [x, y, z] into [param out] at [param offset]
-# (out must be pre-sized). 64-bit core shared by get_translation() and sample_arc().
-func _write_translation(time: float, rotate_to_ecliptic: bool, out: PackedFloat64Array,
-		offset: int) -> void:
-	var lan := fposmod(_longitude_ascending_node_at_epoch + _longitude_ascending_node_rate * time, TAU)
-	var ap := fposmod(_argument_periapsis_at_epoch + _argument_periapsis_rate * time, TAU)
-	var nu := get_true_anomaly(time)
-	var r := _semi_parameter / (1.0 + _eccentricity * cos(nu))
-	var sin_i := sin(_inclination)
-	var cos_i := cos(_inclination)
-	var sin_lan := sin(lan)
-	var cos_lan := cos(lan)
-	var sin_ap_nu := sin(ap + nu)
-	var cos_ap_nu := cos(ap + nu)
-	var x := r * (cos_lan * cos_ap_nu - sin_lan * sin_ap_nu * cos_i)
-	var y := r * (sin_lan * cos_ap_nu + cos_lan * sin_ap_nu * cos_i)
-	var z := r * (sin_ap_nu * sin_i)
-	if rotate_to_ecliptic and _reference_plane_type != ReferencePlane.REFERENCE_PLANE_ECLIPTIC:
-		IVMath64.rotate_into(_reference_basis, x, y, z, out, offset)
-	else:
-		out[offset] = x
-		out[offset + 1] = y
-		out[offset + 2] = z
-
-
-# Writes ecliptic (or reference-basis) state [x, y, z, vx, vy, vz] into [param out] at
-# [param offset] (out must be pre-sized). 64-bit core for get_state().
-func _write_state(time: float, rotate_to_ecliptic: bool, out: PackedFloat64Array,
-		offset: int) -> void:
-	var lan := fposmod(_longitude_ascending_node_at_epoch + _longitude_ascending_node_rate * time, TAU)
-	var ap := fposmod(_argument_periapsis_at_epoch + _argument_periapsis_rate * time, TAU)
-	var nu := get_true_anomaly(time)
-	var r := _semi_parameter / (1.0 + _eccentricity * cos(nu))
-	var sin_i := sin(_inclination)
-	var cos_i := cos(_inclination)
-	var sin_lan := sin(lan)
-	var cos_lan := cos(lan)
-	var sin_ap_nu := sin(ap + nu)
-	var cos_ap_nu := cos(ap + nu)
-	var x := r * (cos_lan * cos_ap_nu - sin_lan * sin_ap_nu * cos_i)
-	var y := r * (sin_lan * cos_ap_nu + cos_lan * sin_ap_nu * cos_i)
-	var z := r * (sin_ap_nu * sin_i)
-	var c := _specific_angular_momentum * _eccentricity * sin(nu) / (r * _semi_parameter)
-	var angular_v := _specific_angular_momentum / r
-	var vx := c * x - angular_v * (cos_lan * sin_ap_nu + sin_lan * cos_ap_nu * cos_i)
-	var vy := c * y - angular_v * (sin_lan * sin_ap_nu - cos_lan * cos_ap_nu * cos_i)
-	var vz := c * z - angular_v * (cos_ap_nu * sin_i)
-	if rotate_to_ecliptic and _reference_plane_type != ReferencePlane.REFERENCE_PLANE_ECLIPTIC:
-		IVMath64.rotate_into(_reference_basis, x, y, z, out, offset)
-		IVMath64.rotate_into(_reference_basis, vx, vy, vz, out, offset + 3)
-	else:
-		out[offset] = x
-		out[offset + 1] = y
-		out[offset + 2] = z
-		out[offset + 3] = vx
-		out[offset + 4] = vy
-		out[offset + 5] = vz
 
 
 ## Returns a curvature-weighted polyline sampling of this orbit between
@@ -1162,6 +1119,24 @@ func sample_arc(begin_time: float, end_time: float, n_vertices: int, max_radius:
 	return [positions, times]
 
 
+## (Re)builds [member path] if dirty — flat stride-7 knots [x, y, z, vx, vy, vz, t]: one period
+## (closed orbit, knotted by the union of uniform eccentric anomaly and uniform tangent-turn —
+## [param base_vertices] each, so up to ~2x total at high eccentricity and exactly [param base_vertices]
+## when circular) or an open arc out to [member IVCoreSettings.open_conic_max_radius] (uniform anomaly),
+## anchored on [param time] (current sim time) so the line brackets the body's present position, not the
+## J2000 epoch. Parallel to how [IVTrajectory] builds its path; consumed and smoothed by [IVPathVisual].
+## Main-thread only (mutates members).
+func refresh_state_path(time: float, base_vertices: int) -> void:
+	assert(base_vertices >= 2)
+	if not _path_dirty and not path.is_empty():
+		return
+	if _eccentricity < 1.0:
+		_build_elliptic_state_path(time, base_vertices)
+	else:
+		_build_open_state_path(base_vertices)
+	_path_dirty = false
+
+
 ## Returns mean anomaly (M) at [param time]. -π ≤ M < π. Valid for any orbit.
 ## (For parabolic orbit, this is a "by convention" M that relates to time of
 ## perihelion passage in Barker's equation.)
@@ -1197,7 +1172,7 @@ func get_mean_longitude(time: float) -> float:
 ## L = M + Ω + ω, where M is mean anomaly, Ω is longitude of the ascending node,
 ## and ω is argument of periapsis.
 func get_mean_longitude_at_update() -> float:
-	return fposmod(_mean_anomaly + _longitude_ascending_node + _argument_periapsis, TAU)
+	return fposmod(_mean_anomaly + get_longitude_ascending_node() + get_argument_periapsis(), TAU)
 
 
 ## Returns true anomaly (θ) at [param time]. -π ≤ θ < π.
@@ -1236,7 +1211,7 @@ func get_true_longitude(time: float) -> float:
 ## l = θ + Ω + ω, where θ is true anomaly, Ω is longitude of the ascending node,
 ## and ω is argument of periapsis.
 func get_true_longitude_at_update() -> float:
-	return fposmod(_true_anomaly + _longitude_ascending_node + _argument_periapsis, TAU)
+	return fposmod(_true_anomaly + get_longitude_ascending_node() + get_argument_periapsis(), TAU)
 
 
 ## Returns radius (r) at [param time].
@@ -1247,7 +1222,7 @@ func get_radius(time: float) -> float:
 
 ## Returns radius (r) after the last [method update] call.
 func get_radius_at_update() -> float:
-	return _semi_parameter / (1.0 + _eccentricity * cos(_true_anomaly))
+	return get_semi_parameter() / (1.0 + get_eccentricity() * cos(_true_anomaly))
 
 
 # *****************************************************************************
@@ -1273,7 +1248,7 @@ func set_reference_plane_and_basis(plane_type: ReferencePlane, basis: Basis) -> 
 
 
 func get_semi_parameter() -> float:
-	return _semi_parameter
+	return get_semi_parameter_at_time(_update_time)
 
 
 ## Note: semi-parameter (p) does not evolve in the base IVOrbit class, but it may in a subclass.
@@ -1309,7 +1284,7 @@ func set_semi_parameter(value: float) -> void:
 
 
 func get_eccentricity() -> float:
-	return _eccentricity
+	return get_eccentricity_at_time(_update_time)
 
 
 ## Note: eccentricity (e) does not evolve in the base IVOrbit class, but it may in a subclass.
@@ -1343,7 +1318,7 @@ func set_eccentricity(value: float) -> void:
 
 
 func get_inclination() -> float:
-	return _inclination
+	return get_inclination_at_time(_update_time)
 
 
 ## Note: inclination (i) does not evolve in the base IVOrbit class, but it may in a subclass.
@@ -1375,7 +1350,7 @@ func set_inclination(value: float) -> void:
 # Follow Ω pattern below for evolving elements with _at_epoch & _rate.
 
 func get_longitude_ascending_node() -> float:
-	return _longitude_ascending_node
+	return get_longitude_ascending_node_at_time(_update_time)
 
 
 func get_longitude_ascending_node_at_time(time: float) -> float:
@@ -1391,7 +1366,8 @@ func get_longitude_ascending_node_rate() -> float:
 
 
 func set_longitude_ascending_node(value: float) -> void:
-	set_longitude_ascending_node_at_epoch(value - _longitude_ascending_node)
+	# Reset Ω₀ so Ω at the last update() equals value (independent of the signaled detector).
+	set_longitude_ascending_node_at_epoch(value - _longitude_ascending_node_rate * _update_time)
 
 
 func set_longitude_ascending_node_at_epoch(value: float) -> void:
@@ -1406,15 +1382,16 @@ func set_longitude_ascending_node_rate(value: float) -> void:
 
 ## Sets Ωr and resets Ω₀ such that there is no instantaneous change in Ω at [param time].
 func set_longitude_ascending_node_rate_at_time(value: float, time: float) -> void:
+	var current_lan := get_longitude_ascending_node_at_time(time) # capture Ω(time) with the old rate
 	_longitude_ascending_node_rate = value
 	if !time:
 		changed.emit(false, false)
 		return
-	set_longitude_ascending_node_at_epoch(_longitude_ascending_node - value * time)
+	set_longitude_ascending_node_at_epoch(current_lan - value * time)
 
 
 func get_argument_periapsis() -> float:
-	return _argument_periapsis
+	return get_argument_periapsis_at_time(_update_time)
 
 
 func get_argument_periapsis_at_time(time: float) -> float:
@@ -1430,7 +1407,8 @@ func get_argument_periapsis_rate() -> float:
 
 
 func set_argument_periapsis(value: float) -> void:
-	set_argument_periapsis_at_epoch(value - _argument_periapsis)
+	# Reset ω₀ so ω at the last update() equals value (independent of the signaled detector).
+	set_argument_periapsis_at_epoch(value - _argument_periapsis_rate * _update_time)
 
 
 func set_argument_periapsis_at_epoch(value: float) -> void:
@@ -1445,16 +1423,17 @@ func set_argument_periapsis_rate(value: float) -> void:
 
 ## Sets ωr and resets ω₀ such that there is no instantaneous change in ω at [param time].
 func set_argument_periapsis_rate_at_time(value: float, time: float) -> void:
+	var current_ap := get_argument_periapsis_at_time(time) # capture ω(time) with the old rate
 	_argument_periapsis_rate = value
 	if !time:
 		changed.emit(false, false)
 		return
-	set_argument_periapsis_at_epoch(_argument_periapsis - value * time)
+	set_argument_periapsis_at_epoch(current_ap - value * time)
 
 
 
 func get_time_periapsis() -> float:
-	return _time_periapsis
+	return get_time_periapsis_at_time(_update_time)
 
 
 ## Note: time periapsis (t₀) does not evolve in the base IVOrbit class, but it may in a subclass.
@@ -1516,7 +1495,7 @@ func set_gravitational_parameter(value: float) -> void:
 
 
 func get_semi_major_axis() -> float:
-	return _semi_major_axis
+	return get_semi_major_axis_at_time(_update_time)
 
 
 ## Note: semi-major axis (a) does not evolve in the base IVOrbit class, but it may in a subclass.
@@ -1655,7 +1634,7 @@ func set_specific_angular_momentum(value: float) -> void:
 ## Returns logitude of periapsis (ϖ). 0 ≤ ϖ < 2π. Requires preceding [method update]
 ## call to be current if orbit has precessions.
 func get_longitude_periapsis() -> float:
-	return fposmod(_longitude_ascending_node + _argument_periapsis, TAU)
+	return get_longitude_periapsis_at_time(_update_time)
 
 
 ## Returns logitude of periapsis (ϖ). 0 ≤ ϖ < 2π. 
@@ -1719,7 +1698,7 @@ func is_retrograde_at_time(_time: float) -> bool:
 
 
 func get_periapsis() -> float:
-	return _semi_parameter / (1.0 + _eccentricity)
+	return get_periapsis_at_time(_update_time)
 
 
 ## Note: periapsis does not evolve in the base IVOrbit class, but it may in a subclass.
@@ -1728,9 +1707,7 @@ func get_periapsis_at_time(_time: float) -> float:
 
 
 func get_apoapsis() -> float:
-	if _eccentricity < 1.0:
-		return _semi_parameter / (1.0 - _eccentricity)
-	return INF
+	return get_apoapsis_at_time(_update_time)
 
 
 ## Note: periapsis does not evolve in the base IVOrbit class, but it may in a subclass.
@@ -1757,11 +1734,7 @@ func get_period_at_time(_time: float) -> float:
 ## [member reference_basis] (the former by default).
 ## Requires preceding [method update] call to be current if orbit is evolving.
 func get_normal(rotate_to_ecliptic := true, flip_retrograde := false) -> Vector3:
-	const REFERENCE_PLANE_ECLIPTIC := ReferencePlane.REFERENCE_PLANE_ECLIPTIC
-	var normal := get_normal_from_elements(_inclination, _longitude_ascending_node, flip_retrograde)
-	if rotate_to_ecliptic and _reference_plane_type != REFERENCE_PLANE_ECLIPTIC:
-		return IVMath64.to_basis(_reference_basis) * normal
-	return normal
+	return get_normal_at_time(_update_time, rotate_to_ecliptic, flip_retrograde)
 
 
 ## Returns the instantaneous orbit normal. Return can be in the ecliptic basis
@@ -1783,11 +1756,7 @@ func get_normal_at_time(time: float, rotate_to_ecliptic := true, flip_retrograde
 ## basis or the orbit [member reference_basis] (the former by default).
 ## Requires preceding [method update] call to be current if orbit is evolving.
 func get_basis(rotate_to_ecliptic := true) -> Basis:
-	const REFERENCE_PLANE_ECLIPTIC := ReferencePlane.REFERENCE_PLANE_ECLIPTIC
-	var basis := get_basis_from_elements(_inclination, _longitude_ascending_node, _argument_periapsis)
-	if rotate_to_ecliptic and _reference_plane_type != REFERENCE_PLANE_ECLIPTIC:
-		return IVMath64.to_basis(_reference_basis) * basis
-	return basis
+	return get_basis_at_time(_update_time, rotate_to_ecliptic)
 
 
 ## Returns the instantaneous orbit basis, where z-axis is normal to the orbit
@@ -1809,12 +1778,7 @@ func get_basis_at_time(time: float, rotate_to_ecliptic := true) -> Basis:
 ## Returned Transform3D can convert a unit circle into this orbit's path, if
 ## this orbit is closed (e < 1).
 func get_unit_circle_transform(rotate_to_ecliptic := true) -> Transform3D:
-	if _eccentricity >= 1.0:
-		return Transform3D()
-	var b := sqrt(_semi_major_axis * _semi_major_axis * (1.0 - _eccentricity * _eccentricity))
-	var orbit_basis := get_basis(rotate_to_ecliptic)
-	var basis := orbit_basis * Basis().scaled(Vector3(_semi_major_axis, b, 1.0))
-	return Transform3D(basis, -_eccentricity * basis.x)
+	return get_unit_circle_transform_at_time(_update_time, rotate_to_ecliptic)
 
 
 ## Returned Transform3D can convert a unit circle into this orbit's path, if
@@ -1831,13 +1795,7 @@ func get_unit_circle_transform_at_time(time: float, rotate_to_ecliptic := true) 
 ## Returned Transform3D can convert a unit rectangular hyperbola into this
 ## orbit's path, if this orbit is hyperbolic (e > 1).
 func get_unit_rectangular_hyperbola_transform(rotate_to_ecliptic := true) -> Transform3D:
-	const SQRT2 := sqrt(2.0) # rectangular hyperbola has e = sqrt(2)
-	if _eccentricity <= 1.0:
-		return Transform3D()
-	var b := sqrt(_semi_major_axis * _semi_major_axis * (_eccentricity * _eccentricity - 1.0))
-	var orbit_basis := get_basis(rotate_to_ecliptic)
-	var basis := orbit_basis * Basis().scaled(Vector3(-_semi_major_axis, b, 1.0))
-	return Transform3D(basis, (_eccentricity - SQRT2) * basis.x)
+	return get_unit_rectangular_hyperbola_transform_at_time(_update_time, rotate_to_ecliptic)
 
 
 ## Returned Transform3D can convert a unit rectangular hyperbola into this
@@ -1856,9 +1814,7 @@ func get_unit_rectangular_hyperbola_transform_at_time(time: float, rotate_to_ecl
 ## Returned Transform3D can convert a unit parabola into this orbit's path, if
 ## this orbit is parabolic (e = 1).
 func get_unit_parabola_transform(rotate_to_ecliptic := true) -> Transform3D:
-	var orbit_basis := get_basis(rotate_to_ecliptic)
-	var basis := orbit_basis * Basis().scaled(Vector3(_semi_parameter, _semi_parameter, 1.0))
-	return Transform3D(basis, Vector3.ZERO)
+	return get_unit_parabola_transform_at_time(_update_time, rotate_to_ecliptic)
 
 
 ## Returned Transform3D can convert a unit parabola into this orbit's path, if
@@ -1879,7 +1835,7 @@ func get_unit_parabola_transform_at_time(time: float, rotate_to_ecliptic := true
 
 func serialize() -> PackedFloat64Array:
 	var data := PackedFloat64Array()
-	data.resize(29)
+	data.resize(30)
 	data[0] = float(_reference_plane_type)
 	data[1] = _reference_basis[0]
 	data[2] = _reference_basis[1]
@@ -1893,8 +1849,8 @@ func serialize() -> PackedFloat64Array:
 	data[10] = _semi_parameter
 	data[11] = _eccentricity
 	data[12] = _inclination
-	data[13] = _longitude_ascending_node
-	data[14] = _argument_periapsis
+	data[13] = _signaled_longitude_ascending_node
+	data[14] = _signaled_argument_periapsis
 	data[15] = _time_periapsis
 	data[16] = _gravitational_parameter
 	data[17] = _semi_major_axis
@@ -1909,6 +1865,7 @@ func serialize() -> PackedFloat64Array:
 	data[26] = _true_anomaly
 	data[27] = segment_begin
 	data[28] = segment_end
+	data[29] = _update_time
 	return data
 
 
@@ -1926,8 +1883,8 @@ func deserialize(data: PackedFloat64Array) -> void:
 	_semi_parameter = data[10]
 	_eccentricity = data[11]
 	_inclination = data[12]
-	_longitude_ascending_node = data[13]
-	_argument_periapsis = data[14]
+	_signaled_longitude_ascending_node = data[13]
+	_signaled_argument_periapsis = data[14]
 	_time_periapsis = data[15]
 	_gravitational_parameter = data[16]
 	_semi_major_axis = data[17]
@@ -1942,3 +1899,184 @@ func deserialize(data: PackedFloat64Array) -> void:
 	_true_anomaly = data[26]
 	segment_begin = data[27]
 	segment_end = data[28]
+	_update_time = data[29]
+
+
+# ********************************** private **********************************
+
+
+# Writes ecliptic (or reference-basis) translation [x, y, z] into [param out] at [param offset]
+# (out must be pre-sized). 64-bit core shared by get_translation() and sample_arc().
+func _write_translation(time: float, rotate_to_ecliptic: bool, out: PackedFloat64Array,
+		offset: int) -> void:
+	var lan := fposmod(_longitude_ascending_node_at_epoch + _longitude_ascending_node_rate * time, TAU)
+	var ap := fposmod(_argument_periapsis_at_epoch + _argument_periapsis_rate * time, TAU)
+	var nu := get_true_anomaly(time)
+	var r := _semi_parameter / (1.0 + _eccentricity * cos(nu))
+	var sin_i := sin(_inclination)
+	var cos_i := cos(_inclination)
+	var sin_lan := sin(lan)
+	var cos_lan := cos(lan)
+	var sin_ap_nu := sin(ap + nu)
+	var cos_ap_nu := cos(ap + nu)
+	var x := r * (cos_lan * cos_ap_nu - sin_lan * sin_ap_nu * cos_i)
+	var y := r * (sin_lan * cos_ap_nu + cos_lan * sin_ap_nu * cos_i)
+	var z := r * (sin_ap_nu * sin_i)
+	if rotate_to_ecliptic and _reference_plane_type != ReferencePlane.REFERENCE_PLANE_ECLIPTIC:
+		IVMath64.rotate_into(_reference_basis, x, y, z, out, offset)
+	else:
+		out[offset] = x
+		out[offset + 1] = y
+		out[offset + 2] = z
+
+
+# Writes ecliptic (or reference-basis) state [x, y, z, vx, vy, vz] into [param out] at
+# [param offset] (out must be pre-sized). 64-bit core for get_state().
+func _write_state(time: float, rotate_to_ecliptic: bool, out: PackedFloat64Array,
+		offset: int) -> void:
+	var lan := fposmod(_longitude_ascending_node_at_epoch + _longitude_ascending_node_rate * time, TAU)
+	var ap := fposmod(_argument_periapsis_at_epoch + _argument_periapsis_rate * time, TAU)
+	var nu := get_true_anomaly(time)
+	var r := _semi_parameter / (1.0 + _eccentricity * cos(nu))
+	var sin_i := sin(_inclination)
+	var cos_i := cos(_inclination)
+	var sin_lan := sin(lan)
+	var cos_lan := cos(lan)
+	var sin_ap_nu := sin(ap + nu)
+	var cos_ap_nu := cos(ap + nu)
+	var x := r * (cos_lan * cos_ap_nu - sin_lan * sin_ap_nu * cos_i)
+	var y := r * (sin_lan * cos_ap_nu + cos_lan * sin_ap_nu * cos_i)
+	var z := r * (sin_ap_nu * sin_i)
+	var c := _specific_angular_momentum * _eccentricity * sin(nu) / (r * _semi_parameter)
+	var angular_v := _specific_angular_momentum / r
+	var vx := c * x - angular_v * (cos_lan * sin_ap_nu + sin_lan * cos_ap_nu * cos_i)
+	var vy := c * y - angular_v * (sin_lan * sin_ap_nu - cos_lan * cos_ap_nu * cos_i)
+	var vz := c * z + angular_v * (cos_ap_nu * sin_i)
+	if rotate_to_ecliptic and _reference_plane_type != ReferencePlane.REFERENCE_PLANE_ECLIPTIC:
+		IVMath64.rotate_into(_reference_basis, x, y, z, out, offset)
+		IVMath64.rotate_into(_reference_basis, vx, vy, vz, out, offset + 3)
+	else:
+		out[offset] = x
+		out[offset + 1] = y
+		out[offset + 2] = z
+		out[offset + 3] = vx
+		out[offset + 4] = vy
+		out[offset + 5] = vz
+
+
+# Marks the cached state path (see [method refresh_state_path]) for rebuild. Connected to [signal changed]
+# so any element evolution or set invalidates the line; a fixed (non-evolving) orbit builds once.
+func _mark_path_dirty(_is_intrinsic: bool, _precession_only: bool) -> void:
+	_path_dirty = true
+
+
+# Closed-orbit state path: sweeps the CURRENT osculating ellipse (fixed elements from the last update, the
+# same ellipse the coarse unit mesh draws) over the merged knot families of [method _merge_elliptic_knots].
+# The body sits exactly on this ellipse and the osculating velocity is its exact tangent, so the Hermite
+# line has no precession/evolution residual (unlike sampling each vertex at its own evolving time).
+# Per-vertex time is the passage time on this fixed ellipse (for Hermite parameterization), anchored on
+# the periapsis nearest [param time].
+func _build_elliptic_state_path(time: float, base_vertices: int) -> void:
+	# Fresh (time-evaluated) osculating elements, NOT the cached members: those lag by up to the changed
+	# threshold, and scaled by an outer planet's orbit radius that lag reads as the body sitting a few radii
+	# off its own line. The body's position (get_translation) likewise evaluates its elements fresh at [time].
+	var p := get_semi_parameter_at_time(time)
+	var e := get_eccentricity_at_time(time)
+	var incl := get_inclination_at_time(time)
+	var lan := get_longitude_ascending_node_at_time(time)
+	var ap := get_argument_periapsis_at_time(time)
+	var n := _mean_motion
+	var h := sqrt(_gravitational_parameter * p)
+	var sin_i := sin(incl)
+	var cos_i := cos(incl)
+	var sin_lan := sin(lan)
+	var cos_lan := cos(lan)
+	var rotate := _reference_plane_type != ReferencePlane.REFERENCE_PLANE_ECLIPTIC
+	var period := TAU / n
+	var t_p_near := _time_periapsis + roundf((time - _time_periapsis) / period) * period
+	var sqrt_1_plus_e := sqrt(1.0 + e)
+	var sqrt_1_minus_e := sqrt(1.0 - e)
+	var axis_ratio := sqrt_1_minus_e * sqrt_1_plus_e # b/a
+	var knots := _merge_elliptic_knots(base_vertices, axis_ratio)
+	var n_knots := knots.size()
+	path.resize(7 * n_knots)
+	for k in n_knots:
+		var ea := knots[k]
+		var nu := 2.0 * atan2(sqrt_1_plus_e * sin(0.5 * ea), sqrt_1_minus_e * cos(0.5 * ea))
+		var r := p / (1.0 + e * cos(nu))
+		var sin_ap_nu := sin(ap + nu)
+		var cos_ap_nu := cos(ap + nu)
+		var x := r * (cos_lan * cos_ap_nu - sin_lan * sin_ap_nu * cos_i)
+		var y := r * (sin_lan * cos_ap_nu + cos_lan * sin_ap_nu * cos_i)
+		var z := r * (sin_ap_nu * sin_i)
+		var c := h * e * sin(nu) / (r * p)
+		var angular_v := h / r
+		var vx := c * x - angular_v * (cos_lan * sin_ap_nu + sin_lan * cos_ap_nu * cos_i)
+		var vy := c * y - angular_v * (sin_lan * sin_ap_nu - cos_lan * cos_ap_nu * cos_i)
+		var vz := c * z + angular_v * (cos_ap_nu * sin_i)
+		var base := 7 * k
+		if rotate:
+			IVMath64.rotate_into(_reference_basis, x, y, z, path, base)
+			IVMath64.rotate_into(_reference_basis, vx, vy, vz, path, base + 3)
+		else:
+			path[base] = x
+			path[base + 1] = y
+			path[base + 2] = z
+			path[base + 3] = vx
+			path[base + 4] = vy
+			path[base + 5] = vz
+		path[base + 6] = t_p_near + (ea - e * sin(ea)) / n
+
+
+# Knot eccentric anomalies for [method _build_elliptic_state_path]: the sorted, deduplicated union of
+# uniform eccentric anomaly and uniform tangent-turn (turn from periapsis = atan2(a sin E, b cos E),
+# inverted per knot), [param base_vertices] of each, with exact endpoints at ±PI. Two families because the
+# time-parameterized cubic Hermite has two error terms: uniform anomaly bounds the time/speed-chirp error,
+# which peaks BETWEEN the apsides where speed changes fastest across a knot interval; uniform turn bounds
+# the geometric bend (and the apsidal time step), which peaks AT the apsides by a/b. Either family alone
+# fails the other's region at high eccentricity — meters to kilometers for e ~ 0.98. Fully deduplicated
+# (identical sets) when e = 0.
+func _merge_elliptic_knots(base_vertices: int, axis_ratio: float) -> PackedFloat64Array:
+	var knots := PackedFloat64Array()
+	var anomaly_index := 0
+	var turn_index := 0
+	while anomaly_index < base_vertices or turn_index < base_vertices:
+		var anomaly_next := INF
+		if anomaly_index < base_vertices:
+			anomaly_next = -PI + TAU * float(anomaly_index) / (base_vertices - 1)
+		var turn_next := INF
+		if turn_index < base_vertices:
+			var turn := -PI + TAU * float(turn_index) / (base_vertices - 1)
+			turn_next = atan2(axis_ratio * sin(turn), cos(turn))
+		var ea: float
+		if anomaly_next <= turn_next:
+			ea = anomaly_next
+			anomaly_index += 1
+		else:
+			ea = turn_next
+			turn_index += 1
+		if knots.is_empty() or ea - knots[knots.size() - 1] >= STATE_PATH_MIN_KNOT_SEPARATION:
+			knots.append(ea)
+	knots[knots.size() - 1] = PI # exact closure (the last accepted knot is within a step of PI)
+	return knots
+
+
+# Open-orbit (hyperbolic/parabolic) state path: reuses [method sample_arc]'s max-radius clamping for
+# positions and times (anchored on periapsis; an open orbit has a single passage), then fills velocities.
+func _build_open_state_path(base_vertices: int) -> void:
+	var arc := sample_arc(-INF, INF, base_vertices, IVCoreSettings.open_conic_max_radius)
+	var positions: PackedFloat64Array = arc[0]
+	var times: PackedFloat64Array = arc[1]
+	var n_knots := times.size()
+	path.resize(7 * n_knots)
+	var state := PackedFloat64Array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+	for k in n_knots:
+		_write_state(times[k], true, state, 0)
+		var base := 7 * k
+		path[base] = positions[3 * k]
+		path[base + 1] = positions[3 * k + 1]
+		path[base + 2] = positions[3 * k + 2]
+		path[base + 3] = state[3]
+		path[base + 4] = state[4]
+		path[base + 5] = state[5]
+		path[base + 6] = times[k]
