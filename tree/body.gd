@@ -285,9 +285,9 @@ var begin := NAN
 var end := NAN
 ## Persisted dictionary of non-object characteristics (mass, surface gravity,
 ## albedo, atmosphere data, etc.) loaded from data tables.
-var characteristics: Dictionary[StringName, Variant] = {} # non-object values
+var characteristics: Dictionary[StringName, Variant] = {}
 ## Persisted dictionary of object-valued components (e.g. an [IVComposition]).
-var components: Dictionary[StringName, RefCounted] = {} # objects (persisted only)
+var components: Dictionary[StringName, RefCounted] = {}
 
 # redirect (authoritative value in private variable)
 ## This body's [IVOrbit]; null if "top" body.
@@ -351,6 +351,12 @@ var _stroboscope_rotation := 0.0
 
 @onready var _tree := get_tree()
 
+
+static func _static_init() -> void:
+	process_methods[&"_earth_pointing"] = _earth_pointing
+	process_methods[&"_sun_pointing"] = _sun_pointing
+	process_methods[&"_process_iss"] = _process_iss
+	process_methods[&"_process_hubble"] = _process_hubble
 
 
 # *****************************************************************************
@@ -521,13 +527,6 @@ static func _add_selection_recursive(body: IVBody) -> void:
 # bodies by name (&"PLANET_EARTH", &"STAR_SUN") and must convert any unit-tagged argument
 # in-method, since the table cannot specify a unit for a VARIANT. All operate on body_visual.basis,
 # a world-oriented frame because IVBody nodes are never rotated; model-frame axis args are tunable.
-
-static func _static_init() -> void:
-	process_methods[&"_earth_pointing"] = _earth_pointing
-	process_methods[&"_sun_pointing"] = _sun_pointing
-	process_methods[&"_process_iss"] = _process_iss
-	process_methods[&"_process_hubble"] = _process_hubble
-
 
 ## Named by a 'process' field (spacecrafts.tsv). Aims [param body]'s model [param boresight_axis]
 ## (model frame) at Earth, rolling so [param up_axis] (model frame) stays near ecliptic north — a
@@ -959,7 +958,7 @@ func get_hud_name() -> String:
 
 
 ## Returns this body's body_class. See data table [param body_classes.tsv].
-func get_body_class() -> int: # body_classes.tsv
+func get_body_class() -> int:
 	return characteristics.get(&"body_class", -1)
 
 
@@ -1002,22 +1001,6 @@ func get_float_precision(path: String) -> int:
 
 # *****************************************************************************
 # orbit API...
-
-
-# Clamps [param time] to the trajectory's validity window when this body has a
-# trajectory (so it parks at the path's endpoints instead of extrapolating the
-# first/last conic far off the drawn path); returns [param time] unchanged otherwise.
-func _clamp_trajectory_time(time: float) -> float:
-	return _trajectory.get_clamped_time(time) if _trajectory else time
-
-
-# Returns the orbit governing a projected/sleeping query at [param time]: the
-# trajectory's active segment for that time if this body has a trajectory, else
-# the single _orbit. Callers must have already guarded against null _orbit.
-func _get_orbit_at_time(time: float) -> IVOrbit:
-	if _trajectory:
-		return _trajectory.get_orbit(_clamp_trajectory_time(time))
-	return _orbit
 
 
 ## Returns this body's orbital mean longitude (L). Supply [param time] only if
@@ -1853,6 +1836,22 @@ func resort_satellites() -> void:
 
 # *****************************************************************************
 # private
+
+# Clamps [param time] to the trajectory's validity window when this body has a
+# trajectory (so it parks at the path's endpoints instead of extrapolating the
+# first/last conic far off the drawn path); returns [param time] unchanged otherwise.
+func _clamp_trajectory_time(time: float) -> float:
+	return _trajectory.get_clamped_time(time) if _trajectory else time
+
+
+# Returns the orbit governing a projected/sleeping query at [param time]: the
+# trajectory's active segment for that time if this body has a trajectory, else
+# the single _orbit. Callers must have already guarded against null _orbit.
+func _get_orbit_at_time(time: float) -> IVOrbit:
+	if _trajectory:
+		return _trajectory.get_orbit(_clamp_trajectory_time(time))
+	return _orbit
+
 
 func _clear_procedural() -> void:
 	if _orbit:

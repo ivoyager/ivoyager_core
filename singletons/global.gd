@@ -98,15 +98,6 @@ enum Confidence {
 	CONFIDENCE_YES,
 }
 
-## [member VisualInstance3D.layers] bit marking a shadow caster for the local
-## (near/middle) shadow-mapped [IVDynamicLight] instances. Near-domain objects
-## (spacecraft scale) carry it statically; larger bodies are granted it only
-## while close enough to be true-position "terrain" (see
-## [method IVBody.update_farwarp]), which keeps farwarp-remapped geometry out
-## of the shadow maps. Astronomical-scale shadows don't use shadow maps at all;
-## see [IVSunOcclusionManager].
-const LOCAL_SHADOW_CASTER := 0b1_0000_0000
-
 ## Duplicated from I, Voyager's Save plugin ([enum IVSaveUtils.PersistMode]).
 ## This is used in the Core plugin because the Save plugin may not be present.
 enum PersistMode {
@@ -122,6 +113,16 @@ const NO_PERSIST := PersistMode.NO_PERSIST
 const PERSIST_PROPERTIES_ONLY := PersistMode.PERSIST_PROPERTIES_ONLY
 ## Persist mode for the ivoyager_save plugin. Safe to use if plugin is not present.
 const PERSIST_PROCEDURAL := PersistMode.PERSIST_PROCEDURAL
+
+
+## [member VisualInstance3D.layers] bit marking a shadow caster for the local
+## (near/middle) shadow-mapped [IVDynamicLight] instances. Near-domain objects
+## (spacecraft scale) carry it statically; larger bodies are granted it only
+## while close enough to be true-position "terrain" (see
+## [method IVBody.update_farwarp]), which keeps farwarp-remapped geometry out
+## of the shadow maps. Astronomical-scale shadows don't use shadow maps at all;
+## see [IVSunOcclusionManager].
+const LOCAL_SHADOW_CASTER := 0b1_0000_0000
 
 
 

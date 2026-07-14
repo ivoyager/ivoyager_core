@@ -368,17 +368,13 @@ var _update_time := 0.0 # 'time' of the last update(); reference time for no-arg
 var _translation_buffer := PackedFloat64Array([0.0, 0.0, 0.0])
 var _state_buffer := PackedFloat64Array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
-# State path for orbit-line display (IVPathVisual), parallel to [member IVTrajectory.path]. One current
-# period sampled at fixed curvature-aware density, in the ecliptic basis relative to the parent. Anchored
-# on the current time (NOT the J2000 epoch), so an evolving orbit's line stays on its body. Non-persisted;
-# (re)built by [method refresh_state_path], invalidated on [signal changed].
-var path := PackedFloat64Array() ## Flat orbit-precision stride-7 knots [x, y, z, vx, vy, vz, t]; see [method refresh_state_path].
+## Flat orbit-precision stride-7 knots [x, y, z, vx, vy, vz, t] for orbit-line display ([IVPathVisual]),
+## parallel to [member IVTrajectory.path]. One current period sampled at fixed curvature-aware density, in
+## the ecliptic basis relative to the parent. Anchored on the current time (NOT the J2000 epoch), so an
+## evolving orbit's line stays on its body. Non-persisted; (re)built by [method refresh_state_path],
+## invalidated on [signal changed].
+var path := PackedFloat64Array()
 var _path_dirty := true # rebuild the state path on next refresh_state_path()
-
-
-func _init() -> void:
-	changed.connect(_mark_path_dirty)
-
 
 
 # *****************************************************************************
@@ -942,6 +938,10 @@ static func _lambert_dt_y(psi: float, sum_radii: float, a_geom: float,
 	return out
 
 
+func _init() -> void:
+	changed.connect(_mark_path_dirty)
+
+
 # *****************************************************************************
 # update and get state (position, velocity) methods
 
@@ -1049,65 +1049,6 @@ func get_state_vectors(time: float, rotate_to_ecliptic := true) -> PackedVector3
 	return PackedVector3Array(vectors)
 
 
-# Writes ecliptic (or reference-basis) translation [x, y, z] into [param out] at [param offset]
-# (out must be pre-sized). 64-bit core shared by get_translation() and sample_arc().
-func _write_translation(time: float, rotate_to_ecliptic: bool, out: PackedFloat64Array,
-		offset: int) -> void:
-	var lan := fposmod(_longitude_ascending_node_at_epoch + _longitude_ascending_node_rate * time, TAU)
-	var ap := fposmod(_argument_periapsis_at_epoch + _argument_periapsis_rate * time, TAU)
-	var nu := get_true_anomaly(time)
-	var r := _semi_parameter / (1.0 + _eccentricity * cos(nu))
-	var sin_i := sin(_inclination)
-	var cos_i := cos(_inclination)
-	var sin_lan := sin(lan)
-	var cos_lan := cos(lan)
-	var sin_ap_nu := sin(ap + nu)
-	var cos_ap_nu := cos(ap + nu)
-	var x := r * (cos_lan * cos_ap_nu - sin_lan * sin_ap_nu * cos_i)
-	var y := r * (sin_lan * cos_ap_nu + cos_lan * sin_ap_nu * cos_i)
-	var z := r * (sin_ap_nu * sin_i)
-	if rotate_to_ecliptic and _reference_plane_type != ReferencePlane.REFERENCE_PLANE_ECLIPTIC:
-		IVMath64.rotate_into(_reference_basis, x, y, z, out, offset)
-	else:
-		out[offset] = x
-		out[offset + 1] = y
-		out[offset + 2] = z
-
-
-# Writes ecliptic (or reference-basis) state [x, y, z, vx, vy, vz] into [param out] at
-# [param offset] (out must be pre-sized). 64-bit core for get_state().
-func _write_state(time: float, rotate_to_ecliptic: bool, out: PackedFloat64Array,
-		offset: int) -> void:
-	var lan := fposmod(_longitude_ascending_node_at_epoch + _longitude_ascending_node_rate * time, TAU)
-	var ap := fposmod(_argument_periapsis_at_epoch + _argument_periapsis_rate * time, TAU)
-	var nu := get_true_anomaly(time)
-	var r := _semi_parameter / (1.0 + _eccentricity * cos(nu))
-	var sin_i := sin(_inclination)
-	var cos_i := cos(_inclination)
-	var sin_lan := sin(lan)
-	var cos_lan := cos(lan)
-	var sin_ap_nu := sin(ap + nu)
-	var cos_ap_nu := cos(ap + nu)
-	var x := r * (cos_lan * cos_ap_nu - sin_lan * sin_ap_nu * cos_i)
-	var y := r * (sin_lan * cos_ap_nu + cos_lan * sin_ap_nu * cos_i)
-	var z := r * (sin_ap_nu * sin_i)
-	var c := _specific_angular_momentum * _eccentricity * sin(nu) / (r * _semi_parameter)
-	var angular_v := _specific_angular_momentum / r
-	var vx := c * x - angular_v * (cos_lan * sin_ap_nu + sin_lan * cos_ap_nu * cos_i)
-	var vy := c * y - angular_v * (sin_lan * sin_ap_nu - cos_lan * cos_ap_nu * cos_i)
-	var vz := c * z + angular_v * (cos_ap_nu * sin_i)
-	if rotate_to_ecliptic and _reference_plane_type != ReferencePlane.REFERENCE_PLANE_ECLIPTIC:
-		IVMath64.rotate_into(_reference_basis, x, y, z, out, offset)
-		IVMath64.rotate_into(_reference_basis, vx, vy, vz, out, offset + 3)
-	else:
-		out[offset] = x
-		out[offset + 1] = y
-		out[offset + 2] = z
-		out[offset + 3] = vx
-		out[offset + 4] = vy
-		out[offset + 5] = vz
-
-
 ## Returns a curvature-weighted polyline sampling of this orbit between
 ## [param begin_time] and [param end_time] as [flat [PackedFloat64Array] positions
 ## (orbit precision; [x, y, z] per vertex, size 3 * [param n_vertices]),
@@ -1178,12 +1119,6 @@ func sample_arc(begin_time: float, end_time: float, n_vertices: int, max_radius:
 	return [positions, times]
 
 
-# Marks the cached state path (see [method refresh_state_path]) for rebuild. Connected to [signal changed]
-# so any element evolution or set invalidates the line; a fixed (non-evolving) orbit builds once.
-func _mark_path_dirty(_is_intrinsic: bool, _precession_only: bool) -> void:
-	_path_dirty = true
-
-
 ## (Re)builds [member path] if dirty — flat stride-7 knots [x, y, z, vx, vy, vz, t]: one period
 ## (closed orbit, knotted by the union of uniform eccentric anomaly and uniform tangent-turn —
 ## [param base_vertices] each, so up to ~2x total at high eccentricity and exactly [param base_vertices]
@@ -1200,118 +1135,6 @@ func refresh_state_path(time: float, base_vertices: int) -> void:
 	else:
 		_build_open_state_path(base_vertices)
 	_path_dirty = false
-
-
-# Closed-orbit state path: sweeps the CURRENT osculating ellipse (fixed elements from the last update, the
-# same ellipse the coarse unit mesh draws) over the merged knot families of [method _merge_elliptic_knots].
-# The body sits exactly on this ellipse and the osculating velocity is its exact tangent, so the Hermite
-# line has no precession/evolution residual (unlike sampling each vertex at its own evolving time).
-# Per-vertex time is the passage time on this fixed ellipse (for Hermite parameterization), anchored on
-# the periapsis nearest [param time].
-func _build_elliptic_state_path(time: float, base_vertices: int) -> void:
-	# Fresh (time-evaluated) osculating elements, NOT the cached members: those lag by up to the changed
-	# threshold, and scaled by an outer planet's orbit radius that lag reads as the body sitting a few radii
-	# off its own line. The body's position (get_translation) likewise evaluates its elements fresh at [time].
-	var p := get_semi_parameter_at_time(time)
-	var e := get_eccentricity_at_time(time)
-	var incl := get_inclination_at_time(time)
-	var lan := get_longitude_ascending_node_at_time(time)
-	var ap := get_argument_periapsis_at_time(time)
-	var n := _mean_motion
-	var h := sqrt(_gravitational_parameter * p)
-	var sin_i := sin(incl)
-	var cos_i := cos(incl)
-	var sin_lan := sin(lan)
-	var cos_lan := cos(lan)
-	var rotate := _reference_plane_type != ReferencePlane.REFERENCE_PLANE_ECLIPTIC
-	var period := TAU / n
-	var t_p_near := _time_periapsis + roundf((time - _time_periapsis) / period) * period
-	var sqrt_1_plus_e := sqrt(1.0 + e)
-	var sqrt_1_minus_e := sqrt(1.0 - e)
-	var axis_ratio := sqrt_1_minus_e * sqrt_1_plus_e # b/a
-	var knots := _merge_elliptic_knots(base_vertices, axis_ratio)
-	var n_knots := knots.size()
-	path.resize(7 * n_knots)
-	for k in n_knots:
-		var ea := knots[k]
-		var nu := 2.0 * atan2(sqrt_1_plus_e * sin(0.5 * ea), sqrt_1_minus_e * cos(0.5 * ea))
-		var r := p / (1.0 + e * cos(nu))
-		var sin_ap_nu := sin(ap + nu)
-		var cos_ap_nu := cos(ap + nu)
-		var x := r * (cos_lan * cos_ap_nu - sin_lan * sin_ap_nu * cos_i)
-		var y := r * (sin_lan * cos_ap_nu + cos_lan * sin_ap_nu * cos_i)
-		var z := r * (sin_ap_nu * sin_i)
-		var c := h * e * sin(nu) / (r * p)
-		var angular_v := h / r
-		var vx := c * x - angular_v * (cos_lan * sin_ap_nu + sin_lan * cos_ap_nu * cos_i)
-		var vy := c * y - angular_v * (sin_lan * sin_ap_nu - cos_lan * cos_ap_nu * cos_i)
-		var vz := c * z + angular_v * (cos_ap_nu * sin_i)
-		var base := 7 * k
-		if rotate:
-			IVMath64.rotate_into(_reference_basis, x, y, z, path, base)
-			IVMath64.rotate_into(_reference_basis, vx, vy, vz, path, base + 3)
-		else:
-			path[base] = x
-			path[base + 1] = y
-			path[base + 2] = z
-			path[base + 3] = vx
-			path[base + 4] = vy
-			path[base + 5] = vz
-		path[base + 6] = t_p_near + (ea - e * sin(ea)) / n
-
-
-# Knot eccentric anomalies for [method _build_elliptic_state_path]: the sorted, deduplicated union of
-# uniform eccentric anomaly and uniform tangent-turn (turn from periapsis = atan2(a sin E, b cos E),
-# inverted per knot), [param base_vertices] of each, with exact endpoints at ±PI. Two families because the
-# time-parameterized cubic Hermite has two error terms: uniform anomaly bounds the time/speed-chirp error,
-# which peaks BETWEEN the apsides where speed changes fastest across a knot interval; uniform turn bounds
-# the geometric bend (and the apsidal time step), which peaks AT the apsides by a/b. Either family alone
-# fails the other's region at high eccentricity — meters to kilometers for e ~ 0.98. Fully deduplicated
-# (identical sets) when e = 0.
-func _merge_elliptic_knots(base_vertices: int, axis_ratio: float) -> PackedFloat64Array:
-	var knots := PackedFloat64Array()
-	var anomaly_index := 0
-	var turn_index := 0
-	while anomaly_index < base_vertices or turn_index < base_vertices:
-		var anomaly_next := INF
-		if anomaly_index < base_vertices:
-			anomaly_next = -PI + TAU * float(anomaly_index) / (base_vertices - 1)
-		var turn_next := INF
-		if turn_index < base_vertices:
-			var turn := -PI + TAU * float(turn_index) / (base_vertices - 1)
-			turn_next = atan2(axis_ratio * sin(turn), cos(turn))
-		var ea: float
-		if anomaly_next <= turn_next:
-			ea = anomaly_next
-			anomaly_index += 1
-		else:
-			ea = turn_next
-			turn_index += 1
-		if knots.is_empty() or ea - knots[knots.size() - 1] >= STATE_PATH_MIN_KNOT_SEPARATION:
-			knots.append(ea)
-	knots[knots.size() - 1] = PI # exact closure (the last accepted knot is within a step of PI)
-	return knots
-
-
-# Open-orbit (hyperbolic/parabolic) state path: reuses [method sample_arc]'s max-radius clamping for
-# positions and times (anchored on periapsis; an open orbit has a single passage), then fills velocities.
-func _build_open_state_path(base_vertices: int) -> void:
-	var arc := sample_arc(-INF, INF, base_vertices, IVCoreSettings.open_conic_max_radius)
-	var positions: PackedFloat64Array = arc[0]
-	var times: PackedFloat64Array = arc[1]
-	var n_knots := times.size()
-	path.resize(7 * n_knots)
-	var state := PackedFloat64Array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-	for k in n_knots:
-		_write_state(times[k], true, state, 0)
-		var base := 7 * k
-		path[base] = positions[3 * k]
-		path[base + 1] = positions[3 * k + 1]
-		path[base + 2] = positions[3 * k + 2]
-		path[base + 3] = state[3]
-		path[base + 4] = state[4]
-		path[base + 5] = state[5]
-		path[base + 6] = times[k]
 
 
 ## Returns mean anomaly (M) at [param time]. -π ≤ M < π. Valid for any orbit.
@@ -2077,3 +1900,183 @@ func deserialize(data: PackedFloat64Array) -> void:
 	segment_begin = data[27]
 	segment_end = data[28]
 	_update_time = data[29]
+
+
+# ********************************** private **********************************
+
+
+# Writes ecliptic (or reference-basis) translation [x, y, z] into [param out] at [param offset]
+# (out must be pre-sized). 64-bit core shared by get_translation() and sample_arc().
+func _write_translation(time: float, rotate_to_ecliptic: bool, out: PackedFloat64Array,
+		offset: int) -> void:
+	var lan := fposmod(_longitude_ascending_node_at_epoch + _longitude_ascending_node_rate * time, TAU)
+	var ap := fposmod(_argument_periapsis_at_epoch + _argument_periapsis_rate * time, TAU)
+	var nu := get_true_anomaly(time)
+	var r := _semi_parameter / (1.0 + _eccentricity * cos(nu))
+	var sin_i := sin(_inclination)
+	var cos_i := cos(_inclination)
+	var sin_lan := sin(lan)
+	var cos_lan := cos(lan)
+	var sin_ap_nu := sin(ap + nu)
+	var cos_ap_nu := cos(ap + nu)
+	var x := r * (cos_lan * cos_ap_nu - sin_lan * sin_ap_nu * cos_i)
+	var y := r * (sin_lan * cos_ap_nu + cos_lan * sin_ap_nu * cos_i)
+	var z := r * (sin_ap_nu * sin_i)
+	if rotate_to_ecliptic and _reference_plane_type != ReferencePlane.REFERENCE_PLANE_ECLIPTIC:
+		IVMath64.rotate_into(_reference_basis, x, y, z, out, offset)
+	else:
+		out[offset] = x
+		out[offset + 1] = y
+		out[offset + 2] = z
+
+
+# Writes ecliptic (or reference-basis) state [x, y, z, vx, vy, vz] into [param out] at
+# [param offset] (out must be pre-sized). 64-bit core for get_state().
+func _write_state(time: float, rotate_to_ecliptic: bool, out: PackedFloat64Array,
+		offset: int) -> void:
+	var lan := fposmod(_longitude_ascending_node_at_epoch + _longitude_ascending_node_rate * time, TAU)
+	var ap := fposmod(_argument_periapsis_at_epoch + _argument_periapsis_rate * time, TAU)
+	var nu := get_true_anomaly(time)
+	var r := _semi_parameter / (1.0 + _eccentricity * cos(nu))
+	var sin_i := sin(_inclination)
+	var cos_i := cos(_inclination)
+	var sin_lan := sin(lan)
+	var cos_lan := cos(lan)
+	var sin_ap_nu := sin(ap + nu)
+	var cos_ap_nu := cos(ap + nu)
+	var x := r * (cos_lan * cos_ap_nu - sin_lan * sin_ap_nu * cos_i)
+	var y := r * (sin_lan * cos_ap_nu + cos_lan * sin_ap_nu * cos_i)
+	var z := r * (sin_ap_nu * sin_i)
+	var c := _specific_angular_momentum * _eccentricity * sin(nu) / (r * _semi_parameter)
+	var angular_v := _specific_angular_momentum / r
+	var vx := c * x - angular_v * (cos_lan * sin_ap_nu + sin_lan * cos_ap_nu * cos_i)
+	var vy := c * y - angular_v * (sin_lan * sin_ap_nu - cos_lan * cos_ap_nu * cos_i)
+	var vz := c * z + angular_v * (cos_ap_nu * sin_i)
+	if rotate_to_ecliptic and _reference_plane_type != ReferencePlane.REFERENCE_PLANE_ECLIPTIC:
+		IVMath64.rotate_into(_reference_basis, x, y, z, out, offset)
+		IVMath64.rotate_into(_reference_basis, vx, vy, vz, out, offset + 3)
+	else:
+		out[offset] = x
+		out[offset + 1] = y
+		out[offset + 2] = z
+		out[offset + 3] = vx
+		out[offset + 4] = vy
+		out[offset + 5] = vz
+
+
+# Marks the cached state path (see [method refresh_state_path]) for rebuild. Connected to [signal changed]
+# so any element evolution or set invalidates the line; a fixed (non-evolving) orbit builds once.
+func _mark_path_dirty(_is_intrinsic: bool, _precession_only: bool) -> void:
+	_path_dirty = true
+
+
+# Closed-orbit state path: sweeps the CURRENT osculating ellipse (fixed elements from the last update, the
+# same ellipse the coarse unit mesh draws) over the merged knot families of [method _merge_elliptic_knots].
+# The body sits exactly on this ellipse and the osculating velocity is its exact tangent, so the Hermite
+# line has no precession/evolution residual (unlike sampling each vertex at its own evolving time).
+# Per-vertex time is the passage time on this fixed ellipse (for Hermite parameterization), anchored on
+# the periapsis nearest [param time].
+func _build_elliptic_state_path(time: float, base_vertices: int) -> void:
+	# Fresh (time-evaluated) osculating elements, NOT the cached members: those lag by up to the changed
+	# threshold, and scaled by an outer planet's orbit radius that lag reads as the body sitting a few radii
+	# off its own line. The body's position (get_translation) likewise evaluates its elements fresh at [time].
+	var p := get_semi_parameter_at_time(time)
+	var e := get_eccentricity_at_time(time)
+	var incl := get_inclination_at_time(time)
+	var lan := get_longitude_ascending_node_at_time(time)
+	var ap := get_argument_periapsis_at_time(time)
+	var n := _mean_motion
+	var h := sqrt(_gravitational_parameter * p)
+	var sin_i := sin(incl)
+	var cos_i := cos(incl)
+	var sin_lan := sin(lan)
+	var cos_lan := cos(lan)
+	var rotate := _reference_plane_type != ReferencePlane.REFERENCE_PLANE_ECLIPTIC
+	var period := TAU / n
+	var t_p_near := _time_periapsis + roundf((time - _time_periapsis) / period) * period
+	var sqrt_1_plus_e := sqrt(1.0 + e)
+	var sqrt_1_minus_e := sqrt(1.0 - e)
+	var axis_ratio := sqrt_1_minus_e * sqrt_1_plus_e # b/a
+	var knots := _merge_elliptic_knots(base_vertices, axis_ratio)
+	var n_knots := knots.size()
+	path.resize(7 * n_knots)
+	for k in n_knots:
+		var ea := knots[k]
+		var nu := 2.0 * atan2(sqrt_1_plus_e * sin(0.5 * ea), sqrt_1_minus_e * cos(0.5 * ea))
+		var r := p / (1.0 + e * cos(nu))
+		var sin_ap_nu := sin(ap + nu)
+		var cos_ap_nu := cos(ap + nu)
+		var x := r * (cos_lan * cos_ap_nu - sin_lan * sin_ap_nu * cos_i)
+		var y := r * (sin_lan * cos_ap_nu + cos_lan * sin_ap_nu * cos_i)
+		var z := r * (sin_ap_nu * sin_i)
+		var c := h * e * sin(nu) / (r * p)
+		var angular_v := h / r
+		var vx := c * x - angular_v * (cos_lan * sin_ap_nu + sin_lan * cos_ap_nu * cos_i)
+		var vy := c * y - angular_v * (sin_lan * sin_ap_nu - cos_lan * cos_ap_nu * cos_i)
+		var vz := c * z + angular_v * (cos_ap_nu * sin_i)
+		var base := 7 * k
+		if rotate:
+			IVMath64.rotate_into(_reference_basis, x, y, z, path, base)
+			IVMath64.rotate_into(_reference_basis, vx, vy, vz, path, base + 3)
+		else:
+			path[base] = x
+			path[base + 1] = y
+			path[base + 2] = z
+			path[base + 3] = vx
+			path[base + 4] = vy
+			path[base + 5] = vz
+		path[base + 6] = t_p_near + (ea - e * sin(ea)) / n
+
+
+# Knot eccentric anomalies for [method _build_elliptic_state_path]: the sorted, deduplicated union of
+# uniform eccentric anomaly and uniform tangent-turn (turn from periapsis = atan2(a sin E, b cos E),
+# inverted per knot), [param base_vertices] of each, with exact endpoints at ±PI. Two families because the
+# time-parameterized cubic Hermite has two error terms: uniform anomaly bounds the time/speed-chirp error,
+# which peaks BETWEEN the apsides where speed changes fastest across a knot interval; uniform turn bounds
+# the geometric bend (and the apsidal time step), which peaks AT the apsides by a/b. Either family alone
+# fails the other's region at high eccentricity — meters to kilometers for e ~ 0.98. Fully deduplicated
+# (identical sets) when e = 0.
+func _merge_elliptic_knots(base_vertices: int, axis_ratio: float) -> PackedFloat64Array:
+	var knots := PackedFloat64Array()
+	var anomaly_index := 0
+	var turn_index := 0
+	while anomaly_index < base_vertices or turn_index < base_vertices:
+		var anomaly_next := INF
+		if anomaly_index < base_vertices:
+			anomaly_next = -PI + TAU * float(anomaly_index) / (base_vertices - 1)
+		var turn_next := INF
+		if turn_index < base_vertices:
+			var turn := -PI + TAU * float(turn_index) / (base_vertices - 1)
+			turn_next = atan2(axis_ratio * sin(turn), cos(turn))
+		var ea: float
+		if anomaly_next <= turn_next:
+			ea = anomaly_next
+			anomaly_index += 1
+		else:
+			ea = turn_next
+			turn_index += 1
+		if knots.is_empty() or ea - knots[knots.size() - 1] >= STATE_PATH_MIN_KNOT_SEPARATION:
+			knots.append(ea)
+	knots[knots.size() - 1] = PI # exact closure (the last accepted knot is within a step of PI)
+	return knots
+
+
+# Open-orbit (hyperbolic/parabolic) state path: reuses [method sample_arc]'s max-radius clamping for
+# positions and times (anchored on periapsis; an open orbit has a single passage), then fills velocities.
+func _build_open_state_path(base_vertices: int) -> void:
+	var arc := sample_arc(-INF, INF, base_vertices, IVCoreSettings.open_conic_max_radius)
+	var positions: PackedFloat64Array = arc[0]
+	var times: PackedFloat64Array = arc[1]
+	var n_knots := times.size()
+	path.resize(7 * n_knots)
+	var state := PackedFloat64Array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+	for k in n_knots:
+		_write_state(times[k], true, state, 0)
+		var base := 7 * k
+		path[base] = positions[3 * k]
+		path[base + 1] = positions[3 * k + 1]
+		path[base + 2] = positions[3 * k + 2]
+		path[base + 3] = state[3]
+		path[base + 4] = state[4]
+		path[base + 5] = state[5]
+		path[base + 6] = times[k]

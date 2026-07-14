@@ -291,9 +291,9 @@ func _build_sun_point() -> void:
 	_star_body.add_child(_sun_point)
 
 
-## Shell 0 takes its whole spec from the body's spheroids.tsv [member _spheroid_type] row
-## (shader, process, is_sun, cast_shadow, material columns) unless a shells.tsv shell-0 row
-## overrides it wholly (never a merge). The body's discovered surface channels are kept either way.
+# Shell 0 takes its whole spec from the body's spheroids.tsv [member _spheroid_type] row
+# (shader, process, is_sun, cast_shadow, material columns) unless a shells.tsv shell-0 row
+# overrides it wholly (never a merge). The body's discovered surface channels are kept either way.
 func _resolve_shell0_spec(asset_preloader: IVAssetPreloader, surface_spec: Dictionary) -> Dictionary:
 	if surface_spec.get(&"from_shells", false):
 		return surface_spec
@@ -480,9 +480,9 @@ func _build_child_shells(shell_specs: Array) -> void:
 		add_child(IVSpheroidModel.new(_body_name, _spheroid_type, _mean_radius, child_basis, shell_index))
 
 
-## Render priority = this shell's rank by scale (ascending; shell index breaks ties),
-## so overlapping translucent shells blend back-to-front (outer over inner). The
-## surface (shell 0) ranks as scale 1.0.
+# Render priority = this shell's rank by scale (ascending; shell index breaks ties),
+# so overlapping translucent shells blend back-to-front (outer over inner). The
+# surface (shell 0) ranks as scale 1.0.
 func _compute_render_priority(shell_specs: Array) -> int:
 	var my_spec: Dictionary = shell_specs[_shell]
 	var my_scale := _spec_scale(my_spec)

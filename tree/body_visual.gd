@@ -55,6 +55,15 @@ var _local_shadow_caster := false
 
 
 
+## Returns the body-frame reference [Basis] for a packed-scene model: uniformly
+## scaled by [param model_scale] and rotated so the model's z-up axis becomes
+## y-up. Shared by [method _build_packed_model] and the editor icon capturer so a
+## captured 2D icon matches the in-sim model orientation.
+static func get_packed_model_reference_basis(model_scale: float) -> Basis:
+	const RIGHT_ANGLE := PI / 2
+	return Basis().scaled(model_scale * Vector3.ONE).rotated(Vector3(1.0, 0.0, 0.0), RIGHT_ANGLE)
+
+
 func _init(body_name: StringName, mean_radius: float, equatorial_radius: float,
 		spheroid_type: int) -> void:
 	_body_name = body_name
@@ -102,15 +111,6 @@ func _set_local_shadow_caster_recursive(node3d: Node3D, on: bool) -> void:
 		var child_node3d := child as Node3D
 		if child_node3d:
 			_set_local_shadow_caster_recursive(child_node3d, on)
-
-
-## Returns the body-frame reference [Basis] for a packed-scene model: uniformly
-## scaled by [param model_scale] and rotated so the model's z-up axis becomes
-## y-up. Shared by [method _build_packed_model] and the editor icon capturer so a
-## captured 2D icon matches the in-sim model orientation.
-static func get_packed_model_reference_basis(model_scale: float) -> Basis:
-	const RIGHT_ANGLE := PI / 2
-	return Basis().scaled(model_scale * Vector3.ONE).rotated(Vector3(1.0, 0.0, 0.0), RIGHT_ANGLE)
 
 
 func _build_packed_model(asset_preloader: IVAssetPreloader, packed_model: PackedScene) -> void:

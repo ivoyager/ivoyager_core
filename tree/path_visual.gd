@@ -143,6 +143,38 @@ func _ready() -> void:
 	_on_global_huds_changed()
 
 
+func _process(_delta: float) -> void:
+	# Runs while the camera is focused on this body (set in _on_orbit_changed). Owns the rebased-vs-coarse
+	# decision by the live viewing distance and, while rebased, the per-frame position track + rebake policy.
+	if not _camera or not _camera_body or not _frame:
+		return
+	if not _is_rebase_warranted():
+		if _rebased:
+			_render_normal() # zoomed out until the float32 line error is sub-pixel again
+		return
+	if not _rebased or get_parent() != _camera_body:
+		_rebake() # activate (camera settled close enough) or reparent pending
+		return
+	# Rebased and reparented under the camera-body: keep the static line on the moving body, then re-anchor
+	# on drift / zoom. The re-anchor is checked (and taken) every frame with no rate cap: a rebake is cheap
+	# (f64 subtract + Hermite), so a fast body re-centers its dense core each frame rather than sliding off
+	# the last bake's core between anchors (which read as the body "outrunning" its line at high game speed).
+	var time: float = IVGlobal.times[0]
+	var current_offset := _camera_body.get_translation_to_ancestor(_frame, time)
+	_set_rebase_position(current_offset)
+	var need_rebake := IVMath64.distance(current_offset, _rebase_offset) > _rebake_drift
+	if not need_rebake:
+		# Re-tessellate as the camera zooms in / out (the Hermite step count scales with the viewing
+		# distance, which is only re-read on rebake).
+		var cam_dist := _camera.global_position.distance_to(_camera_body.global_position)
+		need_rebake = cam_dist < _rebake_cam_dist * REBASE_ZOOM_FACTOR \
+				or cam_dist > _rebake_cam_dist / REBASE_ZOOM_FACTOR
+	if need_rebake:
+		_rebake() # ends with its own pin update against the fresh anchor
+		return
+	_update_pin(time)
+
+
 # Single switchboard, run on each segment/element change (IVBody.orbit_changed) and camera change: resolve
 # the display frame and pick the tier. Focus changes only on those events, so it is resolved here; the
 # distance test changes continuously, so _process owns the coarse<->rebased flip while focused.
@@ -231,38 +263,6 @@ func _set_rebase_position(current_frame_position: PackedFloat64Array) -> void:
 		_rebase_offset[1] - current_frame_position[1],
 		_rebase_offset[2] - current_frame_position[2]
 	)
-
-
-func _process(_delta: float) -> void:
-	# Runs while the camera is focused on this body (set in _on_orbit_changed). Owns the rebased-vs-coarse
-	# decision by the live viewing distance and, while rebased, the per-frame position track + rebake policy.
-	if not _camera or not _camera_body or not _frame:
-		return
-	if not _is_rebase_warranted():
-		if _rebased:
-			_render_normal() # zoomed out until the float32 line error is sub-pixel again
-		return
-	if not _rebased or get_parent() != _camera_body:
-		_rebake() # activate (camera settled close enough) or reparent pending
-		return
-	# Rebased and reparented under the camera-body: keep the static line on the moving body, then re-anchor
-	# on drift / zoom. The re-anchor is checked (and taken) every frame with no rate cap: a rebake is cheap
-	# (f64 subtract + Hermite), so a fast body re-centers its dense core each frame rather than sliding off
-	# the last bake's core between anchors (which read as the body "outrunning" its line at high game speed).
-	var time: float = IVGlobal.times[0]
-	var current_offset := _camera_body.get_translation_to_ancestor(_frame, time)
-	_set_rebase_position(current_offset)
-	var need_rebake := IVMath64.distance(current_offset, _rebase_offset) > _rebake_drift
-	if not need_rebake:
-		# Re-tessellate as the camera zooms in / out (the Hermite step count scales with the viewing
-		# distance, which is only re-read on rebake).
-		var cam_dist := _camera.global_position.distance_to(_camera_body.global_position)
-		need_rebake = cam_dist < _rebake_cam_dist * REBASE_ZOOM_FACTOR \
-				or cam_dist > _rebake_cam_dist / REBASE_ZOOM_FACTOR
-	if need_rebake:
-		_rebake() # ends with its own pin update against the fresh anchor
-		return
-	_update_pin(time)
 
 
 # Teardown: stop rebased processing before procedural bodies (this node's parent _camera_body, and _frame)

@@ -28,8 +28,8 @@ extends RefCounted
 ## IVStateManager.assets_preloaded].
 
 ## Number of LOD textures expected per rings entry. Must agree with the asset
-## bundle, [IVBody] and [code]rings.shader[/code].
-const RINGS_LOD_LEVELS := 9 # must agree w/ assets, body.gd and rings.shader
+## bundle, [IVBody] ([code]body.gd[/code]) and [code]rings.shader[/code].
+const RINGS_LOD_LEVELS := 9
 
 # VRAM color formats a normal map must never have (would mean it was imported as
 # sRGB color, not as a Normal Map). Load-time push_warning only.
@@ -79,11 +79,10 @@ static var spheroids_nonmaterial_fields: Array[StringName] = [
 ## is hazardous. That can happen here only if these "procedural" resources are
 ## loaded elsewhere in the preload time window.
 var use_thread := false
- ## Must exist in asset_paths.
 
 ## Directories searched for body 3D models. Prepend a directory to prioritize
 ## a custom override.
-var models_search: Array[String] = ["res://addons/ivoyager_assets/models"] # prepend to prioritize
+var models_search: Array[String] = ["res://addons/ivoyager_assets/models"]
 ## Directories searched for body texture maps (channel maps + shell overlays).
 var maps_search: Array[String] = ["res://addons/ivoyager_assets/maps"]
 ## Directories searched for 2D body textures (used in nav buttons, GUI, etc.).
@@ -190,6 +189,26 @@ func get_rings_shadow_profile_image(rings_name: StringName) -> Image:
 	return _rings_resources[rings_name][2]
 
 
+## Returns a [code]{property: value}[/code] dictionary of material fields from [param table]
+## [param row] — every set field except the entity name and [param nonmaterial_fields]. Each
+## remaining field must name a [StandardMaterial3D] property or a shader uniform; it is applied
+## blindly by [IVSpheroidModel], which validates it per shell. Used for per-shell overrides
+## ([code]shells.tsv[/code]) and per-[code]spheroid_type[/code] surface defaults ([code]spheroids.tsv[/code]).
+func read_material_fields(table: StringName, row: int,
+		nonmaterial_fields: Array[StringName]) -> Dictionary:
+	var fields: Dictionary = {}
+	IVTableData.db_build_dictionary(fields, table, row)
+	fields.erase(&"name")
+	for nonmaterial_field in nonmaterial_fields:
+		fields.erase(nonmaterial_field)
+		
+	if IVGlobal.is_gl_compatibility:
+		if fields.has(&"emission_energy_multiplier"):
+			fields[&"emission_energy_multiplier"] *= gl_compatibility_emission_energy_multiplier_multiplier
+	
+	return fields
+
+
 func _on_core_inited() -> void:
 	var start_msec := Time.get_ticks_msec()
 	if use_thread and IVCoreSettings.use_threads:
@@ -251,31 +270,11 @@ func _make_symbol_point_texture() -> ImageTexture:
 	return ImageTexture.create_from_image(image)
 
 
-## Returns a [code]{property: value}[/code] dictionary of material fields from [param table]
-## [param row] — every set field except the entity name and [param nonmaterial_fields]. Each
-## remaining field must name a [StandardMaterial3D] property or a shader uniform; it is applied
-## blindly by [IVSpheroidModel], which validates it per shell. Used for per-shell overrides
-## ([code]shells.tsv[/code]) and per-[code]spheroid_type[/code] surface defaults ([code]spheroids.tsv[/code]).
-func read_material_fields(table: StringName, row: int,
-		nonmaterial_fields: Array[StringName]) -> Dictionary:
-	var fields: Dictionary = {}
-	IVTableData.db_build_dictionary(fields, table, row)
-	fields.erase(&"name")
-	for nonmaterial_field in nonmaterial_fields:
-		fields.erase(nonmaterial_field)
-		
-	if IVGlobal.is_gl_compatibility:
-		if fields.has(&"emission_energy_multiplier"):
-			fields[&"emission_energy_multiplier"] *= gl_compatibility_emission_energy_multiplier_multiplier
-	
-	return fields
-
-
-## Builds one shell's spec [Dictionary] from its [code]shells[/code]-table row. For
-## [param shell_row] -1 (a surface with no [code]shells[/code] row) it returns a
-## channels-only placeholder that [IVSpheroidModel] fills from the body's
-## [code]spheroids.tsv[/code] type. [param is_surface] (shell 0) omits [code]scale[/code]
-## (the surface ranks as 1.0) and has no file_tag.
+# Builds one shell's spec [Dictionary] from its [code]shells[/code]-table row. For
+# [param shell_row] -1 (a surface with no [code]shells[/code] row) it returns a
+# channels-only placeholder that [IVSpheroidModel] fills from the body's
+# [code]spheroids.tsv[/code] type. [param is_surface] (shell 0) omits [code]scale[/code]
+# (the surface ranks as 1.0) and has no file_tag.
 func _read_shell_spec(channels: Dictionary, shell_row: int, is_surface: bool) -> Dictionary:
 	if shell_row == -1:
 		return {
@@ -607,7 +606,7 @@ func _load_rings_resources() -> void:
 				shadow_profile_image]
 
 
-## Returns a width x 1 FORMAT_R8 image holding [param image_rgba]'s alpha channel.
+# Returns a width x 1 FORMAT_R8 image holding [param image_rgba]'s alpha channel.
 func _make_alpha_r8_image(image_rgba: Image) -> Image:
 	var width := image_rgba.get_width()
 	var image_r8 := Image.create_empty(width, 1, false, Image.FORMAT_R8)

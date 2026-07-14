@@ -1,4 +1,4 @@
-# shared_resource_initializer.gd
+# resource_initializer.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -93,9 +93,9 @@ func _make_shared_resources() -> void:
 
 # constructor callables
 
-## Shared [SphereMesh] for stars, planets and moons. Instantiated here as a
-## unit sphere (radius = 1.0; height = 2.0) at specified resolution. Scaled for
-## indivudual [IVBody] oblateness by [IVBodyVisual].
+# Shared [SphereMesh] for stars, planets and moons. Instantiated here as a
+# unit sphere (radius = 1.0; height = 2.0) at specified resolution. Scaled for
+# indivudual [IVBody] oblateness by [IVBodyVisual].
 func _make_sphere_mesh(radial_segments := 64, rings := 32) -> SphereMesh:
 	# Signature has Godot defaults; IVProjectSettings likely specifies higher value.
 	var sphere_mesh := SphereMesh.new()
@@ -106,10 +106,10 @@ func _make_sphere_mesh(radial_segments := 64, rings := 32) -> SphereMesh:
 	return sphere_mesh
 
 
-## Shared subdivided [PlaneMesh] for [IVRings]. Kept at the default 2x2
-## size (so the ring shaders' [code]length(UV * 2.0 - 1.0)[/code] radius math is unchanged) and
-## subdivided so the per-vertex farwarp remap approximates the compression curve across the ring
-## span. Instances set their own scale and rotation.
+# Shared subdivided [PlaneMesh] for [IVRings]. Kept at the default 2x2
+# size (so the ring shaders' [code]length(UV * 2.0 - 1.0)[/code] radius math is unchanged) and
+# subdivided so the per-vertex farwarp remap approximates the compression curve across the ring
+# span. Instances set their own scale and rotation.
 func _make_plane_mesh(subdivisions := 64) -> PlaneMesh:
 	var plane_mesh := PlaneMesh.new()
 	plane_mesh.subdivide_width = subdivisions

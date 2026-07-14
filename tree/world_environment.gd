@@ -52,8 +52,8 @@ var starmaps_search: Array[String] = ["res://addons/ivoyager_assets/starmaps"]
 ## [code]bg_energy_multiplier[/code] on the shared Environment resource instead.)
 @export_range(0.0, 2.0, 0.01, "or_greater") var starmap_background_energy := 0.05
 ## Multiplies all scene radiance (emission + lit surfaces + sky) before tonemapping;
-## applied only under the Compatibility renderer to offset its dimmer output.
-@export var gl_compatibility_exposure := 1.2  # tune by eye
+## applied only under the Compatibility renderer to offset its dimmer output. Tune by eye.
+@export var gl_compatibility_exposure := 1.2
 
 
 func _ready() -> void:

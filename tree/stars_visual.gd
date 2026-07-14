@@ -36,6 +36,15 @@ extends MeshInstance3D
 ## system rebuilds. No-ops with a warning if no binaries resolve (e.g. when
 ## ivoyager_assets is absent).
 
+## Magnitude-bin upper edges; must match the bins written by
+## [code]tools/build_star_binaries.py[/code]. Each bin file holds stars up to its edge.
+const BINARY_FILE_MAGNITUDES: Array[String] = ["2.0", "3.0", "4.0", "5.0", "6.0", "7.0", "8.0",
+		"9.0", "99.9"]
+
+const _ARRAY_FLAGS := Mesh.ARRAY_CUSTOM_RG_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT
+const _BINARY_MAGIC := 0x54535649 # b"IVST", little-endian
+const _BINARY_VERSION := 1
+
 ## Path prefix for the star binaries. The loader appends
 ## [code].<magnitude>.ivbinary[/code] for each bin in [member BINARY_FILE_MAGNITUDES].
 @export var stars_binary_path := "res://addons/ivoyager_assets/starmaps/hipparcos_stars"
@@ -91,15 +100,6 @@ extends MeshInstance3D
 	set(value):
 		fov_compensation = value
 		_set_uniform(&"fov_compensation", value)
-
-## Magnitude-bin upper edges; must match the bins written by
-## [code]tools/build_star_binaries.py[/code]. Each bin file holds stars up to its edge.
-const BINARY_FILE_MAGNITUDES: Array[String] = ["2.0", "3.0", "4.0", "5.0", "6.0", "7.0", "8.0",
-		"9.0", "99.9"]
-
-const _ARRAY_FLAGS := Mesh.ARRAY_CUSTOM_RG_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT
-const _BINARY_MAGIC := 0x54535649 # b"IVST", little-endian
-const _BINARY_VERSION := 1
 
 var _shader_material: ShaderMaterial
 

@@ -231,6 +231,9 @@ func get_display_state_paths() -> Array[PackedFloat64Array]:
 	return sub_paths
 
 
+# ********************************** private **********************************
+
+
 func _get_index(time: float) -> int:
 	var i := _cached_index
 	if time >= orbits[i].segment_begin and time < orbits[i].segment_end:
