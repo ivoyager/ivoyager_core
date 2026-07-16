@@ -65,6 +65,11 @@ var _defaults: Dictionary[StringName, Variant] = {
 	&"camera_key_pitch_yaw_rate" : 1.0,
 	&"camera_key_roll_rate" : 1.0,
 
+	# screenshots
+	&"screenshot_width" : 1200, # px; height follows from screenshot_aspect
+	&"screenshot_aspect" : 0, # see IVScreenshotManager.aspects (0 = preserve window aspect)
+	&"screenshot_file_dialog" : true, # false saves quietly to the last-used directory
+
 	# UI & HUD display
 	&"language" : 0, # see IVLanguageManager
 	&"gui_size" : 1, # see IVCoreSettings.gui_size_settings

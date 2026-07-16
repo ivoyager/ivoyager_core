@@ -25,6 +25,10 @@ extends WorldEnvironment
 ## This node uses default Environment and CameraAttributes resources from
 ## res://addons/ivoyager_core/resources.[br][br]
 ##
+## Renderer-conditional Environment setup happens here at [method Node._ready]: the
+## Compatibility brightness offset ([member gl_compatibility_exposure]) there, and the
+## adjustment stage that [IVScreenshotManager] dims with everywhere else.[br][br]
+##
 ## If [member add_starmap] is true (default), this node adds a low-resolution
 ## background panorama (the diffuse Milky Way / nebula sky) from the assets
 ## directory to the Environment's sky at startup, discovered by file prefix (see
@@ -46,11 +50,8 @@ extends WorldEnvironment
 ## prioritize a custom override.
 var starmaps_search: Array[String] = ["res://addons/ivoyager_assets/starmaps"]
 ## Energy multiplier applied to the background sky ([code]starmap_background[/code]
-## shader). The NASA Milky Way image is near-white in the galactic bulge at full
-## energy; lower this to dim the diffuse band and lift star contrast [b]without
-## rebaking the image[/b]. (For a scene-wide alternative, set
-## [code]bg_energy_multiplier[/code] on the shared Environment resource instead.)
-@export_range(0.0, 2.0, 0.01, "or_greater") var starmap_background_energy := 0.05
+## shader).
+@export_range(0.0, 2.0, 0.01, "or_greater") var starmap_background_energy := 0.15
 ## Multiplies all scene radiance (emission + lit surfaces + sky) before tonemapping;
 ## applied only under the Compatibility renderer to offset its dimmer output. Tune by eye.
 @export var gl_compatibility_exposure := 1.2
@@ -59,6 +60,16 @@ var starmaps_search: Array[String] = ["res://addons/ivoyager_assets/starmaps"]
 func _ready() -> void:
 	if IVGlobal.is_gl_compatibility:
 		environment.tonemap_exposure = gl_compatibility_exposure
+	else:
+		# The adjustment stage, which [IVScreenshotManager] tweens for its capture dim. Kept
+		# out of the Environment resource and off under Compatibility, where it is anything
+		# but free: adjustments_enabled joins the gate that moves tonemapping out of the
+		# scene shaders into a post pass, costing a full-resolution intermediate buffer, a
+		# pass per frame, and a repermute of every scene shader -- a bill the web build would
+		# pay always for an effect it wants for a moment. Forward+ folds it into a tonemap
+		# pass that runs regardless, for a few ALU. Nothing here switches it back off, so a
+		# project that wants it anyway can author it into its own Environment.
+		environment.adjustment_enabled = true
 	IVStateManager.assets_preloaded.connect(_on_asset_preloader_finished)
 
 

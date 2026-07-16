@@ -160,6 +160,7 @@ var program_refcounteds: Dictionary[StringName, Variant] = {
 	SleepManager = IVSleepManager,
 	LanguageManager = IVLanguageManager,
 	LazyModelInitializer = IVLazyModelInitializer,
+	StarSettings = IVStarSettings, # shared photometry; the star field and each sun's far point
 }
 ## Include keys from [member program_refcounteds] that need to be instantiated
 ## first and in order. (This probably shouldn't be needed. Consider adding the
@@ -190,6 +191,7 @@ var program_nodes: Dictionary[StringName, Variant] = {
 	GraphicsManager = IVGraphicsManager, # applies antialiasing user settings
 	FarwarpManager = IVFarwarpManager, # keeps distant objects renderable
 	SunOcclusionManager = IVSunOcclusionManager, # analytic eclipse & ring shadows
+	ScreenshotManager = IVScreenshotManager, # off-screen render to PNG at a set size
 }
 ## Include keys from [member program_nodes] that need to be instantiated or
 ## added first and in order. Note: all are instantiated in the specified order,

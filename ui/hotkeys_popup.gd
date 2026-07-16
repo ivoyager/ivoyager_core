@@ -60,7 +60,7 @@ extends PopupPanel
 ## section_content].
 @export var layout: Array[Array] = [
 	# column 1
-	[&"LABEL_ADMIN", &"LABEL_GUI", &"LABEL_TIME"],
+	[&"LABEL_ADMIN", &"LABEL_GUI", &"LABEL_TIME", &"LABEL_SCREENSHOTS"],
 	# column 2
 	[&"LABEL_SELECTION"],
 	# column 3
@@ -94,6 +94,9 @@ extends PopupPanel
 		&"decr_speed",
 		&"reverse_time",
 		&"toggle_pause",
+	],
+	LABEL_SCREENSHOTS = [
+		&"take_screenshot",
 	],
 	LABEL_SELECTION = [
 		&"select_up",

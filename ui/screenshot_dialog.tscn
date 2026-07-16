@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3 uid="uid://bgmsnatpv0h5g"]
+
+[ext_resource type="Script" uid="uid://bgdofisokt06k" path="res://addons/ivoyager_core/ui/screenshot_dialog.gd" id="1_scrsh"]
+
+[node name="ScreenshotDialog" type="FileDialog"]
+process_mode = 3
+initial_position = 2
+size = Vector2i(800, 600)
+display_mode = 1
+access = 2
+script = ExtResource("1_scrsh")

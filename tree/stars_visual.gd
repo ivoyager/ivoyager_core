@@ -57,55 +57,62 @@ const _BINARY_VERSION := 1
 ## remove bin files from the asset directory) to trade completeness for size.
 @export var magnitude_cutoff := 99.9
 
-# Tuning uniforms pushed to the stars shader material; editing one in the inspector
-# updates the live material. See stars.gdshader for each uniform's role.
+# The tuning surface for IVStarSettings, which every star point sprite reads -- this
+# field and each in-scene sun's far point alike, so an edit here moves both. Values
+# write through on change (and on build, once the settings object exists); the live
+# material updates from the settings object's 'changed' signal, not from these setters.
+# See stars.gdshader for each uniform's role. Each range runs from one visibly wrong
+# extreme to the other, so dragging a slider end to end shows what the uniform does;
+# the shipped value sits well inside.
 @export_group("Star Appearance")
-@export_range(-2.0, 4.0, 0.1) var size_bright_mag := -1.5:
+## 0.1 = sub-pixel specks that scintillate; 1.5 = fat blurry discs.
+@export_range(0.1, 1.5, 0.05, "or_greater") var psf_sigma := 0.5:
 	set(value):
-		size_bright_mag = value
-		_set_uniform(&"size_bright_mag", value)
-@export_range(0.0, 14.0, 0.1) var size_faint_mag := 6.5:
-	set(value):
-		size_faint_mag = value
-		_set_uniform(&"size_faint_mag", value)
-@export_range(0.5, 8.0, 0.1) var point_size_min := 1.3:
-	set(value):
-		point_size_min = value
-		_set_uniform(&"point_size_min", value)
-@export_range(1.0, 32.0, 0.5, "or_greater") var point_size_max := 8.0:
-	set(value):
-		point_size_max = value
-		_set_uniform(&"point_size_max", value)
-@export_range(1.0, 8.0, 0.1, "or_greater") var point_size_floor := 3.0:
-	set(value):
-		point_size_floor = value
-		_set_uniform(&"point_size_floor", value)
+		psf_sigma = value
+		if _star_settings:
+			_star_settings.psf_sigma = value
+## 0 = only the very brightest stars remain; 14 = every star saturates to white.
 @export_range(0.0, 14.0, 0.1) var intensity_faint_mag := 6.5:
 	set(value):
 		intensity_faint_mag = value
-		_set_uniform(&"intensity_faint_mag", value)
-@export_range(0.05, 1.0, 0.01) var intensity_gamma := 0.35:
+		if _star_settings:
+			_star_settings.intensity_faint_mag = value
+## 0.05 = every star the same brightness; 2.0 = only a handful survive, the rest go black.
+@export_range(0.05, 2.0, 0.05) var intensity_gamma := 1.0:
 	set(value):
 		intensity_gamma = value
-		_set_uniform(&"intensity_gamma", value)
-@export_range(0.0, 3.0, 0.01, "or_greater") var intensity_scale := 0.5:
+		if _star_settings:
+			_star_settings.intensity_gamma = value
+## 0 = no stars at all; 1.5 = the field washes out to saturated blobs.
+@export_range(0.0, 1.5, 0.01, "or_greater") var intensity_scale := 0.5:
 	set(value):
 		intensity_scale = value
-		_set_uniform(&"intensity_scale", value)
-@export_range(1.0, 20.0, 0.1, "or_greater") var intensity_max := 6.0:
-	set(value):
-		intensity_max = value
-		_set_uniform(&"intensity_max", value)
-@export_range(1.0, 170.0, 0.1) var fov_reference_deg := 51.79:
+		if _star_settings:
+			_star_settings.intensity_scale = value
+## The fov at which [member fov_compensation] neither brightens nor dims the field. Away
+## from the camera's actual fov the whole field shifts: 10 = far too dim, 120 = blown out.
+@export_range(10.0, 120.0, 0.5) var fov_reference_deg := 50.0:
 	set(value):
 		fov_reference_deg = value
-		_set_uniform(&"reference_tan_half_fov", tan(deg_to_rad(value) / 2.0))
-@export_range(0.0, 1.0, 0.05, "or_greater") var fov_compensation := 1.0:
+		if _star_settings:
+			_star_settings.fov_reference_deg = value
+## 0 = stars hold brightness as you zoom (they swamp or fade against the background);
+## 2 = double-compensated, so zooming in blows the field out.
+@export_range(0.0, 2.0, 0.05) var fov_compensation := 1.0:
 	set(value):
 		fov_compensation = value
-		_set_uniform(&"fov_compensation", value)
+		if _star_settings:
+			_star_settings.fov_compensation = value
+## 0 = a white field; 1 = each star's physical blackbody color; 2.5 = a candy-colored sky.
+## Unlike the sliders above, this changes no star's brightness or size.
+@export_range(0.0, 2.5, 0.05) var color_saturation := 1.0:
+	set(value):
+		color_saturation = value
+		if _star_settings:
+			_star_settings.color_saturation = value
 
 var _shader_material: ShaderMaterial
+var _star_settings: IVStarSettings
 
 
 
@@ -133,7 +140,10 @@ func _build() -> void:
 	_shader_material = ShaderMaterial.new()
 	_shader_material.shader = IVGlobal.resources[&"stars_shader"]
 	material_override = _shader_material
-	_apply_star_uniforms()
+	_star_settings = IVGlobal.program[&"StarSettings"]
+	_push_star_settings()
+	_star_settings.changed.connect(_apply_star_uniforms)
+	_apply_star_uniforms() # _push_star_settings emits nothing if every export is a default
 	cast_shadow = SHADOW_CASTING_SETTING_OFF
 
 	var arrays := []
@@ -151,25 +161,21 @@ func _build() -> void:
 	mesh = points_mesh
 
 
+# Seeds the shared settings from this node's authored exports. The property setters
+# cannot: they fire during scene load, before IVCoreInitializer has built the settings
+# object, so their write-through no-ops and the authored values would never arrive.
+func _push_star_settings() -> void:
+	_star_settings.psf_sigma = psf_sigma
+	_star_settings.intensity_faint_mag = intensity_faint_mag
+	_star_settings.intensity_gamma = intensity_gamma
+	_star_settings.intensity_scale = intensity_scale
+	_star_settings.fov_reference_deg = fov_reference_deg
+	_star_settings.fov_compensation = fov_compensation
+	_star_settings.color_saturation = color_saturation
+
+
 func _apply_star_uniforms() -> void:
-	_set_uniform(&"size_bright_mag", size_bright_mag)
-	_set_uniform(&"size_faint_mag", size_faint_mag)
-	_set_uniform(&"point_size_min", point_size_min)
-	_set_uniform(&"point_size_max", point_size_max)
-	_set_uniform(&"point_size_floor", point_size_floor)
-	_set_uniform(&"intensity_faint_mag", intensity_faint_mag)
-	_set_uniform(&"intensity_gamma", intensity_gamma)
-	_set_uniform(&"intensity_scale", intensity_scale)
-	_set_uniform(&"intensity_max", intensity_max)
-	_set_uniform(&"reference_tan_half_fov", tan(deg_to_rad(fov_reference_deg) / 2.0))
-	_set_uniform(&"fov_compensation", fov_compensation)
-
-
-# Live-updates one shader uniform. No-op until the material exists (the property
-# setters fire during scene load, before _build creates the material).
-func _set_uniform(uniform: StringName, value: float) -> void:
-	if _shader_material:
-		_shader_material.set_shader_parameter(uniform, value)
+	_star_settings.apply_to(_shader_material)
 
 
 # Appends one magnitude bin's stars to [param vertices] (internal units) and

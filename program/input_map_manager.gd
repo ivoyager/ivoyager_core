@@ -198,6 +198,9 @@ static var defaults: Dictionary[StringName, Variant] = {
 	&"toggle_fullscreen" : [
 		{&"event_class" : &"InputEventKey", &"keycode" : KEY_F, &"ctrl_pressed" : true}
 	],
+	&"take_screenshot" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_F12}
+	],
 	&"toggle_pause" : [
 		{&"event_class" : &"InputEventKey", &"keycode" : KEY_SPACE}
 	],
@@ -256,6 +259,7 @@ static var action_texts: Dictionary[StringName, StringName] = {
 	&"quicksave" : &"LABEL_QUICKSAVE",
 	&"quit" : &"LABEL_QUIT",
 	&"save_quit" : &"LABEL_SAVE_AND_QUIT",
+	&"take_screenshot" : &"LABEL_TAKE_SCREENSHOT",
 
 	&"toggle_all_gui" : &"LABEL_SHOW_HIDE_ALL_GUI",
 	&"toggle_orbits" : &"LABEL_SHOW_HIDE_ORBITS",
