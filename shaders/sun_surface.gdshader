@@ -30,26 +30,46 @@ render_mode unshaded, skip_vertex_transform, depth_draw_opaque;
 // star-colored (from B-V) emissive sphere. Farwarp keeps its depth consistent with the
 // warped orbit lines around it, exactly as the lit surface shader does.
 //
-// Driven by IVSpheroidModel sun-mode, which owns the disc<->point crossfade: "alpha"
-// ramps the disc out as the star shrinks toward a pixel (the sun_point takes over), and
-// "brightness" is the star's HDR surface brightness (distance-invariant -- a resolved
-// disc's surface brightness does not change with distance; only the point carries the
-// distance gradient). No lighting, occlusion, or ring-shadow term -- the sun casts light,
-// it does not receive it.
+// Driven by IVSpheroidModel sun-mode, which sets "angular_radius" (the star's true angular
+// size, radius/distance) each frame; this shader ramps the disc out against its own
+// VIEWPORT_SIZE as the star shrinks toward a pixel and the sun_point takes over, so an
+// off-screen capture fades at its own buffer's scale rather than the main window's.
+// "brightness" is the star's HDR surface brightness (distance-invariant -- a resolved disc's
+// surface brightness does not change with distance; only the point carries the distance
+// gradient). No lighting, occlusion, or ring-shadow term -- the sun casts light, it does not
+// receive it.
+//
+// Note the model's own "visible" is still culled against the main viewport by sun-mode: it is
+// a node property and cannot resolve per viewport. See the sun-mode section of
+// spheroid_model.gd for what that costs.
 
 #include "_farwarp.gdshaderinc"
 #include "_star_point.gdshaderinc"
 
 uniform sampler2D albedo : source_color, hint_default_white; // surface map; unbound = white
-uniform float color_bv = 0.63;    // star B-V; tints the disc (esp. with no albedo map)
-uniform float brightness = 1.0;   // HDR-capable surface-brightness multiplier (sun-mode sets)
-uniform float alpha = 1.0;        // LOD crossfade (sun-mode ramps 0..1); 1 = fully shown
+uniform float color_bv = 0.63;       // star B-V; tints the disc (esp. with no albedo map)
+uniform float color_saturation = 1.0; // shared with the field, so B-V reads the same either side
+uniform float brightness = 1.0;      // HDR-capable surface-brightness multiplier (sun-mode sets)
+uniform float angular_radius = 0.0;  // star radius / camera distance (sun-mode sets per frame)
+uniform float handoff_low = 1.0;     // px on-screen radius at/below which the point fully replaces this disc
+uniform float handoff_high = 2.5;    // px at/above which this disc fully replaces the point
+
+varying flat float v_alpha;
 
 void vertex() {
 	VERTEX = farwarp((MODELVIEW_MATRIX * vec4(VERTEX, 1.0)).xyz);
+	float pixel_radius = sun_pixel_radius(angular_radius, PROJECTION_MATRIX[1][1], VIEWPORT_SIZE.y);
+	v_alpha = sun_disc_weight(pixel_radius, handoff_low, handoff_high);
 }
 
 void fragment() {
-	ALBEDO = texture(albedo, UV).rgb * star_color(color_bv) * brightness;
-	ALPHA = alpha;
+	// Discard rather than draw a fully-faded disc. depth_draw_opaque means an alpha-0 disc
+	// would still write depth and punch out the sun_point sitting at the body's center behind
+	// it, so something has to drop it -- and doing that here resolves per viewport, where a
+	// CPU "visible" flag could only ever answer for the viewport its node lives in.
+	if (v_alpha <= 0.0) {
+		discard;
+	}
+	ALBEDO = texture(albedo, UV).rgb * star_color(color_bv, color_saturation) * brightness;
+	ALPHA = v_alpha;
 }

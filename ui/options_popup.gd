@@ -56,7 +56,7 @@ extends PopupPanel
 ## section_content].
 @export var layout: Array[Array] = [
 	# column 1
-	[&"LABEL_SAVE_LOAD", &"LABEL_CAMERA"],
+	[&"LABEL_SAVE_LOAD", &"LABEL_CAMERA", &"LABEL_SCREENSHOTS"],
 	# column 2
 	[&"LABEL_GUI_AND_HUD", &"LABEL_GRAPHICS_PERFORMANCE"],
 ]
@@ -83,6 +83,11 @@ extends PopupPanel
 		[&"LABEL_KEY_RATE_TANGENTIAL", &"camera_key_move_rate"],
 		[&"LABEL_KEY_RATE_PITCH_YAW", &"camera_key_pitch_yaw_rate"],
 		[&"LABEL_KEY_RATE_ROLL", &"camera_key_roll_rate"],
+	],
+	LABEL_SCREENSHOTS = [
+		[&"LABEL_WIDTH", &"screenshot_width"],
+		[&"LABEL_ASPECT", &"screenshot_aspect"],
+		[&"LABEL_FILE_DIALOG", &"screenshot_file_dialog"],
 	],
 	LABEL_GUI_AND_HUD = [
 		[&"LABEL_LANGUAGE", &"language"],
@@ -111,6 +116,7 @@ extends PopupPanel
 	gui_size = [&"CoreSettings", &"gui_size_settings"],
 	msaa_3d = [&"GraphicsManager", &"msaa_settings"],
 	directional_shadow_size = [&"GraphicsManager", &"shadow_size_settings"],
+	screenshot_aspect = [&"ScreenshotManager", &"aspects"],
 }
 
 ## Each option Control can be a [CheckBox], [OptionButton], [SpinBox],
@@ -123,6 +129,7 @@ extends PopupPanel
 	body_symbol_size_percent = {min_value = 20, max_value = 500, step = 10, suffix = "%"},
 	small_bodies_symbol_size_percent = {min_value = 10, max_value = 250, step = 10, suffix = "%"},
 	small_bodies_point_size = {min_value = 1, max_value = 20},
+	screenshot_width = {min_value = 300, max_value = 8192, step = 2, suffix = "px"},
 }
 
 var _enumerations: Dictionary[StringName, Dictionary] = {}

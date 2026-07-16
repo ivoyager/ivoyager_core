@@ -77,6 +77,7 @@ extends Node3D
 ##          |- IVOptionsPopup
 ##          |- IVHotkeysPopup
 ##          |- IVConfirmationDialog
+##          |- IVScreenshotDialog
 ##
 ##    |- IVCameraHandler             #
 ##    |- IVTimekeeper                #  "program" nodes are added by 
