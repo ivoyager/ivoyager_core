@@ -23,7 +23,7 @@ extends MeshInstance3D
 ## Catalog star field drawn as farwarp-remapped point sprites.
 ##
 ## Builds one [constant Mesh.PRIMITIVE_POINTS] surface from magnitude-binned star
-## binaries (produced by [code]tools/build_star_binaries.py[/code]) on [signal
+## binaries (produced by [code]addons/tools/build_star_binaries.py[/code]) on [signal
 ## IVStateManager.core_initialized]. Each vertex is a star at its true ecliptic
 ## position (internal units); a [code]CUSTOM0[/code] channel carries raw
 ## (V magnitude, B-V), which the [code]stars[/code] shader converts to point
@@ -41,7 +41,7 @@ extends MeshInstance3D
 
 
 ## Magnitude-bin upper edges; must match the bins written by
-## [code]tools/build_star_binaries.py[/code]. Each bin file holds stars up to its edge.
+## [code]addons/tools/build_star_binaries.py[/code]. Each bin file holds stars up to its edge.
 const BINARY_FILE_MAGNITUDES: Array[String] = ["2.0", "3.0", "4.0", "5.0", "6.0", "7.0", "8.0",
 		"9.0", "99.9"]
 
