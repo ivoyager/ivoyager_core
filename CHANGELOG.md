@@ -10,6 +10,8 @@ See cloning and downloading instructions [here](https://www.ivoyager.dev/develop
 
 Under development using Godot 4.7.
 
+Requires ivoyager_assets v0.2.dev.20260721. The Core plugin editor will offer to download this for you.
+
 **Project Notes:**
 1. **Why are the stars missing?!** Add the new IVStarsVisual (tree/stars_visual.tscn) to your main scene "Universe" node (or whatever you call it) to see the new shader-rendered stars. You'll also need assets v0.2.dev.20260711, which the Editor will prompt you to download.
 2. The new Screenshots feature has a file dialog `ui/screenshot_dialog.tscn` — add it under IVTopUI or wherever you add your popups.
@@ -24,12 +26,13 @@ Under development using Godot 4.7.
 * Analytic sun-occlusion system replaces shadow maps for astronomical-scale shadows. Four bonuses: 1) Resolution of Saturn rings shadow is  10000x higher (limited only by zoom level and rings resolution) and penumbra are mathematically modeled and correct. 2) The system is much ligher on the GPU than cranking shadow map up to 16K (which didn't help anyway). 3) It works in Compatibility renderer, so we can have shadows in our Planetarium web app. 4) It works with our "farwarp" system (see below). See [commit](https://github.com/charliewhitfield/ivoyager_core/commit/25e0b04f763265e1e966875efc844d4b24b9eb70). Architecture:
     * Shadows among large bodies and ring systems (astronomical-scale) are provided by material shaders only (spheroid_surface.gdshader, cloud_shell.gdshader and rings.gdshader; all using _sun_occlusion.gdshaderinc).
     * Astronomical shadows on *distant* small objects are represented by mathematically modeled uniform light changes.
-    * (Retained from before:) Local shadows among small objects or, say, a crater rim on a small object, are rendered via Godot's normal shadow system using two directional lights and a light mask to handle > and <= 100m radius objects separately.
+	* (Retained from before:) Local shadows among small objects or, say, a crater rim on a small object, are rendered via Godot's normal shadow system using two directional lights and a light mask to handle > and <= 100m radius objects separately.
 * [#18](https://github.com/ivoyager/ivoyager_core/issues/18) "Farwarp" compression keeps large and distant objects visible when zoomed in to small spacecraft. Affects "visual" nodes and vertex shaders. Managed by IVFarwarpManager and IVBody, but does not affect IVBody itself. Opt-out available in IVCoreSetting. See [commit](https://github.com/charliewhitfield/ivoyager_core/commit/b9e5731b3521c8494290356b052752de8794f32e).
 * Add IVOrbit.replacement_subclass to enable project-wide replacement (e.g., for [this proposal](https://github.com/orgs/ivoyager/discussions/25)).
 * [#16](https://github.com/ivoyager/ivoyager_core/issues/16) Added spacecraft pointing methods. These can be specified by name in body tables (e.g., see `process` and `process_args` in [spacecrafts.tsv](https://github.com/ivoyager/ivoyager_core/blob/master/tables/spacecrafts.tsv)). The methods are in IVBody and can be added to by extending IVBody. (TODO: Move these to a static Callable dictionary to make it possible to add without subclassing.)
 
 ### Changed
+* Update ivoyager_core.cfg asset pointer to v0.2.dev.20260721.
 * [shader/gdshaderinc usage breaking] Many shader renames. The general pattern now is to name a `gdshader` file for its user if it is doing >1 function (e.g., spheroid_surface.gdshader) or its single generic function (e.g., farwarp_vertex.gdshader), and `gdshaderinc` files for the function(s) that they provide.
 * IVDynamicLights and defining table dynamic_lights.tsv restructured: the 4 semi-opaque far lights collapse into one unshadowed light that handles astronomical objects (see Analytic sun-occlusion system above). This takes pressure off of Godot's shadow map so should improve "local" shadows.
 * IVRings no longer creates a whole bunch of shadow caster nodes for semi-transparent shadows. This is all handled by Analytic sun-occlusion system above.
