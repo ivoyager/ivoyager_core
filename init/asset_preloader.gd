@@ -53,6 +53,17 @@ static var texture_channels: Dictionary[int, StringName] = {
 	BaseMaterial3D.TEXTURE_ROUGHNESS: &"roughness",
 	BaseMaterial3D.TEXTURE_ORM: &"orm",
 }
+## Maps a surface/shell shader (as named in [code]spheroids.tsv[/code]/[code]shells.tsv[/code])
+## to its cubemap counterpart. When a body's discovered channels are [TextureLayered]s
+## (files found under [member cubemaps_search]), [IVSpheroidModel] swaps the table-named shader
+## for the variant here, so the tables never encode "cube vs. equirect" — the asset type
+## decides. Add an entry to route a custom shader; a project with only equirect maps never
+## triggers it. See [method IVSpheroidModel._build_shader_material].
+static var cube_shader_variants: Dictionary[StringName, StringName] = {
+	&"spheroid_surface_shader": &"spheroid_surface_cube_shader",
+	&"cloud_shell_shader": &"cloud_shell_cube_shader",
+	&"sun_surface_shader": &"sun_surface_cube_shader",
+}
 ## [code]shells.tsv[/code] columns that are NOT [StandardMaterial3D] properties (read
 ## explicitly into the shell spec). Every other column is set on the shell material
 ## directly by [IVSpheroidModel] — to add a material override, just add that property's
@@ -85,6 +96,12 @@ var use_thread := false
 var models_search: Array[String] = ["res://addons/ivoyager_assets/models"]
 ## Directories searched for body texture maps (channel maps + shell overlays).
 var maps_search: Array[String] = ["res://addons/ivoyager_assets/maps"]
+## Directories searched for cubemap body maps. Same filename convention as
+## [member maps_search] (the [code]<res>[/code] token is the cube FACE size), but each
+## file is a 6-face strip importing as a [CompressedCubemap] (see
+## [code]addons/tools/bake_cubemap.py[/code]).
+## Scanned AFTER maps_search, so a cubemap wins when a body has both — coexist-friendly.
+var cubemaps_search: Array[String] = ["res://addons/ivoyager_assets/cubemaps"]
 ## Directories searched for 2D body textures (used in nav buttons, GUI, etc.).
 var bodies_2d_search: Array[String] = ["res://addons/ivoyager_assets/bodies_2d"]
 ## Directories searched for rings textures.
@@ -367,9 +384,19 @@ func _load_body_resources() -> void:
 				var channels: Dictionary = {}
 				for param: int in param_paths:
 					var map_path: String = param_paths[param]
-					var texture: Texture2D = load(map_path)
-					channels[param] = texture
-					_warn_channel_texture(param, texture, map_path)
+					# A cubemap map imports as CompressedCubemap (a TextureLayered) and an
+					# equirect one as CompressedTexture2D, so the resource type alone selects
+					# the sampling path — the cubemaps/ directory is only a convention.
+					# NB: CompressedCubemap does NOT extend Cubemap; both derive from
+					# TextureLayered, so `is Cubemap` would be false for every imported one.
+					var resource: Variant = load(map_path)
+					if resource is TextureLayered:
+						var cube_texture: TextureLayered = resource
+						channels[param] = cube_texture
+					else:
+						var texture: Texture2D = resource
+						channels[param] = texture
+						_warn_channel_texture(param, texture, map_path)
 					if shell == &"surface":
 						if param == BaseMaterial3D.TEXTURE_ALBEDO:
 							surface_albedo_file = map_path.get_file()
@@ -481,13 +508,17 @@ func _map_regex_has_groups() -> bool:
 
 
 func _build_maps_index() -> Dictionary:
-	# prefix(lower) -> shell(StringName) -> {TextureParam(int): res_path}. One pass
-	# replaces a per-(body x channel) directory scan.
+	# prefix(lower) -> shell(StringName) -> {TextureParam(int): path}. One pass replaces a
+	# per-(body x channel) directory scan. Equirect maps first, then cubemaps with
+	# overwrite, so a cubemap wins when a body ships both formats. Nothing here records
+	# WHICH format won; the loaded resource type says so (see [method _load_body_resources]).
 	var index: Dictionary = {}
 	var tag_to_param: Dictionary = {}
 	for param: int in texture_channels:
 		tag_to_param[String(texture_channels[param])] = param
 	for dir_path in maps_search:
+		_scan_maps_dir(dir_path, index, tag_to_param, true)
+	for dir_path in cubemaps_search:
 		_scan_maps_dir(dir_path, index, tag_to_param, true)
 	return index
 

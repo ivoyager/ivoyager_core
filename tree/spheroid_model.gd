@@ -425,6 +425,14 @@ func _build_shader_material(shader_name: StringName, channels: Dictionary,
 	# uniforms, and each shells.tsv override column feeds the uniform of the same name
 	# (so e.g. a "clouds_detail_strength" column tunes the shader per body); a column
 	# that isn't a uniform is ignored. The shader owns its own blending.
+	# When the discovered channels are Cubemaps, swap the table-named shader for its
+	# cubemap variant (the asset format decides; the tables stay format-agnostic).
+	if _channels_are_cube(channels):
+		if asset_preloader.cube_shader_variants.has(shader_name):
+			shader_name = asset_preloader.cube_shader_variants[shader_name]
+		else:
+			push_warning("Body %s shell %d: Cubemap channels but shader '%s' has no cube variant"
+					% [_body_name, _shell, shader_name])
 	var resource: Resource = IVGlobal.resources.get(shader_name)
 	var shader := resource as Shader
 	if not shader:
@@ -438,6 +446,25 @@ func _build_shader_material(shader_name: StringName, channels: Dictionary,
 	_assert_overrides_are_uniforms(overrides, shader)
 	_apply_overrides_to_shader_material(material, overrides)
 	set_surface_override_material(0, material)
+
+
+func _channels_are_cube(channels: Dictionary) -> bool:
+	# A shell's channels are all one texture format — a shader is samplerCube or
+	# sampler2D, not both. Return whether they are cubemaps; a mix is a bake/asset error.
+	# Test TextureLayered, NOT Cubemap: an imported cubemap is a CompressedCubemap, which
+	# derives from CompressedTextureLayered and is not a Cubemap (they are siblings), so
+	# `is Cubemap` silently misses every imported cubemap and routes it to the 2D shader.
+	var any_cube := false
+	var any_2d := false
+	for param: int in channels:
+		if channels[param] is TextureLayered:
+			any_cube = true
+		else:
+			any_2d = true
+	assert(not (any_cube and any_2d),
+			"Body %s shell %d: channels mix cubemap and Texture2D (a shell must be all one format)"
+			% [_body_name, _shell])
+	return any_cube
 
 
 func _apply_channels_to_material(material: BaseMaterial3D, channels: Dictionary) -> void:
@@ -457,9 +484,13 @@ func _apply_channels_to_shader_material(material: ShaderMaterial, channels: Dict
 	# asset_preloader.texture_channels tag (e.g. &"albedo", &"normal").
 	var texture_channels: Dictionary[int, StringName] = asset_preloader.texture_channels
 	for param: int in channels:
-		var texture: Texture2D = channels[param]
+		var texture: Texture = channels[param] # Texture2D (equirect) or TextureLayered (cube)
 		if texture and texture_channels.has(param):
-			material.set_shader_parameter(texture_channels[param], texture)
+			var tag: StringName = texture_channels[param]
+			material.set_shader_parameter(tag, texture)
+			# Presence flag so a cube shader can fall back for absent optional channels
+			# (no-op on shaders without the uniform, e.g. the equirect path).
+			material.set_shader_parameter(StringName("has_%s" % tag), true)
 
 
 func _apply_overrides_to_shader_material(material: ShaderMaterial, overrides: Dictionary) -> void:

@@ -25,10 +25,13 @@ shader_type spatial;
 render_mode unshaded, skip_vertex_transform, depth_draw_opaque;
 
 // Near representation of an in-scene star ("sun"): the solid IVSpheroidModel surface
-// (shell 0), rendered emissive. Set as the G_STAR spheroid type's "shader" column. Any
-// discovered surface map auto-binds to "albedo"; otherwise the disc is a uniform
-// star-colored (from B-V) emissive sphere. Farwarp keeps its depth consistent with the
-// warped orbit lines around it, exactly as the lit surface shader does.
+// (shell 0), rendered emissive. Set as the G_STAR spheroid type's "shader" column. A
+// star's surface map is discovered under the "emission" tag (Sun.emission.*), so that is
+// what the uniform below must be called for IVAssetPreloader to bind it; unbound, the disc
+// is a uniform star-colored (from B-V) sphere. It drives ALBEDO rather than EMISSION
+// because "unshaded" outputs ALBEDO directly and ignores EMISSION. Farwarp keeps the
+// disc's depth consistent with the warped orbit lines around it, exactly as the lit
+// surface shader does.
 //
 // Driven by IVSpheroidModel sun-mode, which sets "angular_radius" (the star's true angular
 // size, radius/distance) each frame; this shader ramps the disc out against its own
@@ -46,8 +49,8 @@ render_mode unshaded, skip_vertex_transform, depth_draw_opaque;
 #include "_farwarp.gdshaderinc"
 #include "_star_point.gdshaderinc"
 
-uniform sampler2D albedo : source_color, hint_default_white; // surface map; unbound = white
-uniform float color_bv = 0.63;       // star B-V; tints the disc (esp. with no albedo map)
+uniform sampler2D emission : source_color, hint_default_white; // surface map; unbound = white
+uniform float color_bv = 0.63;       // star B-V; tints the disc (esp. with no surface map)
 uniform float color_saturation = 1.0; // shared with the field, so B-V reads the same either side
 uniform float brightness = 1.0;      // HDR-capable surface-brightness multiplier (sun-mode sets)
 uniform float angular_radius = 0.0;  // star radius / camera distance (sun-mode sets per frame)
@@ -70,6 +73,6 @@ void fragment() {
 	if (v_alpha <= 0.0) {
 		discard;
 	}
-	ALBEDO = texture(albedo, UV).rgb * star_color(color_bv, color_saturation) * brightness;
+	ALBEDO = texture(emission, UV).rgb * star_color(color_bv, color_saturation) * brightness;
 	ALPHA = v_alpha;
 }
