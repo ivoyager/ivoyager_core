@@ -40,6 +40,8 @@ extends EditorPlugin
 const REQUIRED_PLUGINS: Array[String] = ["ivoyager_units", "ivoyager_tables"]
 ## Project > Tools menu entry that opens [IVBody2DCaptureDialog].
 const ICON_TOOL_MENU_ITEM := "Capture Body 2D Icons…"
+## Project > Tools menu entry that opens [IVMapConvertDialog].
+const MAP_CONVERT_MENU_ITEM := "Map Convert…"
 
 var _config: ConfigFile # with overrides
 var _autoloads: Dictionary[String, String] = {}
@@ -66,6 +68,7 @@ func _enter_tree() -> void:
 	_add_shader_globals()
 	_handle_assets_update()
 	add_tool_menu_item(ICON_TOOL_MENU_ITEM, _open_body_2d_capture_dialog)
+	add_tool_menu_item(MAP_CONVERT_MENU_ITEM, _open_map_convert_dialog)
 
 
 func _exit_tree() -> void:
@@ -73,6 +76,7 @@ func _exit_tree() -> void:
 	# when they are used by external projects.
 	print("Removing I, Voyager - Core (plugin)")
 	remove_tool_menu_item(ICON_TOOL_MENU_ITEM)
+	remove_tool_menu_item(MAP_CONVERT_MENU_ITEM)
 	_config = null
 	_remove_autoloads()
 
@@ -217,3 +221,29 @@ func _write_and_import_body_icons(captured: Dictionary) -> void:
 			paths.append(path)
 	IVBody2DIconSaver.reimport(paths)
 	print("Captured %d body 2D icon(s): %s" % [paths.size(), ", ".join(paths)])
+
+
+func _open_map_convert_dialog() -> void:
+	var dialog := IVMapConvertDialog.new()
+	dialog.conversions_ready.connect(_import_cube_strips)
+	dialog.restart_requested.connect(_restart_after_map_convert)
+	EditorInterface.popup_dialog_centered(dialog)
+
+
+func _restart_after_map_convert() -> void:
+	# The dialog and its SubViewport free deferred, and restart_editor() ends the process
+	# on the spot — so restarting from the dialog itself leaks both at exit.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	EditorInterface.restart_editor()
+
+
+func _import_cube_strips(paths: PackedStringArray) -> void:
+	if paths.is_empty():
+		return
+	# The strips are already written; only the import is deferred, and for the same reason
+	# as the body icons above — it must not run while the converter's SubViewport lives.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	IVCubeStripSaver.reimport(paths)
+	print("Converted %d cubemap strip(s): %s" % [paths.size(), ", ".join(paths)])

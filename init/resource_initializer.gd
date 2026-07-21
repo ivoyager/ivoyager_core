@@ -42,10 +42,16 @@ var preloads: Dictionary[StringName, Resource] = {
 	farwarp_vertex_shader = preload("res://addons/ivoyager_core/shaders/farwarp_vertex.gdshader"),
 	rings_shader = preload("res://addons/ivoyager_core/shaders/rings.gdshader"),
 	cloud_shell_shader = preload("res://addons/ivoyager_core/shaders/cloud_shell.gdshader"),
+	cloud_shell_cube_shader = preload(
+			"res://addons/ivoyager_core/shaders/cloud_shell.cube.gdshader"),
 	atmosphere_limb_shader = preload("res://addons/ivoyager_core/shaders/atmosphere_limb.gdshader"),
 	spheroid_surface_shader = preload("res://addons/ivoyager_core/shaders/spheroid_surface.gdshader"),
+	spheroid_surface_cube_shader = preload(
+			"res://addons/ivoyager_core/shaders/spheroid_surface.cube.gdshader"),
 	stars_shader = preload("res://addons/ivoyager_core/shaders/stars.gdshader"),
 	sun_surface_shader = preload("res://addons/ivoyager_core/shaders/sun_surface.gdshader"),
+	sun_surface_cube_shader = preload(
+			"res://addons/ivoyager_core/shaders/sun_surface.cube.gdshader"),
 	sun_point_shader = preload("res://addons/ivoyager_core/shaders/sun_point.gdshader"),
 	starmap_background_shader = preload("res://addons/ivoyager_core/shaders/starmap_background.gdshader"),
 }
