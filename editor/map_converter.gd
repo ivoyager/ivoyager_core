@@ -85,9 +85,11 @@ static func max_face_size() -> int:
 
 ## Reprojects one channel of one body. [param source_path] is a [code]res://[/code] map;
 ## [param is_normal] bakes an object-space normal instead of color; [param face_size] 0
-## takes it from the source width. Must be awaited. Returns null on failure. The caller
-## can recover the face size as the returned strip's width / 3.
-func convert(source_path: String, is_normal: bool, face_size := 0,
+## takes it from the source width; [param max_size] caps that (0 = uncapped), so a caller
+## can bake smaller faces than the source would give. Both are powers of two. Must be
+## awaited. Returns null on failure. The caller can recover the face size as the returned
+## strip's width / 3.
+func convert(source_path: String, is_normal: bool, face_size := 0, max_size := 0,
 		supersample := DEFAULT_SUPERSAMPLE) -> Image:
 	# Read the original jpg/png, NOT the imported .ctex: that is already VRAM compressed
 	# (and for a normal map, RGTC, which has thrown the blue channel away), so resampling
@@ -99,6 +101,8 @@ func convert(source_path: String, is_normal: bool, face_size := 0,
 		return null
 	if face_size <= 0:
 		face_size = face_size_for(source_image.get_width())
+	if max_size > 0:
+		face_size = mini(face_size, max_size)
 	if face_size > max_face_size():
 		push_error("Map Convert: face %d exceeds this GPU's limit %d" % [face_size,
 				max_face_size()])
