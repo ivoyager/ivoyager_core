@@ -25,16 +25,27 @@ We build the map from the public-domain data directly. Surface detail is the 500
 
 ---
 
+## Mercury
+
+The Mercury surface map is an I, Voyager original, built from public-domain imagery. It ships as an equirectangular master in `ivoyager_originated_extras` and as the `/cubemaps/Mercury.albedo.1024.png` cubemap in `ivoyager_assets`. Its surface detail is the USGS MESSENGER MDIS low-incidence global monochrome basemap (the "LOI" basemap; MESSENGER Team, ASU, Johns Hopkins APL, Carnegie Institution of Washington; via USGS Astrogeology), chosen over the shaded morphology basemap so the albedo carries no baked lighting — relief comes from the engine and the `Mercury.normal` map.
+
+No public-domain true-color global map of Mercury exists — the released MESSENGER color mosaics are false color (near-infrared or principal-component composites) — so the color is ours. We set it to Mercury's true disk-average tint, linear RGB 1.139 : 0.982 : 0.772 (a warm tan-grey), calibrated by integrating the disk-median MDIS visible-band spectrum (the 480/560/630 nm filters, from the public-domain MDIS multispectral records) against the CIE 1931 observer under an equal-energy illuminant. A single flat tint is the honest choice: measured local true-color variation across Mercury is below the perceptual threshold, so surface units (rays, plains, low-reflectance material) read through the grayscale brightness, not color. The permanently-shadowed polar craters and the small never-imaged polar gaps are inpainted from surrounding sunlit terrain.
+
+---
+
 ## Body models and surface-relief maps
 
-The 3D body models and surface-relief maps in this section are original works created for I, Voyager. They are not third-party works. They are listed here to attribute the public-domain source data from which they were derived — chiefly NASA mission data (governed by the [NASA Images and Media Usage Guidelines](https://www.nasa.gov/nasa-brand-center/images-and-media/)), plus the NOAA ETOPO 2022 global relief model for the Earth maps. Each custom model directory also contains a NASA albedo (diffuse) texture (the `*_diff.jpg` file) embedded in the model; those textures are public-domain NASA imagery documented in [3RD_PARTY.md](3RD_PARTY.md) under "Embedded maps in I, Voyager models," not I, Voyager works. Everything else in these directories (the `.glb` model and any baked normal map) is an I, Voyager work.
+The 3D body models and surface-relief maps in this section are original works created for I, Voyager. They are not third-party works. They are listed here to attribute the public-domain source data from which they were derived — chiefly NASA mission data (governed by the [NASA Images and Media Usage Guidelines](https://www.nasa.gov/nasa-brand-center/images-and-media/)), plus the NOAA ETOPO 2022 global relief model for the Earth maps. The seven custom-mesh bodies (Ceres, Charon, Deimos, Iapetus, Phobos, Phoebe, Vesta) each ship as a geometry mesh (`/meshes/<Body>.obj`) plus two cubemaps sampled by surface direction: an albedo (diffuse) cubemap (`/cubemaps/<Body>.albedo.512.png`) and an object-space normal cubemap (`/cubemaps/<Body>.normal.512.png`). The albedo is public-domain NASA imagery documented in [3RD_PARTY.md](3RD_PARTY.md), not an I, Voyager work; the mesh and the normal cubemap are I, Voyager works.
 
-### Custom body models (`.glb`)
+### Custom-mesh bodies (`/meshes/*.obj` + `/cubemaps/*.normal.*.png`)
 
-- `/models/ceres/*` — derived from the Dawn Framing Camera HAMO global Digital Terrain Model (Preusker et al., 2016; NASA/JPL-Caltech/UCLA/MPS/DLR/IDA).
-- `/models/charon/*` — derived from the New Horizons LORRI/MVIC global Digital Elevation Model (Schenk et al., 2018; NASA/Johns Hopkins APL/SwRI).
-- `/models/iapetus/*` — an idealized figure based on the published triaxial radii of Thomas et al. (2007); no global Iapetus elevation model is publicly available.
-- `/models/phoebe/*` — derived from the Gaskell stereophotoclinometry shape model (R. Gaskell, Cassini ISS; PDS Small Bodies Node dataset CO-SA-ISSNA-5-PHOEBESHAPE-V2.0).
+- `/meshes/Ceres.obj` + `/cubemaps/Ceres.normal.512.png` — derived from the Dawn Framing Camera HAMO global Digital Terrain Model (Preusker et al., 2016; NASA/JPL-Caltech/UCLA/MPS/DLR/IDA).
+- `/meshes/Charon.obj` + `/cubemaps/Charon.normal.512.png` — derived from the New Horizons LORRI/MVIC global Digital Elevation Model (Schenk et al., 2018; NASA/Johns Hopkins APL/SwRI).
+- `/meshes/Deimos.obj` + `/cubemaps/Deimos.normal.512.png` — derived from the Deimos stereophotoclinometry shape model of Ernst et al. (2023), 20 m ground sample distance, the first shape model to resolve Deimos' geology (C. M. Ernst, R. W. Gaskell et al., *High-resolution shape models of Phobos and Deimos from stereophotoclinometry*, Earth, Planets and Space 75:103, doi:10.1186/s40623-023-01814-7; built from Viking Orbiter, Mars Global Surveyor, Mars Express and Mars Reconnaissance Orbiter imaging and distributed through the Small Body Mapping Tool, Johns Hopkins APL).
+- `/meshes/Iapetus.obj` + `/cubemaps/Iapetus.normal.512.png` — an idealized figure based on the published triaxial radii of Thomas et al. (2007); no global Iapetus elevation model is publicly available.
+- `/meshes/Phobos.obj` + `/cubemaps/Phobos.normal.512.png` — derived from the Phobos stereophotoclinometry shape model of Ernst et al. (2023), 36 m ground sample distance (same publication and distribution as Deimos above; built from Viking Orbiter, Phobos 2, Mars Global Surveyor, Mars Express and Mars Reconnaissance Orbiter imaging).
+- `/meshes/Phoebe.obj` + `/cubemaps/Phoebe.normal.512.png` — derived from the Gaskell stereophotoclinometry shape model (R. Gaskell, Cassini ISS; PDS Small Bodies Node dataset CO-SA-ISSNA-5-PHOEBESHAPE-V2.0).
+- `/meshes/Vesta.obj` + `/cubemaps/Vesta.normal.512.png` — derived from the Dawn Framing Camera HAMO global stereophotogrammetric Digital Terrain Model (Preusker et al., 2016; NASA/JPL-Caltech/UCLA/MPS/DLR/IDA).
 
 ### Surface-normal (bump) maps
 
@@ -42,7 +53,7 @@ For shaded relief on the shared spheroid mesh:
 
 - `/cubemaps/Moon.normal.1024.png` — derived from LRO LOLA topography (NASA Scientific Visualization Studio, CGI Moon Kit).
 - `/cubemaps/Mercury.normal.512.png` — derived from MESSENGER global topography (NASA/JHUAPL/Carnegie Institution of Washington; USGS Astrogeology DEM).
-- `/cubemaps/Mars.normal.1024.png` — derived from MGS MOLA global topography (NASA/JPL/GSFC MOLA Science Team; USGS Astrogeology DEM).
+- `/cubemaps/Mars.normal.2048.png` — derived from MGS MOLA global topography (NASA/JPL/GSFC MOLA Science Team; USGS Astrogeology DEM).
 - `/cubemaps/Enceladus.normal.512.png` — derived from Cassini ISS global topography (Schenk, 2024; NASA/JPL-Caltech/Space Science Institute).
 - `/cubemaps/Earth.normal.1024.png` — derived from the NOAA ETOPO 2022 global relief model (60 arc-second ice surface; NOAA National Centers for Environmental Information), with ocean bathymetry flattened to sea level.
 
@@ -57,7 +68,6 @@ For the specular Sun-glint on open water (smooth water; matte land, ice and snow
 ## Other original assets
 
 - `/cubemaps/Titan.albedo.512.png` — original I, Voyager surface map for Titan.
-- `/cubemaps/Uranus.albedo.256.png` — original I, Voyager surface map for Uranus. Voyager 2 resolved almost no detail on Uranus and no third party publishes a global map of it, so this is a synthesized latitudinal gradient rather than a reprojection of imagery.
 - `/fallbacks/*` — fallback textures and models; original I, Voyager works.
 - `/asteroid_binaries/*` — asteroid orbital-data binaries generated from asteroid proper-element data downloaded from the [Asteroids Dynamic Site (AstDyS)](https://newton.spacedys.com/astdys). Please attribute Asteroids Dynamic Site (AstDyS) as the source of the underlying data.
 - `/starmaps/hipparcos_stars.*.ivbinary` — star point-cloud binaries generated by I, Voyager from the [ESA Hipparcos Catalogue](https://www.cosmos.esa.int/web/hipparcos) (ESA, 1997; ESA SP-1200). Please attribute ESA / the Hipparcos mission as the source of the underlying star data (positions, magnitudes and B-V colors).
@@ -75,7 +85,7 @@ A reprojection is mechanical — a change of coordinates plus resampling — so 
 - Public Domain, for maps built from public-domain NASA data;
 - the source map's license, for maps from third-party sources (see [3RD_PARTY.md](3RD_PARTY.md) — e.g. the Björn Jónsson and James Hastings-Trew maps).
 
-They are documented as a group rather than individually because the reprojection changes nothing about the license already documented for each source map. Editorial changes to those source maps — color adjustment, added grid lines, size reduction — are noted where the map itself is documented.
+They are documented as a group rather than individually because the reprojection changes nothing about the license already documented for each source map. Editorial changes to those source maps — color adjustment, neutral fill of unimaged regions, size reduction — are noted where the map itself is documented.
 
 ---
 

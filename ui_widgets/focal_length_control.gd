@@ -31,8 +31,8 @@ extends HBoxContainer
 
 ## Focal lengths (mm, 35mm-equivalent) the [code]+[/code]/[code]−[/code]
 ## buttons jump between. The first and last entries define the min and max
-## settable values.
-var big_steps: Array[float] = [6.0, 15.0, 24.0, 35.0, 50.0] # FOVs ~125.6, 75.8, 51.9, 36.9, 26.3
+## settable values. Defaults corespond to FOVs ~125.6, 75.8, 51.9, 36.9, 26.3.
+@export var big_steps: Array[float] = [6.0, 15.0, 24.0, 35.0, 50.0]
 
 var _camera: IVCamera
 
