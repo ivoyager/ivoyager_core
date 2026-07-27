@@ -157,9 +157,12 @@ func _resize() -> void:
 			await get_tree().process_frame
 		_control.size = size
 	await get_tree().process_frame
-	var viewport_size := get_viewport().get_visible_rect().size
-	_control.position.x = _control.anchor_left * (viewport_size.x - _control.size.x)
-	_control.position.y = _control.anchor_top * (viewport_size.y - _control.size.y)
+	var parent_size := get_viewport().get_visible_rect().size
+	if _control.get_parent() is Control:
+		parent_size = (_control.get_parent() as Control).get_rect().size
+
+	_control.position.x = _control.anchor_left * (parent_size.x - _control.size.x)
+	_control.position.y = _control.anchor_top * (parent_size.y - _control.size.y)
 	_suppress_resize = false
 	_panel_under_truncate()
 
