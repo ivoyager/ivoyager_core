@@ -94,6 +94,11 @@ var use_thread := false
 ## Directories searched for body 3D models. Prepend a directory to prioritize
 ## a custom override.
 var models_search: Array[String] = ["res://addons/ivoyager_assets/models"]
+## Directories searched for a body's surface [Mesh] resource (e.g. an OBJ imported as
+## [ArrayMesh]). A mesh here makes the body a custom-mesh spheroid — the mesh replaces
+## the shared sphere in [IVSpheroidModel], driven by the body's discovered channels. A
+## self-defining [member models_search] PackedScene takes precedence.
+var meshes_search: Array[String] = ["res://addons/ivoyager_assets/meshes"]
 ## Directories searched for body texture maps (channel maps + shell overlays).
 var maps_search: Array[String] = ["res://addons/ivoyager_assets/maps"]
 ## Directories searched for cubemap body maps. Same filename convention as
@@ -186,6 +191,14 @@ func get_body_map_offset(body_name: StringName) -> float:
 ## type, resolved in [IVSpheroidModel]. Consumed by [IVSpheroidModel].
 func get_body_shell_specs(body_name: StringName) -> Array:
 	return _body_resources[body_name][6]
+
+
+## Returns the body's custom surface [Mesh] (an OBJ imported as [ArrayMesh]) if one
+## exists in [member meshes_search], else [code]null[/code]. When present, [IVBodyVisual]
+## builds a custom-mesh [IVSpheroidModel] whose mesh replaces the shared sphere, so the
+## body's discovered channels + cube shader drive a real figure.
+func get_body_mesh(body_name: StringName) -> Mesh:
+	return _body_resources[body_name][7]
 
 
 func get_rings_texture_arrays(rings_name: StringName) -> Array[Texture2DArray]:
@@ -373,6 +386,10 @@ func _load_body_resources() -> void:
 					disable_auto_visual_range = IVTableData.get_db_bool(&"file_adjustments",
 							&"disable_auto_visual_range", file_adj_rows[model_file])
 			
+			# A custom surface Mesh (e.g. an OBJ -> ArrayMesh) makes this a custom-mesh
+			# spheroid; consumed in IVBodyVisual's spheroid branch as the mesh_override.
+			var mesh := IVFiles.find_and_load_resource(meshes_search, file_prefix) as Mesh
+
 			# Discovered texture channels per shell from the single-pass maps index
 			# (shell &"surface" = files with no shell token in the name).
 			var shell_channels: Dictionary = {}
@@ -467,6 +484,7 @@ func _load_body_resources() -> void:
 				disable_auto_visual_range,
 				map_offset,
 				shell_specs,
+				mesh,
 			]
 
 			_body_resources[body_name] = resources

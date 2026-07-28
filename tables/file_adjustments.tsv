@@ -2,13 +2,9 @@
 Type	STRING	FLOAT	FLOAT	BOOL
 Unit		deg	m	
 Default		0	1	
-	Mars.albedo.4096.jpg	180		
-	Deimos.1_1000.glb		1000	
 	Eros.1_10.glb		10	
 	Hyperion.1_1000.glb		1000	
 	Mimas.1_1000.glb		1000	
-	Phobos.1_1000.glb		1000	
-	Vesta.1_100.glb		100	
 	Ceres.1_1000.glb		1000	
 	Charon.1_1000.glb		1000	
 	Iapetus.1_1000.glb		1000	
