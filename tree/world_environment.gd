@@ -32,26 +32,36 @@ extends WorldEnvironment
 ## If [member add_starmap] is true (default), this node adds a low-resolution
 ## background panorama (the diffuse Milky Way / nebula sky) from the assets
 ## directory to the Environment's sky at startup, discovered by file prefix (see
-## [member starmap_background_file_prefix]). The default Environment omits it
-## because the Core plugin is stand-alone without assets; a missing file simply
-## leaves the black clear-color background. Discrete stars are drawn separately
-## by [IVStarsVisual].[br][br]
+## [member starmap_background_file_prefix]) and oriented by [member sky_rotation].
+## The default Environment omits it because the Core plugin is stand-alone without
+## assets; a missing file simply leaves the black clear-color background. Discrete
+## stars are drawn separately by [IVStarsVisual].[br][br]
 
 ## If true, a background panorama discovered under [member starmaps_search] by
 ## [member starmap_background_file_prefix] is added to the Environment's sky as a
 ## [PanoramaSkyMaterial] at startup. A missing file leaves the clear-color background.
 @export var add_starmap := true
 ## File prefix (see [IVFiles]) of the background sky panorama in [member
-## starmaps_search]; e.g. [code]starmap_background[/code] matches
-## [code]starmap_background.1024.jpg[/code], so the asset resolution can change
-## without a code edit.
-@export var starmap_background_file_prefix := &"starmap_background"
+## starmaps_search]; e.g. [code]milkyway_galaxies_nebulea[/code] matches
+## [code]milkyway_galaxies_nebulea.4096.exr[/code], so the asset resolution can
+## change without a code edit. A panorama must be equirectangular and drawn to the
+## astronomical convention (longitude 0 centered and increasing leftward, +latitude
+## up); set [member sky_rotation] for the frame it is drawn in.
+@export var starmap_background_file_prefix := "milkyway_background"
 ## Directories searched for the background panorama. Prepend a directory to
 ## prioritize a custom override.
 var starmaps_search: Array[String] = ["res://addons/ivoyager_assets/starmaps"]
 ## Energy multiplier applied to the background sky ([code]starmap_background[/code]
 ## shader).
-@export_range(0.0, 2.0, 0.01, "or_greater") var starmap_background_energy := 0.15
+@export_range(0.0, 2.0, 0.01, "or_greater") var starmap_background_energy := 0.5
+## Euler angles assigned to [member Environment.sky_rotation], which rotates the background
+## panorama out of the frame it is drawn in and into the simulator's ecliptic frame. Zero
+## means the panorama is already ecliptic. The default suits the galactic-coordinate
+## panorama named by [member starmap_background_file_prefix]: it decomposes the ecliptic
+## basis whose x-axis points at the galactic center (ICRS RA 266.40510, dec -28.936175) and
+## z-axis at the north galactic pole (ICRS RA 192.85948, dec +27.12825), the IAU galactic
+## frame as referred to ICRS by Hipparcos (ESA SP-1200, sect. 1.5.3).
+@export var sky_rotation := Vector3(0.000351590, -1.050488534, -1.682016221)
 ## Multiplies all scene radiance (emission + lit surfaces + sky) before tonemapping;
 ## applied only under the Compatibility renderer to offset its dimmer output. Tune by eye.
 @export var gl_compatibility_exposure := 1.2
@@ -80,19 +90,18 @@ func _on_asset_preloader_finished() -> void:
 
 func _add_starmap_sky() -> void:
 	var background: Texture2D = IVFiles.find_and_load_resource(starmaps_search,
-			String(starmap_background_file_prefix))
+		starmap_background_file_prefix)
 	if !background:
 		return
 
-	# Depixelating sky shader (bicubic resample) that samples the equatorial background
-	# image as-is and rotates it into the ecliptic frame; see starmap_background.gdshader
-	# for why Environment.sky_rotation can't do this (handedness).
+	# Depixelating sky shader (bicubic resample) that samples the background image as-is;
+	# sky_rotation supplies the frame. See starmap_background.gdshader.
 	var sky_material := ShaderMaterial.new()
 	sky_material.shader = IVGlobal.resources[&"starmap_background_shader"]
 	sky_material.set_shader_parameter(&"panorama", background)
 	sky_material.set_shader_parameter(&"energy_multiplier", starmap_background_energy)
-	sky_material.set_shader_parameter(&"obliquity", IVAstronomy.OBLIQUITY_OF_THE_ECLIPTIC)
 	var sky := Sky.new()
 	sky.sky_material = sky_material
 	environment.sky = sky
+	environment.sky_rotation = sky_rotation
 	environment.background_mode = Environment.BG_SKY

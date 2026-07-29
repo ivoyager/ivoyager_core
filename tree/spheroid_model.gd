@@ -20,8 +20,8 @@
 class_name IVSpheroidModel
 extends MeshInstance3D
 
-## A generic spheroid model (shared sphere mesh) that also orchestrates its own
-## concentric "shells".
+## A generic spheroid model (shared sphere mesh, or a custom body mesh via
+## [param mesh_override]) that also orchestrates its own concentric "shells".
 ##
 ## The model used for stars and planetary-mass objects that have no packed-scene
 ## model. It is "shell 0" (the surface) and the parent of optional overlay shells
@@ -160,7 +160,7 @@ static func _rotate(spheroid_model: IVSpheroidModel, delta: float, deg_per_sec: 
 
 
 func _init(body_name: StringName, spheroid_type: int, mean_radius: float, model_basis: Basis,
-		shell := 0) -> void:
+		shell := 0, mesh_override: Mesh = null) -> void:
 	_body_name = body_name
 	_spheroid_type = spheroid_type
 	_mean_radius = mean_radius
@@ -168,7 +168,8 @@ func _init(body_name: StringName, spheroid_type: int, mean_radius: float, model_
 	_reference_basis = model_basis
 	name = &"SpheroidModel" if shell == 0 else StringName("Shell_%d" % shell)
 	transform.basis = model_basis
-	mesh = IVGlobal.resources[&"sphere_mesh"]
+	# shell-0 surface may use a custom body mesh (meshes_search) instead of the shared sphere
+	mesh = mesh_override if mesh_override else IVGlobal.resources[&"sphere_mesh"] as Mesh
 
 
 func _ready() -> void:

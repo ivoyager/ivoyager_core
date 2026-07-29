@@ -48,6 +48,9 @@ signal restart_requested()
 
 const MAPS_DIR := "res://addons/ivoyager_assets/maps"
 const MAP_EXTENSIONS: Array[String] = ["jpg", "jpeg", "png"]
+const MAX_SIZE_CHOICES: Array[int] = [0, 512, 1024, 2048, 4096, 8192] # 0 is "None"
+const WRAP_WIDTH := 720
+
 
 var _bodies: Array[Dictionary] = [] # {file_prefix, sources: {channel: path}, converted: int}
 var _exclusions: Array[String] = []
@@ -59,6 +62,7 @@ var _body_list: ItemList
 var _status_label: Label
 var _exclusions_label: Label
 var _only_unconverted: CheckButton
+var _max_size_option: OptionButton
 var _convert_all_button: Button
 var _restart_button: Button
 
@@ -78,23 +82,18 @@ func _ready() -> void:
 	_refresh()
 
 
-# A wrapping Label reports a minimum WIDTH of 1, so on an early layout pass it can be
-# measured at near-zero width, wrap to hundreds of lines, and grow the dialog past the
-# screen -- and a Window never shrinks back. Every autowrap Label here gets a real minimum
-# width to make that impossible.
-const _WRAP_WIDTH := 560
-
-
 func _set_initial_size() -> void:
 	var usable := DisplayServer.screen_get_usable_rect(
 			DisplayServer.window_get_current_screen())
+	min_size = Vector2i(mini(WRAP_WIDTH + 80, usable.size.x - 80),
+			mini(400, usable.size.y - 80))
 	size = Vector2i(mini(760, usable.size.x - 80), mini(560, usable.size.y - 80))
 
 
 func _add_wrapping_label(parent: Control, color := Color.WHITE) -> Label:
 	var label := Label.new()
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.custom_minimum_size = Vector2(_WRAP_WIDTH, 0)
+	label.custom_minimum_size = Vector2(WRAP_WIDTH, 0)
 	if color != Color.WHITE:
 		label.add_theme_color_override(&"font_color", color)
 	parent.add_child(label)
@@ -116,14 +115,26 @@ func _build_ui() -> void:
 	column.add_child(header)
 
 	var resolution_note := _add_wrapping_label(column, Color(0.62, 0.62, 0.62))
-	resolution_note.text = ("Each face is baked at the smallest power of two at or above "
-			+ "1/4 of the source width. A quarter matches the source's average texel "
+	resolution_note.text = ("By default, each face is baked at the smallest power of two at "
+			+ "or above 1/4 of the source width. A quarter matches the source's average texel "
 			+ "density at the equator, and the importer stores only powers of two — it "
 			+ "upscales any other size, which would cost that VRAM for less detail. "
 			+ "Resampling is unavoidable and uneven either way: a face samples about 20% "
 			+ "coarser than the equirect equator at its centre and about 55% finer at its "
 			+ "edges, and far coarser at the poles, which an equirectangular map wildly "
 			+ "oversamples. Rounding up to the power of two oversamples further, up to 2x.")
+
+	var max_size_row := HBoxContainer.new()
+	column.add_child(max_size_row)
+	var max_size_label := Label.new()
+	max_size_label.text = "Maximum face size:"
+	max_size_row.add_child(max_size_label)
+	_max_size_option = OptionButton.new()
+	_max_size_option.tooltip_text = ("Caps every baked face at this size. \"None\" bakes at "
+			+ "the automatic size described above.")
+	for choice in MAX_SIZE_CHOICES:
+		_max_size_option.add_item("None" if choice == 0 else str(choice))
+	max_size_row.add_child(_max_size_option)
 
 	_only_unconverted = CheckButton.new()
 	_only_unconverted.text = "Only bodies with unconverted channels"
@@ -134,7 +145,7 @@ func _build_ui() -> void:
 	_body_list = ItemList.new()
 	_body_list.select_mode = ItemList.SELECT_MULTI
 	_body_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_body_list.custom_minimum_size = Vector2(_WRAP_WIDTH, 140)
+	_body_list.custom_minimum_size = Vector2(WRAP_WIDTH, 140)
 	column.add_child(_body_list)
 
 	_status_label = _add_wrapping_label(column)
@@ -290,6 +301,7 @@ func _convert_bodies(chosen: Array[Dictionary]) -> void:
 		return
 	_is_converting = true
 	_update_buttons()
+	var selected_max_size := MAX_SIZE_CHOICES[_max_size_option.selected]
 	var converted_count := 0
 	for body in chosen:
 		var file_prefix: String = body[&"file_prefix"]
@@ -299,7 +311,8 @@ func _convert_bodies(chosen: Array[Dictionary]) -> void:
 			_status_label.text = "Converting %s %s…" % [file_prefix, channel]
 			# Let the label paint before the GPU work blocks the frame.
 			await get_tree().process_frame
-			var strip := await _converter.convert(source_path, channel == &"normal")
+			var strip := await _converter.convert(source_path, channel == &"normal", 0,
+					selected_max_size)
 			if !strip:
 				_status_label.text = "Failed on %s %s — see Output." % [file_prefix, channel]
 				continue

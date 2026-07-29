@@ -49,6 +49,18 @@ Press "Download" to download %s and replace existing ivoyager_assets.
 Press "Close" to manage assets manually.
 """
 
+## Appended to the dialog body text. Stale files under
+## [code]res://.godot/imported[/code] can make the editor skip a model's import,
+## leaving it without its textures.
+const IMPORT_NOTE := """
+Note: leftover files in .godot/imported can convince the editor that a model is
+already imported, so it loads without its textures. This is unlikely, but if a
+model comes up broken, any one of these fixes it:
+1. Select the model in the FileSystem dock and press "Reimport".
+2. Delete that model's files in .godot/imported, then restart the editor.
+3. Delete the whole .godot directory, then restart the editor.
+"""
+
 @onready var _close_button := add_cancel_button("Close")
 @onready var _progress_bar: ProgressBar = %ProgressBar
 
@@ -71,6 +83,7 @@ func update_dialog(expected_version: String, present_version := "") -> void:
 		label.text = MISSING_FORMAT % expected_version
 	else:
 		label.text = MISMATCH_FORMAT % [present_version, expected_version, expected_version]
+	label.text += IMPORT_NOTE
 
 
 ## Updates the progress bar; intended to be connected to

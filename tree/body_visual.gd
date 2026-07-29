@@ -127,9 +127,18 @@ func _build_packed_model(asset_preloader: IVAssetPreloader, packed_model: Packed
 
 
 func _build_spheroid_model(asset_preloader: IVAssetPreloader) -> void:
+	const RIGHT_ANGLE := PI / 2
+	# A custom body mesh (meshes_search) makes this a custom-mesh spheroid: the mesh carries
+	# the real figure (oblateness, ridge, DEM), so use a uniform km->engine scale + z-up (no
+	# oblate scale, no map_offset; the cube samples the mesh in object space). Reuses the
+	# packed-model basis; the model self-builds its cube surface from discovered channels.
+	var mesh := asset_preloader.get_body_mesh(_body_name)
+	if mesh:
+		reference_basis = get_packed_model_reference_basis(IVUnits.KM)
+		_model = IVSpheroidModel.new(_body_name, _spheroid_type, _m_radius, reference_basis, 0, mesh)
+		return
 	# Compute the oblate, map-offset, z-up reference basis; the model self-builds
 	# its surface, child shells, visibility ranges and layers from there.
-	const RIGHT_ANGLE := PI / 2
 	var polar_radius := 3.0 * _m_radius - 2.0 * _e_radius
 	reference_basis = Basis().scaled(Vector3(_e_radius, polar_radius, _e_radius))
 	var map_offset := asset_preloader.get_body_map_offset(_body_name)
