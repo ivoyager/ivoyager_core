@@ -103,8 +103,10 @@ func _replace_assets() -> void:
 		return
 	
 	if DirAccess.dir_exists_absolute(ASSETS_DIR):
-		print("Moving old ivoyager_assets to trash...")
-		OS.move_to_trash(ProjectSettings.globalize_path(ASSETS_DIR))
+		# EditorFileSystem's scan thread walks the tree we are about to gut.
+		while EditorInterface.get_resource_filesystem().is_scanning():
+			await get_tree().process_frame
+		_remove_existing_assets()
 	
 	print("Uncompressing new ivoyager_assets...")
 	#await get_tree().process_frame
@@ -137,3 +139,41 @@ func _replace_assets() -> void:
 	await get_tree().process_frame
 	EditorInterface.restart_editor()
 	queue_free()
+
+
+# Per file, and notified to EditorFileSystem, because its cleanup of
+# res://.godot/imported is gated on the file's ".import" still being present —
+# a directory delete takes that with it, stranding the cached imports. The next
+# install then finds them intact, skips reimporting, and glTF scenes never
+# re-extract their textures.
+func _remove_existing_assets() -> void:
+	print("Removing old ivoyager_assets...")
+	var resource_filesystem := EditorInterface.get_resource_filesystem()
+	var removed_count := 0
+	for file_path in _get_files_recursive(ASSETS_DIR):
+		if file_path.ends_with(".import") or file_path.ends_with(".uid"):
+			continue # EditorFileSystem removes these with the file they describe
+		if DirAccess.remove_absolute(file_path) != OK:
+			push_error("Could not remove file at %s" % file_path)
+			continue
+		resource_filesystem.update_file(file_path)
+		removed_count += 1
+	_remove_directory_recursive(ASSETS_DIR)
+	print("Removed %s files from %s" % [removed_count, ASSETS_DIR])
+
+
+static func _get_files_recursive(dir_path: String) -> PackedStringArray:
+	var file_paths := PackedStringArray()
+	for file_name in DirAccess.get_files_at(dir_path):
+		file_paths.append(dir_path.path_join(file_name))
+	for subdir_name in DirAccess.get_directories_at(dir_path):
+		file_paths.append_array(_get_files_recursive(dir_path.path_join(subdir_name)))
+	return file_paths
+
+
+static func _remove_directory_recursive(dir_path: String) -> void:
+	for file_name in DirAccess.get_files_at(dir_path):
+		DirAccess.remove_absolute(dir_path.path_join(file_name))
+	for subdir_name in DirAccess.get_directories_at(dir_path):
+		_remove_directory_recursive(dir_path.path_join(subdir_name))
+	DirAccess.remove_absolute(dir_path)

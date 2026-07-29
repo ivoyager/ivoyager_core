@@ -10,7 +10,7 @@ See cloning and downloading instructions [here](https://www.ivoyager.dev/develop
 
 Under development using Godot 4.7.
 
-Requires ivoyager_assets v0.2.dev.20260721. The Core plugin editor will offer to download this for you.
+Requires ivoyager_assets v0.2.dev.20260728. The Core plugin editor will offer to download this for you.
 
 **Project Notes:**
 1. **Why are the stars missing?!** Add the new IVStarsVisual (tree/stars_visual.tscn) to your main scene "Universe" node (or whatever you call it) to see the new shader-rendered stars. You'll also need assets v0.2.dev.20260711, which the Editor will prompt you to download.
@@ -32,7 +32,7 @@ Requires ivoyager_assets v0.2.dev.20260721. The Core plugin editor will offer to
 * [#16](https://github.com/ivoyager/ivoyager_core/issues/16) Added spacecraft pointing methods. These can be specified by name in body tables (e.g., see `process` and `process_args` in [spacecrafts.tsv](https://github.com/ivoyager/ivoyager_core/blob/master/tables/spacecrafts.tsv)). The methods are in IVBody and can be added to by extending IVBody. (TODO: Move these to a static Callable dictionary to make it possible to add without subclassing.)
 
 ### Changed
-* Update ivoyager_core.cfg asset pointer to v0.2.dev.20260721. Sync 3RD_PARTY.md and IVOYAGER_WORKS.md for asset changes.
+* Update ivoyager_core.cfg asset pointer to v0.2.dev.20260728. Sync 3RD_PARTY.md and IVOYAGER_WORKS.md for asset changes.
 * [shader/gdshaderinc usage breaking] Many shader renames. The general pattern now is to name a `gdshader` file for its user if it is doing >1 function (e.g., spheroid_surface.gdshader) or its single generic function (e.g., farwarp_vertex.gdshader), and `gdshaderinc` files for the function(s) that they provide.
 * IVDynamicLights and defining table dynamic_lights.tsv restructured: the 4 semi-opaque far lights collapse into one unshadowed light that handles astronomical objects (see Analytic sun-occlusion system above). This takes pressure off of Godot's shadow map so should improve "local" shadows.
 * IVRings no longer creates a whole bunch of shadow caster nodes for semi-transparent shadows. This is all handled by Analytic sun-occlusion system above.
@@ -41,6 +41,7 @@ Requires ivoyager_assets v0.2.dev.20260721. The Core plugin editor will offer to
 * [Feature](https://github.com/orgs/ivoyager/discussions/24): New and better symbols can be shown with or without body names, and set by group similar to color. See [preview](https://github.com/orgs/ivoyager/discussions/24#discussioncomment-17525851). Core provides a default symbol atlas resources/ivoyager_symbol_atlas.png, which can be replaced by setting "symbol_atlas_" values in IVCoreSettings.
 
 ### Fixed
+* The editor asset updater now removes an existing `ivoyager_assets` file by file, notifying EditorFileSystem of each removal, instead of sending the whole directory to the trash. Replacing it wholesale stranded cached imports under `res://.godot/imported`, so the next install skipped reimporting and model scenes never re-extracted their textures (required for 20260728+ asset downloads which don't include extractable resources).
 * [#17](https://github.com/ivoyager/ivoyager_core/issues/17) Fixed jagged and offset orbit/trajectory lines at Neptune and beyond.
 
 
