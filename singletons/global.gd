@@ -156,7 +156,7 @@ var date_aux: Array[int] = [0, 0, 0]
 ## objects (base or override classes).
 var program: Dictionary[StringName, Object] = {}
 ## Populated by [IVResourceInitializer]. Holds shaders and constructed resources
-## that can be shared, e.g., a common sphere mesh (for all spheroid models) and
+## that can be shared, e.g., a common sphere mesh (for untextured shells models) and
 ## a common circle mesh (for all closed orbit visuals). 
 var resources: Dictionary[StringName, Resource] = {}
 

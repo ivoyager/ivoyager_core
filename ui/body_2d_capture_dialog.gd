@@ -70,7 +70,7 @@ var _pan := Vector2.ZERO
 var _brightness := 1.0
 var _key_azimuth: float
 var _key_elevation: float
-var _is_spheroid: bool
+var _is_shells_model: bool
 
 
 func _ready() -> void:
@@ -188,7 +188,7 @@ func _on_body_selected(index: int) -> void:
 		_status_label.text = "%s has no model" % body_name
 		return
 	_aabb = _capturer.stage_visual(visual)
-	_is_spheroid = _capturer.get_staged_model() is IVSpheroidModel
+	_is_shells_model = _capturer.get_staged_model() is IVShellsModel
 	_rebuild_shell_toggles(body_name)
 	_reset_pose()
 	_status_label.text = ("%s — drag: rotate · right-drag: pan · wheel: zoom"
@@ -235,19 +235,19 @@ func _rebuild_shell_toggles(body_name: StringName) -> void:
 		_shell_toggles.add_child(toggle)
 
 
-func _on_shell_toggled(pressed: bool, shell: IVSpheroidModel) -> void:
+func _on_shell_toggled(pressed: bool, shell: IVShellsModel) -> void:
 	shell.visible = pressed
 
 
 # Shell 0 is the staged model itself and the parent of overlay shells 1..N.
-func _get_shell_nodes() -> Array[IVSpheroidModel]:
-	var shells: Array[IVSpheroidModel] = []
-	var surface := _capturer.get_staged_model() as IVSpheroidModel
+func _get_shell_nodes() -> Array[IVShellsModel]:
+	var shells: Array[IVShellsModel] = []
+	var surface := _capturer.get_staged_model() as IVShellsModel
 	if !surface:
 		return shells
 	shells.append(surface)
 	for child in surface.get_children():
-		var shell := child as IVSpheroidModel
+		var shell := child as IVShellsModel
 		if shell:
 			shells.append(shell)
 	return shells
@@ -265,8 +265,8 @@ func _reset_pose() -> void:
 	_pan = Vector2.ZERO
 	_brightness = IVBody2DCapturer.DEFAULT_BRIGHTNESS
 	var key_dir := IVBody2DCapturer.KEY_DIR
-	if _is_spheroid:
-		key_dir = IVBody2DCapturer.SPHEROID_KEY_DIR
+	if _is_shells_model:
+		key_dir = IVBody2DCapturer.SHELLS_KEY_DIR
 	var azimuth_elevation := IVBody2DCapturer.direction_to_azimuth_elevation(key_dir)
 	_key_azimuth = azimuth_elevation.x
 	_key_elevation = azimuth_elevation.y

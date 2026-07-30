@@ -1,4 +1,4 @@
-// spheroid_surface.gdshader
+// surface.gdshader
 // This file is part of I, Voyager
 // https://ivoyager.dev
 // *****************************************************************************
@@ -22,7 +22,7 @@ shader_type spatial;
 // ambient_light_disabled: ambient is rebuilt as emission; see _sun_occlusion.gdshaderinc.
 render_mode skip_vertex_transform, ambient_light_disabled;
 
-// Lit surface shader for a solid IVSpheroidModel surface (shell 0) that removes the texel
+// Lit surface shader for a solid IVShellsModel surface (shell 0) that removes the texel
 // "squares" a fixed-resolution map shows when magnified at close (orbital) range. Its core
 // job: resample the albedo and normal maps BICUBIC (C2-continuous) so the magnified
 // map reads smooth instead of blocky. It also hosts the analytic ring-shadow term (see
@@ -32,8 +32,8 @@ render_mode skip_vertex_transform, ambient_light_disabled;
 // plugin root for what was tried, why it didn't pay off, and the directions that would:
 // offline super-resolution of the source maps, and structure-guided shader synthesis).
 //
-// Set as a spheroid type's default in the spheroids.tsv "shader" column (the default for
-// rocky/desert/gas-giant/etc. types), or per-body in a SHELL_<body>_SURFACE shells.tsv shell-0 row.
+// Named in a shells.tsv "shader" column: on a surface-class row (the default for
+// rocky/desert/gas-giant/etc.), or per-body in a SHELL_<body>_SURFACE shell-0 row.
 // Discovered channels auto-bind to the like-named uniforms (albedo, normal, roughness, emission);
 // each table override column feeds the uniform of the same name, so the scalars below are tunable.
 //
@@ -53,6 +53,12 @@ uniform sampler2D albedo : source_color;                        // surface color
 uniform sampler2D normal : hint_normal;                         // tangent-space; unbound = flat
 uniform sampler2D roughness : hint_default_white;               // unbound = white -> roughness_scale
 uniform sampler2D emission : source_color, hint_default_black;  // city lights; unbound = no emission
+
+// Tint multiplied into the sampled albedo (alpha unused; this surface is opaque). White
+// leaves a mapped body untouched. IVShellsModel sets it to the surface class's
+// fallback_color when the body ships no color map at all, and an unbound albedo sampler
+// reads white, so the body renders in that flat color instead of white.
+uniform vec4 albedo_color : source_color = vec4(1.0);
 
 // Material scalars (per-body tunable via shells.tsv columns of the same name).
 uniform float normal_scale = 1.0;      // strength of the bound tangent normal map
@@ -76,7 +82,7 @@ void vertex() {
 void fragment() {
 	// Bicubic resample removes the texel squares of the magnified maps (texture_bicubic lives
 	// in _detail_common.gdshaderinc); plain texture() for the scalar-fallback roughness.
-	ALBEDO = texture_bicubic(albedo, UV).rgb;
+	ALBEDO = texture_bicubic(albedo, UV).rgb * albedo_color.rgb;
 	ROUGHNESS = clamp(texture(roughness, UV).r * roughness_scale, 0.0, 1.0);
 	METALLIC = metallic;
 	SPECULAR = metallic_specular;

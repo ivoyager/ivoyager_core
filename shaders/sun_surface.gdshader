@@ -19,13 +19,13 @@
 // *****************************************************************************
 shader_type spatial;
 // unshaded: a star emits its own light and is never lit or self-shadowed (unlike the lit
-// spheroid_surface shader). skip_vertex_transform: for the farwarp vertex remap (see
+// surface shader). skip_vertex_transform: for the farwarp vertex remap (see
 // _farwarp.gdshaderinc). depth_draw_opaque: write depth even though ALPHA is declared, so
 // the disc occludes bodies behind it at close range while still alpha-fading in the handoff.
 render_mode unshaded, skip_vertex_transform, depth_draw_opaque;
 
-// Near representation of an in-scene star ("sun"): the solid IVSpheroidModel surface
-// (shell 0), rendered emissive. Set as the G_STAR spheroid type's "shader" column. A
+// Near representation of an in-scene star ("sun"): the solid IVShellsModel surface
+// (shell 0), rendered emissive. Set as the G_STAR surface class's "shader" column. A
 // star's surface map is discovered under the "emission" tag (Sun.emission.*), so that is
 // what the uniform below must be called for IVAssetPreloader to bind it; unbound, the disc
 // is a uniform star-colored (from B-V) sphere. It drives ALBEDO rather than EMISSION
@@ -33,7 +33,7 @@ render_mode unshaded, skip_vertex_transform, depth_draw_opaque;
 // disc's depth consistent with the warped orbit lines around it, exactly as the lit
 // surface shader does.
 //
-// Driven by IVSpheroidModel sun-mode, which sets "angular_radius" (the star's true angular
+// Driven by IVShellsModel sun-mode, which sets "angular_radius" (the star's true angular
 // size, radius/distance) each frame; this shader ramps the disc out against its own
 // VIEWPORT_SIZE as the star shrinks toward a pixel and the sun_point takes over, so an
 // off-screen capture fades at its own buffer's scale rather than the main window's.
@@ -44,7 +44,7 @@ render_mode unshaded, skip_vertex_transform, depth_draw_opaque;
 //
 // Note the model's own "visible" is still culled against the main viewport by sun-mode: it is
 // a node property and cannot resolve per viewport. See the sun-mode section of
-// spheroid_model.gd for what that costs.
+// shells_model.gd for what that costs.
 
 #include "_farwarp.gdshaderinc"
 #include "_star_point.gdshaderinc"

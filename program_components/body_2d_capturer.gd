@@ -39,7 +39,7 @@ const FILL_COLOR := Color(0.7, 0.7, 0.7) ## Fill-light color (engine rig).
 const DEFAULT_YAW := -PI / 6 ## Canonical turntable yaw (model spun −30°).
 const DEFAULT_PITCH := PI / 6 ## Canonical turntable pitch (model tipped +30°).
 const DEFAULT_BRIGHTNESS := 1.0 ## Light-energy multiplier; raise for dark materials.
-const SPHEROID_KEY_DIR := Vector3(0.3, -0.3, -1.0) ## Frontal key for spheroids (full-disc lit).
+const SHELLS_KEY_DIR := Vector3(0.3, -0.3, -1.0) ## Frontal key for shells models (full-disc lit).
 
 var _viewport: SubViewport
 var _camera: Camera3D
@@ -149,7 +149,7 @@ func clear_visual() -> void:
 
 
 ## Returns the staged visual's model, or [code]null[/code] if nothing is staged. Use it to
-## tell a spheroid from a packed scene, or to reach the shells.
+## tell a shells model from a packed scene, or to reach the shells.
 func get_staged_model() -> Node3D:
 	if !_visual:
 		return null

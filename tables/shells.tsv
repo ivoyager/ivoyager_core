@@ -1,9 +1,25 @@
-	shell0	scale	file_tag	shader	process	process_args	cast_shadow	transparency	emission_energy_multiplier	metallic_specular	limb_color	limb_intensity	limb_falloff	limb_day_glow	limb_forward_scatter	limb_phase_exponent	limb_twilight
-Type	BOOL	FLOAT	STRING_NAME	STRING_NAME	STRING_NAME	ARRAY[VARIANT]	GeometryInstance3D.ShadowCastingSetting	BaseMaterial3D.Transparency	FLOAT	FLOAT	COLOR	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT
-Prefix/SHELL_							SHADOW_CASTING_SETTING_	TRANSPARENCY_									
-PLANET_EARTH_SURFACE	x			spheroid_surface_shader					0.1	0.35							
-PLANET_EARTH_CLOUDS		1.0016	clouds	cloud_shell_shader	_rotate	0.0003	OFF										
-PLANET_EARTH_LIMB		1.02		atmosphere_limb_shader			OFF				0.431, 0.627, 0.922, 1.0	0.01	25	1.0	2.5	4.0	0.15
-PLANET_VENUS_LIMB		1.02		atmosphere_limb_shader			OFF				0.922, 0.882, 0.725, 1.0	0.01	25	1.0	3.0	4.0	0.2
-MOON_TITAN_LIMB		1.05		atmosphere_limb_shader			OFF				0.471, 0.647, 0.882, 1.0	0.05	20	1.2	3.5	3.0	0.25
-# shell0 overrides spheroids.tsv																	
+	surface_class	shell0	scale	file_tag	shader	process	process_args	is_sun	cast_shadow	transparency	emission_energy_multiplier	metallic	roughness	roughness_scale	metallic_specular	limb_color	limb_intensity	limb_falloff	limb_day_glow	limb_forward_scatter	limb_phase_exponent	limb_twilight
+Type	TABLE_ROW	BOOL	FLOAT	STRING_NAME	STRING_NAME	STRING_NAME	ARRAY[VARIANT]	BOOL	GeometryInstance3D.ShadowCastingSetting	BaseMaterial3D.Transparency	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	COLOR	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT
+Prefix/SHELL_	SURFACE_CLASS_								SHADOW_CASTING_SETTING_	TRANSPARENCY_												
+# Body rows. Named SHELL_<body>_<tag> and listed in the body's 'shells' field.																						
+PLANET_EARTH_SURFACE		x			surface_shader						0.1				0.35							
+PLANET_EARTH_CLOUDS			1.0016	clouds	cloud_shell_shader	_rotate	0.0003		OFF													
+PLANET_EARTH_LIMB			1.02		atmosphere_limb_shader				OFF							0.431, 0.627, 0.922, 1.0	0.01	25	1.0	2.5	4.0	0.15
+PLANET_VENUS_SURFACE		x	1.010741		surface_shader																	
+PLANET_VENUS_LIMB			1.02		atmosphere_limb_shader				OFF							0.922, 0.882, 0.725, 1.0	0.01	25	1.0	3.0	4.0	0.2
+MOON_TITAN_LIMB			1.05		atmosphere_limb_shader				OFF							0.471, 0.647, 0.882, 1.0	0.05	20	1.2	3.5	3.0	0.25
+# Surface-class rows. Each is the default shell 0 for its surface_class; a body's																						
+# own shell0 row replaces it wholly (never a merge).																						
+G_STAR	G_STAR	x			sun_surface_shader			x	OFF													
+ROCKY_WORLD	ROCKY_WORLD	x			surface_shader																	
+DESERT_WORLD	DESERT_WORLD	x			surface_shader																	
+CONTINENTAL_WORLD	CONTINENTAL_WORLD	x			surface_shader										0.35							
+THICK_ATM_WORLD	THICK_ATM_WORLD	x			surface_shader																	
+ICE_WORLD	ICE_WORLD	x			surface_shader									0.5	0.35							
+VOLCANO_WORLD	VOLCANO_WORLD	x			surface_shader																	
+GAS_GIANT	GAS_GIANT	x			surface_shader																	
+ICE_GIANT	ICE_GIANT	x			surface_shader																	
+C_TYPE_BODY	C_TYPE_BODY	x			surface_shader																	
+M_TYPE_BODY	M_TYPE_BODY	x			surface_shader																	
+S_TYPE_BODY	S_TYPE_BODY	x			surface_shader																	
+FALLBACK	FALLBACK	x																				

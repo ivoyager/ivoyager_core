@@ -21,7 +21,7 @@ class_name IVStarSettings
 extends RefCounted
 
 ## Photometry shared by every star point sprite: the catalog field
-## ([IVStarsVisual]) and each in-scene star's far point ([IVSpheroidModel]
+## ([IVStarsVisual]) and each in-scene star's far point ([IVShellsModel]
 ## sun-mode).
 ##
 ## Past its disc handoff a sun [i]is[/i] a field star, so both must image through
@@ -38,7 +38,7 @@ extends RefCounted
 ## FUTURE_BLOOM_IMPLEMENTATION: nothing here is a glow control, and enabling glow
 ## would not merely need tuning — two things below the settings layer are wrong for
 ## it. First, the sun's disc and its far point crossfade in size but not in bloomable
-## energy: the disc writes its surface brightness (~3.0, hardcoded in [IVSpheroidModel]
+## energy: the disc writes its surface brightness (~3.0, hardcoded in [IVShellsModel]
 ## sun-mode) while the point writes up to the cap in
 ## [code]star_point_light()[/code] (32768, a shader literal), so the handoff that
 ## matches on screen would step by orders of magnitude in halo. Those two values are

@@ -230,7 +230,7 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 ## replacement.
 static var replacement_subclass: Script
 ## Set this script to replace the [IVBodyVisual] class. Must share its
-## [code]_init(body_name, mean_radius, equatorial_radius, polar_radius, spheroid_type)[/code]
+## [code]_init(body_name, mean_radius, equatorial_radius, polar_radius)[/code]
 ## signature.
 static var replacement_body_visual_class: Script
 ## Registry of model-attitude 'process' methods, keyed by the name used in the spacecrafts.tsv
@@ -525,7 +525,7 @@ static func _add_selection_recursive(body: IVBody) -> void:
 # resolved once per body in _resolve_process() and called every frame via _process_callable as
 # method(body, delta, ...process_args). A method returns true to own the body's model attitude
 # (skipping the default axial rotation in _process()) or false to fall through to it. Mirrors the
-# IVSpheroidModel 'process' mechanism. Per the table-method convention these methods may reference
+# IVShellsModel 'process' mechanism. Per the table-method convention these methods may reference
 # bodies by name (&"PLANET_EARTH", &"STAR_SUN") and must convert any unit-tagged argument
 # in-method, since the table cannot specify a unit for a VARIANT. All operate on body_visual.basis,
 # a world-oriented frame because IVBody nodes are never rotated; model-frame axis args are tunable.
@@ -915,8 +915,8 @@ func get_characteristic(key: StringName) -> Variant:
 			return get_body_class()
 		&"perspective_radius":
 			return get_perspective_radius()
-		&"spheroid_type":
-			return get_spheroid_type()
+		&"surface_class":
+			return get_surface_class()
 		&"file_prefix":
 			return get_file_prefix()
 		&"has_light":
@@ -973,8 +973,8 @@ func get_perspective_radius() -> float:
 	return mean_radius
 
 
-func get_spheroid_type() -> int: # spheroids.tsv (intent; -1 = unspecified)
-	return characteristics.get(&"spheroid_type", -1)
+func get_surface_class() -> int: # surface_classes.tsv row (-1 = unspecified)
+	return characteristics.get(&"surface_class", -1)
 
 
 func get_file_prefix() -> String:
@@ -1776,9 +1776,9 @@ func make_body_visual() -> IVBodyVisual:
 	if replacement_body_visual_class:
 		@warning_ignore("unsafe_method_access")
 		var replacement: IVBodyVisual = replacement_body_visual_class.new(name, mean_radius,
-				e_radius, p_radius, get_spheroid_type())
+				e_radius, p_radius)
 		return replacement
-	return IVBodyVisual.new(name, mean_radius, e_radius, p_radius, get_spheroid_type())
+	return IVBodyVisual.new(name, mean_radius, e_radius, p_radius)
 
 
 ## Called by [IVFarwarpManager] once per frame AFTER the camera has moved and

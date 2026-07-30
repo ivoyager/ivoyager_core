@@ -25,8 +25,8 @@ render_mode unshaded, skip_vertex_transform, depth_draw_opaque;
 // Cubemap counterpart of sun_surface.gdshader: the same emissive disc and the same
 // disc/point handoff, but the surface map is sampled by DIRECTION from a Cubemap
 // instead of by UV from an equirect map, which removes the pole starburst and the
-// +/-180 seam. IVSpheroidModel routes a star here automatically when its discovered
-// channels are Cubemaps (see spheroid_model.gd _build_shader_material and
+// +/-180 seam. IVShellsModel routes a star here automatically when its discovered
+// channels are Cubemaps (see shells_model.gd _build_shader_material and
 // IVAssetPreloader.cube_shader_variants); the tables are unchanged.
 //
 // Sampling stays plain bilinear, as in the equirect original — a star has no relief to
