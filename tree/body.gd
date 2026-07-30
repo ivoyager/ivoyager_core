@@ -229,7 +229,9 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 ## Set [code]IVBody.replacement_subclass = MyBody[/code] for project-wide
 ## replacement.
 static var replacement_subclass: Script
-## Set this script to replace the [IVBodyVisual] class.
+## Set this script to replace the [IVBodyVisual] class. Must share its
+## [code]_init(body_name, mean_radius, equatorial_radius, polar_radius, spheroid_type)[/code]
+## signature.
 static var replacement_body_visual_class: Script
 ## Registry of model-attitude 'process' methods, keyed by the name used in the spacecrafts.tsv
 ## 'process' field. Each [Callable] runs every frame as
@@ -1760,6 +1762,25 @@ func lazy_model_init() -> void:
 	_add_body_visual()
 
 
+## Builds a new [IVBodyVisual] for this body without adopting it, or [code]null[/code] if the
+## body has [member BodyFlags.BODYFLAGS_DISABLE_MODEL_SPACE]. This body's own visual is
+## [member body_visual]; use this only to stage a second, throwaway one outside the simulation
+## (an icon capture, a thumbnail). The caller owns it, and must call
+## [method IVBodyVisual.set_static_preview] on it as soon as it is in the tree — an unattended
+## copy animates, and a star's copy reaches back into this body.
+func make_body_visual() -> IVBodyVisual:
+	if flags & BodyFlags.BODYFLAGS_DISABLE_MODEL_SPACE:
+		return null
+	var e_radius := get_equatorial_radius()
+	var p_radius := get_polar_radius()
+	if replacement_body_visual_class:
+		@warning_ignore("unsafe_method_access")
+		var replacement: IVBodyVisual = replacement_body_visual_class.new(name, mean_radius,
+				e_radius, p_radius, get_spheroid_type())
+		return replacement
+	return IVBodyVisual.new(name, mean_radius, e_radius, p_radius, get_spheroid_type())
+
+
 ## Called by [IVFarwarpManager] once per frame AFTER the camera has moved and
 ## origin-shifted the Universe, so the world-space (top_level) placement of
 ## [member farwarp_position] lands in the frame's final coordinates. A placement
@@ -2040,17 +2061,11 @@ func _update_rotations(is_intrinsic: bool) -> void:
 
 
 func _add_body_visual() -> void:
-	const DISABLE_MODEL_SPACE := BodyFlags.BODYFLAGS_DISABLE_MODEL_SPACE
 	assert(!body_visual)
 	_lazy_model_uninited = false
-	if flags & DISABLE_MODEL_SPACE:
+	body_visual = make_body_visual()
+	if !body_visual:
 		return
-	var e_radius := get_equatorial_radius()
-	if replacement_body_visual_class:
-		@warning_ignore("unsafe_method_access")
-		body_visual = replacement_body_visual_class.new(name, mean_radius, e_radius, get_spheroid_type())
-	else:
-		body_visual = IVBodyVisual.new(name, mean_radius, e_radius, get_spheroid_type())
 	# Direct child at the body's true position; farwarp compression is applied per-vertex in the
 	# model shaders (see [IVFarwarpManager]). IVBody is never rotated, so body_visual.basis stays
 	# the world-oriented model frame.

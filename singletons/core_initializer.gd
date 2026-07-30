@@ -192,6 +192,7 @@ var program_nodes: Dictionary[StringName, Variant] = {
 	FarwarpManager = IVFarwarpManager, # keeps distant objects renderable
 	SunOcclusionManager = IVSunOcclusionManager, # analytic eclipse & ring shadows
 	ScreenshotManager = IVScreenshotManager, # off-screen render to PNG at a set size
+	Body2DCaptureManager = IVBody2DCaptureManager, # dev tool; inert outside a source run
 }
 ## Include keys from [member program_nodes] that need to be instantiated or
 ## added first and in order. Note: all are instantiated in the specified order,

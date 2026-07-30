@@ -184,9 +184,11 @@ func get_body_map_offset(body_name: StringName) -> float:
 
 ## Returns an ordered [Array] of shell specs for one body: element 0 is the
 ## surface (shell 0); elements 1..N are overlay render shells. Each spec is a
-## [Dictionary] with keys [code]channels, shader, process, process_args, is_sun,
+## [Dictionary] with keys [code]channels, tag, shader, process, process_args, is_sun,
 ## cast_shadow, overrides[/code] (plus [code]scale[/code] for overlays, and [code]from_shells[/code] on
-## shell 0). Built from the body's [code]shells[/code] field and the [code]shells[/code] table;
+## shell 0). [code]tag[/code] is the body's own name for the shell (e.g. [code]CLOUDS[/code]),
+## empty when the shell has no [code]shells[/code] row.
+## Built from the body's [code]shells[/code] field and the [code]shells[/code] table;
 ## a shell 0 with no [code]shells[/code] row defaults from the body's [code]spheroids.tsv[/code]
 ## type, resolved in [IVSpheroidModel]. Consumed by [IVSpheroidModel].
 func get_body_shell_specs(body_name: StringName) -> Array:
@@ -199,6 +201,12 @@ func get_body_shell_specs(body_name: StringName) -> Array:
 ## body's discovered channels + cube shader drive a real figure.
 func get_body_mesh(body_name: StringName) -> Mesh:
 	return _body_resources[body_name][7]
+
+
+## Returns the body's [code]file_prefix[/code] — the token every one of its asset files is
+## named for. Use it to name a file [i]for[/i] a body, e.g. a captured 2D icon.
+func get_body_file_prefix(body_name: StringName) -> String:
+	return _body_resources[body_name][8]
 
 
 func get_rings_texture_arrays(rings_name: StringName) -> Array[Texture2DArray]:
@@ -304,11 +312,14 @@ func _make_symbol_point_texture() -> ImageTexture:
 # [param shell_row] -1 (a surface with no [code]shells[/code] row) it returns a
 # channels-only placeholder that [IVSpheroidModel] fills from the body's
 # [code]spheroids.tsv[/code] type. [param is_surface] (shell 0) omits [code]scale[/code]
-# (the surface ranks as 1.0) and has no file_tag.
-func _read_shell_spec(channels: Dictionary, shell_row: int, is_surface: bool) -> Dictionary:
+# (the surface ranks as 1.0) and has no file_tag. [param tag] is the body's own name for
+# this shell, empty when it has no row.
+func _read_shell_spec(channels: Dictionary, shell_row: int, is_surface: bool,
+		tag: String) -> Dictionary:
 	if shell_row == -1:
 		return {
 			&"channels": channels,
+			&"tag": tag,
 			&"shader": &"",
 			&"process": &"",
 			&"process_args": [],
@@ -322,6 +333,7 @@ func _read_shell_spec(channels: Dictionary, shell_row: int, is_surface: bool) ->
 		cast_shadow = IVTableData.get_db_int(&"shells", &"cast_shadow", shell_row)
 	var spec: Dictionary = {
 		&"channels": channels,
+		&"tag": tag,
 		&"shader": IVTableData.get_db_string_name(&"shells", &"shader", shell_row),
 		&"process": IVTableData.get_db_string_name(&"shells", &"process", shell_row),
 		&"process_args": IVTableData.get_db_array(&"shells", &"process_args", shell_row),
@@ -449,7 +461,9 @@ func _load_body_resources() -> void:
 			# spheroids.tsv type row (resolved in IVSpheroidModel). Shells are listed in the
 			# body's "shells" field (ARRAY[STRING]); each tag names a row SHELL_<body_name>_<tag>.
 			var surface_row := -1
+			var surface_tag := ""
 			var overlay_rows: Array[int] = []
+			var overlay_tags: Array[String] = []
 			for tag: String in IVTableData.get_db_array(table, &"shells", row):
 				var shell_row := IVTableData.get_row(StringName("SHELL_%s_%s" % [body_name, tag]))
 				if shell_row == -1:
@@ -465,16 +479,21 @@ func _load_body_resources() -> void:
 						% IVTableData.get_db_entity_name(&"shells", shell_row))
 				if not is_shell0:
 					overlay_rows.append(shell_row)
+					overlay_tags.append(tag)
 				elif surface_row == -1:
 					surface_row = shell_row
+					surface_tag = tag
 				else:
 					push_warning("Body %s: more than one shell0 row; only one is the surface" % body_name)
-			var shell_specs: Array = [_read_shell_spec(surface_channels, surface_row, true)]
+			var shell_specs: Array = [
+					_read_shell_spec(surface_channels, surface_row, true, surface_tag)]
 			shell_specs[0][&"from_shells"] = surface_row != -1
-			for overlay_row in overlay_rows:
+			for overlay_index in overlay_rows.size():
+				var overlay_row := overlay_rows[overlay_index]
 				var file_tag := IVTableData.get_db_string_name(&"shells", &"file_tag", overlay_row)
 				var channels: Dictionary = shell_channels.get(file_tag, {})
-				shell_specs.append(_read_shell_spec(channels, overlay_row, false))
+				shell_specs.append(_read_shell_spec(channels, overlay_row, false,
+						overlay_tags[overlay_index]))
 
 			var resources := [
 				texture_2d,
@@ -485,6 +504,7 @@ func _load_body_resources() -> void:
 				map_offset,
 				shell_specs,
 				mesh,
+				file_prefix,
 			]
 
 			_body_resources[body_name] = resources

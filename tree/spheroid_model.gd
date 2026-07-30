@@ -638,3 +638,40 @@ func _resolve_process(method: StringName, process_args: Array) -> void:
 		return
 	_process_callable = callable.bindv(process_args)
 	set_process(true)
+
+
+
+
+# *****************************************************************************
+# static preview
+
+
+## Detaches this shell from the live simulation so it can be staged elsewhere as a still
+## image: it stops animating, stops reaching outside its own subtree, and (for a star)
+## renders as a plain resolved disc instead of the distance-driven disc/point crossfade.
+## Call on a model built for anything other than the body it belongs to — an icon capture,
+## a thumbnail, a GUI preview — right after adding it to the tree, before it can process a
+## frame. One way: there is no restoring the live behavior afterward. Overlay shells are
+## separate models and each needs its own call ([method IVBodyVisual.set_static_preview]
+## covers a whole visual).
+func set_static_preview() -> void:
+	# Idle processing is the only thing here that reaches outside this node: _rotate would
+	# animate the shell against sim time, and _process_sun_lod would build the far point as a
+	# child of the REAL star body and size it against a camera in a different World3D.
+	set_process(false)
+	if not _is_sun:
+		return
+	# IVStarSettings is shared with the live scene, so any edit to it would call
+	# _refresh_sun_handoff() and undo the overrides below.
+	if _star_settings.changed.is_connected(_on_star_settings_changed):
+		_star_settings.changed.disconnect(_on_star_settings_changed)
+	if not _sun_surface_material:
+		return
+	# The disc's alpha is a crossfade against its own on-screen pixel radius, and only
+	# _process_sun_lod knows how to measure that; with it off, angular_radius keeps the shader
+	# default and every fragment discards. Negative edges saturate the crossfade instead.
+	_sun_surface_material.set_shader_parameter(&"handoff_low", -2.0)
+	_sun_surface_material.set_shader_parameter(&"handoff_high", -1.0)
+	# DISC_BRIGHTNESS is HDR for a scene that tonemaps. Read back into an RGBA8 image it would
+	# clip to white and take the B-V tint with it.
+	_sun_surface_material.set_shader_parameter(&"brightness", 1.0)

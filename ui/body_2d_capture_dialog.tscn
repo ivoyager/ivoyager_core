@@ -1,15 +1,11 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://addons/ivoyager_core/editor/body_2d_capture_dialog.gd" id="1"]
-
-[sub_resource type="Environment" id="Environment_1"]
-background_mode = 0
+[ext_resource type="Script" path="res://addons/ivoyager_core/ui/body_2d_capture_dialog.gd" id="1"]
 
 [node name="BodyIconCaptureDialog" type="AcceptDialog"]
 oversampling_override = 1.0
 title = "Capture Body 2D Icons"
 size = Vector2i(880, 620)
-visible = true
 ok_button_text = "Capture & Save"
 dialog_hide_on_ok = false
 script = ExtResource("1")
@@ -36,13 +32,21 @@ text = "Bodies"
 [node name="OnlyMissingToggle" type="CheckButton" parent="MarginContainer/HBoxContainer/LeftVBox"]
 unique_name_in_owner = true
 layout_mode = 2
-button_pressed = true
 text = "Only missing icons"
 
 [node name="ModelList" type="ItemList" parent="MarginContainer/HBoxContainer/LeftVBox"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
+
+[node name="ShellsLabel" type="Label" parent="MarginContainer/HBoxContainer/LeftVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Shells"
+
+[node name="ShellToggles" type="VBoxContainer" parent="MarginContainer/HBoxContainer/LeftVBox"]
+unique_name_in_owner = true
+layout_mode = 2
 
 [node name="CaptureAllButton" type="Button" parent="MarginContainer/HBoxContainer/LeftVBox"]
 unique_name_in_owner = true
@@ -98,9 +102,6 @@ transparent_bg = true
 msaa_3d = 2
 size = Vector2i(1024, 1024)
 render_target_update_mode = 4
-
-[node name="WorldEnvironment" type="WorldEnvironment" parent="MarginContainer/HBoxContainer/RightVBox/AspectRatioContainer/PreviewArea/PreviewViewport"]
-environment = SubResource("Environment_1")
 
 [node name="Camera" type="Camera3D" parent="MarginContainer/HBoxContainer/RightVBox/AspectRatioContainer/PreviewArea/PreviewViewport"]
 unique_name_in_owner = true
@@ -177,6 +178,17 @@ max_value = 4.0
 step = 0.05
 value = 1.0
 
+[node name="AmbientLabel" type="Label" parent="MarginContainer/HBoxContainer/RightVBox/ControlsGrid"]
+layout_mode = 2
+text = "Ambient"
+
+[node name="AmbientSlider" type="HSlider" parent="MarginContainer/HBoxContainer/RightVBox/ControlsGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 0.5
+step = 0.01
+
 [node name="ResetButton" type="Button" parent="MarginContainer/HBoxContainer/RightVBox/ControlsGrid"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -201,15 +213,12 @@ text = "Fill"
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="RestartButton" type="Button" parent="MarginContainer/HBoxContainer/RightVBox/BottomBar"]
+[node name="SavePathLabel" type="Label" parent="MarginContainer/HBoxContainer/RightVBox/BottomBar"]
 unique_name_in_owner = true
-layout_mode = 2
-text = "Restart Editor"
-
-[node name="RestartNote" type="Label" parent="MarginContainer/HBoxContainer/RightVBox/BottomBar"]
+custom_minimum_size = Vector2(420, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 1
 theme_override_colors/font_color = Color(0.92, 0.85, 0.5, 1)
-text = "Restart to import the captures with clean thumbnails. (Saved PNGs are correct; don't Reimport a fresh icon before restarting — it can crash.)"
+text = "Captures go to user://body_icons (path printed to console). Copy each .png with its .import into ivoyager_assets/bodies_2d."
 autowrap_mode = 2

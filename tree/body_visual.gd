@@ -49,6 +49,7 @@ var replacement_spheroid_model_class: Script
 var _body_name: StringName
 var _m_radius: float
 var _e_radius: float
+var _p_radius: float
 var _spheroid_type: int
 var _model: Node3D
 var _local_shadow_caster := false
@@ -57,18 +58,18 @@ var _local_shadow_caster := false
 
 ## Returns the body-frame reference [Basis] for a packed-scene model: uniformly
 ## scaled by [param model_scale] and rotated so the model's z-up axis becomes
-## y-up. Shared by [method _build_packed_model] and the editor icon capturer so a
-## captured 2D icon matches the in-sim model orientation.
+## y-up.
 static func get_packed_model_reference_basis(model_scale: float) -> Basis:
 	const RIGHT_ANGLE := PI / 2
 	return Basis().scaled(model_scale * Vector3.ONE).rotated(Vector3(1.0, 0.0, 0.0), RIGHT_ANGLE)
 
 
 func _init(body_name: StringName, mean_radius: float, equatorial_radius: float,
-		spheroid_type: int) -> void:
+		polar_radius: float, spheroid_type: int) -> void:
 	_body_name = body_name
 	_m_radius = mean_radius
 	_e_radius = equatorial_radius
+	_p_radius = polar_radius
 	_local_shadow_caster = IVCoreSettings.get_static_local_shadow_caster(mean_radius)
 	name = &"BodyVisual"
 	# A PackedScene model (self-defining) always wins. Otherwise build a spheroid from the
@@ -88,6 +89,30 @@ func _ready() -> void:
 
 func is_local_shadow_caster() -> bool:
 	return _local_shadow_caster
+
+
+## Returns this visual's model: an [IVSpheroidModel] (the surface, and parent of any overlay
+## shells) or an instantiated packed scene, depending on what the body's assets defined.
+func get_model() -> Node3D:
+	return _model
+
+
+## Detaches this whole visual from the live simulation so it can be staged elsewhere as a
+## still image, applying [method IVSpheroidModel.set_static_preview] to every shell it holds.
+## Call right after adding a visual from [method IVBody.make_body_visual] to the tree, before
+## it can process a frame. One way: there is no restoring the live behavior afterward.
+func set_static_preview() -> void:
+	_set_static_preview_recursive(self)
+
+
+func _set_static_preview_recursive(node3d: Node3D) -> void:
+	var spheroid_model := node3d as IVSpheroidModel
+	if spheroid_model:
+		spheroid_model.set_static_preview()
+	for child in node3d.get_children():
+		var child_node3d := child as Node3D
+		if child_node3d:
+			_set_static_preview_recursive(child_node3d)
 
 
 ## Grants/clears [constant IVGlobal.LOCAL_SHADOW_CASTER] on this visual's whole
@@ -138,9 +163,11 @@ func _build_spheroid_model(asset_preloader: IVAssetPreloader) -> void:
 		_model = IVSpheroidModel.new(_body_name, _spheroid_type, _m_radius, reference_basis, 0, mesh)
 		return
 	# Compute the oblate, map-offset, z-up reference basis; the model self-builds
-	# its surface, child shells, visibility ranges and layers from there.
-	var polar_radius := 3.0 * _m_radius - 2.0 * _e_radius
-	reference_basis = Basis().scaled(Vector3(_e_radius, polar_radius, _e_radius))
+	# its surface, child shells, visibility ranges and layers from there. The polar radius is
+	# the body's own (ultimately the table's, as the analytic shadows use), not one solved
+	# back out of mean and equatorial: mean_radius is the published volumetric mean, so
+	# inverting it as an arithmetic mean flattens Saturn by an extra 200 km.
+	reference_basis = Basis().scaled(Vector3(_e_radius, _p_radius, _e_radius))
 	var map_offset := asset_preloader.get_body_map_offset(_body_name)
 	reference_basis = reference_basis.rotated(Vector3(0.0, 1.0, 0.0), -RIGHT_ANGLE - map_offset)
 	reference_basis = reference_basis.rotated(Vector3(1.0, 0.0, 0.0), RIGHT_ANGLE) # z-up!
