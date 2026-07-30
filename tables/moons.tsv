@@ -93,7 +93,7 @@ POLYDEUCES									Polydeuces		Polydeuces_(moon)	SATURN	MOON_POLYDEUCES				1.5	5
 DIONE			x	x	FALSE	x			Dione		Dione_(moon)	SATURN	MOON_DIONE		ICE_WORLD	YES	561.4	73.114	1.0954868e21	1.4781	0.212	0.51	0.998	x	x																		
 HELENE									Helene		Helene_(moon)	SATURN	MOON_HELENE				17.1	4.74e-4	7.1e15	0.2926	0.002	0.007	1.67	x	x																		
 RHEA			x	x	FALSE	x			Rhea		Rhea_(moon)	SATURN	MOON_RHEA		ICE_WORLD	YES	763.5	153.942	2.3064854e21	1.2372	0.26	0.3911	0.949	x	x																		
-TITAN			x	x	FALSE	x			Titan	LIMB	Titan_(moon)	SATURN	MOON_TITAN		THICK_ATM_WORLD	YES	2574.73	8978.138	1.34518e23	1.8798	1.352	2641	0.22	x	x					93.7			x		146700							97% Nitrogen, 2.7% Methane, 0.2% Hydrogen	
+TITAN			x	x	FALSE	x			Titan	SURFACE;LIMB	Titan_(moon)	SATURN	MOON_TITAN		THICK_ATM_WORLD	YES	2574.73	8978.138	1.34518e23	1.8798	1.352	2641	0.22	x	x					93.7			x		146700							97% Nitrogen, 2.7% Methane, 0.2% Hydrogen	
 HYPERION						x			Hyperion		Hyperion_(moon)	SATURN	MOON_HYPERION				135	0.372	5.5510e18	0.5386	0.02	60	0.3			x	13																
 IAPETUS						x			Iapetus		Iapetus_(moon)	SATURN	MOON_IAPETUS		ICE_WORLD		734.4	120.504	1.80565e21	1.0887	0.223	0.573	0.25	x	x																		
 KIVIUQ							x		Kiviuq		Kiviuq_(moon)	SATURN	MOON_KIVIUQ				8	0.00012	~1.5e15							x																	
