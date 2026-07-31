@@ -66,6 +66,7 @@ var characteristics_fields: Array[StringName] = [
 	&"esc_vel",
 	&"equatorial_radius",
 	&"polar_radius",
+	&"triaxial_size",
 	&"system_radius",
 	&"perspective_radius",
 	&"longitude_at_epoch",

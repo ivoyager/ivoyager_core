@@ -35,7 +35,7 @@ No public-domain true-color global map of Mercury exists — the released MESSEN
 
 ## Body models and surface-relief maps
 
-The 3D body models and surface-relief maps in this section are original works created for I, Voyager. They are not third-party works. They are listed here to attribute the public-domain source data from which they were derived — chiefly NASA mission data (governed by the [NASA Images and Media Usage Guidelines](https://www.nasa.gov/nasa-brand-center/images-and-media/)), plus the NOAA ETOPO 2022 global relief model for the Earth maps. The seven custom-mesh bodies (Ceres, Charon, Deimos, Iapetus, Phobos, Phoebe, Vesta) each ship as a geometry mesh (`/meshes/<Body>.obj`) plus two cubemaps sampled by surface direction: an albedo (diffuse) cubemap (`/cubemaps/<Body>.albedo.512.png`) and an object-space normal cubemap (`/cubemaps/<Body>.normal.512.png`). The albedo is public-domain NASA imagery documented in [3RD_PARTY.md](3RD_PARTY.md), not an I, Voyager work; the mesh and the normal cubemap are I, Voyager works.
+The 3D body models and surface-relief maps in this section are original works created for I, Voyager. They are not third-party works. They are listed here to attribute the public-domain source data from which they were derived — chiefly NASA mission data (governed by the [NASA Images and Media Usage Guidelines](https://www.nasa.gov/nasa-brand-center/images-and-media/)), plus the NOAA ETOPO 2022 global relief model for the Earth maps. The seven custom-mesh bodies (Ceres, Charon, Deimos, Iapetus, Phobos, Phoebe, Vesta) each ship as a geometry mesh (`/meshes/<Body>.obj`) plus two cubemaps sampled by surface direction: an albedo (diffuse) cubemap (`/cubemaps/<Body>.albedo.512.png`) and an object-space normal cubemap (`/cubemaps/<Body>.normal.512.png`). The albedo is public-domain NASA imagery documented in [3RD_PARTY.md](3RD_PARTY.md), not an I, Voyager work; the mesh and the normal cubemap are I, Voyager works. A further fourteen small moons that no spacecraft has mapped ship a mesh and nothing else; they are listed separately below.
 
 ### Custom-mesh bodies (`/meshes/*.obj` + `/cubemaps/*.normal.*.png`)
 
@@ -47,6 +47,12 @@ The 3D body models and surface-relief maps in this section are original works cr
 - `/meshes/Phoebe.obj` + `/cubemaps/Phoebe.normal.512.png` — derived from the Gaskell stereophotoclinometry shape model (R. Gaskell, Cassini ISS; PDS Small Bodies Node dataset CO-SA-ISSNA-5-PHOEBESHAPE-V2.0).
 - `/meshes/Vesta.obj` + `/cubemaps/Vesta.normal.512.png` — derived from the Dawn Framing Camera HAMO global stereophotogrammetric Digital Terrain Model (Preusker et al., 2016; NASA/JPL-Caltech/UCLA/MPS/DLR/IDA).
 
+### Shape meshes for unmapped small moons (`/meshes/*.obj`)
+
+Fourteen small moons have a published shape model but no map worth shipping. They carry a geometry mesh and no textures at all, so they render in their surface class's flat gray and the silhouette alone tells them apart — which is also what marks them as bodies no spacecraft has imaged closely. The meshes are I, Voyager works: each published shape is placed in the engine's authoring frame and decimated to about 2000 triangles, a reduction that moves the modelled surface by 0.1–0.2 % of the body's mean radius. The four Voyager-era shapes are additionally scaled to each moon's currently accepted mean radius, which their own scale predates. (A moon with only a measured *ellipsoid* ships no asset at all — its three semi-axes live in the Core plugin's data tables.)
+
+- `/meshes/Pan.obj`, `/meshes/Daphnis.obj`, `/meshes/Atlas.obj`, `/meshes/Prometheus.obj`, `/meshes/Pandora.obj`, `/meshes/Epimetheus.obj`, `/meshes/Janus.obj`, `/meshes/Telesto.obj`, `/meshes/Calypso.obj`, `/meshes/Helene.obj` — derived from the Cassini ISS shape models of P. Thomas, J. Joseph and T. Ansty (*Saturn Small Moon Shape Models V1.0*, NASA Planetary Data System, 2018, doi:10.26033/ewy3-jy61), solved from control-point stereogrammetry with limb and terminator constraints after Thomas et al. (2013).
+- `/meshes/Amalthea.obj`, `/meshes/Thebe.obj`, `/meshes/Larissa.obj`, `/meshes/Proteus.obj` — derived from the Voyager shape models of P. Stooke (*Stooke Small Bodies Shape Models V1.0*, NASA Planetary Data System, 2025, doi:10.26033/yt84-5y91).
 ### Surface-normal (bump) maps
 
 For shaded relief on the shared spheroid mesh:

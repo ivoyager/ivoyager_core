@@ -48,8 +48,7 @@ var replacement_shells_model_class: Script
 
 var _body_name: StringName
 var _m_radius: float
-var _e_radius: float
-var _p_radius: float
+var _triaxial_size: Vector3
 var _model: Node3D
 var _local_shadow_caster := false
 
@@ -63,12 +62,13 @@ static func get_packed_model_reference_basis(model_scale: float) -> Basis:
 	return Basis().scaled(model_scale * Vector3.ONE).rotated(Vector3(1.0, 0.0, 0.0), RIGHT_ANGLE)
 
 
-func _init(body_name: StringName, mean_radius: float, equatorial_radius: float,
-		polar_radius: float) -> void:
+## [param triaxial_size] is the body's semi-axes in the IAU order (a at longitude 0,
+## b at 90°E, c polar); an oblate body passes (equatorial, equatorial, polar). Resolved
+## by [method IVBody.make_body_visual], which also applies any surface-class fallback.
+func _init(body_name: StringName, mean_radius: float, triaxial_size: Vector3) -> void:
 	_body_name = body_name
 	_m_radius = mean_radius
-	_e_radius = equatorial_radius
-	_p_radius = polar_radius
+	_triaxial_size = triaxial_size
 	_local_shadow_caster = IVCoreSettings.get_static_local_shadow_caster(mean_radius)
 	name = &"BodyVisual"
 	# A PackedScene model (self-defining) always wins; otherwise the body is a shells model,
@@ -161,12 +161,16 @@ func _build_shells_model(asset_preloader: IVAssetPreloader) -> void:
 		reference_basis = get_packed_model_reference_basis(mesh_scale)
 		_model = IVShellsModel.new(_body_name, _m_radius, reference_basis, 0, mesh)
 		return
-	# Compute the oblate, map-offset, z-up reference basis; the model self-builds
+	# Compute the figure, map-offset, z-up reference basis; the model self-builds
 	# its surface, child shells, visibility ranges and layers from there. The polar radius is
 	# the body's own (ultimately the table's, as the analytic shadows use), not one solved
 	# back out of mean and equatorial: mean_radius is the published volumetric mean, so
 	# inverting it as an arithmetic mean flattens Saturn by an extra 200 km.
-	reference_basis = Basis().scaled(Vector3(_e_radius, _p_radius, _e_radius))
+	# The shared sphere carries longitude 0 on model +Z and 90°E on +X, so (a, b, c)
+	# permutes here — the only place the IAU order does not survive. Scaling precedes the
+	# rotations, so the a-axis stays locked to the texture's longitude 0.
+	reference_basis = Basis().scaled(Vector3(_triaxial_size.y, _triaxial_size.z,
+			_triaxial_size.x))
 	var map_offset := asset_preloader.get_body_map_offset(_body_name)
 	reference_basis = reference_basis.rotated(Vector3(0.0, 1.0, 0.0), -RIGHT_ANGLE - map_offset)
 	reference_basis = reference_basis.rotated(Vector3(1.0, 0.0, 0.0), RIGHT_ANGLE) # z-up!

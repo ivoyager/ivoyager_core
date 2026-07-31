@@ -80,7 +80,8 @@ extends Node3D
 ## information is contained in dictionary [member characteristics]. For
 ## example all bodies have [member mean_radius], but oblate spheroid bodies
 ## (stars, planets, and large moons) also have [param equatorial_radius] and
-## [param polar_radius] as keys in characteristics. API methods provide access
+## [param polar_radius] as keys in characteristics, and a measured irregular body
+## has [param triaxial_size]. API methods provide access
 ## to many of these characteristics with sensible fallbacks for missing keys.[br][br]
 ##
 ## Many body-associated "graphic" nodes are added by [IVBodyFinisher] including
@@ -230,8 +231,7 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 ## replacement.
 static var replacement_subclass: Script
 ## Set this script to replace the [IVBodyVisual] class. Must share its
-## [code]_init(body_name, mean_radius, equatorial_radius, polar_radius)[/code]
-## signature.
+## [code]_init(body_name, mean_radius, triaxial_size)[/code] signature.
 static var replacement_body_visual_class: Script
 ## Registry of model-attitude 'process' methods, keyed by the name used in the spacecrafts.tsv
 ## 'process' field. Each [Callable] runs every frame as
@@ -938,20 +938,34 @@ func get_mass() -> float:
 	return gravitational_parameter / G
 
 
-## Has a specific value for oblate spheroids. Otherwise, returns [member mean_radius].
+## Has a specific value for oblate spheroids, else a triaxial body's longest semi-axis.
+## Otherwise, returns [member mean_radius].
 func get_equatorial_radius() -> float:
 	var equatorial_radius: float = characteristics.get(&"equatorial_radius", 0.0)
 	if equatorial_radius:
 		return equatorial_radius
+	var triaxial_size := get_triaxial_size()
+	if triaxial_size:
+		return triaxial_size.x
 	return mean_radius
 
 
-## Has a specific value for oblate spheroids. Otherwise, returns [member mean_radius].
+## Has a specific value for oblate spheroids, else a triaxial body's polar semi-axis.
+## Otherwise, returns [member mean_radius].
 func get_polar_radius() -> float:
 	var polar_radius: float = characteristics.get(&"polar_radius", 0.0)
 	if polar_radius:
 		return polar_radius
+	var triaxial_size := get_triaxial_size()
+	if triaxial_size:
+		return triaxial_size.z
 	return mean_radius
+
+
+## Returns the measured semi-axes in the IAU order (a at longitude 0, b at 90°E, c polar),
+## or [constant Vector3.ZERO] for a body with no measured figure.
+func get_triaxial_size() -> Vector3:
+	return characteristics.get(&"triaxial_size", Vector3.ZERO)
 
 
 ## Returns a specific name for HUD use, if different from [member Node.name].
@@ -1771,14 +1785,30 @@ func lazy_model_init() -> void:
 func make_body_visual() -> IVBodyVisual:
 	if flags & BodyFlags.BODYFLAGS_DISABLE_MODEL_SPACE:
 		return null
-	var e_radius := get_equatorial_radius()
-	var p_radius := get_polar_radius()
+	var triaxial_size := _resolve_triaxial_size()
 	if replacement_body_visual_class:
 		@warning_ignore("unsafe_method_access")
 		var replacement: IVBodyVisual = replacement_body_visual_class.new(name, mean_radius,
-				e_radius, p_radius)
+				triaxial_size)
 		return replacement
-	return IVBodyVisual.new(name, mean_radius, e_radius, p_radius)
+	return IVBodyVisual.new(name, mean_radius, triaxial_size)
+
+
+# The figure to draw, which is not always a measured one: a body with no figure of its own
+# borrows its surface class's generic proportions (surface_classes.tsv
+# fallback_triaxial_size, normalized so any writing of the ratios works), and failing that
+# is its oblate spheroid. A body that turns out to have a mesh ignores all of this.
+func _resolve_triaxial_size() -> Vector3:
+	var triaxial_size := get_triaxial_size()
+	if triaxial_size:
+		return triaxial_size
+	var asset_preloader: IVAssetPreloader = IVGlobal.program[&"AssetPreloader"]
+	var fallback := asset_preloader.get_body_fallback_triaxial_size(name)
+	if fallback:
+		var product := fallback.x * fallback.y * fallback.z
+		return fallback * mean_radius / pow(product, 1.0 / 3.0)
+	var e_radius := get_equatorial_radius()
+	return Vector3(e_radius, e_radius, get_polar_radius())
 
 
 ## Called by [IVFarwarpManager] once per frame AFTER the camera has moved and

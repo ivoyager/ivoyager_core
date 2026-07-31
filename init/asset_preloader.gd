@@ -202,6 +202,13 @@ func get_body_file_prefix(body_name: StringName) -> String:
 	return _body_resources[body_name][8]
 
 
+## Returns the generic semi-axes of this body's surface class
+## ([code]fallback_triaxial_size[/code] in surface_classes.tsv), or [constant Vector3.ZERO].
+## Any scaling of the three works: the consumer normalizes to the body's own mean radius.
+func get_body_fallback_triaxial_size(body_name: StringName) -> Vector3:
+	return _body_resources[body_name][10]
+
+
 ## Returns the uniform scale for [method get_body_mesh]: [constant IVUnits.KM] for the body's
 ## own mesh (authored at true size in km), or the factor that resizes a generic surface-class
 ## mesh to this body's mean radius. Meaningless when there is no mesh.
@@ -333,9 +340,9 @@ func _read_shell_spec(channels: Dictionary, shell_row: int, tag: String) -> Dict
 
 # Resolves every surface_classes.tsv row once, returning class row ->
 # [shells.tsv default-surface row, generic Mesh or null, the mean radius that mesh
-# represents, fallback albedo Color]. An absent fallback_mesh_path file is not an error:
-# Core has to run without the asset bundle, and a class with no resolvable mesh falls
-# through to the shared sphere.
+# represents, fallback albedo Color, generic semi-axes or Vector3.ZERO]. An absent
+# fallback_mesh_path file is not an error: Core has to run without the asset bundle, and a
+# class with no resolvable mesh falls through to its generic semi-axes, then to the sphere.
 func _build_surface_class_index() -> Dictionary[int, Array]:
 	var shells_rows: Dictionary[int, int] = {}
 	for shell_row in IVTableData.get_n_rows(&"shells"):
@@ -373,7 +380,12 @@ func _build_surface_class_index() -> Dictionary[int, Array]:
 				% class_name_)
 		var fallback_color := IVTableData.get_db_color(&"surface_classes", &"fallback_color",
 				surface_class)
-		index[surface_class] = [shells_rows[surface_class], mesh, mesh_size, fallback_color]
+		var triaxial_size := Vector3.ZERO
+		if IVTableData.db_has_value(&"surface_classes", &"fallback_triaxial_size", surface_class):
+			triaxial_size = IVTableData.get_db_vector3(&"surface_classes",
+					&"fallback_triaxial_size", surface_class)
+		index[surface_class] = [shells_rows[surface_class], mesh, mesh_size, fallback_color,
+				triaxial_size]
 	return index
 
 
@@ -551,6 +563,7 @@ func _load_body_resources() -> void:
 				mesh,
 				file_prefix,
 				mesh_scale,
+				class_entry[4],
 			]
 
 			_body_resources[body_name] = resources

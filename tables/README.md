@@ -74,6 +74,8 @@ Orbital elements are in [orbits.tsv](#orbitstsv).
 
 Physical characteristics are mostly from https://ssd.jpl.nasa.gov/?planet_phys_par or Wikipedia.
 
+`triaxial_size` (moons.tsv) is the measured figure of a body too small to be round: its three **semi-axes** — not diameters — in the IAU order (a toward longitude 0, b toward 90°E, c polar). Several sources publish full dimensions instead, so halve those. It replaces `equatorial_radius`/`polar_radius` for such a body, which need not be set: `IVBody.get_equatorial_radius()` and `get_polar_radius()` read a and c from it. Sources: NAIF generic PCK `pck00011.tpc`, carrying the figures of Archinal et al. (2018) "Report of the IAU Working Group on Cartographic Coordinates and Rotational Elements: 2015" (Metis, Adrastea, Methone, Pallene, Polydeuces, Aegaeon); Karkoschka (2003) *Icarus* 162, 400 (Naiad, Thalassa, Despina, Galatea); Porter et al. (2021), tabulated in Porter et al. (2023) doi:10.3847/PSJ/acde77 (Nix, Hydra, Kerberos).
+
 Keep planets in semi-major-axis order (now in orbits.tsv) for proper order in GUI display and selection.
 
 ## rings.tsv
@@ -125,10 +127,11 @@ An enumeration of body surface types — `G_STAR`, `ROCKY_WORLD`, `ICE_GIANT`, `
 
 A class's appearance lives in its [shells.tsv](#shellstsv) row. This table holds only what a body of that class falls back to when it has no assets of its own:
 
-* `fallback_mesh_path` / `fallback_mesh_size` — a generic mesh standing in for any body of the class, and the mean radius that mesh represents (it is resized to each body's own). The `*_TYPE_BODY` classes use Phobos's shape. A class with no mesh, or one whose file is absent, uses the shared sphere — Core runs without the asset bundle.
+* `fallback_mesh_path` / `fallback_mesh_size` — a generic mesh standing in for any body of the class, and the mean radius that mesh represents (it is resized to each body's own). No class sets one now; a class with no mesh, or one whose file is absent, falls through — Core runs without the asset bundle.
+* `fallback_triaxial_size` — generic semi-axes for a body of the class with no figure of its own, shaping the shared sphere instead of a mesh. Any scaling of the three works: they are normalized to the body's own mean radius. The `*_TYPE_BODY` classes use the median axis ratios of the small bodies whose figure has been measured, so an unresolved small body reads as irregular without claiming a shape it does not have.
 * `fallback_color` — the surface color when the body ships no albedo or emission map. Default `gray`.
 
-Precedence for a body's model is: packed scene (models/) > its own mesh (meshes/) > its class's `fallback_mesh_path` > the shared sphere.
+Precedence for a body's model is: packed scene (models/) > its own mesh (meshes/) > its class's `fallback_mesh_path` > its own `triaxial_size` (body tables) > its class's `fallback_triaxial_size` > its oblate radii > the shared sphere.
 
 ## views.tsv
 
