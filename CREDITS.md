@@ -1,10 +1,10 @@
 # I, Voyager Credits
 
-This document is an incomplete list of contributions to I, Voyager that are not authorship nor 3rd-party copyrighted files.
+This document is an incomplete list of contributions to I, Voyager that are neither authorship nor copyrighted files: the agencies, catalogs and published data our work rests on, and the people who helped us understand it.
 
 See list of direct contributors ("authors") [here](https://github.com/ivoyager/ivoyager_core/blob/master/AUTHORS.md).
 
-See 3rd-party copyright and licence information [here](https://github.com/ivoyager/asset_downloads/blob/master/3RD_PARTY.md).
+See 3rd-party copyright and license information in [3RD_PARTY.md](3RD_PARTY.md), and I, Voyager's own works in [IVOYAGER_WORKS.md](IVOYAGER_WORKS.md).
 
 ---
 
@@ -18,11 +18,11 @@ See 3rd-party copyright and licence information [here](https://github.com/ivoyag
 
 **[Asteroids Dynamic Site](https://newton.spacedys.com/astdys)** - Source data for asteroid proper orbits.
 
-**[ESA, Hipparcos Catalogue](https://www.cosmos.esa.int/web/hipparcos)** - Source data for stars.
+**[ESA, Hipparcos Catalogue](https://www.cosmos.esa.int/web/hipparcos)** - Source data for stars (ESA, 1997; ESA SP-1200) - positions, magnitudes and B-V colors - converted to binaries and displayed by shader code.
 
-**[Björn Jónsson](https://bjj.mmedia.is)** - Source data used to generate shader samplers for Saturn's rings ([here](https://bjj.mmedia.is/data/s_rings/index.html)).
+**[Björn Jónsson](https://bjj.mmedia.is)** - For *many* world maps (see [3RD_PARTY.md](3RD_PARTY.md)) and helpful guidance that we used to build our own. We used Jónsson's ring light data ([here](https://bjj.mmedia.is/data/s_rings/index.html)) for our shader-rendered Saturn rings.
 
-**[Grant Sanderson, "3Blue1Brown"](https://www.youtube.com/channel/UCYO_jab_esuFRV4b17AJtAw)** - Helping us _understand_ the math.
+**[Grant Sanderson, "3Blue1Brown"](https://www.youtube.com/channel/UCYO_jab_esuFRV4b17AJtAw)** - Helping us *understand* the math.
 
 **[Scott Manley](https://www.youtube.com/channel/UCxzC4EngIsMrPmbm6Nxvb-A)** - A fountain of information on space and rockets, and Kerbal!
 
