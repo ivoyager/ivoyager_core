@@ -1,0 +1,14 @@
+[remap]
+
+importer="ivoyager.tables"
+type="IVTableResource"
+uid="uid://dkirjrilrlblb"
+path="res://.godot/imported/surface_classes.tsv-779d2acb8b4a6d7c37319d577076786e.tres"
+
+[deps]
+
+source_file="res://addons/ivoyager_core/tables/surface_classes.tsv"
+dest_files=["res://.godot/imported/surface_classes.tsv-779d2acb8b4a6d7c37319d577076786e.tres"]
+
+[params]
+

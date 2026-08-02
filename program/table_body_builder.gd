@@ -51,7 +51,7 @@ var create_fields: Array[StringName] = [
 var characteristics_fields: Array[StringName] = [
 	&"hud_name",
 	&"body_class",
-	&"spheroid_type",
+	&"surface_class",
 	&"has_light",
 	&"file_prefix",
 	&"has_rings",
@@ -66,6 +66,7 @@ var characteristics_fields: Array[StringName] = [
 	&"esc_vel",
 	&"equatorial_radius",
 	&"polar_radius",
+	&"triaxial_size",
 	&"system_radius",
 	&"perspective_radius",
 	&"longitude_at_epoch",

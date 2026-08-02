@@ -45,7 +45,7 @@ const _NORMAL_COLOR_FORMATS := [
 ## before [signal IVStateManager.core_initialized] to ingest more channels; each
 ## tag must match [code][A-Za-z0-9_]+[/code]. A discovered file
 ## [code]<file_prefix>[.<file_tag>].<tag>.*[/code] is applied to the body's (or a
-## shell's) material by [IVSpheroidModel].
+## shell's) material by [IVShellsModel].
 static var texture_channels: Dictionary[int, StringName] = {
 	BaseMaterial3D.TEXTURE_ALBEDO: &"albedo",
 	BaseMaterial3D.TEXTURE_EMISSION: &"emission",
@@ -53,30 +53,25 @@ static var texture_channels: Dictionary[int, StringName] = {
 	BaseMaterial3D.TEXTURE_ROUGHNESS: &"roughness",
 	BaseMaterial3D.TEXTURE_ORM: &"orm",
 }
-## Maps a surface/shell shader (as named in [code]spheroids.tsv[/code]/[code]shells.tsv[/code])
+## Maps a surface/shell shader (as named in a [code]shells.tsv[/code] [code]shader[/code] cell)
 ## to its cubemap counterpart. When a body's discovered channels are [TextureLayered]s
-## (files found under [member cubemaps_search]), [IVSpheroidModel] swaps the table-named shader
+## (files found under [member cubemaps_search]), [IVShellsModel] swaps the table-named shader
 ## for the variant here, so the tables never encode "cube vs. equirect" — the asset type
 ## decides. Add an entry to route a custom shader; a project with only equirect maps never
-## triggers it. See [method IVSpheroidModel._build_shader_material].
+## triggers it. See [method IVShellsModel._build_shader_material].
 static var cube_shader_variants: Dictionary[StringName, StringName] = {
-	&"spheroid_surface_shader": &"spheroid_surface_cube_shader",
+	&"surface_shader": &"surface_cube_shader",
 	&"cloud_shell_shader": &"cloud_shell_cube_shader",
 	&"sun_surface_shader": &"sun_surface_cube_shader",
 }
 ## [code]shells.tsv[/code] columns that are NOT [StandardMaterial3D] properties (read
 ## explicitly into the shell spec). Every other column is set on the shell material
-## directly by [IVSpheroidModel] — to add a material override, just add that property's
-## column. Each material column is validated per shell by [IVSpheroidModel] (as a
+## directly by [IVShellsModel] — to add a material override, just add that property's
+## column. Each material column is validated per shell by [IVShellsModel] (as a
 ## [StandardMaterial3D] property, or a shader uniform when the shell names a shader).
 static var shells_nonmaterial_fields: Array[StringName] = [
-	&"shell0", &"scale", &"file_tag", &"shader", &"process", &"process_args", &"cast_shadow",
-]
-## [code]spheroids.tsv[/code] columns that are NOT [StandardMaterial3D] properties (read
-## explicitly into the shell-0 spec). Every other column is a per-[code]spheroid_type[/code]
-## material default for the surface (shell 0). Parallels [member shells_nonmaterial_fields].
-static var spheroids_nonmaterial_fields: Array[StringName] = [
-	&"shader", &"process", &"is_sun", &"cast_shadow",
+	&"surface_class", &"shell0", &"scale", &"file_tag", &"shader", &"process", &"process_args",
+	&"is_sun", &"cast_shadow",
 ]
 
 ## This setting AND IVCoreSettings.use_threads must be true for loading to
@@ -95,8 +90,8 @@ var use_thread := false
 ## a custom override.
 var models_search: Array[String] = ["res://addons/ivoyager_assets/models"]
 ## Directories searched for a body's surface [Mesh] resource (e.g. an OBJ imported as
-## [ArrayMesh]). A mesh here makes the body a custom-mesh spheroid — the mesh replaces
-## the shared sphere in [IVSpheroidModel], driven by the body's discovered channels. A
+## [ArrayMesh]). A mesh here replaces the shared sphere in [IVShellsModel], carrying the
+## body's real figure and driven by its discovered channels. A
 ## self-defining [member models_search] PackedScene takes precedence.
 var meshes_search: Array[String] = ["res://addons/ivoyager_assets/meshes"]
 ## Directories searched for body texture maps (channel maps + shell overlays).
@@ -116,7 +111,6 @@ var rings_search: Array[String] = ["res://addons/ivoyager_assets/rings"]
 ## [code]get_*[/code] accessors below.
 var asset_paths: Dictionary[StringName, String] = {
 	fallback_body_texture_2d = "res://addons/ivoyager_assets/fallbacks/blank_grid_2d_globe.256.png",
-	fallback_body_albedo_map = "res://addons/ivoyager_assets/fallbacks/blank_grid.jpg",
 }
 
 ## If non-empty, replaces the auto-composed map-filename pattern. Must define
@@ -184,21 +178,42 @@ func get_body_map_offset(body_name: StringName) -> float:
 
 ## Returns an ordered [Array] of shell specs for one body: element 0 is the
 ## surface (shell 0); elements 1..N are overlay render shells. Each spec is a
-## [Dictionary] with keys [code]channels, shader, process, process_args, is_sun,
-## cast_shadow, overrides[/code] (plus [code]scale[/code] for overlays, and [code]from_shells[/code] on
-## shell 0). Built from the body's [code]shells[/code] field and the [code]shells[/code] table;
-## a shell 0 with no [code]shells[/code] row defaults from the body's [code]spheroids.tsv[/code]
-## type, resolved in [IVSpheroidModel]. Consumed by [IVSpheroidModel].
+## [Dictionary] with keys [code]channels, tag, scale, shader, process, process_args, is_sun,
+## cast_shadow, overrides[/code]. [code]tag[/code] is the body's own name for the shell (e.g.
+## [code]CLOUDS[/code]), empty for a shell 0 taken from the body's surface class.
+## Built from the body's [code]shells[/code] field and the [code]shells[/code] table;
+## shell 0 falls back to the [code]shells.tsv[/code] row of the body's [code]surface_class[/code]
+## when the body has no [code]shell0[/code] row of its own. Consumed by [IVShellsModel].
 func get_body_shell_specs(body_name: StringName) -> Array:
 	return _body_resources[body_name][6]
 
 
-## Returns the body's custom surface [Mesh] (an OBJ imported as [ArrayMesh]) if one
-## exists in [member meshes_search], else [code]null[/code]. When present, [IVBodyVisual]
-## builds a custom-mesh [IVSpheroidModel] whose mesh replaces the shared sphere, so the
-## body's discovered channels + cube shader drive a real figure.
+## Returns the [Mesh] that replaces the shared sphere for this body — its own mesh from
+## [member meshes_search], else the generic mesh of its surface class
+## ([code]fallback_mesh_path[/code] in surface_classes.tsv) — or [code]null[/code] for the
+## shared sphere. Scale it by [method get_body_mesh_scale].
 func get_body_mesh(body_name: StringName) -> Mesh:
 	return _body_resources[body_name][7]
+
+
+## Returns the body's [code]file_prefix[/code] — the token every one of its asset files is
+## named for. Use it to name a file [i]for[/i] a body, e.g. a captured 2D icon.
+func get_body_file_prefix(body_name: StringName) -> String:
+	return _body_resources[body_name][8]
+
+
+## Returns the generic semi-axes of this body's surface class
+## ([code]fallback_triaxial_size[/code] in surface_classes.tsv), or [constant Vector3.ZERO].
+## Any scaling of the three works: the consumer normalizes to the body's own mean radius.
+func get_body_fallback_triaxial_size(body_name: StringName) -> Vector3:
+	return _body_resources[body_name][10]
+
+
+## Returns the uniform scale for [method get_body_mesh]: [constant IVUnits.KM] for the body's
+## own mesh (authored at true size in km), or the factor that resizes a generic surface-class
+## mesh to this body's mean radius. Meaningless when there is no mesh.
+func get_body_mesh_scale(body_name: StringName) -> float:
+	return _body_resources[body_name][9]
 
 
 func get_rings_texture_arrays(rings_name: StringName) -> Array[Texture2DArray]:
@@ -222,8 +237,7 @@ func get_rings_shadow_profile_image(rings_name: StringName) -> Image:
 ## Returns a [code]{property: value}[/code] dictionary of material fields from [param table]
 ## [param row] — every set field except the entity name and [param nonmaterial_fields]. Each
 ## remaining field must name a [StandardMaterial3D] property or a shader uniform; it is applied
-## blindly by [IVSpheroidModel], which validates it per shell. Used for per-shell overrides
-## ([code]shells.tsv[/code]) and per-[code]spheroid_type[/code] surface defaults ([code]spheroids.tsv[/code]).
+## blindly by [IVShellsModel], which validates it per shell.
 func read_material_fields(table: StringName, row: int,
 		nonmaterial_fields: Array[StringName]) -> Dictionary:
 	var fields: Dictionary = {}
@@ -300,28 +314,21 @@ func _make_symbol_point_texture() -> ImageTexture:
 	return ImageTexture.create_from_image(image)
 
 
-# Builds one shell's spec [Dictionary] from its [code]shells[/code]-table row. For
-# [param shell_row] -1 (a surface with no [code]shells[/code] row) it returns a
-# channels-only placeholder that [IVSpheroidModel] fills from the body's
-# [code]spheroids.tsv[/code] type. [param is_surface] (shell 0) omits [code]scale[/code]
-# (the surface ranks as 1.0) and has no file_tag.
-func _read_shell_spec(channels: Dictionary, shell_row: int, is_surface: bool) -> Dictionary:
-	if shell_row == -1:
-		return {
-			&"channels": channels,
-			&"shader": &"",
-			&"process": &"",
-			&"process_args": [],
-			&"is_sun": false,
-			&"cast_shadow": GeometryInstance3D.SHADOW_CASTING_SETTING_ON,
-			&"overrides": {},
-		}
-	# cast_shadow has no table Default; an unset cell defaults to the engine value.
+# Builds one shell's spec [Dictionary] from its shells.tsv row — a body row
+# (SHELL_<body>_<tag>) or, for a shell 0 the body does not override, its surface-class row.
+# [param tag] is the body's own name for this shell, empty for a surface-class row.
+func _read_shell_spec(channels: Dictionary, shell_row: int, tag: String) -> Dictionary:
+	# cast_shadow and scale have no table Default; unset means the engine value / no resize.
 	var cast_shadow: int = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	if IVTableData.db_has_value(&"shells", &"cast_shadow", shell_row):
 		cast_shadow = IVTableData.get_db_int(&"shells", &"cast_shadow", shell_row)
-	var spec: Dictionary = {
+	var shell_scale := 1.0
+	if IVTableData.db_has_value(&"shells", &"scale", shell_row):
+		shell_scale = IVTableData.get_db_float(&"shells", &"scale", shell_row)
+	return {
 		&"channels": channels,
+		&"tag": tag,
+		&"scale": shell_scale,
 		&"shader": IVTableData.get_db_string_name(&"shells", &"shader", shell_row),
 		&"process": IVTableData.get_db_string_name(&"shells", &"process", shell_row),
 		&"process_args": IVTableData.get_db_array(&"shells", &"process_args", shell_row),
@@ -329,28 +336,73 @@ func _read_shell_spec(channels: Dictionary, shell_row: int, is_surface: bool) ->
 		&"cast_shadow": cast_shadow,
 		&"overrides": read_material_fields(&"shells", shell_row, shells_nonmaterial_fields),
 	}
-	if not is_surface:
-		spec[&"scale"] = IVTableData.get_db_float(&"shells", &"scale", shell_row)
-	return spec
+
+
+# Resolves every surface_classes.tsv row once, returning class row ->
+# [shells.tsv default-surface row, generic Mesh or null, the mean radius that mesh
+# represents, fallback albedo Color, generic semi-axes or Vector3.ZERO]. An absent
+# fallback_mesh_path file is not an error: Core has to run without the asset bundle, and a
+# class with no resolvable mesh falls through to its generic semi-axes, then to the sphere.
+func _build_surface_class_index() -> Dictionary[int, Array]:
+	var shells_rows: Dictionary[int, int] = {}
+	for shell_row in IVTableData.get_n_rows(&"shells"):
+		if !IVTableData.db_has_value(&"shells", &"surface_class", shell_row):
+			continue
+		var surface_class := IVTableData.get_db_int(&"shells", &"surface_class", shell_row)
+		assert(!shells_rows.has(surface_class), "shells.tsv: >1 row for surface_class '%s'"
+				% IVTableData.get_db_entity_name(&"surface_classes", surface_class))
+		assert(IVTableData.get_db_bool(&"shells", &"shell0", shell_row),
+				"shells.tsv '%s': a surface_class row must be shell0"
+				% IVTableData.get_db_entity_name(&"shells", shell_row))
+		assert(!IVTableData.db_has_value(&"shells", &"file_tag", shell_row),
+				"shells.tsv '%s': a shell0 row has no file_tag; a surface's maps are named"
+				% IVTableData.get_db_entity_name(&"shells", shell_row)
+				+ " for file_prefix alone")
+		shells_rows[surface_class] = shell_row
+	var index: Dictionary[int, Array] = {}
+	for surface_class in IVTableData.get_n_rows(&"surface_classes"):
+		var class_name_ := IVTableData.get_db_entity_name(&"surface_classes", surface_class)
+		assert(shells_rows.has(surface_class),
+				"shells.tsv has no default-surface row for surface_class '%s'" % class_name_)
+		var mesh: Mesh = null
+		var mesh_path := IVTableData.get_db_string(&"surface_classes", &"fallback_mesh_path",
+				surface_class)
+		if mesh_path:
+			if ResourceLoader.exists(mesh_path):
+				mesh = load(mesh_path)
+			else:
+				push_warning("surface_classes.tsv '%s': fallback_mesh_path '%s' not found;"
+						% [class_name_, mesh_path] + " falling back to the shared sphere")
+		var mesh_size := IVTableData.get_db_float(&"surface_classes", &"fallback_mesh_size",
+				surface_class)
+		assert(!mesh or mesh_size > 0.0,
+				"surface_classes.tsv '%s': fallback_mesh_path needs fallback_mesh_size"
+				% class_name_)
+		var fallback_color := IVTableData.get_db_color(&"surface_classes", &"fallback_color",
+				surface_class)
+		var triaxial_size := Vector3.ZERO
+		if IVTableData.db_has_value(&"surface_classes", &"fallback_triaxial_size", surface_class):
+			triaxial_size = IVTableData.get_db_vector3(&"surface_classes",
+					&"fallback_triaxial_size", surface_class)
+		index[surface_class] = [shells_rows[surface_class], mesh, mesh_size, fallback_color,
+				triaxial_size]
+	return index
 
 
 func _load_body_resources() -> void:
 	const METER := IVUnits.METER
 
-	# spheroids/shells material columns are validated per-shell in IVSpheroidModel, which
-	# has the resolved shader so it can check both StandardMaterial3D properties and shader
-	# uniforms; a spheroids row may be either, so there is no table-wide check.
+	# shells.tsv material columns are validated per-shell in IVShellsModel, which has the
+	# resolved shader so it can check both StandardMaterial3D properties and shader uniforms;
+	# a row may name either, so there is no table-wide check.
 	_compose_map_regex()
 	var maps_index := _build_maps_index() # prefix(lower) -> shell -> {TextureParam: res_path}
-	
+	var surface_class_index := _build_surface_class_index()
+
 	var fallback_texture_2d_path := asset_paths[&"fallback_body_texture_2d"]
 	assert(ResourceLoader.exists(fallback_texture_2d_path))
 	var fallback_texture_2d: Texture2D = load(fallback_texture_2d_path)
-	
-	var fallback_albedo_map_path := asset_paths[&"fallback_body_albedo_map"]
-	assert(ResourceLoader.exists(fallback_albedo_map_path))
-	var fallback_albedo_map: Texture2D = load(fallback_albedo_map_path)
-	
+
 	var file_adj_rows: Dictionary[String, int] = {}
 	var file_adj_files: Array[String] = IVTableData.get_db_field_array(&"file_adjustments", &"file")
 	for i in file_adj_files.size():
@@ -363,7 +415,10 @@ func _load_body_resources() -> void:
 			var body_name := IVTableData.get_db_entity_name(table, row)
 			var file_prefix := IVTableData.get_db_string(table, &"file_prefix", row)
 			assert(file_prefix)
-			
+			var surface_class := IVTableData.get_db_int(table, &"surface_class", row)
+			assert(surface_class != -1, "%s: every body needs a surface_class" % body_name)
+			var class_entry: Array = surface_class_index[surface_class]
+
 			var texture_2d: Texture2D = IVFiles.find_and_load_resource(bodies_2d_search, file_prefix)
 			if !texture_2d:
 				texture_2d = fallback_texture_2d
@@ -386,9 +441,18 @@ func _load_body_resources() -> void:
 					disable_auto_visual_range = IVTableData.get_db_bool(&"file_adjustments",
 							&"disable_auto_visual_range", file_adj_rows[model_file])
 			
-			# A custom surface Mesh (e.g. an OBJ -> ArrayMesh) makes this a custom-mesh
-			# spheroid; consumed in IVBodyVisual's spheroid branch as the mesh_override.
+			# A body's own Mesh (e.g. an OBJ -> ArrayMesh) replaces the shared sphere and is
+			# authored at true size in km. Without one, the body's surface class may name a
+			# generic mesh, which stands in for any body of that class and so must be resized
+			# to this one. Consumed in IVBodyVisual's shells-model branch as the mesh_override.
 			var mesh := IVFiles.find_and_load_resource(meshes_search, file_prefix) as Mesh
+			var mesh_scale := IVUnits.KM
+			if !mesh:
+				mesh = class_entry[1]
+				if mesh:
+					var mean_radius := IVTableData.get_db_float(table, &"mean_radius", row)
+					var generic_radius: float = class_entry[2]
+					mesh_scale = IVUnits.KM * mean_radius / generic_radius
 
 			# Discovered texture channels per shell from the single-pass maps index
 			# (shell &"surface" = files with no shell token in the name).
@@ -436,45 +500,57 @@ func _load_body_resources() -> void:
 						+ " (only one needs to be specified)")
 				map_offset = emission_offset
 
-			# Surface always exists; fall back to the blank grid if it has no albedo
-			# and no emission.
 			var surface_channels: Dictionary = shell_channels.get_or_add(&"surface", {})
-			var has_surface_color := surface_channels.has(BaseMaterial3D.TEXTURE_ALBEDO)
-			has_surface_color = has_surface_color or surface_channels.has(BaseMaterial3D.TEXTURE_EMISSION)
-			if not has_surface_color:
-				surface_channels[BaseMaterial3D.TEXTURE_ALBEDO] = fallback_albedo_map
 
-			# Shell 0 (the surface) is the shell flagged shell0 in shells.tsv (mutually
-			# exclusive with "scale"); when absent, the surface defaults from the body's
-			# spheroids.tsv type row (resolved in IVSpheroidModel). Shells are listed in the
-			# body's "shells" field (ARRAY[STRING]); each tag names a row SHELL_<body_name>_<tag>.
+			# A body's shells are listed in its "shells" field (ARRAY[STRING]); each tag names
+			# a row SHELL_<body_name>_<tag>. The one flagged shell0 is the surface and wholly
+			# replaces the body's surface-class default row (never a merge); the rest are
+			# overlays, which need a scale to sit off the surface.
 			var surface_row := -1
+			var surface_tag := ""
 			var overlay_rows: Array[int] = []
+			var overlay_tags: Array[String] = []
 			for tag: String in IVTableData.get_db_array(table, &"shells", row):
 				var shell_row := IVTableData.get_row(StringName("SHELL_%s_%s" % [body_name, tag]))
 				if shell_row == -1:
 					push_warning("Body %s: 'shells' lists '%s' with no matching shells.tsv row"
 							% [body_name, tag])
 					continue
-				var is_shell0 := IVTableData.get_db_bool(&"shells", &"shell0", shell_row)
-				var has_scale := IVTableData.db_has_value(&"shells", &"scale", shell_row)
-				assert(is_shell0 != has_scale, "shells.tsv '%s': shell0 is mutually exclusive with scale"
-						% IVTableData.get_db_entity_name(&"shells", shell_row))
-				assert(not (is_shell0 and IVTableData.db_has_value(&"shells", &"file_tag", shell_row)),
-						"shells.tsv '%s': file_tag is not allowed on a shell0 row"
-						% IVTableData.get_db_entity_name(&"shells", shell_row))
-				if not is_shell0:
+				if !IVTableData.get_db_bool(&"shells", &"shell0", shell_row):
+					assert(IVTableData.db_has_value(&"shells", &"scale", shell_row),
+							"shells.tsv '%s': an overlay shell needs a scale"
+							% IVTableData.get_db_entity_name(&"shells", shell_row))
 					overlay_rows.append(shell_row)
+					overlay_tags.append(tag)
 				elif surface_row == -1:
+					assert(!IVTableData.db_has_value(&"shells", &"file_tag", shell_row),
+							"shells.tsv '%s': a shell0 row has no file_tag; a surface's maps"
+							% IVTableData.get_db_entity_name(&"shells", shell_row)
+							+ " are named for file_prefix alone")
 					surface_row = shell_row
+					surface_tag = tag
 				else:
 					push_warning("Body %s: more than one shell0 row; only one is the surface" % body_name)
-			var shell_specs: Array = [_read_shell_spec(surface_channels, surface_row, true)]
-			shell_specs[0][&"from_shells"] = surface_row != -1
-			for overlay_row in overlay_rows:
+			if surface_row == -1:
+				surface_row = class_entry[0]
+			var shell_specs: Array = [
+					_read_shell_spec(surface_channels, surface_row, surface_tag)]
+			for overlay_index in overlay_rows.size():
+				var overlay_row := overlay_rows[overlay_index]
 				var file_tag := IVTableData.get_db_string_name(&"shells", &"file_tag", overlay_row)
 				var channels: Dictionary = shell_channels.get(file_tag, {})
-				shell_specs.append(_read_shell_spec(channels, overlay_row, false))
+				shell_specs.append(_read_shell_spec(channels, overlay_row,
+						overlay_tags[overlay_index]))
+
+			# A surface with no color map would otherwise render white (an unbound sampler,
+			# or the StandardMaterial3D default). Hand IVShellsModel the surface class's
+			# fallback_color instead. Only shell 0: an overlay such as an atmospheric limb
+			# legitimately has no channels and gets its color from its own shader.
+			var has_surface_color := surface_channels.has(BaseMaterial3D.TEXTURE_ALBEDO)
+			if !has_surface_color:
+				has_surface_color = surface_channels.has(BaseMaterial3D.TEXTURE_EMISSION)
+			if !has_surface_color:
+				shell_specs[0][&"fallback_color"] = class_entry[3]
 
 			var resources := [
 				texture_2d,
@@ -485,6 +561,9 @@ func _load_body_resources() -> void:
 				map_offset,
 				shell_specs,
 				mesh,
+				file_prefix,
+				mesh_scale,
+				class_entry[4],
 			]
 
 			_body_resources[body_name] = resources

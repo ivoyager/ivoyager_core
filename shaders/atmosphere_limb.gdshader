@@ -20,10 +20,10 @@
 shader_type spatial;
 render_mode blend_add, ambient_light_disabled, shadows_disabled, skip_vertex_transform;
 
-// Additive atmospheric limb (haze ring) for an IVSpheroidModel overlay shell. Name it
+// Additive atmospheric limb (haze ring) for an IVShellsModel overlay shell. Name it
 // in the shell's shells.tsv "shader" column on a slightly oversized shell (e.g. scale
 // 1.02). Each limb_* column in that row overrides the matching uniform below, because
-// IVSpheroidModel feeds every (non-special) shells.tsv column to set_shader_parameter.
+// IVShellsModel feeds every (non-special) shells.tsv column to set_shader_parameter.
 //
 // THIN EDGE: a Fresnel rim term is ~0 across the camera-facing disk and rises to 1 at
 // the edge-on limb, so the glow shows only as a thin edge. limb_falloff sets how thin.

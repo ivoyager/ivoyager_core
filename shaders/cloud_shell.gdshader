@@ -23,7 +23,7 @@ shader_type spatial;
 render_mode skip_vertex_transform, ambient_light_disabled;
 //render_mode depth_prepass_alpha; // See note below
 
-// Lit, translucent cloud overlay for an IVSpheroidModel shell. Name it in the
+// Lit, translucent cloud overlay for an IVShellsModel shell. Name it in the
 // shell's shells.tsv "shader" column; the shell's discovered "albedo" channel
 // (<prefix>.<file_tag>.albedo.*) auto-binds to the uniform below. Default lit
 // (no unshaded) so the sun still casts the day/night terminator across the deck.
@@ -35,7 +35,7 @@ render_mode skip_vertex_transform, ambient_light_disabled;
 // real, large-scale cloud shape.
 //
 // The clouds_* uniforms below are defaults; override any per body by adding a
-// shells.tsv column of the same name to the shell's row (IVSpheroidModel feeds
+// shells.tsv column of the same name to the shell's row (IVShellsModel feeds
 // each such column to set_shader_parameter).
 //
 // "render_mode depth_prepass_alpha;" above in conjuction with default `cast_shadow`

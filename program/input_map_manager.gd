@@ -201,6 +201,11 @@ static var defaults: Dictionary[StringName, Variant] = {
 	&"take_screenshot" : [
 		{&"event_class" : &"InputEventKey", &"keycode" : KEY_F12}
 	],
+	# Dev tool; IVBody2DCaptureManager ignores it outside a source run.
+	&"capture_body_2d_icons" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_B, &"ctrl_pressed" : true,
+				&"shift_pressed" : true}
+	],
 	&"toggle_pause" : [
 		{&"event_class" : &"InputEventKey", &"keycode" : KEY_SPACE}
 	],

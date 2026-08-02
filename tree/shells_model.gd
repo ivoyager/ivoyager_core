@@ -1,4 +1,4 @@
-# spheroid_model.gd
+# shells_model.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -17,25 +17,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVSpheroidModel
+class_name IVShellsModel
 extends MeshInstance3D
 
-## A generic spheroid model (shared sphere mesh, or a custom body mesh via
-## [param mesh_override]) that also orchestrates its own concentric "shells".
+## A body's surface model, and the orchestrator of its concentric overlay "shells".
 ##
 ## The model used for stars and planetary-mass objects that have no packed-scene
-## model. It is "shell 0" (the surface) and the parent of optional overlay shells
-## 1..N (cloud deck, atmospheric haze, limb), each a child [IVSpheroidModel]. Created
-## by [IVBodyVisual].[br][br]
+## model. It is "shell 0" (the surface — the shared sphere mesh, or a custom body mesh
+## via [param mesh_override]) and the parent of optional overlay shells 1..N (cloud deck,
+## atmospheric haze, limb), each a child [IVShellsModel]. Created by [IVBodyVisual].[br][br]
 ##
-## A body's shells are listed in its body-table [code]shells[/code] field
-## ([code]ARRAY[STRING][/code], e.g. [code]SURFACE;CLOUDS;LIMB[/code]); each tag names
-## a row [code]SHELL_<body_name>_<tag>[/code] in shells.tsv. The surface (shell 0) is the
-## shell flagged [code]shell0[/code] (mutually exclusive with [code]scale[/code]); it always
-## exists, defaulting from the body's [code]spheroids.tsv[/code] type when it has no shells.tsv
-## row. Each shells.tsv row sets:[br]
-## - [code]scale[/code] ([float]): radius multiplier; required for an overlay (surface
-## ranks 1.0; a value < 1.0 places the shell under the surface).[br]
+## Every shell is one shells.tsv row. A body's own shells are listed in its body-table
+## [code]shells[/code] field ([code]ARRAY[STRING][/code], e.g. [code]SURFACE;CLOUDS;LIMB[/code]);
+## each tag names a row [code]SHELL_<body_name>_<tag>[/code]. The row flagged
+## [code]shell0[/code] is the surface; the rest are overlays. A body that lists no
+## [code]shell0[/code] row takes its surface from the shells.tsv row of its
+## [code]surface_class[/code] — and when it does list one, that row wholly replaces the class
+## row (never a merge). Each row sets:[br]
+## - [code]scale[/code] ([float]): radius multiplier, 1.0 if unset; required for an overlay
+## (a value < 1.0 places the shell under the surface).[br]
 ## - [code]file_tag[/code] ([StringName], optional): texture filename token
 ## ([code]<file_prefix>.<file_tag>.<channel>[/code]); blank for a textureless shell and
 ## for the surface, whose textures use [code]file_prefix[/code] alone.[br]
@@ -44,13 +44,13 @@ extends MeshInstance3D
 ## - [code]process[/code] ([StringName]): name a [member process_methods] entry called on the
 ## shell each frame as [code]method(delta, ...process_args)[/code] (e.g. [method _rotate]).[br]
 ## - [code]process_args[/code] ([code]ARRAY[VARIANT][/code]): extra arguments bound after
-## [code]delta[/code] in the [code]process[/code] call (shells.tsv only).[br]
+## [code]delta[/code] in the [code]process[/code] call.[br]
 ## - [code]transparency[/code] ([enum BaseMaterial3D.Transparency]): per-shell material
 ## override, no shell-0 assumption. (Shadow-casting is the separate [code]cast_shadow[/code] column.)[br]
 ## - any other column: set directly as the named [StandardMaterial3D] property (e.g.
-## [code]albedo_color[/code], [code]roughness[/code]). When the body has no shells.tsv shell-0
-## row, shell 0 instead takes its whole spec from its [code]spheroids.tsv[/code] type row. A uniform
-## shell needs only [code]albedo_color[/code] (RGBA) — no texture.[br][br]
+## [code]albedo_color[/code], [code]roughness[/code]) or shader uniform of that name. No shell
+## needs a texture: [code]albedo_color[/code] (RGBA) alone is a uniform shell, and a surface
+## with no color map at all takes its surface class's [code]fallback_color[/code].[br][br]
 ##
 ## Overlapping translucent shells auto-order back-to-front by scale (outer on top,
 ## via material [code]render_priority[/code]); give shells distinct scales (equal
@@ -106,9 +106,9 @@ const _SUN_HANDOFF_LOW_RATIO := 0.4 # fade span, as a fraction of the solved han
 const _SUN_HANDOFF_FALLBACK := 2.5 # px radius, if the star never saturates (see the solver)
 
 
-## Registry of 'process' methods, keyed by the name used in the spheroids.tsv or shells.tsv
+## Registry of 'process' methods, keyed by the name used in a shells.tsv
 ## 'process' field. Each [Callable] runs on the shell every frame as
-## [code]method(spheroid_model, delta, ...process_args)[/code]. Register entries in
+## [code]method(shells_model, delta, ...process_args)[/code]. Register entries in
 ## [method _static_init] or from project code to add a process method without subclassing.
 static var process_methods: Dictionary[StringName, Callable] = {}
 
@@ -119,9 +119,7 @@ static var _shader_uniform_names: Dictionary = {} # Shader -> Dictionary[StringN
 
 var _shell: int # 0 is the surface and orchestrator; 1..N are child shells
 var _body_name: StringName
-var _spheroid_type: int
 var _mean_radius: float
-var _reference_basis: Basis # this shell's base basis (before any process scaling)
 var _process_callable: Callable
 var _star_body: IVBody # sun-mode: owning body, for its true (un-farwarped) position and photometry
 var _is_sun: bool # sun-mode (shell 0 with is_sun): dual disc + point; see the sun-mode section
@@ -140,35 +138,33 @@ var _times := IVGlobal.times
 # *****************************************************************************
 # 'process' methods & registry
 
-# process_methods maps a spheroids.tsv/shells.tsv 'process' name to one of the static methods
+# process_methods maps a shells.tsv 'process' name to one of the static methods
 # below, resolved once per shell in _resolve_process() and called every frame via _process_callable
-# as method(spheroid_model, delta, ...process_args). Each method owns the shell's whole per-frame
+# as method(shells_model, delta, ...process_args). Each method owns the shell's whole per-frame
 # behavior (there is no default to fall through to). Add entries without subclassing.
 
 static func _static_init() -> void:
 	process_methods[&"_rotate"] = _rotate
 
 
-## Named by a 'process' field (shells.tsv or spheroids.tsv). Rotates [param spheroid_model]
+## Named by a shells.tsv 'process' field. Rotates [param shells_model]
 ## at [param deg_per_sec] degrees per second.
-static func _rotate(spheroid_model: IVSpheroidModel, delta: float, deg_per_sec: float) -> void:
+static func _rotate(shells_model: IVShellsModel, delta: float, deg_per_sec: float) -> void:
 	const CONVERSION := PI / (180.0 * IVUnits.SECOND)
 	if IVStateManager.paused_tree:
 		return
-	delta *= spheroid_model._times[1] / Engine.time_scale
-	spheroid_model.rotate_y(delta * deg_per_sec * CONVERSION) # y up in model self reference
+	delta *= shells_model._times[1] / Engine.time_scale
+	shells_model.rotate_y(delta * deg_per_sec * CONVERSION) # y up in model self reference
 
 
-func _init(body_name: StringName, spheroid_type: int, mean_radius: float, model_basis: Basis,
+func _init(body_name: StringName, mean_radius: float, model_basis: Basis,
 		shell := 0, mesh_override: Mesh = null) -> void:
 	_body_name = body_name
-	_spheroid_type = spheroid_type
 	_mean_radius = mean_radius
 	_shell = shell
-	_reference_basis = model_basis
-	name = &"SpheroidModel" if shell == 0 else StringName("Shell_%d" % shell)
+	name = &"ShellsModel" if shell == 0 else StringName("Shell_%d" % shell)
 	transform.basis = model_basis
-	# shell-0 surface may use a custom body mesh (meshes_search) instead of the shared sphere
+	# shell 0 may replace the shared sphere with the body's own mesh, or its surface class's
 	mesh = mesh_override if mesh_override else IVGlobal.resources[&"sphere_mesh"] as Mesh
 
 
@@ -177,8 +173,14 @@ func _ready() -> void:
 	var shell_specs := asset_preloader.get_body_shell_specs(_body_name)
 	var spec: Dictionary = shell_specs[_shell]
 	if _shell == 0:
-		spec = _resolve_shell0_spec(asset_preloader, spec)
 		_is_sun = spec[&"is_sun"]
+		# A surface need not sit at the body's mean radius: what we see of Venus is its cloud
+		# top, ~65 km up. Scaled here rather than in [IVBodyVisual] so that node's
+		# reference_basis stays the true body frame for rings and any other child.
+		# (Overlay shells arrive pre-scaled from [method _build_child_shells].)
+		var surface_scale: float = spec[&"scale"]
+		if surface_scale != 1.0:
+			transform.basis = transform.basis.scaled(Vector3.ONE * surface_scale)
 	var process_method: StringName = spec[&"process"]
 	var process_args: Array = spec[&"process_args"]
 	var render_priority := _compute_render_priority(shell_specs)
@@ -376,30 +378,9 @@ static func _get_reference_viewport_height() -> float:
 		var value: Variant = setting_dict.get("value")
 		if value is float:
 			return value
-	push_warning("IVSpheroidModel: no iv_reference_viewport_height shader global; using %s"
+	push_warning("IVShellsModel: no iv_reference_viewport_height shader global; using %s"
 			% FALLBACK)
 	return FALLBACK
-
-
-# Shell 0 takes its whole spec from the body's spheroids.tsv [member _spheroid_type] row
-# (shader, process, is_sun, cast_shadow, material columns) unless a shells.tsv shell-0 row
-# overrides it wholly (never a merge). The body's discovered surface channels are kept either way.
-func _resolve_shell0_spec(asset_preloader: IVAssetPreloader, surface_spec: Dictionary) -> Dictionary:
-	if surface_spec.get(&"from_shells", false):
-		return surface_spec
-	var shadow_setting: int = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-	if IVTableData.db_has_value(&"spheroids", &"cast_shadow", _spheroid_type):
-		shadow_setting = IVTableData.get_db_int(&"spheroids", &"cast_shadow", _spheroid_type)
-	return {
-		&"channels": surface_spec[&"channels"],
-		&"shader": IVTableData.get_db_string_name(&"spheroids", &"shader", _spheroid_type),
-		&"process": IVTableData.get_db_string_name(&"spheroids", &"process", _spheroid_type),
-		&"process_args": [],
-		&"is_sun": IVTableData.get_db_bool(&"spheroids", &"is_sun", _spheroid_type),
-		&"cast_shadow": shadow_setting,
-		&"overrides": asset_preloader.read_material_fields(&"spheroids", _spheroid_type,
-				IVAssetPreloader.spheroids_nonmaterial_fields),
-	}
 
 
 func _build_material(spec: Dictionary, asset_preloader: IVAssetPreloader,
@@ -407,11 +388,18 @@ func _build_material(spec: Dictionary, asset_preloader: IVAssetPreloader,
 	var channels: Dictionary = spec[&"channels"]
 	var overrides: Dictionary = spec[&"overrides"]
 	var shader_name: StringName = spec[&"shader"]
+	# Present only on a surface with no color map (see IVAssetPreloader). Applied under the
+	# overrides, so a table albedo_color still wins; on the shader path it is a no-op for a
+	# shader without the uniform, which is what leaves a mapless star its own fallback.
+	var fallback_color: Variant = spec.get(&"fallback_color")
 	if shader_name:
-		_build_shader_material(shader_name, channels, overrides, asset_preloader, render_priority)
+		_build_shader_material(shader_name, channels, overrides, asset_preloader,
+				render_priority, fallback_color)
 		return
 	var material := StandardMaterial3D.new()
 	material.render_priority = render_priority
+	if fallback_color != null:
+		material.albedo_color = fallback_color
 	# spec already holds the resolved shell-0 (or overlay) material columns; no merge.
 	_assert_overrides_are_properties(overrides)
 	_apply_material_fields(material, overrides)
@@ -420,7 +408,8 @@ func _build_material(spec: Dictionary, asset_preloader: IVAssetPreloader,
 
 
 func _build_shader_material(shader_name: StringName, channels: Dictionary,
-		overrides: Dictionary, asset_preloader: IVAssetPreloader, render_priority: int) -> void:
+		overrides: Dictionary, asset_preloader: IVAssetPreloader, render_priority: int,
+		fallback_color: Variant) -> void:
 	# A shell may opt into a ShaderMaterial (its shells.tsv "shader" column naming a
 	# Shader in IVGlobal.resources). Discovered channel textures feed it as named
 	# uniforms, and each shells.tsv override column feeds the uniform of the same name
@@ -443,6 +432,8 @@ func _build_shader_material(shader_name: StringName, channels: Dictionary,
 	var material := ShaderMaterial.new()
 	material.shader = shader
 	material.render_priority = render_priority
+	if fallback_color != null:
+		material.set_shader_parameter(&"albedo_color", fallback_color)
 	_apply_channels_to_shader_material(material, channels, asset_preloader)
 	_assert_overrides_are_uniforms(overrides, shader)
 	_apply_overrides_to_shader_material(material, overrides)
@@ -515,7 +506,7 @@ func _apply_material_fields(material: BaseMaterial3D, fields: Dictionary) -> voi
 func _assert_overrides_are_properties(overrides: Dictionary) -> void:
 	# Debug guard for a non-shader shell: its override columns are set() blindly on a
 	# StandardMaterial3D, which no-ops an unknown property — so catch a typo'd or
-	# unsupported spheroids.tsv/shells.tsv column here. This per-shell check (with the
+	# unsupported shells.tsv column here. This per-shell check (with the
 	# resolved shader available) is why there is no table-wide material validation.
 	if not OS.is_debug_build():
 		return
@@ -585,6 +576,9 @@ func _is_local_shadow_caster() -> bool:
 func _build_child_shells(shell_specs: Array) -> void:
 	# Each extra shell is a translucent child reusing the shared sphere mesh at a
 	# larger (or smaller) radius, inheriting the body's oblateness, orientation and spin.
+	# Every table scale is measured against the body, but a child's transform composes with
+	# this one's — so divide out the surface's own scale to keep the two frames the same.
+	var surface_scale: float = shell_specs[0][&"scale"]
 	for shell_index in range(1, shell_specs.size()):
 		var spec: Dictionary = shell_specs[shell_index]
 		var channels: Dictionary = spec[&"channels"]
@@ -597,8 +591,8 @@ func _build_child_shells(shell_specs: Array) -> void:
 					% [_body_name, shell_index])
 			continue
 		var shell_scale: float = spec[&"scale"]
-		var child_basis := Basis().scaled(Vector3.ONE * shell_scale)
-		add_child(IVSpheroidModel.new(_body_name, _spheroid_type, _mean_radius, child_basis, shell_index))
+		var child_basis := Basis().scaled(Vector3.ONE * shell_scale / surface_scale)
+		add_child(IVShellsModel.new(_body_name, _mean_radius, child_basis, shell_index))
 
 
 # Render priority = this shell's rank by scale (ascending; shell index breaks ties),
@@ -619,13 +613,13 @@ func _compute_render_priority(shell_specs: Array) -> int:
 
 
 func _spec_scale(spec: Dictionary) -> float:
-	var shell_scale: float = spec.get(&"scale", 1.0) # surface (shell 0) has no scale; rank as 1.0
+	var shell_scale: float = spec[&"scale"]
 	return shell_scale
 
 
 func _resolve_process(method: StringName, process_args: Array) -> void:
 	# The 'process' field names a process_methods entry called on this shell each frame as
-	# method(spheroid_model, delta, ...process_args) (extra args from the 'process_args' field).
+	# method(shells_model, delta, ...process_args) (extra args from the 'process_args' field).
 	# Defining _process() enables idle processing by default, so disable it on a shell with no
 	# (or an unregistered) process method.
 	set_process(false)
@@ -638,3 +632,40 @@ func _resolve_process(method: StringName, process_args: Array) -> void:
 		return
 	_process_callable = callable.bindv(process_args)
 	set_process(true)
+
+
+
+
+# *****************************************************************************
+# static preview
+
+
+## Detaches this shell from the live simulation so it can be staged elsewhere as a still
+## image: it stops animating, stops reaching outside its own subtree, and (for a star)
+## renders as a plain resolved disc instead of the distance-driven disc/point crossfade.
+## Call on a model built for anything other than the body it belongs to — an icon capture,
+## a thumbnail, a GUI preview — right after adding it to the tree, before it can process a
+## frame. One way: there is no restoring the live behavior afterward. Overlay shells are
+## separate models and each needs its own call ([method IVBodyVisual.set_static_preview]
+## covers a whole visual).
+func set_static_preview() -> void:
+	# Idle processing is the only thing here that reaches outside this node: _rotate would
+	# animate the shell against sim time, and _process_sun_lod would build the far point as a
+	# child of the REAL star body and size it against a camera in a different World3D.
+	set_process(false)
+	if not _is_sun:
+		return
+	# IVStarSettings is shared with the live scene, so any edit to it would call
+	# _refresh_sun_handoff() and undo the overrides below.
+	if _star_settings.changed.is_connected(_on_star_settings_changed):
+		_star_settings.changed.disconnect(_on_star_settings_changed)
+	if not _sun_surface_material:
+		return
+	# The disc's alpha is a crossfade against its own on-screen pixel radius, and only
+	# _process_sun_lod knows how to measure that; with it off, angular_radius keeps the shader
+	# default and every fragment discards. Negative edges saturate the crossfade instead.
+	_sun_surface_material.set_shader_parameter(&"handoff_low", -2.0)
+	_sun_surface_material.set_shader_parameter(&"handoff_high", -1.0)
+	# DISC_BRIGHTNESS is HDR for a scene that tonemaps. Read back into an RGBA8 image it would
+	# clip to white and take the B-V tint with it.
+	_sun_surface_material.set_shader_parameter(&"brightness", 1.0)

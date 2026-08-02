@@ -27,7 +27,7 @@ shader_type sky;
 // the image's frame. This shader only projects: +z is the image's north pole,
 // +x its center meridian. See IVWorldEnvironment.sky_rotation.
 //
-// texture_bicubic (shared with spheroid_surface.gdshader) resamples smoothly
+// texture_bicubic (shared with surface.gdshader) resamples smoothly
 // so the low-resolution image is not blocky when magnified. energy_multiplier
 // mirrors PanoramaSkyMaterial's exposure.
 

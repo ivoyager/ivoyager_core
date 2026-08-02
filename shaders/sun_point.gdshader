@@ -33,7 +33,7 @@ render_mode unshaded, cull_disabled, skip_vertex_transform, blend_add, depth_dra
 // blend_add + depth_draw_never: opaque bodies occlude it (depth test stays on) but it never
 // occludes anything and sums like light.
 //
-// Driven by IVSpheroidModel sun-mode, which sets apparent_magnitude and angular_radius from
+// Driven by IVShellsModel sun-mode, which sets apparent_magnitude and angular_radius from
 // the true camera distance each frame. Both are viewport-independent; this shader resolves
 // them against its own VIEWPORT_SIZE and PROJECTION_MATRIX, so an off-screen capture is sized
 // for its own buffer rather than for the main window.

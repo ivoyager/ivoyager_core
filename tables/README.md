@@ -18,7 +18,7 @@ This table includes only the individually instantiated asteroids, which are all 
 
 ## body_classes.tsv
 
-Used only for GUI info display of "Classification". E.g., "Terrestrial Planet", "Gas Giant", "C-Type Asteroid", etc. See [spheroids.tsv](#spheroidstsv) for types that affect 3D model representation.
+Used only for GUI info display of "Classification". E.g., "Terrestrial Planet", "Gas Giant", "C-Type Asteroid", etc. See [surface_classes.tsv](#surface_classestsv) for the separate classification that affects 3D model representation.
 
 ## camera_attributes.tsv
 
@@ -39,12 +39,6 @@ Asset file adjustments. Default ("assumed") values are hard-coded so we don't ha
 Maps are assumed to have prime meridian at center and longitude 180° at edge, as is typical for maps of Earth and the Moon. If different, include here with `map_offset`. If a body has both albedo and emission maps, only one needs to be included here (if both are included, code will assert equal `map_offset`).
 
 Model scale is assumed to be 1 meter (1:1). If different, include here with `model_scale`. Asteroids more commonly have a scale of 1000 m (1:1000).
-
-## spheroids.tsv
-
-Per-`spheroid_type` defaults for a procedurally built spheroid model's surface (shell 0): material properties plus an optional `shader` and per-frame `process` method. Consumed by [IVSpheroidModel](https://github.com/ivoyager/ivoyager_core/blob/master/tree/spheroid_model.gd); all spheroid models share the same sphere mesh, scaled for size and oblateness. A body's `spheroid_type` column selects the row; `SPHEROID_FALLBACK` (row 0) is used when none is specified. A body with a packed-scene 3D model ignores this table.
-
-This table is parallel in capability to [shells.tsv](#shellstsv) (minus the structural `shell0`/`scale`/`file_tag` columns): a `shells.tsv` shell-0 row, when present, wholly overrides these defaults for that one body (never a merge of the two).
 
 ## moons.tsv
 
@@ -80,6 +74,8 @@ Orbital elements are in [orbits.tsv](#orbitstsv).
 
 Physical characteristics are mostly from https://ssd.jpl.nasa.gov/?planet_phys_par or Wikipedia.
 
+`triaxial_size` (moons.tsv) is the measured figure of a body too small to be round: its three **semi-axes** — not diameters — in the IAU order (a toward longitude 0, b toward 90°E, c polar). Several sources publish full dimensions instead, so halve those. It replaces `equatorial_radius`/`polar_radius` for such a body, which need not be set: `IVBody.get_equatorial_radius()` and `get_polar_radius()` read a and c from it. Sources: NAIF generic PCK `pck00011.tpc`, carrying the figures of Archinal et al. (2018) "Report of the IAU Working Group on Cartographic Coordinates and Rotational Elements: 2015" (Metis, Adrastea, Methone, Pallene, Polydeuces, Aegaeon); Karkoschka (2003) *Icarus* 162, 400 (Naiad, Thalassa, Despina, Galatea); Porter et al. (2021), tabulated in Porter et al. (2023) doi:10.3847/PSJ/acde77 (Nix, Hydra, Kerberos).
+
 Keep planets in semi-major-axis order (now in orbits.tsv) for proper order in GUI display and selection.
 
 ## rings.tsv
@@ -87,6 +83,19 @@ Keep planets in semi-major-axis order (now in orbits.tsv) for proper order in GU
 Used by [IVRings](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/rings.gd) to build visual planetary rings and associated shadow casters.
 
 We only have Saturn's rings now.
+
+## shells.tsv
+
+Defines every surface and overlay "shell" built by [IVShellsModel](https://github.com/ivoyager/ivoyager_core/blob/master/tree/shells_model.gd) — the model used for any body with no packed-scene 3D model. Each row is one shell, and is one of two kinds:
+
+* A **body row**, named `SHELL_<body_name>_<tag>` and listed by its tag in the body's `shells` field (`ARRAY[STRING]`, e.g. `SURFACE;CLOUDS;LIMB`). The row flagged `shell0` is that body's surface; the rest are overlays.
+* A **surface-class row**, identified by its `surface_class` field. This is the default surface for every body of that class, used when the body lists no `shell0` row of its own. A body row that *is* `shell0` replaces the class row wholly — the two are never merged, so such a row must restate everything it wants.
+
+Structural columns are `surface_class`, `shell0`, `scale`, `file_tag`, `shader`, `process`, `process_args`, `is_sun` and `cast_shadow`. **Every other column is applied directly to the shell's material**, as a `StandardMaterial3D` property or — when the row names a `shader` — as the shader uniform of the same name. To expose a new material knob, just add that property's column; it is validated per shell at build time.
+
+`scale` is a multiplier on the body's radius, 1.0 if unset. Overlays require one and must differ from each other (equal scales z-fight); values below 1.0 sit under the surface. A surface may carry one too, for a body whose visible "surface" is not at its mean radius — Venus's is its cloud top, ~65 km up. Scales are always measured against the body, so a scaled surface does not drag its overlays outward with it.
+
+No shell needs a texture. `albedo_color` alone gives a uniform shell, and a surface with no color map at all falls back to its surface class's `fallback_color`.
 
 ## small_bodies_groups.tsv
 
@@ -111,6 +120,18 @@ We only have a few at the moment. We would like to add more but [need 3D models!
 See [IVBody](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/body.gd) and [IVTableBodyBuilder](https://github.com/ivoyager/ivoyager_core/blob/master/program/table_body_builder.gd).
 
 We only have one! Data is mostly from Wikipedia.
+
+## surface_classes.tsv
+
+An enumeration of body surface types — `G_STAR`, `ROCKY_WORLD`, `ICE_GIANT`, `C_TYPE_BODY`, etc., with `FALLBACK` last. Every body table has a `surface_class` column selecting one; several set a table `Default` (moons and asteroids `C_TYPE_BODY`, spacecraft `FALLBACK`). Use a `*_WORLD` class for planetary-mass objects and a `*_TYPE_BODY` class for small moons and asteroids.
+
+A class's appearance lives in its [shells.tsv](#shellstsv) row. This table holds only what a body of that class falls back to when it has no assets of its own:
+
+* `fallback_mesh_path` / `fallback_mesh_size` — a generic mesh standing in for any body of the class, and the mean radius that mesh represents (it is resized to each body's own). No class sets one now; a class with no mesh, or one whose file is absent, falls through — Core runs without the asset bundle.
+* `fallback_triaxial_size` — generic semi-axes for a body of the class with no figure of its own, shaping the shared sphere instead of a mesh. Any scaling of the three works: they are normalized to the body's own mean radius. The `*_TYPE_BODY` classes use the median axis ratios of the small bodies whose figure has been measured, so an unresolved small body reads as irregular without claiming a shape it does not have.
+* `fallback_color` — the surface color when the body ships no albedo or emission map. Default `gray`.
+
+Precedence for a body's model is: packed scene (models/) > its own mesh (meshes/) > its class's `fallback_mesh_path` > its own `triaxial_size` (body tables) > its class's `fallback_triaxial_size` > its oblate radii > the shared sphere.
 
 ## views.tsv
 

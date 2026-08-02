@@ -80,7 +80,8 @@ extends Node3D
 ## information is contained in dictionary [member characteristics]. For
 ## example all bodies have [member mean_radius], but oblate spheroid bodies
 ## (stars, planets, and large moons) also have [param equatorial_radius] and
-## [param polar_radius] as keys in characteristics. API methods provide access
+## [param polar_radius] as keys in characteristics, and a measured irregular body
+## has [param triaxial_size]. API methods provide access
 ## to many of these characteristics with sensible fallbacks for missing keys.[br][br]
 ##
 ## Many body-associated "graphic" nodes are added by [IVBodyFinisher] including
@@ -229,7 +230,8 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 ## Set [code]IVBody.replacement_subclass = MyBody[/code] for project-wide
 ## replacement.
 static var replacement_subclass: Script
-## Set this script to replace the [IVBodyVisual] class.
+## Set this script to replace the [IVBodyVisual] class. Must share its
+## [code]_init(body_name, mean_radius, triaxial_size)[/code] signature.
 static var replacement_body_visual_class: Script
 ## Registry of model-attitude 'process' methods, keyed by the name used in the spacecrafts.tsv
 ## 'process' field. Each [Callable] runs every frame as
@@ -523,7 +525,7 @@ static func _add_selection_recursive(body: IVBody) -> void:
 # resolved once per body in _resolve_process() and called every frame via _process_callable as
 # method(body, delta, ...process_args). A method returns true to own the body's model attitude
 # (skipping the default axial rotation in _process()) or false to fall through to it. Mirrors the
-# IVSpheroidModel 'process' mechanism. Per the table-method convention these methods may reference
+# IVShellsModel 'process' mechanism. Per the table-method convention these methods may reference
 # bodies by name (&"PLANET_EARTH", &"STAR_SUN") and must convert any unit-tagged argument
 # in-method, since the table cannot specify a unit for a VARIANT. All operate on body_visual.basis,
 # a world-oriented frame because IVBody nodes are never rotated; model-frame axis args are tunable.
@@ -913,8 +915,8 @@ func get_characteristic(key: StringName) -> Variant:
 			return get_body_class()
 		&"perspective_radius":
 			return get_perspective_radius()
-		&"spheroid_type":
-			return get_spheroid_type()
+		&"surface_class":
+			return get_surface_class()
 		&"file_prefix":
 			return get_file_prefix()
 		&"has_light":
@@ -936,20 +938,34 @@ func get_mass() -> float:
 	return gravitational_parameter / G
 
 
-## Has a specific value for oblate spheroids. Otherwise, returns [member mean_radius].
+## Has a specific value for oblate spheroids, else a triaxial body's longest semi-axis.
+## Otherwise, returns [member mean_radius].
 func get_equatorial_radius() -> float:
 	var equatorial_radius: float = characteristics.get(&"equatorial_radius", 0.0)
 	if equatorial_radius:
 		return equatorial_radius
+	var triaxial_size := get_triaxial_size()
+	if triaxial_size:
+		return triaxial_size.x
 	return mean_radius
 
 
-## Has a specific value for oblate spheroids. Otherwise, returns [member mean_radius].
+## Has a specific value for oblate spheroids, else a triaxial body's polar semi-axis.
+## Otherwise, returns [member mean_radius].
 func get_polar_radius() -> float:
 	var polar_radius: float = characteristics.get(&"polar_radius", 0.0)
 	if polar_radius:
 		return polar_radius
+	var triaxial_size := get_triaxial_size()
+	if triaxial_size:
+		return triaxial_size.z
 	return mean_radius
+
+
+## Returns the measured semi-axes in the IAU order (a at longitude 0, b at 90°E, c polar),
+## or [constant Vector3.ZERO] for a body with no measured figure.
+func get_triaxial_size() -> Vector3:
+	return characteristics.get(&"triaxial_size", Vector3.ZERO)
 
 
 ## Returns a specific name for HUD use, if different from [member Node.name].
@@ -971,8 +987,8 @@ func get_perspective_radius() -> float:
 	return mean_radius
 
 
-func get_spheroid_type() -> int: # spheroids.tsv (intent; -1 = unspecified)
-	return characteristics.get(&"spheroid_type", -1)
+func get_surface_class() -> int: # surface_classes.tsv row (-1 = unspecified)
+	return characteristics.get(&"surface_class", -1)
 
 
 func get_file_prefix() -> String:
@@ -1760,6 +1776,41 @@ func lazy_model_init() -> void:
 	_add_body_visual()
 
 
+## Builds a new [IVBodyVisual] for this body without adopting it, or [code]null[/code] if the
+## body has [member BodyFlags.BODYFLAGS_DISABLE_MODEL_SPACE]. This body's own visual is
+## [member body_visual]; use this only to stage a second, throwaway one outside the simulation
+## (an icon capture, a thumbnail). The caller owns it, and must call
+## [method IVBodyVisual.set_static_preview] on it as soon as it is in the tree — an unattended
+## copy animates, and a star's copy reaches back into this body.
+func make_body_visual() -> IVBodyVisual:
+	if flags & BodyFlags.BODYFLAGS_DISABLE_MODEL_SPACE:
+		return null
+	var triaxial_size := _resolve_triaxial_size()
+	if replacement_body_visual_class:
+		@warning_ignore("unsafe_method_access")
+		var replacement: IVBodyVisual = replacement_body_visual_class.new(name, mean_radius,
+				triaxial_size)
+		return replacement
+	return IVBodyVisual.new(name, mean_radius, triaxial_size)
+
+
+# The figure to draw, which is not always a measured one: a body with no figure of its own
+# borrows its surface class's generic proportions (surface_classes.tsv
+# fallback_triaxial_size, normalized so any writing of the ratios works), and failing that
+# is its oblate spheroid. A body that turns out to have a mesh ignores all of this.
+func _resolve_triaxial_size() -> Vector3:
+	var triaxial_size := get_triaxial_size()
+	if triaxial_size:
+		return triaxial_size
+	var asset_preloader: IVAssetPreloader = IVGlobal.program[&"AssetPreloader"]
+	var fallback := asset_preloader.get_body_fallback_triaxial_size(name)
+	if fallback:
+		var product := fallback.x * fallback.y * fallback.z
+		return fallback * mean_radius / pow(product, 1.0 / 3.0)
+	var e_radius := get_equatorial_radius()
+	return Vector3(e_radius, e_radius, get_polar_radius())
+
+
 ## Called by [IVFarwarpManager] once per frame AFTER the camera has moved and
 ## origin-shifted the Universe, so the world-space (top_level) placement of
 ## [member farwarp_position] lands in the frame's final coordinates. A placement
@@ -2040,17 +2091,11 @@ func _update_rotations(is_intrinsic: bool) -> void:
 
 
 func _add_body_visual() -> void:
-	const DISABLE_MODEL_SPACE := BodyFlags.BODYFLAGS_DISABLE_MODEL_SPACE
 	assert(!body_visual)
 	_lazy_model_uninited = false
-	if flags & DISABLE_MODEL_SPACE:
+	body_visual = make_body_visual()
+	if !body_visual:
 		return
-	var e_radius := get_equatorial_radius()
-	if replacement_body_visual_class:
-		@warning_ignore("unsafe_method_access")
-		body_visual = replacement_body_visual_class.new(name, mean_radius, e_radius, get_spheroid_type())
-	else:
-		body_visual = IVBodyVisual.new(name, mean_radius, e_radius, get_spheroid_type())
 	# Direct child at the body's true position; farwarp compression is applied per-vertex in the
 	# model shaders (see [IVFarwarpManager]). IVBody is never rotated, so body_visual.basis stays
 	# the world-oriented model frame.

@@ -41,7 +41,7 @@ uniform float face_size = 1.0;        // output cube face edge, in pixels
 uniform int supersample = 4;          // NxN taps per output texel, area-averaged
 uniform bool object_space_normal = false;
 // Half-range the normal residual is encoded over; must match both the baker's
-// --normal-residual-scale and spheroid_surface.cube.gdshader's uniform of that name.
+// --normal-residual-scale and surface.cube.gdshader's uniform of that name.
 uniform float normal_residual_scale = 1.0;
 
 

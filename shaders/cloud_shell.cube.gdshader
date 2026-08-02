@@ -25,8 +25,8 @@ render_mode skip_vertex_transform, ambient_light_disabled;
 // Cubemap counterpart of cloud_shell.gdshader: the same lit, translucent deck and the
 // same procedural sub-texel detail, but the cloud map is sampled by DIRECTION from a
 // Cubemap instead of by UV from an equirect map, which removes the pole starburst and the
-// +/-180 seam. IVSpheroidModel routes a shell here automatically when its discovered
-// channels are Cubemaps (see spheroid_model.gd _build_shader_material and
+// +/-180 seam. IVShellsModel routes a shell here automatically when its discovered
+// channels are Cubemaps (see shells_model.gd _build_shader_material and
 // IVAssetPreloader.cube_shader_variants); the tables are unchanged.
 //
 // The map's coverage lives in ALPHA (its rgb is flat white), so the strip must be baked

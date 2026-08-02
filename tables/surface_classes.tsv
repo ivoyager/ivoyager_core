@@ -1,0 +1,18 @@
+	fallback_mesh_path	fallback_mesh_size	fallback_triaxial_size	fallback_color
+Type	STRING	FLOAT	VECTOR3	COLOR
+Default				gray
+Unit		km	km	
+Prefix/SURFACE_CLASS_				
+G_STAR				
+ROCKY_WORLD				
+DESERT_WORLD				
+CONTINENTAL_WORLD				
+THICK_ATM_WORLD				
+ICE_WORLD				
+VOLCANO_WORLD				
+GAS_GIANT				
+ICE_GIANT				
+C_TYPE_BODY			1.3196, 0.9553, 0.7934	
+M_TYPE_BODY			1.3196, 0.9553, 0.7934	
+S_TYPE_BODY			1.3196, 0.9553, 0.7934	
+FALLBACK				

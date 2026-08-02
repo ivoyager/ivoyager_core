@@ -19,7 +19,7 @@
 // *****************************************************************************
 
 // Shared helpers for "detail" surface shaders (e.g., cloud_shell,
-// spheroid_surface): model-space value-noise FBM plus a C2-continuous bicubic
+// surface): model-space value-noise FBM plus a C2-continuous bicubic
 // texture lookup. A fixed-resolution map at close (orbital) range has
 // texels kilometers wide; bicubic resampling removes the texel squares and FBM
 // supplies the sub-texel structure the base map lacks. Pure functions only —

@@ -1,4 +1,4 @@
-// spheroid_surface.cube.gdshader
+// surface.cube.gdshader
 // This file is part of I, Voyager
 // https://ivoyager.dev
 // *****************************************************************************
@@ -22,13 +22,13 @@ shader_type spatial;
 // ambient_light_disabled: ambient is rebuilt as emission; see _sun_occlusion.gdshaderinc.
 render_mode skip_vertex_transform, ambient_light_disabled;
 
-// Cubemap counterpart of spheroid_surface.gdshader: same lit PBR surface and the
+// Cubemap counterpart of surface.gdshader: same lit PBR surface and the
 // same ring/eclipse occlusion, but the maps are sampled by DIRECTION
 // (normalize(VERTEX)) from a Cubemap instead of by UV from an equirect map. This
 // removes the equirect pole starburst and the +/-180 seam outright, and the sliver-
 // triangle shading with them, because a direction lookup is exact on the sphere at
-// every latitude regardless of tessellation. IVSpheroidModel routes a body here
-// automatically when its discovered channels are Cubemaps (see spheroid_model.gd
+// every latitude regardless of tessellation. IVShellsModel routes a body here
+// automatically when its discovered channels are Cubemaps (see shells_model.gd
 // _build_shader_material + IVAssetPreloader.cube_shader_variants); the tables are
 // unchanged. Bicubic de-pixelation is preserved (texture_bicubic_cube).
 //
@@ -52,8 +52,8 @@ render_mode skip_vertex_transform, ambient_light_disabled;
 #include "_sun_occlusion.gdshaderinc"
 
 // Auto-bound channels (Cubemaps built by IVAssetPreloader). albedo/emission decode
-// sRGB; normal/roughness are linear. albedo always exists (fallback guaranteed); the
-// other three are optional and gated by their has_* flag below.
+// sRGB; normal/roughness are linear. All four are optional and gated by their has_* flag
+// below.
 uniform samplerCube albedo : source_color;
 uniform samplerCube normal;
 uniform samplerCube roughness;
@@ -63,17 +63,24 @@ uniform samplerCube emission : source_color;
 // An object-space normal has no constant "flat" default the way a tangent map does
 // (hint_normal), and an unbound samplerCube samples black — so an absent optional
 // channel must fall back in-shader, not via a sampler hint.
+uniform bool has_albedo = false;
 uniform bool has_normal = false;
 uniform bool has_roughness = false;
 uniform bool has_emission = false;
 
+// Tint multiplied into the sampled albedo (alpha unused; this surface is opaque). Mirrors
+// surface.gdshader: white leaves a mapped body untouched, and IVShellsModel sets it to the
+// surface class's fallback_color when the body ships no color map, which — with albedo then
+// standing in as white — renders the body in that flat color.
+uniform vec4 albedo_color : source_color = vec4(1.0);
+
 // Material scalars (per-body tunable via shells.tsv columns of the same name).
-// Mirror spheroid_surface.gdshader so an equirect body's override columns still
+// Mirror surface.gdshader so an equirect body's override columns still
 // validate against this shader when it routes here.
 uniform float normal_scale = 1.0;      // bump strength: 0 = smooth sphere, 1 = full baked normal
 // Half-range the normal cube's residual was encoded over; MUST match the baker's
 // --normal-residual-scale. This is the one uniform here with no counterpart in
-// spheroid_surface.gdshader, so it cannot be driven from a shells.tsv column without
+// surface.gdshader, so it cannot be driven from a shells.tsv column without
 // breaking that column for the same body's equirect maps (see _assert_overrides_are_uniforms).
 uniform float normal_residual_scale = 1.0;
 uniform float roughness_scale = 1.0;   // multiplies sampled roughness, or is the flat value if unbound
@@ -100,7 +107,8 @@ void vertex() {
 void fragment() {
 	vec3 dir = normalize(model_position);
 
-	ALBEDO = texture_bicubic_cube(albedo, dir).rgb;
+	ALBEDO = has_albedo ? texture_bicubic_cube(albedo, dir).rgb : vec3(1.0);
+	ALBEDO *= albedo_color.rgb;
 
 	if (has_roughness) {
 		ROUGHNESS = clamp(texture_bicubic_cube(roughness, dir).r * roughness_scale, 0.0, 1.0);

@@ -113,10 +113,10 @@ var limit_stops_in_multiplayer := true # overrides most stops
 ## Set true to enable fullscreen toggling. See also [IVFullScreenManager], which
 ## is not present in default Core initialization.
 var allow_fullscreen_toggle := false
-## Sets resolution of the common sphere mesh used by all spheroid bodies. See
+## Sets resolution of the common sphere mesh used by bodies with no other mesh. See
 ## [IVResourceInitializer] for mesh construction. See also [member sphere_rings].
 var sphere_radial_segments := 256
-## Sets resolution of the common sphere mesh used by all spheroid bodies. See
+## Sets resolution of the common sphere mesh used by bodies with no other mesh. See
 ## [IVResourceInitializer] for mesh construction. See also [member
 ## sphere_radial_segments].
 var sphere_rings := 128

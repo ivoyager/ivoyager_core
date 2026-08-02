@@ -43,7 +43,7 @@ const DEFAULT_SUPERSAMPLE := 4
 
 ## Half-range the normal cube's residual is encoded over. Must match
 ## [code]bake_cubemap.py --normal-residual-scale[/code] AND
-## [code]spheroid_surface.cube.gdshader[/code]'s uniform of the same name — the shader
+## [code]surface.cube.gdshader[/code]'s uniform of the same name — the shader
 ## multiplies the decoded value by it, so a mismatch scales every body's relief wrong.
 ## 1.0 clips no shipped map; smaller resolves gentle relief finer.
 const NORMAL_RESIDUAL_SCALE := 1.0

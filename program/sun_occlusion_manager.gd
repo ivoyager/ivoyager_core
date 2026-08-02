@@ -416,6 +416,8 @@ func _update_camera_fraction() -> void:
 	camera_sun_visible_fraction = fraction
 
 
+# A triaxial occluder is approximated by its longest and polar semi-axes, so its shadow
+# ignores the rotating equatorial cross-section. Nothing shadowed by one is that small.
 func _get_point_spheroid_fraction(occluder: IVBody, position: Vector3, sun_direction: Vector3,
 		sun_angular_radius: float) -> float:
 	return IVAstronomy.get_spheroid_occlusion_fraction(position, sun_direction,
