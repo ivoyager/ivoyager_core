@@ -6,11 +6,11 @@ File format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 See cloning and downloading instructions [here](https://www.ivoyager.dev/developers/).
 
-## [v0.2] - UNRELEASED
+## [v0.2] - 2026-08-01
 
-Under development using Godot 4.7.
+Released using Godot 4.7.1.
 
-Requires ivoyager_assets v0.2.dev.20260728. The Core plugin editor will offer to download this for you.
+Requires ivoyager_assets v0.2. The Core plugin editor will offer to download this for you.
 
 **Project Notes:**
 1. **Why are the stars missing?!** Add the new IVStarsVisual (tree/stars_visual.tscn) to your main scene "Universe" node (or whatever you call it) to see the new shader-rendered stars. You'll also need assets v0.2.dev.20260711, which the Editor will prompt you to download.
@@ -331,7 +331,7 @@ Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_tab
 ##
 I, Voyager projects v0.0.16 and earlier used a different core submodule [ivoyager](https://github.com/ivoyager/ivoyager) (now depreciated); see previous changelog [here](https://github.com/ivoyager/ivoyager/blob/master/CHANGELOG.md).
 
-[v0.2]: https://github.com/ivoyager/ivoyager_core/compare/v0.1.2...HEAD
+[v0.2]: https://github.com/ivoyager/ivoyager_core/compare/v0.1.2...v0.2
 [v0.1.2]: https://github.com/ivoyager/ivoyager_core/compare/v0.1.1...v0.1.2
 [v0.1.1]: https://github.com/ivoyager/ivoyager_core/compare/v0.1...v0.1.1
 [v0.1]: https://github.com/ivoyager/ivoyager_core/compare/v0.0.25...v0.1
