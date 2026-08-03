@@ -37,8 +37,8 @@ signal mouse_target_clicked(target: Object, button_mask: int, key_modifier_mask:
 ## [param drag_vector] is the per-frame motion in screen pixels.
 signal mouse_dragged(drag_vector: Vector2, button_mask: int, key_modifier_mask: int)
 ## Emitted on mouse-wheel input. [param is_up] is true for wheel-up, false
-## for wheel-down.
-signal mouse_wheel_turned(is_up: bool)
+## for wheel-down. [param factor] indicates the amount of wheel turn.
+signal mouse_wheel_turned(is_up: bool, factor: float)
 
 
 # project settings
@@ -115,10 +115,10 @@ func _gui_input(input_event: InputEvent) -> void:
 		var button_index: int = mouse_button.button_index
 		# BUTTON_WHEEL_UP & _DOWN always fires twice (pressed then not pressed)
 		if button_index == MOUSE_BUTTON_WHEEL_UP:
-			mouse_wheel_turned.emit(true)
+			mouse_wheel_turned.emit(true, mouse_button.factor)
 			return
 		if button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			mouse_wheel_turned.emit(false)
+			mouse_wheel_turned.emit(false, mouse_button.factor)
 			return
 		# Left/right press records a click anchor; the release decides click vs. drag.
 		if button_index == MOUSE_BUTTON_LEFT or button_index == MOUSE_BUTTON_RIGHT:
