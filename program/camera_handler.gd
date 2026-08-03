@@ -103,6 +103,7 @@ var _rotate_pressed := Vector3.ZERO
 
 
 @onready var _world_controller: IVWorldController = IVGlobal.program[&"WorldController"]
+@onready var _mouse_in_out_inverse: bool = IVSettingsManager.get_setting(&"camera_mouse_in_out_inverse")
 @onready var _mouse_in_out_rate: float = (IVSettingsManager.get_setting(&"camera_mouse_in_out_rate")
 		* mouse_wheel_adj)
 @onready var _mouse_move_rate: float = (IVSettingsManager.get_setting(&"camera_mouse_move_rate")
@@ -375,8 +376,10 @@ func _on_mouse_dragged(drag_vector: Vector2, button_mask: int, key_modifier_mask
 		_drag_mode = left_drag
 
 
-func _on_mouse_wheel_turned(is_up: bool) -> void:
-	_mwheel_turning = _mouse_in_out_rate * (1.0 if is_up else -1.0)
+func _on_mouse_wheel_turned(is_up: bool, factor: float) -> void:
+	if _mouse_in_out_inverse:
+		is_up = not is_up
+	_mwheel_turning = _mouse_in_out_rate * (factor if is_up else -factor)
 
 
 func _on_viewport_size_changed(viewport_size: Vector2) -> void:
