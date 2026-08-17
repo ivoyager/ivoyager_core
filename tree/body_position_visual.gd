@@ -63,6 +63,7 @@ func _init(body: IVBody) -> void:
 	name = &"BodyPositionVisual"
 	_name_label = Label3D.new()
 	_name_label.name = &"NameLabel"
+	_name_label.render_priority = 20
 	add_child(_name_label)
 
 
