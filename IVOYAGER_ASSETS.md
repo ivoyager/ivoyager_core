@@ -161,12 +161,20 @@ surface then exceeds reflectance 1.0, which is what the range tag carries.
 ### Earth — `/cubemaps/Earth.albedo.2048.png`
 
 Blue Marble Next Generation, July 2004, from the NASA Earth Observatory (imagery by Reto
-Stöckli). Reprojected and otherwise as downloaded. Blue Marble is a MODIS *land* product and its
-ocean is a painted placeholder rather than measured water color; that is why this is the one
-surface map that sits well below the level convention, and it is left at its downloaded level
-rather than lifted on a value the source does not contain.
+Stöckli). Blue Marble is a MODIS *land* product: its ocean is a painted placeholder — one flat
+near-black triple over 58 % of the map — rather than measured water color. The water (ocean and
+inland alike, the latter located with the help of Natural Earth's public-domain lake polygons)
+is raised by a fixed offset in linear light to sRGB (12, 23, 42), a level derived from the
+water-leaving surface reflectance of clear ocean water, so the ocean is the same kind of
+quantity as the atmospherically corrected land beside it. Every real deviation the source
+carries — shelf seas, polar waters, turbid lakes and river plumes — rides through the offset
+unchanged, and a coastal texel takes the offset in proportion to its unmixed water fraction.
+Land, ice, sea ice and bright shallows are as downloaded. The map still sits below the
+sphere-mean level convention; Earth's exposure is instead anchored to its cloudless continents.
 
 - **Third-party:** the imagery — Public Domain (NASA Earth Observatory).
+- **I, Voyager:** the ocean level and its coastal blending. No separate copyright is asserted —
+  the correction supplies a single derived color value, not content.
 
 ### Enceladus — `/cubemaps/Enceladus.albedo.1024.h26435.png`
 
@@ -309,6 +317,30 @@ The equirectangular master, with the polar repair reprojected back into it, ship
   Science Center.
 - **I, Voyager:** the color and the polar reconstruction — © Charlie Whitfield,
   [Apache 2.0](LICENSE.txt).
+
+### Mimas — `/cubemaps/Mimas.albedo.1024.lr00591.lg00784.h17892.hg17089.hb16328.png`
+
+The first global color mosaic of Mimas, assembled from Cassini's first ten years at Saturn and
+released as PIA18437 at 200 m per pixel. NASA's caption records that "image selection,
+radiometric calibration, geographic registration and photometric correction, as well as mosaic
+selection and assembly were performed by Paul Schenk at the Lunar and Planetary Institute."
+
+The released mosaic's color is enhanced relative to human vision, and what is enhanced is
+measurable: it is a per-channel contrast stretch in which blue's response to brightness runs
+about seven times its natural rate, so the darker the terrain the less blue survives it. We undid
+it — each channel's hue-versus-brightness spread compressed until it matches the statistics of
+natural color, then every texel given the color of the smooth reflectance spectrum with its own
+red/blue ratio, which keeps the map's per-texel spectral slope and discards only a residual green
+that no smooth spectrum can produce. The remaining warmth is kept as measured, implying a
+reflectance slope of +0.068 per 100 nm — shallower than Tethys and Dione (+0.12) and Rhea
+(+0.17), and steeper only than Enceladus, which is the ordering E-ring ice implies. Level is Mimas' V geometric
+albedo of 0.962; more than half the surface then exceeds reflectance 1.0, which is what the range
+tag carries. Rides a custom mesh.
+
+- **Third-party:** the imagery — Public Domain. Please credit NASA/JPL-Caltech/Space Science
+  Institute/Lunar and Planetary Institute.
+- **I, Voyager:** the color correction and the level. No separate copyright is asserted — the
+  correction removes an enhancement rather than adding content.
 
 ### Miranda — `/cubemaps/Miranda.albedo.512.png`
 
@@ -619,11 +651,14 @@ Derived from LRO LOLA topography (NASA Scientific Visualization Studio, CGI Moon
 ### `/cubemaps/Earth.roughness.1024.png`
 
 A land/sea mask that gives open water a specular Sun-glint and leaves land, ice and snow matte.
-It is derived from the `Earth.normal` relief map (NOAA ETOPO 2022, ocean flattened to sea level)
-and from the `Earth.albedo` ocean color (NASA Blue Marble Next Generation).
+Water — the ocean with its bays and estuaries, and the significant lakes — is taken from Natural
+Earth's public-domain 1:10m ocean and lake polygons, rasterized and area-averaged so the
+coastline carries a fractional smooth-to-matte transition about one texel wide. Sea ice, ice
+shelves and dry salt flats stay matte where the `Earth.albedo` source (NASA Blue Marble Next
+Generation) images them bright.
 
 - **Copyright:** © Charlie Whitfield (I, Voyager). **License:** [Apache 2.0](LICENSE.txt).
-  Underlying data public domain / CC0.
+  Underlying data public domain.
 
 ---
 
@@ -667,6 +702,15 @@ Body Mapping Tool, Johns Hopkins APL. No license asserted; please cite the paper
 
 An idealized figure based on the published triaxial radii of Thomas et al. (2007); no global
 Iapetus elevation model is publicly available.
+
+### Mimas — `/meshes/Mimas.obj` + `/cubemaps/Mimas.normal.512.png`
+
+Derived from the Gaskell stereophotoclinometry shape model (R. Gaskell, Cassini ISS and Voyager
+1; PDS Small Bodies Node dataset CO-SA-ISSNA-5-MIMASSHAPE-V2.0), whose facets are about 0.6 km
+across — one texel of the normal cubemap. As for Phoebe, the shape is an irregular
+stereophotoclinometry tessellation rather than a latitude/longitude grid, so the normal cubemap
+is ray-cast against it directly. The shipped mesh carries the silhouette alone and is decimated
+to 2 % of the published facet count, which moves the modelled surface by 0.03 km rms.
 
 ### Miranda — `/meshes/Miranda.obj` + `/cubemaps/Miranda.normal.512.png`
 
@@ -733,14 +777,17 @@ west, the IAU satellite convention, and are converted on import.
 
 `/models/<name>/` subdirectories hold 3D models downloaded from
 [NASA 3D Resources](https://science.nasa.gov/3d-resources/) — each the downloaded file, usually
-`.glb`, plus the files Godot's importer extracts from it. They are used as downloaded, with one
-exception: the six **body** models' embedded base-color textures were rescaled in linear light
-toward the same level convention as the surface maps. That convention is out of reach for Mimas,
-whose V-band geometric albedo of 0.962 cannot be held in an 8-bit texture without putting most of
-its surface past white, so Mimas remains well below it.
+`.glb`, plus the files Godot's importer extracts from it. They are used as downloaded, with two
+exceptions, both on the **body** models. Their files are renamed to carry the model's own unit
+scale — `Eros.1_10.glb` is 10 m per glb unit, `Hyperion.1_1000.glb` 1000 — since a downloaded
+model is authored at whatever scale its author chose and the shipped body must render at its
+catalogued size. And their embedded base-color textures were rescaled in linear light toward the
+same level convention as the surface maps. A packed model carries its level in that texture and
+nowhere else, so a body whose reflectance does not fit under white cannot be held on this path at
+all; Mimas, at a V-band geometric albedo of 0.962, is built as a mesh and cubemaps instead.
 
 - **Bodies:** `/models/arrokoth/*`, `/models/bennu/*`, `/models/eros/*`, `/models/hyperion/*`,
-  `/models/itokawa/*`, `/models/mimas/*`
+  `/models/itokawa/*`
 - **Spacecraft:** `/models/hubble/*`, `/models/iss/*`, `/models/juno/*`, `/models/jwst/*`,
   `/models/new_horizons/*`, `/models/pioneer_10/*`, `/models/voyager/*`
 - **Copyright:** Public Domain. **License:** Public Domain; see

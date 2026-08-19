@@ -626,41 +626,48 @@ and restored on deactivation. Compatibility's 8-bit output can band on very dim 
   their table value — 75 % and 60 % of key, with nothing to show for it. Mimas at 0.962
   is under the line. The fix is the same one the maps got: let the fallback exceed 1.0,
   since nothing downstream clamps `ALBEDO`.
-- **The six packed `.glb` body models are outside the shader path, and two of them are
-  badly under key.** `IVBodyVisual._build_packed_model` instantiates the `PackedScene`, sets
-  its basis, visibility ranges and layers, and returns without touching materials, so Mimas,
-  Hyperion, Bennu, Eros, Itokawa and Arrokoth all render on the `StandardMaterial3D` Godot's
-  glTF importer authored. They therefore have no `albedo_range_lo`/`albedo_range_hi` — range
-  tags are parsed from a **map file name** in the preloader's `maps_index` scan, and an
-  embedded texture has none — and no `lunar_lambert`/`minnaert_k`. This is the same gap as
-  the `FALLBACK` class above, reached by a different route. **Mimas** is the surge family on
-  this path: its texture measures 0.235 of its 0.962 table albedo, and no gain can fix it
-  because reaching target puts 42 % of its surface past 1.0, so a bounded gain tops out at
-  35 % of key. **Hyperion** measures 0.331 of its 0.3 — a 2026-08-16 correction that
-  measured the atlas's near-white background instead of the body and scaled it the wrong way;
-  it needs 3.02× and can take it, 1.85 % of its surface clipping at full gain. Bennu is
-  compliant (0.980), Eros and Itokawa are 1.09× over, Arrokoth 0.763× and gainable in place.
-  The structural fix for Mimas is the deconstruction the five custom-mesh bodies already
-  took — a geometry-only mesh plus range-tagged albedo and object-space normal Cubemaps,
-  which puts the body on `surface.cube.gdshader` and makes 0.962 storable the way Enceladus'
-  1.375 is. Asset-side detail in the build project, `records/albedo_levels.md`,
-  `records/Mimas.md` and `records/Hyperion.md`. Separately, **Arrokoth renders 11.1× too
-  small** — its glb units are neither metres nor covered by a `file_adjustments.tsv`
-  `model_scale` row, so a 36 km body ships 3 km long.
-- **Earth's albedo map, which is 2.7× under its table value and blocked on a question
-  about the renderer.** Its source is a MODIS *land* product whose ocean is one painted
-  triple — luma 0.0017, where a real ocean's top-of-atmosphere reflectance is ~0.04 — so
-  the median texel of the map renders essentially black. Replacing that baseline with a
-  derived clear-ocean value was built and reverted on 2026-08-17: it is physically
-  defensible and reads too light in the app, because a map that carries the atmosphere
-  over water and not over land is neither of the two things a reference image ever is.
-  The real choice underneath is whether the map holds top-of-atmosphere or surface
-  reflectance, and that is a renderer question — a haze baked into the map cannot respond
-  to geometry, where an atmosphere term on the surface shader would, next to the limb item
-  below. Note also that even a fully corrected map means about 0.09 against a table value
-  of 0.15, which looks like a cloud-free *surface* albedo where every other body's column
-  holds a published *geometric* one. Asset-side detail in the build project,
-  `records/Earth.md`.
+- **The five packed `.glb` body models are outside the shader path.**
+  `IVBodyVisual._build_packed_model` instantiates the `PackedScene`, sets its basis, visibility
+  ranges and layers, and returns without touching materials, so Hyperion, Bennu, Eros, Itokawa
+  and Arrokoth all render on the `StandardMaterial3D` Godot's glTF importer authored. They
+  therefore have no `albedo_range_lo`/`albedo_range_hi` — range tags are parsed from a **map
+  file name** in the preloader's `maps_index` scan, and an embedded texture has none — and no
+  `lunar_lambert`/`minnaert_k`. This is the same gap as the `FALLBACK` class above, reached by a
+  different route. **Levels are now compliant on all five** (0.980–1.090 of target, corrected
+  2026-08-19 once the measuring tool weighted by surface area over the mesh rather than taking a
+  flat mean over a UV atlas that is a third background). What the gap still costs is disc
+  photometry and any level a body's terrain cannot fit under white — which is what took **Mimas**
+  off this path: at a V-band geometric albedo of 0.962 its texture needed 4.25× and 42 % of its
+  surface would have clipped, so it was rebuilt as a geometry-only mesh plus range-tagged albedo
+  and object-space normal Cubemaps, the deconstruction the five custom-mesh bodies already took.
+  Asset-side detail in the build project, `records/albedo_levels.md` and `records/Mimas.md`.
+- **The mesh and spheroid pipelines place longitude as mirror images of each other**, which is a
+  build-side finding but an engine-side convention. A spheroid's cube is registered on the shared
+  `SphereMesh`'s own UV (`u = atan2(x, z) / τ`) with `body_visual.gd` adding
+  `rotated(Y, −90° − map_offset)`; a mesh body gets only the shared `rotated(X, +90°)` and its
+  builders author `u = (atan2(z, x) − π) / τ`. Reduced to the engine's z-up body frame the two
+  give `α = 2π·u − π` and `α = −π − 2π·u` — equal at u = 0.5 and reflected either side of it,
+  which no rotation can produce. Every mapped planet uses the spheroid path and renders east to
+  the right, so the mesh path is the one to move; the fix is a flag both mesh builders already
+  carry (`build_body_model.py --u-dir -1`, `build_shape_model.py --flip-u`), with φ₀ unchanged.
+  Nine bodies would be re-baked. **Not acted on** — the decisive check is in the app, on a
+  tidally locked body with an off-centre landmark: Mimas' Herschel sits within 10° of the centre
+  of the leading hemisphere, so it must face the direction of orbital motion.
+- **Earth's albedo map ocean — resolved on the asset side 2026-08-19; a disc atmosphere
+  term remains a possible future enhancement.** The source is a MODIS *land* product whose
+  ocean was one painted triple (luma 0.0017); it now carries the water-leaving *surface*
+  reflectance of clear ocean — sRGB (12, 23, 42), luma 0.0084 — chosen by the maintainer
+  from rendered candidates, which makes the whole map surface-consistent with its
+  atmospherically corrected land. The 2026-08-17 top-of-atmosphere build stays reverted: a
+  map carrying the atmosphere over water and not over land is neither of the two things a
+  reference image ever is. If a Rayleigh term over the disc is ever added to the surface
+  shader (next to the limb item below), the ocean level should be revisited — the
+  atmosphere's share of the TOA value (luma 0.0328 of 0.0390) would then be the
+  renderer's, and baking it into the map would double it. The sphere mean is now 0.0614
+  against the table's 0.15 — the deliberate cloudless exposure anchor (see *Notes and
+  special cases*), confirmed against the map itself: solid-angle weighted, its land mean
+  is 0.182 with the ice sheets and 0.097 without, so the anchor sits inside the
+  continents' own range. Asset-side detail in the build project, `records/Earth.md`.
 - **Physically correct atmosphere limb** using phase angle (lower priority — the current
   sunlit-gated glow is serviceable but approximate).
 - **Verify spacecraft eclipse behavior** — a craft in its planet's shadow should meter
@@ -690,5 +697,6 @@ and restored on deactivation. Compatibility's 8-bit output can band on very dim 
   oversight — a granule lives ~10 minutes, so the time input belongs on the sim clock.
 - **Stale `bodies_2d` icons.** Every body whose map level changed carries an icon
   captured from the old level: the seventeen from the level pass, the five de-stretched,
-  Earth, and the pre-existing Venus / Uranus / Neptune / Sun backlog. Recapture is the
+  Earth, Hyperion and Arrokoth, Mimas (whose map, level and longitude all moved), and the
+  pre-existing Venus / Uranus / Neptune / Sun backlog. Recapture is the
   editor's body-2D capture dialog, a GUI step.

@@ -26,7 +26,7 @@ A file is listed here when its **content** came from somewhere other than I, Voy
 
 Each file carries a short note saying **which part of it is third-party**. Where that note says the color, the level or a reconstruction is ours, the detail is in [IVOYAGER_ASSETS.md](IVOYAGER_ASSETS.md), which documents every distributed asset individually — third-party and I, Voyager alike — with its own copyright and license. General acknowledgments are in [CREDITS.md](CREDITS.md).
 
-Two processing steps are common to nearly every map here and are not repeated below: each downloaded equirectangular image is reprojected into a six-face cube-face strip and resampled to the stored face size, and each map is then scaled in linear light so that its sphere-averaged reflectance equals the body's V-band geometric albedo (Earth alone is left at its downloaded level). Both are mechanical and neither alters the copyright or license of the underlying image.
+Two processing steps are common to nearly every map here and are not repeated below: each downloaded equirectangular image is reprojected into a six-face cube-face strip and resampled to the stored face size, and each map is then scaled in linear light so that its sphere-averaged reflectance equals the body's V-band geometric albedo (Earth alone is exempt from that scaling; its exposure is anchored to its cloudless continents instead). Both are mechanical and neither alters the copyright or license of the underlying image.
 
 
 ### Jupiter map by Björn Jónsson (from Planetary Society)
@@ -77,12 +77,13 @@ Controlled Voyager 2 global mosaics of Miranda, Ariel and Titania, and Miranda's
 
 ### Color maps of Saturn's icy moons by Paul Schenk (Cassini ISS)
 
-The first global color mosaics of Dione, Enceladus, Iapetus, Rhea and Tethys, assembled from Cassini's first ten years at Saturn and released as PIA18434, PIA18435, PIA18436, PIA18438 and PIA18439. NASA's captions record that "image selection, radiometric calibration, geographic registration and photometric correction, as well as mosaic selection and assembly were performed by Paul Schenk at the Lunar and Planetary Institute."
+The first global color mosaics of Dione, Enceladus, Iapetus, Mimas, Rhea and Tethys, assembled from Cassini's first ten years at Saturn and released as PIA18434, PIA18435, PIA18436, PIA18437, PIA18438 and PIA18439. NASA's captions record that "image selection, radiometric calibration, geographic registration and photometric correction, as well as mosaic selection and assembly were performed by Paul Schenk at the Lunar and Planetary Institute."
 
 - **Files:**
   - `/cubemaps/Dione.albedo.1024.l01489.lg01953.lb00596.h19227.hg17805.hb15788.png` — imagery only; the released mosaic's enhanced color was undone and the level reset. See [IVOYAGER_ASSETS.md](IVOYAGER_ASSETS.md).
   - `/cubemaps/Enceladus.albedo.1024.h26435.png` — imagery unchanged; level only.
   - `/cubemaps/Iapetus.albedo.512.png` — imagery unchanged; level only.
+  - `/cubemaps/Mimas.albedo.1024.lr00591.lg00784.h17892.hg17089.hb16328.png` — imagery with the camera's réseau marks interpolated away and the data gaps trimmed; enhanced color undone and level reset.
   - `/cubemaps/Rhea.albedo.1024.l01454.lg01458.lb00825.h17769.hg16166.hb13469.png` — imagery with the camera's réseau marks interpolated away and the data gaps trimmed; enhanced color undone and level reset.
   - `/cubemaps/Tethys.albedo.1024.h24013.hg21812.hb19627.png` — imagery only; enhanced color undone and level reset.
 - **Copyright:** Public Domain
@@ -118,19 +119,20 @@ Most NASA images and models are in the public domain. Use is governed by [NASA I
   - `/cubemaps/Umbriel.albedo.512.png` — as Oberon above.
   - `/cubemaps/Phoebe.albedo.512.png` — imagery only, with the unimaged regions filled with the flat average grey of the imaged surface.
   - `/cubemaps/Pluto.albedo.1024.l00323.lg00174.lb00052.h17335.hg16561.hb16557.png` — **brightness structure and detail only.** The color is rebuilt against NASA's own natural-color view of Pluto (credit NASA/Johns Hopkins University Applied Physics Laboratory/Southwest Research Institute/Alex Parker); the region New Horizons never imaged is filled with a flat average color.
-  - `/cubemaps/Earth.albedo.2048.png` — as downloaded (Blue Marble Next Generation, July 2004; imagery by Reto Stöckli).
+  - `/cubemaps/Earth.albedo.2048.png` — land, ice and shallow-water imagery (Blue Marble Next Generation, July 2004; imagery by Reto Stöckli). The ocean level is I, Voyager's: the source's painted near-black placeholder is raised to a single derived color, carrying the source's own water imagery through unchanged; see IVOYAGER_ASSETS.md.
   - `/cubemaps/Earth.clouds.albedo.512.png` — as downloaded (The Blue Marble 2002 combined cloud product; image by Reto Stöckli).
   - `/cubemaps/Earth.emission.1024.png` — imagery only (Black Marble 2016 grayscale, lights-only), warm-tinted, and with the product's tile-corner marks cleared where nothing else is lit near them.
   - `/cubemaps/Enceladus.normal.512.png`, `/cubemaps/Moon.normal.1024.png` — **elevation data only** (Cassini Global DEM 200m, Schenk & McKinnon 2024; LRO LOLA via the CGI Moon Kit). The surface-normal maps derived from them are I, Voyager works.
   - `/meshes/Ceres.obj` + `/cubemaps/Ceres.normal.512.png`, and `/meshes/Vesta.obj` + `/cubemaps/Vesta.normal.512.png` — **elevation data only** (Dawn Framing Camera HAMO Digital Terrain Models, Preusker et al. 2016). The meshes and surface-normal maps are I, Voyager works.
   - `/meshes/Charon.obj` + `/cubemaps/Charon.normal.512.png` — **elevation data only** (New Horizons LORRI/MVIC global DEM, Schenk et al. 2018).
+  - `/meshes/Mimas.obj` + `/cubemaps/Mimas.normal.512.png` — **shape data only** (Gaskell stereophotoclinometry shape model, PDS Small Bodies Node, CO-SA-ISSNA-5-MIMASSHAPE-V2.0).
   - `/meshes/Phoebe.obj` + `/cubemaps/Phoebe.normal.512.png` — **shape data only** (Gaskell stereophotoclinometry shape model, PDS Small Bodies Node, CO-SA-ISSNA-5-PHOEBESHAPE-V2.0).
   - `/meshes/Pan.obj`, `/meshes/Daphnis.obj`, `/meshes/Atlas.obj`, `/meshes/Prometheus.obj`, `/meshes/Pandora.obj`, `/meshes/Epimetheus.obj`, `/meshes/Janus.obj`, `/meshes/Telesto.obj`, `/meshes/Calypso.obj`, `/meshes/Helene.obj` — **shape data only** (P. Thomas, J. Joseph and T. Ansty, *Saturn Small Moon Shape Models V1.0*, NASA PDS, 2018, doi:10.26033/ewy3-jy61).
   - `/meshes/Amalthea.obj`, `/meshes/Thebe.obj`, `/meshes/Larissa.obj`, `/meshes/Proteus.obj` — **shape data only** (P. Stooke, *Stooke Small Bodies Shape Models V1.0*, NASA PDS, 2025, doi:10.26033/yt84-5y91).
   - `/starmaps/milkyway_background.4096.png` — imagery only (Deep Star Maps 2020, NASA Scientific Visualization Studio), rescaled to linear radiance and smoothed against its own shot noise.
   - `pale_blue_dot.png` is distributed in the [Project Template repository](https://github.com/ivoyager/project_template).
   - `pale_blue_dot_453x614.jpg` is distributed in web-based deployments of the [Planetarium app](https://www.ivoyager.dev/planetarium/).
-- **Model subdirectories** — as downloaded, except that the six body models' embedded base-color textures were rescaled in linear light to the bodies' published albedos:
+- **Model subdirectories** — as downloaded, except that the five body models' embedded base-color textures were rescaled in linear light to the bodies' published albedos:
   - `/models/arrokoth/*`
   - `/models/bennu/*`
   - `/models/eros/*`
@@ -140,7 +142,6 @@ Most NASA images and models are in the public domain. Use is governed by [NASA I
   - `/models/itokawa/*`
   - `/models/juno/*`
   - `/models/jwst/*`
-  - `/models/mimas/*`
   - `/models/new_horizons/*`
   - `/models/pioneer_10/*`
   - `/models/voyager/*`
@@ -165,9 +166,18 @@ Downloaded from the NOAA National Centers for Environmental Information (60 arc-
 
 - **Files:**
   - `/cubemaps/Earth.normal.1024.png` — **elevation data only**; the surface-normal map derived from it is an I, Voyager work.
-  - `/cubemaps/Earth.roughness.1024.png` — **elevation data only**, used with the Earth albedo's ocean color to separate water from land; the roughness map is an I, Voyager work.
 - **Copyright:** Public Domain
 - **License:** [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/). Please credit NOAA National Centers for Environmental Information.
+
+
+### Natural Earth 1:10m ocean and lake polygons
+
+Downloaded from [Natural Earth](https://www.naturalearthdata.com) (1:10m physical vectors: ocean v5.1.1, lakes and reservoirs v5.0.0).
+
+- **Files:**
+  - `/cubemaps/Earth.roughness.1024.png` — **water-mask geometry only**, deciding which surface gets the specular Sun-glint; the roughness map is an I, Voyager work.
+- **Copyright:** Public Domain (Natural Earth's dedication: free for use in any type of project without permission).
+- **License:** [Public domain](https://www.naturalearthdata.com/about/terms-of-use/). Made with Natural Earth.
 
 
 ### Roboto / Noto Sans Symbols fonts
