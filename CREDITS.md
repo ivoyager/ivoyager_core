@@ -22,6 +22,8 @@ See 3rd-party copyright and license information in [3RD_PARTY.md](3RD_PARTY.md),
 
 **[Björn Jónsson](https://bjj.mmedia.is)** - For *many* world maps (see [3RD_PARTY.md](3RD_PARTY.md)) and helpful guidance that we used to build our own. We used Jónsson's ring light data ([here](https://bjj.mmedia.is/data/s_rings/index.html)) for our shader-rendered Saturn rings.
 
+**Published photometry used as color and brightness references** - Measurements that decide what our maps look like without ever becoming a distributed file: Karkoschka (2001) for the Uranian moons' geometric albedos; Mallama, Krobusek & Pavlov (2017) for Mars; Irwin et al. (2024) for the true colors of Uranus and Neptune; Villanueva et al. (2025) for Venus' cloud reflectance; Hillier et al. (1994) for Triton's surface normal reflectance; and Olkin et al. (2017) for the global color of Pluto, alongside NASA/Johns Hopkins APL/Southwest Research Institute/Alex Parker's refined-calibration natural-color view of it.
+
 **[Grant Sanderson, "3Blue1Brown"](https://www.youtube.com/channel/UCYO_jab_esuFRV4b17AJtAw)** - Helping us *understand* the math.
 
 **[Scott Manley](https://www.youtube.com/channel/UCxzC4EngIsMrPmbm6Nxvb-A)** - A fountain of information on space and rockets, and Kerbal!

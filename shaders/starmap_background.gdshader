@@ -35,11 +35,16 @@ shader_type sky;
 
 uniform sampler2D panorama : filter_linear, source_color, hint_default_black;
 uniform float energy_multiplier : hint_range(0, 128) = 1.0;
+// Compensating-camera exposure; 1.0 when that system is off (see stars.gdshader). The
+// panorama is an extended source, so exposure is its ONLY view-dependent term -- surface
+// brightness holds across fov and resolution, which the star sprites compensate for and
+// per-pixel sampling gets for free.
+global uniform float iv_exposure;
 
 
 void sky() {
 	float longitude = atan(EYEDIR.y, EYEDIR.x); // [-PI, PI]
 	float latitude = asin(clamp(EYEDIR.z, -1.0, 1.0));
 	vec2 uv = vec2(fract(0.5 - longitude / TAU), 0.5 - latitude / PI);
-	COLOR = texture_bicubic(panorama, uv).rgb * energy_multiplier;
+	COLOR = texture_bicubic(panorama, uv).rgb * (energy_multiplier * iv_exposure);
 }

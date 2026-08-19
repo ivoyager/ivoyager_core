@@ -43,7 +43,9 @@ extends PopupPanel
 @export var column_base_width := 320
 
 ## If true (default), automatically remove cache settings that are not
-## applicable due to [IVCoreSettings]. (There are none at this time.)
+## applicable due to [IVCoreSettings]. (Currently:
+## [code]&"physical_light"[/code] when
+## [member IVCoreSettings.enable_physical_light] is false.)
 @export var autoremove_for_na_settings := true
 
 ## If true (default), automatically remove the Save/Load section if the
@@ -103,6 +105,7 @@ extends PopupPanel
 		[&"LABEL_MSAA", &"msaa_3d"],
 		[&"LABEL_FXAA", &"fxaa"],
 		[&"LABEL_TAA", &"use_taa"],
+		[&"LABEL_PHYSICAL_LIGHT", &"physical_light"],
 	],
 }
 
@@ -218,6 +221,16 @@ func _configure_after_core_inited() -> void:
 	if autoremove_for_missing_save_plugin and !IVPluginUtils.is_plugin_enabled("ivoyager_save"):
 		for column in layout:
 			column.erase(&"LABEL_SAVE_LOAD")
+	if autoremove_for_na_settings and !IVCoreSettings.enable_physical_light:
+		# The physical_light setting only acts through IVExposureManager, which exists
+		# only when the core setting enables the system.
+		var enabled_graphics_options: Array = []
+		for option_array: Array in section_content[&"LABEL_GRAPHICS_PERFORMANCE"]:
+			var setting: StringName = option_array[1]
+			if setting == &"physical_light":
+				continue
+			enabled_graphics_options.append(option_array)
+		section_content[&"LABEL_GRAPHICS_PERFORMANCE"] = enabled_graphics_options
 	if IVGlobal.is_gl_compatibility:
 		# FXAA and TAA are unsupported in the Compatibility renderer (incl. web);
 		# the shadow-size option applies only when Compatibility shadows are on

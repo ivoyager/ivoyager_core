@@ -35,25 +35,19 @@ extends RefCounted
 ## once on build. See [code]stars.gdshader[/code] for what each value does, how it
 ## was calibrated against the NASA starmap_2020 reference, and why nothing clamps.[br][br]
 ##
-## FUTURE_BLOOM_IMPLEMENTATION: nothing here is a glow control, and enabling glow
-## would not merely need tuning — two things below the settings layer are wrong for
-## it. First, the sun's disc and its far point crossfade in size but not in bloomable
-## energy: the disc writes its surface brightness (~3.0, hardcoded in [IVShellsModel]
-## sun-mode) while the point writes up to the cap in
-## [code]star_point_light()[/code] (32768, a shader literal), so the handoff that
-## matches on screen would step by orders of magnitude in halo. Those two values are
-## unrelated today and would have to be co-calibrated. Second, that cap is not a
-## brightness choice but a float16 limit (see [code]_star_point.gdshaderinc[/code]),
-## and the sun sits at it everywhere the camera can reach — so its bloom could only
-## grow through saturated area, not in proportion to true brightness as the star field
-## does. The field itself is glow-ready: its brightest star peaks well under the cap,
-## so it blooms proportionally and nothing overflows.[br][br]
-##
-## No member here can substitute. Each rescales point-source photometry [i]globally[/i],
-## so any change large enough to move the sun moves the field with it — and none
-## reaches the disc, which is where the discontinuity lives. Fixing this likely adds
-## members here (the cap and the disc's brightness both become shared, since the field
-## and the sun must stay welded), rather than repurposing existing ones.
+## FUTURE_BLOOM_IMPLEMENTATION: nothing here is a glow control. Under physical
+## light ([member IVExposureManager.physical_active]) the sun's two halves are
+## co-calibrated: the disc carries the star's true surface brightness through the
+## shared gain, the point carries the field's photometry, and both cap at the shared
+## [code]STAR_LIGHT_MAX[/code] f16-safe ceiling (see
+## [code]_star_point.gdshaderinc[/code]) — one consistent energy through the handoff
+## for a glow pass to see. Nonphysical mode keeps the historical gap (disc at the
+## [IVShellsModel] nonphysical constant, ~3.0, vs the point at the cap). The
+## remaining obstacle either way is the cap itself: it is a float16 limit, not a
+## brightness choice, and the sun sits at it everywhere the camera can reach — so
+## its bloom can only grow through saturated area, not in proportion to true
+## brightness as the star field does (whose brightest star peaks well under the cap
+## and blooms proportionally).
 
 
 ## Emitted when any value changes. Consumers re-apply via [method apply_to].

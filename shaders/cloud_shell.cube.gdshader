@@ -29,9 +29,11 @@ render_mode skip_vertex_transform, ambient_light_disabled;
 // channels are Cubemaps (see shells_model.gd _build_shader_material and
 // IVAssetPreloader.cube_shader_variants); the tables are unchanged.
 //
-// The map's coverage lives in ALPHA (its rgb is flat white), so the strip must be baked
-// and imported alpha-preserving or the deck renders as a solid white shell — see
-// bake_cubemap.py load_equirect() and IVCubeStripSaver.
+// The map's coverage lives in ALPHA, so the strip must be baked and imported
+// alpha-preserving or the deck renders as a solid shell — see bake_cubemap.py
+// load_equirect() and IVCubeStripSaver. Its rgb is the deck's own reflectance, flat white
+// only where a deck can just add brightness (Earth); a deck holding features darker than
+// what they cover carries each feature's colour there instead (Neptune).
 //
 // Every uniform here means what it means in cloud_shell.gdshader, so a body's shells.tsv
 // tuning carries over unchanged when its maps are swapped for cubemaps. Keep it that way:
@@ -42,6 +44,7 @@ render_mode skip_vertex_transform, ambient_light_disabled;
 #include "_detail.gdshaderinc"       // value_noise, fbm, cubic_weights
 #include "_detail.cube.gdshaderinc"  // texture_bicubic_cube
 #include "_farwarp.gdshaderinc"
+#include "_photometry.gdshaderinc"
 #include "_sun_occlusion.gdshaderinc"
 
 uniform samplerCube albedo : source_color; // auto-bound: <prefix>.<file_tag>.albedo.*
@@ -53,6 +56,25 @@ uniform float clouds_detail_scale = 90.0; // sub-texel detail frequency
 uniform float clouds_detail_strength = 0.45; // how hard detail erodes/extends coverage
 uniform float clouds_detail_floor = 0.04; // coverage below which sky stays clear
 uniform float clouds_edge_gamma = 1.0; // alpha-falloff shaping: >1 softens/thins the fringe, <1 hardens it
+
+// Affine range unpacking for a range-tagged albedo (IVAssetPreloader.parse_range_tags),
+// mirroring surface.gdshader. A tagged file stores (physical - lo) / (hi - lo), so an
+// overlay deck spends all 256 codes on the reflectance its features actually have instead
+// of on the [0,1] they do not, and can carry a channel past 1.0 that an untagged sRGB file
+// cannot hold at all. Defaults are the identity, so an untagged map renders as before.
+// Applied BEFORE clouds_color, which is a tint on physical reflectance.
+uniform vec3 albedo_range_lo = vec3(0.0);
+uniform vec3 albedo_range_hi = vec3(1.0);
+
+// Disc photometry (see _photometry.gdshaderinc). A deck MUST carry the same law as the
+// surface it covers: this shell reproduces its body's map only through the alpha blend
+// A*C + (1-A)*S, and two different laws break that identity everywhere except the
+// subsolar point - progressively toward the limb, where the mismatch reaches tens of
+// percent and every feature reads as a dark smear. Set both columns from the surface
+// shell's own values whenever that shell sets either. Each is an exact no-op at its
+// default, so a deck over a Lambert surface (Earth) needs neither.
+uniform float minnaert_k : hint_range(1.0, 2.0) = 1.0;
+uniform float lunar_lambert : hint_range(0.0, 1.0) = 0.0;
 
 const int OCTAVES = 5;
 
@@ -104,7 +126,8 @@ void fragment() {
 	float detail = fbm(dir * clouds_detail_scale, OCTAVES) - 0.5;
 	float coverage = clamp(base_coverage + detail * clouds_detail_strength * gate, 0.0, 1.0);
 
-	ALBEDO = clouds_color * cloud.rgb;
+	ALBEDO = clouds_color * (albedo_range_lo
+			+ (albedo_range_hi - albedo_range_lo) * cloud.rgb);
 	ROUGHNESS = 1.0;
 	METALLIC = 0.0;
 	// Shape the alpha rolloff at the boundary. The base map's edge is a straight bilinear
@@ -114,7 +137,15 @@ void fragment() {
 
 	// Rebuilt ambient (engine ambient is disabled; see render_mode). Added before
 	// the shadow so occlusion removes sunlight, not starlight; see the include.
-	EMISSION += ALBEDO * ambient_light;
+	EMISSION += ALBEDO * ambient_light; // the feed already carries exposure; see the include
+
+	// Disc photometry, AFTER the isotropic ambient above (which takes the unfactored
+	// albedo) and independent of the shadow multiply below. This shader never writes
+	// NORMAL, so the interpolated macroscopic normal is what is wanted and what is here.
+	vec3 macro_normal = normalize(NORMAL);
+	vec3 sun_view = normalize(mat3(VIEW_MATRIX) * sun_direction);
+	ALBEDO *= minnaert_albedo_factor(macro_normal, sun_view, VIEW, minnaert_k);
+	ALBEDO *= lunar_lambert_albedo_factor(macro_normal, sun_view, VIEW, lunar_lambert);
 
 	if (ring_texture_outer > 0.0 || occluder_count > 0) {
 		float sun_visible = sun_occlusion_visible_fraction(v_world_position);

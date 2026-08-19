@@ -54,6 +54,14 @@ var manage_engine_time_scale := true
 
 ## See [IVDynamicLight].
 var dynamic_lights := true
+## Enables the physical-light system: photometric sunlight with a software
+## compensating camera (see IVExposureManager), in place of the
+## [code]nonphysical_*[/code] lighting below. "enable" rather than "apply"
+## because activation additionally requires the cached user setting
+## [code]&"physical_light"[/code], whose Options popup row appears when this is
+## true. False costs nothing (the manager is never instantiated). Requires
+## [member dynamic_lights].
+var enable_physical_light := false
 ## See [IVDynamicLight]. Values just over 1.0 give a small but realistic
 ## looking blowout Earth.
 var nonphysical_energy_at_1_au := 1.6

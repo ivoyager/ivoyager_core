@@ -51,8 +51,8 @@ render_mode unshaded, cull_disabled, skip_vertex_transform, blend_add, depth_dra
 //
 // intensity is HDR and deliberately unclamped: with no glow pass it clips to white in the
 // framebuffer, and a future glow pass will bloom it in proportion to true brightness.
-// Intensity and color convert from raw magnitude/B-V here (not baked), keeping the door
-// open for a physical-light pass.
+// Intensity and color convert from raw magnitude/B-V here (not baked), which is what lets
+// the physical-light pass act here: iv_exposure multiplies flux like a shorter exposure.
 //
 // intensity_gamma compresses flux before the PSF sees it, and is calibrated to 1.0 -- none.
 // Photometry of the NASA starmap_2020 reference (its stars matched against the Hipparcos
@@ -110,6 +110,13 @@ global uniform float iv_reference_viewport_height;
 uniform float reference_tan_half_fov = 0.4663; // tan(fov/2) where compensation is 1.0 (fov 50 deg)
 uniform float fov_compensation = 1.0; // 0 = off (fixed brightness); 1 = full 1/tan^2(fov/2) law
 
+// Relative exposure of IVExposureManager's compensating camera: 1.0 = the authored
+// empty-sky look (and the constant value whenever that system is off); metering a bright
+// body pulls it toward 0. It multiplies flux rather than pixels -- through the size law,
+// like the zoom/resolution compensations -- so a dimmed star saturates a correspondingly
+// narrower core.
+global uniform float iv_exposure;
+
 varying flat float v_bv;
 varying flat float v_intensity;
 varying flat float v_falloff;
@@ -131,7 +138,7 @@ void vertex() {
 	float intensity = intensity_scale * pow(flux, intensity_gamma)
 			* star_fov_compensation(PROJECTION_MATRIX[1][1], reference_tan_half_fov,
 			fov_compensation)
-			* resolution_scale * resolution_scale;
+			* resolution_scale * resolution_scale * iv_exposure;
 	v_intensity = intensity;
 	POINT_SIZE = star_visible_size(intensity, psf_sigma);
 	v_falloff = star_psf_falloff(POINT_SIZE, psf_sigma);

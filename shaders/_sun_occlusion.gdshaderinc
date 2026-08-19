@@ -96,6 +96,14 @@ uniform int occluder_count = 0; // 0 disables the spheroid term
 uniform bool compat_albedo_shadow = false; // see header: AO is ambient-only in gl_compatibility
 uniform vec3 ambient_light = vec3(0.0); // scene ambient (color x energy), rebuilt as emission; see header
 
+// Compensating-camera exposure (IVExposureManager) reaches receivers through their
+// inputs, never as a shader-side factor: direct light carries it in light_energy,
+// ambient_light carries it in the fed value (the manager scales the Environment ambient
+// each frame - which is also what compensates StandardMaterial3D craft models), and
+// emission maps carry it in the iv_emission_luminance_scale global (declared by the surface
+// shaders that use it). Multiplying exposure into any of those terms again would expose
+// the scene twice.
+
 
 // Visible fraction of the sun's disc given an occluding disc: exact two-circle
 // (lens) overlap in the planar small-angle approximation, with exact

@@ -15,6 +15,8 @@ Unless a specific entry below states otherwise, the files in this document are:
 
 These files are distributed from [this repository](https://github.com/ivoyager/asset_downloads) in two packages: `ivoyager_assets`, which installs at `/addons/ivoyager_assets/` in project development builds, and `ivoyager_originated_extras`, which carries the I, Voyager-originated equirectangular map masters from which the corresponding cubemaps are baked.
 
+As of 2026-08, most shipped surface cubemaps (here and in [3RD_PARTY.md](3RD_PARTY.md)) are rescaled in linear light so each map's sphere-averaged reflectance equals the body's V-band geometric albedo — the convention I, Voyager's physically calibrated lighting meters against. The equirectangular masters in `ivoyager_originated_extras` keep their own documented levels; the rescale is a bake-side step.
+
 ---
 
 ## Europa
@@ -100,5 +102,5 @@ A reprojection is mechanical — a change of coordinates plus resampling — so 
 The `/bodies_2d/` directory contains one small flat-image icon per body (`<Body>.256.png`), plus the Sun's `Sun_slice.128x1024.png`, used in the GUI. Each is rendered by I, Voyager from that body's 3D model, surface map or surface shader; as a derivative work, each carries the same copyright and license as the source body asset it was rendered from:
 
 - Public Domain, for bodies built from public-domain NASA data;
-- the source map's license, for bodies textured from third-party maps (see [3RD_PARTY.md](3RD_PARTY.md) — e.g. the Björn Jónsson and James Hastings-Trew maps);
-- I, Voyager's Apache 2.0 license, for bodies built from the I, Voyager original models and maps listed above.
+- the source map's license, for bodies textured from third-party maps (see [3RD_PARTY.md](3RD_PARTY.md) — e.g. the Björn Jónsson maps);
+- I, Voyager's Apache 2.0 license, for bodies built from the I, Voyager original models and maps listed above. The Sun's icons derive from its procedural surface shader.
