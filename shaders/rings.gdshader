@@ -193,7 +193,8 @@ void fragment() {
 		ALPHA = color.a;
 
 		// Rebuilt ambient (engine ambient is disabled; see render_mode). Added
-		// before the shadow so occlusion removes sunlight, not starlight.
+		// before the shadow so occlusion removes sunlight, not starlight. The
+		// feed already carries exposure; see the include.
 		EMISSION += ALBEDO * ambient_light;
 
 		// Planet (and moon) shadows on the rings; the ring term itself stays

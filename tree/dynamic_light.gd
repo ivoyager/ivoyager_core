@@ -34,7 +34,10 @@ extends DirectionalLight3D
 ## [IVSunOcclusionManager].[br][br]
 ##
 ## The parent light points in the direction from source to the camera.
-## All lights are attenuated for source distance.[br][br]
+## All lights are attenuated for source distance: the nonphysical curve by
+## default, or physical illuminance times the metered exposure while
+## [member IVExposureManager.physical_active] (which is how lit surfaces
+## carry the compensating camera without any shader term).[br][br]
 ##
 ## Under the Compatibility renderer this falls back to a single unshadowed light
 ## unless [member IVCoreSettings.apply_gl_compatibility_shadows] re-enables the
@@ -65,6 +68,7 @@ var _add_shadow_star_orbiter_dist: bool
 
 var _energy_at_1_au := IVCoreSettings.nonphysical_energy_at_1_au
 var _attenuation_exponent := IVCoreSettings.nonphysical_attenuation_exponent
+var _star_absolute_magnitude := NAN # lazy from the parent star body (top light only)
 
 # top light only
 var _camera: Camera3D
@@ -112,8 +116,20 @@ func _process(_delta: float) -> void:
 	if _camera:
 		var camera_global_position := _camera.global_position
 		var source_vector := camera_global_position - global_position
-		var source_dist_au := source_vector.length() / AU
-		var energy := _energy_at_1_au / (source_dist_au ** _attenuation_exponent)
+		var energy := NAN
+		if IVExposureManager.physical_active:
+			# Physical: metered exposure x illuminance x gain, over pi for the
+			# Lambert convention (rendered diffuse = ALBEDO * energy * NdotL).
+			var absolute_magnitude := _get_star_absolute_magnitude()
+			if !is_nan(absolute_magnitude):
+				var apparent_magnitude := IVAstronomy.get_apparent_magnitude(absolute_magnitude,
+						source_vector.length())
+				var illuminance := IVAstronomy.get_illuminance_from_apparent_magnitude(
+						apparent_magnitude)
+				energy = IVExposureManager.exposure * illuminance * IVExposureManager.gain / PI
+		if is_nan(energy):
+			var source_dist_au := source_vector.length() / AU
+			energy = _energy_at_1_au / (source_dist_au ** _attenuation_exponent)
 		# parent light sets for all
 		if !position.is_equal_approx(source_vector): # edge case observed once
 			look_at(source_vector)
@@ -159,6 +175,19 @@ func _clear_procedural() -> void:
 	# Only connected for top light.
 	_camera = null
 	_camera_star_orbiter = null
+
+
+func _get_star_absolute_magnitude() -> float:
+	# Lazy: the top light is a child of its star body, but the characteristic
+	# isn't guaranteed until the body is finished.
+	if is_nan(_star_absolute_magnitude):
+		var star := get_parent() as IVBody
+		if star:
+			var magnitude_var: Variant = star.characteristics.get(&"absolute_magnitude")
+			if typeof(magnitude_var) == TYPE_FLOAT:
+				var magnitude: float = magnitude_var
+				_star_absolute_magnitude = magnitude
+	return _star_absolute_magnitude
 
 
 func _on_camera_tree_changed(camera: Camera3D, _parent: Node3D, star_orbiter: Node3D, _star: Node3D

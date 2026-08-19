@@ -24,7 +24,7 @@ These files are located in subdirectories of `/addons/ivoyager_assets/` in proje
 
 A file is listed here when its **content** came from somewhere other than I, Voyager, whatever processing we then applied to it. **Public Domain is a license, not the absence of one** — an unmodified public-domain image is not ours to claim, and one we reworked substantially stays here as well: we make no claim on these files even after our own work on them. Files whose content originates with I, Voyager — custom meshes, surface-relief maps, reconstructed surface maps — are documented separately in [IVOYAGER_WORKS.md](IVOYAGER_WORKS.md), along with I, Voyager-generated derivatives such as the `bodies_2d/` icons; each of those inherits the copyright and license of the source it was made from, including the third-party-licensed sources below.
 
-**Modifications by I, Voyager.** Each section below says what we downloaded and what we then did to it to make the file we distribute. One step is common to all of them and is not repeated: we reprojected every downloaded equirectangular image into a six-face cube-face strip in `/cubemaps/` and resampled it to the stored face size. For the oblate planets that step also resamples latitude, so a map drawn on the planet's flattened figure lands correctly on the sphere the renderer uses. Reprojection is a mechanical transformation and does not alter the copyright or license of the underlying image.
+**Modifications by I, Voyager.** Each section below says what we downloaded and what we then did to it to make the file we distribute. One step is common to all of them and is not repeated: we reprojected every downloaded equirectangular image into a six-face cube-face strip in `/cubemaps/` and resampled it to the stored face size. For the oblate planets that step also resamples latitude, so a map drawn on the planet's flattened figure lands correctly on the sphere the renderer uses. A second common step (2026-08): most surface maps are rescaled in linear light so that each map's sphere-averaged reflectance equals the body's V-band geometric albedo, the convention I, Voyager's physically calibrated lighting meters against. One map, **Earth**, remains well below that level and is nearer its downloaded one: its source is a land product whose ocean is a painted placeholder, and what should replace that is still an open question. Seven maps — **Ariel, Ganymede, Io, Oberon, Pluto, Titania and Triton** — could not be rescaled to it at all, being drawn with more brightness contrast than those bodies have reflectance range, so that a rescale alone would have driven ordinary terrain past white; for those we compressed luminance by a power law, chosen in each case as the least compression that reaches the level, leaving the color of every pixel untouched — except **Pluto**, where a published measurement of the body's own reflectance range sets it instead, and the map is stored with the range tag that lets it keep the result. That is a real change to the downloaded image and not a mechanical one, and the sections below add what is specific to each. A third common step, where a file name carries trailing letter-and-digit groups such as `.l01682.h08149`, is storage only: the image is stored scaled into the range of reflectance it actually covers, and those groups name the range so the renderer restores the original values exactly. Reprojection, level rescaling and range packing are mechanical transformations and do not alter the copyright or license of the underlying image.
 
 
 ### Jupiter map by Björn Jónsson (from Planetary Society)
@@ -41,7 +41,9 @@ We downloaded Jónsson's merged Cassini and Juno map of Jupiter from https://www
 
 We downloaded Jónsson's global maps of Callisto, Ganymede, Io, Neptune and Saturn from https://bjj.mmedia.is/data/planetary_maps.html, and his [Io DEM](https://bjj.mmedia.is/data/io/io_dem.html) from the same site. Each is an equirectangular image he assembled and color-corrected from spacecraft frames.
 
-For Callisto, Ganymede, Io and Saturn we changed nothing but the projection: those four cubemaps carry his color and his detail as downloaded.
+For Callisto and Saturn we changed nothing but the projection and the overall level: those two cubemaps carry his color and his detail as downloaded.
+
+Ganymede and Io are two of the five maps whose luminance we compressed to reach the physical level, as described above. Io needs one thing more: even after that compression its brightest saturated terrain exceeds 100% reflectance in red, at an albedo of 0.63 with the color his map carries. We store those values rather than desaturating them to fit, which is what the trailing groups in its file name record.
 
 For Neptune we did not use the whole map. We cut only its light clouds and dark spots into `Neptune.clouds.albedo`, a translucent overlay, and generate the banding pattern beneath it in shader code — taking his map and Voyager 2 images as references and [Irwin et al. (2024)](https://academic.oup.com/mnras/article/527/4/11521/7511973) for true color.
 
@@ -50,10 +52,10 @@ Our Io normal map we built from the Io DEM, which Jónsson describes as largely 
 - **Files:**
   - `/cubemaps/Callisto.albedo.512.png`
   - `/cubemaps/Ganymede.albedo.512.png`
-  - `/cubemaps/Io.albedo.1024.png`
+  - `/cubemaps/Io.albedo.1024.lr00679.lg00562.h13169.hg10775.hb10724.png`
   - `/cubemaps/Io.normal.512.png`
-  - `/cubemaps/Neptune.clouds.albedo.512.png`
-  - `/cubemaps/Saturn.albedo.1024.png`
+  - `/cubemaps/Neptune.clouds.albedo.512.l03864.lr02738.h09663.hg11302.hb09756.png`
+  - `/cubemaps/Saturn.albedo.1024.l03864.lg03094.lb01682.h08149.hb05395.png`
 - **Copyright:** Björn Jónsson
 - **License:** From "Use of the planetary maps" on his [acknowledgements page](https://bjj.mmedia.is/acknow.html):
 ```
@@ -62,23 +64,6 @@ need a special permission to use them but if you do then please mention
 their origin in your work, e.g. "created by Björn Jónsson" or something
 equivalent. Also I would like to see renderings/animations created using
 them if possible, I'm interested in space art.
-```
-
-
-### Sun map by James Hastings-Trew
-
-File downloaded from https://planetpixelemporium.com/sun.html. Note: The website no longer exists as of 2026.
-
-- **File:** `/cubemaps/Sun.emission.1024.png`  
-- **Copyright:** James Hastings-Trew
-- **License:** Full website notice was previously at https://planetpixelemporium.com/planets.html. Excerpt:
-```
-The maps are free to download and use as source material or resource in
-artwork or rendering (CGI or real time) in any kind of project - personal,
-commercial, broadcast, or display. You are not free to redistribute the
-maps "as is" in any medium - online, CD, for sale, etc. where the primary
-intent is to distribute the maps themselves and not the result of using
-the maps, without my permission.
 ```
 
 
@@ -126,7 +111,7 @@ The downloaded mosaic's three channels are Voyager's orange, violet and ultravio
 
 - **Files:**
   - `/cubemaps/Mars.albedo.2048.png`
-  - `/cubemaps/Triton.albedo.1024.png`
+  - `/cubemaps/Triton.albedo.1024.l03094.lg03005.lb02462.hg09216.hb08880.png`
 - **Copyright:** Public Domain
 - **License:** Public Domain. Please cite the USGS Astrogeology Science Center.
 
@@ -149,11 +134,11 @@ Our Umbriel and Oberon maps are derived from the Uranus moon textures published 
 
 Our Charon map is derived from the New Horizons global color map embedded in the NASA 3D Resources Charon model — the encounter hemisphere plus the reddish Mordor Macula north polar cap. Only one hemisphere was well imaged by the 2015 flyby, and the remainder carries a neutral grey fill. One unimaged pocket near 35°S was left black in the download, with cartographic grid lines drawn across it; we extended the flat fill over both. The imaged terrain is otherwise unchanged, reprojected onto Charon's custom mesh.
 
-Our Pluto map is the Pluto Global Color Map (New Horizons Ralph/MVIC, three filters), downloaded from https://science.nasa.gov/resource/pluto-global-color-map/ and unaltered apart from the reprojection.
+Our Pluto map is the Pluto Global Color Map (New Horizons Ralph/MVIC, three filters), downloaded from https://science.nasa.gov/resource/pluto-global-color-map/. That product is an enhanced-color rendering rather than a natural-color one — its own publication, Olkin et al. (2017), "The Global Color of Pluto from New Horizons", *The Astronomical Journal* 154, 258, describes it as "enhanced color (not natural color as perceived by the human eye)", and its red channel carries a near-infrared band the eye cannot see. We kept its brightness structure, which is the real one, and compressed its color variation toward what the same camera recorded in natural color on the same flyby, measured from NASA's own refined-calibration view of Pluto (credit NASA/Johns Hopkins University Applied Physics Laboratory/Southwest Research Institute/Alex Parker), region by region: both how red each terrain is and how its green tracks that redness are taken from measurements of that view rather than from any assumed spectrum, which is what keeps Pluto's dark equatorial terrain the deep red-brown it is rather than the olive a simpler model gives it. Where the enhanced product carries no usable color information at all — its bands cannot rank the ordinary terrain's colors — we carried the natural-color view's own large-scale color differences across directly, which is what preserves the yellow streaks running down from the northern polar region and the faint tint that sets Sputnik Planitia apart from the other bright terrain. We also reset its brightness range to Pluto's published normal reflectances of 0.08 to 1.0 (Buratti et al. 2017), the widest of any body we ship, which is what lets its dark equatorial terrain read as dark rather than merely brown. Pluto keeps the reddish tholin coloring it is known for, at the strength the calibrated data supports. The region New Horizons never imaged, about a fifth of the sphere, is filled with a flat tone at the body's own average.
 
 Our Phoebe map is derived from the stereophotoclinometry relative-albedo map of John R. Weirich (2023), solved over Robert Gaskell's Cassini ISS shape model and archived at the PDS Small Bodies Node. About 27% of the downloaded map is unimaged black; we filled those regions with the imaged mean grey, feathered, while leaving the small crater-floor shadows alone so real craters keep their relief.
 
-Our three Earth maps come from the NASA Earth Observatory: the surface map from Blue Marble Next Generation, July 2004 (imagery by Reto Stöckli); the cloud map from The Blue Marble 2002 combined cloud product (image by Reto Stöckli); and the night-lights emission map from Black Marble 2016. Earth's relief and roughness maps are I, Voyager works built from NOAA ETOPO 2022 and are documented in [IVOYAGER_WORKS.md](IVOYAGER_WORKS.md).
+Our three Earth maps come from the NASA Earth Observatory: the surface map from Blue Marble Next Generation, July 2004 (imagery by Reto Stöckli); the cloud map from The Blue Marble 2002 combined cloud product (image by Reto Stöckli); and the night-lights emission map from the Black Marble 2016 grayscale (lights-only) release. To the night lights we applied a uniform warm tint (a 3000 K blackbody color) in linear light and downsampled in linear light so city brightness is preserved; the grayscale product's dark regions are genuinely zero, and we subtracted no floor, so faint real sources — villages, gas flares, fishing fleets — remain. Black Marble is assembled from ten-degree tiles and carries a small mark on each tile corner, which our night side renders as a regular lattice of lights over open ocean; we cleared those marks, but only where nothing else is lit anywhere near them, so no real light source is touched. Earth's relief and roughness maps are I, Voyager works built from NOAA ETOPO 2022 and are documented in [IVOYAGER_WORKS.md](IVOYAGER_WORKS.md).
 
 3D models were downloaded from https://science.nasa.gov/3d-resources/. Model subdirectories each contain the downloaded file (usually *.glb extension) and files extracted from the model by Godot's importer.
 

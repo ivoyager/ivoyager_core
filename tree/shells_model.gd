@@ -104,6 +104,8 @@ const PROPERTY_FEATURES := {
 # are two ends of one crossfade.
 const _SUN_HANDOFF_LOW_RATIO := 0.4 # fade span, as a fraction of the solved handoff (was 1.0/2.5)
 const _SUN_HANDOFF_FALLBACK := 2.5 # px radius, if the star never saturates (see the solver)
+const _SUN_DISC_BRIGHTNESS := 3.0 # nonphysical disc level; physical light derives it instead
+const _SUN_EXPOSURE_REFRESH_RATIO := 1.07 # ~0.1 EV; exposure moves past this re-solve the handoff
 
 
 ## Registry of 'process' methods, keyed by the name used in a shells.tsv
@@ -129,6 +131,8 @@ var _sun_surface_material: ShaderMaterial # sun-mode: the disc material, angular
 var _sun_point: MeshInstance3D # sun-mode: far point sprite, a child of _star_body (freed in _exit_tree)
 var _sun_point_material: ShaderMaterial # sun-mode: the point material, driven each frame
 var _star_settings: IVStarSettings # sun-mode: shared star photometry; the point's, not the disc's
+var _applied_sun_disc_brightness := NAN # sun-mode: change gate; NAN forces the first-frame write
+var _applied_sun_exposure := NAN # sun-mode: exposure at last handoff solve; NAN forces it
 
 var _times := IVGlobal.times
 
@@ -229,7 +233,6 @@ func _exit_tree() -> void:
 
 
 func _enter_sun_mode() -> void:
-	const DISC_BRIGHTNESS := 3.0 # HDR-capable; reads as a blinding disc, blooms once glow is enabled
 	_star_body = IVBody.bodies.get(_body_name)
 	if _star_body:
 		var color_bv: float = _star_body.characteristics.get(&"color_b_v", _sun_bv)
@@ -245,7 +248,9 @@ func _enter_sun_mode() -> void:
 	if surface_material is ShaderMaterial:
 		_sun_surface_material = surface_material
 		_sun_surface_material.set_shader_parameter(&"color_bv", _sun_bv)
-		_sun_surface_material.set_shader_parameter(&"brightness", DISC_BRIGHTNESS)
+		# Nonphysical placeholder; the first LOD frame applies the mode-correct
+		# value (physical light derives the star's true surface brightness).
+		_sun_surface_material.set_shader_parameter(&"brightness", _SUN_DISC_BRIGHTNESS)
 		_star_settings.apply_color_to(_sun_surface_material)
 	_refresh_sun_handoff() # solved from _sun_abs_mag / _mean_radius, so it must follow both
 	# The empty 'process' column leaves idle processing off; the LOD driver needs it on.
@@ -279,6 +284,32 @@ func _process_sun_lod(_delta: float) -> void:
 		var apparent_magnitude := _sun_abs_mag + FIVE_OVER_LN10 * log(camera_distance / (10.0 * IVUnits.PARSEC))
 		_sun_point_material.set_shader_parameter(&"angular_radius", angular_radius)
 		_sun_point_material.set_shader_parameter(&"apparent_magnitude", apparent_magnitude)
+	_process_sun_physical_light()
+
+
+# Keeps the disc's brightness and the CPU handoff solve in step with
+# IVExposureManager. Change-gated writes; the NAN-initialized caches make the
+# first frame after (re)build apply the mode-correct values before first
+# render, and make a deactivation restore the nonphysical constant.
+func _process_sun_physical_light() -> void:
+	var disc_brightness := _SUN_DISC_BRIGHTNESS
+	var exposure := 1.0
+	if IVExposureManager.physical_active and IVExposureManager.gain > 0.0:
+		disc_brightness = (IVAstronomy.get_star_disc_luminance(_sun_abs_mag, _mean_radius)
+				* IVExposureManager.gain)
+		exposure = IVExposureManager.exposure
+	if disc_brightness != _applied_sun_disc_brightness and _sun_surface_material:
+		_applied_sun_disc_brightness = disc_brightness
+		_sun_surface_material.set_shader_parameter(&"brightness", disc_brightness)
+	# The point's intensity carries iv_exposure in-shader, so the handoff solve
+	# must see the same factor or the crossfade steps in size as exposure moves.
+	var ratio := exposure / _applied_sun_exposure # NAN on first pass; comparisons false
+	if ratio > _SUN_EXPOSURE_REFRESH_RATIO or ratio < 1.0 / _SUN_EXPOSURE_REFRESH_RATIO:
+		_applied_sun_exposure = exposure
+		_refresh_sun_handoff()
+	elif is_nan(ratio):
+		_applied_sun_exposure = exposure
+		_refresh_sun_handoff()
 
 
 func _build_sun_point() -> void:
@@ -358,6 +389,9 @@ func _solve_sun_handoff_high() -> float:
 				camera_distance / (10.0 * IVUnits.PARSEC))
 		var flux := pow(10.0, -0.4 * (apparent_magnitude - _star_settings.intensity_faint_mag))
 		var intensity := _star_settings.intensity_scale * pow(flux, _star_settings.intensity_gamma)
+		# Mirrors the shader chain, which multiplies iv_exposure unconditionally
+		# (the static is 1.0 whenever physical light is inactive).
+		intensity *= IVExposureManager.exposure
 		if intensity <= 1.0:
 			return _SUN_HANDOFF_FALLBACK # no saturated core to match; the disc is always bigger
 		pixels = _star_settings.psf_sigma * sqrt(2.0 * log(intensity))
@@ -386,6 +420,7 @@ static func _get_reference_viewport_height() -> float:
 func _build_material(spec: Dictionary, asset_preloader: IVAssetPreloader,
 		render_priority: int) -> void:
 	var channels: Dictionary = spec[&"channels"]
+	var channel_ranges: Dictionary = spec.get(&"channel_ranges", {})
 	var overrides: Dictionary = spec[&"overrides"]
 	var shader_name: StringName = spec[&"shader"]
 	# Present only on a surface with no color map (see IVAssetPreloader). Applied under the
@@ -394,7 +429,7 @@ func _build_material(spec: Dictionary, asset_preloader: IVAssetPreloader,
 	var fallback_color: Variant = spec.get(&"fallback_color")
 	if shader_name:
 		_build_shader_material(shader_name, channels, overrides, asset_preloader,
-				render_priority, fallback_color)
+				render_priority, fallback_color, channel_ranges)
 		return
 	var material := StandardMaterial3D.new()
 	material.render_priority = render_priority
@@ -409,7 +444,7 @@ func _build_material(spec: Dictionary, asset_preloader: IVAssetPreloader,
 
 func _build_shader_material(shader_name: StringName, channels: Dictionary,
 		overrides: Dictionary, asset_preloader: IVAssetPreloader, render_priority: int,
-		fallback_color: Variant) -> void:
+		fallback_color: Variant, spec_channel_ranges: Dictionary) -> void:
 	# A shell may opt into a ShaderMaterial (its shells.tsv "shader" column naming a
 	# Shader in IVGlobal.resources). Discovered channel textures feed it as named
 	# uniforms, and each shells.tsv override column feeds the uniform of the same name
@@ -435,6 +470,8 @@ func _build_shader_material(shader_name: StringName, channels: Dictionary,
 	if fallback_color != null:
 		material.set_shader_parameter(&"albedo_color", fallback_color)
 	_apply_channels_to_shader_material(material, channels, asset_preloader)
+	_apply_channel_ranges_to_shader_material(material,
+			spec_channel_ranges, asset_preloader)
 	_assert_overrides_are_uniforms(overrides, shader)
 	_apply_overrides_to_shader_material(material, overrides)
 	set_surface_override_material(0, material)
@@ -483,6 +520,23 @@ func _apply_channels_to_shader_material(material: ShaderMaterial, channels: Dict
 			# Presence flag so a cube shader can fall back for absent optional channels
 			# (no-op on shaders without the uniform, e.g. the equirect path).
 			material.set_shader_parameter(StringName("has_%s" % tag), true)
+
+
+func _apply_channel_ranges_to_shader_material(material: ShaderMaterial,
+		channel_ranges: Dictionary, asset_preloader: IVAssetPreloader) -> void:
+	# A range-tagged texture stores (physical - lo) / (hi - lo), so the shader has to undo
+	# that to get physical light back; see IVAssetPreloader.parse_range_tags. Feed the pair
+	# as "<tag>_range_lo"/"<tag>_range_hi" (e.g. "albedo_range_lo"). A shader without those
+	# uniforms ignores them, and an untagged texture never reaches here at all, so both the
+	# defaults and the untouched assets keep rendering exactly as before.
+	var texture_channels: Dictionary[int, StringName] = asset_preloader.texture_channels
+	for param: int in channel_ranges:
+		if not texture_channels.has(param):
+			continue
+		var tag: StringName = texture_channels[param]
+		var range_pair: Array = channel_ranges[param]
+		material.set_shader_parameter(StringName("%s_range_lo" % tag), range_pair[0])
+		material.set_shader_parameter(StringName("%s_range_hi" % tag), range_pair[1])
 
 
 func _apply_overrides_to_shader_material(material: ShaderMaterial, overrides: Dictionary) -> void:

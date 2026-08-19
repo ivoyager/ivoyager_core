@@ -49,6 +49,7 @@ render_mode skip_vertex_transform, ambient_light_disabled;
 #include "_detail.gdshaderinc"       // cubic_weights (shared with the cube bicubic below)
 #include "_detail.cube.gdshaderinc"  // texture_bicubic_cube
 #include "_farwarp.gdshaderinc"
+#include "_photometry.gdshaderinc"
 #include "_sun_occlusion.gdshaderinc"
 
 // Auto-bound channels (Cubemaps built by IVAssetPreloader). albedo/emission decode
@@ -74,6 +75,16 @@ uniform bool has_emission = false;
 // standing in as white — renders the body in that flat color.
 uniform vec4 albedo_color : source_color = vec4(1.0);
 
+// Affine range unpacking for a range-tagged albedo (IVAssetPreloader.parse_range_tags).
+// A tagged file stores (physical - lo) / (hi - lo), so the map spends all 256 codes on the
+// reflectance the body actually has instead of on the [0,1] it does not; the defaults below
+// are the identity, so an untagged map is byte-for-byte the same render as before. Affine is
+// the whole point: it commutes with filtering and mip selection, so a packed map mips
+// correctly, and it maps a flat fill to a flat fill, which is what keeps an unimaged region a
+// single BC1 block. Applied BEFORE albedo_color, which is a tint on physical reflectance.
+uniform vec3 albedo_range_lo = vec3(0.0);
+uniform vec3 albedo_range_hi = vec3(1.0);
+
 // Material scalars (per-body tunable via shells.tsv columns of the same name).
 // Mirror surface.gdshader so an equirect body's override columns still
 // validate against this shader when it routes here.
@@ -86,7 +97,16 @@ uniform float normal_residual_scale = 1.0;
 uniform float roughness_scale = 1.0;   // multiplies sampled roughness, or is the flat value if unbound
 uniform float metallic = 0.0;
 uniform float metallic_specular = 0.5; // dielectric specular reflectance; 0.5 = StandardMaterial3D default
-uniform float emission_energy_multiplier = 1.0;
+// The emission map's two mutually exclusive level channels, each paired with the global
+// that scales it (shells.tsv authors both columns; IVExposureManager zeroes one of the
+// globals, so a shell needs no knowledge of which lighting model is running).
+uniform float emission_energy_multiplier = 1.0; // nonphysical, by-eye; StandardMaterial3D's name
+uniform float emission_luminance = 0.0;         // physical, cd/m^2 at a full-white texel
+// Lunar-Lambert L (see _photometry.gdshaderinc): 0.0 = Lambert, the exact-no-op default;
+// 1.0 = Lommel-Seeliger, a flat disc at zero phase. Set per surface class in shells.tsv.
+uniform float lunar_lambert : hint_range(0.0, 1.0) = 0.0;
+global uniform float iv_emission_energy_scale;    // 1.0 with physical light off, else 0.0
+global uniform float iv_emission_luminance_scale; // rendered units per cd/m^2; 0.0 with physical light off
 
 
 varying vec3 model_position;   // unit-sphere local position (the cubemap sample direction)
@@ -108,6 +128,7 @@ void fragment() {
 	vec3 dir = normalize(model_position);
 
 	ALBEDO = has_albedo ? texture_bicubic_cube(albedo, dir).rgb : vec3(1.0);
+	ALBEDO = albedo_range_lo + (albedo_range_hi - albedo_range_lo) * ALBEDO;
 	ALBEDO *= albedo_color.rgb;
 
 	if (has_roughness) {
@@ -130,13 +151,25 @@ void fragment() {
 
 	// City lights etc.; black if no emission cube. Rebuilt ambient (engine ambient is
 	// disabled; see render_mode) added before the shadow so occlusion removes sunlight,
-	// not starlight; see the include.
+	// not starlight; see the include. For emission, exactly one of the two global scales
+	// is nonzero, so summing the channels selects the running one without a branch.
 	if (has_emission) {
-		EMISSION = texture_bicubic_cube(emission, dir).rgb * emission_energy_multiplier;
+		EMISSION = texture_bicubic_cube(emission, dir).rgb
+				* (emission_energy_multiplier * iv_emission_energy_scale
+				+ emission_luminance * iv_emission_luminance_scale);
 	} else {
 		EMISSION = vec3(0.0);
 	}
-	EMISSION += ALBEDO * ambient_light;
+	EMISSION += ALBEDO * ambient_light; // the feed already carries exposure; see the include
+
+	// Disc photometry, AFTER the isotropic ambient above (which takes the unfactored
+	// albedo) and independent of the shadow multiply below. Note this path writes NORMAL
+	// itself, per texel and with relief in it, so the law takes the MACROSCOPIC normal
+	// built from dir instead - relief is the normal cube's job, not the disc law's. VIEW
+	// survives farwarp unchanged: the remap scales a view-space position along its own
+	// ray, so screen direction, and therefore VIEW, is untouched.
+	ALBEDO *= lunar_lambert_albedo_factor(normalize(v_normal_matrix * dir),
+			normalize(mat3(VIEW_MATRIX) * sun_direction), VIEW, lunar_lambert);
 
 	if (ring_texture_outer > 0.0 || occluder_count > 0) {
 		float sun_visible = sun_occlusion_visible_fraction(v_world_position);

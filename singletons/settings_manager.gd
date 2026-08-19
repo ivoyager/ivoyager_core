@@ -84,6 +84,7 @@ var _defaults: Dictionary[StringName, Variant] = {
 	&"fxaa" : false, # not available in Compatibility renderer (incl. web)
 	&"use_taa" : false, # Forward+ only; ghosts vertex-shader-positioned orbit lines
 	&"directional_shadow_size" : 2, # 0,1,2,3 = 2048,4096,8192,16384 (2 = 8192)
+	&"physical_light" : true, # row appears only if IVCoreSettings.enable_physical_light
 }
 
 var _settings: Dictionary[StringName, Variant] = {}

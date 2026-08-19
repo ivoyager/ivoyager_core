@@ -63,6 +63,7 @@ uniform float color_saturation = 1.0;
 global uniform float iv_reference_viewport_height;
 uniform float reference_tan_half_fov = 0.4663;
 uniform float fov_compensation = 1.0;
+global uniform float iv_exposure; // a global, so the point cannot drift from the field (see stars.gdshader)
 
 uniform float apparent_magnitude = -20.0; // V magnitude at the current distance (sun-mode sets per frame)
 uniform float color_bv = 0.63;            // star B-V -> point color
@@ -82,7 +83,7 @@ void vertex() {
 	float intensity = intensity_scale * pow(flux, intensity_gamma)
 			* star_fov_compensation(PROJECTION_MATRIX[1][1], reference_tan_half_fov,
 			fov_compensation)
-			* resolution_scale * resolution_scale
+			* resolution_scale * resolution_scale * iv_exposure
 			* (1.0 - sun_disc_weight(pixel_radius, handoff_low, handoff_high));
 	v_intensity = intensity;
 	POINT_SIZE = star_visible_size(intensity, psf_sigma);
