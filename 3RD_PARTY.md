@@ -22,40 +22,35 @@ I, Voyager software distributions run on the [Godot Engine](https://godotengine.
 
 These files are located in subdirectories of `/addons/ivoyager_assets/` in project development builds and distributed from [this repository](https://github.com/ivoyager/asset_downloads), except where noted otherwise.
 
-A file is listed here when its **content** came from somewhere other than I, Voyager, whatever processing we then applied to it. **Public Domain is a license, not the absence of one** — an unmodified public-domain image is not ours to claim, and one we reworked substantially stays here as well: we make no claim on these files even after our own work on them. Files whose content originates with I, Voyager — custom meshes, surface-relief maps, reconstructed surface maps — are documented separately in [IVOYAGER_WORKS.md](IVOYAGER_WORKS.md), along with I, Voyager-generated derivatives such as the `bodies_2d/` icons; each of those inherits the copyright and license of the source it was made from, including the third-party-licensed sources below.
+A file is listed here when its **content** came from somewhere other than I, Voyager, whatever processing we then applied to it. **Public Domain is a license, not the absence of one** — an unmodified public-domain image is not ours to claim, and one we reworked substantially stays here as well.
 
-**Modifications by I, Voyager.** Each section below says what we downloaded and what we then did to it to make the file we distribute. One step is common to all of them and is not repeated: we reprojected every downloaded equirectangular image into a six-face cube-face strip in `/cubemaps/` and resampled it to the stored face size. For the oblate planets that step also resamples latitude, so a map drawn on the planet's flattened figure lands correctly on the sphere the renderer uses. A second common step (2026-08): most surface maps are rescaled in linear light so that each map's sphere-averaged reflectance equals the body's V-band geometric albedo, the convention I, Voyager's physically calibrated lighting meters against. One map, **Earth**, remains well below that level and is nearer its downloaded one: its source is a land product whose ocean is a painted placeholder, and what should replace that is still an open question. Seven maps — **Ariel, Ganymede, Io, Oberon, Pluto, Titania and Triton** — could not be rescaled to it at all, being drawn with more brightness contrast than those bodies have reflectance range, so that a rescale alone would have driven ordinary terrain past white; for those we compressed luminance by a power law, chosen in each case as the least compression that reaches the level, leaving the color of every pixel untouched — except **Pluto**, where a published measurement of the body's own reflectance range sets it instead, and the map is stored with the range tag that lets it keep the result. That is a real change to the downloaded image and not a mechanical one, and the sections below add what is specific to each. A third common step, where a file name carries trailing letter-and-digit groups such as `.l01682.h08149`, is storage only: the image is stored scaled into the range of reflectance it actually covers, and those groups name the range so the renderer restores the original values exactly. Reprojection, level rescaling and range packing are mechanical transformations and do not alter the copyright or license of the underlying image.
+Each file carries a short note saying **which part of it is third-party**. Where that note says the color, the level or a reconstruction is ours, the detail is in [IVOYAGER_ASSETS.md](IVOYAGER_ASSETS.md), which documents every distributed asset individually — third-party and I, Voyager alike — with its own copyright and license. General acknowledgments are in [CREDITS.md](CREDITS.md).
+
+Two processing steps are common to nearly every map here and are not repeated below: each downloaded equirectangular image is reprojected into a six-face cube-face strip and resampled to the stored face size, and each map is then scaled in linear light so that its sphere-averaged reflectance equals the body's V-band geometric albedo (Earth alone is left at its downloaded level). Both are mechanical and neither alters the copyright or license of the underlying image.
 
 
 ### Jupiter map by Björn Jónsson (from Planetary Society)
 
-We downloaded Jónsson's merged Cassini and Juno map of Jupiter from https://www.planetary.org/space-images/merged-cassini-and-juno. We changed nothing but the projection: the cubemap carries his color and his detail as downloaded.
+Downloaded from https://www.planetary.org/space-images/merged-cassini-and-juno.
 
 - **Files:**
-  - `/cubemaps/Jupiter.albedo.2048.png`
+  - `/cubemaps/Jupiter.albedo.2048.png` — his color and his detail as downloaded; level and map projection adjusted.
 - **Copyright:** Björn Jónsson
 - **License:** [CC-BY-3.0](#cc-by-30), which requires attribution. Please credit **NASA/JPL-Caltech/SSI/SwRI/MSSS/ASI/INAF/JIRAM/Björn Jónsson**.
 
 
-### World maps by Björn Jónsson (from bjj.mmedia.is)
+### World maps and data by Björn Jónsson (from bjj.mmedia.is)
 
-We downloaded Jónsson's global maps of Callisto, Ganymede, Io, Neptune and Saturn from https://bjj.mmedia.is/data/planetary_maps.html, and his [Io DEM](https://bjj.mmedia.is/data/io/io_dem.html) from the same site. Each is an equirectangular image he assembled and color-corrected from spacecraft frames.
-
-For Callisto and Saturn we changed nothing but the projection and the overall level: those two cubemaps carry his color and his detail as downloaded.
-
-Ganymede and Io are two of the five maps whose luminance we compressed to reach the physical level, as described above. Io needs one thing more: even after that compression its brightest saturated terrain exceeds 100% reflectance in red, at an albedo of 0.63 with the color his map carries. We store those values rather than desaturating them to fit, which is what the trailing groups in its file name record.
-
-For Neptune we did not use the whole map. We cut only its light clouds and dark spots into `Neptune.clouds.albedo`, a translucent overlay, and generate the banding pattern beneath it in shader code — taking his map and Voyager 2 images as references and [Irwin et al. (2024)](https://academic.oup.com/mnras/article/527/4/11521/7511973) for true color.
-
-Our Io normal map we built from the Io DEM, which Jónsson describes as largely fictional (a grayscale version of his Io map processed into height, with the known mountains painted in from a catalog). We scaled it as he recommends — black at -5 km, white at +10 km — and converted it to surface normals.
+Global maps of Callisto, Ganymede, Io, Neptune and Saturn downloaded from https://bjj.mmedia.is/data/planetary_maps.html; his [Io DEM](https://bjj.mmedia.is/data/io/io_dem.html) and his [Saturn ring light-scattering data](https://bjj.mmedia.is/data/s_rings/index.html) from the same site. Each map is an equirectangular image he assembled and color-corrected from spacecraft frames.
 
 - **Files:**
-  - `/cubemaps/Callisto.albedo.512.png`
-  - `/cubemaps/Ganymede.albedo.512.png`
-  - `/cubemaps/Io.albedo.1024.lr00679.lg00562.h13169.hg10775.hb10724.png`
-  - `/cubemaps/Io.normal.512.png`
-  - `/cubemaps/Neptune.clouds.albedo.512.l03864.lr02738.h09663.hg11302.hb09756.png`
-  - `/cubemaps/Saturn.albedo.1024.l03864.lg03094.lb01682.h08149.hb05395.png`
+  - `/cubemaps/Callisto.albedo.512.png` — as downloaded; projection only.
+  - `/cubemaps/Ganymede.albedo.512.png` — his color as downloaded; luminance compressed to reach the body's physical level.
+  - `/cubemaps/Io.albedo.1024.lr00679.lg00562.h13169.hg10775.hb10724.png` — his color as downloaded; luminance compressed to reach the body's physical level, and the part that then exceeds 100% reflectance in red stored above white by the range tag rather than desaturated to fit.
+  - `/cubemaps/Io.normal.512.png` — his Io DEM, scaled as he recommends and converted to surface normals. The conversion is mechanical; the map is his.
+  - `/cubemaps/Neptune.clouds.albedo.512.l03864.lr02738.h09663.hg11302.hb09756.png` — **his light clouds and dark spots only**, cut into a translucent overlay; the banding pattern beneath it is generated in shader code.
+  - `/cubemaps/Saturn.albedo.1024.l03864.lg03094.lb01682.h08149.hb05395.png` — his color and his detail as downloaded; level and map projection adjusted.
+  - `/rings/*` — **his ring light-scattering data**, converted to shader-sampler textures.
 - **Copyright:** Björn Jónsson
 - **License:** From "Use of the planetary maps" on his [acknowledgements page](https://bjj.mmedia.is/acknow.html):
 ```
@@ -69,97 +64,73 @@ them if possible, I'm interested in space art.
 
 ### Uranian satellite mosaics by Paul Schenk (LPI)
 
-We downloaded Paul Schenk's controlled Voyager 2 global mosaics of Miranda, Ariel and Titania from the Lunar and Planetary Institute at https://repository.hou.usra.edu/handle/20.500.11753/1687. They are NASA-funded science, published alongside Schenk, P. and Moore, J. (2020), "Topography and geology of Uranian mid-sized icy satellites in comparison with Saturnian and Plutonian satellites", *Philosophical Transactions of the Royal Society A* 378, 20200102, with no license asserted; the accompanying readme asks that users contact the author for guidance on appropriate use of the data. Miranda's digital elevation model comes from the same release; the mesh and normal map I, Voyager built from it are documented in [IVOYAGER_WORKS.md](IVOYAGER_WORKS.md), which carries the same citation.
-
-To each downloaded mosaic we then did the following: interpolated away the Voyager camera's réseau marks, trimmed the ragged frame-coverage fringe and the terminator fade at its data edge, filled the hemisphere Voyager never imaged with a flat tone taken from that body's own average, reset the three moons' brightness relative to one another from published geometric albedos (Karkoschka 2001), and applied each moon's true disk-average color.
+Controlled Voyager 2 global mosaics of Miranda, Ariel and Titania, and Miranda's digital elevation model, downloaded from the Lunar and Planetary Institute at https://repository.hou.usra.edu/handle/20.500.11753/1687. They are NASA-funded science, published alongside Schenk, P. and Moore, J. (2020), "Topography and geology of Uranian mid-sized icy satellites in comparison with Saturnian and Plutonian satellites", *Philosophical Transactions of the Royal Society A* 378, 20200102, with no license asserted; the accompanying readme asks that users contact the author for guidance on appropriate use of the data.
 
 - **Files:**
-  - `/cubemaps/Ariel.albedo.512.png`
-  - `/cubemaps/Miranda.albedo.512.png`
-  - `/cubemaps/Titania.albedo.512.png`
+  - `/cubemaps/Ariel.albedo.512.png` — **monochrome detail and luminance only.** The color, the flat average-color fill over the hemisphere Voyager never imaged, and the level are I, Voyager's; see [IVOYAGER_ASSETS.md](IVOYAGER_ASSETS.md).
+  - `/cubemaps/Miranda.albedo.512.png` — as Ariel above.
+  - `/cubemaps/Titania.albedo.512.png` — as Ariel above.
+  - `/meshes/Miranda.obj` and `/cubemaps/Miranda.normal.512.png` — **elevation data only.** The mesh and the surface-normal map derived from it are I, Voyager works.
 - **Copyright:** Paul Schenk, Lunar and Planetary Institute; underlying imagery NASA/JPL
 - **License:** None asserted. Please cite Schenk & Moore (2020).
 
 
 ### Color maps of Saturn's icy moons by Paul Schenk (Cassini ISS)
 
-We downloaded the first global color mosaics of Dione, Enceladus, Iapetus, Rhea and Tethys, assembled from Cassini's first ten years at Saturn and released as PIA18434, PIA18435, PIA18436, PIA18438 and PIA18439. NASA's captions record that "image selection, radiometric calibration, geographic registration and photometric correction, as well as mosaic selection and assembly were performed by Paul Schenk at the Lunar and Planetary Institute."
-
-The color in the downloaded mosaics is enhanced, or broader, than human vision, extending into the ultraviolet and infrared, and our five maps keep it unchanged: we did not attempt to convert them to true color. For Rhea we additionally interpolated across the Cassini camera's réseau marks and trimmed the mosaic at its small data gaps. Iapetus rides a custom mesh, so its map is sampled by surface direction rather than wrapped on a sphere; the imagery itself is unaltered.
-
-The Enceladus surface-relief map is an I, Voyager work built from the Cassini Global DEM 200m of Schenk & McKinnon (2024), distributed by USGS Astrogeology; it is documented in [IVOYAGER_WORKS.md](IVOYAGER_WORKS.md) with the other surface-normal maps.
+The first global color mosaics of Dione, Enceladus, Iapetus, Rhea and Tethys, assembled from Cassini's first ten years at Saturn and released as PIA18434, PIA18435, PIA18436, PIA18438 and PIA18439. NASA's captions record that "image selection, radiometric calibration, geographic registration and photometric correction, as well as mosaic selection and assembly were performed by Paul Schenk at the Lunar and Planetary Institute."
 
 - **Files:**
-  - `/cubemaps/Dione.albedo.1024.png`
-  - `/cubemaps/Enceladus.albedo.1024.png`
-  - `/cubemaps/Iapetus.albedo.512.png`
-  - `/cubemaps/Rhea.albedo.1024.png`
-  - `/cubemaps/Tethys.albedo.1024.png`
+  - `/cubemaps/Dione.albedo.1024.l01489.lg01953.lb00596.h19227.hg17805.hb15788.png` — imagery only; the released mosaic's enhanced color was undone and the level reset. See [IVOYAGER_ASSETS.md](IVOYAGER_ASSETS.md).
+  - `/cubemaps/Enceladus.albedo.1024.h26435.png` — imagery unchanged; level only.
+  - `/cubemaps/Iapetus.albedo.512.png` — imagery unchanged; level only.
+  - `/cubemaps/Rhea.albedo.1024.l01454.lg01458.lb00825.h17769.hg16166.hb13469.png` — imagery with the camera's réseau marks interpolated away and the data gaps trimmed; enhanced color undone and level reset.
+  - `/cubemaps/Tethys.albedo.1024.h24013.hg21812.hb19627.png` — imagery only; enhanced color undone and level reset.
 - **Copyright:** Public Domain
 - **License:** Public Domain. Please credit NASA/JPL-Caltech/Space Science Institute/Lunar and Planetary Institute.
 
 
 ### USGS Astrogeology mosaics
 
-We downloaded the Viking Colorized Global Mosaic 232m (MDIM 2.1; originator NASA Ames, publisher USGS Astrogeology) and derived our Mars map from it.
-
-The downloaded mosaic's color is not a measurement — USGS give its purpose as making "an artistically colorized version" of the controlled monochrome mosaic — and it renders the dark regions blue-dominant, which Mars is not. We kept its luminance, which is 4,600 controlled Viking Orbiter frames at 232 m/pixel, and replaced its chromaticity with Mars' measured true color: a spectrum fitted to the twelve published geometric albedos of Mallama, Krobusek and Pavlov (2017) — seven Johnson-Cousins bands and five Sloan — then integrated against the CIE 1931 observer, giving chromaticity xy (0.3925, 0.3867) and reproducing Mars' published B−V of 1.37. We scaled the overall level to the same work's V geometric albedo of 0.170. In our map the residual polar caps are held neutral, as water and CO2 frost are across the visible, while the seasonal frost around them — which the mosaic's source frames caught but which is gone by each pole's summer — carries a partial ice tone instead of the full cap.
-
-We downloaded the Voyager 2 Global Color Mosaic 600m (originators NASA, JPL and Dr. Paul Schenk; publisher USGS Astrogeology; released as PIA18668) and derived our Triton map from it.
-
-The downloaded mosaic's three channels are Voyager's orange, violet and ultraviolet filters shown as red, green and blue, which is not what the eye would see — violet light is displayed as green, and the blue channel is light outside the visible range altogether. We discarded the ultraviolet channel, restored the inter-filter calibration from Voyager's own disk-integrated photometry (Nelson et al. 1990, geometric albedo 0.68 at 0.41 µm rising to 0.81 at 0.56 µm), and rebuilt per-pixel true color by integrating the resulting spectral slope against the CIE 1931 observer, carried on the orange band's luminance. We imposed only the disk average, so in our map the south polar cap keeps its real reddening against the fresher equatorial deposits. We filled the region Voyager never imaged with a flat tone taken from the body's own average.
+Downloaded from the USGS Astrogeology Science Center: the Viking Colorized Global Mosaic 232m (MDIM 2.1; originator NASA Ames), the Voyager 2 Global Color Mosaic 600m of Triton (originators NASA, JPL and Dr. Paul Schenk; released as PIA18668), the MESSENGER MDIS low-incidence global monochrome basemap of Mercury (MESSENGER Team, ASU, Johns Hopkins APL, Carnegie Institution of Washington), and the controlled Galileo/Voyager mosaics of Europa.
 
 - **Files:**
-  - `/cubemaps/Mars.albedo.2048.png`
-  - `/cubemaps/Triton.albedo.1024.l03094.lg03005.lb02462.hg09216.hb08880.png`
+  - `/cubemaps/Mars.albedo.2048.png` — **luminance only.** The chromaticity is independently derived from published photometry; see [IVOYAGER_ASSETS.md](IVOYAGER_ASSETS.md).
+  - `/cubemaps/Triton.albedo.1024.l03094.lg03005.lb02462.hg09216.hb08880.png` — **the orange band's luminance only.** True color is rebuilt from Voyager's own filter photometry, and the region Voyager never imaged is filled with a flat average color.
+  - `/cubemaps/Mercury.albedo.1024.png` — **monochrome detail and luminance only.** The color is I, Voyager's, as is the polar reconstruction — the permanently shadowed craters and the small never-imaged polar gaps are inpainted from the surrounding sunlit terrain.
+  - `/cubemaps/Europa.albedo.2048.png` — **monochrome detail and luminance only.** The color is I, Voyager's, and the unimaged south-polar region is left a flat average color.
+  - `/cubemaps/Mercury.normal.512.png` and `/cubemaps/Mars.normal.2048.png` — **elevation data only** (MESSENGER global topography; MGS MOLA global topography). The surface-normal maps derived from them are I, Voyager works.
 - **Copyright:** Public Domain
-- **License:** Public Domain. Please cite the USGS Astrogeology Science Center.
+- **License:** Public Domain. Please cite the USGS Astrogeology Science Center. Europa's photogrammetrically controlled Galileo mosaics are released CC0 — Bland, M. T., Weller, L. A., Archinal, B. A., Smith, E., Wheeler, B. H. (2021), *Photogrammetrically Controlled Galileo Image Mosaics of Europa*, U.S. Geological Survey data release, doi:10.5066/P9VKKK7C.
 
 
 ### NASA images and models
 
-Most NASA images and models are in the public domain. Use is governed by [NASA Images and Media Usage Guidelines](https://www.nasa.gov/nasa-brand-center/images-and-media/).
-
-Where a downloaded map leaves regions no spacecraft has imaged, we filled them with a flat neutral tone taken from that body's own average: Ceres' black south pole (in seasonal shadow throughout the Dawn mission), Vesta's north polar cap (in polar winter throughout that mission), Phoebe's unimaged regions, and the hemispheres of Umbriel and Oberon that Voyager 2 never saw.
-
-Our Milky Way background is derived from Deep Star Maps 2020, downloaded from https://svs.gsfc.nasa.gov/4851/ — the "Milky Way background in galactic coordinates ... that omits the bright (Hipparcos and Tycho) stars". We downloaded and processed the available 64K EXR file into an 8-bit sRGB 4K PNG that is intentionally smoother than the available 4K EXR. Our in-app discrete stars are rendered separately by shader code (see ESA, Hipparcos Catalogue in [CREDITS.md](CREDITS.md)).
-
-Our Moon color map is derived from the LROC WAC color mosaic in the NASA Scientific Visualization Studio CGI Moon Kit (https://svs.gsfc.nasa.gov/4720). We toned it toward true color, restoring the terrae/mare hue differentiation from the public-domain LROC WAC Hapke-normalized 415/566/643 nm mosaic bands, and rebuilt the Kit's uncolored polar caps on the cube from the LROC WAC polar-stereographic mosaics (WAC_GLOBAL_P900N/S), filling the permanently-shadowed remainder from the same kit's co-registered LOLA topography.
-
-Our Ceres and Vesta albedo maps are true-color composites we built from the public-domain Dawn Framing Camera HAMO mosaics (Roatsch et al., NASA PDS): each body's clear-filter mosaic supplies luminance and detail, and its F7/F2/F8 color filters (653/555/438 nm) supply per-pixel hue through the CIE color-matching functions (method after Schröder et al. 2017). Within Ceres' unimaged south-polar F8 gap we synthesized blue from the global blue/green ratio. Dawn observed Vesta in southern summer, so its clear-filter mosaic carries that illumination as well as albedo; we divided out the latitudinal trend and compressed the residual shadow and glare.
-
-Our Phobos and Deimos albedo maps are derived from Philip Stooke's controlled global mosaics (Stooke Small Bodies Maps, NASA PDS): for Phobos the DLR-controlled Viking Orbiter mosaic, redistributed at 5 m/pixel by USGS Astrogeology; for Deimos the Viking Orbiter / Mars Reconnaissance Orbiter mosaic. Stooke notes that where images of opposing illumination meet, artistic blending was applied to appearance though not to map geometry. We divided out the residual latitudinal illumination each downloaded mosaic carries, referenced to the illumination-free relative albedo of the Ernst et al. (2023) stereophotoclinometry solutions, and tinted both moons to their true disk-average color, linear RGB 1.021 : 1.005 : 0.887 (a warm grey-brown), calibrated by integrating Phobos' published per-filter HRSC geometric albedos (440/530/750 nm; Fernando et al. 2024) against the CIE 1931 observer under an equal-energy illuminant.
-
-Our Umbriel and Oberon maps are derived from the Uranus moon textures published in NASA 3D Resources, credited to USGS/Tammy Becker and JPL/Caltech. Both downloads are neutral greyscale — the faint tan seen in some copies is JPEG chroma artifacting on neutral data, not real color — and both leave the hemisphere Voyager 2 never imaged as plain black. We gave the two the same treatment as the three Schenk mosaics above: we filled that black with a flat body-average tone, feathered, set each moon's level from its published geometric albedo (Karkoschka 2001 — Umbriel 0.259, Oberon 0.314), and applied its measured disk-average tint.
-
-Our Charon map is derived from the New Horizons global color map embedded in the NASA 3D Resources Charon model — the encounter hemisphere plus the reddish Mordor Macula north polar cap. Only one hemisphere was well imaged by the 2015 flyby, and the remainder carries a neutral grey fill. One unimaged pocket near 35°S was left black in the download, with cartographic grid lines drawn across it; we extended the flat fill over both. The imaged terrain is otherwise unchanged, reprojected onto Charon's custom mesh.
-
-Our Pluto map is the Pluto Global Color Map (New Horizons Ralph/MVIC, three filters), downloaded from https://science.nasa.gov/resource/pluto-global-color-map/. That product is an enhanced-color rendering rather than a natural-color one — its own publication, Olkin et al. (2017), "The Global Color of Pluto from New Horizons", *The Astronomical Journal* 154, 258, describes it as "enhanced color (not natural color as perceived by the human eye)", and its red channel carries a near-infrared band the eye cannot see. We kept its brightness structure, which is the real one, and compressed its color variation toward what the same camera recorded in natural color on the same flyby, measured from NASA's own refined-calibration view of Pluto (credit NASA/Johns Hopkins University Applied Physics Laboratory/Southwest Research Institute/Alex Parker), region by region: both how red each terrain is and how its green tracks that redness are taken from measurements of that view rather than from any assumed spectrum, which is what keeps Pluto's dark equatorial terrain the deep red-brown it is rather than the olive a simpler model gives it. Where the enhanced product carries no usable color information at all — its bands cannot rank the ordinary terrain's colors — we carried the natural-color view's own large-scale color differences across directly, which is what preserves the yellow streaks running down from the northern polar region and the faint tint that sets Sputnik Planitia apart from the other bright terrain. We also reset its brightness range to Pluto's published normal reflectances of 0.08 to 1.0 (Buratti et al. 2017), the widest of any body we ship, which is what lets its dark equatorial terrain read as dark rather than merely brown. Pluto keeps the reddish tholin coloring it is known for, at the strength the calibrated data supports. The region New Horizons never imaged, about a fifth of the sphere, is filled with a flat tone at the body's own average.
-
-Our Phoebe map is derived from the stereophotoclinometry relative-albedo map of John R. Weirich (2023), solved over Robert Gaskell's Cassini ISS shape model and archived at the PDS Small Bodies Node. About 27% of the downloaded map is unimaged black; we filled those regions with the imaged mean grey, feathered, while leaving the small crater-floor shadows alone so real craters keep their relief.
-
-Our three Earth maps come from the NASA Earth Observatory: the surface map from Blue Marble Next Generation, July 2004 (imagery by Reto Stöckli); the cloud map from The Blue Marble 2002 combined cloud product (image by Reto Stöckli); and the night-lights emission map from the Black Marble 2016 grayscale (lights-only) release. To the night lights we applied a uniform warm tint (a 3000 K blackbody color) in linear light and downsampled in linear light so city brightness is preserved; the grayscale product's dark regions are genuinely zero, and we subtracted no floor, so faint real sources — villages, gas flares, fishing fleets — remain. Black Marble is assembled from ten-degree tiles and carries a small mark on each tile corner, which our night side renders as a regular lattice of lights over open ocean; we cleared those marks, but only where nothing else is lit anywhere near them, so no real light source is touched. Earth's relief and roughness maps are I, Voyager works built from NOAA ETOPO 2022 and are documented in [IVOYAGER_WORKS.md](IVOYAGER_WORKS.md).
-
-3D models were downloaded from https://science.nasa.gov/3d-resources/. Model subdirectories each contain the downloaded file (usually *.glb extension) and files extracted from the model by Godot's importer.
+Most NASA images and models are in the public domain. Use is governed by [NASA Images and Media Usage Guidelines](https://www.nasa.gov/nasa-brand-center/images-and-media/). 3D models were downloaded from https://science.nasa.gov/3d-resources/; model subdirectories each contain the downloaded file (usually `.glb` extension) and the files Godot's importer extracts from it.
 
 - **Files:**
-  - `/cubemaps/Ceres.albedo.512.png`
-  - `/cubemaps/Charon.albedo.512.png`
-  - `/cubemaps/Deimos.albedo.512.png`
-  - `/cubemaps/Earth.albedo.2048.png`
-  - `/cubemaps/Earth.clouds.albedo.512.png`
-  - `/cubemaps/Earth.emission.1024.png`
-  - `/cubemaps/Moon.albedo.1024.png`
-  - `/cubemaps/Oberon.albedo.512.png`
-  - `/cubemaps/Phobos.albedo.512.png`
-  - `/cubemaps/Phoebe.albedo.512.png`
-  - `/cubemaps/Pluto.albedo.1024.png`
-  - `/cubemaps/Umbriel.albedo.512.png`
-  - `/cubemaps/Vesta.albedo.512.png`
-  - `/starmaps/milkyway_background.4096.png`
+  - `/cubemaps/Ceres.albedo.512.png` — imagery only, recombined into true color from the Dawn Framing Camera's own clear and color filters, with the never-imaged south pole filled with a flat average color.
+  - `/cubemaps/Vesta.albedo.512.png` — as Ceres above, with the mosaic's residual southern-summer illumination divided out and the unimaged north polar cap filled with a flat average color.
+  - `/cubemaps/Charon.albedo.512.png` — imagery only, with one unimaged pocket and the grid lines drawn across it covered by the flat neutral fill the map already carries over its unimaged hemisphere.
+  - `/cubemaps/Deimos.albedo.512.png` — **monochrome detail and luminance only** (Stooke controlled mosaic; residual illumination divided out against the Ernst et al. 2023 albedo). The color is I, Voyager's.
+  - `/cubemaps/Phobos.albedo.512.png` — as Deimos above.
+  - `/cubemaps/Moon.albedo.1024.png` — imagery only (CGI Moon Kit LROC WAC color; LROC WAC Hapke-normalized bands; LROC WAC polar mosaics; LOLA topography), toned toward true color from its own bands and with the poles rebuilt.
+  - `/cubemaps/Oberon.albedo.512.png` — **monochrome imagery only.** The color, the flat average-color fill over the hemisphere Voyager never imaged, and the level are I, Voyager's.
+  - `/cubemaps/Umbriel.albedo.512.png` — as Oberon above.
+  - `/cubemaps/Phoebe.albedo.512.png` — imagery only, with the unimaged regions filled with the flat average grey of the imaged surface.
+  - `/cubemaps/Pluto.albedo.1024.l00323.lg00174.lb00052.h17335.hg16561.hb16557.png` — **brightness structure and detail only.** The color is rebuilt against NASA's own natural-color view of Pluto (credit NASA/Johns Hopkins University Applied Physics Laboratory/Southwest Research Institute/Alex Parker); the region New Horizons never imaged is filled with a flat average color.
+  - `/cubemaps/Earth.albedo.2048.png` — as downloaded (Blue Marble Next Generation, July 2004; imagery by Reto Stöckli).
+  - `/cubemaps/Earth.clouds.albedo.512.png` — as downloaded (The Blue Marble 2002 combined cloud product; image by Reto Stöckli).
+  - `/cubemaps/Earth.emission.1024.png` — imagery only (Black Marble 2016 grayscale, lights-only), warm-tinted, and with the product's tile-corner marks cleared where nothing else is lit near them.
+  - `/cubemaps/Enceladus.normal.512.png`, `/cubemaps/Moon.normal.1024.png` — **elevation data only** (Cassini Global DEM 200m, Schenk & McKinnon 2024; LRO LOLA via the CGI Moon Kit). The surface-normal maps derived from them are I, Voyager works.
+  - `/meshes/Ceres.obj` + `/cubemaps/Ceres.normal.512.png`, and `/meshes/Vesta.obj` + `/cubemaps/Vesta.normal.512.png` — **elevation data only** (Dawn Framing Camera HAMO Digital Terrain Models, Preusker et al. 2016). The meshes and surface-normal maps are I, Voyager works.
+  - `/meshes/Charon.obj` + `/cubemaps/Charon.normal.512.png` — **elevation data only** (New Horizons LORRI/MVIC global DEM, Schenk et al. 2018).
+  - `/meshes/Phoebe.obj` + `/cubemaps/Phoebe.normal.512.png` — **shape data only** (Gaskell stereophotoclinometry shape model, PDS Small Bodies Node, CO-SA-ISSNA-5-PHOEBESHAPE-V2.0).
+  - `/meshes/Pan.obj`, `/meshes/Daphnis.obj`, `/meshes/Atlas.obj`, `/meshes/Prometheus.obj`, `/meshes/Pandora.obj`, `/meshes/Epimetheus.obj`, `/meshes/Janus.obj`, `/meshes/Telesto.obj`, `/meshes/Calypso.obj`, `/meshes/Helene.obj` — **shape data only** (P. Thomas, J. Joseph and T. Ansty, *Saturn Small Moon Shape Models V1.0*, NASA PDS, 2018, doi:10.26033/ewy3-jy61).
+  - `/meshes/Amalthea.obj`, `/meshes/Thebe.obj`, `/meshes/Larissa.obj`, `/meshes/Proteus.obj` — **shape data only** (P. Stooke, *Stooke Small Bodies Shape Models V1.0*, NASA PDS, 2025, doi:10.26033/yt84-5y91).
+  - `/starmaps/milkyway_background.4096.png` — imagery only (Deep Star Maps 2020, NASA Scientific Visualization Studio), rescaled to linear radiance and smoothed against its own shot noise.
   - `pale_blue_dot.png` is distributed in the [Project Template repository](https://github.com/ivoyager/project_template).
   - `pale_blue_dot_453x614.jpg` is distributed in web-based deployments of the [Planetarium app](https://www.ivoyager.dev/planetarium/).
-- **Model subdirectories:**
+- **Model subdirectories** — as downloaded, except that the six body models' embedded base-color textures were rescaled in linear light to the bodies' published albedos:
   - `/models/arrokoth/*`
   - `/models/bennu/*`
   - `/models/eros/*`
@@ -177,6 +148,28 @@ Our three Earth maps come from the NASA Earth Observatory: the surface map from 
 - **License:** Public Domain; see [NASA Images and Media Usage Guidelines](https://www.nasa.gov/nasa-brand-center/images-and-media/).
 
 
+### Phobos and Deimos shape models by Ernst et al. (JHU/APL)
+
+The stereophotoclinometry shape models of Phobos (36 m ground sample distance) and Deimos (20 m), distributed through the Small Body Mapping Tool at Johns Hopkins University Applied Physics Laboratory and published with C. M. Ernst, R. W. Gaskell et al., *High-resolution shape models of Phobos and Deimos from stereophotoclinometry*, Earth, Planets and Space 75:103, doi:10.1186/s40623-023-01814-7. They are NASA-funded products published alongside an open-access paper with no license asserted. The relative albedo solved with each shape carries no illumination and was used as the photometric reference for our Phobos and Deimos albedo maps, but no part of it is in the distributed files.
+
+- **Files:**
+  - `/meshes/Phobos.obj` + `/cubemaps/Phobos.normal.512.png` — **shape data only**; the mesh and the surface-normal map derived from it are I, Voyager works.
+  - `/meshes/Deimos.obj` + `/cubemaps/Deimos.normal.512.png` — as Phobos above.
+- **Copyright:** C. M. Ernst, R. W. Gaskell et al.; Johns Hopkins University Applied Physics Laboratory. Underlying imagery NASA/JPL, ESA and DLR.
+- **License:** None asserted. Please cite Ernst et al. (2023) and acknowledge the Small Body Mapping Tool.
+
+
+### NOAA ETOPO 2022 global relief model
+
+Downloaded from the NOAA National Centers for Environmental Information (60 arc-second ice surface).
+
+- **Files:**
+  - `/cubemaps/Earth.normal.1024.png` — **elevation data only**; the surface-normal map derived from it is an I, Voyager work.
+  - `/cubemaps/Earth.roughness.1024.png` — **elevation data only**, used with the Earth albedo's ocean color to separate water from land; the roughness map is an I, Voyager work.
+- **Copyright:** Public Domain
+- **License:** [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/). Please credit NOAA National Centers for Environmental Information.
+
+
 ### Roboto / Noto Sans Symbols fonts
 
 The font file used is a merge of Roboto and Noto Sans Symbols, both [Google Fonts](https://fonts.google.com/).
@@ -184,7 +177,6 @@ The font file used is a merge of Roboto and Noto Sans Symbols, both [Google Font
 - **File:** `/fonts/Roboto-NotoSansSymbols-merged.ttf`
 - **Copyright:** Google LLC
 - **License:** [SIL OPEN FONT LICENSE Version 1.1](#sil-open-font-license-version-11)
-
 
 ---
 
