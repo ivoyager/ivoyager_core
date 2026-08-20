@@ -151,30 +151,32 @@ func _build_packed_model(asset_preloader: IVAssetPreloader, packed_model: Packed
 
 func _build_shells_model(asset_preloader: IVAssetPreloader) -> void:
 	const RIGHT_ANGLE := PI / 2
-	# A mesh (the body's own, or its surface class's generic one) replaces the shared sphere:
-	# the mesh carries the real figure (oblateness, ridge, DEM), so use a uniform scale + z-up
-	# (no oblate scale, no map_offset; the cube samples the mesh in object space). Reuses the
-	# packed-model basis; the model self-builds its cube surface from discovered channels.
+	# One basis serves both surface paths; only the scale term differs. A mesh (the body's
+	# own, or its surface class's generic one) replaces the shared sphere and takes a
+	# uniform scale, the mesh itself carrying the real figure (oblateness, ridge, DEM); the
+	# shared sphere takes the figure as a triaxial scale. A body mesh is authored as the
+	# displaced SphereMesh — same frame, same UV unwrap — so the same maps register on
+	# either path and a body can gain or lose a custom mesh without touching them.
 	var mesh := asset_preloader.get_body_mesh(_body_name)
 	if mesh:
-		var mesh_scale := asset_preloader.get_body_mesh_scale(_body_name)
-		reference_basis = get_packed_model_reference_basis(mesh_scale)
-		_model = IVShellsModel.new(_body_name, _m_radius, reference_basis, 0, mesh)
-		return
-	# Compute the figure, map-offset, z-up reference basis; the model self-builds
-	# its surface, child shells, visibility ranges and layers from there. The polar radius is
-	# the body's own (ultimately the table's, as the analytic shadows use), not one solved
-	# back out of mean and equatorial: mean_radius is the published volumetric mean, so
-	# inverting it as an arithmetic mean flattens Saturn by an extra 200 km.
-	# The shared sphere carries longitude 0 on model +Z and 90°E on +X, so (a, b, c)
-	# permutes here — the only place the IAU order does not survive. Scaling precedes the
-	# rotations, so the a-axis stays locked to the texture's longitude 0.
-	reference_basis = Basis().scaled(Vector3(_triaxial_size.y, _triaxial_size.z,
-			_triaxial_size.x))
-	var map_offset := asset_preloader.get_body_map_offset(_body_name)
-	reference_basis = reference_basis.rotated(Vector3(0.0, 1.0, 0.0), -RIGHT_ANGLE - map_offset)
+		reference_basis = Basis().scaled(
+				asset_preloader.get_body_mesh_scale(_body_name) * Vector3.ONE)
+	else:
+		# The polar radius is the body's own (ultimately the table's, as the analytic
+		# shadows use), not one solved back out of mean and equatorial: mean_radius is the
+		# published volumetric mean, so inverting it as an arithmetic mean flattens Saturn
+		# by an extra 200 km. The shared sphere carries longitude 0 on model +Z and 90°E
+		# on +X, so (a, b, c) permutes here — the only place the IAU order does not
+		# survive. Scaling precedes the rotations, so the a-axis stays locked to the
+		# texture's longitude 0.
+		reference_basis = Basis().scaled(Vector3(_triaxial_size.y, _triaxial_size.z,
+				_triaxial_size.x))
+	reference_basis = reference_basis.rotated(Vector3(0.0, 1.0, 0.0), -RIGHT_ANGLE)
 	reference_basis = reference_basis.rotated(Vector3(1.0, 0.0, 0.0), RIGHT_ANGLE) # z-up!
-	if replacement_shells_model_class:
+	# The model self-builds its surface, child shells, visibility ranges and layers.
+	if mesh:
+		_model = IVShellsModel.new(_body_name, _m_radius, reference_basis, 0, mesh)
+	elif replacement_shells_model_class:
 		@warning_ignore("unsafe_method_access")
 		_model = replacement_shells_model_class.new(_body_name, _m_radius, reference_basis)
 	else:

@@ -641,18 +641,31 @@ and restored on deactivation. Compatibility's 8-bit output can band on very dim 
   surface would have clipped, so it was rebuilt as a geometry-only mesh plus range-tagged albedo
   and object-space normal Cubemaps, the deconstruction the five custom-mesh bodies already took.
   Asset-side detail in the build project, `records/albedo_levels.md` and `records/Mimas.md`.
-- **The mesh and spheroid pipelines place longitude as mirror images of each other**, which is a
-  build-side finding but an engine-side convention. A spheroid's cube is registered on the shared
-  `SphereMesh`'s own UV (`u = atan2(x, z) / τ`) with `body_visual.gd` adding
-  `rotated(Y, −90° − map_offset)`; a mesh body gets only the shared `rotated(X, +90°)` and its
-  builders author `u = (atan2(z, x) − π) / τ`. Reduced to the engine's z-up body frame the two
-  give `α = 2π·u − π` and `α = −π − 2π·u` — equal at u = 0.5 and reflected either side of it,
-  which no rotation can produce. Every mapped planet uses the spheroid path and renders east to
-  the right, so the mesh path is the one to move; the fix is a flag both mesh builders already
-  carry (`build_body_model.py --u-dir -1`, `build_shape_model.py --flip-u`), with φ₀ unchanged.
-  Nine bodies would be re-baked. **Not acted on** — the decisive check is in the app, on a
-  tidally locked body with an off-centre landmark: Mimas' Herschel sits within 10° of the centre
-  of the leading hemisphere, so it must face the direction of orbital motion.
+- **The mesh and spheroid pipelines placed longitude as mirror images of each other — FIXED
+  2026-08-19**, a build-side defect but an engine-side convention, so it is recorded here. A
+  spheroid's cube is registered on the shared `SphereMesh`'s own UV (`u = atan2(x, z) / τ`) with
+  `body_visual.gd` adding `rotated(Y, −90° − map_offset)`; a mesh body gets only the shared
+  `rotated(X, +90°)`, making body azimuth = −phi, and both mesh builders authored phi the wrong
+  way round. Every custom-mesh body therefore rendered as its own mirror image, and the four
+  SPC bodies were turned a further 180° (`build_shape_model` paired a centred-master vertex
+  placement with a left-edge UV). Confirmed on **Iapetus**, whose dark face rendered trailing
+  where Cassini Regio must lead, against **Dione** — same lock, same kind of body, spheroid
+  pipeline, renders correctly. All nine shipped assets (Ceres, Charon, Iapetus, Miranda, Phoebe,
+  Phobos, Deimos, Vesta, Mimas) were corrected and redeployed; the builders now author
+  `--u-dir -1` (lattice) and `phi = -lon` (SPC). Verified against ground truth: Ceres' Cerealia
+  Facula lands at body longitude 239.1° E, +20.0° against a published 239.3° E, 19.9° N, and
+  each SPC body's mesh now registers to its own source shape at roll 0 unmirrored (r = 0.996 to
+  0.9996, against roll 180° mirrored before). Asset-side detail in the build project,
+  `records/Iapetus.md` and `records/Mimas.md`. On 2026-08-20 the two paths were then unified
+  outright: `IVBodyVisual` builds one reference basis for both (a uniform scale for a mesh
+  where the sphere takes a triaxial one, then the same rotations), `map_offset` is removed
+  (the `file_adjustments.tsv` column and its plumbing; no shipped map ever used it — every
+  equirect map must be centred on the prime meridian), and a custom mesh is authored as the
+  displaced `SphereMesh` — same frame, same UV unwrap — so maps and meshes are interchangeable
+  between the two paths. The nine bodies' shipped assets were re-registered by an exact 90°
+  rotation of mesh and cubes together; rendering is unchanged. Still open: the nine `bodies_2d/` icons are in-app
+  captures and are now mirrored relative to their bodies, so they need re-capturing; and Mimas
+  alone carries a further unexplained rotation (`records/Mimas.md`).
 - **Earth's albedo map ocean — resolved on the asset side 2026-08-19; a disc atmosphere
   term remains a possible future enhancement.** The source is a MODIS *land* product whose
   ocean was one painted triple (luma 0.0017); it now carries the water-leaving *surface*

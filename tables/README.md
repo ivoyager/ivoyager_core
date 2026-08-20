@@ -36,7 +36,7 @@ Used by [IVWorldEnvironment](https://github.com/ivoyager/ivoyager_core/blob/mast
 
 Asset file adjustments. Default ("assumed") values are hard-coded so we don't have to include all files here.
 
-Maps are assumed to have prime meridian at center and longitude 180° at edge, as is typical for maps of Earth and the Moon. If different, include here with `map_offset`. If a body has both albedo and emission maps, only one needs to be included here (if both are included, code will assert equal `map_offset`).
+Maps must have prime meridian at center and longitude 180° at edge, as is typical for maps of Earth and the Moon. (A former `map_offset` column allowed exceptions; no shipped map ever used one and it was removed 2026-08-20.)
 
 Model scale is assumed to be 1 meter (1:1). If different, include here with `model_scale`. Asteroids more commonly have a scale of 1000 m (1:1000).
 

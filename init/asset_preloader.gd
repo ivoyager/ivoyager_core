@@ -175,10 +175,6 @@ func get_body_disable_auto_visual_range(body_name: StringName) -> bool:
 	return _body_resources[body_name][4]
 
 
-func get_body_map_offset(body_name: StringName) -> float:
-	return _body_resources[body_name][5]
-
-
 ## Returns an ordered [Array] of shell specs for one body: element 0 is the
 ## surface (shell 0); elements 1..N are overlay render shells. Each spec is a
 ## [Dictionary] with keys [code]channels, tag, scale, shader, process, process_args, is_sun,
@@ -188,7 +184,7 @@ func get_body_map_offset(body_name: StringName) -> float:
 ## shell 0 falls back to the [code]shells.tsv[/code] row of the body's [code]surface_class[/code]
 ## when the body has no [code]shell0[/code] row of its own. Consumed by [IVShellsModel].
 func get_body_shell_specs(body_name: StringName) -> Array:
-	return _body_resources[body_name][6]
+	return _body_resources[body_name][5]
 
 
 ## Returns the [Mesh] that replaces the shared sphere for this body — its own mesh from
@@ -196,27 +192,27 @@ func get_body_shell_specs(body_name: StringName) -> Array:
 ## ([code]fallback_mesh_path[/code] in surface_classes.tsv) — or [code]null[/code] for the
 ## shared sphere. Scale it by [method get_body_mesh_scale].
 func get_body_mesh(body_name: StringName) -> Mesh:
-	return _body_resources[body_name][7]
+	return _body_resources[body_name][6]
 
 
 ## Returns the body's [code]file_prefix[/code] — the token every one of its asset files is
 ## named for. Use it to name a file [i]for[/i] a body, e.g. a captured 2D icon.
 func get_body_file_prefix(body_name: StringName) -> String:
-	return _body_resources[body_name][8]
+	return _body_resources[body_name][7]
 
 
 ## Returns the generic semi-axes of this body's surface class
 ## ([code]fallback_triaxial_size[/code] in surface_classes.tsv), or [constant Vector3.ZERO].
 ## Any scaling of the three works: the consumer normalizes to the body's own mean radius.
 func get_body_fallback_triaxial_size(body_name: StringName) -> Vector3:
-	return _body_resources[body_name][10]
+	return _body_resources[body_name][9]
 
 
 ## Returns the uniform scale for [method get_body_mesh]: [constant IVUnits.KM] for the body's
 ## own mesh (authored at true size in km), or the factor that resizes a generic surface-class
 ## mesh to this body's mean radius. Meaningless when there is no mesh.
 func get_body_mesh_scale(body_name: StringName) -> float:
-	return _body_resources[body_name][9]
+	return _body_resources[body_name][8]
 
 
 func get_rings_texture_arrays(rings_name: StringName) -> Array[Texture2DArray]:
@@ -463,8 +459,6 @@ func _load_body_resources() -> void:
 			# (shell &"surface" = files with no shell token in the name).
 			var shell_channels: Dictionary = {}
 			var shell_channel_ranges: Dictionary = {}
-			var surface_albedo_file := ""
-			var surface_emission_file := ""
 			var by_shell: Dictionary = maps_index.get(file_prefix.to_lower(), {})
 			for shell: StringName in by_shell:
 				var param_paths: Dictionary = by_shell[shell]
@@ -488,28 +482,8 @@ func _load_body_resources() -> void:
 						var texture: Texture2D = resource
 						channels[param] = texture
 						_warn_channel_texture(param, texture, map_path)
-					if shell == &"surface":
-						if param == BaseMaterial3D.TEXTURE_ALBEDO:
-							surface_albedo_file = map_path.get_file()
-						elif param == BaseMaterial3D.TEXTURE_EMISSION:
-							surface_emission_file = map_path.get_file()
 				shell_channels[shell] = channels
 				shell_channel_ranges[shell] = channel_ranges
-
-			# map_offset rotates the equirectangular projection (applied to the model
-			# basis); shells inherit it. Read from the surface albedo (else emission)
-			# file in file_adjustments; the two must agree if both are present.
-			var map_offset := 0.0
-			if surface_albedo_file and file_adj_rows.has(surface_albedo_file):
-				map_offset = IVTableData.get_db_float(&"file_adjustments", &"map_offset",
-						file_adj_rows[surface_albedo_file])
-			if surface_emission_file and file_adj_rows.has(surface_emission_file):
-				var emission_offset := IVTableData.get_db_float(&"file_adjustments",
-						&"map_offset", file_adj_rows[surface_emission_file])
-				assert(map_offset == 0.0 or map_offset == emission_offset,
-						"emission and albedo must have equal map_offset in file_adjustments.tsv"
-						+ " (only one needs to be specified)")
-				map_offset = emission_offset
 
 			var surface_channels: Dictionary = shell_channels.get_or_add(&"surface", {})
 			var surface_ranges: Dictionary = shell_channel_ranges.get_or_add(&"surface", {})
@@ -573,7 +547,6 @@ func _load_body_resources() -> void:
 				packed_model,
 				model_scale,
 				disable_auto_visual_range,
-				map_offset,
 				shell_specs,
 				mesh,
 				file_prefix,
@@ -777,12 +750,12 @@ func _warn_channel_texture(param: int, texture: Texture2D, map_path: String) -> 
 
 func _deep_freeze_body_resources() -> void:
 	# make_read_only() freezes only the immediate container; recurse into the
-	# ordered shell specs (index 6) and their nested channel dicts so worker-thread
+	# ordered shell specs (index 5) and their nested channel dicts so worker-thread
 	# reads are race-free. (Each spec's "process_args" array is already frozen by the
 	# table postprocessor, or is an empty literal.)
 	for body_name in _body_resources:
 		var resources: Array = _body_resources[body_name]
-		var shell_specs: Array = resources[6]
+		var shell_specs: Array = resources[5]
 		for spec: Dictionary in shell_specs:
 			var channels: Dictionary = spec[&"channels"]
 			channels.make_read_only()
