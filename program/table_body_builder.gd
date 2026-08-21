@@ -208,11 +208,20 @@ func build_body(table_name: String, row: int, parent: IVBody) -> IVBody:
 		gravitational_parameter = IVAstronomy.G * characteristics[&"mass"]
 	
 	if is_nan(rotation_at_epoch):
-		if orbit:
-			rotation_at_epoch = orbit.get_mean_longitude_at_epoch() - PI
-			if characteristics.has(&"substellar_longitude_at_epoch"):
-				# This is longitude facing parent at epoch
-				rotation_at_epoch += characteristics[&"substellar_longitude_at_epoch"]
+		if orbit and flags & BodyFlags.BODYFLAGS_TIDALLY_LOCKED:
+			# IVBody._update_rotations() builds the real lock anchor at system-tree
+			# build; what create() stashes as 'locked_rotation_at_epoch' is the OFFSET
+			# from facing the parent. Passing the full anchor here got the lock applied
+			# twice. Negated: rotating the body prograde by x moves the sub-parent
+			# point to body longitude -x, so facing longitude S needs offset -S.
+			rotation_at_epoch = -characteristics.get(&"substellar_longitude_at_epoch", 0.0)
+		elif orbit:
+			# Anchor the spin phase so 'substellar_longitude_at_epoch' faces the parent
+			# at epoch. Subtracted, for the same reason as above -- adding it rendered
+			# the substellar point at longitude -S (Earth's true subsolar at J2000.0 is
+			# +1.09 E and Mars' +321.45 E; the table holds +1.3 and +321.06).
+			rotation_at_epoch = orbit.get_vernal_referenced_mean_longitude_at_epoch() - PI
+			rotation_at_epoch -= characteristics.get(&"substellar_longitude_at_epoch", 0.0)
 		else:
 			rotation_at_epoch = 0.0
 	
