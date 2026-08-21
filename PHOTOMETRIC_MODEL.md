@@ -149,13 +149,21 @@ Notes and special cases:
   its cloudless value** (0.15, not the with-clouds 0.43): the surface map carries no
   clouds, so metering against the cloudless albedo exposes the surface correctly and
   lets cloud tops run bright, exactly as in real photographs (see *Cloud shells*).
-  Earth is also the one body whose map and table value do not agree, by 2.7× — see the
-  TODO.
-- **A map carries whatever a body's shells do not.** Earth's are surface, clouds and a
-  thin limb ring — the limb's rim term is zero everywhere but the extreme edge — so
-  nothing draws Rayleigh scattering across the disc, and it is an open question whether
-  the surface map should therefore hold top-of-atmosphere reflectance or whether that
-  term belongs in the renderer. Over ocean it is most of the signal either way.
+  Earth is also the one body whose map and table value do not agree, by 2.4× — its map
+  means 0.0614 — and that gap is the anchor doing its job rather than an error:
+  solid-angle weighted, the map's land mean is 0.182 with the ice sheets and 0.097
+  without, so 0.15 sits inside the continents' own range.
+- **A map carries whatever a body's shells do not**, and for Earth that question is now
+  settled: the map holds **surface** reflectance throughout. Its shells are surface,
+  clouds and a thin limb ring whose rim term is zero everywhere but the extreme edge, so
+  nothing draws Rayleigh scattering across the disc — which matters most over ocean,
+  where the atmosphere is most of the signal. A top-of-atmosphere build was tried and
+  reverted: a map carrying the atmosphere over water and not over land is neither of the
+  two things a reference image ever is, a surface-reflectance product or an exposed
+  photograph. The missing term therefore belongs to the renderer if it is ever wanted,
+  and the ocean level must be revisited in that same pass — the atmosphere's share is
+  luma 0.0328 of a 0.0390 top-of-atmosphere value, so baking it in as well would count
+  it twice.
 - Spacecraft and small-body values are **derived from the shipped models** (measured
   render response at sun-facing geometry), not from literature — they exist to expose
   the model correctly.
@@ -164,14 +172,18 @@ Notes and special cases:
 - A body with **no color map at all** renders its surface class's `fallback_color`,
   which `IVAssetPreloader` rescales in linear light so its luminance equals the metering
   albedo — a mapless grey moon exposes exactly like a mapped one, and shows its true
-  darkness next to its parent planet.
+  darkness next to its parent planet. That rescale is **clamped at `1.0 / max_channel`**,
+  so a body brighter than white renders at reflectance 1.0 while metering divides by its
+  table value: Calypso (1.34) and Helene (1.67) land at 75 % and 60 % of key. Accepted as
+  it stands — a flat class colour is a placeholder standing in for a body nobody has
+  imaged, so it is not worth the exactness a real map gets.
 - Very bright icy bodies owe their catalog value to coherent backscatter at full phase
   (the *opposition surge*), which the shading model does not have. That is **not** a
   reason to hold their maps under key: a geometric albedo is a zero-phase quantity, so
   `map mean = p` carries each body's own surge as a level, exactly as it does for every
   other body in the set. Dione, Rhea, Tethys and Enceladus were levelled to their full
   table value on 2026-08-17, the two above 1.0 (Enceladus 1.375, Tethys 1.229) through
-  **range tags**. The mapless members of the family are still clamped — see the TODO.
+  **range tags**. The mapless members of the family are clamped at 1.0 instead, as above.
 - The convention covers a packed `.glb` body's **embedded base-color texture** exactly
   as it covers a cube strip. A model whose texture was authored for display rather than
   reflectance is corrected at the texture, never by moving the table value — the table
@@ -181,6 +193,13 @@ Notes and special cases:
   mean blends the body with whatever that background happens to be. And the texture is the
   body's **only** lever — a packed model keeps the `StandardMaterial3D` the glTF importer
   authored, so it has no range tags and no disc-photometry term (see the TODO).
+- **One frame serves both surface paths**, which is what lets a map be authored without
+  knowing which path will draw it. A spheroid samples its cube on the shared `SphereMesh`'s
+  own UV, and a custom mesh is authored as that same sphere displaced — same frame, same
+  unwrap — so the two are interchangeable and a body can gain a mesh without re-registering
+  its maps. Every equirect master is **centred on the prime meridian**, with no per-body
+  offset: `map_offset` was removed once it was established that no shipped map had ever set
+  one. A model-space direction renders at east longitude `atan2(−x, −z)`.
 
 Two things the asset side does to satisfy it are worth knowing here, because they
 constrain what a map can look like. A map whose display stretch carries more ratio
@@ -293,6 +312,15 @@ because a constant 1.0 read overbright on those bodies across the range of phase
 the app actually shows. That is the `L(α)` gap below wearing a different hat: a constant
 fitted at full phase is too generous everywhere else, and 0.6 buys back the average at
 the cost of the zero-phase case it was derived from.
+
+**The opposition surge `B(α)` is deliberately absent, and it cancels rather than being
+missing.** A catalog albedo is a zero-phase quantity, so every map already carries its own
+body's surge as a level, and metering has no phase term either
+(`lit_luminance = albedo · illuminance / π`). Adding a surge to the shader alone would
+therefore *dim* every body at `α > 0`, and adding the CPU mirror the rings use for their
+phase boost would cancel it straight back out for any body metering on its own. What the
+omission really costs is a small-phase difference between two bodies sharing one frame,
+across a coherent-backscatter peak one or two degrees wide.
 
 ### An overlay shell must carry its surface's law
 
@@ -455,21 +483,26 @@ a source whose "black" is a faint floor lights the whole night side, and any dim
 are also **BC1's worst case**, so an emission strip is imported lossless while surface
 maps are not.
 
-There is no metering side to this yet: a body's emission does not participate in the
-exposure it is rendered at, so an all-night-side view exposes as if the lights were not
-there. Physically that is not far off — rural lighting is ~10³× and city cores ~10⁵×
-starlit terrain, so at a dark-adapted rest exposure everything lit is honestly blown out,
-as in real ISS photography where exposing for the cities loses the stars. What the
-physical anchor changed is the *extent*: the chain is now ~192× a linear texel at rest
-exposure rather than the ~6,400× above, so clipping begins around 16 DN instead of ~1 DN
-and the dim tail (villages, roads, fishing fleets) renders in range for the first time
-while city cores still clip.
+**Emission does not meter, and that is a decision rather than a gap.** A body's lights do
+not participate in the exposure they are rendered at, so an all-night-side view exposes as
+if they were not there. Physically that is where it belongs — rural lighting is ~10³× and
+city cores ~10⁵× starlit terrain, so at a dark-adapted rest exposure everything lit is
+honestly blown out, as in real ISS photography where exposing for the cities loses the
+stars. What the physical anchor changed is the *extent*: the chain is now ~192× a linear
+texel at rest exposure rather than the ~6,400× above, so clipping begins around 16 DN
+instead of ~1 DN and the dim tail (villages, roads, fishing fleets) renders in range for
+the first time while city cores still clip. Judged in-app once the lights came down to
+physical levels, metered for starlight, that blowout reads correctly and needs no camera
+term.
 
 Expect clipped cores to keep a coloured fringe. The map's authored 3000 K tint is linear
 (1.0, 0.19, 0.02) — a 50:1 red-to-blue ratio, ~5.6 EV — so the channels clip in sequence
 and a core reads white at the centre through yellow and orange rings on the way out. That
 spread is a property of the tint, not of the level: lowering the anchor moves the rings
-inward but cannot close them. Metering emission into the camera is the fix.
+inward but cannot close them. Metering emission into the camera is the one thing that
+would, which is why **bloom reopens this question** — a bloom pass spreads a clipped core
+outward instead of containing it, so the decision above is worth re-judging when one
+lands.
 
 ## Shell effects
 
@@ -546,7 +579,8 @@ Their shadows — on the planet and from the planet on them — and all eclipse 
 dimming come from the **analytic occlusion system** (`IVSunOcclusionManager` with
 `_sun_occlusion.gdshaderinc`), which computes sun visibility per fragment instead of
 shadow maps; the same system supplies the eclipse factor metering uses, so an eclipsed
-moon meters dark and night adaptation opens up inside a totality.
+moon meters dark and night adaptation opens up inside a totality. The same term covers a
+spacecraft passing into its planet's shadow, confirmed in-app.
 
 The lit ring face is brighter per unit area than any Lambert sphere — the shader's
 backscatter response near zero phase angle exceeds an albedo of 2 — so a camera
@@ -592,9 +626,6 @@ and restored on deactivation. Compatibility's 8-bit output can band on very dim 
 
 ## TODO
 
-- **Meter the night side.** Emission needs to enter the metering the way lit surfaces do,
-  so the camera stops down over cities instead of clipping them — see *Night-side
-  emission* for why everything lit is blown out at rest exposure today.
 - **Disc photometry: `L(α)`, and the parameter's axis.** `L` ships as a constant, which is
   right where it was anchored (full phase) and progressively too generous as a body swings
   away — the reason `ROCKY_WORLD` had to be hand-tuned down to 0.6 rather than sitting at
@@ -608,84 +639,24 @@ and restored on deactivation. Compatibility's 8-bit output can band on very dim 
   column would need `IVShellsModel` to see the body's albedo, which it does not today.
   (The isotropic-scatterer model behind those numbers omits backscattering and roughness
   and reads 0.64 for the Moon against a published ~1.0, so it is a trend, not a source of
-  values.) **The `FALLBACK` class still has no shader** — the moons left on it are on
-  `StandardMaterial3D` and out of reach of any shader term; giving that class the surface
-  shader with a flat `albedo_color` would bring them in.
-- **The opposition surge itself is closed, not deferred.** `B(α)` divides out of every map
-  uniformly (a catalog albedo is a zero-phase quantity, so the convention has always
-  carried each body's own surge as a level), and metering has **no phase term** —
-  `lit_luminance = albedo · illuminance / π` — so adding a surge to the shader alone dims
-  every body at `α > 0`, while adding the CPU mirror the rings use cancels it straight back
-  out for any solo metered body. What is left is a small-phase difference between bodies
-  sharing one frame, over a coherent-backscatter peak ~1–2° wide: marginal, and it blocks
-  no asset. The four surge moons were levelled to their full catalog value on 2026-08-17
-  (build project, `records/albedo_levels.md`).
-- **A mapless body with albedo above 1.0 is silently capped.**
-  `IVAssetPreloader._get_fallback_color` clamps its rescale at `1.0 / max_channel`, so
-  Calypso (1.34) and Helene (1.67) render at reflectance 1.0 while metering divides by
-  their table value — 75 % and 60 % of key, with nothing to show for it. Mimas at 0.962
-  is under the line. The fix is the same one the maps got: let the fallback exceed 1.0,
-  since nothing downstream clamps `ALBEDO`.
-- **The five packed `.glb` body models are outside the shader path.**
-  `IVBodyVisual._build_packed_model` instantiates the `PackedScene`, sets its basis, visibility
-  ranges and layers, and returns without touching materials, so Hyperion, Bennu, Eros, Itokawa
-  and Arrokoth all render on the `StandardMaterial3D` Godot's glTF importer authored. They
-  therefore have no `albedo_range_lo`/`albedo_range_hi` — range tags are parsed from a **map
-  file name** in the preloader's `maps_index` scan, and an embedded texture has none — and no
-  `lunar_lambert`/`minnaert_k`. This is the same gap as the `FALLBACK` class above, reached by a
-  different route. **Levels are now compliant on all five** (0.980–1.090 of target, corrected
-  2026-08-19 once the measuring tool weighted by surface area over the mesh rather than taking a
-  flat mean over a UV atlas that is a third background). What the gap still costs is disc
-  photometry and any level a body's terrain cannot fit under white — which is what took **Mimas**
-  off this path: at a V-band geometric albedo of 0.962 its texture needed 4.25× and 42 % of its
-  surface would have clipped, so it was rebuilt as a geometry-only mesh plus range-tagged albedo
-  and object-space normal Cubemaps, the deconstruction the five custom-mesh bodies already took.
-  Asset-side detail in the build project, `records/albedo_levels.md` and `records/Mimas.md`.
-- **The mesh and spheroid pipelines placed longitude as mirror images of each other — FIXED
-  2026-08-19**, a build-side defect but an engine-side convention, so it is recorded here. A
-  spheroid's cube is registered on the shared `SphereMesh`'s own UV (`u = atan2(x, z) / τ`) with
-  `body_visual.gd` adding `rotated(Y, −90° − map_offset)`; a mesh body gets only the shared
-  `rotated(X, +90°)`, making body azimuth = −phi, and both mesh builders authored phi the wrong
-  way round. Every custom-mesh body therefore rendered as its own mirror image, and the four
-  SPC bodies were turned a further 180° (`build_shape_model` paired a centred-master vertex
-  placement with a left-edge UV). Confirmed on **Iapetus**, whose dark face rendered trailing
-  where Cassini Regio must lead, against **Dione** — same lock, same kind of body, spheroid
-  pipeline, renders correctly. All nine shipped assets (Ceres, Charon, Iapetus, Miranda, Phoebe,
-  Phobos, Deimos, Vesta, Mimas) were corrected and redeployed; the builders now author
-  `--u-dir -1` (lattice) and `phi = -lon` (SPC). Verified against ground truth: Ceres' Cerealia
-  Facula lands at body longitude 239.1° E, +20.0° against a published 239.3° E, 19.9° N, and
-  each SPC body's mesh now registers to its own source shape at roll 0 unmirrored (r = 0.996 to
-  0.9996, against roll 180° mirrored before). Asset-side detail in the build project,
-  `records/Iapetus.md` and `records/Mimas.md`. On 2026-08-20 the two paths were then unified
-  outright: `IVBodyVisual` builds one reference basis for both (a uniform scale for a mesh
-  where the sphere takes a triaxial one, then the same rotations), `map_offset` is removed
-  (the `file_adjustments.tsv` column and its plumbing; no shipped map ever used it — every
-  equirect map must be centred on the prime meridian), and a custom mesh is authored as the
-  displaced `SphereMesh` — same frame, same UV unwrap — so maps and meshes are interchangeable
-  between the two paths. The nine bodies' shipped assets were re-registered by an exact 90°
-  rotation of mesh and cubes together; rendering is unchanged. Still open: the nine `bodies_2d/` icons are in-app
-  captures and are now mirrored relative to their bodies, so they need re-capturing; and Mimas
-  alone carries a further unexplained rotation (`records/Mimas.md`).
-- **Earth's albedo map ocean — resolved on the asset side 2026-08-19; a disc atmosphere
-  term remains a possible future enhancement.** The source is a MODIS *land* product whose
-  ocean was one painted triple (luma 0.0017); it now carries the water-leaving *surface*
-  reflectance of clear ocean — sRGB (12, 23, 42), luma 0.0084 — chosen by the maintainer
-  from rendered candidates, which makes the whole map surface-consistent with its
-  atmospherically corrected land. The 2026-08-17 top-of-atmosphere build stays reverted: a
-  map carrying the atmosphere over water and not over land is neither of the two things a
-  reference image ever is. If a Rayleigh term over the disc is ever added to the surface
-  shader (next to the limb item below), the ocean level should be revisited — the
-  atmosphere's share of the TOA value (luma 0.0328 of 0.0390) would then be the
-  renderer's, and baking it into the map would double it. The sphere mean is now 0.0614
-  against the table's 0.15 — the deliberate cloudless exposure anchor (see *Notes and
-  special cases*), confirmed against the map itself: solid-angle weighted, its land mean
-  is 0.182 with the ice sheets and 0.097 without, so the anchor sits inside the
-  continents' own range. Asset-side detail in the build project, `records/Earth.md`.
+  values.)
+- **Two classes of body never reach the surface shader**, so neither gets disc photometry
+  or range tags, and both would be closed by the same kind of work. The **`FALLBACK`
+  surface class has no shader** — the moons left on it are on `StandardMaterial3D`, out of
+  reach of any shader term, and giving the class the surface shader with a flat
+  `albedo_color` would bring them in. And **the five packed `.glb` body models** (Hyperion,
+  Bennu, Eros, Itokawa, Arrokoth) keep the `StandardMaterial3D` Godot's glTF importer
+  authored, because `IVBodyVisual._build_packed_model` sets basis, visibility ranges and
+  layers and returns without touching materials; range tags are parsed from a **map file
+  name**, and an embedded texture has none. Their levels are compliant (0.980–1.090 of
+  target), so what the gap costs is the disc law plus any body whose terrain will not fit
+  under white — which is what took Mimas off this path and onto a mesh with range-tagged
+  cubemaps.
 - **Physically correct atmosphere limb** using phase angle (lower priority — the current
-  sunlit-gated glow is serviceable but approximate).
-- **Verify spacecraft eclipse behavior** — a craft in its planet's shadow should meter
-  dark (and does render dark); the metering-side parent-shadow term deserves a dedicated
-  test around a fast orbiter like the ISS.
+  sunlit-gated glow is serviceable but approximate). A **Rayleigh term across the disc** is
+  the larger relative of this and does not exist at all; if it is ever built, Earth's ocean
+  level has to be revisited in the same pass, or the atmosphere gets counted twice (see
+  *Body surfaces and albedo*).
 - **Sky radiance staleness.** Metallic spacecraft surfaces reflect the sky's radiance
   cubemap, which Godot rebakes only when the sky material is touched — so it holds
   whatever exposure was current at the last bake (usually activation). Today the effect
@@ -701,15 +672,26 @@ and restored on deactivation. Compatibility's 8-bit output can band on very dim 
   per-body secondary light with physical energy (`albedo × illuminance × (R/d)² ×
   phase`) riding the same exposure chain.
 - **Bloom**: the disc/point co-calibration and f16 caps were done with a future bloom
-  pass in mind; the remaining work is the bloom itself.
+  pass in mind; the remaining work is the bloom itself. It also reopens **night-side
+  metering**, settled today on the judgment that blown city cores read correctly at
+  physical light levels (see *Night-side emission*) — a bloom pass spreads a clipped core
+  outward rather than containing it, so that judgment is worth re-making once one exists.
 - **Anchor refinement**: the 20.0 mag/arcsec² anchor is good to a few tenths against
   LMC/SMC levels in the shipped map; a tighter cross-check against published integrated
   photometry is possible.
 - **Sun surface tuning**: in-app judgment of the procedural photosphere (every parameter
   is a uniform) and granulation time evolution, which is static by decision rather than
   oversight — a granule lives ~10 minutes, so the time input belongs on the sim clock.
-- **Stale `bodies_2d` icons.** Every body whose map level changed carries an icon
-  captured from the old level: the seventeen from the level pass, the five de-stretched,
-  Earth, Hyperion and Arrokoth, Mimas (whose map, level and longitude all moved), and the
-  pre-existing Venus / Uranus / Neptune / Sun backlog. Recapture is the
-  editor's body-2D capture dialog, a GUI step.
+- **Stale `bodies_2d` icons — the one outstanding item that needs new asset files.** An
+  icon is an in-app capture, so every body whose map has moved in level or in longitude
+  registration since carries a stale one: the seventeen from the level pass, the five
+  de-stretched, Earth, Hyperion and Arrokoth, the nine custom-mesh bodies (captured before
+  the mirror fix, so mirrored relative to the bodies they depict), the nine whose maps were
+  rolled 180° (the four Galileans, Enceladus, Tethys, Dione, Rhea and Triton), Mimas —
+  whose map, level and longitude all moved — and the pre-existing Venus / **Titan** /
+  Uranus / Neptune / Sun backlog, those four mapless bodies having been relevelled by
+  0.61–1.88× against measured renders. That is 26 of the 39 body icons namable as stale
+  without auditing the rest, so **recapture all of them in one sitting** rather than
+  working out which of the remainder survived; the twelve spacecraft and small-body icons
+  are unaffected. Recapture is the editor's body-2D capture dialog, a GUI step — a sitting
+  to be scheduled, not work to be designed.
