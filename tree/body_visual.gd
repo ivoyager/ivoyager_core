@@ -98,19 +98,39 @@ func get_model() -> Node3D:
 ## Detaches this whole visual from the live simulation so it can be staged elsewhere as a
 ## still image, applying [method IVShellsModel.set_static_preview] to every shell it holds.
 ## Call right after adding a visual from [method IVBody.make_body_visual] to the tree, before
-## it can process a frame. One way: there is no restoring the live behavior afterward.
-func set_static_preview() -> void:
-	_set_static_preview_recursive(self)
+## it can process a frame. One way: there is no restoring the live behavior afterward.[br][br]
+##
+## [param camera_distance] is the preview camera's distance to the body, which a star's disc
+## needs to scale itself to; pass it again through [method set_preview_camera_distance] if that
+## camera is later moved or replaced.
+func set_static_preview(camera_distance: float) -> void:
+	_set_static_preview_recursive(self, camera_distance)
 
 
-func _set_static_preview_recursive(node3d: Node3D) -> void:
+## Rescales a static preview's star disc to a preview camera that has been placed or moved
+## since staging, applying [method IVShellsModel.set_preview_camera_distance] to every shell.
+func set_preview_camera_distance(camera_distance: float) -> void:
+	_set_preview_camera_distance_recursive(self, camera_distance)
+
+
+func _set_static_preview_recursive(node3d: Node3D, camera_distance: float) -> void:
 	var shells_model := node3d as IVShellsModel
 	if shells_model:
-		shells_model.set_static_preview()
+		shells_model.set_static_preview(camera_distance)
 	for child in node3d.get_children():
 		var child_node3d := child as Node3D
 		if child_node3d:
-			_set_static_preview_recursive(child_node3d)
+			_set_static_preview_recursive(child_node3d, camera_distance)
+
+
+func _set_preview_camera_distance_recursive(node3d: Node3D, camera_distance: float) -> void:
+	var shells_model := node3d as IVShellsModel
+	if shells_model:
+		shells_model.set_preview_camera_distance(camera_distance)
+	for child in node3d.get_children():
+		var child_node3d := child as Node3D
+		if child_node3d:
+			_set_preview_camera_distance_recursive(child_node3d, camera_distance)
 
 
 ## Grants/clears [constant IVGlobal.LOCAL_SHADOW_CASTER] on this visual's whole

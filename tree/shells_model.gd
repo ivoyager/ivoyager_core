@@ -694,6 +694,17 @@ func _resolve_process(method: StringName, process_args: Array) -> void:
 # static preview
 
 
+## Scales a static preview's star disc to the preview camera, given its distance to the body.
+## Call again whenever that camera moves; [method set_static_preview] applies it once and stops
+## the per-frame update that would otherwise maintain it. Without a live value the photosphere's
+## detail — granulation, sunspot groups, faculae — fades out entirely and the disc renders flat.
+## No-op on a shell that is not a star.
+func set_preview_camera_distance(camera_distance: float) -> void:
+	if !_is_sun or !_sun_surface_material or camera_distance <= 0.0:
+		return
+	_sun_surface_material.set_shader_parameter(&"angular_radius", _mean_radius / camera_distance)
+
+
 ## Detaches this shell from the live simulation so it can be staged elsewhere as a still
 ## image: it stops animating, stops reaching outside its own subtree, and (for a star)
 ## renders as a plain resolved disc instead of the distance-driven disc/point crossfade.
@@ -701,8 +712,11 @@ func _resolve_process(method: StringName, process_args: Array) -> void:
 ## a thumbnail, a GUI preview — right after adding it to the tree, before it can process a
 ## frame. One way: there is no restoring the live behavior afterward. Overlay shells are
 ## separate models and each needs its own call ([method IVBodyVisual.set_static_preview]
-## covers a whole visual).
-func set_static_preview() -> void:
+## covers a whole visual).[br][br]
+##
+## [param camera_distance] is the preview camera's distance to the body; see
+## [method set_preview_camera_distance], which this applies once.
+func set_static_preview(camera_distance: float) -> void:
 	# Idle processing is the only thing here that reaches outside this node: _rotate would
 	# animate the shell against sim time, and _process_sun_lod would build the far point as a
 	# child of the REAL star body and size it against a camera in a different World3D.
@@ -720,6 +734,11 @@ func set_static_preview() -> void:
 	# default and every fragment discards. Negative edges saturate the crossfade instead.
 	_sun_surface_material.set_shader_parameter(&"handoff_low", -2.0)
 	_sun_surface_material.set_shader_parameter(&"handoff_high", -1.0)
+	# Saturating the crossfade is not all angular_radius was feeding. It also carries the disc's
+	# on-screen scale to the photosphere, whose every alias fade is written against px per
+	# radian, so the shader default renders granulation, spots and faculae faded fully out --
+	# an identically flat disc. A preview must supply a distance of its own.
+	set_preview_camera_distance(camera_distance)
 	# DISC_BRIGHTNESS is HDR for a scene that tonemaps. Read back into an RGBA8 image it would
 	# clip to white and take the B-V tint with it.
 	_sun_surface_material.set_shader_parameter(&"brightness", 1.0)

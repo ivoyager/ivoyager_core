@@ -682,16 +682,3 @@ and restored on deactivation. Compatibility's 8-bit output can band on very dim 
 - **Sun surface tuning**: in-app judgment of the procedural photosphere (every parameter
   is a uniform) and granulation time evolution, which is static by decision rather than
   oversight — a granule lives ~10 minutes, so the time input belongs on the sim clock.
-- **Stale `bodies_2d` icons — the one outstanding item that needs new asset files.** An
-  icon is an in-app capture, so every body whose map has moved in level or in longitude
-  registration since carries a stale one: the seventeen from the level pass, the five
-  de-stretched, Earth, Hyperion and Arrokoth, the nine custom-mesh bodies (captured before
-  the mirror fix, so mirrored relative to the bodies they depict), the nine whose maps were
-  rolled 180° (the four Galileans, Enceladus, Tethys, Dione, Rhea and Triton), Mimas —
-  whose map, level and longitude all moved — and the pre-existing Venus / **Titan** /
-  Uranus / Neptune / Sun backlog, those four mapless bodies having been relevelled by
-  0.61–1.88× against measured renders. That is 26 of the 39 body icons namable as stale
-  without auditing the rest, so **recapture all of them in one sitting** rather than
-  working out which of the remainder survived; the twelve spacecraft and small-body icons
-  are unaffected. Recapture is the editor's body-2D capture dialog, a GUI step — a sitting
-  to be scheduled, not work to be designed.
