@@ -36,9 +36,13 @@ signal mouse_target_clicked(target: Object, button_mask: int, key_modifier_mask:
 ## Emitted while the mouse is being dragged in the 3D viewport.
 ## [param drag_vector] is the per-frame motion in screen pixels.
 signal mouse_dragged(drag_vector: Vector2, button_mask: int, key_modifier_mask: int)
-## Emitted on mouse-wheel input. [param is_up] is true for wheel-up, false
-## for wheel-down.
-signal mouse_wheel_turned(is_up: bool)
+## Emitted on mouse-wheel input, once per turn. [param is_up] is true for wheel-up,
+## false for wheel-down. [param factor] is the turn amount, but its unit is a platform
+## detail rather than a notch: desktop reports 1.0 per notch (macOS, 0.3-0.9), web reports
+## a raw scroll delta (one notch is 3.0 in Chrome, 0.9 in Firefox), and a precise device
+## such as a trackpad reports a small fraction of a turn many times per frame. A receiver
+## that scales motion by it should bound one event's contribution.
+signal mouse_wheel_turned(is_up: bool, factor: float)
 
 
 # project settings
@@ -113,12 +117,15 @@ func _gui_input(input_event: InputEvent) -> void:
 	var mouse_button := event as InputEventMouseButton
 	if mouse_button:
 		var button_index: int = mouse_button.button_index
-		# BUTTON_WHEEL_UP & _DOWN always fires twice (pressed then not pressed)
+		# BUTTON_WHEEL_UP & _DOWN always fire twice (pressed then not pressed), carrying the
+		# same factor both times; a receiver that accumulates would count the turn twice.
 		if button_index == MOUSE_BUTTON_WHEEL_UP:
-			mouse_wheel_turned.emit(true)
+			if mouse_button.pressed:
+				mouse_wheel_turned.emit(true, mouse_button.factor)
 			return
 		if button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			mouse_wheel_turned.emit(false)
+			if mouse_button.pressed:
+				mouse_wheel_turned.emit(false, mouse_button.factor)
 			return
 		# Left/right press records a click anchor; the release decides click vs. drag.
 		if button_index == MOUSE_BUTTON_LEFT or button_index == MOUSE_BUTTON_RIGHT:
