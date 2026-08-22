@@ -33,6 +33,13 @@ extends Sprite3D
 ## "body_symbol_size_percent" and "label3d_names_size_percent" settings).
 
 
+## Render priority for the symbol, the name and the name's outline. Transparent surfaces
+## sort by priority before depth, so a HUD left at the default 0 blends under any body
+## shell above it — a moon's name vanishing into its planet's cloud deck. This must stay
+## clear of the highest [IVShellsModel] shell priority, which is the body's shell count - 1.
+const HUD_RENDER_PRIORITY := 20
+
+
 ## Name-label offset from the centered symbol when both are shown, as a fraction
 ## of the symbol's screen size ([code]x[/code] rightward, positive [code]y[/code]
 ## up). Project-wide; set before [IVBody]s are built for a uniform effect. (It is
@@ -63,7 +70,6 @@ func _init(body: IVBody) -> void:
 	name = &"BodyPositionVisual"
 	_name_label = Label3D.new()
 	_name_label.name = &"NameLabel"
-	_name_label.render_priority = 20
 	add_child(_name_label)
 
 
@@ -85,11 +91,14 @@ func _ready() -> void:
 	theme_manager.body_symbol_size_changed.connect(_on_body_symbol_size_changed)
 
 	# self = symbol sprite
+	render_priority = HUD_RENDER_PRIORITY
 	billboard = StandardMaterial3D.BILLBOARD_ENABLED
 	fixed_size = true
 	modulate = _color
 
 	# name label child
+	_name_label.render_priority = HUD_RENDER_PRIORITY
+	_name_label.outline_render_priority = HUD_RENDER_PRIORITY - 1 # halo behind the glyph
 	_name_label.font = theme_manager.get_main_font()
 	_name_label.billboard = StandardMaterial3D.BILLBOARD_ENABLED
 	_name_label.fixed_size = true
