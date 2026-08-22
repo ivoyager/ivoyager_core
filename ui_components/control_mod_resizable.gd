@@ -157,12 +157,14 @@ func _resize() -> void:
 			await get_tree().process_frame
 		_control.size = size
 	await get_tree().process_frame
-	var parent_size := get_viewport().get_visible_rect().size
-	if _control.get_parent() is Control:
-		parent_size = (_control.get_parent() as Control).get_rect().size
-
-	_control.position.x = _control.anchor_left * (parent_size.x - _control.size.x)
-	_control.position.y = _control.anchor_top * (parent_size.y - _control.size.y)
+	# Anchors resolve against the parent, not the screen, because position is parent-relative.
+	# A Control parent that doesn't fill the viewport (e.g., one under a persistent menu bar)
+	# would otherwise push _control out of bounds by the parent's own offset.
+	var parent_control := _control.get_parent() as Control
+	var anchors_size := (parent_control.get_rect().size if parent_control
+			else get_viewport().get_visible_rect().size)
+	_control.position.x = _control.anchor_left * (anchors_size.x - _control.size.x)
+	_control.position.y = _control.anchor_top * (anchors_size.y - _control.size.y)
 	_suppress_resize = false
 	_panel_under_truncate()
 
