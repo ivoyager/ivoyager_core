@@ -9,9 +9,9 @@ See cloning and downloading instructions [here](https://www.ivoyager.dev/develop
 
 ## [v0.2.1] - UNRELEASED
 
-Under development using Godot 4.7.1.
+Under development using Godot 4.7.2.
 
-Requires ivoyager_assets v0.2. The Core plugin editor will offer to download this for you.
+Requires ivoyager_assets v0.2.1.dev.20260821. The Core plugin editor will offer to download this for you.
 
 **Project Notes:**
 1. Physical light is opt-in: set `IVCoreSettings.enable_physical_light = true` to instantiate the system and surface its "Physical Light" user Option (user can toggle it on/off at runtime). It requires `dynamic_lights`.

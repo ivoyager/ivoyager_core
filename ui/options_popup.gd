@@ -101,11 +101,11 @@ extends PopupPanel
 		[&"LABEL_HIDE_HUDS_WHEN_CLOSE", &"hide_hud_when_close"],
 	],
 	LABEL_GRAPHICS_PERFORMANCE = [
+		[&"LABEL_PHYSICAL_LIGHT", &"physical_light"],
 		[&"LABEL_SHADOW_RESOLUTION", &"directional_shadow_size"],
 		[&"LABEL_MSAA", &"msaa_3d"],
 		[&"LABEL_FXAA", &"fxaa"],
 		[&"LABEL_TAA", &"use_taa"],
-		[&"LABEL_PHYSICAL_LIGHT", &"physical_light"],
 	],
 }
 
