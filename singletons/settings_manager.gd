@@ -56,6 +56,7 @@ var _defaults: Dictionary[StringName, Variant] = {
 
 	# camera
 	&"camera_transfer_time" : 1.0,
+	&"camera_mouse_in_out_inverse" : false,
 	&"camera_mouse_in_out_rate" : 1.0,
 	&"camera_mouse_move_rate" : 1.0,
 	&"camera_mouse_pitch_yaw_rate" : 1.0,
