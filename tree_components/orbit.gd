@@ -1682,6 +1682,31 @@ func get_mean_longitude_rate() -> float:
 	return _mean_motion + _longitude_ascending_node_rate + _argument_periapsis_rate
 
 
+## Returns mean longitude at epoch (L₀) re-referenced so that zero is the projection of
+## the vernal equinox on the orbit plane — the zero that
+## [method IVAstronomy.get_basis_from_z_axis_and_vernal_equinox] gives a rotation basis.
+## [method get_mean_longitude_at_epoch] measures the ascending node from the reference
+## plane's own zero instead, which for an equatorial or Laplace orbit is that plane's
+## node on the ICRF equator; anchoring a locked rotation to it misplaces the rotation by
+## the in-plane angle between the two zeros (131° for Saturn's inner moons, 174° for
+## Charon). The node term is evaluated at the last [method update] time, so a caller
+## re-anchoring on [signal changed] tracks nodal precession.
+func get_vernal_referenced_mean_longitude_at_epoch() -> float:
+	const REFERENCE_PLANE_ECLIPTIC := ReferencePlane.REFERENCE_PLANE_ECLIPTIC
+	var lan := fposmod(_longitude_ascending_node_at_epoch
+			+ _longitude_ascending_node_rate * _update_time, TAU)
+	var node_dir := Vector3(cos(lan), sin(lan), 0.0)
+	var normal := get_normal_from_elements(_inclination, lan)
+	if _reference_plane_type != REFERENCE_PLANE_ECLIPTIC:
+		var reference_basis_ := IVMath64.to_basis(_reference_basis)
+		node_dir = reference_basis_ * node_dir
+		normal = reference_basis_ * normal
+	var vernal_basis := IVAstronomy.get_basis_from_z_axis_and_vernal_equinox(normal)
+	var node_angle := atan2(vernal_basis.y.dot(node_dir), vernal_basis.x.dot(node_dir))
+	return fposmod(-_mean_motion * _time_periapsis + _argument_periapsis_at_epoch
+			+ _longitude_ascending_node_at_epoch + node_angle - lan, TAU)
+
+
 # *****************************************************************************
 # Derivable other
 

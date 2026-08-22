@@ -123,13 +123,15 @@ func stage_visual(visual: IVBodyVisual) -> AABB:
 	# parent a far-point sprite there. Nothing may process between add_child() and here --
 	# add_child() readies the whole subtree inline, and idle dispatch is a later point in the
 	# main loop, so this is the last instant before the first frame it could run.
-	visual.set_static_preview()
+	# A star's disc needs the preview camera's distance to scale itself to, so solve the
+	# framing first. Both steps below are synchronous, which is what the note above requires.
 	_visual = visual
 	var aabb := compute_scene_aabb(_model_holder)
-	visual.position -= aabb.get_center() # put the centroid on the turntable pivot
 	var longest := maxf(aabb.size.x, maxf(aabb.size.y, aabb.size.z))
 	longest = maxf(longest, 0.001)
 	_camera_distance = longest * 2.0 + 1.0
+	visual.set_static_preview(_camera_distance)
+	visual.position -= aabb.get_center() # put the centroid on the turntable pivot
 	_camera.transform = Transform3D(Basis(), Vector3(0.0, 0.0, _camera_distance))
 	_camera.near = maxf(longest * 0.01, 0.001)
 	_camera.far = _camera_distance + longest * 2.0

@@ -366,6 +366,9 @@ static func _static_init() -> void:
 
 ## Creates a new [IVBody] instance (or specified [member replacement_subclass])
 ## using specified parameters. See also [method create_from_astronomy_specs].
+## If [param flags] & BODYFLAGS_TIDALLY_LOCKED, [param rotation_at_epoch] is the OFFSET
+## from facing the parent (stashed as 'locked_rotation_at_epoch'; the true anchor is
+## built by _update_rotations(), so don't pass a full anchor — it would be applied twice).
 @warning_ignore("shadowed_variable", "shadowed_variable_base_class")
 static func create(
 		name: StringName,
@@ -427,7 +430,10 @@ static func create(
 ## using specified parameters. [param right_ascension] and [param declination]
 ## define "North" for this body. If [param rotation_period] is negative, then
 ## this body has retrograde rotation (e.g., Venus). If [param flags] & BODYFLAGS_TIDALLY_LOCKED,
-## then [param rotation_period] doesn't matter. If [param flags] & BODYFLAGS_AXIS_LOCKED,
+## then [param rotation_period] doesn't matter, and [param rotation_at_epoch] is the OFFSET
+## from facing the parent (stashed as 'locked_rotation_at_epoch'; the true anchor is built
+## by _update_rotations(), so don't pass a full anchor here — it would be applied twice).
+## If [param flags] & BODYFLAGS_AXIS_LOCKED,
 ## then [param right_ascension] and [param declination] don't matter.
 @warning_ignore("shadowed_variable", "shadowed_variable_base_class")
 static func create_from_astronomy_specs(
@@ -2066,8 +2072,12 @@ func _update_rotations(is_intrinsic: bool) -> void:
 	# rotation
 	var new_rotation_rate := _orbit.get_mean_longitude_rate()
 	var locked_rotation_at_epoch: float = characteristics[&"locked_rotation_at_epoch"]
+	# Vernal-referenced, to match the vernal-equinox basis built below: the raw element
+	# sum is referenced to the orbit reference plane's own zero, and anchoring to it
+	# turned every Laplace- and equatorial-frame moon by the angle between the two zeros
+	# (Saturn's inner moons 131°, Charon 174°).
 	var new_rotation_at_epoch := fposmod(locked_rotation_at_epoch
-			+ _orbit.get_mean_longitude_at_epoch() - PI, TAU)
+			+ _orbit.get_vernal_referenced_mean_longitude_at_epoch() - PI, TAU)
 	
 	# axis
 	var new_rotation_axis := rotation_axis

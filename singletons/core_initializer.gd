@@ -191,6 +191,7 @@ var program_nodes: Dictionary[StringName, Variant] = {
 	GraphicsManager = IVGraphicsManager, # applies antialiasing user settings
 	FarwarpManager = IVFarwarpManager, # keeps distant objects renderable
 	SunOcclusionManager = IVSunOcclusionManager, # analytic eclipse & ring shadows
+	ExposureManager = IVExposureManager, # physical light; removed unless enable_physical_light
 	ScreenshotManager = IVScreenshotManager, # off-screen render to PNG at a set size
 	Body2DCaptureManager = IVBody2DCaptureManager, # dev tool; inert outside a source run
 }
@@ -251,6 +252,10 @@ func _do_conditional_modifications() -> void:
 		# This isn't required, but why not...
 		program_nodes.erase(&"SaveManager")
 		ordered_program_nodes.erase(&"SaveManager")
+	if not IVCoreSettings.enable_physical_light:
+		# Zero cost when disabled: IVExposureManager statics stay at their inert
+		# defaults (physical_active false, exposure 1.0).
+		program_nodes.erase(&"ExposureManager")
 
 
 func _set_simulator_universe() -> void:

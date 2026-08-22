@@ -118,7 +118,9 @@ var asset_paths: Dictionary[StringName, String] = {
 ## You own its correctness; it is validated at load and ignored if invalid.
 var map_filename_regex_override := ""
 
-## Neaded for visible Earth lights at night. Adjust by eye.
+## Needed for visible Earth lights at night. Adjust by eye. Applies only to the by-eye
+## emission channel: the physical one is a luminance and cannot differ by renderer, and
+## IVExposureManager zeroes this channel outright while physical light runs.
 var gl_compatibility_emission_energy_multiplier_multiplier := 2.5
 
 
@@ -128,6 +130,7 @@ var _symbol_point_texture: Texture2D
 var _body_resources: Dictionary[StringName, Array] = {}
 var _rings_resources: Dictionary[String, Array] = {}
 var _map_regex := RegEx.new()
+var _range_tag_regex := RegEx.new()
 
 
 func _init() -> void:
@@ -172,10 +175,6 @@ func get_body_disable_auto_visual_range(body_name: StringName) -> bool:
 	return _body_resources[body_name][4]
 
 
-func get_body_map_offset(body_name: StringName) -> float:
-	return _body_resources[body_name][5]
-
-
 ## Returns an ordered [Array] of shell specs for one body: element 0 is the
 ## surface (shell 0); elements 1..N are overlay render shells. Each spec is a
 ## [Dictionary] with keys [code]channels, tag, scale, shader, process, process_args, is_sun,
@@ -185,7 +184,7 @@ func get_body_map_offset(body_name: StringName) -> float:
 ## shell 0 falls back to the [code]shells.tsv[/code] row of the body's [code]surface_class[/code]
 ## when the body has no [code]shell0[/code] row of its own. Consumed by [IVShellsModel].
 func get_body_shell_specs(body_name: StringName) -> Array:
-	return _body_resources[body_name][6]
+	return _body_resources[body_name][5]
 
 
 ## Returns the [Mesh] that replaces the shared sphere for this body — its own mesh from
@@ -193,27 +192,27 @@ func get_body_shell_specs(body_name: StringName) -> Array:
 ## ([code]fallback_mesh_path[/code] in surface_classes.tsv) — or [code]null[/code] for the
 ## shared sphere. Scale it by [method get_body_mesh_scale].
 func get_body_mesh(body_name: StringName) -> Mesh:
-	return _body_resources[body_name][7]
+	return _body_resources[body_name][6]
 
 
 ## Returns the body's [code]file_prefix[/code] — the token every one of its asset files is
 ## named for. Use it to name a file [i]for[/i] a body, e.g. a captured 2D icon.
 func get_body_file_prefix(body_name: StringName) -> String:
-	return _body_resources[body_name][8]
+	return _body_resources[body_name][7]
 
 
 ## Returns the generic semi-axes of this body's surface class
 ## ([code]fallback_triaxial_size[/code] in surface_classes.tsv), or [constant Vector3.ZERO].
 ## Any scaling of the three works: the consumer normalizes to the body's own mean radius.
 func get_body_fallback_triaxial_size(body_name: StringName) -> Vector3:
-	return _body_resources[body_name][10]
+	return _body_resources[body_name][9]
 
 
 ## Returns the uniform scale for [method get_body_mesh]: [constant IVUnits.KM] for the body's
 ## own mesh (authored at true size in km), or the factor that resizes a generic surface-class
 ## mesh to this body's mean radius. Meaningless when there is no mesh.
 func get_body_mesh_scale(body_name: StringName) -> float:
-	return _body_resources[body_name][9]
+	return _body_resources[body_name][8]
 
 
 func get_rings_texture_arrays(rings_name: StringName) -> Array[Texture2DArray]:
@@ -317,7 +316,8 @@ func _make_symbol_point_texture() -> ImageTexture:
 # Builds one shell's spec [Dictionary] from its shells.tsv row — a body row
 # (SHELL_<body>_<tag>) or, for a shell 0 the body does not override, its surface-class row.
 # [param tag] is the body's own name for this shell, empty for a surface-class row.
-func _read_shell_spec(channels: Dictionary, shell_row: int, tag: String) -> Dictionary:
+func _read_shell_spec(channels: Dictionary, channel_ranges: Dictionary, shell_row: int,
+		tag: String) -> Dictionary:
 	# cast_shadow and scale have no table Default; unset means the engine value / no resize.
 	var cast_shadow: int = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	if IVTableData.db_has_value(&"shells", &"cast_shadow", shell_row):
@@ -327,6 +327,7 @@ func _read_shell_spec(channels: Dictionary, shell_row: int, tag: String) -> Dict
 		shell_scale = IVTableData.get_db_float(&"shells", &"scale", shell_row)
 	return {
 		&"channels": channels,
+		&"channel_ranges": channel_ranges,
 		&"tag": tag,
 		&"scale": shell_scale,
 		&"shader": IVTableData.get_db_string_name(&"shells", &"shader", shell_row),
@@ -457,14 +458,17 @@ func _load_body_resources() -> void:
 			# Discovered texture channels per shell from the single-pass maps index
 			# (shell &"surface" = files with no shell token in the name).
 			var shell_channels: Dictionary = {}
-			var surface_albedo_file := ""
-			var surface_emission_file := ""
+			var shell_channel_ranges: Dictionary = {}
 			var by_shell: Dictionary = maps_index.get(file_prefix.to_lower(), {})
 			for shell: StringName in by_shell:
 				var param_paths: Dictionary = by_shell[shell]
 				var channels: Dictionary = {}
+				var channel_ranges: Dictionary = {}
 				for param: int in param_paths:
 					var map_path: String = param_paths[param]
+					var range_tags := parse_range_tags(map_path.get_file())
+					if range_tags:
+						channel_ranges[param] = range_tags
 					# A cubemap map imports as CompressedCubemap (a TextureLayered) and an
 					# equirect one as CompressedTexture2D, so the resource type alone selects
 					# the sampling path — the cubemaps/ directory is only a convention.
@@ -478,29 +482,11 @@ func _load_body_resources() -> void:
 						var texture: Texture2D = resource
 						channels[param] = texture
 						_warn_channel_texture(param, texture, map_path)
-					if shell == &"surface":
-						if param == BaseMaterial3D.TEXTURE_ALBEDO:
-							surface_albedo_file = map_path.get_file()
-						elif param == BaseMaterial3D.TEXTURE_EMISSION:
-							surface_emission_file = map_path.get_file()
 				shell_channels[shell] = channels
-
-			# map_offset rotates the equirectangular projection (applied to the model
-			# basis); shells inherit it. Read from the surface albedo (else emission)
-			# file in file_adjustments; the two must agree if both are present.
-			var map_offset := 0.0
-			if surface_albedo_file and file_adj_rows.has(surface_albedo_file):
-				map_offset = IVTableData.get_db_float(&"file_adjustments", &"map_offset",
-						file_adj_rows[surface_albedo_file])
-			if surface_emission_file and file_adj_rows.has(surface_emission_file):
-				var emission_offset := IVTableData.get_db_float(&"file_adjustments",
-						&"map_offset", file_adj_rows[surface_emission_file])
-				assert(map_offset == 0.0 or map_offset == emission_offset,
-						"emission and albedo must have equal map_offset in file_adjustments.tsv"
-						+ " (only one needs to be specified)")
-				map_offset = emission_offset
+				shell_channel_ranges[shell] = channel_ranges
 
 			var surface_channels: Dictionary = shell_channels.get_or_add(&"surface", {})
+			var surface_ranges: Dictionary = shell_channel_ranges.get_or_add(&"surface", {})
 
 			# A body's shells are listed in its "shells" field (ARRAY[STRING]); each tag names
 			# a row SHELL_<body_name>_<tag>. The one flagged shell0 is the surface and wholly
@@ -534,12 +520,13 @@ func _load_body_resources() -> void:
 			if surface_row == -1:
 				surface_row = class_entry[0]
 			var shell_specs: Array = [
-					_read_shell_spec(surface_channels, surface_row, surface_tag)]
+					_read_shell_spec(surface_channels, surface_ranges, surface_row, surface_tag)]
 			for overlay_index in overlay_rows.size():
 				var overlay_row := overlay_rows[overlay_index]
 				var file_tag := IVTableData.get_db_string_name(&"shells", &"file_tag", overlay_row)
 				var channels: Dictionary = shell_channels.get(file_tag, {})
-				shell_specs.append(_read_shell_spec(channels, overlay_row,
+				var ranges: Dictionary = shell_channel_ranges.get(file_tag, {})
+				shell_specs.append(_read_shell_spec(channels, ranges, overlay_row,
 						overlay_tags[overlay_index]))
 
 			# A surface with no color map would otherwise render white (an unbound sampler,
@@ -550,7 +537,9 @@ func _load_body_resources() -> void:
 			if !has_surface_color:
 				has_surface_color = surface_channels.has(BaseMaterial3D.TEXTURE_EMISSION)
 			if !has_surface_color:
-				shell_specs[0][&"fallback_color"] = class_entry[3]
+				var class_fallback_color: Color = class_entry[3]
+				shell_specs[0][&"fallback_color"] = _get_fallback_color(class_fallback_color,
+						table, row)
 
 			var resources := [
 				texture_2d,
@@ -558,7 +547,6 @@ func _load_body_resources() -> void:
 				packed_model,
 				model_scale,
 				disable_auto_visual_range,
-				map_offset,
 				shell_specs,
 				mesh,
 				file_prefix,
@@ -567,6 +555,98 @@ func _load_body_resources() -> void:
 			]
 
 			_body_resources[body_name] = resources
+
+
+# Under physical light (IVExposureManager registered), the class color is rescaled in
+# linear light so its luminance equals the albedo the exposure metering assumes for this
+# body (its table albedo, else the manager default) - a mapless surface then exposes
+# like any calibrated map instead of blowing out. Both consuming albedo_color paths are
+# source_color (sRGB), hence the decode/re-encode. Hue and alpha are the class color's
+# own; a saturated channel caps the scale so hue survives.
+func _get_fallback_color(class_color: Color, table: StringName, row: int) -> Color:
+	var exposure_manager_var: Variant = IVGlobal.program.get(&"ExposureManager")
+	if exposure_manager_var == null:
+		return class_color
+	var exposure_manager: IVExposureManager = exposure_manager_var
+	var albedo := exposure_manager.default_albedo
+	if IVTableData.db_has_value(table, &"albedo", row):
+		var table_albedo := IVTableData.get_db_float(table, &"albedo", row)
+		if table_albedo > 0.0: # empty cell reads non-positive; treat as unknown
+			albedo = table_albedo
+	var linear := class_color.srgb_to_linear()
+	var luminance := linear.get_luminance()
+	if luminance <= 0.0:
+		return Color(albedo, albedo, albedo).linear_to_srgb()
+	var scale := albedo / luminance
+	var max_channel := maxf(linear.r, maxf(linear.g, linear.b))
+	if max_channel * scale > 1.0:
+		scale = 1.0 / max_channel
+	linear = Color(linear.r * scale, linear.g * scale, linear.b * scale, class_color.a)
+	return linear.linear_to_srgb()
+
+
+## Reads the optional range tags out of a texture's file name, as
+## [code][Vector3 lo, Vector3 hi][/code], or an empty array when it carries none.
+##
+## A tag is [code].l<digits>[/code] or [code].h<digits>[/code] holding the physical linear
+## value that the file's 0.0 and 1.0 stand for, in units of 1e-4 — five digits, so
+## [code].h09823[/code] is 0.9823 and the five digits reach 9.9999. A packed texture stores
+## [code](physical - lo) / (hi - lo)[/code], so the shader recovers physical light with one
+## affine step; see [code]PHOTOMETRIC_MODEL.md[/code]. Untagged files return an empty array
+## and every consumer then leaves them exactly as they were, which is why this is additive.
+##
+## [b]Each tag is independently optional and defaults to the identity[/b] (lo 0.0, hi 1.0),
+## so a name carries only what is not already true — [code].l02462[/code] alone, never a
+## redundant [code].h10000[/code] beside it.
+##
+## [b]A channel letter narrows a tag to one channel[/b]: [code]lr[/code] [code]lg[/code]
+## [code]lb[/code] and [code]hr[/code] [code]hg[/code] [code]hb[/code] override red, green or
+## blue. Channel tags are applied after the un-narrowed ones whatever order the name lists
+## them in, so [code].h10504.hr13168[/code] and [code].hr13168.h10504[/code] are the same
+## texture — a base for the channels that agree plus an override for the one that does not.
+##
+## [b]Over-unity is expressible and is meant to be.[/b] A [code]hi[/code] above 1.0 says the
+## texture holds reflectance a channel really reaches past white — an over-saturated bright
+## terrain, or a body whose opposition surge the shading model cannot reach. Clamping it into
+## [0, 1] at build time is the information-erasing alternative this exists to avoid.
+##
+## [b]Why the file name.[/b] These numbers describe how these bytes were packed and are
+## meaningless against any other file, so keeping them anywhere else invites a silent
+## desync — the failure mode being a body that renders at the wrong level with nothing to
+## show for it. The name is the one channel the asset build tree owns end to end.
+func parse_range_tags(file_name: String) -> Array:
+	var lo := Vector3.ZERO
+	var hi := Vector3.ONE
+	var found := false
+	# Two passes so a channel tag wins over an un-narrowed one regardless of name order;
+	# within a pass a repeated tag simply takes the last, which the producer never emits.
+	for narrowed: bool in [false, true]:
+		for regex_match: RegExMatch in _range_tag_regex.search_all(file_name):
+			var channel := regex_match.get_string("channel")
+			if channel.is_empty() == narrowed:
+				continue
+			var value := regex_match.get_string("digits").to_int() * 1e-4
+			var is_lo := regex_match.get_string("letter") == "l"
+			if channel.is_empty():
+				if is_lo:
+					lo = Vector3.ONE * value
+				else:
+					hi = Vector3.ONE * value
+			else:
+				var axis := "rgb".find(channel)
+				if is_lo:
+					lo[axis] = value
+				else:
+					hi[axis] = value
+			found = true
+	if not found:
+		return []
+	# A non-increasing range would invert or flatten the map; refuse rather than render it.
+	if hi.x <= lo.x or hi.y <= lo.y or hi.z <= lo.z:
+		push_error("Range tags in '%s' are not increasing (lo %s, hi %s); ignored"
+				% [file_name, lo, hi])
+		return []
+	return [lo, hi]
 
 
 func _compose_map_regex() -> void:
@@ -590,6 +670,9 @@ func _compose_map_regex() -> void:
 	var pattern := "^(?<prefix>[^.]+)(?:[.](?<shell>[^.]+))?[.](?<tag>%s)(?:[.].*)?$" % "|".join(tags)
 	var err := _map_regex.compile(pattern)
 	assert(err == OK, "composed map regex failed to compile: %s" % pattern)
+	err = _range_tag_regex.compile(
+			"[.](?<letter>[lh])(?<channel>[rgb]?)(?<digits>\\d{5})(?=[.]|$)")
+	assert(err == OK, "range tag regex failed to compile")
 
 
 func _map_regex_has_groups() -> bool:
@@ -667,12 +750,12 @@ func _warn_channel_texture(param: int, texture: Texture2D, map_path: String) -> 
 
 func _deep_freeze_body_resources() -> void:
 	# make_read_only() freezes only the immediate container; recurse into the
-	# ordered shell specs (index 6) and their nested channel dicts so worker-thread
+	# ordered shell specs (index 5) and their nested channel dicts so worker-thread
 	# reads are race-free. (Each spec's "process_args" array is already frozen by the
 	# table postprocessor, or is an empty literal.)
 	for body_name in _body_resources:
 		var resources: Array = _body_resources[body_name]
-		var shell_specs: Array = resources[6]
+		var shell_specs: Array = resources[5]
 		for spec: Dictionary in shell_specs:
 			var channels: Dictionary = spec[&"channels"]
 			channels.make_read_only()

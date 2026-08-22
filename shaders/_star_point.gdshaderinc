@@ -147,6 +147,12 @@ float star_point_dist_sq(vec2 point_coord) {
 	return dot(offset, offset) * 4.0;
 }
 
+// f16-safe ceiling on any star-photometry radiance scalar, shared by the field and the
+// sun's far point (through star_point_light below) and by the sun's near disc
+// (sun_surface caps its brightness * iv_exposure product with it). One constant because
+// the disc/point handoff needs both halves to saturate at the same level.
+const float STAR_LIGHT_MAX = 32768.0;
+
 // A star fragment's additive light: intensity through the PSF at this fragment's
 // radius, evaluated in shader float32 and capped below float16 max. The cap is load-
 // bearing: the 3D color buffer is RGBA16F and the fragment's color converts to f16
@@ -157,5 +163,5 @@ float star_point_dist_sq(vec2 point_coord) {
 // represent it; the cap only touches values tonemapping clips to white anyway, and
 // keeps inf out of any downstream pass (e.g. glow).
 float star_point_light(float intensity, float dist_sq, float falloff) {
-	return min(intensity * exp(-dist_sq * falloff), 32768.0);
+	return min(intensity * exp(-dist_sq * falloff), STAR_LIGHT_MAX);
 }

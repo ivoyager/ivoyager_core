@@ -1,11 +1,7 @@
-	file	map_offset	model_scale	disable_auto_visual_range
-Type	STRING	FLOAT	FLOAT	BOOL
-Unit		deg	m	
-Default		0	1	
-	Eros.1_10.glb		10	
-	Hyperion.1_1000.glb		1000	
-	Mimas.1_1000.glb		1000	
-	Ceres.1_1000.glb		1000	
-	Charon.1_1000.glb		1000	
-	Iapetus.1_1000.glb		1000	
-	Phoebe.1_1000.glb		1000	
+	file	model_scale	disable_auto_visual_range
+Type	STRING	FLOAT	BOOL
+Unit		m	
+Default		1	
+	Eros.1_10.glb	10	
+	Hyperion.1_1000.glb	1000	
+	Arrokoth.1_10.glb	10	

@@ -42,6 +42,7 @@ render_mode skip_vertex_transform, ambient_light_disabled;
 
 #include "_detail.gdshaderinc"       // value_noise, fbm
 #include "_farwarp.gdshaderinc"
+#include "_photometry.gdshaderinc"
 #include "_sun_occlusion.gdshaderinc"
 
 
@@ -114,6 +115,20 @@ uniform float polar_equatorial_ratio = 1.0;
 uniform float roughness_scale = 1.0;
 uniform float metallic = 0.0;
 uniform float metallic_specular = 0.5; // dielectric specular; 0.5 = StandardMaterial3D default
+// Minnaert k (see _photometry.gdshaderinc): 1.0 = Lambert, the exact-no-op default; above
+// 1.0 darkens the limb, which is the direction a cloud deck needs. Set per body in
+// shells.tsv. Values below 1.0 are the other direction and are ignored here.
+uniform float minnaert_k : hint_range(1.0, 2.0) = 1.0;
+// Lunar-Lambert L, the k < 1 direction Minnaert cannot serve (see _photometry.gdshaderinc):
+// 0.0 = Lambert, the exact-no-op default. A body sets one law or the other, never both;
+// both factors are applied because each is an identity at its own default.
+uniform float lunar_lambert : hint_range(0.0, 1.0) = 0.0;
+// Reflectance ceiling the band tops are scaled under; see fragment(). 1.0 is the storage
+// convention, not a physical bound - raise it for a body whose own reflectance exceeds it.
+uniform float albedo_ceiling = 1.0;
+// Physical reflectance per unit of albedo_color; see fragment(). 1.0 for any body whose
+// reflectance fits in a Color.
+uniform float albedo_scale = 1.0;
 
 
 // ----- the shipped bodies -----
@@ -226,13 +241,23 @@ void fragment() {
 	if (band_tint_strength != 0.0) {
 		base = mix(base, band_tint_color.rgb, clamp(-pattern * band_tint_strength, 0.0, 1.0));
 	}
+	// albedo_color and band_tint_color are sRGB Colors, so neither can carry a channel
+	// above 1.0 - the conversion clamps there. A body whose physical reflectance exceeds
+	// that (Venus needs 1.27 to reach its geometric albedo; see albedo_ceiling) carries
+	// the excess here instead. Applied to base, after the tint mix, so it scales both
+	// endpoints alike and leaves the pattern and the tint blend untouched.
+	base *= albedo_scale;
 	vec3 color = max(base * (1.0 + pattern), vec3(0.0));
 
-	// Ceiling at albedo 1 by scaling the whole vector: a per-channel clamp would clip the
-	// strongest channel first and drag the color toward white where the pattern is
-	// brightest. This holds chromaticity exactly and flattens the band tops instead.
+	// Ceiling by scaling the whole vector: a per-channel clamp would clip the strongest
+	// channel first and drag the color toward white where the pattern is brightest. This
+	// holds chromaticity exactly and flattens the band tops instead. The ceiling is a
+	// uniform because 1.0 is a storage limit, not a physical one, and a body can sit above
+	// it: reaching geometric albedo p under a law whose disc integrates to F of the
+	// subsolar level needs p/F, and Venus at p = 0.689 needs 1.27. Nothing downstream
+	// clamps ALBEDO, so the only cost of raising it is this shader's own band tops.
 	float peak = max(color.r, max(color.g, color.b));
-	ALBEDO = peak > 1.0 ? color / peak : color;
+	ALBEDO = peak > albedo_ceiling ? color * (albedo_ceiling / peak) : color;
 
 	ROUGHNESS = clamp(roughness_scale, 0.0, 1.0);
 	METALLIC = metallic;
@@ -240,7 +265,15 @@ void fragment() {
 
 	// Rebuilt ambient (engine ambient is disabled; see render_mode). Added before the
 	// shadow so occlusion removes sunlight, not starlight; see the include.
-	EMISSION = ALBEDO * ambient_light;
+	EMISSION = ALBEDO * ambient_light; // the feed already carries exposure; see the include
+
+	// Disc photometry, AFTER the isotropic ambient above (which takes the unfactored
+	// albedo) and independent of the shadow multiply below. This shader never writes
+	// NORMAL, so the interpolated macroscopic normal is what is wanted and what is here.
+	vec3 macro_normal = normalize(NORMAL);
+	vec3 sun_view = normalize(mat3(VIEW_MATRIX) * sun_direction);
+	ALBEDO *= minnaert_albedo_factor(macro_normal, sun_view, VIEW, minnaert_k);
+	ALBEDO *= lunar_lambert_albedo_factor(macro_normal, sun_view, VIEW, lunar_lambert);
 
 	if (ring_texture_outer > 0.0 || occluder_count > 0) {
 		float sun_visible = sun_occlusion_visible_fraction(v_world_position);
