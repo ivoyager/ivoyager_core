@@ -77,7 +77,7 @@ extends PopupPanel
 	],
 	LABEL_CAMERA = [
 		[&"LABEL_TRANSFER_TIME", &"camera_transfer_time"],
-		[&"LABEL_MOUSE_RATE_REVERSE", &"camera_mouse_in_out_reverse"],
+		[&"LABEL_MOUSE_INVERT_IN_OUT", &"camera_mouse_in_out_inverse"],
 		[&"LABEL_MOUSE_RATE_IN_OUT", &"camera_mouse_in_out_rate"],
 		[&"LABEL_MOUSE_RATE_TANGENTIAL", &"camera_mouse_move_rate"],
 		[&"LABEL_MOUSE_RATE_PITCH_YAW", &"camera_mouse_pitch_yaw_rate"],

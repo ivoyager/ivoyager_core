@@ -377,9 +377,14 @@ func _on_mouse_dragged(drag_vector: Vector2, button_mask: int, key_modifier_mask
 
 
 func _on_mouse_wheel_turned(is_up: bool, factor: float) -> void:
-	if _mouse_in_out_inverse:
-		is_up = not is_up
-	_mwheel_turning = _mouse_in_out_rate * (factor if is_up else -factor)
+	# factor's unit varies by platform (see IVWorldController.mouse_wheel_turned), so cap one
+	# event at a single notch: a web notch reads 3.0 in Chrome, which would triple its zoom rate.
+	# Sub-notch steps still pass through, which is what a trackpad needs to scroll smoothly.
+	var turn := minf(factor, 1.0) * _mouse_in_out_rate
+	if is_up == _mouse_in_out_inverse:
+		turn = -turn
+	# A precise device sends many turns per frame and _process consumes one value.
+	_mwheel_turning += turn
 
 
 func _on_viewport_size_changed(viewport_size: Vector2) -> void:
@@ -388,6 +393,8 @@ func _on_viewport_size_changed(viewport_size: Vector2) -> void:
 
 func _settings_listener(setting: StringName, value: Variant) -> void:
 	match setting:
+		&"camera_mouse_in_out_inverse":
+			_mouse_in_out_inverse = value
 		&"camera_mouse_in_out_rate":
 			_mouse_in_out_rate = value * mouse_wheel_adj
 		&"camera_mouse_move_rate":
