@@ -71,7 +71,7 @@ static var cube_shader_variants: Dictionary[StringName, StringName] = {
 ## [StandardMaterial3D] property, or a shader uniform when the shell names a shader).
 static var shells_nonmaterial_fields: Array[StringName] = [
 	&"surface_class", &"shell0", &"scale", &"file_tag", &"shader", &"process", &"process_args",
-	&"is_sun", &"cast_shadow",
+	&"is_sun", &"cast_shadow", &"exposure_ceiling", &"limb_exposure_ceiling",
 ]
 
 ## This setting AND IVCoreSettings.use_threads must be true for loading to

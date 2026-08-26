@@ -117,6 +117,62 @@ response to what is actually in view:
   planet, it enters the frame still overexposed and compensation completes as it moves
   in; a body just out of frame — the sun behind the camera, most of all — has no
   influence at all.
+- A shell that fills in shells.tsv's **`exposure_ceiling`** adds a **ceiling candidate**: an
+  exposure the camera may not exceed while that shell is in view, weighted by the shell's own
+  screen area on the same ramp and edge gate as everything else, and by nothing else — no
+  phase, no lit fraction, no luminance. This is the one metering input that is asserted rather
+  than derived, and deliberately: what a rendered atmosphere or a city-light layer should cost
+  the rest of the frame is not a photometric question. A camera exposed for a body's disc
+  really does blow its limb out, and the reference photographs that show limb structure are
+  exposed *for* the limb and show no stars — both are correct, and which one a viewer wants is
+  taste. Lower candidates still win, so a ceiling never brightens a view the body's own disc
+  has already metered down; it acts only where the others release. Earth's surface shell is
+  the shipped cell, for its city lights.
+- An atmosphere limb row fills **`limb_exposure_ceiling`** instead, and it is the same
+  assertion held by different geometry — because **a limb is a ring, not a disc**, and a
+  screen area that credits the whole body holds a ceiling in views that contain no limb at
+  all. The limb candidate samples the ring in azimuth on the **disc's** silhouette circle —
+  the limb's own foot, which is where its light is and where a viewer sees it — and carries
+  the limb's whole height above each foot, up to the limb shell. A sample counts by three
+  things. How much of that height is **sunlit**: the shadow is the disc's cylinder, so at a
+  foot whose solar zenith is past 90° the shadow stands at `disc / sin(zenith)` and only the
+  limb above it is still in daylight — full credit at the terminator, none where the shadow
+  tops the shell. Whether it **forward-scatters** toward the camera: the cosine of its own
+  scattering angle, the sun's direction against that sample's line to the camera, clamped at
+  zero. And how far **inside the frame** that foot sits (`limb_meter_edge_fraction`, wider
+  than the body gate because it is also doing centrality). Their share of the ring scales the
+  **shell's** screen area, on the limb's own much later ramp (`limb_meter_fraction_start` /
+  `_full`) — which is the "how much more readily than a disc may a limb clip" knob, and the
+  answer is *much*. So the ceiling holds where the lit ring is the view and releases where it
+  is not: zoom past the ring on a close pass over Venus, Mars or Titan, pan it out of the
+  window, or swing round to where the sun is behind the camera, and exposure returns to the
+  full dark-adapted rest. Earth, Venus, Mars and Titan all fill the cell.
+- **A LIT LIMB AND A BRIGHT ONE ARE DIFFERENT THINGS, and only the phase separates them.**
+  How much of a limb is out of its body's shadow says nothing about how bright it is, because
+  a limb's brightness is dominated by forward scattering: at a fixed foot solar zenith of
+  105°, Titan's single-scatter ring radiance runs **2.1e-3 at phase 90 and 2.6e-1 at phase
+  168, a factor of 126**, on identical shadow geometry. That is why a shadow measure alone
+  cannot tell the two views the camera has to distinguish apart — coming out of a night side
+  at phase 70 and blazing backlit at phase 149 put the in-frame limb feet at solar zenith
+  109° and 100°, nine degrees apart on the same side of the terminator, while the rendered
+  frame is black in one and 6.5 % clipped in the other. Neither term substitutes for the
+  other: the shadow alone fires on a black frame, and forward scattering alone fires on a
+  limb that is fully in the body's umbra. Their product tracks the rendered frame — measured
+  over a full rotation at the camera floor, every zero-product view clips at most 0.1 % of
+  the frame and every non-zero one at least 1.2 %.
+- **The two radii of a limb do different jobs, and one circle cannot do both.** The foot is
+  where the ring is on screen and where its shadow question has to be asked; the shell is how
+  tall the answer is and how big the thing is in the frame. Asking both at the shell puts
+  every question about the limb further around the body than the limb the viewer is looking
+  at — 15° of body arc from Titan's camera floor, where the disc's silhouette stands 41° off
+  axis and the shell's 56° — and it asked the shadow as a yes/no at one radius, so the whole
+  in-frame arc crossed together and compensation stepped. Measured on Titan at the camera
+  floor with the limb panned through screen centre: coming out of the night side, that step
+  put the camera at full compensation with the terminator still a frame and a half off screen
+  and *nothing* in the frame clipping; and going the other way it released while the limb was
+  still blowing out 5.5 % of the frame, 85 % of its own peak. Taking the foot from the disc
+  and grading by lit height fixes both — the release now spans 25° of rotation instead of 9°,
+  and the onset arrives with the terminator at the frame edge.
 - The winning (lowest) candidate becomes the target; exposure glides toward it at
   `adapt_darken_ev_per_second` / `adapt_brighten_ev_per_second`, or snaps when the jump
   exceeds `snap_ev_threshold` (camera teleports).
@@ -154,16 +210,13 @@ Notes and special cases:
   solid-angle weighted, the map's land mean is 0.182 with the ice sheets and 0.097
   without, so 0.15 sits inside the continents' own range.
 - **A map carries whatever a body's shells do not**, and for Earth that question is now
-  settled: the map holds **surface** reflectance throughout. Its shells are surface,
-  clouds and a thin limb ring whose rim term is zero everywhere but the extreme edge, so
-  nothing draws Rayleigh scattering across the disc — which matters most over ocean,
-  where the atmosphere is most of the signal. A top-of-atmosphere build was tried and
-  reverted: a map carrying the atmosphere over water and not over land is neither of the
-  two things a reference image ever is, a surface-reflectance product or an exposed
-  photograph. The missing term therefore belongs to the renderer if it is ever wanted,
-  and the ocean level must be revisited in that same pass — the atmosphere's share is
-  luma 0.0328 of a 0.0390 top-of-atmosphere value, so baking it in as well would count
-  it twice.
+  settled: the map holds **surface** reflectance throughout, and the renderer draws the
+  atmosphere over it (see *Atmospheres*). A top-of-atmosphere build was tried and reverted:
+  a map carrying the atmosphere over water and not over land is neither of the two things a
+  reference image ever is, a surface-reflectance product or an exposed photograph. The
+  ocean therefore stays at its water-leaving level (luma 0.0084) and the Rayleigh veil,
+  drawn by the atmosphere shell over the whole disc, supplies the atmosphere's share
+  — which is why that share was never baked into the map.
 - Spacecraft and small-body values are **derived from the shipped models** (measured
   render response at sun-facing geometry), not from literature — they exist to expose
   the model correctly.
@@ -516,22 +569,159 @@ metered for the *cloudless* surface albedo, cloud tops overexpose by a factor of
 bright, occasionally clipped white, which matches real orbital photography. No separate
 cloud compensation exists, deliberately: compensating for clouds would crush the surface.
 
-### Atmosphere limbs
+### Atmospheres
 
-`atmosphere_limb.gdshader` draws the thin haze ring at a body's edge (Earth, Venus,
-Titan; per-body `limb_*` columns in `shells.tsv`). Two physical behaviors matter:
+`atmosphere_limb.gdshader` draws a body's atmosphere on an enclosing overlay shell (Earth
+at scale 1.035, Venus 1.032, Titan 1.415, Mars 1.07) as **single scattering of sunlight
+along the view ray** through up to three layers authored on that shell's `shells.tsv` row —
+a Rayleigh gas and a Henyey-Greenstein haze, each exponential in altitude (the haze may
+have a TOP, above which its scale height changes), and a Gaussian detached layer — with one extinction optical depth per sRGB channel at the disc, an
+albedo and an asymmetry (the `atm_*` columns; `_atmosphere.gdshaderinc` documents every
+one). Five looks come out of the one integral and the physical parameters alone: the thin
+bright band beyond the limb (the ISS "blue band", ~33 km to half brightness on Earth, which
+is the Rayleigh tangent-path number), the veil in front of the disc that brightens toward
+its edge (what EPIC's full disc shows), the twilight stratification where a grazing sun
+reddens, the forward-scattered ring and cusp extension of a backlit crescent, and Titan's
+stacked haze shells.
 
-- Both glow terms are gated by **local sunlitness**: the shell is thin, so a fragment
-  whose sun is below its local horizon is inside the planet's own shadow and cannot
-  scatter. This is what kills the (unphysical) glowing ring a night-side close-up would
-  otherwise paint, while the *real* ring of light around a backlit planet — visible at
-  inferior-conjunction geometry, where the whole limb sits at grazing sunlight —
-  survives.
-- The limb rides `light_energy` like any lit surface, but its authored glow values
-  target the legacy O(1) energies, and physical exposure spans 20+ EV. The
-  `iv_limb_scale` global (`IVExposureManager.limb_physical_scale`, default 0.02)
-  rebases it: invisible in ordinary views, emerging as the twilight arc and the backlit
-  ring when night or backlit exposure opens up.
+The numbers are physical ones. Optical depths are derived where a law exists (Bodhaine's
+Rayleigh atmosphere; CO₂ cross-sections against surface pressure) and typical literature
+values where one does not (a global-mean aerosol; Mars at a clear-season dust 0.4); the
+build tree's `scripts/atmosphere_params.py` turns the spectral laws into the three channel
+values and `scripts/limb_model.py` verifies the shader's quadrature against a numeric
+single-scatter integral (within 11 % worst case). Titan's opaque disc is its haze's optical
+limb — 295 km up, where the tangent optical depth at 550 nm reaches 1 — not its surface,
+and the haze the shader carries is the column above that disc.
+
+- **An aerosol has a top, and modelling it as a pure exponential erases the structure a
+  detached layer is detached FROM.** `atm_haze_top_km` / `atm_haze_top_scale_height_km` give
+  the haze a second, shorter scale height above a break altitude. Titan is the case: the
+  Doose scale height that fits its main haze near the disc extrapolated seven e-folds up to
+  the detached layer, which left the layer buried under the main haze's forward-scattering
+  peak at exactly the high phases where the reference frames show it best (contrast 1.36× at
+  30° falling to nothing beyond 150°). With the top at 80 km above the disc (375 km altitude,
+  the main haze top the Cassini-era literature describes) and a 10 km scale height above it,
+  the modelled gap minimum lands at 407–429 km — inside the published 400–450 km separation —
+  and the shell renders 1.8–2.3× the gap from phase 90° to 175°. The break removes mass, it
+  does not redistribute it: `atm_haze_tau` still means the column the unbroken exponential
+  would have, and the profile below the top is untouched, so the bright ring's own level moves
+  under 5 % below 40 km.
+
+How it lands in the renderer:
+
+- The shell's output is **I/F riding `light_energy` like a surface**: its custom `light()`
+  adds `LIGHT_COLOR × ATTENUATION / π`, so a texel reads `I/F × light_energy`, exposure
+  included, with no rebase. It composites with `blend_premul_alpha` — the path radiance
+  added, what lies behind kept by one minus the luma of the transmittance — and the
+  chromatic part of that transmittance is applied by the surface and cloud shaders
+  themselves (`atm_view_tint`), which is exact and lets a cloud deck 10 km up escape the
+  air beneath it.
+- **Every shell of the body takes its sunlight through the same atmosphere.** `IVShellsModel`
+  propagates the limb row's `atm_*` columns to the surface and cloud shells, whose photometry
+  slot multiplies direct light by `atm_sun_transmittance` — the column above that shell's own
+  altitude along the sun ray. This is what turns a cloud deck at the limb the colour of sunset.
+- **Every disc is fully covered, and that is a rule about the map rather than a setting.**
+  The disc branch draws over the whole body, so a shell beneath an atmosphere must carry
+  SURFACE reflectance and let the renderer supply the rest; a top-of-atmosphere map would
+  count the air twice. Earth was built that way from the start (land 0.15 → ~0.16 with the
+  veil; the ocean's surface level plus the veil lands near the 0.04 a TOA product shows), and
+  the other three were re-referenced on 2026-08-24 — Venus and Titan in their `albedo_scale`
+  and `albedo_color` cells (×1.045/1.058/1.100 and ×1.020/1.028/1.034), Mars in a range tag on
+  its albedo cube (`Mars.albedo.2048.h13575.hg13592.hb13387.png`, ×1.357/1.359/1.339, sphere
+  mean 0.170 → 0.231). Each body's level at the disc core is unchanged by construction; what
+  the veil adds is the darkening toward the limb — Mars 0.90 of its old brightness at
+  μ = 0.42 and 0.83 at 0.14, a limb darkening a Lambert disc did not have.
+- **This was a per-body uniform until the last two bodies were re-referenced.**
+  `atm_veil_extent` mixed the disc term against a rim-and-twilight window, for a body whose
+  map already carried its own atmosphere. With every body converted it was identically 1, so
+  it was retired along with `atm_veil_window()` and the `mix` in `atm_sun_transmittance` and
+  `atm_view_tint` (both of which lost an argument). Removing it re-rendered all four bodies
+  bit-identically but for a single pixel of Mars at 1 DN, a last-ULP difference where the old
+  `mix` compiled to a fused multiply-add. It bought no performance either way: `atm_limb()`
+  called `atm_disc()` unconditionally and applied the window afterward, so an extent-0 body
+  always paid for the disc quadrature and discarded it. What retiring it forfeits is an
+  early-out that was never implemented, over the 91 % of a low-phase disc where the window
+  was exactly 0.
+- **What lies BENEATH an atmosphere is not attenuated by its full extinction.** A
+  forward-scattering aerosol returns most of what it removes to the beam's own direction, so
+  the transmittance a surface or cloud shell rides is delta-scaled: `τ* = τ(1 − ωg)`, computed
+  once per fragment in `atm_layers()` and applied in `atm_exp_column_beneath()`. Rayleigh air
+  is g = 0 and stays unscaled, which is right — its removal from the direct beam is real and
+  is what reddens a low sun. **No source term is scaled**, so the ring and the disc's own path
+  radiance are bit-identical and the partner relation `g* = g/(1+g)` never appears (g enters
+  only the phase function). It is a stand-in for the multiple scattering this model does not
+  carry and is deliberately not energy-conserving: the light it stops removing is not
+  re-deposited anywhere. Two-way transmittance at the disc core, before → after: Mars
+  0.437 → 0.700, Earth 0.632 → 0.741, Venus 0.886 → 0.939, Titan 0.912 → 0.966 (green). This
+  is what lets a dusty disc take a full veil at all — undscaled, Mars' would have darkened to
+  0.52 of its brightness at μ = 0.5 and kept 6 % of its terrain contrast at μ = 0.2.
+- **The shell must outrun the profile.** The shader draws on the limb shell's front faces, so
+  a ray whose tangent altitude clears the shell gets no fragment: the atmosphere is cut off
+  there, and if it is still rendering at that altitude the cut is a hard edge against the sky.
+  The roll-off is about one e-fold of the scale height per step and spans ~8 of them from
+  clipped white to invisible — 60 km on Earth, 500 km on Titan — and overexposure slides the
+  whole band outward without narrowing it, so the shell has to clear the fade-out altitude at
+  the *worst* exposure the camera can hold while a lit limb is in frame (dark-adapted against a
+  crescent, ~23 EV over on Earth). That is what sets the `scale` cells: Earth 1.035, Venus
+  1.032, Mars 1.07, Titan 1.415. Measured, not guessed — see `tables/README.md`. The shader
+  then fades the ring out over the last three scale heights of whatever shell it is on, so the
+  boundary is a ramp at any exposure and an under-sized shell costs the faintest part of the
+  roll-off instead of showing an edge.
+- **A ray that meets the disc keeps BOTH halves of its tangent path, because the disc is not
+  always a surface.** Where it is — Earth's, Mars' — the far half is extinguished by the ground
+  and by the column above it (tangent optical depth 27.3 and 18.3 at the disc), and a hard
+  bright ring against a black backlit disc is what a photograph shows. Where the disc is the
+  body's own *optical* limb, it is a stand-in for haze that really does transmit: Titan's sits
+  at tangent optical depth 1.0, so discarding the far half threw away 0.60 of the ray at the
+  rim — a 1.60× step sunlit — and at high phase threw away *all* of it, since the lit part of a
+  backlit ray is entirely the far half. That was a 255 → 0 cliff in one pixel, and it cut off
+  the whole warm inner band of the backlit ring. `atm_ray_half()` now runs for the far half too,
+  at the ray's own tangent altitude *below* the disc and floored at the disc, which makes its
+  view extinction `tangent column − own column above z` exactly as for the ring — (down to the
+  far surface) + (the sub-disc chord) + (the near half) — with no new term. Rendered, the rim
+  is continuous at every phase, and Earth and Mars are **bit-identical** while Venus gains at
+  most 3 DN over 204 pixels of its rim.
+- **What ends the far half is that chord, so its gate is set on the chord's own EXTINCTION and
+  not on a count of scale heights.** The two coincide only for a body whose disc tangent
+  optical depth is already of order the threshold. A fixed `h_v > −2 H_ref` cut Titan where the
+  chord had attenuated the half by e^−7.5 — four orders of magnitude over its own night side —
+  so at the dark-adapted rest the glow ended on a hard circle 90 km inside the disc that reads
+  as a second surface behind it. The gate is now the depth at which the chord reaches
+  `ATM_FAR_GATE_TAU` = 30, taken on the channel with the thinnest chord (the one that reaches
+  deepest) and computed in altitude before any `exp()`, for the reason the 46 H_ref lit-window
+  above gives. Per body that is Earth −2.2 km, Mars −5.9, Venus −9.1 and **Titan −163** against
+  a former −16.9 / −22.2 / −10.0 / −90; only Titan's moves anything, and there the ring's inner
+  edge goes from a one-pixel cliff to a 40 km exponential roll-off that reddens as it dims,
+  because red is the channel the chord thins last. Everything from 80 km below the disc outward
+  is unchanged, and Earth, Venus and Mars render **bit-identically** (verified against a
+  same-shader control: their frame-to-frame diff is the same either way). The gate costs one
+  compare outside a thin annulus — 11.0 % of Titan's disc, 0.4 % Mars, 0.3 % Venus, 0.1 % Earth
+  — and inside it the disc branch roughly doubles.
+- **What an atmosphere costs the frame is a taste decision, not a photometric one**, so the
+  limb's brightness does not meter: a shell asserts a `limb_exposure_ceiling` or it does not
+  (see *The compensating camera*). What is geometric — where the limb is, how much of it the
+  frame holds, how much of its height is out of the body's own shadow, and whether it is
+  scattering toward the camera or away — is measured, and decides how much of that assertion
+  applies. **Nothing about the atmosphere is evaluated
+  on the CPU at all**: the camera works from the disc's radius and the limb shell's, both
+  plain table values, so there is no second copy of the profile to keep in sync with the
+  include.
+- **What the atmosphere does change about metering is WHEN the camera adapts.** A body with an
+  atmosphere is lit past its own terminator — the shadow is a cylinder of the disc's radius, so
+  air at radius r keeps the sun until its foot point's solar zenith angle reaches
+  `π − asin(disc / shell)` — and its limb is seen from farther round the body. The
+  night-adaptation cutoff therefore uses the atmosphere's geometry while the luminance it
+  adapts to stays the surface's albedo. Taken at the limb shell's own top, the terminator
+  runs to 104.9° on Earth, 101.7° on Venus, 110.8° on Mars and 128.0° on Titan, against 90°
+  for an airless body. Without an atmosphere row the formula reduces exactly to the old one.
+- **Taste, gated.** With physical light off, two by-eye multipliers act — `atm_intensity` on
+  the radiance and `atm_thickness` on every altitude scale. The `iv_limb_scale` global gates
+  them: 1.0 lets them act, 0.0 (written while physical light is active) forces both to exactly
+  1.0, so one table row serves both modes and the physical look is the physical parameters.
+
+Two float32 traps the include documents, both found as a black curve across Venus' night
+side: a literal below about 1e-14 compiles to zero in the shader language, and a valid but
+tiny float passes `> 0.0` yet comes out of the GPU's `log()` as −∞.
 
 ## The Sun
 
@@ -600,7 +790,9 @@ Forward+ and Compatibility (GL / web) render the same photometric values. While 
 light is active the Compatibility renderer's legacy post-tonemap brightness offset
 (`tonemap_exposure` 1.2, which also brightened HUD ~6% relative to Forward+) is retired
 and restored on deactivation. Compatibility's 8-bit output can band on very dim content
-(deep night ambient); Forward+ resolves the same values smoothly.
+(deep night ambient); Forward+ resolves the same values smoothly. The atmosphere shell's
+premultiplied blend composes in linear light on Forward+ and on the sRGB-encoded target
+on Compatibility, so the veil over a disc reads softer there.
 
 ## Settings summary
 
@@ -612,15 +804,16 @@ and restored on deactivation. Compatibility's 8-bit output can band on very dim 
 | | `metering_key` | Rendered value a fully metered surface lands at (mid-exposure target). |
 | | `meter_fraction_start` / `meter_fraction_full` | Screen-fraction ramp: when a body begins to influence metering / fully drives it. |
 | | `star_meter_fraction_start` / `_full` | The same ramp for the sun's disc (much later — the sun meters only as a subject). |
+| | `limb_meter_fraction_start` / `_full` | The same ramp for an atmosphere limb's ceiling, on the sunlit, forward-scattering, in-frame share of its ring (later again — a limb may clip far more readily than a disc). |
 | | `meter_edge_fraction` | Screen-edge gate width: compensation completes when a body's center is this fraction of the frame inside. |
+| | `limb_meter_edge_fraction` | The same gate on the limb ring's own samples (taken at the limb's foot), wider: it is also the centrality test. |
 | | `ring_meter_albedo` | Lit-ring metering reflectance (bright-ring level of the shipped assets, before the phase boost). |
 | | `exposure_max_ev` | Dark-adapted resting exposure, in EV above the authored sky. The empty-sky and deep-night state. |
 | | `meter_transition_exponent` | Shapes zoom-out: slower climb into overexposure, faster star arrival. |
 | | `nightside_onset_lit_fraction` / `nightside_full_lit_fraction` | Lit-disc fractions where night adaptation begins / completes. |
 | | `nightside_twilight_angle` | Horizon fade width on the last crescent sliver (close range). |
-| | `adapt_darken_ev_per_second` / `adapt_brighten_ev_per_second`, `snap_ev_threshold` | Adaptation rates and the instant-jump threshold. |
+| | `adapt_darken_ev_per_second` / `adapt_brighten_ev_per_second`, `snap_ev_threshold` | Adaptation rates and the instant-jump threshold. The rates are in WALL-CLOCK seconds (they describe the viewer's eye), which is why they carry no `IVUnits` factor where `nightside_twilight_angle` and `ambient_starlight_illuminance` do. |
 | | `default_albedo` | Metering albedo for bodies without a table value. |
-| | `limb_physical_scale` | Atmosphere-limb glow rebase while active (`iv_limb_scale`). |
 | | `emission_luminance_scale` | Luminance of a full-white emission texel at multiplier 1.0. |
 | | `ambient_starlight_illuminance` | Integrated starlight: ambient level and the metering floor. |
 
@@ -652,11 +845,16 @@ and restored on deactivation. Compatibility's 8-bit output can band on very dim 
   target), so what the gap costs is the disc law plus any body whose terrain will not fit
   under white — which is what took Mimas off this path and onto a mesh with range-tagged
   cubemaps.
-- **Physically correct atmosphere limb** using phase angle (lower priority — the current
-  sunlit-gated glow is serviceable but approximate). A **Rayleigh term across the disc** is
-  the larger relative of this and does not exist at all; if it is ever built, Earth's ocean
-  level has to be revisited in the same pass, or the atmosphere gets counted twice (see
-  *Body surfaces and albedo*).
+- **Atmospheres, follow-ups.** The δ-scaled transmittance landed 2026-08-24 (above), so the
+  remaining items are: the truncation fraction is `f = g`, the δ-HG form, where δ-Eddington
+  would use `f = g²` and recover about half as much (Earth's disc +6 % rather than +13 % over
+  bright cloudless land) — nothing here measures which is closer, and a multiple-scattering
+  reference in `limb_model.py` is what would settle it. Titan's detached layer
+  is an epoch (450–510 km in 2016–17, 500 km in 2005–07, gone 2012–15); the table carries
+  one. The planet's own shadow is in the model but an eclipse by another body is not:
+  `sun_occlusion_visible_fraction` at the tangent point would add it. The Compatibility
+  renderer composes the premultiplied blend on an sRGB-encoded target, so its veil reads
+  softer than Forward+'s (the same class of approximation the old additive blend carried).
 - **Sky radiance staleness.** Metallic spacecraft surfaces reflect the sky's radiance
   cubemap, which Godot rebakes only when the sky material is touched — so it holds
   whatever exposure was current at the last bake (usually activation). Today the effect
