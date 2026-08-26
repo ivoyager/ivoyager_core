@@ -150,7 +150,8 @@ func _ready() -> void:
 
 
 func _shortcut_input(event: InputEvent) -> void:
-	if event.is_action_pressed(&"ui_cancel") or event.is_action_pressed(&"toggle_hotkeys", true):
+	if (event.is_action_pressed(&"ui_cancel")
+			or IVInputMapManager.is_action_pressed(event, &"toggle_hotkeys", true)):
 		_on_cancel()
 		set_input_as_handled()
 

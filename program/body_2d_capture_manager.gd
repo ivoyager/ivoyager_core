@@ -48,7 +48,7 @@ func _ready() -> void:
 
 
 func _shortcut_input(event: InputEvent) -> void:
-	if !user_action or !event.is_action_pressed(user_action):
+	if !user_action or !IVInputMapManager.is_action_pressed(event, user_action):
 		return
 	open_dialog()
 	get_viewport().set_input_as_handled()
