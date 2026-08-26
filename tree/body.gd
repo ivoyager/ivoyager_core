@@ -984,8 +984,11 @@ func get_body_class() -> int:
 	return characteristics.get(&"body_class", -1)
 
 
-## Returns a "perspective" radius used for camera distancing.
-## Same as [member mean_radius] unless something different is needed.
+## Returns a "perspective" radius used for camera distancing: [member mean_radius]
+## unless the body's table row sets [code]perspective_radius[/code]. A body whose
+## visible extent is larger than its radius sets it there -- Titan's haze shell is
+## the case -- so the camera's closest approach and near plane (1.2 and 0.1 of
+## this radius, see [IVCamera]) clear the shell instead of clipping it.
 func get_perspective_radius() -> float:
 	var perspective_radius: float = characteristics.get(&"perspective_radius", 0.0)
 	if perspective_radius:
@@ -1420,7 +1423,7 @@ func get_orbit_tracking_basis(time := NAN) -> Basis:
 # IVCamera duck-type methods...
 
 func get_camera_radius() -> float:
-	return mean_radius
+	return get_perspective_radius()
 
 
 func get_camera_ground_basis() -> Basis:

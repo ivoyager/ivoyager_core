@@ -112,13 +112,13 @@ func _shortcut_input(event: InputEvent) -> void:
 	if not event.is_pressed():
 		return
 	@warning_ignore_start("unsafe_property_access", "unsafe_method_access")
-	if event.is_action_pressed(input_shortcut_quicksave):
+	if IVInputMapManager.is_action_pressed(event, input_shortcut_quicksave):
 		_save_singleton.quicksave()
-	elif event.is_action_pressed(input_shortcut_save_as):
+	elif IVInputMapManager.is_action_pressed(event, input_shortcut_save_as):
 		_save_singleton.save_file()
-	elif event.is_action_pressed(input_shortcut_quickload):
+	elif IVInputMapManager.is_action_pressed(event, input_shortcut_quickload):
 		_save_singleton.quickload()
-	elif event.is_action_pressed(input_shortcut_load_file):
+	elif IVInputMapManager.is_action_pressed(event, input_shortcut_load_file):
 		_save_singleton.load_file()
 	else:
 		return

@@ -511,6 +511,21 @@ func restore_from_cache() -> void:
 
 
 
+## Returns false, rather than erroring, if [param action] is not in the InputMap.
+## Use this in place of [method InputEvent.is_action_pressed] for any action
+## defined here: none of them exist until [IVCoreInitializer] instantiates this
+## class, and a project is free to remove or rename any of them.
+static func is_action_pressed(event: InputEvent, action: StringName, allow_echo := false,
+		exact_match := false) -> bool:
+	return InputMap.has_action(action) and event.is_action_pressed(action, allow_echo, exact_match)
+
+
+## Returns false, rather than erroring, if [param action] is not in the InputMap.
+## See [method is_action_pressed].
+static func is_action_released(event: InputEvent, action: StringName, exact_match := false) -> bool:
+	return InputMap.has_action(action) and event.is_action_released(action, exact_match)
+
+
 ## Returns scancodes (with modifier bits OR'd in) for every keyboard event
 ## bound to [param action].
 func get_scancodes_w_mods_for_action(action: StringName) -> Array[int]:

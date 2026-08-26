@@ -52,6 +52,12 @@ extends PopupPanel
 ## Save plugin is not present and enabled.
 @export var autoremove_for_missing_save_plugin := true
 
+## Revert-to-default button text.
+@export var default_button_text := "!"
+## Revert-to-default button icon.
+@export var default_button_icon: Texture2D
+## Revert-to-default button text.
+@export var default_button_tooltip_text := "HINT_RESTORE_DEFAULT_OPTION"
 
 ## Content layout is an array of columns, where each column is an array of 
 ## header labels. The header labels must correspond to keys in [member
@@ -153,7 +159,8 @@ func _ready() -> void:
 
 
 func _shortcut_input(event: InputEvent) -> void:
-	if event.is_action_pressed(&"ui_cancel") or event.is_action_pressed(&"toggle_options", true):
+	if (event.is_action_pressed(&"ui_cancel")
+			or IVInputMapManager.is_action_pressed(event, &"toggle_options", true)):
 		_on_cancel()
 		set_input_as_handled()
 
@@ -285,7 +292,9 @@ func _build_item(option_text: StringName, setting: StringName) -> HBoxContainer:
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	label.text = option_text
 	var default_button := Button.new()
-	default_button.text = "!"
+	default_button.text = default_button_text
+	default_button.icon = default_button_icon
+	default_button.tooltip_text = default_button_tooltip_text
 	default_button.disabled = IVSettingsManager.is_default(setting)
 	default_button.pressed.connect(_restore_default.bind(setting))
 	var value: Variant = IVSettingsManager.get_setting(setting)

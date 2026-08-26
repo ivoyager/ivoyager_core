@@ -149,11 +149,11 @@ func _process(delta: float) -> void:
 func _shortcut_input(event: InputEvent) -> void:
 	if not event.is_pressed():
 		return
-	if event.is_action_pressed(&"incr_speed"):
+	if IVInputMapManager.is_action_pressed(event, &"incr_speed"):
 		increment_speed()
-	elif event.is_action_pressed(&"decr_speed"):
+	elif IVInputMapManager.is_action_pressed(event, &"decr_speed"):
 		decrement_speed()
-	elif _allow_time_reversal and event.is_action_pressed(&"reverse_time"):
+	elif _allow_time_reversal and IVInputMapManager.is_action_pressed(event, &"reverse_time"):
 		set_reversed_time(!_reversed_time)
 	else:
 		return # input NOT handled!

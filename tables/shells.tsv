@@ -1,30 +1,31 @@
-	surface_class	shell0	scale	file_tag	shader	process	process_args	is_sun	cast_shadow	transparency	emission_energy_multiplier	emission_luminance	metallic	roughness	roughness_scale	metallic_specular	lunar_lambert	minnaert_k	albedo_ceiling	albedo_scale	limb_color	limb_intensity	limb_falloff	limb_day_glow	limb_forward_scatter	limb_phase_exponent	limb_twilight	albedo_color	band_tint_color	band_tint_strength	band0	band1	band2	band3	band4	band5	band_contrast	streak_strength	streak_scale	streak_squash	streak_tilt	band_turbulence	band_turbulence_scale	wave_amplitude	wave_number	wave_tilt	polar_equatorial_ratio	clouds_detail_strength	clouds_warp_strength	band_step	streak_gate	band_turbulence_squash
-Type	TABLE_ROW	BOOL	FLOAT	STRING_NAME	STRING_NAME	STRING_NAME	ARRAY[VARIANT]	BOOL	GeometryInstance3D.ShadowCastingSetting	BaseMaterial3D.Transparency	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	COLOR	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	COLOR	COLOR	FLOAT	VECTOR3	VECTOR3	VECTOR3	VECTOR3	VECTOR3	VECTOR3	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	VECTOR3	FLOAT	FLOAT
-Unit												cd/m^2																																								
-Prefix/SHELL_	SURFACE_CLASS_								SHADOW_CASTING_SETTING_	TRANSPARENCY_																																										
-# Body rows. Named SHELL_<body>_<tag> and listed in the body's 'shells' field.																																																				
-PLANET_EARTH_SURFACE		x			surface_shader						0.1	0.3				0.35																																				
-PLANET_EARTH_CLOUDS			1.0016	clouds	cloud_shell_shader	_rotate	0.0003		OFF																																											
-PLANET_EARTH_LIMB			1.02		atmosphere_limb_shader				OFF												0.431, 0.627, 0.922, 1.0	0.01	25	1.0	2.5	4.0	0.15																									
-PLANET_VENUS_SURFACE		x	1.010741		band_pattern_shader													1.35	1.45	1.3041								0.9811, 1.0000, 0.9060, 1.0			-14.3, 31.9, -0.0519	86.5, 16.9, 0.1902	-92.0, 24.8, 0.1914	50.4, 8.5, 0.0393			1.0	0.070	3.0	3.0	70.0	22.0	0.85	0.035		60.0					3.0	3.0
-PLANET_VENUS_LIMB			1.02		atmosphere_limb_shader				OFF												0.922, 0.882, 0.725, 1.0	0.01	25	1.0	3.0	4.0	0.2																									
-MOON_TITAN_SURFACE		x			band_pattern_shader													1.085										0.6997, 0.6205, 0.3389, 1.0	0.7375, 0.6091, 0.3179, 1.0	30.0	82.0, 12.0, -0.045	-40.0, 30.0, 0.012					1.0													0.0, 8.0, -0.060		
-MOON_TITAN_LIMB			1.05		atmosphere_limb_shader				OFF												0.471, 0.647, 0.882, 1.0	0.05	20	1.2	3.5	3.0	0.25																									
-PLANET_URANUS_SURFACE		x			band_pattern_shader												0.330											0.7406, 0.8309, 0.8317, 1.0			-54.0, 8.0, 0.026	54.0, 8.0, 0.026					1.0	0.030	6.0	4.0	10.0						0.977073				4.0	
-PLANET_NEPTUNE_SURFACE		x			band_pattern_shader												0.466											0.6539, 0.7817, 0.8461, 1.0			38.6, 9.3, 0.4325	-60.0, 13.2, -0.2721	48.7, 19.5, -0.2231	-74.2, 10.2, 0.3055	81.8, 6.1, 0.1964	-4.4, 11.2, 0.0318	1.0	0.045	5.0	4.0	12.0	3.0	2.0				0.982919				5.0	2.0
-PLANET_NEPTUNE_CLOUDS			1.002	clouds	cloud_shell_shader				OFF								0.466																															0.0	0.0			
-# Surface-class rows. Each is the default shell 0 for its surface_class; a body's																																																				
-# own shell0 row replaces it wholly (never a merge).																																																				
-G_STAR	G_STAR	x			sun_surface_shader			x	OFF																																											
-ROCKY_WORLD	ROCKY_WORLD	x			surface_shader												0.6																																			
-DESERT_WORLD	DESERT_WORLD	x			surface_shader												0.6																																			
-CONTINENTAL_WORLD	CONTINENTAL_WORLD	x			surface_shader											0.35																																				
-THICK_ATM_WORLD	THICK_ATM_WORLD	x			surface_shader																																															
-ICE_WORLD	ICE_WORLD	x			surface_shader										0.5	0.35	1.0																																			
-VOLCANO_WORLD	VOLCANO_WORLD	x			surface_shader												0.6																																			
-GAS_GIANT	GAS_GIANT	x			surface_shader																																															
-ICE_GIANT	ICE_GIANT	x			surface_shader																																															
-C_TYPE_BODY	C_TYPE_BODY	x			surface_shader												0.6																																			
-M_TYPE_BODY	M_TYPE_BODY	x			surface_shader												0.6																																			
-S_TYPE_BODY	S_TYPE_BODY	x			surface_shader												0.6																																			
-FALLBACK	FALLBACK	x																																																		
+	surface_class	shell0	scale	file_tag	shader	process	process_args	is_sun	cast_shadow	exposure_ceiling	limb_exposure_ceiling	transparency	emission_energy_multiplier	emission_luminance	metallic	roughness	roughness_scale	metallic_specular	lunar_lambert	minnaert_k	albedo_ceiling	albedo_scale	atm_gas_tau	atm_gas_scale_height_km	atm_gas_multiple	atm_haze_tau	atm_haze_scale_height_km	atm_haze_top_km	atm_haze_top_scale_height_km	atm_haze_albedo	atm_haze_g	atm_haze_multiple	atm_layer_tau	atm_layer_altitude_km	atm_layer_width_km	atm_layer_albedo	atm_layer_g	atm_intensity	atm_thickness	albedo_color	band_tint_color	band_tint_strength	band0	band1	band2	band3	band4	band5	band_contrast	streak_strength	streak_scale	streak_squash	streak_tilt	band_turbulence	band_turbulence_scale	wave_amplitude	wave_number	wave_tilt	polar_equatorial_ratio	clouds_detail_strength	clouds_warp_strength	band_step	streak_gate	band_turbulence_squash
+Type	TABLE_ROW	BOOL	FLOAT	STRING_NAME	STRING_NAME	STRING_NAME	ARRAY[VARIANT]	BOOL	GeometryInstance3D.ShadowCastingSetting	FLOAT	FLOAT	BaseMaterial3D.Transparency	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	VECTOR3	FLOAT	FLOAT	VECTOR3	FLOAT	FLOAT	FLOAT	VECTOR3	FLOAT	FLOAT	VECTOR3	FLOAT	FLOAT	VECTOR3	FLOAT	FLOAT	FLOAT	COLOR	COLOR	FLOAT	VECTOR3	VECTOR3	VECTOR3	VECTOR3	VECTOR3	VECTOR3	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	VECTOR3	FLOAT	FLOAT
+Unit														cd/m^2																																																		
+Prefix/SHELL_	SURFACE_CLASS_								SHADOW_CASTING_SETTING_			TRANSPARENCY_																																																				
+# Body rows. Named SHELL_<body>_<tag> and listed in the body's 'shells' field.																																																																
+PLANET_EARTH_SURFACE		x			surface_shader					8			0.1	0.3				0.35																																														
+PLANET_EARTH_CLOUDS			1.0016	clouds	cloud_shell_shader	_rotate	0.0003		OFF																																																							
+PLANET_EARTH_LIMB			1.035		atmosphere_limb_shader				OFF		0.00001												0.07371, 0.1072, 0.2206	8.435	1.3	0.1107, 0.1225, 0.1462	1.5			0.94, 0.94, 0.94	0.69																																	
+PLANET_VENUS_SURFACE		x	1.010741		band_pattern_shader															1.35	1.5343	1.3799																		0.9755, 1.0000, 0.9215, 1.0			-14.3, 31.9, -0.0519	86.5, 16.9, 0.1902	-92.0, 24.8, 0.1914	50.4, 8.5, 0.0393			1.0	0.070	3.0	3.0	70.0	22.0	0.85	0.035		60.0					3.0	3.0
+PLANET_VENUS_LIMB			1.032		atmosphere_limb_shader				OFF		0.00001												0.01378, 0.01991, 0.0412	5.0		0.0369, 0.04083, 0.04874	4.0			1.0, 1.0, 1.0	0.72																																	
+PLANET_MARS_LIMB			1.07		atmosphere_limb_shader				OFF		0.00001												0.002128, 0.00307, 0.006354	11.1		0.403, 0.3993, 0.393	11.0			0.913, 0.8763, 0.7916	0.673		0.05, 0.05, 0.05	45.0	8.0	1.0, 1.0, 1.0	0.65																											
+MOON_TITAN_SURFACE		x	1.1146		band_pattern_shader															1.085		0.8276																		0.6973, 0.6205, 0.3399, 1.0	0.7375, 0.6091, 0.3179, 1.0	30.0	82.0, 12.0, -0.045	-40.0, 30.0, 0.012					1.0													0.0, 8.0, -0.060		
+MOON_TITAN_LIMB			1.415		atmosphere_limb_shader				OFF		0.00001															0.0419, 0.05262, 0.07954	45.0	80.0	10.0	0.9119, 0.8599, 0.7368	0.75	2.0	0.001678, 0.002241, 0.003849	185.0	12.0	1.0, 1.0, 1.0	0.3																											
+PLANET_URANUS_SURFACE		x			band_pattern_shader														0.330																					0.7406, 0.8309, 0.8317, 1.0			-54.0, 8.0, 0.026	54.0, 8.0, 0.026					1.0	0.030	6.0	4.0	10.0						0.977073				4.0	
+PLANET_NEPTUNE_SURFACE		x			band_pattern_shader														0.466																					0.6539, 0.7817, 0.8461, 1.0			38.6, 9.3, 0.4325	-60.0, 13.2, -0.2721	48.7, 19.5, -0.2231	-74.2, 10.2, 0.3055	81.8, 6.1, 0.1964	-4.4, 11.2, 0.0318	1.0	0.045	5.0	4.0	12.0	3.0	2.0				0.982919				5.0	2.0
+PLANET_NEPTUNE_CLOUDS			1.002	clouds	cloud_shell_shader				OFF										0.466																																									0.0	0.0			
+# Surface-class rows. Each is the default shell 0 for its surface_class; a body's																																																																
+# own shell0 row replaces it wholly (never a merge).																																																																
+G_STAR	G_STAR	x			sun_surface_shader			x	OFF																																																							
+ROCKY_WORLD	ROCKY_WORLD	x			surface_shader														0.6																																													
+DESERT_WORLD	DESERT_WORLD	x			surface_shader														0.6																																													
+CONTINENTAL_WORLD	CONTINENTAL_WORLD	x			surface_shader													0.35																																														
+THICK_ATM_WORLD	THICK_ATM_WORLD	x			surface_shader																																																											
+ICE_WORLD	ICE_WORLD	x			surface_shader												0.5	0.35	1.0																																													
+VOLCANO_WORLD	VOLCANO_WORLD	x			surface_shader														0.6																																													
+GAS_GIANT	GAS_GIANT	x			surface_shader																																																											
+ICE_GIANT	ICE_GIANT	x			surface_shader																																																											
+C_TYPE_BODY	C_TYPE_BODY	x			surface_shader														0.6																																													
+M_TYPE_BODY	M_TYPE_BODY	x			surface_shader														0.6																																													
+S_TYPE_BODY	S_TYPE_BODY	x			surface_shader														0.6																																													
+FALLBACK	FALLBACK	x																																																														

@@ -48,13 +48,13 @@ func _ready() -> void:
 func _shortcut_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"ui_cancel"):
 		IVGlobal.main_menu_requested.emit()
-	elif event.is_action_pressed(&"toggle_options", true):
+	elif IVInputMapManager.is_action_pressed(event, &"toggle_options", true):
 		IVGlobal.options_requested.emit()
-	elif event.is_action_pressed(&"toggle_hotkeys", true):
+	elif IVInputMapManager.is_action_pressed(event, &"toggle_hotkeys", true):
 		IVGlobal.hotkeys_requested.emit()
-	elif event.is_action_pressed(&"toggle_pause", true):
+	elif IVInputMapManager.is_action_pressed(event, &"toggle_pause", true):
 		IVStateManager.set_user_paused(not IVStateManager.paused_by_user)
-	elif event.is_action_pressed(&"quit", true):
+	elif IVInputMapManager.is_action_pressed(event, &"quit", true):
 		IVStateManager.quit()
 	else:
 		for shortcut_handler in shortcut_handlers:

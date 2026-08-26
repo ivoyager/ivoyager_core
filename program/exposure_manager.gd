@@ -54,8 +54,8 @@ extends Node
 ##   cd/m^2 its shells.tsv emission_luminance column asserts, paired with
 ##   [code]iv_emission_energy_scale[/code] (0.0 while active), which retires
 ##   the by-eye emission_energy_multiplier channel, and [code]iv_limb_scale[/code]
-##   ([member limb_physical_scale] while active), which rebases the
-##   atmosphere-limb glow for the physical energy range.[br]
+##   (0.0 while active, 1.0 otherwise), the gate on the atmosphere shells' by-eye
+##   taste multipliers: the physical parameters alone render under physical light.[br]
 ## - Drives the Environment ambient energy per frame (starlight level x
 ##   [member exposure]): engine ambient then compensates StandardMaterial3D
 ##   craft models, and [IVSunOcclusionManager]'s ambient_light feed hands the
@@ -137,6 +137,20 @@ var star_meter_fraction_start := 0.005
 ## Screen-area fraction at which the star's disc fully drives metering (a
 ## deliberate close approach; VIEW_ZOOM framing is ~0.2).
 var star_meter_fraction_full := 0.2
+## Screen-area fraction at which an atmosphere limb begins to hold its shell's
+## [code]limb_exposure_ceiling[/code] (with [member limb_meter_fraction_full],
+## a far later ramp than the body one). The fraction is the limb shell's own
+## on-screen area scaled by the share of the limb that is sunlit, forward-scattering
+## and inside the frame, so what it measures is the LIMB as a subject and not the
+## body: zoom inside the ring, pan it out of frame, or swing round to where the sun
+## is behind the camera, and the ceiling releases entirely.
+## The late ramp is the "how much more readily than a disc may a limb clip"
+## knob - the camera compensates for a limb only where the limb is the view.
+var limb_meter_fraction_start := 0.05
+## Screen-area fraction at which an atmosphere limb fully holds its shell's
+## [code]limb_exposure_ceiling[/code]; see [member limb_meter_fraction_start].
+## Roughly the body framed at the default view zoom with its lit limb in frame.
+var limb_meter_fraction_full := 0.5
 ## The screen-edge gate on every candidate's metering weight: a body influences
 ## exposure only while its disc is actually inside the frame, ramping from zero
 ## as the disc crosses the frame edge to full influence when its center is this
@@ -145,9 +159,22 @@ var star_meter_fraction_full := 0.2
 ## in; a body just OUT of frame never meters (it can't - the same gate is what
 ## keeps an off-frame sun from black-crushing the view).
 var meter_edge_fraction := 0.15
+## The screen-edge gate on the limb ring's own samples (taken at the limb's
+## foot), standing in for
+## [member meter_edge_fraction] on that one candidate: how far inside the frame
+## a piece of lit limb must sit to count in full. Wider than the body gate
+## because it does a second job - centrality, which is half of what makes a
+## limb the subject of a view rather than something at its corner. At 0.5 only
+## a ring through the middle of the frame counts at all.
+var limb_meter_edge_fraction := 0.25
 ## Exposure adaptation rate (EV/s) when darkening (a bright body entering).
+## In WALL-CLOCK seconds, not [IVUnits]: an adaptation rate describes the
+## viewer's eye, not the simulation, so [method _process] divides its delta by
+## [member Engine.time_scale] and this rate is measured against that. Scaling it
+## by [constant IVUnits.SECOND] would be the bug, not the fix.
 var adapt_darken_ev_per_second := 16.0
-## Exposure adaptation rate (EV/s) when brightening (bright body leaving).
+## Exposure adaptation rate (EV/s) when brightening (bright body leaving); see
+## [member adapt_darken_ev_per_second] for why this is not an [IVUnits] quantity.
 var adapt_brighten_ev_per_second := 8.0
 ## Target jumps larger than this (EV) apply instantly - camera teleports and
 ## view restores snap rather than adapt.
@@ -201,13 +228,6 @@ var nightside_full_lit_fraction := 0.05
 ## tail of the night transition - most of the adaptation comes earlier, from
 ## the lit fraction falling through the ramp above.
 var nightside_twilight_angle := 20.0 * IVUnits.DEG
-## Scale on the atmosphere-limb glow while active (written once to the
-## [code]iv_limb_scale[/code] shader global; 1.0 while inactive). The limb_*
-## shell values are authored against nonphysical O(1) light energies, but under
-## physical light the same glow rides the compensating camera across ~20+ EV,
-## so it must start much lower: invisible at day exposures, emerging as the
-## twilight arc and backlit ring only when night or backlit exposure opens up.
-var limb_physical_scale := 0.02
 ## Integrated starlight illuminance for ambient, in internal units
 ## (~2e-4 lux; sky-integrated V-band starlight). Also the illuminance floor of
 ## body metering: a fully dark body meters as starlit terrain, which is what
@@ -227,6 +247,10 @@ var _captured_tonemap_exposure := NAN
 var _ambient_energy_base := 0.0 # Environment ambient at exposure 1.0; x exposure per frame
 var _ring_meter_data: Dictionary[StringName, Vector2] = {} # body name -> (inner, outer) radius
 var _ring_meter_data_built := false
+var _limb_geometry: Dictionary[StringName, Vector2] = {} # body name -> (disc, shell) radius
+var _exposure_ceilings: Dictionary[StringName, Array] = {} # body name -> [(shell radius, ceiling)]
+var _limb_ceilings: Dictionary[StringName, float] = {} # body name -> limb_exposure_ceiling
+var _shell_meter_data_built := false
 var _ring_litside_phase_boost := 3.0 # rings.gdshader default; Compatibility override in _ready
 
 
@@ -283,8 +307,11 @@ func _apply_transition() -> void:
 		if !_recompute_photometry():
 			return
 		_build_ring_meter_data()
+		_build_shell_meter_data()
 		_capture_and_apply_scene_values()
-		RenderingServer.global_shader_parameter_set(&"iv_limb_scale", limb_physical_scale)
+		# The atmosphere's output is I/F riding light_energy like a surface; no rebase. The
+		# global only gates the shells' nonphysical taste multipliers off (see _atmosphere.gdshaderinc).
+		RenderingServer.global_shader_parameter_set(&"iv_limb_scale", 0.0)
 		RenderingServer.global_shader_parameter_set(&"iv_emission_energy_scale", 0.0)
 		_snap_next = true
 		physical_active = true
@@ -395,6 +422,56 @@ func _build_ring_meter_data() -> void:
 		var ring_bodies: Array[StringName] = IVTableData.get_db_array(&"rings", &"bodies", row)
 		for ring_body_name: StringName in ring_bodies:
 			_ring_meter_data[ring_body_name] = Vector2(inner_radius, outer_radius)
+
+
+func _build_shell_meter_data() -> void:
+	# What the camera needs per shell, from one walk of the shells table (the tables, not
+	# IVAssetPreloader, which holds a lazily modelled body's resources only once it is
+	# seen): every shell's exposure_ceiling, and, for a body with an atmosphere limb shell,
+	# its disc and shell radii and that shell's limb_exposure_ceiling, which rides on those
+	# rather than on the body.
+	if _shell_meter_data_built:
+		return
+	_shell_meter_data_built = true
+	if !IVTableData.table_n_rows.has(&"shells"):
+		return
+	for table in IVCoreSettings.body_tables:
+		for row in IVTableData.get_n_rows(table):
+			var shell_tags: Array = IVTableData.get_db_array(table, &"shells", row)
+			if shell_tags.is_empty():
+				continue
+			var body_name := IVTableData.get_db_entity_name(table, row)
+			var mean_radius := IVTableData.get_db_float(table, &"mean_radius", row)
+			if !(mean_radius > 0.0):
+				continue
+			var surface_scale := 1.0
+			var limb_row := -1
+			var limb_scale := 1.0
+			var ceilings: Array[Vector2] = []
+			for tag: String in shell_tags:
+				var shell_row := IVTableData.get_row(StringName("SHELL_%s_%s" % [body_name, tag]))
+				if shell_row == -1:
+					continue
+				var shell_scale := 1.0
+				if IVTableData.db_has_value(&"shells", &"scale", shell_row):
+					shell_scale = IVTableData.get_db_float(&"shells", &"scale", shell_row)
+				if IVTableData.get_db_bool(&"shells", &"shell0", shell_row):
+					surface_scale = shell_scale
+				elif IVTableData.get_db_string_name(&"shells", &"shader", shell_row) == &"atmosphere_limb_shader":
+					limb_row = shell_row
+					limb_scale = shell_scale
+				if IVTableData.db_has_value(&"shells", &"exposure_ceiling", shell_row):
+					ceilings.append(Vector2(mean_radius * shell_scale,
+							IVTableData.get_db_float(&"shells", &"exposure_ceiling", shell_row)))
+			if ceilings:
+				_exposure_ceilings[body_name] = ceilings
+			if limb_row == -1:
+				continue
+			_limb_geometry[body_name] = Vector2(mean_radius * surface_scale,
+					mean_radius * limb_scale)
+			if IVTableData.db_has_value(&"shells", &"limb_exposure_ceiling", limb_row):
+				_limb_ceilings[body_name] = IVTableData.get_db_float(&"shells",
+						&"limb_exposure_ceiling", limb_row)
 
 
 func _find_world_environment() -> void:
@@ -548,6 +625,17 @@ func _get_metering_target() -> float:
 					_ring_meter_data[body_name], camera_vector, camera_distance, star_vector,
 					star_distance, illuminance, shadow_fraction, fraction_per_theta_sq,
 					view_size, tan_half_fov, aspect, log_rest, rest_exposure))
+		if _exposure_ceilings.has(body_name):
+			var ceilings: Array[Vector2] = _exposure_ceilings[body_name]
+			for shell in ceilings:
+				min_exposure = minf(min_exposure, _get_ceiling_candidate_exposure(body, shell,
+						camera_distance, fraction_per_theta_sq, view_size, tan_half_fov,
+						aspect, log_rest, rest_exposure))
+		if _limb_ceilings.has(body_name):
+			min_exposure = minf(min_exposure, _get_limb_ceiling_candidate_exposure(body,
+					_limb_geometry[body_name], _limb_ceilings[body_name], camera_vector,
+					camera_distance, star_vector, star_distance, fraction_per_theta_sq,
+					view_size, log_rest, rest_exposure))
 	return min_exposure
 
 
@@ -570,7 +658,15 @@ func _get_ramp_weight(screen_fraction: float, fraction_start: float,
 ## (star-revealing) EV quickly; see meter_transition_exponent.
 func _get_candidate_exposure(luminance: float, weight: float, log_rest: float,
 		rest_exposure: float) -> float:
-	var full_exposure := minf(metering_key / (luminance * gain), rest_exposure)
+	return _blend_candidate_exposure(metering_key / (luminance * gain), weight, log_rest,
+			rest_exposure)
+
+
+## The blend itself, for a candidate whose fully-metered exposure is asserted rather than
+## derived from a luminance (see [method _get_ceiling_candidate_exposure]).
+func _blend_candidate_exposure(full_exposure: float, weight: float, log_rest: float,
+		rest_exposure: float) -> float:
+	full_exposure = minf(full_exposure, rest_exposure)
 	var shaped_weight := 1.0 - (1.0 - weight) ** meter_transition_exponent
 	return exp(lerpf(log_rest, log(full_exposure), shaped_weight))
 
@@ -644,8 +740,127 @@ func _get_ring_candidate_exposure(body: IVBody, ring_radii: Vector2, camera_vect
 	return _get_candidate_exposure(ring_luminance, ring_weight, log_rest, rest_exposure)
 
 
+## Metering candidate for a shell that asserts an [code]exposure_ceiling[/code] in
+## shells.tsv: the exposure the camera may not exceed while that shell is in view, held
+## by the shell's own screen area on the same ramp and screen-edge gate as every other
+## candidate, and by nothing else - no phase, no lit fraction, no luminance. What a
+## rendered atmosphere should cost the rest of the frame is not a photometric question
+## (a real camera exposed for a body's disc DOES blow its limb out, and the reference
+## photographs that show limb structure are exposed for the limb and show no stars), so
+## the ceiling is asserted per shell rather than metered. Lower candidates still win:
+## a ceiling never brightens a view its body's own disc has already metered down.
+## Returns rest_exposure when the shell doesn't meter.
+func _get_ceiling_candidate_exposure(body: IVBody, shell: Vector2, camera_distance: float,
+		fraction_per_theta_sq: float, view_size: Vector2, tan_half_fov: float, aspect: float,
+		log_rest: float, rest_exposure: float) -> float:
+	var angular_radius := minf(shell.x / camera_distance, 1.0)
+	var shell_fraction := fraction_per_theta_sq * angular_radius * angular_radius
+	var view_factor := _get_view_factor(body.global_position, angular_radius, view_size,
+			tan_half_fov, aspect)
+	var weight := view_factor * _get_ramp_weight(shell_fraction, meter_fraction_start,
+			meter_fraction_full)
+	if weight <= 0.0:
+		return rest_exposure
+	return _blend_candidate_exposure(shell.y, weight, log_rest, rest_exposure)
+
+
+## Metering candidate for an atmosphere limb that asserts a
+## [code]limb_exposure_ceiling[/code] in shells.tsv. Like
+## [method _get_ceiling_candidate_exposure] the exposure itself is asserted rather than
+## metered, for the same reason; what differs is what holds it. A limb is a ring, not a
+## disc, so the camera compensates for one only while that ring is the view.[br][br]
+##
+## The ring is sampled in azimuth on the DISC's silhouette circle - the limb's own foot,
+## which is where its light is and where a viewer sees it - and each sample carries the
+## limb's whole height above that foot, up to the limb shell. A sample counts by three
+## things.[br]
+## - How much of that height is SUNLIT: the shadow is the disc's own cylinder, so at a foot
+##   whose solar zenith is past 90 deg the shadow stands at radius
+##   [code]disc / sin(zenith)[/code] and only the limb above it is still in daylight - full
+##   credit at the terminator, falling to none where the shadow tops the shell.[br]
+## - Whether the sample FORWARD-SCATTERS toward the camera, which is what makes a limb
+##   bright enough to be a subject at all: the cosine of its scattering angle, the sun's
+##   direction against the sample's own line to the camera, clamped at zero. A limb lit
+##   from the camera's own side is not a ring anyone is looking at, and the body's disc
+##   meters that view by itself.[br]
+## - How far INSIDE THE FRAME the foot sits ([member limb_meter_edge_fraction]).[br]
+## Their share of the ring scales the SHELL's screen area, on the limb's own late
+## ramp.[br][br]
+##
+## The two physical terms are both needed and neither substitutes: a lit-height measure
+## alone credits a twilight limb coming out of a night side exactly as it credits a blazing
+## backlit one, because those are the same shadow geometry seen from opposite phases, and
+## at fixed shadow the ring's own radiance runs about two orders of magnitude between them.
+## A forward-scatter measure alone credits a fully shadowed limb at high phase. So zooming
+## past the ring, or panning it out of frame, releases the ceiling and hands back the fully
+## dark-adapted exposure; a backlit twilight limb holds it in proportion to the lit height
+## that remains; and a limb that is either in the body's shadow or lit from behind the
+## camera never held it at all. Returns rest_exposure when the limb doesn't meter.
+func _get_limb_ceiling_candidate_exposure(body: IVBody, limb: Vector2, ceiling: float,
+		camera_vector: Vector3, camera_distance: float, star_vector: Vector3,
+		star_distance: float, fraction_per_theta_sq: float, view_size: Vector2,
+		log_rest: float, rest_exposure: float) -> float:
+	const RING_SAMPLES := 32
+	var disc_radius := limb.x
+	var shell_radius := limb.y
+	var limb_height := shell_radius - disc_radius
+	if limb_height <= 0.0 or camera_distance <= disc_radius:
+		return rest_exposure
+	var camera_position := body.global_position - camera_vector
+	var to_camera := -camera_vector / camera_distance
+	var to_star := star_vector / star_distance
+	# A sphere's silhouette circle is smaller than the sphere and offset toward the camera,
+	# and both terms run away close in - which is what takes the ring off screen, and the
+	# ceiling with it, exactly where the camera is flying inside the limb's own annulus.
+	var ring_radius := disc_radius * sqrt(maxf(1.0 - disc_radius * disc_radius
+			/ (camera_distance * camera_distance), 0.0))
+	var ring_center := body.global_position + to_camera * (disc_radius * disc_radius
+			/ camera_distance)
+	var sunward_axis := to_star - to_camera * to_star.dot(to_camera)
+	if sunward_axis.length_squared() < 1e-12: # sun behind or ahead; the ring is symmetric
+		sunward_axis = to_camera.cross(Vector3.UP if absf(to_camera.y) < 0.9 else Vector3.RIGHT)
+	sunward_axis = sunward_axis.normalized()
+	var crosswise_axis := to_camera.cross(sunward_axis)
+	var visible_lit := 0.0
+	for i in RING_SAMPLES:
+		var azimuth := TAU * (i + 0.5) / RING_SAMPLES
+		var point := ring_center + (sunward_axis * cos(azimuth)
+				+ crosswise_axis * sin(azimuth)) * ring_radius
+		var solar_cosine := (point - body.global_position).dot(to_star) / disc_radius
+		var lit := 1.0
+		if solar_cosine < 0.0: # past the terminator: the shadow rises into the limb
+			var sin_zenith := sqrt(maxf(1.0 - solar_cosine * solar_cosine, 1e-12))
+			lit = clampf((shell_radius - disc_radius / sin_zenith) / limb_height, 0.0, 1.0)
+		# Per sample rather than from the body's phase: close in, the ring spans a wide range
+		# of scattering angles, and the samples in frame are rarely the ones the phase names.
+		var to_viewer := (camera_position - point).normalized()
+		lit *= maxf(-to_star.dot(to_viewer), 0.0)
+		if lit <= 0.0 or _camera.is_position_behind(point):
+			continue
+		var screen_position := _camera.unproject_position(point)
+		var position_x := screen_position.x / view_size.x
+		var position_y := screen_position.y / view_size.y
+		var penetration := minf(minf(position_x, 1.0 - position_x),
+				minf(position_y, 1.0 - position_y))
+		if penetration <= 0.0:
+			continue
+		visible_lit += lit * smoothstep(0.0, maxf(limb_meter_edge_fraction, 1e-4), penetration)
+	if visible_lit <= 0.0:
+		return rest_exposure
+	var angular_radius := minf(shell_radius / camera_distance, 1.0)
+	var ring_fraction := fraction_per_theta_sq * angular_radius * angular_radius
+	var limb_fraction := ring_fraction * visible_lit / RING_SAMPLES
+	var weight := _get_ramp_weight(limb_fraction, limb_meter_fraction_start,
+			limb_meter_fraction_full)
+	if weight <= 0.0:
+		return rest_exposure
+	return _blend_candidate_exposure(ceiling, weight, log_rest, rest_exposure)
+
+
 ## Fraction of the body's visible disc that is sunlit. camera_vector points
-## camera -> body.
+## camera -> body. A body with an atmosphere shell hands this its LIMB geometry:
+## the fraction is still the surface's, but the horizon cutoff that ends it
+## follows air that is lit past the terminator and seen from farther round.
 func _get_lit_visible_fraction(body: IVBody, star_vector: Vector3, star_distance: float,
 		camera_vector: Vector3, camera_distance: float) -> float:
 	var phase_cos := -star_vector.dot(camera_vector) / (star_distance * camera_distance)
@@ -658,8 +873,21 @@ func _get_lit_visible_fraction(body: IVBody, star_vector: Vector3, star_distance
 	# (-> 180 deg far away, recovering the disc model; -> 90 deg at the
 	# surface, where crossing the terminator is crossing into night).
 	var phase_angle := acos(clampf(phase_cos, -1.0, 1.0))
-	var lit_visible_cutoff := PI / 2.0 + acos(clampf(body.mean_radius / camera_distance,
-			0.0, 1.0))
+	var lit_radius := body.mean_radius
+	var terminator := PI / 2.0
+	if _limb_geometry.has(body.name):
+		# A body with an atmosphere is lit past its own terminator: the shadow is a cylinder
+		# of the DISC's radius, so air at the limb shell's top keeps the sun until its foot
+		# point's solar zenith angle reaches PI - asin(disc / shell). Dawn reaches the air
+		# before the ground, and coming round from a night side that is what the camera sees
+		# first - so the adaptation follows the atmosphere's geometry even though the
+		# luminance it adapts TO is still the surface's albedo. Far away both terms saturate
+		# and this is moot; from low altitude it starts the transition tens of degrees of
+		# phase earlier.
+		var limb: Vector2 = _limb_geometry[body.name]
+		lit_radius = limb.y
+		terminator = PI - asin(clampf(limb.x / limb.y, 0.0, 1.0))
+	var lit_visible_cutoff := terminator + acos(clampf(lit_radius / camera_distance, 0.0, 1.0))
 	lit *= 1.0 - smoothstep(lit_visible_cutoff - nightside_twilight_angle,
 			lit_visible_cutoff, phase_angle)
 	return clampf(lit, 0.0, 1.0)

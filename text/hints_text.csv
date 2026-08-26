@@ -1,4 +1,5 @@
 id,en
+HINT_ADD_HOTKEY,Add hotkey
 HINT_ALL_ASTEROIDS,Show all asteroids
 HINT_CAMERA_LOCK,Camera follows selection
 HINT_CENTAURS,Show Centaurs
@@ -18,6 +19,8 @@ HINT_ORBITS_CKBX_COLOR,Show/hide orbits and set their color
 HINT_PAUSE,Pause
 HINT_POINTS_CKBX_COLOR,Show/hide points and set their color
 HINT_RESTORE_FORWARD_TIME,Restore forward time
+HINT_RESTORE_DEFAULT_HOTKEY,Restore default hotkey
+HINT_RESTORE_DEFAULT_OPTION,Restore default option
 HINT_RUN_TIME_BACKWARDS,Run time backwards
 HINT_SAVE_VISIBILITIES_AND_COLORS,Save visibilities & colors
 HINT_SAVE_VIEW,Save view

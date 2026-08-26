@@ -54,6 +54,20 @@ extends PopupPanel
 ## is not present and enabled.
 @export var autoremove_for_missing_save_plugin := true
 
+## Add-key button text.
+@export var add_key_button_text := "+"
+## Add-key button icon.
+@export var add_key_button_icon: Texture2D
+## Add-key button tooltip text.
+@export var add_key_button_tooltip_text := "HINT_ADD_HOTKEY"
+
+## Revert-to-default button text.
+@export var default_button_text := "!"
+## Revert-to-default button icon.
+@export var default_button_icon: Texture2D
+## Revert-to-default button text.
+@export var default_button_tooltip_text := "HINT_RESTORE_DEFAULT_HOTKEY"
+
 
 ## Content layout is an array of columns, where each column is an array of 
 ## header labels. The header labels must correspond to keys in [member
@@ -150,7 +164,8 @@ func _ready() -> void:
 
 
 func _shortcut_input(event: InputEvent) -> void:
-	if event.is_action_pressed(&"ui_cancel") or event.is_action_pressed(&"toggle_hotkeys", true):
+	if (event.is_action_pressed(&"ui_cancel")
+			or IVInputMapManager.is_action_pressed(event, &"toggle_hotkeys", true)):
 		_on_cancel()
 		set_input_as_handled()
 
@@ -244,12 +259,16 @@ func _build_item(hotkey_text: StringName, action: StringName) -> HBoxContainer:
 		index += 1
 	var add_key_button := Button.new()
 	action_hbox.add_child(add_key_button)
-	add_key_button.text = "+"
+	add_key_button.text = add_key_button_text
+	add_key_button.icon = add_key_button_icon
+	add_key_button.tooltip_text = add_key_button_tooltip_text
 	add_key_button.pressed.connect(_hotkey_dialog.open.bind(action, index, hotkey_text,
 			"", section_content))
 	var default_button := Button.new()
 	action_hbox.add_child(default_button)
-	default_button.text = "!"
+	default_button.text = default_button_text
+	default_button.icon = default_button_icon
+	default_button.tooltip_text = default_button_tooltip_text
 	default_button.disabled = _input_map_manager.is_default(action)
 	default_button.pressed.connect(_restore_default.bind(action))
 	return action_hbox

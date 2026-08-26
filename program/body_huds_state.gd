@@ -118,11 +118,11 @@ func _shortcut_input(event: InputEvent) -> void:
 	# Only Body HUDs, for now...
 	if not event.is_pressed():
 		return
-	if event.is_action_pressed(&"toggle_orbits"):
+	if IVInputMapManager.is_action_pressed(event, &"toggle_orbits"):
 		set_all_orbits_visibility(bool(orbit_visible_flags != all_flags))
-	elif event.is_action_pressed(&"toggle_symbols"):
+	elif IVInputMapManager.is_action_pressed(event, &"toggle_symbols"):
 		set_all_symbols_visibility(bool(symbol_visible_flags != all_flags))
-	elif event.is_action_pressed(&"toggle_names"):
+	elif IVInputMapManager.is_action_pressed(event, &"toggle_names"):
 		set_all_names_visibility(bool(name_visible_flags != all_flags))
 	else:
 		return # input NOT handled!

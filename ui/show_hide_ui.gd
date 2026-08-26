@@ -59,7 +59,7 @@ func _ready() -> void:
 
 
 func _shortcut_input(event: InputEvent) -> void:
-	if event.is_action_pressed(user_toggle_action):
+	if IVInputMapManager.is_action_pressed(event, user_toggle_action):
 		show_hide_gui()
 		get_viewport().set_input_as_handled()
 

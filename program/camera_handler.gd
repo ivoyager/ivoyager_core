@@ -58,7 +58,8 @@ var selection_manager_tree_program_node := &"TopUI"
 
 # set _adj vars so user option can be close to 1.0
 ## Multiplier applied to the user "mouse in/out rate" setting (mouse wheel).
-var mouse_wheel_adj := 7.5
+## Unlike the other rates, this is per wheel notch rather than per second.
+var mouse_wheel_adj := 0.125
 ## Multiplier applied to the user "mouse move rate" setting.
 var mouse_move_adj := 0.3
 ## Multiplier applied to the user "mouse pitch/yaw rate" setting.
@@ -167,7 +168,8 @@ func _process(delta: float) -> void:
 				_camera.add_rotation(Vector3(mouse_rotate.y, mouse_rotate.x, z_rotate))
 		_drag_vector = Vector2.ZERO
 	if _mwheel_turning:
-		_camera.add_motion(Vector3(0.0, 0.0, _mwheel_turning * delta))
+		# A wheel notch is a discrete event, not a rate, so no delta here.
+		_camera.add_motion(Vector3(0.0, 0.0, _mwheel_turning))
 		_mwheel_turning = 0.0
 	if _move_pressed:
 		_camera.add_motion(_move_pressed * delta)
@@ -179,60 +181,60 @@ func _shortcut_input(event: InputEvent) -> void:
 	if not _camera:
 		return
 	if event.is_pressed():
-		if event.is_action_pressed(&"recenter"):
+		if IVInputMapManager.is_action_pressed(event, &"recenter"):
 			_camera.move_to(null, CameraFlags.CAMERAFLAGS_UP_LOCKED, NULL_VECTOR3, Vector3.ZERO)
-		elif event.is_action_pressed(&"camera_left"):
+		elif IVInputMapManager.is_action_pressed(event, &"camera_left"):
 			_move_pressed.x = -_key_move_rate
-		elif event.is_action_pressed(&"camera_right"):
+		elif IVInputMapManager.is_action_pressed(event, &"camera_right"):
 			_move_pressed.x = _key_move_rate
-		elif event.is_action_pressed(&"camera_up"):
+		elif IVInputMapManager.is_action_pressed(event, &"camera_up"):
 			_move_pressed.y = _key_move_rate
-		elif event.is_action_pressed(&"camera_down"):
+		elif IVInputMapManager.is_action_pressed(event, &"camera_down"):
 			_move_pressed.y = -_key_move_rate
-		elif event.is_action_pressed(&"camera_in"):
+		elif IVInputMapManager.is_action_pressed(event, &"camera_in"):
 			_move_pressed.z = -_key_in_out_rate
-		elif event.is_action_pressed(&"camera_out"):
+		elif IVInputMapManager.is_action_pressed(event, &"camera_out"):
 			_move_pressed.z = _key_in_out_rate
-		elif event.is_action_pressed(&"pitch_up"):
+		elif IVInputMapManager.is_action_pressed(event, &"pitch_up"):
 			_rotate_pressed.x = _key_pitch_yaw_rate
-		elif event.is_action_pressed(&"pitch_down"):
+		elif IVInputMapManager.is_action_pressed(event, &"pitch_down"):
 			_rotate_pressed.x = -_key_pitch_yaw_rate
-		elif event.is_action_pressed(&"yaw_left"):
+		elif IVInputMapManager.is_action_pressed(event, &"yaw_left"):
 			_rotate_pressed.y = _key_pitch_yaw_rate
-		elif event.is_action_pressed(&"yaw_right"):
+		elif IVInputMapManager.is_action_pressed(event, &"yaw_right"):
 			_rotate_pressed.y = -_key_pitch_yaw_rate
-		elif event.is_action_pressed(&"roll_left"):
+		elif IVInputMapManager.is_action_pressed(event, &"roll_left"):
 			_rotate_pressed.z = -_key_roll_rate
-		elif event.is_action_pressed(&"roll_right"):
+		elif IVInputMapManager.is_action_pressed(event, &"roll_right"):
 			_rotate_pressed.z = _key_roll_rate
 		else:
 			return  # no input handled
 		get_viewport().set_input_as_handled()
 		return
 	# key release
-	if event.is_action_released(&"camera_left"):
+	if IVInputMapManager.is_action_released(event, &"camera_left"):
 		_move_pressed.x = 0.0
-	elif event.is_action_released(&"camera_right"):
+	elif IVInputMapManager.is_action_released(event, &"camera_right"):
 		_move_pressed.x = 0.0
-	elif event.is_action_released(&"camera_up"):
+	elif IVInputMapManager.is_action_released(event, &"camera_up"):
 		_move_pressed.y = 0.0
-	elif event.is_action_released(&"camera_down"):
+	elif IVInputMapManager.is_action_released(event, &"camera_down"):
 		_move_pressed.y = 0.0
-	elif event.is_action_released(&"camera_in"):
+	elif IVInputMapManager.is_action_released(event, &"camera_in"):
 		_move_pressed.z = 0.0
-	elif event.is_action_released(&"camera_out"):
+	elif IVInputMapManager.is_action_released(event, &"camera_out"):
 		_move_pressed.z = 0.0
-	elif event.is_action_released(&"pitch_up"):
+	elif IVInputMapManager.is_action_released(event, &"pitch_up"):
 		_rotate_pressed.x = 0.0
-	elif event.is_action_released(&"pitch_down"):
+	elif IVInputMapManager.is_action_released(event, &"pitch_down"):
 		_rotate_pressed.x = 0.0
-	elif event.is_action_released(&"yaw_left"):
+	elif IVInputMapManager.is_action_released(event, &"yaw_left"):
 		_rotate_pressed.y = 0.0
-	elif event.is_action_released(&"yaw_right"):
+	elif IVInputMapManager.is_action_released(event, &"yaw_right"):
 		_rotate_pressed.y = 0.0
-	elif event.is_action_released(&"roll_left"):
+	elif IVInputMapManager.is_action_released(event, &"roll_left"):
 		_rotate_pressed.z = 0.0
-	elif event.is_action_released(&"roll_right"):
+	elif IVInputMapManager.is_action_released(event, &"roll_right"):
 		_rotate_pressed.z = 0.0
 	else:
 		return  # no input handled
