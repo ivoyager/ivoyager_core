@@ -87,7 +87,8 @@ static var shells_nonmaterial_fields: Array[StringName] = [
 var use_thread := false
 
 ## Directories searched for body 3D models. Prepend a directory to prioritize
-## a custom override.
+## a custom override. A model authored at other than 1 m per unit must say so in its file
+## name (see [method parse_model_scale]).
 var models_search: Array[String] = ["res://addons/ivoyager_assets/models"]
 ## Directories searched for a body's surface [Mesh] resource (e.g. an OBJ imported as
 ## [ArrayMesh]). A mesh here replaces the shared sphere in [IVShellsModel], carrying the
@@ -131,6 +132,7 @@ var _body_resources: Dictionary[StringName, Array] = {}
 var _rings_resources: Dictionary[String, Array] = {}
 var _map_regex := RegEx.new()
 var _range_tag_regex := RegEx.new()
+var _model_scale_regex := RegEx.new()
 
 
 func _init() -> void:
@@ -167,12 +169,10 @@ func get_body_packed_model(body_name: StringName) -> PackedScene:
 	return _body_resources[body_name][2]
 
 
+## Returns the uniform scale for [method get_body_packed_model], read from the model's own
+## file name by [method parse_model_scale]. Meaningless when there is no packed model.
 func get_body_model_scale(body_name: StringName) -> float:
 	return _body_resources[body_name][3]
-
-
-func get_body_disable_auto_visual_range(body_name: StringName) -> bool:
-	return _body_resources[body_name][4]
 
 
 ## Returns an ordered [Array] of shell specs for one body: element 0 is the
@@ -184,7 +184,7 @@ func get_body_disable_auto_visual_range(body_name: StringName) -> bool:
 ## shell 0 falls back to the [code]shells.tsv[/code] row of the body's [code]surface_class[/code]
 ## when the body has no [code]shell0[/code] row of its own. Consumed by [IVShellsModel].
 func get_body_shell_specs(body_name: StringName) -> Array:
-	return _body_resources[body_name][5]
+	return _body_resources[body_name][4]
 
 
 ## Returns the [Mesh] that replaces the shared sphere for this body — its own mesh from
@@ -192,27 +192,27 @@ func get_body_shell_specs(body_name: StringName) -> Array:
 ## ([code]fallback_mesh_path[/code] in surface_classes.tsv) — or [code]null[/code] for the
 ## shared sphere. Scale it by [method get_body_mesh_scale].
 func get_body_mesh(body_name: StringName) -> Mesh:
-	return _body_resources[body_name][6]
+	return _body_resources[body_name][5]
 
 
 ## Returns the body's [code]file_prefix[/code] — the token every one of its asset files is
 ## named for. Use it to name a file [i]for[/i] a body, e.g. a captured 2D icon.
 func get_body_file_prefix(body_name: StringName) -> String:
-	return _body_resources[body_name][7]
+	return _body_resources[body_name][6]
 
 
 ## Returns the generic semi-axes of this body's surface class
 ## ([code]fallback_triaxial_size[/code] in surface_classes.tsv), or [constant Vector3.ZERO].
 ## Any scaling of the three works: the consumer normalizes to the body's own mean radius.
 func get_body_fallback_triaxial_size(body_name: StringName) -> Vector3:
-	return _body_resources[body_name][9]
+	return _body_resources[body_name][8]
 
 
 ## Returns the uniform scale for [method get_body_mesh]: [constant IVUnits.KM] for the body's
 ## own mesh (authored at true size in km), or the factor that resizes a generic surface-class
 ## mesh to this body's mean radius. Meaningless when there is no mesh.
 func get_body_mesh_scale(body_name: StringName) -> float:
-	return _body_resources[body_name][8]
+	return _body_resources[body_name][7]
 
 
 func get_rings_texture_arrays(rings_name: StringName) -> Array[Texture2DArray]:
@@ -396,7 +396,7 @@ func _load_body_resources() -> void:
 	# shells.tsv material columns are validated per-shell in IVShellsModel, which has the
 	# resolved shader so it can check both StandardMaterial3D properties and shader uniforms;
 	# a row may name either, so there is no table-wide check.
-	_compose_map_regex()
+	_compose_file_regexes()
 	var maps_index := _build_maps_index() # prefix(lower) -> shell -> {TextureParam: res_path}
 	var surface_class_index := _build_surface_class_index()
 
@@ -404,12 +404,6 @@ func _load_body_resources() -> void:
 	assert(ResourceLoader.exists(fallback_texture_2d_path))
 	var fallback_texture_2d: Texture2D = load(fallback_texture_2d_path)
 
-	var file_adj_rows: Dictionary[String, int] = {}
-	var file_adj_files: Array[String] = IVTableData.get_db_field_array(&"file_adjustments", &"file")
-	for i in file_adj_files.size():
-		file_adj_rows[file_adj_files[i]] = i
-		
-	
 	for table in IVCoreSettings.body_tables:
 		for row in IVTableData.get_n_rows(table):
 			
@@ -431,16 +425,10 @@ func _load_body_resources() -> void:
 			
 			var packed_model: PackedScene = null
 			var model_scale := METER
-			var disable_auto_visual_range := false
 			var model_path := IVFiles.find_resource_file(models_search, file_prefix)
 			if model_path:
 				packed_model = load(model_path)
-				var model_file := model_path.get_file()
-				if file_adj_rows.has(model_file):
-					model_scale = IVTableData.get_db_float(&"file_adjustments", &"model_scale",
-							file_adj_rows[model_file])
-					disable_auto_visual_range = IVTableData.get_db_bool(&"file_adjustments",
-							&"disable_auto_visual_range", file_adj_rows[model_file])
+				model_scale = parse_model_scale(model_path.get_file()) * METER
 			
 			# A body's own Mesh (e.g. an OBJ -> ArrayMesh) replaces the shared sphere and is
 			# authored at true size in km. Without one, the body's surface class may name a
@@ -546,7 +534,6 @@ func _load_body_resources() -> void:
 				texture_slice_2d,
 				packed_model,
 				model_scale,
-				disable_auto_visual_range,
 				shell_specs,
 				mesh,
 				file_prefix,
@@ -649,7 +636,37 @@ func parse_range_tags(file_name: String) -> Array:
 	return [lo, hi]
 
 
-func _compose_map_regex() -> void:
+## Reads the optional scale tag out of a packed model's file name: the number of metres one
+## model unit stands for. [code]Eros.1_10.glb[/code] is 10, [code]Hyperion.1_1000.glb[/code]
+## is 1000, and a name carrying no tag is 1.0 — which is what the spacecraft models are.
+##
+## The tag is [code].1_<N>[/code] with N a whole number of metres, the form both model
+## builders in [code]addons/tools[/code] emit. There is no decimal form, and a body's
+## [code]file_prefix[/code] must not itself end in [code].1_<digits>[/code].
+##
+## [b]Why the file name.[/b] A model is authored at whatever scale its author chose, and that
+## fact belongs to those bytes alone — stating it anywhere else invites the silent desync this
+## exists to avoid, the failure mode being a body rendering at the wrong size with nothing to
+## show for it. [method parse_range_tags] reads a texture's own reflectance range the same way.
+func parse_model_scale(file_name: String) -> float:
+	var regex_match := _model_scale_regex.search(file_name)
+	if !regex_match:
+		return 1.0
+	var meters := regex_match.get_string("meters").to_int()
+	if meters == 0:
+		push_error("Model scale tag in '%s' is zero; using 1 m" % file_name)
+		return 1.0
+	return float(meters)
+
+
+func _compose_file_regexes() -> void:
+	# The two file-name tag grammars are fixed and unrelated to the map pattern, so they
+	# compile first: a valid map_filename_regex_override returns before the tail below.
+	var err := _range_tag_regex.compile(
+			"[.](?<letter>[lh])(?<channel>[rgb]?)(?<digits>\\d{5})(?=[.]|$)")
+	assert(err == OK, "range tag regex failed to compile")
+	err = _model_scale_regex.compile("[.]1_(?<meters>\\d+)(?=[.]|$)")
+	assert(err == OK, "model scale regex failed to compile")
 	# Compose [member _map_regex] so the "tag" group is an exact alternation of
 	# registered tags - this is what lets the optional "shell" token be told apart
 	# from the tag. A valid override replaces the default.
@@ -668,11 +685,8 @@ func _compose_map_regex() -> void:
 			push_error("texture_channels tag '%s' is not [A-Za-z0-9_]+; ignored" % tag)
 	tags.sort_custom(func(a: String, b: String) -> bool: return a.length() > b.length())
 	var pattern := "^(?<prefix>[^.]+)(?:[.](?<shell>[^.]+))?[.](?<tag>%s)(?:[.].*)?$" % "|".join(tags)
-	var err := _map_regex.compile(pattern)
+	err = _map_regex.compile(pattern)
 	assert(err == OK, "composed map regex failed to compile: %s" % pattern)
-	err = _range_tag_regex.compile(
-			"[.](?<letter>[lh])(?<channel>[rgb]?)(?<digits>\\d{5})(?=[.]|$)")
-	assert(err == OK, "range tag regex failed to compile")
 
 
 func _map_regex_has_groups() -> bool:
@@ -750,12 +764,12 @@ func _warn_channel_texture(param: int, texture: Texture2D, map_path: String) -> 
 
 func _deep_freeze_body_resources() -> void:
 	# make_read_only() freezes only the immediate container; recurse into the
-	# ordered shell specs (index 5) and their nested channel dicts so worker-thread
+	# ordered shell specs (index 4) and their nested channel dicts so worker-thread
 	# reads are race-free. (Each spec's "process_args" array is already frozen by the
 	# table postprocessor, or is an empty literal.)
 	for body_name in _body_resources:
 		var resources: Array = _body_resources[body_name]
-		var shell_specs: Array = resources[5]
+		var shell_specs: Array = resources[4]
 		for spec: Dictionary in shell_specs:
 			var channels: Dictionary = spec[&"channels"]
 			channels.make_read_only()

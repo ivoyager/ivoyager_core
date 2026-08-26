@@ -161,11 +161,7 @@ func _build_packed_model(asset_preloader: IVAssetPreloader, packed_model: Packed
 	reference_basis = get_packed_model_reference_basis(model_scale)
 	_model = packed_model.instantiate()
 	_model.basis = reference_basis
-	# The disable_auto_visual_range flag opts a packed scene out entirely, preserving any
-	# visibility values authored in the .glb/.tscn.
-	var disable_auto_visual_range := asset_preloader.get_body_disable_auto_visual_range(_body_name)
-	if not disable_auto_visual_range:
-		_set_visibility_ranges()
+	_set_visibility_ranges()
 	_set_layers()
 
 
@@ -220,7 +216,9 @@ func _set_visibility_ranges() -> void:
 
 func _set_visibility_ranges_recursive(node3d: Node3D, visibility_range_end: float) -> void:
 	var geometry := node3d as GeometryInstance3D
-	if geometry:
+	# A packed scene may author its own cull distance; 0.0 is the engine's "unset" and so the
+	# only case we have anything to say about.
+	if geometry and geometry.visibility_range_end == 0.0:
 		geometry.visibility_range_end = visibility_range_end
 	for child in node3d.get_children():
 		var child_node3d := child as Node3D

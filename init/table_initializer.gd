@@ -39,7 +39,6 @@ static var table_base_path := "res://addons/ivoyager_core/tables/%s.tsv"
 ## Map of table key (used by [IVTableData]) to TSV file path. Modify (e.g.,
 ## from a preinitializer) to add or replace tables.
 static var tables: Dictionary[StringName, String] = {
-	file_adjustments = table_base_path % "file_adjustments",
 	asteroids = table_base_path % "asteroids",
 	body_classes = table_base_path % "body_classes",
 	dynamic_lights = table_base_path % "dynamic_lights",
