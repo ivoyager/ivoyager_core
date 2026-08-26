@@ -613,7 +613,7 @@ func _process_motion(delta: float) -> void:
 			move_now.y = -POLE_LIMITER -view_position.y
 		origin = origin.rotated(basis_.y, move_now.x)
 		origin = origin.rotated(basis_.x, -move_now.y)
-		origin *= 1.0 + move_now.z
+		origin *= exp(move_now.z) # linear scaling flips origin through target if z <= -1.0
 		view_position = math.get_rotated_spherical3(origin, _reference_basis)
 		view_position.z = clamp(_get_perspective_dist(view_position.z, perspective_radius),
 				MIN_DIST_RADII_METERS, _max_dist)
@@ -627,7 +627,7 @@ func _process_motion(delta: float) -> void:
 		basis_ = basis_.rotated(basis_.y, move_now.x)
 		origin = origin.rotated(basis_.x, -move_now.y)
 		basis_ = basis_.rotated(basis_.x, -move_now.y)
-		origin *= 1.0 + move_now.z
+		origin *= exp(move_now.z) # linear scaling flips origin through target if z <= -1.0
 		view_position = math.get_rotated_spherical3(origin, _reference_basis)
 		view_position.z = clamp(_get_perspective_dist(view_position.z, perspective_radius),
 				MIN_DIST_RADII_METERS, _max_dist)

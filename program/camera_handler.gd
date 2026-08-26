@@ -58,7 +58,8 @@ var selection_manager_tree_program_node := &"TopUI"
 
 # set _adj vars so user option can be close to 1.0
 ## Multiplier applied to the user "mouse in/out rate" setting (mouse wheel).
-var mouse_wheel_adj := 7.5
+## Unlike the other rates, this is per wheel notch rather than per second.
+var mouse_wheel_adj := 0.125
 ## Multiplier applied to the user "mouse move rate" setting.
 var mouse_move_adj := 0.3
 ## Multiplier applied to the user "mouse pitch/yaw rate" setting.
@@ -167,7 +168,8 @@ func _process(delta: float) -> void:
 				_camera.add_rotation(Vector3(mouse_rotate.y, mouse_rotate.x, z_rotate))
 		_drag_vector = Vector2.ZERO
 	if _mwheel_turning:
-		_camera.add_motion(Vector3(0.0, 0.0, _mwheel_turning * delta))
+		# A wheel notch is a discrete event, not a rate, so no delta here.
+		_camera.add_motion(Vector3(0.0, 0.0, _mwheel_turning))
 		_mwheel_turning = 0.0
 	if _move_pressed:
 		_camera.add_motion(_move_pressed * delta)
