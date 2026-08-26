@@ -48,6 +48,7 @@ render_mode skip_vertex_transform, ambient_light_disabled;
 #include "_farwarp.gdshaderinc"
 #include "_photometry.gdshaderinc"
 #include "_sun_occlusion.gdshaderinc"
+#include "_atmosphere.gdshaderinc"
 
 // Auto-bound channels. Default hints make an unbound map a no-op (see asset_preloader.gd
 // texture_channels). normal/roughness stay LINEAR (no source_color); albedo/emission decode sRGB.
@@ -132,8 +133,16 @@ void fragment() {
 	// fragment() - which is exactly what a disc law wants. VIEW survives farwarp
 	// unchanged: the remap scales a view-space position along its own ray, so screen
 	// direction, and therefore VIEW, is untouched.
-	ALBEDO *= lunar_lambert_albedo_factor(normalize(NORMAL),
-			normalize(mat3(VIEW_MATRIX) * sun_direction), VIEW, lunar_lambert);
+	vec3 macro_normal = normalize(NORMAL);
+	vec3 sun_view = normalize(mat3(VIEW_MATRIX) * sun_direction);
+	ALBEDO *= lunar_lambert_albedo_factor(macro_normal, sun_view, VIEW, lunar_lambert);
+	// The body's atmosphere above this shell (the limb row's atm_* columns, propagated
+	// here; an exact no-op without them): direct light reddened along the sun path, and
+	// the chromatic half of the view-path extinction whose luma the limb shell removes.
+	// See _atmosphere.gdshaderinc.
+	float atm_mu0 = dot(macro_normal, sun_view);
+	float atm_mu = dot(macro_normal, VIEW);
+	ALBEDO *= atm_sun_transmittance(atm_mu0) * atm_view_tint(atm_mu);
 
 	if (ring_texture_outer > 0.0 || occluder_count > 0) {
 		float sun_visible = sun_occlusion_visible_fraction(v_world_position);

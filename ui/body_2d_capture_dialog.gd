@@ -91,6 +91,14 @@ func _ready() -> void:
 		%ModelHolder as Node3D,
 	)
 	_preview_texture_rect.texture = (%PreviewViewport as SubViewport).get_texture()
+	# A transparent-background viewport hands back PREMULTIPLIED colour -- a partly covered
+	# edge texel is the resolve of covered samples against nothing, and an atmosphere limb
+	# draws with blend_premul_alpha outright. Drawn with the ordinary straight-alpha blend the
+	# preview would show every partly transparent texel at alpha times its true colour, which
+	# over a limb's ring is the whole ring, dimmed to invisible against the checker behind it.
+	var preview_material := CanvasItemMaterial.new()
+	preview_material.blend_mode = CanvasItemMaterial.BLEND_MODE_PREMULT_ALPHA
+	_preview_texture_rect.material = preview_material
 	_checker_rect.texture = _make_checker_texture()
 	# The label carries the standing instruction; the resolved path goes to the console, where
 	# it can be copied. A user:// path is long enough to drive this dialog's minimum size.
@@ -187,7 +195,13 @@ func _on_body_selected(index: int) -> void:
 	if !visual:
 		_status_label.text = "%s has no model" % body_name
 		return
-	_aabb = _capturer.stage_visual(visual)
+	# A packed spacecraft model carries a placeholder table radius (every craft is 5 m)
+	# against a model spanning tens of metres, so the same multiple of it would put the camera
+	# inside; 0 stages it on its own bounding radius instead.
+	var reference_radius := 0.0
+	if !_asset_preloader.get_body_packed_model(body_name):
+		reference_radius = body.get_camera_radius()
+	_aabb = _capturer.stage_visual(visual, reference_radius)
 	_is_shells_model = _capturer.get_staged_model() is IVShellsModel
 	_rebuild_shell_toggles(body_name)
 	_reset_pose()

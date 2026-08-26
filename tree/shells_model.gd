@@ -56,6 +56,15 @@ extends MeshInstance3D
 ## via material [code]render_priority[/code]); give shells distinct scales (equal
 ## scales z-fight).[br][br]
 ##
+## Two things reach every shader shell of a body beyond its own row. Each shader material
+## receives the body's geometry as uniforms, blindly (a no-op on a shader without them):
+## [code]body_radius_km[/code], [code]shell_scale[/code] (this shell's) and
+## [code]surface_scale[/code] (shell 0's), which is what lets a shader work in kilometres of
+## altitude above the disc. And the [code]atm_*[/code] columns of an overlay row — the limb
+## shell's atmosphere — are pushed to shell 0 and every other shell as well, so the surface
+## and cloud shaders redden their direct light through the same atmosphere the limb draws.
+## Author them on the limb row only.[br][br]
+##
 ## Developer note: Process methods must gate themselves on [member IVStateManager.paused_tree]
 ## as needed. This is because some methods need to run in a project setup where
 ## the camera is able to move during pause.
@@ -189,6 +198,7 @@ func _ready() -> void:
 	var process_args: Array = spec[&"process_args"]
 	var render_priority := _compute_render_priority(shell_specs)
 	_build_material(spec, asset_preloader, render_priority)
+	_apply_shell_geometry_uniforms(spec, shell_specs)
 	cast_shadow = spec[&"cast_shadow"]
 	_set_visibility_and_layers()
 	_resolve_process(process_method, process_args)
@@ -196,6 +206,7 @@ func _ready() -> void:
 		_enter_sun_mode()
 	if _shell == 0:
 		_build_child_shells(shell_specs)
+		_propagate_atmosphere_overrides(shell_specs)
 
 
 func _process(delta: float) -> void:
@@ -647,6 +658,48 @@ func _build_child_shells(shell_specs: Array) -> void:
 		var shell_scale: float = spec[&"scale"]
 		var child_basis := Basis().scaled(Vector3.ONE * shell_scale / surface_scale)
 		add_child(IVShellsModel.new(_body_name, _mean_radius, child_basis, shell_index))
+
+
+func _apply_shell_geometry_uniforms(spec: Dictionary, shell_specs: Array) -> void:
+	# A shader that works in altitude needs to know what a local unit is: set blindly, the
+	# convention for uniforms a shader may not declare (a no-op on one that does not).
+	var material := get_surface_override_material(0) as ShaderMaterial
+	if not material:
+		return
+	var shell_scale: float = spec[&"scale"]
+	var surface_scale: float = shell_specs[0][&"scale"]
+	material.set_shader_parameter(&"body_radius_km", _mean_radius / IVUnits.KM)
+	material.set_shader_parameter(&"shell_scale", shell_scale)
+	material.set_shader_parameter(&"surface_scale", surface_scale)
+
+
+func _propagate_atmosphere_overrides(shell_specs: Array) -> void:
+	# The atmosphere is authored once, on the limb row, and every shader shell of the body
+	# needs it: the limb draws it, and the surface and cloud shaders redden their direct light
+	# through it. Push each overlay row's atm_* columns to shell 0 and to every child (blind
+	# sets, as above). Runs after the children exist, which add_child guarantees.
+	var atmosphere: Dictionary[StringName, Variant] = {}
+	for shell_index in range(1, shell_specs.size()):
+		var overrides: Dictionary = shell_specs[shell_index][&"overrides"]
+		for field: StringName in overrides:
+			if field.begins_with("atm_"):
+				atmosphere[field] = overrides[field]
+	if atmosphere.is_empty():
+		return
+	var materials: Array[ShaderMaterial] = []
+	var own := get_surface_override_material(0) as ShaderMaterial
+	if own:
+		materials.append(own)
+	for child in get_children():
+		var shell := child as IVShellsModel
+		if not shell:
+			continue
+		var child_material := shell.get_surface_override_material(0) as ShaderMaterial
+		if child_material:
+			materials.append(child_material)
+	for material in materials:
+		for field: StringName in atmosphere:
+			material.set_shader_parameter(field, atmosphere[field])
 
 
 # Render priority = this shell's rank by scale (ascending; shell index breaks ties),
