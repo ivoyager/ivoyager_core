@@ -618,8 +618,23 @@ How it lands in the renderer:
   air beneath it.
 - **Every shell of the body takes its sunlight through the same atmosphere.** `IVShellsModel`
   propagates the limb row's `atm_*` columns to the surface and cloud shells, whose photometry
-  slot multiplies direct light by `atm_sun_transmittance` — the column above that shell's own
+  slot multiplies its sunlight by `atm_sun_transmittance` — the column above that shell's own
   altitude along the sun ray. This is what turns a cloud deck at the limb the colour of sunset.
+- **That factor is the TOTAL illumination, direct plus diffuse, and not `exp(-column)`**
+  (2026-08-28). Absorbed light is gone and takes the exponential; scattered light is not, and
+  the sun leg is the one place nothing else accounts for it — a view ray's scattered light IS
+  the path radiance, which the model adds separately, so `atm_view_tint` and the limb's alpha
+  keep `exp()` and must. The split needs no new parameter, because the delta-scaling's own
+  depth already contains it: `1 − ωg = (1 − ω) + ω(1 − g)`, absorption plus delta-scaled
+  scattering. The scattered half then takes the conservative two-stream `1 / (1 + ¾τ)`, exact
+  in the diffusion limit, which against real sky-plus-sun illuminance holds to a few percent
+  from noon down to a solar zenith of 87°. Earth's surface at its own terminator had been
+  reading 7.4e-4 of vacuum in green — the direct beam alone, at an airmass of 34 — which is
+  why nothing beneath the glow survived there. It costs one divide and no new column
+  evaluation. What it changes, over the lit half of a disc at phase 90 in linear light:
+  Earth +2.0 %, Mars +6.9 %, falling to +0.3 % and +2.4 % near the subsolar point where the
+  anchoring is defined; Venus and Titan move under 1 %, their air being thin above their
+  optical limbs.
 - **Every disc is fully covered, and that is a rule about the map rather than a setting.**
   The disc branch draws over the whole body, so a shell beneath an atmosphere must carry
   SURFACE reflectance and let the renderer supply the rest; a top-of-atmosphere map would
@@ -1035,17 +1050,42 @@ Lambert.
   renderer the limb's whole radiance crosses the engine's conversion bracket and blends on
   an sRGB-encoded target, so its veil and band render well under Forward+ — the first
   accepted deficiency above.
-- **Earth's terminator band on FORWARD+, which is where that defect actually lives.** Between
-  ground-dark and air-dark only the atmosphere's own glow renders, and it renders as an
-  OPAQUE band: no cloud or continental feature is visible inside it, where every other body's
-  terminator stays transparent right up to black. The surface and the cloud deck both take
-  their sunlight through `atm_sun_transmittance` at their own altitude, and the deck's is the
-  suspect — clouds sit kilometres up and stay lit well past the point the ground goes dark,
-  so a deck extinguished on the ground's column dies with the ground and leaves the glow
-  alone in that band. Mars has the same construction and stays transparent because its air is
-  roughly an order of magnitude thinner, which fits. Worth checking the veil's twilight width
-  against full-disc imagery (EPIC, Himawari) in the same pass, since both are one calibration.
-  Fixing it in the shared model is what lets Compatibility inherit the fix.
+- **Earth's terminator band on FORWARD+ — measured 2026-08-28, PART of it fixed, and what is
+  left is a decision rather than a bug.** Measure it with `scratch/compat/termband.py` in the
+  assets build tree, which poses the body at a solved phase 90 (so the terminator runs through
+  the disc centre, where it is widest on screen, rather than wherever a guessed longitude put
+  it) and reports against μ0 with a contrast metric — the illumination taken out as a median
+  profile on one-pixel bins, since "no features here" is a statement about contrast that no
+  luma profile can see. What it says: Earth's relative feature contrast falls **0.21 → 0.054**
+  across μ0 ∈ [−0.06, +0.06], a 4× collapse, while Mars over the same span **rises** 0.066 →
+  0.113, its craters gaining contrast as the light grazes. That is the reported defect,
+  quantified.
+  - **The band is the atmosphere's own path radiance, and it is correct.** Calibrated against
+    the metering row (`I/F × luminance/albedo × gain × exposure`), Mars' terminator matches
+    `limb_model`'s path radiance to **7 %** across the whole band and Earth to 16–46 %, the
+    excess being the rebuilt ambient. So the glow is not too bright by any measure available
+    here; what was wrong is that nothing underneath it survived.
+  - **Fixed: the surface was lit by the direct beam alone.** See the two-stream entry above.
+    It bought Earth +5–17 % contrast across the day-side half of the band and Mars +10–90 %,
+    for +2.0 % / +6.9 % of disc level. It is a real correction and it is not enough.
+  - **What remains, and why it is a decision.** Earth's band survives because at μ0 < 0.06 the
+    surface cannot compete on albedo: the ocean is 0.05 and the glow is 65–80 % of the pixel
+    even after the fix (measured p90/p10 across the band, 1.5 on the day side collapsing to
+    1.27). And the night-side half is structural — the engine's N·L zeroes both the surface
+    and the deck at μ0 = 0 while the glow runs on to μ0 ≈ −0.13. Two things are true there and
+    neither can ride on ALBEDO: a deck 10.19 km up leaves the body's shadow only at
+    μ0 = −0.0565, so it is in direct sunlight for 3.2° past the ground's terminator; and the
+    diffuse sky does not scale as μ0 at all — real ground illuminance at the terminator is
+    ~0.3 % of solar, not zero. Carrying either means an EMISSION term, a model for the
+    twilight irradiance, and a fresh look at how it meters. Worth checking the veil's twilight
+    width against full-disc imagery (EPIC, Himawari) in the same pass, since both are one
+    calibration.
+  - **Compatibility's terminator looks CORRECT here only because it crushes the same term.**
+    Measured at the safety point with the fix in: Earth's band renders 13.6 codes on
+    Compatibility against Forward+'s 64.6 at μ0 = +0.05, and goes to exactly zero below
+    μ0 = −0.01 where Forward+ still glows to −0.13. So the veil deficiency is masking the band
+    defect, and recovering the veil — the second Compatibility candidate below — would import
+    the band along with it. They are one term and should be judged together.
 - **Compatibility, what a targeted patch could still recover** (the retreat of 2026-08-28 is
   the base; see *What the estimate machinery proved* above). Two candidates, in order of
   confidence: the limb's beyond-limb RING, whose pedestal is provably the constant 0 and

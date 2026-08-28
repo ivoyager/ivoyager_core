@@ -74,10 +74,12 @@
 // a top-of-atmosphere map was re-referenced and it was retired: the choice belongs to how a map is built, and a knob
 // for it only let the convention be broken silently.
 //
-// A RECEIVING SURFACE OR CLOUD SHADER multiplies its direct light by
-// atm_sun_transmittance(mu0) in its photometry slot, after the disc law: the column
-// above that shell's own altitude along the sun ray, which is what turns the cloud deck
-// at the limb the colour of sunset. The limb shader calls atm_limb().
+// A RECEIVING SURFACE OR CLOUD SHADER multiplies its sunlight by
+// atm_sun_transmittance(mu0) in its photometry slot, after the disc law: the total
+// illumination reaching that shell's own altitude, direct beam plus diffuse sky, which is
+// what turns the cloud deck at the limb the colour of sunset and what keeps a surface
+// legible through a terminator its direct beam alone does not survive. The limb shader
+// calls atm_limb().
 //
 // THE COMPOSITING SPLIT. The limb shell composites with blend_premul_alpha: its colour is
 // the path radiance and its alpha is one minus the transmittance of what lies behind - but
@@ -132,6 +134,10 @@ const float ATM_FAR_GATE_TAU = 30.0;  // chord extinction at which a ray's far h
 const float ATM_LAYER_REACH = 8.0;
 const float ATM_PENUMBRA_FLOOR_KM = 1.0;  // the planet's shadow edge is never sharper than this
 const float ATM_INF = 1.0e30;
+// The conservative two-stream coefficient, 3/4, in T = 1 / (1 + k tau_scattered): the total
+// downward flux through a scattering column, direct plus diffuse, where exp(-tau) is the
+// direct beam alone. See atm_sun_transmittance().
+const float ATM_TWO_STREAM_K = 0.75;
 // Gauss-Legendre nodes and weights on (0, 1): six along a ray, three across a thin layer.
 const float ATM_GL6_T[6] = {0.0337652, 0.1693953, 0.3806904, 0.6193096, 0.8306047, 0.9662348};
 const float ATM_GL6_W[6] = {0.0856622, 0.1803808, 0.2339570, 0.2339570, 0.1803808, 0.0856622};
@@ -390,6 +396,18 @@ vec3 atm_exp_column(AtmLayers L, float R, float z, float mu) {
 // identical to scaling the depth, and no separate column math is needed.
 vec3 atm_exp_column_beneath(AtmLayers L, float R, float z, float mu) {
 	return atm_exp_slant(R, z, L.H_g, mu, atm_gas_tau) + atm_haze_column(L, R, z, mu) * L.delta_h;
+}
+
+// The same column split into what is ABSORBED and what is SCATTERED, for the sun leg. The
+// split is exact and introduces no parameter, because 1 - omega g = (1 - omega) + omega (1 - g)
+// -- so the two pieces sum to the delta-scaled depth above, term for term. Rayleigh gas is
+// conservative (no albedo cell, omega = 1) and so is entirely the scattered half.
+void atm_exp_column_split(AtmLayers L, float R, float z, float mu, out vec3 absorbed,
+		out vec3 scattered) {
+	vec3 haze = atm_haze_column(L, R, z, mu);
+	absorbed = haze * (1.0 - atm_haze_albedo);
+	scattered = atm_exp_slant(R, z, L.H_g, mu, atm_gas_tau)
+			+ haze * (atm_haze_albedo * (1.0 - atm_haze_g));
 }
 vec3 atm_exp_scatter(AtmLayers L, float z) {
 	vec3 haze = L.z_k > 0.0 && z > L.z_k
@@ -753,10 +771,26 @@ float atm_luma(vec3 c) {
 	return dot(c, vec3(0.2126, 0.7152, 0.0722));
 }
 
-// What a surface or cloud shell multiplies its direct light by: the transmittance of the
-// column above this shell's own altitude along the sun ray, windowed like the disc branch.
-// mu0 and mu are the fragment's sun and view cosines on the macroscopic normal. A sun below
-// the horizon needs no branch: the engine's own N.L has already removed its light.
+// What a surface or cloud shell multiplies its sunlight by: the TOTAL illumination reaching
+// this shell's own altitude relative to vacuum, direct beam plus diffuse sky. mu0 is the
+// fragment's sun cosine on the macroscopic normal. A sun below the horizon needs no branch:
+// the engine's own N.L has already removed its light.
+//
+// NOT exp(-column). Absorbed light is gone and takes the exponential; SCATTERED light is not
+// -- roughly a quarter of it arrives anyway, off the sky, and is what lets you see the ground
+// at sunset. exp() throws all of it away, and the error is unbounded as the column grows: at
+// Earth's terminator the direct beam alone is 7.4e-4 of vacuum in green, which is why the
+// surface and the cloud deck both vanished there and left the atmosphere's own glow standing
+// in a band with nothing in it, while thin-aired Mars stayed legible to the last code.
+// 1 / (1 + k tau) is the conservative two-stream result for the total downward flux, exact in
+// the diffusion limit and a standard interpolation elsewhere; against real sky-plus-sun
+// illuminance it is right to a few percent from noon down to a solar zenith of 87 degrees.
+// It is the same kind of stand-in as the delta-scaling above and deliberately shares its
+// depth: what the two-stream returns is precisely the half of `1 - omega g` that is scattered.
+//
+// The VIEW leg keeps exp() and must -- see atm_view_transmittance. Light scattered out of a
+// view ray is not lost from the model, it is the path radiance, and that is added separately.
+// Nothing adds the light scattered out of the SUN leg, so this is where it belongs.
 vec3 atm_sun_transmittance(float mu0) {
 	if (body_radius_km <= 0.0) {
 		return vec3(1.0);
@@ -765,11 +799,15 @@ vec3 atm_sun_transmittance(float mu0) {
 	float R = body_radius_km * surface_scale;
 	float z = max((shell_scale - surface_scale) * body_radius_km, 0.0);
 	float up = max(mu0, 0.0);
-	vec3 column = atm_exp_column_beneath(L, R, z, up);
+	vec3 absorbed;
+	vec3 scattered;
+	atm_exp_column_split(L, R, z, up, absorbed, scattered);
 	if (L.has_layer) {
-		column += atm_shell_ray_column(L, R, z, up) * L.delta_l;
+		vec3 layer = atm_shell_ray_column(L, R, z, up);
+		absorbed += layer * (1.0 - atm_layer_albedo);
+		scattered += layer * (atm_layer_albedo * (1.0 - atm_layer_g));
 	}
-	return exp(-column);
+	return exp(-absorbed) / (1.0 + ATM_TWO_STREAM_K * scattered);
 }
 
 // The chromatic half of the view-path extinction, for a surface or cloud shell beneath the
