@@ -129,6 +129,9 @@ void fragment() {
 
 	// Rebuilt ambient (engine ambient is disabled; see render_mode). Added before
 	// the shadow so occlusion removes sunlight, not starlight; see the include.
+	// Kept for the twilight term below, which is DIFFUSE light and so takes the
+	// unfactored albedo, exactly as the isotropic ambient on the next line does.
+	vec3 unlit_albedo = ALBEDO;
 	EMISSION += ALBEDO * ambient_light; // the feed already carries exposure; see the include
 
 	// Disc photometry, AFTER the isotropic ambient above (which takes the unfactored
@@ -146,10 +149,12 @@ void fragment() {
 	// See _atmosphere.gdshaderinc.
 	float atm_mu0 = dot(macro_normal, sun_view);
 	float atm_mu = dot(macro_normal, VIEW);
-	ALBEDO *= atm_sun_transmittance(atm_mu0) * atm_view_tint(atm_mu);
+	vec3 atm_tint = atm_view_tint(atm_mu);
+	ALBEDO *= atm_sun_transmittance(atm_mu0) * atm_tint;
 
+	float sun_visible = 1.0;
 	if (ring_texture_outer > 0.0 || occluder_count > 0) {
-		float sun_visible = sun_occlusion_visible_fraction(v_world_position);
+		sun_visible = sun_occlusion_visible_fraction(v_world_position);
 		if (compat_albedo_shadow) {
 			ALBEDO *= sun_visible;
 			// AO is ambient-only on this renderer, so the albedo multiply stands in for
@@ -163,6 +168,15 @@ void fragment() {
 			AO_LIGHT_AFFECT = 1.0; // attenuates direct light, not just ambient
 		}
 	}
+
+	// The twilight this shell is lit by once the plane-parallel beam has run out, which
+	// is what the engine's own N.L cannot carry: it is zero at mu0 = 0 and the sky is not.
+	// EMISSION for that reason, so it needs the shadow applied by hand (emission sits
+	// outside the AO path) -- it is sunlight, unlike the starlight ambient above. Exactly
+	// zero wherever the beam still dominates, so the day side is untouched; see the
+	// include for why the subtraction inside makes that identical rather than merely small.
+	EMISSION += unlit_albedo * atm_sky_excess(atm_mu0) * atm_tint
+			* (sun_light_energy * sun_visible);
 
 	ALBEDO = display_write_albedo(ALBEDO);
 	EMISSION = display_write(EMISSION);

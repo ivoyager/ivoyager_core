@@ -1087,18 +1087,48 @@ Lambert.
     better. Both need the deck's optical depth separated from its coverage, which
     `Earth.clouds.albedo.512.png` cannot supply: RGB is 255 in one distinct value with alpha
     carrying everything, so reflectance is pinned at 1.0 and a range tag would buy nothing.
-  - **What else remains, and why it is a decision.** Earth's band survives because at μ0 < 0.06 the
-    surface cannot compete on albedo: the ocean is 0.05 and the glow is 65–80 % of the pixel
-    even after the fix (measured p90/p10 across the band, 1.5 on the day side collapsing to
-    1.27). And the night-side half is structural — the engine's N·L zeroes both the surface
-    and the deck at μ0 = 0 while the glow runs on to μ0 ≈ −0.13. Two things are true there and
-    neither can ride on ALBEDO: a deck 10.19 km up leaves the body's shadow only at
-    μ0 = −0.0565, so it is in direct sunlight for 3.2° past the ground's terminator; and the
-    diffuse sky does not scale as μ0 at all — real ground illuminance at the terminator is
-    ~0.3 % of solar, not zero. Carrying either means an EMISSION term, a model for the
-    twilight irradiance, and a fresh look at how it meters. Worth checking the veil's twilight
-    width against full-disc imagery (EPIC, Himawari) in the same pass, since both are one
-    calibration.
+  - **Fixed: the shells were lit plane-parallel, so nothing was lit past the terminator.**
+    Every shell took `albedo x max(mu0, 0) x atm_sun_transmittance`: flux entering the column
+    goes as mu0, so illumination was pinned to zero at the geometric terminator WITH A CORNER,
+    and surface and deck stopped at the same line while the glow ran on to mu0 -0.13. On a
+    sphere the air above a point at mu0 = 0 is still fully lit and shines down; nothing put
+    that light anywhere. New `atm_sky_flux` / `atm_sky_slope` / `atm_sky_bend` carry the
+    twilight curve `flux x exp(mu0 (slope + mu0 bend))`, fitted per body and channel by
+    `limb_model.py --fit-skylight` against a hemisphere integral of the same layers, columns
+    and shadow rule the limb uses; `atm_sky_excess` adds it as EMISSION, as the excess over
+    the plane-parallel diffuse the shell already gets. Measured with the limb hidden, Earth's
+    body at its terminator goes **0.11 rendered codes -> 5.25** and carries light **8.6 deg
+    past the line** where it carried exactly none; band contrast rises 40 %, band level 4-5 %
+    (Mars 19 %, Titan 42 %, Venus 2.8x). The subtraction is what makes the day side identical
+    rather than close: term-on against term-off in ONE app run measured **0.0000 codes**
+    above 3.4 deg of solar elevation.
+  - **A shipped table cell was deciding where that handover happens.** `atm_haze_multiple` is
+    a boost on a layer's RADIANCE, tuned by eye for a limb, and the plane-parallel two-stream
+    the curve hands over to ignores it -- so with Titan's 2.0 in the fit, its sky beat the
+    two-stream out to a solar elevation of **15 deg** and brightened half its disc 1.7x,
+    against 2.4-4.2 deg for the other three bodies. Two estimates of one quantity have to
+    stand on the same footing. Excluded; Titan lands at 5.3 deg. Found the same way:
+    `limb_model.py` had **drifted from the table**, carrying 1.0 for Earth's shipped
+    `atm_gas_multiple` of 1.3 -- the recurring failure that its own `--verify` cannot see,
+    being a comparison of two integrals over the same body.
+  - **What is left is the DECK, and it is now well posed.** A cloud is a scattering layer, not
+    a horizontal Lambertian sheet, so its radiance carries no mu0 projection -- which is
+    exactly why this model's own glow survives to mu0 -0.13 while the deck inside it does not.
+    At mu0 = 0 the deck's sun ray is tangent at its own 10.19 km, where Earth's tangent optical
+    depth is **2.23, i.e. 10.7 % of the beam still arrives**, and a layer law would collect it
+    where the N.L projection throws all of it away. That is what makes real sunset cloud tops
+    glow, and it is deck-only: the ground IS a horizontal surface and its mu0 projection is
+    right. It needs the shadow graded through the deck's own thickness rather than cut at a
+    line (a cutoff law only moves the wall -- rejected above), and both halves need the deck's
+    optical depth separated from its coverage, which `Earth.clouds.albedo.512.png` cannot
+    supply. Also unresolved and unrelated: at mu0 < 0.06 Earth's ocean cannot compete on
+    albedo at all -- 0.05 against a glow that is 65-80 % of the pixel.
+  - **The twilight curve runs 2.3x over Earth's observed illuminance, and that is the expected
+    sign.** 927 lx at sunset against ~400 measured. Single scattering with no ozone: the
+    Chappuis band is what takes real twilight down, over a horizontal path through the ozone
+    layer, and this model has no ozone anywhere -- the limb's own glow included, so the two
+    stay on one footing. Worth checking the veil's twilight width against full-disc imagery
+    (EPIC, Himawari) in the same pass, since both are one calibration.
   - **Compatibility's terminator looks CORRECT here only because it crushes the same term.**
     Measured at the safety point with the fix in: Earth's band renders 13.6 codes on
     Compatibility against Forward+'s 64.6 at μ0 = +0.05, and goes to exactly zero below

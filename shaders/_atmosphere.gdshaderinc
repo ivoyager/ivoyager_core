@@ -118,6 +118,12 @@ uniform float atm_layer_altitude_km = 0.0;        // its centre above the disc
 uniform float atm_layer_width_km = 10.0;          // its sigma
 uniform vec3 atm_layer_albedo = vec3(1.0);
 uniform float atm_layer_g = 0.3;
+// The twilight curve: what a shell is lit by once the plane-parallel beam has run out. Fitted
+// per body by limb_model.py --fit-skylight against its hemisphere integral; zero disables it.
+uniform vec3 atm_sky_flux = vec3(0.0);   // downwelling diffuse at the disc at mu0 = 0, / vacuum
+uniform vec3 atm_sky_slope = vec3(0.0);  // d ln(flux) / d mu0 there
+uniform vec3 atm_sky_bend = vec3(0.0);   // its curvature; NEGATIVE, which is what kills the
+                                         // term at high sun with no clamp
 uniform float atm_intensity = 1.0;  // nonphysical taste: radiance multiplier (gated, see header)
 uniform float atm_thickness = 1.0;  // nonphysical taste: altitude-scale multiplier (gated)
 global uniform float iv_limb_scale; // 1.0 = taste multipliers act; 0.0 = physical, they are 1.0
@@ -791,13 +797,7 @@ float atm_luma(vec3 c) {
 // The VIEW leg keeps exp() and must -- see atm_view_transmittance. Light scattered out of a
 // view ray is not lost from the model, it is the path radiance, and that is added separately.
 // Nothing adds the light scattered out of the SUN leg, so this is where it belongs.
-vec3 atm_sun_transmittance(float mu0) {
-	if (body_radius_km <= 0.0) {
-		return vec3(1.0);
-	}
-	AtmLayers L = atm_layers(0.0);
-	float R = body_radius_km * surface_scale;
-	float z = max((shell_scale - surface_scale) * body_radius_km, 0.0);
+vec3 atm_sun_transmittance_at(AtmLayers L, float R, float z, float mu0) {
 	float up = max(mu0, 0.0);
 	vec3 absorbed;
 	vec3 scattered;
@@ -808,6 +808,56 @@ vec3 atm_sun_transmittance(float mu0) {
 		scattered += layer * (atm_layer_albedo * (1.0 - atm_layer_g));
 	}
 	return exp(-absorbed) / (1.0 + ATM_TWO_STREAM_K * scattered);
+}
+
+vec3 atm_sun_transmittance(float mu0) {
+	if (body_radius_km <= 0.0) {
+		return vec3(1.0);
+	}
+	float R = body_radius_km * surface_scale;
+	float z = max((shell_scale - surface_scale) * body_radius_km, 0.0);
+	return atm_sun_transmittance_at(atm_layers(0.0), R, z, mu0);
+}
+
+// The twilight a shell must ADD to what the engine already gives it, as emission.
+//
+// Everything above is plane-parallel on the sun leg: flux entering the column goes as mu0, so
+// illumination is pinned to zero at the geometric terminator, with a CORNER. On a sphere it is
+// not. The air above a point at mu0 = 0 is still fully lit -- the terminator at altitude z
+// stands sunward of the one on the ground -- and it shines down. Nothing here or in the engine
+// puts that light anywhere, so a surface and a cloud deck both stop dead at the same line while
+// the atmosphere's own glow renders on past it, which is the band with nothing in it. Measured
+// against the hemisphere integral, real ground at the terminator gets 0.7 % of full sun, and
+// the decay past it has no feature at mu0 = 0 at all: the sky does not know where the ground's
+// terminator is.
+//
+// The engine hands a shell albedo x max(mu0, 0) x atm_sun_transmittance and nothing below the
+// horizon. The target is direct + max(plane-parallel diffuse, twilight), so what is missing is
+// max(twilight - plane-parallel diffuse, 0) and nothing else: the beam and the day-side diffuse
+// cancel term for term, which is why the DAY SIDE CANNOT MOVE. The subtraction is not a fudge
+// -- atm_sun_transmittance is a TOTAL, direct plus diffuse, so adding a twilight curve on top
+// of it would count the diffuse twice.
+//
+// Evaluated at the DISC for every shell, not at the shell's own altitude. A deck a few km up
+// really does see a little more (Earth's measures 1.19x at the terminator, and stays lit 3.2 deg
+// longer), but one illumination for all of them is what makes surface and cloud fade TOGETHER;
+// give the deck its own and the two part company at the very place the wall was. What the deck
+// legitimately keeps beyond this is its direct beam, which is a separate term and not this one.
+vec3 atm_sky_excess(float mu0) {
+	if (body_radius_km <= 0.0 || atm_sky_flux == vec3(0.0)) {
+		return vec3(0.0);
+	}
+	AtmLayers L = atm_layers(0.0);
+	float R = body_radius_km * surface_scale;
+	float up = max(mu0, 0.0);
+	vec3 sky = atm_sky_flux * exp(mu0 * (atm_sky_slope + mu0 * atm_sky_bend));
+	// The diffuse half of what the disc already receives: the total, less the beam.
+	vec3 beam = atm_exp_column(L, R, 0.0, up);
+	if (L.has_layer) {
+		beam += atm_shell_ray_column(L, R, 0.0, up);
+	}
+	vec3 diffuse = up * max(atm_sun_transmittance_at(L, R, 0.0, up) - exp(-beam), vec3(0.0));
+	return max(sky - diffuse, vec3(0.0));
 }
 
 // The chromatic half of the view-path extinction, for a surface or cloud shell beneath the
