@@ -121,6 +121,7 @@ varying flat float v_bv;
 varying flat float v_intensity;
 varying flat float v_falloff;
 
+#include "_display.gdshaderinc"
 #include "_farwarp.gdshaderinc"
 #include "_star_point.gdshaderinc"
 
@@ -152,6 +153,9 @@ void fragment() {
 	}
 	// The PSF multiplies in-shader rather than via ALPHA so it sees full precision
 	// before the f16 buffer write; see star_point_light.
-	ALBEDO = star_color(v_bv, color_saturation) * star_point_light(v_intensity, dist_sq, v_falloff);
+	// Nothing sampled this radiance, so no renderer decode cancels against it: it crosses
+	// into the renderer's own colour space here (see _display.gdshaderinc).
+	ALBEDO = display_write(star_color(v_bv, color_saturation)
+			* star_point_light(v_intensity, dist_sq, v_falloff));
 	ALPHA = 1.0; // blend_add: the add is ALBEDO * ALPHA, already folded above
 }

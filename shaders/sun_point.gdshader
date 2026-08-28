@@ -49,6 +49,7 @@ render_mode unshaded, cull_disabled, skip_vertex_transform, blend_add, depth_dra
 // camera cannot render detail it never resolved; once the disc resolves, sun_surface takes
 // over and geometry rules again.
 
+#include "_display.gdshaderinc"
 #include "_farwarp.gdshaderinc"
 #include "_star_point.gdshaderinc"
 
@@ -98,6 +99,9 @@ void fragment() {
 	// The PSF multiplies in-shader rather than via ALPHA so it sees full precision
 	// before the f16 buffer write; see star_point_light. The sun is where this bites:
 	// its intensity exceeds f16 max everywhere the camera can reach.
-	ALBEDO = star_color(color_bv, color_saturation) * star_point_light(v_intensity, dist_sq, v_falloff);
+	// Nothing sampled this radiance, so no renderer decode cancels against it: it crosses
+	// into the renderer's own colour space here (see _display.gdshaderinc).
+	ALBEDO = display_write(star_color(color_bv, color_saturation)
+			* star_point_light(v_intensity, dist_sq, v_falloff));
 	ALPHA = 1.0; // blend_add: the add is ALBEDO * ALPHA, already folded above
 }

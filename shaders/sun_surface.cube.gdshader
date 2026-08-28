@@ -36,6 +36,7 @@ render_mode unshaded, skip_vertex_transform, depth_draw_opaque;
 // second way. Adding texture_bicubic_cube here means adding texture_bicubic there.
 
 #include "_detail.gdshaderinc"          // hash, value_noise (the photosphere's noise)
+#include "_display.gdshaderinc"
 #include "_farwarp.gdshaderinc"
 #include "_star_point.gdshaderinc"
 #include "_sun_photosphere.gdshaderinc"
@@ -101,10 +102,12 @@ void fragment() {
 			facula_contrast, spot_seed, v_pixel_radius);
 	vec3 surface = photosphere_color(intensity) * photosphere_limb_darkening(mu);
 	if (has_emission) {
-		surface *= texture(emission, dir).rgb;
+		surface *= display_decode(texture(emission, dir).rgb);
 	}
 	// Scalar cap at the shared f16-safe ceiling; see sun_surface.gdshader.
 	float disc_light = min(brightness * iv_exposure, STAR_LIGHT_MAX);
-	ALBEDO = surface * star_color(color_bv, color_saturation) * disc_light;
+	// Nothing sampled this radiance, so no renderer decode cancels against it: it crosses
+	// into the renderer's own colour space here (see _display.gdshaderinc).
+	ALBEDO = display_write(surface * star_color(color_bv, color_saturation) * disc_light);
 	ALPHA = v_alpha;
 }

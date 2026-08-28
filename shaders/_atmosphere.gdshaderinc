@@ -86,6 +86,10 @@
 // and every shell beneath it multiplies in atm_view_tint(mu): the per-channel
 // transmittance of the column above ITS OWN altitude over that luma. The product is exact,
 // and it is also what keeps a cloud deck 10 km up from being dimmed by the air below it.
+//
+// THE COLOUR SPACE. Everything here is physical linear radiance and linear transmittance, and
+// it stays that way: converting to whatever the running renderer expects is the calling
+// shader's boundary, not this file's. See _display.gdshaderinc.
 
 // ---------------------------------------------------------------- the shared uniform interface
 

@@ -48,6 +48,7 @@ render_mode skip_vertex_transform, ambient_light_disabled;
 
 #include "_detail.gdshaderinc"       // cubic_weights (shared with the cube bicubic below)
 #include "_detail.cube.gdshaderinc"  // texture_bicubic_cube
+#include "_display.gdshaderinc"
 #include "_farwarp.gdshaderinc"
 #include "_photometry.gdshaderinc"
 #include "_sun_occlusion.gdshaderinc"
@@ -128,9 +129,12 @@ void vertex() {
 void fragment() {
 	vec3 dir = normalize(model_position);
 
-	ALBEDO = has_albedo ? texture_bicubic_cube(albedo, dir).rgb : vec3(1.0);
+	// Decoded on the way in and encoded on the way out (see _display.gdshaderinc), so every
+	// colour term between the two is a linear reflectance -- which is what a range tag, a
+	// disc law and an atmosphere's transmittance all state.
+	ALBEDO = has_albedo ? display_decode(texture_bicubic_cube(albedo, dir).rgb) : vec3(1.0);
 	ALBEDO = albedo_range_lo + (albedo_range_hi - albedo_range_lo) * ALBEDO;
-	ALBEDO *= albedo_color.rgb;
+	ALBEDO *= display_decode(albedo_color.rgb);
 
 	if (has_roughness) {
 		ROUGHNESS = clamp(texture_bicubic_cube(roughness, dir).r * roughness_scale, 0.0, 1.0);
@@ -155,7 +159,7 @@ void fragment() {
 	// not starlight; see the include. For emission, exactly one of the two global scales
 	// is nonzero, so summing the channels selects the running one without a branch.
 	if (has_emission) {
-		EMISSION = texture_bicubic_cube(emission, dir).rgb
+		EMISSION = display_decode(texture_bicubic_cube(emission, dir).rgb)
 				* (emission_energy_multiplier * iv_emission_energy_scale
 				+ emission_luminance * iv_emission_luminance_scale);
 	} else {
@@ -184,9 +188,18 @@ void fragment() {
 		float sun_visible = sun_occlusion_visible_fraction(v_world_position);
 		if (compat_albedo_shadow) {
 			ALBEDO *= sun_visible;
+			// AO is ambient-only on this renderer, so the albedo multiply stands in for
+			// it -- and the SPECULAR lobe needs the same shadow, or an eclipsed body
+			// keeps its full sunlit sheen, which a dark-adapted exposure amplifies into
+			// a solid white disc (measured: Mimas in Saturn's shadow). F0 scales as
+			// SPECULAR^2, so the square root carries the fraction onto specular energy.
+			SPECULAR *= sqrt(sun_visible);
 		} else {
 			AO = sun_visible;
 			AO_LIGHT_AFFECT = 1.0; // attenuates direct light, not just ambient
 		}
 	}
+
+	ALBEDO = display_write_albedo(ALBEDO);
+	EMISSION = display_write(EMISSION);
 }

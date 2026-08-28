@@ -240,6 +240,9 @@ func _feed_body(body: IVBody, materials: Array) -> void:
 		return
 	var sun_direction := star_vector / star_distance
 	var sun_angular_radius := star.mean_radius / star_distance
+	# One frame behind, as the occluder fractions here are; an exposure ramp moves in EV per
+	# second, so a frame of it stays far under a display code.
+	var sun_light_energy: float = IVDynamicLight.star_light_energies.get(star.name, 1.0)
 	var occluder_count := 0
 	var occluder_data_a := PackedVector4Array()
 	var occluder_data_b := PackedVector4Array()
@@ -259,6 +262,7 @@ func _feed_body(body: IVBody, materials: Array) -> void:
 	for material: ShaderMaterial in materials:
 		material.set_shader_parameter(&"sun_direction", sun_direction)
 		material.set_shader_parameter(&"sun_angular_radius", sun_angular_radius)
+		material.set_shader_parameter(&"sun_light_energy", sun_light_energy)
 		material.set_shader_parameter(&"ambient_light", _ambient_light)
 		material.set_shader_parameter(&"occluder_count", occluder_count)
 		if occluder_count > 0:
@@ -276,16 +280,18 @@ func _feed_body(body: IVBody, materials: Array) -> void:
 	# This body's own rings, if any: the body is the occluder of its rings.
 	var ring_material: ShaderMaterial = _ring_materials.get(body.name)
 	if ring_material:
-		_feed_ring_material(body, ring_material, sun_direction, sun_angular_radius)
+		_feed_ring_material(body, ring_material, sun_direction, sun_angular_radius,
+				sun_light_energy)
 
 
 # Feeds the ringed body's own rings material: the body itself is the dominant
 # (and, for now, only) occluder of its rings. The ring-transmission uniforms are
 # intentionally left unset (default off) so the rings don't self-shadow.
 func _feed_ring_material(body: IVBody, material: ShaderMaterial, sun_direction: Vector3,
-		sun_angular_radius: float) -> void:
+		sun_angular_radius: float, sun_light_energy: float) -> void:
 	material.set_shader_parameter(&"sun_direction", sun_direction)
 	material.set_shader_parameter(&"sun_angular_radius", sun_angular_radius)
+	material.set_shader_parameter(&"sun_light_energy", sun_light_energy)
 	material.set_shader_parameter(&"ambient_light", _ambient_light)
 	if not _analytic_enabled:
 		material.set_shader_parameter(&"occluder_count", 0)

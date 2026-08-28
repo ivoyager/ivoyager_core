@@ -90,6 +90,10 @@ uniform float ring_texture_inner = 0.0;
 uniform float ring_texture_outer = 0.0; // <= 0.0 disables the ring term
 uniform vec3 sun_direction = vec3(0.0, 0.0, 1.0); // unit, toward the sun
 uniform float sun_angular_radius = 0.0;
+// The star's rendered light energy: what the engine multiplies a lit ALBEDO by, so a shader
+// that must reproduce that multiply itself renders on the same footing as the surface beneath
+// it. Only a shader that composites its own result needs it (see rings.gdshader).
+uniform float sun_light_energy = 1.0;
 uniform vec4 occluder_data_a[6]; // xyz = center (world), w = equatorial radius
 uniform vec4 occluder_data_b[6]; // xyz = pole axis (unit), w = polar radius
 uniform int occluder_count = 0; // 0 disables the spheroid term

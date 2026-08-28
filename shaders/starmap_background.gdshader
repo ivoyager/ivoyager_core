@@ -32,6 +32,7 @@ shader_type sky;
 // mirrors PanoramaSkyMaterial's exposure.
 
 #include "_detail.gdshaderinc"
+#include "_display.gdshaderinc"
 
 uniform sampler2D panorama : filter_linear, source_color, hint_default_black;
 uniform float energy_multiplier : hint_range(0, 128) = 1.0;
@@ -46,5 +47,9 @@ void sky() {
 	float longitude = atan(EYEDIR.y, EYEDIR.x); // [-PI, PI]
 	float latitude = asin(clamp(EYEDIR.z, -1.0, 1.0));
 	vec2 uv = vec2(fract(0.5 - longitude / TAU), 0.5 - latitude / PI);
-	COLOR = texture_bicubic(panorama, uv).rgb * (energy_multiplier * iv_exposure);
+	// Decoded on the way in and encoded on the way out (see _display.gdshaderinc), the same
+	// convention as the spatial shaders: the sky pass expects display-referred COLOR on the
+	// renderer that expects display-referred ALBEDO, and its own conversions then cancel.
+	COLOR = display_write(display_decode(texture_bicubic(panorama, uv).rgb)
+			* (energy_multiplier * iv_exposure));
 }

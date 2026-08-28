@@ -786,13 +786,192 @@ thin layer shows its bright face only from the sun's side of the plane.
 
 ## Renderer parity
 
-Forward+ and Compatibility (GL / web) render the same photometric values. While physical
+Forward+ and Compatibility (GL / web) meter identically — the CPU chain above is the same
+code and produces the same `light_energy`, ambient and `iv_exposure` on both. While physical
 light is active the Compatibility renderer's legacy post-tonemap brightness offset
 (`tonemap_exposure` 1.2, which also brightened HUD ~6% relative to Forward+) is retired
 and restored on deactivation. Compatibility's 8-bit output can band on very dim content
-(deep night ambient); Forward+ resolves the same values smoothly. The atmosphere shell's
-premultiplied blend composes in linear light on Forward+ and on the sRGB-encoded target
-on Compatibility, so the veil over a disc reads softer there.
+(deep night ambient); Forward+ resolves the same values smoothly.
+
+**The two renderers do not share a colour space.** Forward+ and Mobile are linear at both
+ends of a shader: a `source_color` texture is decoded on sample and the finished frame is
+encoded to sRGB. Compatibility is display-referred at both ends instead — a `source_color`
+texture arrives still encoded, and what a shader writes is taken as encoded too, decoded for
+the light multiply and re-encoded into the framebuffer. Measured by rendering a known
+constant through the light path on three bodies spanning an 11x range of `light_energy`
+(0.73 to 8.20): Forward+ renders `enc(ALBEDO * energy)` to within a code, Compatibility
+`enc(dec(ALBEDO) * energy)` with a constant 0.826 in linear, that residual being Godot's own
+approximate transfer rather than the exact piecewise one. On a stock two-node project, on
+screen, identically on 4.5.1 through 4.7.2: a shader writing 0.25 displays 137 under
+Forward+ and 64 under Compatibility — 64 being 0.25 read back as already encoded — while an
+sRGB texture byte of 128 round-trips to 128 under both. The two conventions agree for a
+value that is only sampled and multiplied by light, and agree for nothing else. They did
+not agree for:
+
+- **Arithmetic on a sampled colour.** A range tag's affine unpack, a disc-photometry factor,
+  a band tint, `albedo_scale`, `albedo_ceiling`, a ring's phase boost: every one states a
+  *linear* coefficient, and applying one to a display-referred value makes a multiplier `m`
+  act like `m^2.4`. Enceladus' range tag of `hi` 2.64 blew 89 % of its disc to flat white
+  and Mimas' 1.79 blew 64 %; Venus blew 35 %; Lommel-Seeliger (`lunar_lambert` 1.0, every
+  `ICE_WORLD`) did it again on top, so untagged Ganymede blew 11 %. Saturn, whose range is
+  narrow and offset rather than tall, came out 12 % over-saturated instead — the "stretched"
+  look.
+- **A computed radiance.** An atmosphere's path radiance, an emission map in cd/m², a star's
+  flux: nothing samples these, so nothing cancels, and they were displayed raw. A veil at
+  I/F 0.05 rendered at 0.05 where it should read 0.25, which cost Earth's lit disc its
+  softening entirely and erased Titan's detached haze layer from the lit side, while the
+  bright backlit limb — near the top of the range, where the curve barely bends — looked
+  correct throughout.
+
+`_display.gdshaderinc` is the fix and the only place that decides any of it. A shader decodes
+what it samples, does its colour arithmetic in linear, and encodes what it writes; the
+`iv_display_encode` global (written once by `IVGraphicsManager`) makes every conversion the
+identity on a renderer that handles its own colour space, so those render bit-identically.
+Measured against Forward+ over the lit disc, every airless body now lands within 1 %
+(Mercury, Callisto, Ganymede, Mimas, Enceladus all 1.00–1.01, against 1.11–1.73 before), and
+the white blowouts are gone (Mimas 64.3 % → 0.3 %, against Forward+'s own 0.2 %).
+
+A lit **opaque** surface is fully reached by this, at any exposure: the renderer performs
+its light multiply in linear between the decode and the encode, so an airless body matches
+Forward+ to within 0.004 of a display unit at every level of its disc, across `light_energy`
+from 0.96 to 3.52.
+
+**The blend is not, and that boundary is now deliberate.** It runs after a shader returns
+and therefore on display-referred values, where a sum is not a sum: compositing gives
+`enc(A) + enc(B)` where the linear pipeline gets `enc(A + B)` — equal where either term
+dominates, 1.5x apart at worst, and worst of all for a *faint* term over a bright one,
+since `enc` lifts 0.02 to 0.155. Correcting a blend needs the fragment to know what the
+framebuffer already holds, and a fragment cannot know it — it can only carry an ESTIMATE
+of the shells beneath it, and an estimate is exactly what the correction converts into
+*structured colour error* wherever the encode slope is steep. The full estimate-based
+scheme was built and then retired; what it won, what it cost, and which parts are worth
+recovering are recorded below under *What the estimate machinery proved*, because the two
+are not the same list.
+
+**What stays approximate on Compatibility, accepted for now.** All of it is the blend,
+none of it is per-body tuning, and it is structurally coherent — no colour casts, no
+cross-shell misregistration, stable as the cloud deck drifts:
+
+- **A faint additive glow over a lit disc lands crushed, and it is a RADIAL error, not a
+  uniform one.** The atmosphere limb hands its path radiance to the engine's own
+  conversion, which crushes it hardest where it is faintest — so the deficiency grows from
+  the disc centre outward and reaches its worst exactly at the limb. Measured against
+  Forward+ in radial bands (disc core / outer disc / limb and beyond-limb ring): Earth
+  0.73 / 0.59 / 0.12, Mars 0.73 / 0.53 / 0.05, Venus 0.78 / 0.64 / 0.20, Titan 0.96 / 0.84
+  / 0.03. **The beyond-limb ring is effectively absent on every one of them**, which on
+  Titan — whose whole disc is its atmosphere, and whose lit-side limb is the thing a viewer
+  looks at — is the most visible defect the renderer now has. The twilight air-glow goes
+  the same way, so a terminator reads as a plain transparent fade rather than Forward+'s
+  glowing band.
+- **A bright translucent overlay cannot pass the fragment's 1.0 clamp, and its convex mix
+  dims.** A cloud deck saturates at the fragment before `blend_mix` runs, so partial
+  coverage never reaches white, and the encoded-space mix runs its fringes dark.
+- **A lit surface's last codes cut early at the terminator.** The final encode acts on the
+  lit-plus-emission sum between the bracket's halves, where no per-slot write reaches, and
+  its power curve has no linear segment — the dying sunlight loses its lowest codes and
+  the fade to black is slightly abrupt.
+
+**What the estimate machinery proved, and where it actually failed.** Retiring it is not a
+verdict that it did not work — measured in the same radial bands, the full build put
+**every atmosphere body at 0.998–1.004 of Forward+ in every band**, ring included. Three
+things are worth keeping straight, because they decide what a future patch should attempt:
+
+- **The beyond-limb RING needs no estimate at all.** A ray that misses the disc has empty
+  sky behind it, so its pedestal is the constant 0 — the same standing the rings shell has,
+  and the reason that one restatement was kept. The limb shader already branches on exactly
+  this test (impact parameter against the disc radius). Recovering the ring is therefore
+  free of the failure below, and it is the largest single visible gap in the list above.
+- **The scalar pedestal was sound on a body without a cloud deck.** Venus and Titan carry
+  no map at all and Mars no deck, and the veil over their discs measured 1.000 with the
+  body table's albedo as the whole estimate. Its known residual was Mars' lit side at
+  +4–10 %, the disc's own albedo spread about one number.
+- **The failure was EARTH, and it was structural.** Earth stacks three shells; the deck
+  carries procedural warp and FBM detail no other shell can reproduce; the ocean adds a
+  specular glint no albedo sample knows; its clear ocean sits at a third of any workable
+  scalar while its deck sits far above one; and the deck *drifts* (`_rotate`), so every
+  cross-shell sample misregisters unless each consumer tracks the drifting frame. Sampling
+  the surface and cloud maps cross-shell to fix the scalar's bimodality is what tipped the
+  error from *level* to *structure*: at the day-side disc, 15.8 codes mean absolute
+  per-pixel error against Forward+ with 28 % of the disc more than 20 codes out and
+  saturation at 0.86x — a grey-washed ocean — breaking into overt colour casts over the
+  Sahara once the deck had drifted, which in live running it always has.
+
+Two method lessons came with it, and both cost a round to learn. **Aggregate luma metrics
+cannot see this class of error**: disc-mean ratios and per-decile luma scored that
+grey-washed Earth as near-perfect, because grey and blue at equal luminance are the same
+number — a colour claim needs per-channel or saturation measurement. And **a harness that
+pauses to be deterministic freezes the deck at zero drift**, the one state in which every
+cross-shell estimate is exact; the defect only appears once the capture runs time forward
+and comes back (`scratch/compat/drift_repro.py`).
+
+**The background panorama takes the same treatment as everything else** — the earlier
+account that `shader_type sky` "does not respond" was wrong. The GLES3 sky pass expects
+display-referred COLOR exactly as its scene pass expects display-referred ALBEDO: it
+decodes COLOR for its exposure and tonemap arithmetic and re-encodes on write
+(`drivers/gles3/shaders/sky.glsl`), so an untreated linear COLOR lands in the framebuffer
+nearly raw, darkest where the curve bends hardest — measured 0.68x of Forward+ at the sky's
+median luma, 0.80x at p90. `starmap_background.gdshader` decoding its sample and encoding
+its output moved those to 0.81x and 0.96x; with `display_write()` below, the sky sits at
+**1.00x at both**, with Forward+ unchanged.
+
+**What remained at the dim end everywhere was the engine's own approximate transfer pair,
+and `display_write()` pre-inverts it.** A written colour does not reach the framebuffer as
+written: the display-referred renderer's fragment tail decodes it with a polynomial and
+re-encodes it with a power curve that has no linear segment
+(`drivers/gles3/shaders/tonemap_inc.glsl`), a bracket that is nearly the identity above
+~0.3 and crushes below it — a written 0.05 landed at 0.030, everything under ~0.0008 linear
+at exactly zero, and the whole lit path carried the polynomial's misfit (the "constant
+0.826" above). So a fragment now writes the value whose trip through the engine's own
+conversions LANDS the exact-sRGB value Forward+ lands: the power curve's inverse names the
+linear value the final encode must see, and three Newton steps on the convex cubic name the
+value whose decode is that, within 5e-4 of a display unit — with no upper clamp, since a
+range-tagged or limb-flattened albedo legitimately exceeds 1.0 before the engine's light
+multiply and must survive (a 1.0 cap was measured darkening Ganymede's bright end 13–23
+codes). `display_encode()` stays the exact-sRGB transfer for arithmetic ABOUT the
+framebuffer — an alpha weight, a mix — which the framebuffer now really holds. Measured
+over the lit disc: Ganymede 1.000, Callisto 0.998, the sky 1.00 at every percentile; a
+body with an atmosphere sits under Forward+ by its crushed veil, the first accepted
+deficiency above. The final encode of a LIT result sits between the bracket's halves where
+no per-slot write reaches on its own — that residual is the terminator's early cut,
+accepted above.
+
+**An eclipsed body found the two write paths this scheme must keep apart.** The maintainer's
+Compatibility pass caught Mimas in Saturn's shadow rendering as a solid white disc at a
+dark-adapted exposure — dim grey ambient on Forward+ — and the bisect ran through five wrong
+suspects before landing on two real defects stacked. First, `display_write()`'s dark boost,
+sub-code where a value meets only the final encode, is anything but sub-code on a slot the
+renderer DECODES AND THEN MULTIPLIES: an eclipsed albedo of exactly 0 landed at 8e-4 linear,
+and a dark-adapted light energy of 1e3+ rendered that floor as the white disc.
+`display_write_albedo()` inverts only the polynomial decode — zero writes zero, exactly —
+and the boosted `display_write()` stays for EMISSION and unshaded radiance, which meet the
+final encode with nothing multiplied in between. Second, the `compat_albedo_shadow` fallback
+multiplies the occluder shadow into ALBEDO because AO is ambient-only on this renderer —
+which left the SPECULAR lobe unshadowed, so an eclipsed body kept its full sunlit sheen
+(F0 0.02 times a dark-adapted light energy clears white on its own; established by zeroing
+the terms pairwise). The shadow now rides SPECULAR too, as the square root, since F0 scales
+as SPECULAR². Mimas in eclipse lands within one code of Forward+.
+
+**The rings' restatement is the one blend correction kept.** A partially transparent sheet is
+dimmed by the display-referred blend itself — `alpha * enc(C)` against the linear
+pipeline's `enc(alpha * C)`, 0.73x over Saturn's lit ring face — so the ring self-lights on
+the display-referred branch and hands `display_mix` a zero pedestal: it stands over empty
+sky almost everywhere, and the escalation case is pedestal-blind. The engine lights only
+the sunlit face (the unlit face is ambient alone), and the shader's existing model-space
+side test — `IVRings` keeps +y sunward — says which this is;
+`IVSunOcclusionManager._feed_ring_material` now passes `sun_light_energy` beside the sun's
+direction. Two confounds had to fall before the diffuse model could be chosen honestly. The
+`IVRings` Compatibility overrides of `litside_phase_boost` / `unlitside_phase_boost`
+(1.25 / 1.5 against the 3.0 / 2.0 every other renderer uses) are retired along with the
+matching metering constant in `IVExposureManager`: tuned against the old display-referred
+pipeline, where a boost `m` acted as `m^2.4`, they became a deliberate divergence once it
+was corrected — and they were quietly dimming every Compatibility ring measurement by
+0.88x, which made a Burley restatement (the engine's documented default diffuse at these
+shells' roughness of 1.0) look closer than it is. With the mask removed and the
+boosts equal, the end-to-end measurement is unambiguous: a LAMBERT self-light lands the
+lit ring face at 0.99x of Forward+ and the Burley one at 1.23x — at this near-equinox
+grazing incidence, where the sun stands a degree or two off the ring plane and Burley's
+grazing terms run 1.5–2x over Lambert, the engine's own ring shading sits close to
+Lambert.
 
 ## Settings summary
 
@@ -829,7 +1008,7 @@ on Compatibility, so the veil over a disc reads softer there.
   0.01 to ~0.10 at albedo 0.53 — dark bodies want the flat disc, bright ones want Lambert.
   The classes cut across that: `ICE_WORLD` spans Iapetus 0.25 to Enceladus 1.375 and
   `ROCKY_WORLD` spans Ceres 0.09 to Mimas 0.962. Deriving `L` per body from the `albedo`
-  column would need `IVShellsModel` to see the body's albedo, which it does not today.
+  column would take one `IVShellsModel` push of the table value to the shell materials.
   (The isotropic-scatterer model behind those numbers omits backscattering and roughness
   and reads 0.64 for the Moon against a published ~1.0, so it is a trend, not a source of
   values.)
@@ -852,9 +1031,29 @@ on Compatibility, so the veil over a disc reads softer there.
   reference in `limb_model.py` is what would settle it. Titan's detached layer
   is an epoch (450–510 km in 2016–17, 500 km in 2005–07, gone 2012–15); the table carries
   one. The planet's own shadow is in the model but an eclipse by another body is not:
-  `sun_occlusion_visible_fraction` at the tangent point would add it. The Compatibility
-  renderer composes the premultiplied blend on an sRGB-encoded target, so its veil reads
-  softer than Forward+'s (the same class of approximation the old additive blend carried).
+  `sun_occlusion_visible_fraction` at the tangent point would add it. On the Compatibility
+  renderer the limb's whole radiance crosses the engine's conversion bracket and blends on
+  an sRGB-encoded target, so its veil and band render well under Forward+ — the first
+  accepted deficiency above.
+- **Earth's terminator band on FORWARD+, which is where that defect actually lives.** Between
+  ground-dark and air-dark only the atmosphere's own glow renders, and it renders as an
+  OPAQUE band: no cloud or continental feature is visible inside it, where every other body's
+  terminator stays transparent right up to black. The surface and the cloud deck both take
+  their sunlight through `atm_sun_transmittance` at their own altitude, and the deck's is the
+  suspect — clouds sit kilometres up and stay lit well past the point the ground goes dark,
+  so a deck extinguished on the ground's column dies with the ground and leaves the glow
+  alone in that band. Mars has the same construction and stays transparent because its air is
+  roughly an order of magnitude thinner, which fits. Worth checking the veil's twilight width
+  against full-disc imagery (EPIC, Himawari) in the same pass, since both are one calibration.
+  Fixing it in the shared model is what lets Compatibility inherit the fix.
+- **Compatibility, what a targeted patch could still recover** (the retreat of 2026-08-28 is
+  the base; see *What the estimate machinery proved* above). Two candidates, in order of
+  confidence: the limb's beyond-limb RING, whose pedestal is provably the constant 0 and
+  whose absence is the most visible remaining defect (Titan); and the veil over the disc with
+  the body table's albedo as a SCALAR pedestal, which measured 1.000 on every body without a
+  cloud deck. Neither may sample another shell's map — that is what produced colour casts.
+  A cloud deck wanting to whiten past the fragment's 1.0 clamp can escalate alpha from its
+  OWN lit radiance without knowing anything about the ground beneath it.
 - **Sky radiance staleness.** Metallic spacecraft surfaces reflect the sky's radiance
   cubemap, which Godot rebakes only when the sky material is touched — so it holds
   whatever exposure was current at the last bake (usually activation). Today the effect

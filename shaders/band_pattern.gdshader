@@ -41,6 +41,7 @@ render_mode skip_vertex_transform, ambient_light_disabled;
 //   - Past a body's contrast headroom the band tops flatten (see albedo_color).
 
 #include "_detail.gdshaderinc"       // value_noise, fbm
+#include "_display.gdshaderinc"
 #include "_farwarp.gdshaderinc"
 #include "_photometry.gdshaderinc"
 #include "_sun_occlusion.gdshaderinc"
@@ -238,9 +239,13 @@ void fragment() {
 
 	pattern *= band_contrast;
 
-	vec3 base = albedo_color.rgb;
+	// Decoded here and encoded at the end of fragment() (see _display.gdshaderinc): the tint
+	// mix, albedo_scale, the pattern and the ceiling all state linear reflectance, and none
+	// of them means anything applied to a display-referred colour.
+	vec3 base = display_decode(albedo_color.rgb);
 	if (band_tint_strength != 0.0) {
-		base = mix(base, band_tint_color.rgb, clamp(-pattern * band_tint_strength, 0.0, 1.0));
+		base = mix(base, display_decode(band_tint_color.rgb),
+				clamp(-pattern * band_tint_strength, 0.0, 1.0));
 	}
 	// albedo_color and band_tint_color are sRGB Colors, so neither can carry a channel
 	// above 1.0 - the conversion clamps there. A body whose physical reflectance exceeds
@@ -287,9 +292,18 @@ void fragment() {
 		float sun_visible = sun_occlusion_visible_fraction(v_world_position);
 		if (compat_albedo_shadow) {
 			ALBEDO *= sun_visible;
+			// AO is ambient-only on this renderer, so the albedo multiply stands in for
+			// it -- and the SPECULAR lobe needs the same shadow, or an eclipsed body
+			// keeps its full sunlit sheen, which a dark-adapted exposure amplifies into
+			// a solid white disc (measured: Mimas in Saturn's shadow). F0 scales as
+			// SPECULAR^2, so the square root carries the fraction onto specular energy.
+			SPECULAR *= sqrt(sun_visible);
 		} else {
 			AO = sun_visible;
 			AO_LIGHT_AFFECT = 1.0; // attenuates direct light, not just ambient
 		}
 	}
+
+	ALBEDO = display_write_albedo(ALBEDO);
+	EMISSION = display_write(EMISSION);
 }

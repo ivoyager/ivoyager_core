@@ -43,6 +43,7 @@ render_mode skip_vertex_transform, ambient_light_disabled;
 
 #include "_detail.gdshaderinc"       // value_noise, fbm, cubic_weights
 #include "_detail.cube.gdshaderinc"  // texture_bicubic_cube
+#include "_display.gdshaderinc"
 #include "_farwarp.gdshaderinc"
 #include "_photometry.gdshaderinc"
 #include "_sun_occlusion.gdshaderinc"
@@ -127,8 +128,11 @@ void fragment() {
 	float detail = fbm(dir * clouds_detail_scale, OCTAVES) - 0.5;
 	float coverage = clamp(base_coverage + detail * clouds_detail_strength * gate, 0.0, 1.0);
 
-	ALBEDO = clouds_color * (albedo_range_lo
-			+ (albedo_range_hi - albedo_range_lo) * cloud.rgb);
+	// Decoded on the way in and encoded on the way out (see _display.gdshaderinc), so every
+	// colour term between the two is a linear reflectance -- which is what a range tag, a
+	// disc law and an atmosphere's transmittance all state.
+	ALBEDO = display_decode(clouds_color) * (albedo_range_lo
+			+ (albedo_range_hi - albedo_range_lo) * display_decode(cloud.rgb));
 	ROUGHNESS = 1.0;
 	METALLIC = 0.0;
 	// Shape the alpha rolloff at the boundary. The base map's edge is a straight bilinear
@@ -145,8 +149,8 @@ void fragment() {
 	// NORMAL, so the interpolated macroscopic normal is what is wanted and what is here.
 	vec3 macro_normal = normalize(NORMAL);
 	vec3 sun_view = normalize(mat3(VIEW_MATRIX) * sun_direction);
-	ALBEDO *= minnaert_albedo_factor(macro_normal, sun_view, VIEW, minnaert_k);
-	ALBEDO *= lunar_lambert_albedo_factor(macro_normal, sun_view, VIEW, lunar_lambert);
+	ALBEDO *= minnaert_albedo_factor(macro_normal, sun_view, VIEW, minnaert_k)
+			* lunar_lambert_albedo_factor(macro_normal, sun_view, VIEW, lunar_lambert);
 	// The body's atmosphere above this shell (the limb row's atm_* columns, propagated
 	// here; an exact no-op without them): direct light reddened along the sun path, and
 	// the chromatic half of the view-path extinction whose luma the limb shell removes.
@@ -159,9 +163,18 @@ void fragment() {
 		float sun_visible = sun_occlusion_visible_fraction(v_world_position);
 		if (compat_albedo_shadow) {
 			ALBEDO *= sun_visible;
+			// AO is ambient-only on this renderer, so the albedo multiply stands in for
+			// it -- and the SPECULAR lobe needs the same shadow, or an eclipsed body
+			// keeps its full sunlit sheen, which a dark-adapted exposure amplifies into
+			// a solid white disc (measured: Mimas in Saturn's shadow). F0 scales as
+			// SPECULAR^2, so the square root carries the fraction onto specular energy.
+			SPECULAR *= sqrt(sun_visible);
 		} else {
 			AO = sun_visible;
 			AO_LIGHT_AFFECT = 1.0; // attenuates direct light, not just ambient
 		}
 	}
+
+	ALBEDO = display_write_albedo(ALBEDO);
+	EMISSION = display_write(EMISSION);
 }

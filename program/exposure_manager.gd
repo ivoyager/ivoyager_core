@@ -251,13 +251,11 @@ var _limb_geometry: Dictionary[StringName, Vector2] = {} # body name -> (disc, s
 var _exposure_ceilings: Dictionary[StringName, Array] = {} # body name -> [(shell radius, ceiling)]
 var _limb_ceilings: Dictionary[StringName, float] = {} # body name -> limb_exposure_ceiling
 var _shell_meter_data_built := false
-var _ring_litside_phase_boost := 3.0 # rings.gdshader default; Compatibility override in _ready
+var _ring_litside_phase_boost := 3.0 # rings.gdshader default
 
 
 func _ready() -> void:
 	process_priority = -1 # before camera/lights/visuals (0); see class doc
-	if IVGlobal.is_gl_compatibility:
-		_ring_litside_phase_boost = 1.25 # the IVRings Compatibility override value
 	IVGlobal.current_camera_changed.connect(_on_current_camera_changed)
 	IVGlobal.camera_tree_changed.connect(_on_camera_tree_changed)
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
