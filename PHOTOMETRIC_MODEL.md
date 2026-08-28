@@ -1068,7 +1068,26 @@ Lambert.
   - **Fixed: the surface was lit by the direct beam alone.** See the two-stream entry above.
     It bought Earth +5–17 % contrast across the day-side half of the band and Mars +10–90 %,
     for +2.0 % / +6.9 % of disc level. It is a real correction and it is not enough.
-  - **What remains, and why it is a decision.** Earth's band survives because at μ0 < 0.06 the
+  - **The deck's edge is what reads as a wall, and a cutoff law only moves it** (tried and
+    rejected 2026-08-28). Commenting out Earth's cloud row settles the Mars asymmetry: the
+    features that survive inside the band are RELIEF, not albedo — Mars has abundant relief
+    to shade at grazing incidence and Earth's map has almost none, which is why Earth's
+    contrast falls 0.214 → 0.054 across the band while Mars' *rises* 0.066 → 0.113. What
+    reads as a defect is the abrupt end of the white clouds. Isolated by hiding the shell,
+    the deck's own contribution falls 0.0691 → 0.0049 → 0 over µ0 +0.065 → −0.005, an
+    e-folding length collapsing from 91 pixels to 2. A `clouds_grazing_extent` carrying the
+    deck to its own geometric shadow at µ0 = −0.0565 (3.2° past the disc's terminator, the
+    part the engine's N·L cannot deliver rebuilt as EMISSION) was rendered at
+    k = 0/0.35/0.5/0.7/1.0 and **moved the wall without removing it** — a linear ramp to a
+    hard zero translates its corner but keeps its shape, and the deck is still 16 % of the
+    pixel where it stops. Removing it needs the falloff SHAPE changed: a layer law, whose
+    radiance carries no µ0 projection (which is why this model's own glow survives to
+    µ0 −0.13 while the deck inside it does not), ENDED by a shadow graded through the deck's
+    own thickness rather than cut at a line. A layer law without that grading is worse, not
+    better. Both need the deck's optical depth separated from its coverage, which
+    `Earth.clouds.albedo.512.png` cannot supply: RGB is 255 in one distinct value with alpha
+    carrying everything, so reflectance is pinned at 1.0 and a range tag would buy nothing.
+  - **What else remains, and why it is a decision.** Earth's band survives because at μ0 < 0.06 the
     surface cannot compete on albedo: the ocean is 0.05 and the glow is 65–80 % of the pixel
     even after the fix (measured p90/p10 across the band, 1.5 on the day side collapsing to
     1.27). And the night-side half is structural — the engine's N·L zeroes both the surface
