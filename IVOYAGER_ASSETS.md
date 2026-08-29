@@ -553,8 +553,12 @@ map's bright tail runs out of headroom. Rides a custom mesh.
 ### Earth clouds — `/cubemaps/Earth.clouds.albedo.512.png`
 
 The Blue Marble 2002 combined cloud product from the NASA Earth Observatory (image by Reto
-Stöckli), carried as a translucent shell above the surface map. Reprojected and otherwise as
-downloaded.
+Stöckli), carried as a translucent shell above the surface map. Reprojected, and split by us
+into the two quantities a translucent shell needs: the source's single greyscale channel is
+read as the deck's reflectance and separated into an opacity (alpha) and a cloud reflectance
+(rgb) by the standard conservative two-stream relation, so that an overcast texel is opaque
+rather than partly transparent. The split leaves the deck's own brightness unchanged, texel
+for texel; what it changes is how much of the surface shows through it.
 
 - **Third-party:** the imagery — Public Domain (NASA Earth Observatory).
 
