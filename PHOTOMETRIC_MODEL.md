@@ -1010,6 +1010,8 @@ Lambert.
 | | `default_albedo` | Metering albedo for bodies without a table value. |
 | | `emission_luminance_scale` | Luminance of a full-white emission texel at multiplier 1.0. |
 | | `ambient_starlight_illuminance` | Integrated starlight: ambient level and the metering floor. |
+| | `auto`, `manual_exposure_ev`, `exposure_adjustment_ev` | Runtime overrides for a GUI: hold the metered result, replace it with a stated EV, or offset either. The defaults (auto, no adjustment) apply the metered result itself. |
+| | `auto_exposure_ev` (read-only) | The metered and adapted result, in EV relative to the authored sky look. Live every frame whether or not `auto` is set, so a control can display it and hand it to manual without a jump. |
 
 ## TODO
 

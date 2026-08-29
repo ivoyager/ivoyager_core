@@ -46,6 +46,11 @@ extends Node
 ## geometry, and not to the star, whose disc clips white at any scene exposure
 ## and so meters only when it grows into the subject.[br][br]
 ##
+## Metering and adaptation produce [member auto_exposure_ev]; what is applied
+## is 2^([member auto_exposure_ev] or [member manual_exposure_ev], per
+## [member auto], plus [member exposure_adjustment_ev]). The defaults - auto,
+## no adjustment - make [member exposure] the metered result itself.[br][br]
+##
 ## Writers and readers, one frame-consistent set per frame:[br]
 ## - Writes the [code]iv_exposure[/code] shader global, which every photometric
 ##   shader multiplies into its self-luminous output (stars, sun point and
@@ -96,6 +101,12 @@ extends Node
 ## Current relative exposure; the value written to the [code]iv_exposure[/code]
 ## shader global. 1.0 whenever inactive. Read-only.
 static var exposure := 1.0
+## The metered and adapted auto exposure, in EV relative to the authored sky
+## look (log2 of the exposure it alone would apply): rests at
+## [member exposure_max_ev] fully dark-adapted and falls as metering pulls
+## exposure down. Updated every frame while active, whether or not
+## [member auto] is true. Read-only.
+static var auto_exposure_ev := 0.0
 ## True while the system is applied (core setting + user setting + activation
 ## requirements all satisfied). Read-only.
 static var physical_active := false
@@ -106,6 +117,19 @@ static var gain := 0.0
 ## derived from [IVStarSettings] and the anchor; 0.0 until first activation.
 ## Read-only.
 static var sky_energy := 0.0
+
+## If false, [member manual_exposure_ev] replaces the metered result. Metering
+## runs either way, so [member auto_exposure_ev] stays live and a return to
+## auto resumes without a settling delay.
+var auto := true
+## The exposure applied while [member auto] is false, in EV relative to the
+## authored sky look; ignored otherwise. A GUI taking manual control should
+## seed this from [member auto_exposure_ev] so the view does not jump.
+var manual_exposure_ev := 0.0
+## Added to whichever of [member auto_exposure_ev] or [member manual_exposure_ev]
+## is in force. This is the viewer's exposure compensation rather than something
+## the camera adapts to, so it applies instantly.
+var exposure_adjustment_ev := 0.0
 
 ## The absolute anchor: V surface brightness (mag/arcsec^2) represented by the
 ## background panorama's brightest texel (value 1.0). Initial value from
@@ -271,6 +295,7 @@ func _exit_tree() -> void:
 		_restore_scene_values()
 		physical_active = false
 	exposure = 1.0
+	auto_exposure_ev = 0.0
 	_neutralize_shader_globals()
 
 
@@ -285,7 +310,8 @@ func _process(delta: float) -> void:
 	var time_scale := Engine.time_scale
 	if time_scale > 0.0:
 		delta /= time_scale # adaptation rates are wall-clock
-	_update_exposure(_get_metering_target(), delta)
+	_update_auto_exposure(_get_metering_target(), delta)
+	_apply_exposure()
 
 
 # *****************************************************************************
@@ -317,6 +343,7 @@ func _apply_transition() -> void:
 		_restore_scene_values()
 		physical_active = false
 		exposure = 1.0
+		auto_exposure_ev = 0.0
 		_neutralize_shader_globals()
 
 
@@ -934,29 +961,32 @@ func _get_albedo(body: IVBody) -> float:
 
 
 # *****************************************************************************
-# Exposure adaptation
+# Exposure adaptation & apply
 
 
-func _update_exposure(target: float, delta: float) -> void:
+func _update_auto_exposure(target: float, delta: float) -> void:
 	const LOG_2 := 0.6931471805599453
-	if _snap_next or target == exposure:
+	var target_ev := log(target) / LOG_2
+	if _snap_next or target_ev == auto_exposure_ev:
 		_snap_next = false
-		exposure = target
+		auto_exposure_ev = target_ev
+		return
+	var diff := target_ev - auto_exposure_ev
+	if absf(diff) > snap_ev_threshold:
+		auto_exposure_ev = target_ev
+		return
+	# Negative diff = darkening (exposure falling toward a bright body).
+	var rate := adapt_darken_ev_per_second if diff < 0.0 else adapt_brighten_ev_per_second
+	var step := rate * delta
+	if absf(diff) <= step:
+		auto_exposure_ev = target_ev
 	else:
-		var current_ev := -log(exposure) / LOG_2
-		var target_ev := -log(target) / LOG_2
-		var diff := target_ev - current_ev
-		if absf(diff) > snap_ev_threshold:
-			exposure = target
-		else:
-			# Positive diff = darkening (exposure falling toward a bright body).
-			var rate := adapt_darken_ev_per_second if diff > 0.0 else adapt_brighten_ev_per_second
-			var step := rate * delta
-			if absf(diff) <= step:
-				exposure = target
-			else:
-				current_ev += signf(diff) * step
-				exposure = 2.0 ** -current_ev
+		auto_exposure_ev += signf(diff) * step
+
+
+func _apply_exposure() -> void:
+	var ev := (auto_exposure_ev if auto else manual_exposure_ev) + exposure_adjustment_ev
+	exposure = 2.0 ** ev
 	RenderingServer.global_shader_parameter_set(&"iv_exposure", exposure)
 	RenderingServer.global_shader_parameter_set(&"iv_emission_luminance_scale",
 			exposure * gain)
@@ -1005,6 +1035,7 @@ func _clear_procedural() -> void:
 	_star = null
 	_snap_next = true
 	exposure = 1.0
+	auto_exposure_ev = 0.0
 	_neutralize_shader_globals()
 
 
