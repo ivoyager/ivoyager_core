@@ -178,7 +178,9 @@ void fragment() {
 	// ray, so screen direction, and therefore VIEW, is untouched.
 	vec3 macro_normal = normalize(v_normal_matrix * dir);
 	vec3 sun_view = normalize(mat3(VIEW_MATRIX) * sun_direction);
-	ALBEDO *= lunar_lambert_albedo_factor(macro_normal, sun_view, VIEW, lunar_lambert);
+	float atm_beam_response = lunar_lambert_albedo_factor(macro_normal, sun_view, VIEW,
+			lunar_lambert);
+	ALBEDO *= atm_beam_response;
 	// The body's atmosphere above this shell (the limb row's atm_* columns, propagated
 	// here; an exact no-op without them): direct light reddened along the sun path, and
 	// the chromatic half of the view-path extinction whose luma the limb shell removes.
@@ -211,8 +213,13 @@ void fragment() {
 	// outside the AO path) -- it is sunlight, unlike the starlight ambient above. Exactly
 	// zero wherever the beam still dominates, so the day side is untouched; see the
 	// include for why the subtraction inside makes that identical rather than merely small.
-	EMISSION += unlit_albedo * atm_sky_excess(atm_mu0) * atm_tint
-			* (sun_light_energy * sun_visible);
+	// It takes the disc law's ISOTROPIC response and not the beam factor above: this light
+	// arrives from the whole sky, and mu0^(k-1) is an answer about one incidence angle. On a
+	// Lambert body both are 1 and nothing changes; on Venus the beam factor had been
+	// collapsing the twilight toward the terminator exactly where it takes over.
+	float atm_sky_response = lunar_lambert_isotropic_response(macro_normal, VIEW, lunar_lambert);
+	EMISSION += unlit_albedo * atm_sky_excess(atm_mu0, atm_sky_response,
+			atm_beam_response) * atm_tint * (sun_light_energy * sun_visible);
 
 	ALBEDO = display_write_albedo(ALBEDO);
 	EMISSION = display_write(EMISSION);

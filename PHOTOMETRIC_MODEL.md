@@ -1102,6 +1102,32 @@ Lambert.
     (Mars 19 %, Titan 42 %, Venus 2.8x). The subtraction is what makes the day side identical
     rather than close: term-on against term-off in ONE app run measured **0.0000 codes**
     above 3.4 deg of solar elevation.
+  - **A BRDF's BEAM FACTOR IS NOT ITS ANSWER TO DIFFUSE LIGHT, and the mismatch renders as
+    a SHELF.** The twilight first shipped riding whatever disc law the shader had already
+    applied to ALBEDO -- `mu0^(k-1) mu^(k-1)` for Minnaert -- which is an answer about one
+    incidence angle applied to light that has none. On Venus (k = 1.35) it collapsed the
+    twilight toward the terminator exactly where it takes over, and the rendered slope went
+    449 / 222 / 88 / **0.7** / 173 across mu0 0.045 -> 0.005: a flat plateau inside a steep
+    gradient, which is a Mach band, and it was reported as a lighter band before the night
+    side. The illumination itself has no shelf -- its slope rises monotonically from the
+    terminator outward (Venus 0.29 -> 0.94 over mu0 0 -> 0.09), with the fitted curve or with
+    the raw integral -- so the band was never in the twilight. Isolated in one app run with
+    only `minnaert_k` differing: at 1.0 the shelf is simply gone. The fix is the law's
+    hemisphere integral (`*_isotropic_response` in `_photometry.gdshaderinc`), which takes
+    that minimum slope to 57.5 with the day side at ratio 1.0000. Note what it does NOT
+    remove: near a terminator the surface really is lit by its sky and not by the beam
+    (Venus's skylight is 3.4x the beam at 1.15 deg of sun elevation and 22x by 0.3 deg), so
+    a flattening there is correct and some of it survives.
+  - **MOVING LIGHT BETWEEN ALBEDO AND EMISSION IS NOT NEUTRAL, WHICH RULES OUT THE TIDIER
+    FIX.** The obvious restructure -- beam on ALBEDO with the beam factor, the whole diffuse
+    half on EMISSION with the isotropic response -- is algebraically an identity on a Lambert
+    body and measured **25 % dark** on Mars. ALBEDO rides the engine's N.L through the NORMAL
+    MAP, so it carries per-texel relief shading; EMISSION rides nothing. Routing the
+    day-side diffuse through EMISSION therefore strips relief from 70-99 % of the
+    illumination. That is also the physical answer: the two-stream's diffuse half is largely
+    FORWARD-scattered and keeps the beam's directionality, so it belongs on the beam's
+    footing. Only the twilight, which really does arrive from the whole sky, moves to the
+    isotropic response.
   - **A shipped table cell was deciding where that handover happens.** `atm_haze_multiple` is
     a boost on a layer's RADIANCE, tuned by eye for a limb, and the plane-parallel two-stream
     the curve hands over to ignores it -- so with Titan's 2.0 in the fit, its sky beat the

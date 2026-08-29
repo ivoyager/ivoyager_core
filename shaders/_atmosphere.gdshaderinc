@@ -843,21 +843,56 @@ vec3 atm_sun_transmittance(float mu0) {
 // longer), but one illumination for all of them is what makes surface and cloud fade TOGETHER;
 // give the deck its own and the two part company at the very place the wall was. What the deck
 // legitimately keeps beyond this is its direct beam, which is a separate term and not this one.
-vec3 atm_sky_excess(float mu0) {
+// The twilight curve alone, from the atm_sky_* cells, HELD at its own vertex. The reference
+// is monotone in mu0 -- the sky only brightens as the sun rises -- and a downward parabola is
+// not, so past its vertex the raw fit falls where the truth climbs. The cells are fitted so
+// that vertex lies beyond the crossover, so nothing is clamped where the term acts; what the
+// hold buys is the day side, released because the plane-parallel diffuse overtakes a CONSTANT
+// and stays past it rather than because the parabola decayed fast enough.
+vec3 atm_sky_illumination(float mu0) {
 	if (body_radius_km <= 0.0 || atm_sky_flux == vec3(0.0)) {
+		return vec3(0.0);
+	}
+	vec3 held = min(vec3(mu0), atm_sky_slope / (-2.0 * atm_sky_bend));
+	return atm_sky_flux * exp(held * (atm_sky_slope + held * atm_sky_bend));
+}
+
+// The DIFFUSE half of what the disc already receives from the plane-parallel two-stream: the
+// total less the beam. Absorbed light is gone and takes the exponential; scattered light
+// largely is not -- roughly a quarter of it arrives anyway, off the sky, and is what lets you
+// see the ground at sunset. Evaluated at the disc for every shell, as the twilight is.
+vec3 atm_plane_diffuse(float mu0) {
+	if (body_radius_km <= 0.0) {
 		return vec3(0.0);
 	}
 	AtmLayers L = atm_layers(0.0);
 	float R = body_radius_km * surface_scale;
 	float up = max(mu0, 0.0);
-	vec3 sky = atm_sky_flux * exp(mu0 * (atm_sky_slope + mu0 * atm_sky_bend));
-	// The diffuse half of what the disc already receives: the total, less the beam.
 	vec3 beam = atm_exp_column(L, R, 0.0, up);
 	if (L.has_layer) {
 		beam += atm_shell_ray_column(L, R, 0.0, up);
 	}
-	vec3 diffuse = up * max(atm_sun_transmittance_at(L, R, 0.0, up) - exp(-beam), vec3(0.0));
-	return max(sky - diffuse, vec3(0.0));
+	return up * max(atm_sun_transmittance_at(L, R, 0.0, up) - exp(-beam), vec3(0.0));
+}
+
+// What a shell adds as EMISSION over what the engine already gives it. The engine hands it
+// `beam_response * (direct + plane_diffuse)`, so the plane-parallel diffuse has ALREADY been
+// delivered -- through the BEAM factor, which is the wrong response for it but is what was
+// applied. Subtract what was actually delivered, `beam_response * plane_diffuse`, not the
+// unfactored quantity.
+//
+// SUBTRACTING THE UNFACTORED ONE LEAVES A NOTCH THAT CLOSES AT THE TERMINATOR, AND THE
+// PROFILE SPRINGS BACK UP AS IT DOES. Expanded, that mistake renders
+// `beam*direct + iso*sky - plane*(iso - beam)`, whose last term is a spurious dip that
+// vanishes as beam -> iso*0 at mu0 = 0: on Venus it put a local MAXIMUM in the last 1.2 deg
+// before the terminator -- a narrow lighter band, carrying the surface's own chromaticity
+// because that is exactly what it is. With the delivered quantity subtracted the sum is
+// `beam*direct + iso*sky` wherever the term acts, both terms monotone in mu0, and the profile
+// cannot bump. Note the engagement locus is independent of the view angle: iso and the beam
+// factor share the same mu^(k-1), which cancels, so it runs parallel to the terminator.
+vec3 atm_sky_excess(float mu0, float sky_response, float beam_response) {
+	return max(sky_response * atm_sky_illumination(mu0)
+			- beam_response * atm_plane_diffuse(mu0), vec3(0.0));
 }
 
 // The chromatic half of the view-path extinction, for a surface or cloud shell beneath the
