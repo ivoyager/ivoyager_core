@@ -35,21 +35,22 @@ extends HBoxContainer
 ## light is not active.
 
 
-const EV_STEP := 1.0 / 3.0
 ## Lowest settable manual exposure. Metering bottoms out near -38 EV with the
 ## sun's own disc as the subject, so this only stops a runaway drag.
 const MANUAL_MIN_EV := -48.0
 ## Lowest settable exposure adjustment.
 const ADJUSTMENT_MIN_EV := -6.0
-# Range anchors its step snapping on min_value, and 1/3 is not representable, so
-# every usable min lands zero at -1e-14 - which SpinBox renders as "-0.0". Past
-# Range's rescale threshold (step * 1e14) it snaps around zero instead, which is
-# exact; _clamp_to_min() then applies the floor the min_value would have.
+## Range anchors its step snapping on min_value, and 1/3 is not representable, so
+## every usable min lands zero at -1e-14 - which SpinBox renders as "-0.0". Past
+## Range's rescale threshold (step * 1e14) it snaps around zero instead, which is
+## exact; _clamp_to_min() then applies the floor the min_value would have.
 const UNANCHORED_MIN := -1e15
 
 ## If true (default), hide the widget entirely while physical light is
 ## inactive, rather than showing it with its controls disabled.
 @export var hide_when_nonphysical_light := true
+## Step size for manual EV and for the additive adjustment SpinBox.
+@export var ev_step := 0.2
 
 var _exposure_manager: IVExposureManager
 var _physical_active := false
@@ -63,8 +64,8 @@ var _physical_active := false
 
 func _ready() -> void:
 	set_process(false)
-	_manual_spinbox.step = EV_STEP
-	_adjustment_spinbox.step = EV_STEP
+	_manual_spinbox.step = ev_step
+	_adjustment_spinbox.step = ev_step
 	_manual_spinbox.min_value = UNANCHORED_MIN
 	_adjustment_spinbox.min_value = UNANCHORED_MIN
 	if IVStateManager.initialized_core:
