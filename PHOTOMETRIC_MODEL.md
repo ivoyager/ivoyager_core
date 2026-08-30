@@ -568,8 +568,8 @@ and a core reads white at the centre through yellow and orange rings on the way 
 spread is a property of the tint, not of the level: lowering the anchor moves the rings
 inward but cannot close them. Metering emission into the camera is the one thing that
 would, which is why **bloom reopens this question** — a bloom pass spreads a clipped core
-outward instead of containing it, so the decision above is worth re-judging when one
-lands.
+outward instead of containing it, and one has now landed (see *Glow: the bloom pass*), so
+the judgment is due for re-making (see TODO).
 
 ## Shell effects
 
@@ -1002,6 +1002,120 @@ grazing incidence, where the sun stands a degree or two off the ring plane and B
 grazing terms run 1.5–2x over Lambert, the engine's own ring shading sits close to
 Lambert.
 
+## Glow: the bloom pass
+
+`Environment.glow_enabled` is on in `resources/ivoyager_environment.tres` (2026-08-30,
+intended as the Core default), with every other glow property at its engine default. This is
+the bloom pass the sun's disc/point co-calibration and the f16 caps were built for. It is a
+**display-stage camera effect**: it reads the rendered frame, not the light chain, so nothing
+in the CPU photometry changes — what changes is which rendered values spill light into their
+neighbors. Judged in-app on Forward+ at the defaults: good.
+
+**What the engine does with it** (verified in the 4.7.2 source;
+`servers/rendering/renderer_rd/shaders/effects/copy.glsl` and `tonemap.glsl`):
+
+- The pass reads the **pre-tonemap linear HDR buffer** through a downsample chain. Each
+  texel's contribution is gated by `smoothstep(glow_hdr_threshold, threshold +
+  glow_hdr_scale, max channel)` — defaults 1.0 and 2.0, so nothing below white contributes
+  and contribution is full by 3.0 — and **capped at `glow_hdr_luminance_cap` = 12.0** per
+  channel. A Reinhard weighting on the first downsample suppresses single-pixel fireflies,
+  which also suppresses the sub-pixel star shimmer a bloom could otherwise amplify.
+- The blurred levels (defaults 2/3/4 at 0.8/0.4/0.1 — quarter- to sixteenth-resolution)
+  times `glow_intensity` 0.3 composite **before tonemapping, in linear light**, for every
+  blend mode but Soft Light. The default Screen blend at `white` 1.0 is
+  `color + glow − color·glow`: over dark sky — where every halo lives — that is an additive
+  light sum to first order, rolling off only as the base nears white. Under our linear
+  tonemap this is a true veiling-glare add, not a display-space paint-over. (The old
+  Soft Light default is the display-referred one; it is gone from the defaults and nothing
+  here should want it back.)
+
+**The consequences land exactly where a camera's do.** `metering_key` is 0.5, so a correctly
+metered surface sits below the threshold and does not bloom; only what the compensating
+camera lets clip spills — the sun, bright star cores, a blown atmosphere limb, overexposed
+cloud tops, clipped city cores, the near-opposition ring face. Because our exposure acts
+pre-tonemap (in `light_energy` and `iv_exposure`), the threshold is applied *after*
+adaptation: a source blooms exactly when the camera is exposed such that it clips, and an
+eclipse that dims `light_energy` takes the bloom down with it, automatically. The background
+panorama never reaches the threshold in either mode (peak ≈ 0.087 × 2^`exposure_max_ev` ≈ 0.7
+at rest), so the Milky Way correctly does not bloom.
+
+**The star PSF is not redundant with this, and could not be.** The PSF is the star's image —
+the calibrated core-plus-skirt that carries photometric proportionality and the `sqrt(ln I)`
+size law. Glow adds the wide scattering wings the Gaussian does not have, and its per-texel
+energy caps at 12 while star peaks run to the 32768 f16 ceiling: bloom is proportional to
+flux only between threshold and cap — roughly V 3 to 5.5 at the 1080 reference height and
+reference fov, the band riding the same resolution and fov compensations as the field — and
+every brighter star blooms at the cap, differentiated only by footprint, which grows as
+`sqrt(ln I)`. That is why glow shows on a small subset of stars, and why that subset's halos
+look alike. The cap is also half-deliberate protection: wings proportional to flux would
+clip white around the brightest cores and re-flatten the bright end toward identical blobs —
+the look the PSF size law exists to avoid. So `glow_hdr_luminance_cap` is the one photometric
+lever here, and raising it is an in-app judgment between honest wing energy and the
+bright-end hierarchy (see TODO). The shader headers that anticipated "bloom in proportion to
+true brightness" (`stars.gdshader`, `IVStarSettings`'s FUTURE_BLOOM_IMPLEMENTATION note)
+overpromised against the engine's actual gather; they get corrected with the eventual tuning
+change.
+
+**The other defaults are right, or near enough.** `glow_bloom` must stay 0.0 — it blooms
+below-threshold content, i.e. correctly exposed surfaces. The threshold at 1.0 means "what
+clips, spills," which is the right meaning under a linear tonemap. Levels and intensity are
+taste (halo width and weight). Additive blend instead of Screen is the strictly physical sum
+and differs only over already-bright content. `glow_normalized` is free — a CPU
+renormalization of the level weights, no GPU cost — but at fixed levels it only rescales the
+whole effect by 1/1.3, which is why toggling it showed nothing; default off is right.
+
+**The sun is glow-continuous through its handoff only under physical light.** There the disc
+and the point both saturate the shared `STAR_LIGHT_MAX` through the crossfade, both sides
+bloom at the cap, and the halo carries through. **With physical light off it does not**: the
+nonphysical disc constant (~3.0, `IVShellsModel`) meets a point whose peak holds the f16 cap
+through essentially the whole fade (at the sun's flux, `(1−w) × intensity` clears 32768 until
+the last sliver of the ramp), so per-texel glow steps from the 12 cap to ~3 and the halo pops
+off at the top of the crossfade instead of fading. This is the historical gap
+`IVStarSettings` documents — invisible while both halves merely clipped to white, and the
+glow pass is its first consumer. See TODO; noting, for that fix, that
+`IVBody2DCapturer` already writes its own preview brightness and must keep it.
+
+**The HUD stays out of it, with one exception.** Orbit lines, labels and points write ≤ 1.0
+and cannot bloom (halos from nearby sources wash over them, as over everything in the 3D
+buffer; the 2D GUI composites later and is untouched). The exception is the **fragment-id
+broadcast**: an id-bearing fragment inside the mouse grid writes channels in [1, 2048] into
+the very buffer glow reads, so hovering an orbit line or small-body point should now raise a
+small id-tinted glow at the cursor, each grid texel contributing up to the cap. Unverified
+in-app; the candidate fix is an encoding below the threshold (id/2048 is exact in half
+floats) rescaled in the probe. The probe itself reads at `POST_TRANSPARENT`, pre-tonemap and
+therefore pre-glow, so picking cannot be corrupted.
+
+**Captures.** Hi-res screenshots share the environment and get glow; halo radii are
+resolution-relative (blur levels) where the PSF is absolute pixels, so a halo holds its share
+of the frame while stars stay pin-sharp, and a taller render pushes fainter stars over the
+threshold — both consistent with the fixed-f-number camera the star field already implements.
+The 2D icon rig runs its own `World3D` on the default environment: **no glow in icons**,
+which keeps transparent readbacks clean and costs the exact in-sim look of overexposed
+content. Accepted.
+
+**Compatibility gets a different pass, and turning glow on there is an open decision.**
+Verified in the 4.7.2 GLES3 source (`drivers/gles3/rasterizer_scene_gles3.cpp`,
+`shaders/effects/glow.glsl`, `post.glsl`): only `glow_intensity`, `glow_bloom` and the three
+HDR properties act — levels, strength, blend mode, map and normalized are RD-only — the blend
+is always Screen, and the chain is a fixed 4-level dual filter. More consequentially,
+enabling glow flips the renderer into the post-effects path that `IVWorldEnvironment`
+deliberately avoids for the adjustment stage on this renderer: the scene and sky passes defer
+tonemapping to a post pass and render ×0.25 into RGB10_A2 (encoded headroom to 4.0), and the
+full-resolution post pass screen-blends the glow **in the encoded domain** and then runs
+`srgb_to_linear` → tonemap → `linear_to_srgb` — the approximate transfer bracket a second
+time, where `display_write()` pre-inverts it exactly once. The dim end re-crushes (an encoded
+0.05 lands at 0.030, 0.1 at 0.089; above ~0.3 the bracket is near identity): the defect the
+display pipeline work removed returns for all dim 3D content, plus the full-res buffer, the
+extra pass and the shader repermute the web build was spared. The threshold also gates
+*encoded* values — full feedback spans linear ≈ 1–13, and the cap is unreachable under the
+4.0-encoded storage ceiling — so what glow the web gets is dimmer and differently shaped than
+Forward+'s even where it works. (In a transparent render target the format is RGBA8, the
+headroom trick is off, and glow is inert while the post pass still runs.) None of this is
+measured in-app yet — it is source-read. Before glow ships as a Core default, either gate it
+off under `IVGlobal.is_gl_compatibility` beside the existing adjustment gate, or keep it and
+re-measure the *Renderer parity* numbers with it on; the choice is a judgment about what the
+web export is for. See TODO.
+
 ## Settings summary
 
 | Where | Setting | What it does |
@@ -1201,11 +1315,34 @@ Lambert.
   is therefore honestly black. Real earthshine is a designed feature if wanted: a
   per-body secondary light with physical energy (`albedo × illuminance × (R/d)² ×
   phase`) riding the same exposure chain.
-- **Bloom**: the disc/point co-calibration and f16 caps were done with a future bloom
-  pass in mind; the remaining work is the bloom itself. It also reopens **night-side
-  metering**, settled today on the judgment that blown city cores read correctly at
-  physical light levels (see *Night-side emission*) — a bloom pass spreads a clipped core
-  outward rather than containing it, so that judgment is worth re-making once one exists.
+- **Glow follow-ups.** The bloom pass the disc/point co-calibration anticipated has landed
+  as `Environment.glow_enabled` in `ivoyager_environment.tres`, judged good in-app on
+  Forward+ at the engine defaults (see *Glow: the bloom pass* for the audit). Still open:
+  - **The nonphysical sun handoff.** With physical light off, the disc's
+    `_SUN_DISC_BRIGHTNESS` (3.0, `IVShellsModel`) meets a point holding the f16 cap, so the
+    halo pops off at the top of the disc/point crossfade instead of carrying through — the
+    historical gap `IVStarSettings` documents, made visible by its first consumer. Fix by
+    co-leveling the nonphysical disc with the point at the cap (one constant; both halves
+    already clip to identical white without glow, so nothing else moves), minding
+    `IVBody2DCapturer`'s sun preview, which writes its own brightness for RGBA8 readback
+    and must keep it. The stale "future glow pass" wording in `stars.gdshader` and
+    `IVStarSettings` goes with that change.
+  - **Night-side metering re-judgment** (see *Night-side emission*): clipped city cores now
+    spread instead of being contained. Judge in-app; the 0.3 cd/m² anchor and Earth's
+    `exposure_ceiling` are the knobs if the blowout stops reading correctly.
+  - **Fragment-id bloom at the cursor**: verify in-app (hover an orbit line with glow on);
+    if visible, store the id channels below the glow threshold (id/2048 is exact in half
+    floats) and rescale in the probe.
+  - **The Compatibility decision** (see *Glow: the bloom pass*): gate glow off under
+    `IVGlobal.is_gl_compatibility` beside the existing adjustment gate, or keep it and
+    re-measure *Renderer parity* with it on. The source-read expectation is that the
+    dim-end crush `display_write()` removed returns, and the web pays a full-res post pass
+    for a dimmer, differently-shaped glow — but nothing is measured in-app yet, and the
+    call belongs with a web-export test.
+  - **`glow_hdr_luminance_cap` A/B** if the brightest stars' halos read too uniform: the
+    cap (12.0) is where bloom stops being proportional to flux, and raising it trades the
+    bright-end size hierarchy and firefly damping for honest wing energy. In-app judgment;
+    the default is defensible.
 - **Anchor refinement**: the 20.0 mag/arcsec² anchor is good to a few tenths against
   LMC/SMC levels in the shipped map; a tighter cross-check against published integrated
   photometry is possible.
