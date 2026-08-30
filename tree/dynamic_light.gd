@@ -128,9 +128,9 @@ func _process(_delta: float) -> void:
 			# Lambert convention (rendered diffuse = ALBEDO * energy * NdotL).
 			var absolute_magnitude := _get_star_absolute_magnitude()
 			if !is_nan(absolute_magnitude):
-				var apparent_magnitude := IVAstronomy.get_apparent_magnitude(absolute_magnitude,
+				var apparent_magnitude := IVPhotometry.get_apparent_magnitude(absolute_magnitude,
 						source_vector.length())
-				var illuminance := IVAstronomy.get_illuminance_from_apparent_magnitude(
+				var illuminance := IVPhotometry.get_illuminance_from_apparent_magnitude(
 						apparent_magnitude)
 				energy = IVExposureManager.exposure * illuminance * IVExposureManager.gain / PI
 		if is_nan(energy):

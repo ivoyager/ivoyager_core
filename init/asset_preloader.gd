@@ -227,7 +227,7 @@ func get_rings_shadow_profile_texture(rings_name: StringName) -> Texture2D:
 
 
 ## Source [Image] of [method get_rings_shadow_profile_texture], retained for
-## CPU sampling ([method IVAstronomy.get_ring_transmission]); reading back from
+## CPU sampling ([method IVSunOcclusionManager.get_ring_transmission]); reading back from
 ## the texture would stall on VRAM.
 func get_rings_shadow_profile_image(rings_name: StringName) -> Image:
 	return _rings_resources[rings_name][2]

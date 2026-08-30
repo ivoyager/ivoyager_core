@@ -70,8 +70,8 @@ manager derives:
   in the system multiplies this one number to become a screen value.
 
 Pure conversions (magnitude → illuminance, surface brightness → luminance, a star's
-disc luminance from absolute magnitude and radius) live in `IVAstronomy`'s Photometry
-section.
+disc luminance from absolute magnitude and radius) live in `IVPhotometry`, along with
+the V-band anchors they are defined against.
 
 ## Sunlight and ambient
 
@@ -741,7 +741,7 @@ tiny float passes `> 0.0` yet comes out of the GPU's `log()` as −∞.
 ## The Sun
 
 The sun disc's surface brightness is derived from its absolute magnitude and radius
-(`IVAstronomy.get_star_disc_luminance` — ~1.8×10⁹ cd/m²) times gain and exposure, so
+(`IVPhotometry.get_star_disc_luminance` — ~1.8×10⁹ cd/m²) times gain and exposure, so
 approaching it, the metering dims the scene until granulation and sunspots resolve
 instead of a white blowout. The disc and the far point sprite are co-calibrated and
 crossfade by apparent size (`IVShellsModel` sun mode), both capped at the shared

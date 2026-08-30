@@ -306,7 +306,7 @@ func _process_sun_physical_light() -> void:
 	var disc_brightness := _SUN_DISC_BRIGHTNESS
 	var exposure := 1.0
 	if IVExposureManager.physical_active and IVExposureManager.gain > 0.0:
-		disc_brightness = (IVAstronomy.get_star_disc_luminance(_sun_abs_mag, _mean_radius)
+		disc_brightness = (IVPhotometry.get_star_disc_luminance(_sun_abs_mag, _mean_radius)
 				* IVExposureManager.gain)
 		exposure = IVExposureManager.exposure
 	if disc_brightness != _applied_sun_disc_brightness and _sun_surface_material:

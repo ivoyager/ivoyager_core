@@ -31,8 +31,8 @@
 // Two occluder kinds: a ring plane with a 1D radial opacity profile (ring
 // shadows, with slant path and physical penumbra), and oblate spheroids as sky
 // discs with exact disc-overlap (eclipses, transits; penumbra/antumbra fall
-// out of the disc math). GDScript mirrors of the math live in IVAstronomy;
-// keep them in exact sync.
+// out of the disc math). GDScript mirrors of the math live in
+// IVSunOcclusionManager; keep them in exact sync.
 //
 // A receiving shader declares 'render_mode ambient_light_disabled', includes
 // this file (which declares the shared uniform interface below), captures the
@@ -77,8 +77,8 @@
 // per-light attenuation - a custom light() that evaluates each star's occlusion
 // (viable again now that the METER scale-sensitivity that once ruled it out is
 // resolved), or additive per-star passes. The occlusion math (sun_occlusion_*
-// here and the IVAstronomy CPU mirrors) is already sun-parameterized, so it is
-// reusable per star; only the application is single-sun.
+// here and the IVSunOcclusionManager CPU mirrors) is already sun-parameterized,
+// so it is reusable per star; only the application is single-sun.
 
 // Fed per frame by the manager (or IVRings during the experiment); defaults
 // keep every term a no-op until fed.

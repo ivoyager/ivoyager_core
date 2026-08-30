@@ -27,7 +27,7 @@ extends Node
 ##
 ## The photometric frame is the star field's: catalog V magnitudes through the
 ## camera PSF model ([IVStarSettings]), anchored by
-## [constant IVAstronomy.MAG0_ILLUMINANCE]. One member welds everything else to
+## [constant IVPhotometry.MAG0_ILLUMINANCE]. One member welds everything else to
 ## that frame - [member background_peak_magnitude_per_arcsec2], the surface
 ## brightness of the background panorama's brightest texel - from which this
 ## node derives [member sky_energy] (the panorama's physical energy_multiplier)
@@ -371,7 +371,7 @@ func _recompute_photometry() -> bool:
 	sky_energy = (star_settings.intensity_scale * psf_area * omega_ref
 			* 10.0 ** (0.4 * (star_settings.intensity_faint_mag
 			- background_peak_magnitude_per_arcsec2)))
-	var anchor_luminance := IVAstronomy.get_luminance_from_surface_brightness(
+	var anchor_luminance := IVPhotometry.get_luminance_from_surface_brightness(
 			background_peak_magnitude_per_arcsec2)
 	gain = sky_energy / anchor_luminance
 	return true
@@ -599,7 +599,7 @@ func _get_metering_target() -> float:
 					star_meter_fraction_start, star_meter_fraction_full)
 			if star_weight <= 0.0:
 				continue
-			var disc_luminance := IVAstronomy.get_star_disc_luminance(
+			var disc_luminance := IVPhotometry.get_star_disc_luminance(
 					star_absolute_magnitude, body.mean_radius)
 			min_exposure = minf(min_exposure, _get_candidate_exposure(disc_luminance,
 					star_weight, log_rest, rest_exposure))
@@ -619,9 +619,9 @@ func _get_metering_target() -> float:
 		var lit_visible := _get_lit_visible_fraction(body, star_vector, star_distance,
 				camera_vector, camera_distance)
 		var albedo := _get_albedo(body)
-		var apparent_magnitude := IVAstronomy.get_apparent_magnitude(
+		var apparent_magnitude := IVPhotometry.get_apparent_magnitude(
 				star_absolute_magnitude, star_distance)
-		var illuminance := IVAstronomy.get_illuminance_from_apparent_magnitude(
+		var illuminance := IVPhotometry.get_illuminance_from_apparent_magnitude(
 				apparent_magnitude)
 		var shadow_fraction := _get_parent_shadow_fraction(body, star_vector, star_distance)
 		# Ambient starlight is the floor of both candidates: eclipse shadow
@@ -934,8 +934,8 @@ func _get_parent_shadow_fraction(body: IVBody, star_vector: Vector3,
 	var parent_angular_radius := parent.mean_radius / parent_distance
 	var cos_separation := star_vector.dot(parent_vector) / (star_distance * parent_distance)
 	var separation := acos(clampf(cos_separation, -1.0, 1.0))
-	return IVAstronomy.get_two_disc_visible_fraction(star_angular_radius, parent_angular_radius,
-			separation)
+	return IVSunOcclusionManager.get_two_disc_visible_fraction(star_angular_radius,
+			parent_angular_radius, separation)
 
 
 func _get_star_absolute_magnitude() -> float:
