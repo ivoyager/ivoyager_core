@@ -1011,6 +1011,31 @@ the bloom pass the sun's disc/point co-calibration and the f16 caps were built f
 in the CPU photometry changes — what changes is which rendered values spill light into their
 neighbors. Judged in-app on Forward+ at the defaults: good.
 
+### Which glow settings a project may change
+
+Godot exposes a dozen glow properties and they are not peers: two carry the contract this
+whole model rests on, one is a real photometric lever, and the rest are taste. What makes
+the difference is that **glow's threshold and the metering key are one agreement** — the
+camera meters a surface to `metering_key` (0.5) so that anything the camera has *not*
+exposed for is what clips, and glow's job is to spill exactly that and nothing else. A
+setting that breaks that agreement does not merely look different; it decouples bloom from
+the exposure system and every statement in this document about what blooms stops being
+true.
+
+| Setting | Ships | May a project change it? |
+|---|---|---|
+| `glow_bloom` | 0.0 | **No.** It is a floor under the threshold test, so any value above 0 blooms correctly exposed surfaces — the one thing the model forbids. It is also what keeps the fragment-id broadcast dark (below). |
+| `glow_hdr_threshold` | 1.0 | **No, not downward.** 1.0 is the whole contract: "what clips, spills." Lowering it blooms metered content; raising it mutes the faint end for no gain, since the cap already flattens the bright end. |
+| `glow_hdr_luminance_cap` | 12.0 | **Yes, knowingly.** The one photometric lever here — where bloom stops being proportional to flux (see below). Raising it buys honest wing energy on the brightest sources and costs bright-end size hierarchy and firefly damping. Inert under Compatibility, which clamps lower on its own. |
+| `glow_blend_mode` | Screen | **Yes, except Soft Light.** Screen and Additive both composite pre-tonemap in linear and agree over dark sky. Soft Light is the odd one out: the engine applies it *after* tonemapping, on display-referred values, which is the one mode that is wrong here on principle rather than to taste. |
+| `glow_levels`, `glow_intensity`, `glow_strength`, `glow_mix`, `glow_map*` | 2/3/4 at 0.8/0.4/0.1, 0.3, 1.0, 0.05, none | **Yes, freely.** Halo width, weight and shape. None of them touch which pixels qualify, only how their light is spread. |
+| `glow_normalized` | off | **Yes, but it does nothing here.** It renormalizes the level weights on the CPU (free), and at fixed levels that is a uniform 1/1.3 rescale — indistinguishable from turning `glow_intensity` down. Tested; no visible change. |
+
+One setting outside the glow group belongs in the same list: **the tonemapper**. Glow
+composites *before* it, so `tonemap_mode` decides what a halo looks like after it is added.
+The model assumes the shipped LINEAR tonemapper, under which the composite is a true
+veiling-glare add.
+
 **What the engine does with it** (verified in the 4.7.2 source;
 `servers/rendering/renderer_rd/shaders/effects/copy.glsl` and `tonemap.glsl`):
 
@@ -1075,15 +1100,30 @@ off at the top of the crossfade instead of fading. This is the historical gap
 glow pass is its first consumer. See TODO; noting, for that fix, that
 `IVBody2DCapturer` already writes its own preview brightness and must keep it.
 
-**The HUD stays out of it, with one exception.** Orbit lines, labels and points write ≤ 1.0
-and cannot bloom (halos from nearby sources wash over them, as over everything in the 3D
-buffer; the 2D GUI composites later and is untouched). The exception is the **fragment-id
-broadcast**: an id-bearing fragment inside the mouse grid writes channels in [1, 2048] into
-the very buffer glow reads, so hovering an orbit line or small-body point should now raise a
-small id-tinted glow at the cursor, each grid texel contributing up to the cap. Unverified
-in-app; the candidate fix is an encoding below the threshold (id/2048 is exact in half
-floats) rescaled in the probe. The probe itself reads at `POST_TRANSPARENT`, pre-tonemap and
-therefore pre-glow, so picking cannot be corrupted.
+**The HUD stays out of it, and the one thing that did not is fixed.** Orbit lines, labels
+and points write ≤ 1.0 and cannot bloom (halos from nearby sources wash over them, as over
+everything in the 3D buffer; the 2D GUI composites later and is untouched). The exception
+was the **fragment-id broadcast**, and it was the worst case glow can produce: an id-bearing
+fragment inside the mouse grid wrote its raw channels — up to 2048 — into the very buffer
+glow reads, so every one of the 49 grid pixels bloomed at the cap. Measured hovering an
+orbit line, **553 of the 625 pixels around the cursor were saturated**, a blob that got
+worse the more id-bearing fragments the grid caught, which is why a crowded asteroid field
+showed it first.
+
+The broadcast now goes through `id_broadcast()` in `_fragment_id.gdshaderinc`, which carries
+each channel in **[0.5, 1.0]** — topping out exactly AT the threshold, where the pass's
+smoothstep is still zero — and the probe lifts it back out. The same box measures **31 of
+625** saturated with hover picking bit-for-bit unchanged (same hits and misses on the same
+pixels as before the change). Two things fell out of it that are worth knowing. A channel
+now holds **1024 values, not 2048**, so an id is 30 bits rather than 33: the band is one
+binade, whose half-float step is 1/2048, and a broadcast that does not survive RGBA16F
+storage exactly decodes as the wrong id. And the band **narrows the probe's accept window**
+from "every channel above 0.5" to "every channel inside one octave", so content brighter
+than an id — a star, a lit limb — can no longer be mistaken for one; false positives went
+down, not up. `glow_bloom` must stay 0.0 for this to hold, which it must anyway.
+
+The probe itself reads at `POST_TRANSPARENT`, pre-tonemap and therefore pre-glow, so picking
+was never at risk from glow — only the picture was.
 
 **Captures.** Hi-res screenshots share the environment and get glow; halo radii are
 resolution-relative (blur levels) where the PSF is absolute pixels, so a halo holds its share
@@ -1110,11 +1150,25 @@ extra pass and the shader repermute the web build was spared. The threshold also
 *encoded* values — full feedback spans linear ≈ 1–13, and the cap is unreachable under the
 4.0-encoded storage ceiling — so what glow the web gets is dimmer and differently shaped than
 Forward+'s even where it works. (In a transparent render target the format is RGBA8, the
-headroom trick is off, and glow is inert while the post pass still runs.) None of this is
-measured in-app yet — it is source-read. Before glow ships as a Core default, either gate it
-off under `IVGlobal.is_gl_compatibility` beside the existing adjustment gate, or keep it and
-re-measure the *Renderer parity* numbers with it on; the choice is a judgment about what the
-web export is for. See TODO.
+headroom trick is off, and glow is inert while the post pass still runs.) Before glow ships
+as a Core default, either gate it off under `IVGlobal.is_gl_compatibility` beside the
+existing adjustment gate, or keep it and re-measure the *Renderer parity* numbers with it
+on; the choice is a judgment about what the web export is for. See TODO.
+
+**And the one lever is inert there, which is why the far sun reads as an ordinary star.**
+The glow buffers are allocated in the render target's own format
+(`RenderSceneBuffersGLES3::check_glow_buffers`), so they are RGB10_A2 like the scene buffer,
+and the filter pass writes `luminance_multiplier × color` — 0.25 × a value capped at
+`glow_hdr_luminance_cap`. Anything above **4.0 clamps on store**, so the effective cap is
+4.0 whatever the property says, and raising it changes nothing. The scene buffer clamps at
+the same 4.0 encoded (≈ 27.5 linear), so the sun's ~1e9 and a bright field star's ~1e3 are
+*already the same number* before glow samples them. On Forward+ they survive to the pass and
+are flattened by the 12.0 cap instead — the same outcome by a different route, and the
+reason the far sun does not stand out from the brightest stars on either renderer. What
+separates them is footprint alone: the above-threshold radius of a point grows as
+`sqrt(ln I)`, which is 3.2 px for the sun against 1.8 px for Sirius, an area ratio of about
+3. Whether that is enough is a taste call, and on Forward+ the cap is where it would be
+made; on Compatibility there is no lever to make it with.
 
 ## Settings summary
 
@@ -1330,9 +1384,6 @@ web export is for. See TODO.
   - **Night-side metering re-judgment** (see *Night-side emission*): clipped city cores now
     spread instead of being contained. Judge in-app; the 0.3 cd/m² anchor and Earth's
     `exposure_ceiling` are the knobs if the blowout stops reading correctly.
-  - **Fragment-id bloom at the cursor**: verify in-app (hover an orbit line with glow on);
-    if visible, store the id channels below the glow threshold (id/2048 is exact in half
-    floats) and rescale in the probe.
   - **The Compatibility decision** (see *Glow: the bloom pass*): gate glow off under
     `IVGlobal.is_gl_compatibility` beside the existing adjustment gate, or keep it and
     re-measure *Renderer parity* with it on. The source-read expectation is that the

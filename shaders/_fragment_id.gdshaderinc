@@ -28,12 +28,34 @@
 //   iv_mouse_fragcoord  - mouse position + (0.5, 0.5) in internal-buffer pixels
 //   iv_fragment_id_range - sparse-grid half-extent; <= 0 disables broadcasting
 //
-// Fragment id components arrive in [1, 2048] per channel (offset-by-1 sentinel
-// applied by IVFragmentIdentifier.encode_vec3). Half-float (RGBA16F) carries
-// these integers exactly.
+// Fragment id components arrive in [1, 1024] per channel (offset-by-1 sentinel
+// applied by IVFragmentIdentifier.encode_vec3) and reach ALBEDO through
+// id_broadcast(), never raw.
 
 global uniform vec2 iv_mouse_fragcoord;
 global uniform float iv_fragment_id_range;
+
+
+// The value an id-bearing fragment writes to ALBEDO. Every broadcast goes through this;
+// a raw id magnitude must not reach the buffer.
+//
+// The buffer the probe reads is the one Godot's glow pass reads, and glow keys on
+// max(r, g, b) against Environment.glow_hdr_threshold -- so a raw id blooms, and over a
+// crowded point field that paints a halo on the cursor. The band ends exactly AT the
+// shipped threshold of 1.0, where the pass's smoothstep still returns zero, and begins at
+// 0.5, which also narrows the probe's accept window to a single octave: content brighter
+// than an id used to decode as one, and now cannot.
+//
+// A channel holds 1024 values because RGBA16F allows that many here, not by choice: the
+// band is one binade, whose half-float step is 1/2048, and a broadcast that does not
+// survive storage exactly decodes as the wrong id.
+//
+// The parameter avoids the callers' own "fragment_id" varying and uniform, which Godot
+// rejects as a redefinition rather than shadowing (the same trap _star_point.gdshaderinc
+// documents); every id shader failing to compile is what that mistake looks like.
+vec3 id_broadcast(vec3 encoded_id) {
+	return (encoded_id + 1024.0) / 2048.0;
+}
 
 
 bool is_id_fragment(vec2 fragcoord_xy) {

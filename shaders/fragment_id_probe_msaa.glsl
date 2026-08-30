@@ -22,9 +22,12 @@
 // when msaa_3d is enabled. Resolving an MSAA buffer averages samples, which
 // destroys the exact id encoding written by the id-shaders. So we read the
 // UNRESOLVED multisampled color buffer (sampler2DMS) and scan samples per pixel,
-// taking the first sample whose rounded RGB decodes to a valid id (channels in
-// [1, 2048]; offset-by-1 sentinel, any zero rejects). Writes the closest valid
-// sample to the SSBO; (0, 0, 0) means no valid id was found.
+// taking the first sample that decodes to a valid id (channels in [1, 1024]
+// after the broadcast band is lifted; offset-by-1 sentinel). Writes the closest
+// valid sample to the SSBO; (0, 0, 0) means no valid id was found.
+//
+// The band constants invert id_broadcast() in _fragment_id.gdshaderinc and must
+// track it and the non-MSAA probe; nothing shares them across the pipelines.
 
 #[compute]
 #version 450
@@ -60,9 +63,12 @@ void main() {
 			bool found = false;
 			for (int s = 0; s < pc.num_samples; s++) {
 				vec4 c = texelFetch(color_tex, px, s);
-				ivec3 cand = ivec3(round(c.rgb));
-				if (all(greaterThanEqual(cand, ivec3(1))) && all(lessThanEqual(cand, ivec3(2048)))) {
-					v = cand;
+				// Tested before the int conversion so a NaN or a huge scene radiance
+				// rejects here instead of reaching ivec3().
+				vec3 channels = c.rgb * 2048.0 - 1024.0;
+				if (all(greaterThanEqual(channels, vec3(0.5)))
+						&& all(lessThanEqual(channels, vec3(1024.5)))) {
+					v = ivec3(round(channels));
 					found = true;
 					break;
 				}

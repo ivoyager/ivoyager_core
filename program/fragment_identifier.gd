@@ -23,7 +23,7 @@ extends Node
 ## Decodes a unique id broadcast by an "id" shader fragment (e.g., an orbit
 ## line or asteroid point) at the mouse position.
 ##
-## Each "id" shader writes its 33-bit fragment id into [code]ALBEDO[/code]
+## Each "id" shader writes its 30-bit fragment id into [code]ALBEDO[/code]
 ## at a sparse 3-pixel grid pattern around the mouse, bounded by
 ## [member fragment_range]. An [IVFragmentIDCompositorEffect] attached to the
 ## active [Camera3D]'s [Compositor] dispatches a tiny compute shader at
@@ -43,7 +43,7 @@ extends Node
 ## [IVMouseTargetLabel] to display.
 
 ## Emitted when the fragment under the mouse changes. [param id] is the new
-## 33-bit fragment id, or [code]-1[/code] when the previous fragment is lost.
+## 30-bit fragment id, or [code]-1[/code] when the previous fragment is lost.
 ## Look up the matching record in [member fragment_data].
 signal fragment_changed(id: int)
 
@@ -56,9 +56,9 @@ enum {
 }
 
 
-const _CHANNEL_BIT_WIDTH := 11 # half-float represents integers exactly to 2048
+const _CHANNEL_BIT_WIDTH := 10 # 1024 values, the half-float steps in the broadcast band
 const _CHANNEL_MASK := (1 << _CHANNEL_BIT_WIDTH) - 1
-const _ID_BIT_WIDTH := _CHANNEL_BIT_WIDTH * 3 # 33 bits across R, G, B
+const _ID_BIT_WIDTH := _CHANNEL_BIT_WIDTH * 3 # 30 bits across R, G, B
 const _ID_MAX := (1 << _ID_BIT_WIDTH) - 1
 
 
@@ -74,7 +74,7 @@ var fragment_range := 9
 # Read-only.
 ## Most recently identified fragment id, or [code]-1[/code] for none.
 var current_id := -1
-## Data arrays indexed by 33-bit id. [code]data[0][/code] is the target's
+## Data arrays indexed by 30-bit id. [code]data[0][/code] is the target's
 ## instance id; additional indexes are caller-defined.
 var fragment_data: Dictionary[int, Array] = {}
 
@@ -86,12 +86,14 @@ var _drop_mouse_coord := Vector2.ZERO
 
 
 # *****************************************************************************
-# Static encode / decode (paired with shader ID values in [1, 2048]).
+# Static encode / decode (paired with shader ID values in [1, 1024]).
 
 
-## Encodes a 33-bit [param id] as a Vector3 with each component in
-## [code][1, 2048][/code] (offset by +1 so any zero in the buffer is a clean
-## reject sentinel).
+## Encodes a 30-bit [param id] as a Vector3 with each component in
+## [code][1, 1024][/code] (offset by +1 so any zero in the buffer is a clean
+## reject sentinel). A shader carries these through
+## [code]id_broadcast()[/code] rather than writing them raw; see
+## [code]_fragment_id.gdshaderinc[/code].
 static func encode_vec3(id: int) -> Vector3:
 	assert(id >= 0 and id <= _ID_MAX)
 	var c0 := (id & _CHANNEL_MASK) + 1
@@ -102,7 +104,7 @@ static func encode_vec3(id: int) -> Vector3:
 	return Vector3(float(c0), float(c1), float(c2))
 
 
-## Reverses [method encode_vec3]. Each component must be in [code][1, 2048][/code].
+## Reverses [method encode_vec3]. Each component must be in [code][1, 1024][/code].
 static func decode_channels(c0: int, c1: int, c2: int) -> int:
 	assert(c0 >= 1 and c0 <= _CHANNEL_MASK + 1)
 	assert(c1 >= 1 and c1 <= _CHANNEL_MASK + 1)
@@ -143,13 +145,13 @@ func _process(_delta: float) -> void:
 # *****************************************************************************
 # Public API.
 
-## Assigns a fresh 33-bit fragment id and stores [param data] under it in
+## Assigns a fresh 30-bit fragment id and stores [param data] under it in
 ## [member fragment_data]. [param data][0] should be the target's instance id;
 ## additional indexes are caller-defined. Returns the new id.
 func get_new_id(data: Array) -> int:
-	var id := ((randi() & 1) << 32) | randi() # 33 bits
+	var id := randi() & _ID_MAX # 30 bits
 	while fragment_data.has(id):
-		id = ((randi() & 1) << 32) | randi()
+		id = randi() & _ID_MAX
 	fragment_data[id] = data
 	return id
 

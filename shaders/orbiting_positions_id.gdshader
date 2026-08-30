@@ -87,6 +87,6 @@ void fragment() {
 		discard; // shape mask; symbol_type == -1 keeps the flat point sprite
 	}
 	if (broadcast_id && is_id_fragment(FRAGCOORD.xy)) {
-		ALBEDO = fragment_id;
+		ALBEDO = id_broadcast(fragment_id);
 	}
 }
