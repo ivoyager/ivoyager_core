@@ -73,6 +73,7 @@ var characteristics_fields: Array[StringName] = [
 	&"mean_density",
 	&"hydrostatic_equilibrium",
 	&"albedo",
+	&"meter_albedo",
 	&"surf_t",
 	&"min_t",
 	&"max_t",

@@ -546,20 +546,25 @@ func _load_body_resources() -> void:
 
 # Under physical light (IVExposureManager registered), the class color is rescaled in
 # linear light so its luminance equals the albedo the exposure metering assumes for this
-# body (its table albedo, else the manager default) - a mapless surface then exposes
-# like any calibrated map instead of blowing out. Both consuming albedo_color paths are
-# source_color (sRGB), hence the decode/re-encode. Hue and alpha are the class color's
-# own; a saturated channel caps the scale so hue survives.
+# body (its meter_albedo, else its albedo, else the manager default) - a mapless surface
+# then exposes like any calibrated map instead of blowing out. Both consuming
+# albedo_color paths are source_color (sRGB), hence the decode/re-encode. Hue and alpha
+# are the class color's own; a saturated channel caps the scale so hue survives.
 func _get_fallback_color(class_color: Color, table: StringName, row: int) -> Color:
 	var exposure_manager_var: Variant = IVGlobal.program.get(&"ExposureManager")
 	if exposure_manager_var == null:
 		return class_color
 	var exposure_manager: IVExposureManager = exposure_manager_var
 	var albedo := exposure_manager.default_albedo
-	if IVTableData.db_has_value(table, &"albedo", row):
-		var table_albedo := IVTableData.get_db_float(table, &"albedo", row)
+	# meter_albedo ahead of albedo, the order IVExposureManager._get_albedo() takes:
+	# the two must agree or this surface renders at a level metering did not assume.
+	for field: StringName in [&"meter_albedo", &"albedo"]:
+		if !IVTableData.db_has_value(table, field, row):
+			continue
+		var table_albedo := IVTableData.get_db_float(table, field, row)
 		if table_albedo > 0.0: # empty cell reads non-positive; treat as unknown
 			albedo = table_albedo
+			break
 	var linear := class_color.srgb_to_linear()
 	var luminance := linear.get_luminance()
 	if luminance <= 0.0:

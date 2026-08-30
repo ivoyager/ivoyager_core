@@ -949,15 +949,29 @@ func _get_star_absolute_magnitude() -> float:
 
 
 func _get_albedo(body: IVBody) -> float:
-	# An empty table cell reaches characteristics as a non-positive float (not a
-	# missing key), and a 0 albedo would zero the body's luminance and silently
-	# remove it from metering - so only a positive value counts as known.
-	var albedo_var: Variant = body.characteristics.get(&"albedo")
-	if typeof(albedo_var) == TYPE_FLOAT:
-		var albedo: float = albedo_var
-		if albedo > 0.0:
-			return albedo
+	# meter_albedo first: metering wants the reflectance the camera actually sees,
+	# which is the catalog albedo only where a body's map is all there is to see.
+	# A body whose shells add light over that map - an atmosphere drawn across the
+	# disc - returns more, and nothing else in the metering path can say so.
+	var albedo := _get_albedo_characteristic(body, &"meter_albedo")
+	if albedo > 0.0:
+		return albedo
+	albedo = _get_albedo_characteristic(body, &"albedo")
+	if albedo > 0.0:
+		return albedo
 	return default_albedo
+
+
+# Returns a non-positive value where the field is absent or its cell empty: an empty
+# table cell reaches characteristics as a non-positive float (not a missing key), and
+# a 0 albedo would zero the body's luminance and silently remove it from metering - so
+# only a positive value counts as known.
+func _get_albedo_characteristic(body: IVBody, field: StringName) -> float:
+	var albedo_var: Variant = body.characteristics.get(field)
+	if typeof(albedo_var) != TYPE_FLOAT:
+		return 0.0
+	var albedo: float = albedo_var
+	return albedo
 
 
 # *****************************************************************************

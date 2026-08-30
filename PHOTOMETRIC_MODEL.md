@@ -201,14 +201,17 @@ that 2/3 for the bodies it covers, and it does so without touching any map level
 
 Notes and special cases:
 
-- Table albedos follow Mallama et al. (2017) for the planets. **Earth is deliberately
-  its cloudless value** (0.15, not the with-clouds 0.43): the surface map carries no
-  clouds, so metering against the cloudless albedo exposes the surface correctly and
-  lets cloud tops run bright, exactly as in real photographs (see *Cloud shells*).
-  Earth is also the one body whose map and table value do not agree, by 2.4× — its map
-  means 0.0614 — and that gap is the anchor doing its job rather than an error:
-  solid-angle weighted, the map's land mean is 0.182 with the ice sheets and 0.097
-  without, so 0.15 sits inside the continents' own range.
+- Table albedos follow Mallama et al. (2017) for the planets, **Earth's 0.434 included**
+  since 2026-08-30. It had held 0.15, the cloudless value, from when this column also
+  set exposure and one number had to serve both jobs; `meter_albedo` took that job and
+  the cell went back to the catalog, so the column is now uniformly Mallama's.
+- **Earth's map is the one that does not follow the convention, and cannot.** It means
+  0.0614 against a table 0.434, because the catalog value describes a cloudy planet
+  while the map is a cloudless surface — the clouds are a shell above it and the
+  atmosphere is drawn by the renderer, so no single number is both. Solid-angle
+  weighted, the map's land mean is 0.182 with the ice sheets and 0.097 without. Its
+  exposure comes from `meter_albedo` and not from this cell, so the gap costs nothing;
+  what it means is that the level tools' Earth row is a report, not a target.
 - **A map carries whatever a body's shells do not**, and for Earth that question is now
   settled: the map holds **surface** reflectance throughout, and the renderer draws the
   atmosphere over it (see *Atmospheres*). A top-of-atmosphere build was tried and reverted:
@@ -217,6 +220,17 @@ Notes and special cases:
   ocean therefore stays at its water-leaving level (luma 0.0084) and the Rayleigh veil,
   drawn by the atmosphere shell over the whole disc, supplies the atmosphere's share
   — which is why that share was never baked into the map.
+- **`meter_albedo` overrides `albedo` for metering, and for nothing else.** The two are
+  the same number on every body that has only a map to show, which is why the column is
+  empty everywhere but Earth. They part where a body's *shells* add light over that map:
+  metering knows only `albedo × illuminance / π`, so an atmosphere drawn across the disc
+  and a cloud deck above it return light the camera then over-exposes for. Earth carries
+  0.30 — twice its cloudless 0.15, which is one stop, and near its real Bond albedo — and
+  that is the whole of the correction. It is read by `IVExposureManager._get_albedo()`
+  and, so a mapless surface still exposes the way metering assumes it will, by
+  `IVAssetPreloader._get_fallback_color()`. `albedo` remains the asset-level target the
+  rest of this section is about, and the value the UI reports. A body with neither column
+  meters at `default_albedo`; an empty cell is unknown, never zero.
 - Spacecraft and small-body values are **derived from the shipped models** (measured
   render response at sun-facing geometry), not from literature — they exist to expose
   the model correctly.
@@ -1008,6 +1022,8 @@ Lambert.
 | | `nightside_twilight_angle` | Horizon fade width on the last crescent sliver (close range). |
 | | `adapt_darken_ev_per_second` / `adapt_brighten_ev_per_second`, `snap_ev_threshold` | Adaptation rates and the instant-jump threshold. The rates are in WALL-CLOCK seconds (they describe the viewer's eye), which is why they carry no `IVUnits` factor where `nightside_twilight_angle` and `ambient_starlight_illuminance` do. |
 | | `default_albedo` | Metering albedo for bodies without a table value. |
+| body tables | `albedo` | V-band geometric albedo: the asset-level target (a map's sphere mean) and, unless overridden, the metering albedo. |
+| | `meter_albedo` | Metering albedo where what the camera sees is not the map alone — a body whose shells add light over it. Earth only. |
 | | `emission_luminance_scale` | Luminance of a full-white emission texel at multiplier 1.0. |
 | | `ambient_starlight_illuminance` | Integrated starlight: ambient level and the metering floor. |
 | | `auto`, `manual_exposure_ev`, `exposure_adjustment_ev` | Runtime overrides for a GUI: hold the metered result, replace it with a stated EV, or offset either. The defaults (auto, no adjustment) apply the metered result itself. |
