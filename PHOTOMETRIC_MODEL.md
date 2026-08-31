@@ -623,13 +623,28 @@ and the haze the shader carries is the column above that disc.
 
 How it lands in the renderer:
 
-- The shell's output is **I/F riding `light_energy` like a surface**: its custom `light()`
-  adds `LIGHT_COLOR × ATTENUATION / π`, so a texel reads `I/F × light_energy`, exposure
-  included, with no rebase. It composites with `blend_premul_alpha` — the path radiance
-  added, what lies behind kept by one minus the luma of the transmittance — and the
-  chromatic part of that transmittance is applied by the surface and cloud shaders
-  themselves (`atm_view_tint`), which is exact and lets a cloud deck 10 km up escape the
-  air beneath it.
+- **The limb shell draws only the rays that miss the disc.** Its output is **I/F riding
+  `light_energy` like a surface**: its custom `light()` adds `LIGHT_COLOR × ATTENUATION / π`,
+  so a texel reads `I/F × light_energy`, exposure included, with no rebase. It composites
+  with `blend_premul_alpha` — the path radiance added, what lies behind kept by one minus
+  the luma of the transmittance — which is sound there because behind a beyond-limb ray
+  stand only the sky and the stars.
+- **The air in front of the disc is composited by the disc's own shaders** (2026-08-30,
+  `atm_disc_air()`): each surface, band and cloud fragment evaluates the veil, the
+  twilight glow and the far half of an optical-limb ray for its own ray, adds the path
+  over everything it renders and multiplies the luma of the disc's view transmittance
+  into all of it — lit albedo, emission, and the specular lobe as its square root — with
+  `atm_view_tint` still carrying the chromatic complement, which is exact and lets a
+  cloud deck 10 km up escape the air beneath it. In linear light this is algebraically
+  identical to the limb shell's old disc branch (the path distributes through the deck's
+  alpha mix with weight `α + (1 − α) = 1`); what it buys is that the composite no longer
+  passes through the hardware blend at all, which is the one boundary the Compatibility
+  renderer's display-referred pipeline cannot honour (see *Renderer parity*). The veil
+  rides the `sun_light_energy` uniform as emission, one frame of exposure ramp behind
+  like every compositing feed, far under a display code. At the very silhouette the two
+  owners hand off over a thin feathered band (`ATM_RIM_HANDOFF`), because a polygonal
+  mesh's silhouette sits its facet sagitta inside the true sphere and no disc fragment
+  covers that sliver — a hard partition measured as a dotted arc of ~270 dark pixels.
 - **Every shell of the body takes its sunlight through the same atmosphere.** `IVShellsModel`
   propagates the limb row's `atm_*` columns to the surface and cloud shells, whose photometry
   slot multiplies its sunlight by `atm_sun_transmittance` — the column above that shell's own
@@ -881,17 +896,45 @@ are not the same list.
 none of it is per-body tuning, and it is structurally coherent — no colour casts, no
 cross-shell misregistration, stable as the cloud deck drifts:
 
-- **A faint additive glow over a lit disc lands crushed, and it is a RADIAL error, not a
-  uniform one.** The atmosphere limb hands its path radiance to the engine's own
-  conversion, which crushes it hardest where it is faintest — so the deficiency grows from
-  the disc centre outward and reaches its worst exactly at the limb. Measured against
-  Forward+ in radial bands (disc core / outer disc / limb and beyond-limb ring): Earth
-  0.73 / 0.59 / 0.12, Mars 0.73 / 0.53 / 0.05, Venus 0.78 / 0.64 / 0.20, Titan 0.96 / 0.84
-  / 0.03. **The beyond-limb ring is effectively absent on every one of them**, which on
-  Titan — whose whole disc is its atmosphere, and whose lit-side limb is the thing a viewer
-  looks at — is the most visible defect the renderer now has. The twilight air-glow goes
-  the same way, so a terminator reads as a plain transparent fade rather than Forward+'s
-  glowing band.
+- **The disc's air no longer passes through the blend at all** (2026-08-30): the veil,
+  the twilight glow and an optical-limb ray's far half are summed inside the disc
+  shaders' own fragments (`atm_disc_air`, see *Atmospheres*), where the composite meets
+  the display conversion once, as one value — exact by construction, with no estimate of
+  anything. Measured in radial luma bands against Forward+ at the same poses (disc core /
+  outer disc / limb-and-ring, before → after): Earth 0.66 / 0.48 / 0.22 →
+  0.97 / 0.94 / 0.64, Mars 0.69 / 0.55 / 0.10 → 0.97 / 0.89 / 0.39, Venus
+  0.93 / 0.87 / 0.46 → 0.99 / 0.98 / 0.79, Titan's core at 1.00. The twilight band came
+  with it, being disc-branch path radiance.
+- **A grazing disc ray can return a NaN, and one NaN is not a local defect.** The disc
+  quadrature's intermediates span tens of orders of magnitude at the silhouette — a Chapman
+  column that clamps at e^60 against an extinction that underflows to exactly zero — and
+  their product was measured reaching the frame at about one fragment per two dozen views,
+  always at the silhouette and on the lit side. Under Forward+ the glow pass smears that
+  single fragment into a bright blob with a black core, which is what the four atmosphere
+  bodies flashed as they turned; under Compatibility `display_write`'s own `max(value, 0.0)`
+  scrubbed it before it could bloom, which is why the defect was renderer-specific. It
+  resists attribution to a term because it is **sensitive to the surrounding compilation** —
+  `isnan()` reads inside the loop stop it happening, while the same reads one scope out catch
+  it without suppressing it — the same driver behaviour `atm_present()` was added for. So
+  `atm_disc()` ends with a finite guard: a fragment falling back to no air in front of it is
+  invisible in a field this smooth. Two related numerical corrections came with it — the
+  tangent altitude is formed as `-R mu^2 / (1 + sqrt(1 - mu^2))` and never as `b_ray - R`
+  (the difference of two planetary radii, which in float32 collapses to exactly zero for a
+  grazing ray and puts a quadrature node on the ray's own tangent point), and `atm_disc_air()`
+  now decides the handoff fade *before* running the quadrature, so the degenerate ray the
+  shell owns outright is never evaluated at all.
+- **The beyond-limb RING self-lights and restates** (2026-08-30, same pass): the limb
+  shell's linear radiance had met the engine's own conversion raw and crushed — the ring
+  measured 0.03–0.22 of Forward+, effectively absent, worst on Titan, whose lit-side limb
+  is the thing a viewer looks at. Its pedestal is the provable constant 0 (empty sky and
+  the stars), so the rings-shell restatement applies with no estimate of anything: on the
+  display branch the fragment self-lights on `sun_light_energy` and writes its finished
+  value through `display_write()` — with `blend_premul_alpha` the colour is the whole
+  premultiplied term, so no `display_mix` pair is needed. Ring-annulus luma against
+  Forward+, before → after: Earth 0.40 → 1.02, Mars 0.18 → 0.92, Venus 0.59 → 0.98,
+  Titan 0.07 → 0.79 (that last diluted by the annulus estimator on a crescent pose;
+  rendered, Titan's haze ring stands where its limb had simply been absent). Forward+
+  re-renders bit-identically — the linear branch is untouched.
 - **A bright translucent overlay cannot pass the fragment's 1.0 clamp, and its convex mix
   dims.** A cloud deck saturates at the fragment before `blend_mix` runs, so partial
   coverage never reaches white, and the encoded-space mix runs its fringes dark.
@@ -908,12 +951,13 @@ things are worth keeping straight, because they decide what a future patch shoul
 - **The beyond-limb RING needs no estimate at all.** A ray that misses the disc has empty
   sky behind it, so its pedestal is the constant 0 — the same standing the rings shell has,
   and the reason that one restatement was kept. The limb shader already branches on exactly
-  this test (impact parameter against the disc radius). Recovering the ring is therefore
-  free of the failure below, and it is the largest single visible gap in the list above.
-- **The scalar pedestal was sound on a body without a cloud deck.** Venus and Titan carry
-  no map at all and Mars no deck, and the veil over their discs measured 1.000 with the
-  body table's albedo as the whole estimate. Its known residual was Mars' lit side at
-  +4–10 %, the disc's own albedo spread about one number.
+  this test (impact parameter against the disc radius). Recovered 2026-08-30, exactly this
+  way — see the restatement bullet above.
+- **The scalar pedestal was sound on a body without a cloud deck** — and is superseded
+  (2026-08-30): relocating the disc branch into the disc shaders needs no pedestal at
+  all, on any body, Earth included. Kept for the record: Venus and Titan carry no map and
+  Mars no deck, and the veil over their discs measured 1.000 with the body table's albedo
+  as the whole estimate, Mars' lit side +4–10 % its known residual.
 - **The failure was EARTH, and it was structural.** Earth stacks three shells; the deck
   carries procedural warp and FBM detail no other shell can reproduce; the ocean adds a
   specular glint no albedo sample knows; its clear ocean sits at a third of any workable
@@ -1074,12 +1118,64 @@ every brighter star blooms at the cap, differentiated only by footprint, which g
 `sqrt(ln I)`. That is why glow shows on a small subset of stars, and why that subset's halos
 look alike. The cap is also half-deliberate protection: wings proportional to flux would
 clip white around the brightest cores and re-flatten the bright end toward identical blobs —
-the look the PSF size law exists to avoid. So `glow_hdr_luminance_cap` is the one photometric
-lever here, and raising it is an in-app judgment between honest wing energy and the
-bright-end hierarchy (see TODO). The shader headers that anticipated "bloom in proportion to
-true brightness" (`stars.gdshader`, `IVStarSettings`'s FUTURE_BLOOM_IMPLEMENTATION note)
-overpromised against the engine's actual gather; they get corrected with the eventual tuning
-change.
+the look the PSF size law exists to avoid.
+
+**Which is why the wings are no longer the pass's job (2026-08-31).** That cap is a
+brightness ceiling on a source whose brightness is the whole point: the sun runs V −26.7 at
+Earth to −19.0 at Pluto, a factor 1225 in flux, and the bloomed halo moved only 39 → 29 px
+across it — radius as `I^0.04`, one doubling per 19 magnitudes — while the brightest field
+star's was 2. On Compatibility it is worse than flat: the glow buffers inherit the scene
+buffer's RGB10_A2 and store `0.25 × color`, so the per-texel feed clamps at 4.0 whatever the
+property says, `glow_hdr_luminance_cap` and `glow_levels` are byte-for-byte inert, and the far
+sun's halo measures the same 4 px with glow on as with it off. The far sun therefore read as
+an ordinary bright star on both renderers and as an ordinary star full stop on the web.
+
+So a star now carries its own wings, in the shader, where the intensity is still a float32
+that nothing has clamped: `star_glare_*` in `_star_point.gdshaderinc`, shared by the catalog
+field (on its own point sprites) and by an in-scene star (on a quad, `sun_glare.gdshader` —
+the law is the same, only the geometry differs, because POINT_SIZE's driver maximum is as low
+as 1 in the GLES3 spec and the sun's glare runs to hundreds of px). It is the same structural
+move as the atmosphere's disc air and its beyond-limb ring: what a display-stage pass cannot
+carry identically on two renderers gets computed before the conversion instead. Four things
+about it:
+
+- **The shape is physical; the amplitude cannot be.** A real PSF is Gaussian in the core and
+  a power law in the wings, exponent ~2 over the decades that matter for an eye or a lens
+  (the CIE disability-glare law, `L_veil = 10 E / θ²`). But that law puts ~10 % of a source's
+  light in the wings, and 10 % of the sun's flux at the dark-adapted rest exposure is about
+  4500× saturation over the *whole frame* — a photograph exposed for the Milky Way cannot
+  also hold the sun. So the amplitude carries a compression exponent, `glare_gamma`, exactly
+  as `intensity_gamma` does for the field, and the outer radius grows as `I^(gamma/2)`: one
+  doubling per 5.3 magnitudes at the shipped 0.286, against the core's one per 19.
+- **The pair is anchored, not chosen.** `glare_scale` 0.0126 is set so that at the far sun the
+  glare reproduces the Forward+ glow halo it replaces (31 px at 32 codes against a measured
+  29) — the appearance already judged good — leaving the growth law to restore the hierarchy.
+  Measured at Pluto, 35.6 au: the halo's 32-code radius goes 29 → 44 px on Forward+ and
+  **5 → 54 px on Compatibility**, and at Earth 39 → 102 and 6 → 122.
+- **Where the wing stops is a rendering boundary and is drawn as one.** The core's rule — cut
+  where it falls below one 8-bit step — needs nothing else, because a Gaussian is two orders
+  down a pixel later. On a `1/r²` wing that same cut is 13 display codes and drew a plain
+  circle around the sun. So the wing is faded to zero over its last octave (`STAR_GLARE_TAPER`),
+  the same treatment the atmosphere ring takes at its shell, costing only the part below one
+  step. `glare_max_px` bounds it, and bounds the AMPLITUDE rather than the radius, so the
+  "drawn until it stops being representable" rule stays exactly true.
+- **It costs about a tenth of a millisecond.** Median GPU frame time over the same pose,
+  glare off → shipped: 1.339 → 1.438 ms on Forward+ and 1.589 → 1.593 ms on Compatibility,
+  against ±0.03 ms of scatter across the nonzero constant sweep. Most of that is the field,
+  not the sun: a wing widens every star's sprite (a V 6.5 star 3.7 → 8.7 px, Sirius 5.3 →
+  24.9), and there is one sun. Sirius and Vega now exceed the 20 px the point-size note in
+  `stars.gdshader` calls known-good, which is a stated platform risk rather than a hazard —
+  a driver clamp truncates the wing's faint outer part and nothing else.
+
+The glare does NOT take the sun's disc/point crossfade: that ramp decides whether the camera
+*resolves* the star, and glare belongs to the camera rather than to the subject. On Forward+
+the glow pass still adds its own halo on top, so the two renderers are close rather than
+identical (Saturn station: 32-code radius 55 px against 59); the residual is the
+display-referred blend's encoded add over a non-black sky, the boundary `_display.gdshaderinc`
+already documents, and it vanishes over truly black sky. The shader headers that anticipated
+"bloom in proportion to true brightness" (`stars.gdshader`, `IVStarSettings`'s
+FUTURE_BLOOM_IMPLEMENTATION note) were describing this; they get corrected with the eventual
+tuning change.
 
 **The other defaults are right, or near enough.** `glow_bloom` must stay 0.0 — it blooms
 below-threshold content, i.e. correctly exposed surfaces. The threshold at 1.0 means "what
@@ -1133,6 +1229,18 @@ The 2D icon rig runs its own `World3D` on the default environment: **no glow in 
 which keeps transparent readbacks clean and costs the exact in-sim look of overexposed
 content. Accepted.
 
+**Compatibility gets a different pass, and it is OFF there since 2026-08-31.**
+`IVWorldEnvironment._ready()` clears `glow_enabled` under `IVGlobal.is_gl_compatibility`,
+beside the `adjustment_enabled` gate it joins, because measured it is a pure loss: it adds no
+halo (above) and it costs the dim end badly. Enabling it moves tonemapping into a post pass
+that re-runs the transfer bracket `display_write()` pre-inverts exactly once, and background
+content measured **0.041x at 6-8 codes, 0.19x at 8-10, 0.66x at 12-18, and 0.84x over the
+whole frame**, where Forward+ measures 1.000x at every level. That is the Milky Way and the
+faint stars. With it off the two renderers agree on the same frame to 0.8 %, and four parity
+views that had been 21 % dark on Compatibility (Callisto, Mimas, Mimas' lit disc, Saturn) came
+back to 0.99-1.01. The rest of this paragraph is why. A project that wants the pass anyway can
+author glow into its own Environment.
+
 **Compatibility gets a different pass, and turning glow on there is an open decision.**
 Verified in the 4.7.2 GLES3 source (`drivers/gles3/rasterizer_scene_gles3.cpp`,
 `shaders/effects/glow.glsl`, `post.glsl`): only `glow_intensity`, `glow_bloom` and the three
@@ -1153,7 +1261,7 @@ Forward+'s even where it works. (In a transparent render target the format is RG
 headroom trick is off, and glow is inert while the post pass still runs.) Before glow ships
 as a Core default, either gate it off under `IVGlobal.is_gl_compatibility` beside the
 existing adjustment gate, or keep it and re-measure the *Renderer parity* numbers with it
-on; the choice is a judgment about what the web export is for. See TODO.
+on. Measured, it is the first: see the gate above.
 
 **And the one lever is inert there, which is why the far sun reads as an ordinary star.**
 The glow buffers are allocated in the render target's own format
@@ -1164,11 +1272,11 @@ and the filter pass writes `luminance_multiplier × color` — 0.25 × a value c
 the same 4.0 encoded (≈ 27.5 linear), so the sun's ~1e9 and a bright field star's ~1e3 are
 *already the same number* before glow samples them. On Forward+ they survive to the pass and
 are flattened by the 12.0 cap instead — the same outcome by a different route, and the
-reason the far sun does not stand out from the brightest stars on either renderer. What
+reason the far sun did not stand out from the brightest stars on either renderer. What
 separates them is footprint alone: the above-threshold radius of a point grows as
 `sqrt(ln I)`, which is 3.2 px for the sun against 1.8 px for Sirius, an area ratio of about
-3. Whether that is enough is a taste call, and on Forward+ the cap is where it would be
-made; on Compatibility there is no lever to make it with.
+3. That was never going to be enough, and it is what the shader glare above replaces: the
+lever a capped pass cannot offer is one the shader does not need.
 
 ## Settings summary
 
@@ -1384,16 +1492,20 @@ made; on Compatibility there is no lever to make it with.
   - **Night-side metering re-judgment** (see *Night-side emission*): clipped city cores now
     spread instead of being contained. Judge in-app; the 0.3 cd/m² anchor and Earth's
     `exposure_ceiling` are the knobs if the blowout stops reading correctly.
-  - **The Compatibility decision** (see *Glow: the bloom pass*): gate glow off under
-    `IVGlobal.is_gl_compatibility` beside the existing adjustment gate, or keep it and
-    re-measure *Renderer parity* with it on. The source-read expectation is that the
-    dim-end crush `display_write()` removed returns, and the web pays a full-res post pass
-    for a dimmer, differently-shaped glow — but nothing is measured in-app yet, and the
-    call belongs with a web-export test.
   - **`glow_hdr_luminance_cap` A/B** if the brightest stars' halos read too uniform: the
     cap (12.0) is where bloom stops being proportional to flux, and raising it trades the
-    bright-end size hierarchy and firefly damping for honest wing energy. In-app judgment;
+    bright-end size hierarchy and firefly damping for honest wing energy. Less pressing
+    since the star glare landed — the flux hierarchy the cap flattens is carried in the
+    shader now — but the pass still governs every OTHER clipped source (a blown limb,
+    overexposed cloud tops, city cores, the near-opposition ring face). In-app judgment;
     the default is defensible.
+  - **The star glare's two constants** (see *Glow: the bloom pass*): `glare_scale` 0.0126
+    and `glare_gamma` 0.286 are anchored so the far sun reproduces the Forward+ glow halo
+    they replace, and the growth law is a stated representation, not a measurement — the
+    physical amplitude is unrenderable at any exposure a star field can use. Candidates at
+    0.5x and 2x scale, and gamma 0.20 and 0.40, are rendered and measured; the sweep is
+    reproducible in one app run through the probe suite's `set_star_settings`. An in-app
+    judgment, at Earth (the largest halo, 102-122 px at 32 codes) as well as at Pluto.
 - **Anchor refinement**: the 20.0 mag/arcsec² anchor is good to a few tenths against
   LMC/SMC levels in the shipped map; a tighter cross-check against published integrated
   photometry is possible.

@@ -38,6 +38,13 @@ render_mode unshaded, cull_disabled, skip_vertex_transform, blend_add, depth_dra
 // them against its own VIEWPORT_SIZE and PROJECTION_MATRIX, so an off-screen capture is sized
 // for its own buffer rather than for the main window.
 //
+// The star's GLARE -- the wide wings its Gaussian core does not have -- is NOT drawn here.
+// It is the same law on the same IVStarSettings (star_glare_* in _star_point.gdshaderinc),
+// and the field carries it on its own point sprites, but the sun's runs to hundreds of px
+// where POINT_SIZE has a driver maximum as low as 1 in the GLES3 spec. So it rides a quad
+// instead: sun_glare.gdshader, a sibling MeshInstance3D built by the same IVShellsModel. It
+// also does not take the crossfade below, since glare is the camera's and not the subject's.
+//
 // The crossfade scales intensity, so a partly-faded point is photometrically just a fainter
 // star -- size and peak stay welded by the size law at every fade level, and no special case
 // or size floor is needed (see stars.gdshader for why a floor cannot help a field sized this

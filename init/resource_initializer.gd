@@ -54,6 +54,7 @@ var preloads: Dictionary[StringName, Resource] = {
 	sun_surface_cube_shader = preload(
 			"res://addons/ivoyager_core/shaders/sun_surface.cube.gdshader"),
 	sun_point_shader = preload("res://addons/ivoyager_core/shaders/sun_point.gdshader"),
+	sun_glare_shader = preload("res://addons/ivoyager_core/shaders/sun_glare.gdshader"),
 	starmap_background_shader = preload("res://addons/ivoyager_core/shaders/starmap_background.gdshader"),
 }
 

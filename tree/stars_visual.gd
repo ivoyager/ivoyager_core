@@ -103,6 +103,27 @@ const _BINARY_VERSION := 1
 		fov_compensation = value
 		if _star_settings:
 			_star_settings.fov_compensation = value
+## Amplitude of the [code]r^-2[/code] glare wing every star carries outside its Gaussian
+## core, at 1 px and unit intensity; 0 turns it off. See [member IVStarSettings.glare_scale].
+@export_range(0.0, 0.05, 0.001, "or_greater") var glare_scale := 0.0126:
+	set(value):
+		glare_scale = value
+		if _star_settings:
+			_star_settings.glare_scale = value
+## How fast the glare widens with flux: its outer radius grows as
+## [code]intensity^(glare_gamma / 2)[/code]. See [member IVStarSettings.glare_gamma].
+@export_range(0.0, 1.0, 0.005) var glare_gamma := 0.286:
+	set(value):
+		glare_gamma = value
+		if _star_settings:
+			_star_settings.glare_gamma = value
+## Largest glare radius in px at the reference viewport height.
+## See [member IVStarSettings.glare_max_px].
+@export_range(16.0, 1024.0, 1.0, "or_greater") var glare_max_px := 384.0:
+	set(value):
+		glare_max_px = value
+		if _star_settings:
+			_star_settings.glare_max_px = value
 ## 0 = a white field; 1 = each star's physical blackbody color; 2.5 = a candy-colored sky.
 ## Unlike the sliders above, this changes no star's brightness or size.
 @export_range(0.0, 2.5, 0.05) var color_saturation := 1.0:
@@ -172,6 +193,9 @@ func _push_star_settings() -> void:
 	_star_settings.fov_reference_deg = fov_reference_deg
 	_star_settings.fov_compensation = fov_compensation
 	_star_settings.color_saturation = color_saturation
+	_star_settings.glare_scale = glare_scale
+	_star_settings.glare_gamma = glare_gamma
+	_star_settings.glare_max_px = glare_max_px
 
 
 func _apply_star_uniforms() -> void:

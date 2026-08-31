@@ -139,6 +139,8 @@ var _sun_abs_mag := 4.83 # sun-mode: cached V absolute magnitude (for the per-fr
 var _sun_surface_material: ShaderMaterial # sun-mode: the disc material, angular size driven each frame
 var _sun_point: MeshInstance3D # sun-mode: far point sprite, a child of _star_body (freed in _exit_tree)
 var _sun_point_material: ShaderMaterial # sun-mode: the point material, driven each frame
+var _sun_glare: MeshInstance3D # sun-mode: glare quad, a child of _star_body (freed in _exit_tree)
+var _sun_glare_material: ShaderMaterial # sun-mode: the glare material, driven each frame
 var _star_settings: IVStarSettings # sun-mode: shared star photometry; the point's, not the disc's
 var _applied_sun_disc_brightness := NAN # sun-mode: change gate; NAN forces the first-frame write
 var _applied_sun_exposure := NAN # sun-mode: exposure at last handoff solve; NAN forces it
@@ -221,6 +223,8 @@ func _exit_tree() -> void:
 	# when this model is torn down while the body lives (e.g. remove_and_disable_body_visual).
 	if is_instance_valid(_sun_point):
 		_sun_point.queue_free()
+	if is_instance_valid(_sun_glare):
+		_sun_glare.queue_free()
 
 
 
@@ -280,6 +284,8 @@ func _process_sun_lod(_delta: float) -> void:
 		return
 	if not _sun_point:
 		_build_sun_point()
+	if not _sun_glare:
+		_build_sun_glare()
 	# True (un-farwarped) distance: the model sits at the body's true position (farwarp is a
 	# per-vertex shader remap), so the body's own global_position gives the real distance.
 	var camera_distance := _star_body.global_position.distance_to(camera.global_position)
@@ -295,6 +301,10 @@ func _process_sun_lod(_delta: float) -> void:
 		var apparent_magnitude := _sun_abs_mag + FIVE_OVER_LN10 * log(camera_distance / (10.0 * IVUnits.PARSEC))
 		_sun_point_material.set_shader_parameter(&"angular_radius", angular_radius)
 		_sun_point_material.set_shader_parameter(&"apparent_magnitude", apparent_magnitude)
+		# The glare takes the same magnitude and NOT the LOD ramp: the crossfade decides
+		# whether the camera resolves the star, and glare belongs to the camera.
+		if _sun_glare_material:
+			_sun_glare_material.set_shader_parameter(&"apparent_magnitude", apparent_magnitude)
 	_process_sun_physical_light()
 
 
@@ -351,12 +361,46 @@ func _build_sun_point() -> void:
 	_star_body.add_child(_sun_point)
 
 
+func _build_sun_glare() -> void:
+	# Two triangles at the corners of a unit quad; sun_glare.gdshader reads VERTEX.xy as the
+	# corner sign and sizes the quad in pixels itself, so the mesh carries no scale. It is a
+	# quad rather than a point sprite only because POINT_SIZE has a driver maximum as low as
+	# 1 in the GLES3 spec and the glare runs to hundreds of px -- see that shader's header.
+	# Same AABB and parenting as the far point: farwarp is in-shader, so the true-position
+	# AABB fails the frustum test and must be sized to contain the camera.
+	var vertices := PackedVector3Array([
+		Vector3(-1.0, -1.0, 0.0), Vector3(1.0, -1.0, 0.0), Vector3(1.0, 1.0, 0.0),
+		Vector3(-1.0, -1.0, 0.0), Vector3(1.0, 1.0, 0.0), Vector3(-1.0, 1.0, 0.0),
+	])
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	var quad_mesh := ArrayMesh.new()
+	quad_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var half_extent := IVCoreSettings.max_camera_distance
+	quad_mesh.custom_aabb = AABB(-Vector3.ONE * half_extent, 2.0 * Vector3.ONE * half_extent)
+	var shader: Shader = IVGlobal.resources.get(&"sun_glare_shader")
+	_sun_glare_material = ShaderMaterial.new()
+	_sun_glare_material.shader = shader
+	_sun_glare_material.set_shader_parameter(&"color_bv", _sun_bv)
+	# One settings object with the field and the far point, or the three drift apart.
+	_star_settings.apply_to(_sun_glare_material)
+	_sun_glare = MeshInstance3D.new()
+	_sun_glare.name = &"SunGlare"
+	_sun_glare.mesh = quad_mesh
+	_sun_glare.material_override = _sun_glare_material
+	_sun_glare.cast_shadow = SHADOW_CASTING_SETTING_OFF
+	_star_body.add_child(_sun_glare)
+
+
 # The far point is lazy, so this fires before there is a material to push to.
 func _on_star_settings_changed() -> void:
 	if _sun_surface_material:
 		_star_settings.apply_color_to(_sun_surface_material) # the disc shares only the B-V ramp
 	if _sun_point_material:
 		_star_settings.apply_to(_sun_point_material)
+	if _sun_glare_material:
+		_star_settings.apply_to(_sun_glare_material)
 	_refresh_sun_handoff()
 
 

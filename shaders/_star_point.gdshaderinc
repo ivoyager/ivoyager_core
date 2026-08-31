@@ -165,3 +165,77 @@ const float STAR_LIGHT_MAX = 32768.0;
 float star_point_light(float intensity, float dist_sq, float falloff) {
 	return min(intensity * exp(-dist_sq * falloff), STAR_LIGHT_MAX);
 }
+
+
+// A star's GLARE: the wide r^-2 wings the Gaussian core does not have.
+//
+// WHY THE CORE IS NOT ENOUGH. star_visible_size grows as sqrt(ln I), so over the sun's own
+// range -- V -26.7 at Earth to -19.0 at Pluto, a factor 1225 in flux -- its image widens by
+// 13 %. Every stage past the shader then flattens what is left: the color buffer saturates,
+// and the engine's glow pass caps its per-texel feed (12.0 on Forward+, and 4.0 on
+// Compatibility, where the glow buffers inherit the scene buffer's RGB10_A2 and store
+// 0.25 x color, so the property is inert). Measured, Forward+'s bloomed halo moves 39 -> 29 px
+// across that same 1225x -- radius ~ I^0.04, one doubling per 19 magnitudes -- and on
+// Compatibility there is no halo at all: glow on and glow off give the same 6 px. So the sun
+// at distance reads as an ordinary bright star, which is what this exists to fix.
+//
+// WHY IT IS DRAWN HERE. A post pass cannot carry it: its feed is capped, its cap is a buffer
+// format on one renderer, and the pass is not even the same pass on the two. In the shader the
+// intensity is still a float32 that nothing has clamped, so the glare lands identically under
+// both -- the same move as the atmosphere's disc air and its beyond-limb ring.
+//
+// WHAT IT IS. A real PSF is Gaussian in the core and a power law in the wings, and the wing
+// exponent is ~2 over the decades that matter for both an eye and a lens (the CIE
+// disability-glare law, L_veil = 10 E / theta^2). The shape is that. The AMPLITUDE is not
+// physical and cannot be: the CIE law puts ~10 % of a source's light in the wings, and 10 % of
+// the sun's flux at the camera's dark-adapted rest exposure is about 4500x saturation over the
+// WHOLE frame -- a photograph exposed for the Milky Way cannot also hold the sun. So the
+// amplitude carries a compression exponent, exactly as intensity_gamma does for the field, and
+// the pair is anchored where an anchor exists: at the far sun the shipped defaults reproduce
+// the Forward+ glow halo they replace (31 px at 32 codes against a measured 29), while the
+// growth law restores a bright-end hierarchy the pass had flattened.
+//
+// How far past the one-step radius the wing is drawn while fading out; see
+// star_glare_draw_size.
+const float STAR_GLARE_TAPER = 2.0;
+
+// The wing's amplitude at 1 px, for a source of linear intensity. The outer radius grows as
+// intensity^(gamma/2) -- with the default gamma that is one doubling per 5.3 magnitudes,
+// against the core's one per 19.
+//
+// max_px is the ONE bound, and it acts here rather than on the radius: capping the radius
+// would cut the wing while it was still far above one 8-bit step and leave a hard ring, where
+// capping the amplitude keeps "drawn until it stops being representable" exactly true and
+// simply stops the glare growing. Only the last au or two before a star's disc resolves
+// reaches it. Every caller must size its sprite from THIS value, through star_glare_draw_size.
+float star_glare_amplitude(float intensity, float scale, float gamma, float max_px) {
+	float ceiling = (max_px / STAR_GLARE_TAPER) * (max_px / STAR_GLARE_TAPER) / 255.0;
+	return min(scale * pow(max(intensity, 0.0), gamma), ceiling);
+}
+
+// Where the wing falls to one 8-bit step, the same rule that cuts the core
+// (star_visible_size). On the core that rule needs nothing else: a Gaussian is already
+// two orders down a pixel later, so the cut is invisible. On a 1/r^2 wing it is not --
+// one LINEAR step is 13 display codes, and cutting a 100 px halo there drew a plain
+// circle around the sun. So this is where the wing STOPS BEING PHYSICS, not where it
+// stops being drawn.
+float star_glare_size(float amplitude) {
+	return sqrt(255.0 * max(amplitude, 0.0));
+}
+
+// What the sprite or quad must span. The wing is faded to zero over its last octave; that
+// fade is a rendering boundary, like the atmosphere ring's taper at its shell, and it costs
+// only the part below one 8-bit step. smoothstep is flat at both ends, so neither the start
+// of the taper nor the outer cut leaves an edge.
+float star_glare_draw_size(float amplitude) {
+	return STAR_GLARE_TAPER * star_glare_size(amplitude);
+}
+
+// The wing at a fragment's own radius. Held at its 1 px value inside that, where the core
+// is orders of magnitude above it anyway and 1/r^2 would otherwise diverge.
+float star_glare_light(float amplitude, float radius_px) {
+	float radius = max(radius_px, 1.0);
+	float inner = star_glare_size(amplitude);
+	float fade = 1.0 - smoothstep(inner, STAR_GLARE_TAPER * inner, radius);
+	return min(amplitude / (radius * radius), STAR_LIGHT_MAX) * fade;
+}

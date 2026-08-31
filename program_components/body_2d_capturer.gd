@@ -163,6 +163,7 @@ func stage_visual(visual: IVBodyVisual, reference_radius := 0.0) -> AABB:
 	_camera.far = _camera_distance + _bounding_radius * 2.0
 	_apply_ambient()
 	_apply_sun_direction()
+	_apply_sun_light_energy()
 	return AABB(-aabb.size * 0.5, aabb.size)
 
 
@@ -298,6 +299,7 @@ func set_fill_light_enabled(enabled: bool) -> void:
 func set_brightness(value: float) -> void:
 	_key_light.light_energy = value
 	_fill_light.light_energy = value
+	_apply_sun_light_energy()
 
 
 ## Sets how much the unlit hemisphere is lifted out of black, 0.0 for none. Body shaders
@@ -334,6 +336,17 @@ func _apply_sun_direction() -> void:
 		return
 	_apply_shader_parameter(_visual, &"sun_direction", _toward_sun)
 	_apply_shader_parameter(_visual, &"sun_angular_radius", 0.0)
+
+
+# The KEY light is the staged body's sun, so sun_light_energy -- which scales every
+# emission-slot sunlight term (the twilight, and the air a disc fragment composites in
+# front of itself) -- must carry its energy, not the shader default of 1.0. The fill
+# light deliberately does not contribute: those terms are sunlight, and the fill is
+# icon cosmetics.
+func _apply_sun_light_energy() -> void:
+	if !_visual:
+		return
+	_apply_shader_parameter(_visual, &"sun_light_energy", _key_light.light_energy)
 
 
 # Set on every ShaderMaterial rather than only those known to declare the uniform: a shell

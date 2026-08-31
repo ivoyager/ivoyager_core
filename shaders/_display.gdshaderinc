@@ -44,16 +44,20 @@
 // own colour space, so those render bit-identically to before.
 //
 // WHAT THIS CANNOT REACH: the BLEND, which runs after a shader returns and therefore on
-// display-referred values, where a sum is not a sum. That boundary is accepted, and it is
-// where this renderer's remaining approximations live: a faint additive glow over a lit
-// disc lands crushed (an atmosphere's veil and twilight band), and a translucent overlay's
-// convex mix dims its fringes and cannot pass the fragment's 1.0 clamp (a bright cloud
-// deck at partial coverage). Correcting a blend needs the fragment to know what lies
-// behind it, and only a caller that KNOWS — the rings, over empty sky — may restate its
-// pair through display_mix(). Never feed it an ESTIMATE of another shell's rendered
-// output: a cross-shell prediction is wrong wherever the other shell has detail, and the
-// restatement converts that error into structured colour casts wherever the encode slope
-// is steep.
+// display-referred values, where a sum is not a sum. That boundary is accepted; what can
+// move OUT of the blend has been (the atmosphere's whole disc branch — veil, twilight
+// glow, far half — is summed inside the disc shaders' own fragments since 2026-08-30,
+// atm_disc_air), and what stands bright AT it is restated: the atmosphere's beyond-limb
+// ring, like the rings shell, self-lights and hands the blend its finished value over a
+// pedestal that is the provable constant 0 — display_mix() for a mix blend, plain
+// display_write() for a premultiplied one, whose colour is its whole term. What is left
+// approximate is a translucent overlay's convex mix, which dims its fringes and cannot
+// pass the fragment's 1.0 clamp (a bright cloud deck at partial coverage). Correcting a
+// blend needs the fragment to know what lies behind it, and only a caller that KNOWS —
+// empty sky — may restate. Never feed a restatement an ESTIMATE of another shell's
+// rendered output: a cross-shell prediction is wrong wherever the other shell has detail,
+// and the restatement converts that error into structured colour casts wherever the
+// encode slope is steep.
 //
 // IVGraphicsManager writes the global once at startup; nothing else touches it.
 

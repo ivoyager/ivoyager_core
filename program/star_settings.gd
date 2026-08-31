@@ -114,6 +114,43 @@ var color_saturation := 1.0:
 		changed.emit()
 
 
+## Amplitude at 1 px of a star's [code]r^-2[/code] glare wing, for a source of linear
+## intensity 1.0. Zero turns the glare off entirely. The wing is the wide skirt a
+## Gaussian core does not have; see [code]_star_point.gdshaderinc[/code] for what it is,
+## why it is drawn in the shader rather than left to the engine's glow pass, and why its
+## amplitude carries a compression rather than the physical ~10 % of the source's light.
+## The default is anchored: at the far sun it reproduces the Forward+ glow halo it
+## replaces (31 px at 32 codes against a measured 29).
+var glare_scale := 0.0126:
+	set(value):
+		if glare_scale == value:
+			return
+		glare_scale = value
+		changed.emit()
+## Flux compression for the glare's amplitude. The wing's outer radius grows as
+## [code]intensity^(glare_gamma / 2)[/code], so the default is one doubling per 5.3
+## magnitudes — against the Gaussian core's one per 19, which is why the far sun read as
+## an ordinary star. 0.0 gives every source the same glare; 2.0 would be the physical
+## law, which no frame can hold (see the include).
+var glare_gamma := 0.286:
+	set(value):
+		if glare_gamma == value:
+			return
+		glare_gamma = value
+		changed.emit()
+## Largest glare radius in px at [member IVGlobal.reference_viewport_height], scaled with
+## the render's own height. It bounds the AMPLITUDE, not the radius, so the wing still
+## ends where it falls below one 8-bit step and the bound simply stops the glare growing;
+## capping the radius instead would cut the wing mid-white and leave a ring. Only the last
+## au or two before a star's disc resolves reaches it.
+var glare_max_px := 384.0:
+	set(value):
+		if glare_max_px == value:
+			return
+		glare_max_px = value
+		changed.emit()
+
+
 ## Pushes only the [code]star_color()[/code] inputs to [param shader_material]. For a
 ## consumer that maps B-V through the shared ramp but takes none of the point-source
 ## photometry — a resolved star's disc ([code]sun_surface.gdshader[/code]), which is
@@ -137,3 +174,6 @@ func apply_to(shader_material: ShaderMaterial) -> void:
 	shader_material.set_shader_parameter(&"reference_tan_half_fov",
 			tan(deg_to_rad(fov_reference_deg) / 2.0))
 	shader_material.set_shader_parameter(&"fov_compensation", fov_compensation)
+	shader_material.set_shader_parameter(&"glare_scale", glare_scale)
+	shader_material.set_shader_parameter(&"glare_gamma", glare_gamma)
+	shader_material.set_shader_parameter(&"glare_max_px", glare_max_px)

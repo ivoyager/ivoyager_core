@@ -92,10 +92,24 @@ global uniform float iv_emission_luminance_scale; // rendered units per cd/m^2; 
 
 
 varying vec3 v_world_position; // true world position; VERTEX is farwarp-remapped
+varying vec3 model_position;   // unit-sphere local position (captured before farwarp overwrites VERTEX)
+varying vec3 v_camera_local;   // the camera in this shell's local frame, for atm_disc_air()
+varying vec3 v_sun_local;      // the sun direction in that frame, unit
+varying flat float v_far_floor; // atm_far_floor() is uniform-only: per vertex, not per fragment
 
 
 void vertex() {
 	v_world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	model_position = VERTEX;
+	if (atm_present()) {
+		// The ray geometry for atm_disc_air() runs in the shell's own frame, where the
+		// (oblate) shell is the unit sphere; see atmosphere_limb.gdshader. Skipped on an
+		// airless body, whose varyings then go unread.
+		mat4 inverse_model = inverse(MODEL_MATRIX);
+		v_camera_local = (inverse_model * vec4(CAMERA_POSITION_WORLD, 1.0)).xyz;
+		v_sun_local = normalize(mat3(inverse_model) * sun_direction);
+		v_far_floor = atm_far_floor();
+	}
 	// Farwarp compresses the surface along the camera ray so a large body's depth stays
 	// consistent with the per-vertex-warped orbit lines around it. _tbn: the normal map needs TBN.
 	farwarp_lit_vertex_tbn(MODELVIEW_MATRIX, MODELVIEW_NORMAL_MATRIX, VERTEX, NORMAL, TANGENT, BINORMAL);
@@ -147,8 +161,8 @@ void fragment() {
 	ALBEDO *= atm_beam_response;
 	// The body's atmosphere above this shell (the limb row's atm_* columns, propagated
 	// here; an exact no-op without them): direct light reddened along the sun path, and
-	// the chromatic half of the view-path extinction whose luma the limb shell removes.
-	// See _atmosphere.gdshaderinc.
+	// the chromatic half of the view-path extinction whose luma the atm_disc_air() block
+	// below removes. See _atmosphere.gdshaderinc.
 	float atm_mu0 = dot(macro_normal, sun_view);
 	float atm_mu = dot(macro_normal, VIEW);
 	vec3 atm_tint = atm_view_tint(atm_mu);
@@ -184,6 +198,22 @@ void fragment() {
 	float atm_sky_response = lunar_lambert_isotropic_response(macro_normal, VIEW, lunar_lambert);
 	EMISSION += unlit_albedo * atm_sky_excess(atm_mu0, atm_sky_response,
 			atm_beam_response) * atm_tint * (sun_light_energy * sun_visible);
+
+	// The air in FRONT of this fragment (atm_disc_air: the veil over the lit disc, the
+	// twilight glow past the terminator, the far half of a ray whose disc is an optical
+	// limb), composited here rather than blended by the limb shell — in the fragment the
+	// sum runs in linear light on every renderer, where the blend does not (THE
+	// COMPOSITING SPLIT in the include). The luma is what the limb's alpha used to remove
+	// from everything behind it: lit albedo, every emission term above, and the specular
+	// lobe as its square root (F0 scales as SPECULAR^2, as for the shadow above). The
+	// path stands in front, undimmed — and, like the shell term it replaces, un-eclipsed.
+	vec3 atm_path;
+	float atm_behind_luma;
+	atm_disc_air(v_camera_local, model_position, v_sun_local, sun_angular_radius,
+			v_far_floor, atm_path, atm_behind_luma);
+	ALBEDO *= atm_behind_luma;
+	SPECULAR *= sqrt(atm_behind_luma);
+	EMISSION = EMISSION * atm_behind_luma + atm_path * sun_light_energy;
 
 	ALBEDO = display_write_albedo(ALBEDO);
 	EMISSION = display_write(EMISSION);

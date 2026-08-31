@@ -96,11 +96,24 @@ uniform float intensity_faint_mag = 6.5; // magnitude at the intensity floor
 uniform float intensity_gamma = 1.0; // flux compression; 1.0 = photometric, as calibrated (see header)
 uniform float intensity_scale = 0.5; // linear intensity at intensity_faint_mag
 uniform float color_saturation = 1.0; // 0 = white field; 1 = the physical B-V color (see star_color)
+// The glare wing every star carries outside its core; see star_glare_* in
+// _star_point.gdshaderinc for the law and why it is drawn here rather than left to the
+// engine's glow pass. Shared value for value with sun_glare.gdshader, through IVStarSettings.
+uniform float glare_scale = 0.0126;
+uniform float glare_gamma = 0.286;
+uniform float glare_max_px = 384.0;
 
 // Resolution compensation (see header). A very bright star in a tall render could still
 // reach a platform's ALIASED_POINT_SIZE_RANGE clamp, but the sqrt(ln) size law makes that
 // far harder to hit than a linear ramp did; 20 px is known good on tested platforms, and
-// anything above that is untested and accepted as a platform risk.
+// anything above that is untested and accepted as a platform risk. The glare above widens
+// the sprite past the core on the brightest stars and so spends that margin: at the
+// reference height and the dark-adapted rest, Sirius spans 24.9 px against its core's 5.3
+// and Vega 20.5, and the sprite grows only as height^0.286 from there (37 px at 4320p).
+// A clamp would truncate the wing's faint outer part and nothing else, which is why this is
+// a risk rather than a hazard -- but bring glare_scale or glare_max_px down if one bites.
+// An IN-SCENE star does not ride a point sprite at all for the same reason, and could not:
+// the same law puts the sun at 697 px from Earth (sun_glare.gdshader).
 // The reference height is a global (see ivoyager_core.cfg): the sun's point shares it, and
 // two visuals compensating against two references would drift apart.
 global uniform float iv_reference_viewport_height;
@@ -120,6 +133,8 @@ global uniform float iv_exposure;
 varying flat float v_bv;
 varying flat float v_intensity;
 varying flat float v_falloff;
+varying flat float v_glare; // wing amplitude at 1 px
+varying flat float v_size;  // POINT_SIZE, to recover a fragment's radius in px
 
 #include "_display.gdshaderinc"
 #include "_farwarp.gdshaderinc"
@@ -141,7 +156,16 @@ void vertex() {
 			fov_compensation)
 			* resolution_scale * resolution_scale * iv_exposure;
 	v_intensity = intensity;
-	POINT_SIZE = star_visible_size(intensity, psf_sigma);
+	// The sprite must span whichever component reaches further -- for all but the brightest
+	// handful of stars that is still the core. Widening it does not touch the Gaussian:
+	// star_psf_falloff cancels POINT_SIZE against star_point_dist_sq's normalization, so the
+	// core keeps the width psf_sigma names whatever the sprite spans (see that function).
+	float glare = star_glare_amplitude(intensity, glare_scale, glare_gamma,
+			glare_max_px * resolution_scale);
+	float core_size = star_visible_size(intensity, psf_sigma);
+	POINT_SIZE = max(core_size, 2.0 * star_glare_draw_size(glare));
+	v_glare = glare;
+	v_size = POINT_SIZE;
 	v_falloff = star_psf_falloff(POINT_SIZE, psf_sigma);
 }
 
@@ -155,7 +179,10 @@ void fragment() {
 	// before the f16 buffer write; see star_point_light.
 	// Nothing sampled this radiance, so no renderer decode cancels against it: it crosses
 	// into the renderer's own colour space here (see _display.gdshaderinc).
-	ALBEDO = display_write(star_color(v_bv, color_saturation)
-			* star_point_light(v_intensity, dist_sq, v_falloff));
+	// Core plus wing, summed in linear before the one conversion, so the pair crosses into
+	// the renderer's colour space as one value rather than as two adds in the blend.
+	float light = star_point_light(v_intensity, dist_sq, v_falloff)
+			+ star_glare_light(v_glare, sqrt(dist_sq) * v_size * 0.5);
+	ALBEDO = display_write(star_color(v_bv, color_saturation) * light);
 	ALPHA = 1.0; // blend_add: the add is ALBEDO * ALPHA, already folded above
 }
