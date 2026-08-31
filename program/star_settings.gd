@@ -20,15 +20,14 @@
 class_name IVStarSettings
 extends RefCounted
 
-## Photometry shared by every star point sprite: the catalog field
-## ([IVStarsVisual]) and each in-scene star's far point ([IVShellsModel]
-## sun-mode).
+## Photometry shared by every point source: the catalog star field
+## ([IVStarsVisual]) and each in-scene body's PSF quad ([IVBodyPSF]).
 ##
-## Past its disc handoff a sun [i]is[/i] a field star, so both must image through
-## one camera. These values are that camera. They live here rather than on either
-## visual because a value owned by one silently desyncs the other: the field would
-## follow an edit and the sun would not, leaving the sun disagreeing with the sky
-## around it.[br][br]
+## Past its disc handoff an in-scene source [i]is[/i] a field star, so both must
+## image through one camera. These values are that camera. They live here rather
+## than on either visual because a value owned by one silently desyncs the other:
+## the field would follow an edit and the quads would not, leaving them disagreeing
+## with the sky around them.[br][br]
 ##
 ## [IVStarsVisual]'s "Star Appearance" exports are the tuning surface and write
 ## through to here. Consumers apply via [method apply_to], on [signal changed] and
@@ -39,8 +38,8 @@ extends RefCounted
 ## light ([member IVExposureManager.physical_active]) the sun's two halves are
 ## co-calibrated: the disc carries the star's true surface brightness through the
 ## shared gain, the point carries the field's photometry, and both cap at the shared
-## [code]STAR_LIGHT_MAX[/code] f16-safe ceiling (see
-## [code]_star_point.gdshaderinc[/code]) — one consistent energy through the handoff
+## [code]PSF_LIGHT_MAX[/code] f16-safe ceiling (see
+## [code]_point_spread_function.gdshaderinc[/code]) — one consistent energy through the handoff
 ## for a glow pass to see. Nonphysical mode keeps the historical gap (disc at the
 ## [IVShellsModel] nonphysical constant, ~3.0, vs the point at the cap). The
 ## remaining obstacle either way is the cap itself: it is a float16 limit, not a
@@ -102,8 +101,8 @@ var fov_compensation := 1.0:
 		fov_compensation = value
 		changed.emit()
 ## Saturation of a star's B-V color. 1.0 is the physical blackbody color, computed
-## rather than tuned (see [code]star_color()[/code] in
-## [code]_star_point.gdshaderinc[/code]); 0 renders every star white; above 1.0
+## rather than tuned (see [code]color_from_b_v()[/code] in
+## [code]_point_spread_function.gdshaderinc[/code]); 0 renders every star white; above 1.0
 ## exaggerates. Unlike the rest of this class it does not touch brightness or size:
 ## the ramp is normalized to peak channel 1.0 at any saturation.
 var color_saturation := 1.0:
@@ -116,7 +115,7 @@ var color_saturation := 1.0:
 
 ## Amplitude at 1 px of a star's [code]r^-2[/code] glare wing, for a source of linear
 ## intensity 1.0. Zero turns the glare off entirely. The wing is the wide skirt a
-## Gaussian core does not have; see [code]_star_point.gdshaderinc[/code] for what it is,
+## Gaussian core does not have; see [code]_point_spread_function.gdshaderinc[/code] for what it is,
 ## why it is drawn in the shader rather than left to the engine's glow pass, and why its
 ## amplitude carries a compression rather than the physical ~10 % of the source's light.
 ## The default is anchored: at the far sun it reproduces the Forward+ glow halo it
@@ -151,10 +150,10 @@ var glare_max_px := 384.0:
 		changed.emit()
 
 
-## Pushes only the [code]star_color()[/code] inputs to [param shader_material]. For a
+## Pushes only the [code]color_from_b_v()[/code] inputs to [param shader_material]. For a
 ## consumer that maps B-V through the shared ramp but takes none of the point-source
 ## photometry — a resolved star's disc ([code]sun_surface.gdshader[/code]), which is
-## lit by geometry rather than by a PSF. It still needs this: the disc and the far point
+## lit by geometry rather than by a PSF. It still needs this: the disc and the quad
 ## trade places at the handoff, and a B-V that changed color across that trade would
 ## show. [method apply_to] calls this, so a point-source consumer needs only that.
 func apply_color_to(shader_material: ShaderMaterial) -> void:
@@ -163,7 +162,7 @@ func apply_color_to(shader_material: ShaderMaterial) -> void:
 
 ## Pushes every value to [param shader_material], which must declare the star
 ## photometry uniforms (see [code]stars.gdshader[/code] or
-## [code]sun_point.gdshader[/code]). Keeping the uniform names here rather than in
+## [code]body_psf.gdshader[/code]). Keeping the uniform names here rather than in
 ## each consumer is the point: two visuals naming them separately is how they drift.
 func apply_to(shader_material: ShaderMaterial) -> void:
 	apply_color_to(shader_material)

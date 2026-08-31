@@ -321,14 +321,15 @@ astronomical shadows are independent of all of this and work either way.
 **Distance culling is angular-size culling in disguise.** Bodies (and rings) set
 `visibility_range_end` to `radius × radius_multiplier_visibility_range_end` (4000), so a
 body culls when its angular diameter falls to ~1/2000 rad — about 0.6 px at the reference
-view. Sub-pixel, so the pop is invisible; but note what it forfeits: a real planet at
-that size is a naked-eye *point source* (Venus is culled from Earth at 7,000–43,000
-radii), which the model currently hands to the HUD symbol instead of to photometry. The
-sun opts out (`is_sun` sun-mode manages its own visibility by pixel radius — a fixed
-distance cull is zoom-blind and would clip a still-resolved disc when zooming in), and
-that machinery is the template for fixing the planet case (see TODO). A packed-scene
-model that authors its own `visibility_range_end` keeps it; only the engine's "unset" 0.0
-is filled in.
+view. Sub-pixel, so the pop is invisible; but note what it forfeited, and why it is gone
+for the bodies that matter most: **the cull is angular, and brightness at the cull is
+not.** The cull distance scales with radius, so a small body culls when it is very close,
+where it is blazing — every named body in the tables is bright at the moment it
+disappears, from Venus at V −9.1 down to Charon at +0.3, with Bennu (a 242 m rock) at
+−5.1. Bodies that draw a PSF quad (below) therefore opt out of the cull entirely and hand
+off to that quad instead; everything else still takes it, having nothing to hand off to.
+A packed-scene model that authors its own `visibility_range_end` keeps it; only the
+engine's "unset" 0.0 is filled in.
 
 **Layers place a body in a lighting domain, not a visibility class** — `size_layers`
 exists so each size scale can be lit (and shadow-mapped) at its own range; see *Local
@@ -400,9 +401,9 @@ the vertex shader, an always-pass `custom_aabb`:
   magnitude-binned star binaries, vertices at true ecliptic positions, `CUSTOM0`
   carrying (V, B−V) for the photometric chain (sibling document). A fixed node under
   Universe, so it rides the origin shift, builds once and survives system rebuilds.
-- **The sun's far point**: a 1-vertex points mesh parented to the star body, crossfaded
-  with the resolved disc by pixel radius (sun-mode, sibling document); spatially it is
-  just another farwarp point whose AABB always contains the camera.
+- **Per-body PSF quads** (`IVBodyPSF`, next section): not point sprites, but the same
+  law on the same shared settings — spatially each is just another farwarp item whose
+  AABB always contains the camera.
 - **Small-body points** (`IVSBGPositionsVisual`): tens of thousands of asteroids per
   group, each vertex computing its own position *on the GPU* from orbital elements
   packed in `CUSTOM0..2` — Kepler's equation solved per vertex per frame
@@ -421,6 +422,92 @@ argument covers the f32 elements and the in-shader trig. (The bodies drawn as re
 geometry never touch this path — their positions come from f64 CPU math.) The quantum
 doubles at each power-of-two boundary of seconds from J2000 (2034, 2068, 2136), which
 still clears the bar by an order of magnitude through the 2090s.
+
+## Point sources: one PSF quad per bright body
+
+`IVBodyPSF` draws the camera's point-spread response to one body's flux on a
+camera-facing quad — the Gaussian PSF core plus the `1/r²` glare wing, summed in linear
+in one fragment and crossing into the renderer's colour space through one
+`display_write()` (`body_psf.gdshader`). It replaced the sun's former `sun_point` +
+`sun_glare` pair and extends the mechanism to reflecting bodies, closing three defects
+with one thing: the sun reading as an ordinary star at distance, bodies vanishing at the
+cull, and crescent glow. The photometric half — the glare law, its anchoring, and why the
+wings are not the engine glow pass's job — is in the sibling document.
+
+**Two regimes, and only one of them is a crossfade.** Unresolved, the quad *is* the body:
+the core takes the disc handoff, so a body shrinking past its disc becomes a photometric
+point instead of disappearing. Resolved, the **wing persists** — glare belongs to the
+camera, not to the subject, so it takes no crossfade — and that persisting wing is
+crescent glow.
+
+**Scope is a flag, but the mechanism is a magnitude.** A quad is built for an in-scene
+star and for every body carrying `BODYFLAGS_PLANETARY_MASS_OBJECT` with a geometric
+albedo — 26 bodies: eight planets, Ceres and Pluto, and the sixteen planetary-mass moons.
+Nothing thresholds on brightness anywhere, because the size law in
+`_point_spread_function.gdshaderinc` already shrinks a source to nothing exactly where it drops below
+one 8-bit step, and it runs in the shader because it is viewport-dependent. The flag is
+the shipped scope only; widening it is one line in `IVBodyPSF.is_applicable()` plus the
+table data a new body would need.
+
+**A sunlit body's magnitude** is its whole disc's reflected flux, expressed as the
+magnitude an unresolved source of that flux would have: geometric albedo × phase ×
+eclipse × the star's illuminance at the body × (radius / camera distance)²
+(`IVPhotometry.get_reflected_apparent_magnitude`). It rides `iv_exposure` and the field's
+whole chain exactly as a star's does. The albedo is the table's `albedo` and **not**
+`meter_albedo` — metering wants the reflectance the camera sees, which a body's shells add
+to, while this wants the geometric albedo, which is *defined* by the zero-phase form of
+that relation. Two albedos, two jobs.
+
+**The phase function comes from the body's own BRDF**, not from a catalog fit: the
+disc-integrated law of the Lunar-Lambert surface the body's shader already renders with
+(`shells.tsv` `lunar_lambert`, or `minnaert_k` mapped onto it at its two exact endpoints —
+k = 1 is Lambert, k = 0.5 *is* Lommel-Seeliger). Both integrals are closed form, so the
+point dims through phase exactly as the disc it hands off to, and the trade is
+flux-continuous by construction. **Its cost is stated rather than hidden:** a smooth
+BRDF's disc integral is shallower than a real regolith's, whose shadow-hiding takes far
+more light out at moderate phase — the quarter Moon comes out about 1.6 mag bright. That
+error is the rendered *disc's* already; taking the point's law from anywhere else would
+buy catalog accuracy at the price of a step through the handoff, and a Hapke treatment
+would fix both halves at once.
+
+**The handoff is solved once and published.** `IVBodyPSF.solve_handoff()` finds the
+on-screen pixel radius where the quad's saturated core matches the disc's diameter — where
+the two can trade places without stepping in size, which is what the eye actually has to
+go on, both being orders of magnitude above saturation throughout. The answer goes on
+`IVBody.psf_handoff`, and every shell of the body reads it to leave at exactly the radius
+the quad's core arrives at (`IVShellsModel`'s disc LOD; the surface, cloud and limb shaders
+all carry it). One producer, one answer: solving it on both sides is how the two would come
+to disagree.
+
+**How a shell leaves depends on which pass it is already in, and that is not cosmetic.** A
+lit surface is opaque and must stay so: writing `ALPHA` moves a Godot spatial material to
+the transparent pass, where `depth_draw_opaque` means *no depth write at all* — and an
+opaque body that stops writing depth stops occluding everything, silently. Shipped briefly
+and caught in review: the star field rendered through every night side, bodies stopped
+sorting against each other, and each body's own quad drew through it. `depth_draw_always`
+is no escape either, since it would write depth across the fade and punch the quad's core
+out of the middle of its own crossfade. So a **lit disc discards at one threshold**, and
+`IVBodyPSF` collapses the ramp (`HANDOFF_STEP_RATIO`) so that threshold and the core's
+onset coincide — neither a gap nor a double-count, and the trade happens at a size the
+solve has already matched. Only a shell that is *already* transparent — a cloud deck, a
+limb, an emissive star disc — can afford to crossfade, and those still do.
+Each shader resolves the pixel radius against its **own** `VIEWPORT_SIZE`, so an
+off-screen capture fades at its own buffer's scale rather than the main window's — the
+same reason nothing viewport-dependent is allowed on the CPU side here.
+
+Three approximations worth carrying:
+
+- **The wing is symmetric about the body's centre while a crescent's light is not.** If
+  the eye objects, shift the quad centre toward the lit limb by a phase-dependent fraction
+  of the disc radius — still analytic, still free. Not a reason to reach for a screen-space
+  convolution: the engine pass is structurally unable for point sources (its feed is
+  capped), which is why this system exists.
+- **On Forward+ a resolved bright disc still feeds the engine glow pass**, so the
+  resolved-regime wing stacks on that pass's bloom there and the two renderers are close
+  rather than identical. Its amplitude in that regime is an in-app anchor to judge,
+  possibly renderer-weighted.
+- **A ringed planet's quad carries the globe's flux only**; its rings keep their own
+  distance cull, at 2.4× the globe's. The regime where that shows is narrow.
 
 ## Mouse picking
 
@@ -518,6 +605,7 @@ this is the spatial one.
 | `IVCamera` | `NEAR_MULTIPLIER` / `FAR_MULTIPLIER` (constants, 0.1 / 1e6) | Depth planes as multiples of camera-to-parent distance. Ratio hard-capped ~1e7 (float32 plane extraction); do not raise. |
 | `IVCoreSettings` | `apply_farwarp` | Enables the compression system (manager, shader global, HUD symbol placement). |
 | | `farwarp_start_ratio` | T as a multiple of camera-to-parent distance (1e4). Must stay well under `FAR_MULTIPLIER`; 1e4 leaves 100× headroom while the compressed universe spans < ~29× T. |
+| | `apply_body_psf` | Enables the per-body PSF quad ([IVBodyPSF]). Off, those bodies take the fixed distance cull like any other and their discs do not fade. |
 | | `apply_analytic_shadows` | Enables the analytic shadow terms and the camera-fraction light dimming. Off, astronomical shadows are absent entirely (maps don't serve them); the ambient feed continues regardless. |
 | | `apply_gl_compatibility_shadows` | Shadowed multi-light stack on the Compatibility renderer (vs. one unshadowed light). |
 | | `apply_size_layers` / `size_layers` | Layer bits by body radius — the lighting size domains ([100 km, 0.1 km] → three domains). |
@@ -534,6 +622,7 @@ this is the spatial one.
 | `IVFragmentIdentifier` | `fragment_range`, `drop_id_frames`, `drop_id_mouse_movement` | Probe grid half-extent (9 → 49 sampled pixels); id retention against flicker. |
 | `IVPathVisual` | `REBASE_*`, `PIN_*` (constants) | Rebase trigger (500 → ~0.3 px), rebake policy, tessellation bounds, pin window sizing. |
 | `IVBodyPositionVisual` | `HUD_RENDER_PRIORITY` (constant) | HUD symbol/name above the shell transparency range. |
+| `IVBodyPSF` | `HANDOFF_*` (constants) | Disc/point crossfade: fade span, the fallback for a source with no saturated core, and the exposure/magnitude shift that re-solves it. |
 
 ## TODO
 
@@ -548,18 +637,13 @@ this is the spatial one.
   No fix is designed; candidate directions are re-anchoring visuals more aggressively
   at high speed, or accepting and hiding it (HUD-only rendering above a speed × distance
   product).
-- **Planets should become point sources, not vanish.** The 4000-radii cull removes a
-  body at ~0.6 px, where the real object is often a bright naked-eye point — Venus
-  (culled from Earth at 7,000–43,000 radii, magnitude −4) and Jupiter at opposition
-  (~9,000 radii, −2.5) simply disappear, leaving the HUD symbol as a non-photometric
-  stand-in. The sun already solves exactly this problem: sun-mode crossfades the
-  resolved disc to a far point that rides the star field's photometric chain. Planets
-  want the same pattern with reflected light: apparent magnitude from the table's
-  radius and albedo, the two distances, and a phase term (Mallama's phase functions are
-  the reference the albedo column already follows), the point riding `iv_exposure` like
-  every star. Interacts with the cull (the crossfade would replace it, as sun-mode's
-  pixel-radius fade already does for the sun). Specified — see the ACTION ITEM below,
-  which folds this together with crescent glow and the 2026-08-31 star glare.
+- **Bodies outside the PSF quad's scope still vanish at the cull.** The quad covers the
+  sun and the 26 planetary-mass objects; the other ~150 named moons, the named
+  asteroids, and every spacecraft still take the 4000-radii cull, at which they are
+  often very bright (Bennu culls at V −5.1). The gate is one line, but the data is not:
+  104 of 177 moons carry no albedo at all, and the phase law needs the body's surface
+  BRDF. The named asteroids are the cheapest next step — all five are non-lazy and carry
+  both an albedo and an explicit `magnitude` (H).
 - **Analytic-shadow receiver gaps.** A body whose material never opts in gets no
   eclipse, transit or ring shading on its surface: the five packed `.glb` bodies and
   every `FALLBACK`-class moon (both on `StandardMaterial3D` — the same two classes the
@@ -600,125 +684,3 @@ this is the spatial one.
 - **Multistar occlusion application** — the math is per-star already; the application
   (one sun direction, one AO factor) is not. See the shaderinc header for the two
   viable routes.
-
-## ACTION ITEM: one PSF quad per bright body
-
-The "planets become point sources" TODO above, specified and widened (2026-08-31): it
-absorbs crescent glow and the sun's existing point + glare pair, because all three are one
-mechanism. Design intent and constraints only — the implementing agent makes the detailed
-plan from the code. The photometric half (the glare law, its anchoring, and the glow-pass
-measurements that forced it into the shader) is in the sibling document under *Which is why
-the wings are no longer the pass's job*; this section is the spatial and architectural half.
-
-**What.** One camera-facing quad per sufficiently bright body — the sun and at least the
-eight planets — drawing the camera's point-spread response to the body's flux: the Gaussian
-PSF core plus the `1/r²` glare wing, summed in linear in one fragment and crossing into the
-renderer's colour space through one `display_write()`. The sun's two current items,
-`sun_point.gdshader` (a point sprite) and `sun_glare.gdshader` (a quad), merge into the
-first instance. The catalog star field stays on point sprites (`stars.gdshader`) and shares
-every line of the law through `_star_point.gdshaderinc` — which is what keeps an in-scene
-source photometrically welded to the sky behind it, and must stay true through the merge.
-
-**Why a quad, and why one item rather than two.**
-
-- `POINT_SIZE` has a driver maximum as low as 1 px in the GLES3 spec, and the glare law
-  wants ~700 px for the sun seen from Earth. A quad has no cap. (The field keeps sprites
-  and accepts the clamp as a risk — it can only truncate a wing's faint outer part.)
-- Two draws are two adds in the blend, which on the display-referred renderer runs on
-  encoded values, where a sum is not a sum. Core + wing summed in linear before the one
-  conversion cross as one value — the field's fragment already does exactly this; the sun's
-  split pair does not.
-- One farwarped item and one uniform set per body. `sun_point.gdshader`'s "must track
-  `stars.gdshader` uniform for uniform" hazard note becomes structure instead of discipline
-  (the field–quad half of the hazard remains, and keeps riding `IVStarSettings`).
-- It is the unit that multiplies. Sun + planets is nine instances or more, and the design
-  questions — crossfade, flux, colour, host — are the same for all of them; decide once.
-
-**The two regimes.** Unresolved, the quad IS the point source: the core takes the existing
-disc handoff (`sun_pixel_radius` / `sun_disc_weight`, `handoff_low`/`high`) against the
-resolved mesh, replacing the 4000-radii cull's vanish exactly as sun-mode's fade already
-does for the sun — the cull interaction the TODO bullet names is real; the quad must remain
-where the mesh is culled. Resolved, the WING persists — glare belongs to the camera, not
-the subject, so it takes no crossfade — and the persisting wing IS the crescent glow. One
-mechanism therefore closes three defects: the sun reading as an ordinary star at distance,
-planets vanishing at the cull, and crescent glow (absent on Compatibility since the glow
-pass went off there, flux-capped on Forward+).
-
-**Planet photometry.** Apparent magnitude per frame from the table's radius and albedo, the
-two distances and a phase term — Mallama's phase functions are the reference the albedo
-column already follows — riding `iv_exposure` and the field's whole chain exactly as
-sun-mode's `apparent_magnitude` does today. Colour is a design point to settle in the code:
-`star_color()` wants a B–V, and a planet wants its disc-mean tint (a fitted B–V equivalent
-per body, or a direct tint uniform bypassing the B–V path).
-
-**Stated approximations — carry them as statements.**
-
-- The wing is symmetric about the body's centre while a crescent's light is not. If the eye
-  objects, shift the quad centre toward the lit limb by a phase-dependent fraction of the
-  disc radius — still analytic, still free. Do not reach for a screen-space convolution:
-  that full-screen parallel bloom is the expensive-parity route this design exists to avoid.
-  The parallel-system test the analytic shadows passed applies — the native pass is
-  structurally unable for POINT sources (its feed is capped, so flux ×1225 across the sun's
-  stations rendered as halo radius ×1.34) and healthy for resolved bright regions on
-  Forward+, so the replacement is scoped per source and stops there.
-- On Forward+ a resolved bright disc still feeds the engine glow pass, so the
-  resolved-regime wing stacks on the pass's own bloom there. Its amplitude in that regime
-  is an in-app anchor to judge — possibly renderer-weighted — exactly as `glare_scale` was
-  anchored against the far-sun halo it replaced.
-
-**For consideration, NOT decided here: the glow pass may come back on under Compatibility.**
-It went off 2026-08-31 because for this content it buys nothing — the far sun's halo
-measures the same 4 px with the pass on as off, and the halo's integrated light goes DOWN
-with it on — while crushing the faint frame: enabling glow moves tonemapping into a post
-pass that re-runs the transfer bracket `display_write()` pre-inverts exactly once, and
-background content at 6–8 codes renders at 0.041×, the whole frame at 0.84×. But moons,
-asteroids and spacecraft parts sit OUTSIDE the quad system, and for those extended sources
-the pass does provide at least some glow. Options, in rising order of work: keep it off;
-re-enable and accept the crush; re-enable behind a "Compatibility glow" graphics option
-(restart-scoped — the transfer path the display compensation calibrates against is decided
-at startup); pre-invert the bracket twice in a third display mode, which in principle
-recovers much of the crush (not the bottom few codes — each pass's encode has a hard zero
-floor); or extend the quad system itself to any body with a computable magnitude, moons
-included, which shrinks the pass's remaining role to spacecraft parts. Decide against real
-scenes in-app.
-
-**A known artifact the shader should stay structured for.** Over a bright background — the
-Milky Way's bulge — the wing over-adds on Compatibility: `blend_add` runs on encoded
-values, so the landed increment is `enc(g)` where the linear sum wants
-`enc(bg + g) − enc(bg)`, several-fold at the wing's faint end, and the visible halo reads
-~2–3× wider over the bulge than over dark sky. (Forward+ adds in linear; its halo over a
-bright background is if anything masked.) The exact fix is a screen-texture increment —
-sample `hint_screen_texture`, write `enc(dec(S) + g) − S` under the same `blend_add`;
-anything drawn after the copy degrades to today's plain add, never to a darkening — at the
-cost of one backbuffer copy per frame while a quad is visible, which makes it the first
-real candidate for a Compatibility graphics option. Not part of this item; but keep the
-fragment's final write in one place so the increment mode can slot in without
-restructuring.
-
-**Naming.** The merged system wants one name for the shader, the node and the builder —
-`sun_glare` must not survive the merge (it would name a shader whose near-handoff output is
-mostly core), and `sun_point` is no longer a point. Suggestions:
-
-- **`source_psf` (recommended)** — `source_psf.gdshader`, node `SourcePsf`, builder
-  `_build_source_psf()`. It names the one physical idea every job shares: the camera's
-  point-spread function applied to a source's flux — the core is its centre, the glare its
-  wings, a "point source" the regime where it is all there is, and crescent glow its wings
-  over a resolved source. PSF is already house vocabulary (`stars.gdshader`'s header).
-- `psf_quad` — the same idea named by its geometry; fine for the shader file, weaker as a
-  node name.
-- `point_source` — the TODO's own words and the standard astronomy term; its weakness is
-  that half the system's value is delivered exactly when the body is NOT a point source.
-- Rejected: `glow`/`bloom` (they name the engine pass this system replaces for point
-  sources — actively confusing), `glare`/`halo` (the wing only), `flare` (a lens artifact
-  this deliberately is not).
-
-**What exists to build on.** `_star_point.gdshaderinc` (the shared camera: `star_flux`,
-`star_visible_size`, `star_psf_falloff`, `star_glare_*`); `stars.gdshader` (the field's
-core-plus-wing fragment — the merged quad's fragment should read as its sibling);
-`sun_point.gdshader` + `sun_glare.gdshader` (the merge inputs, whose headers carry the
-crossfade and quad-geometry reasoning); `IVShellsModel` sun-mode (`_process_sun_lod` and
-the two builders — the per-frame driver whose pattern generalizes; where a planet's
-instance lives — `IVBodyVisual`, a sibling component, or growth of the shells model — is
-the implementing agent's call, made after reading how sun-mode and the cull interact);
-`IVStarSettings` (the ONE shared camera — new uniforms join `apply_to()`), with
-`IVStarsVisual`'s exports as its inspector face.

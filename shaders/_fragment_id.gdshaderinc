@@ -51,7 +51,7 @@ global uniform float iv_fragment_id_range;
 // survive storage exactly decodes as the wrong id.
 //
 // The parameter avoids the callers' own "fragment_id" varying and uniform, which Godot
-// rejects as a redefinition rather than shadowing (the same trap _star_point.gdshaderinc
+// rejects as a redefinition rather than shadowing (the same trap _point_spread_function.gdshaderinc
 // documents); every id shader failing to compile is what that mistake looks like.
 vec3 id_broadcast(vec3 encoded_id) {
 	return (encoded_id + 1024.0) / 2048.0;

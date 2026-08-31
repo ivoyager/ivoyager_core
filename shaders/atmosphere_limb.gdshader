@@ -65,11 +65,23 @@ render_mode blend_premul_alpha, ambient_light_disabled, shadows_disabled, skip_v
 #include "_farwarp.gdshaderinc"
 #include "_sun_occlusion.gdshaderinc"
 #include "_atmosphere.gdshaderinc"
+#include "_point_spread_function.gdshaderinc" // body_pixel_radius / body_disc_weight (the handoff)
 
 varying vec3 model_position; // unit-sphere local position (captured before farwarp overwrites VERTEX)
 varying vec3 v_camera_local; // the camera in this shell's local frame; the same at every vertex
 varying vec3 v_sun_local;    // the sun direction in that frame, unit; the same at every vertex
 varying flat float v_far_floor; // atm_far_floor() is uniform-only: per vertex, not per fragment
+varying flat float v_disc_weight; // disc/point crossfade; 1 resolved, 0 fully handed off
+
+// Disc/point handoff, set each frame by IVShellsModel's disc LOD from IVBody.psf_handoff.
+// Every shell of a body fades together, on the body's mean radius rather than this shell's
+// scaled one: an overlay left drawn over a handed-off point would be the whole body's
+// silhouette in cloud. The defaults saturate the ramp fully ON, so a body with no
+// IVBodyPSF renders exactly as it did before this existed.
+uniform float angular_radius = 0.0; // body mean radius / camera distance
+uniform float handoff_low = -2.0;   // px on-screen radius at/below which the quad replaces this
+uniform float handoff_high = -1.0;  // px at/above which this shell fully replaces the quad's core
+
 
 
 void vertex() {
@@ -82,6 +94,8 @@ void vertex() {
 	v_sun_local = normalize(mat3(inverse_model) * sun_direction);
 	v_far_floor = atm_far_floor();
 	farwarp_lit_vertex(MODELVIEW_MATRIX, MODELVIEW_NORMAL_MATRIX, VERTEX, NORMAL);
+	v_disc_weight = body_disc_weight(body_pixel_radius(angular_radius,
+			PROJECTION_MATRIX[1][1], VIEWPORT_SIZE.y), handoff_low, handoff_high);
 }
 
 
@@ -114,6 +128,11 @@ void fragment() {
 		ALBEDO = path;
 	}
 	ALPHA = clamp(1.0 - atm_luma(transmittance), 0.0, 1.0);
+	// blend_premul_alpha: the colour IS the premultiplied term, so it scales with the alpha.
+	// Fading alpha alone would leave the limb glow at full strength over a handed-off point.
+	ALBEDO *= v_disc_weight;
+	EMISSION *= v_disc_weight;
+	ALPHA *= v_disc_weight;
 	ROUGHNESS = 1.0;
 	METALLIC = 0.0;
 	SPECULAR = 0.0;

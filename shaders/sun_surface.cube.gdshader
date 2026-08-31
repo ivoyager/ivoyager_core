@@ -38,7 +38,7 @@ render_mode unshaded, skip_vertex_transform, depth_draw_opaque;
 #include "_detail.gdshaderinc"          // hash, value_noise (the photosphere's noise)
 #include "_display.gdshaderinc"
 #include "_farwarp.gdshaderinc"
-#include "_star_point.gdshaderinc"
+#include "_point_spread_function.gdshaderinc"
 #include "_sun_photosphere.gdshaderinc"
 
 // A star's surface map is discovered under the "emission" tag; see the uniform note in
@@ -51,8 +51,8 @@ uniform float color_bv = 0.63;       // star B-V; tints the disc (esp. with no s
 uniform float color_saturation = 1.0; // shared with the field, so B-V reads the same either side
 uniform float brightness = 1.0;      // HDR-capable surface-brightness multiplier (sun-mode sets)
 uniform float angular_radius = 0.0;  // star radius / camera distance (sun-mode sets per frame)
-uniform float handoff_low = 1.0;     // px on-screen radius at/below which the point fully replaces this disc
-uniform float handoff_high = 2.5;    // px at/above which this disc fully replaces the point
+uniform float handoff_low = -2.0;    // px on-screen radius at/below which the quad replaces this disc
+uniform float handoff_high = -1.0;   // px at/above which this disc fully replaces the quad core (defaults saturate ON)
 global uniform float iv_exposure;    // compensating-camera exposure; 1.0 when off (see stars.gdshader)
 
 // Photosphere parameters; see sun_surface.gdshader (kept identical here).
@@ -82,9 +82,9 @@ void vertex() {
 	// A unit sphere's normal is its own local position.
 	v_view_normal = MODELVIEW_NORMAL_MATRIX * VERTEX;
 	VERTEX = farwarp(view_position);
-	float pixel_radius = sun_pixel_radius(angular_radius, PROJECTION_MATRIX[1][1], VIEWPORT_SIZE.y);
+	float pixel_radius = body_pixel_radius(angular_radius, PROJECTION_MATRIX[1][1], VIEWPORT_SIZE.y);
 	v_pixel_radius = pixel_radius;
-	v_alpha = sun_disc_weight(pixel_radius, handoff_low, handoff_high);
+	v_alpha = body_disc_weight(pixel_radius, handoff_low, handoff_high);
 }
 
 void fragment() {
@@ -105,9 +105,9 @@ void fragment() {
 		surface *= display_decode(texture(emission, dir).rgb);
 	}
 	// Scalar cap at the shared f16-safe ceiling; see sun_surface.gdshader.
-	float disc_light = min(brightness * iv_exposure, STAR_LIGHT_MAX);
+	float disc_light = min(brightness * iv_exposure, PSF_LIGHT_MAX);
 	// Nothing sampled this radiance, so no renderer decode cancels against it: it crosses
 	// into the renderer's own colour space here (see _display.gdshaderinc).
-	ALBEDO = display_write(surface * star_color(color_bv, color_saturation) * disc_light);
+	ALBEDO = display_write(surface * color_from_b_v(color_bv, color_saturation) * disc_light);
 	ALPHA = v_alpha;
 }

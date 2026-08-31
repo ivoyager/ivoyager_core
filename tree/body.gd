@@ -317,6 +317,14 @@ var body_visual: Node3D
 ## start distance. The body model itself is farwarp-remapped per-vertex in its shaders, not
 ## via this value. Not maintained when farwarp is disabled. Read-only!
 var farwarp_position := Vector3.ZERO
+## Current (low, high) on-screen pixel radii of this body's disc/point crossfade,
+## published each frame by [IVBodyPSF] and read by this body's [IVShellsModel]
+## shells to fade their disc out across the same ramp. The two halves must come from
+## one answer or they would not sum to a constant through the handoff. Read one frame
+## late (the producer and the shells both process at priority 0), which is harmless on
+## a ramp this smooth. Left at the shader defaults for a body with no
+## [IVBodyPSF], whose disc does not fade at all. Read-only!
+var psf_handoff := Vector2(1.0, 2.5)
 ## Current visibility state for associated HUD elements, including
 ## IVBodyPositionVisual and IVPathVisual. Read-only!
 var huds_visible := false

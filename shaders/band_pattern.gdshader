@@ -46,6 +46,7 @@ render_mode skip_vertex_transform, ambient_light_disabled;
 #include "_photometry.gdshaderinc"
 #include "_sun_occlusion.gdshaderinc"
 #include "_atmosphere.gdshaderinc"
+#include "_point_spread_function.gdshaderinc" // body_pixel_radius / body_disc_weight (the handoff)
 
 
 // ----- color and level -----
@@ -156,12 +157,25 @@ uniform float albedo_scale = 1.0;
 const int STREAK_OCTAVES = 4;
 const int TURBULENCE_OCTAVES = 3;
 
+// Disc/point handoff, set each frame by IVShellsModel's disc LOD from IVBody.psf_handoff:
+// as the body shrinks toward a pixel its IVBodyPSF quad's core takes over and this disc
+// discards, resolved against its OWN VIEWPORT_SIZE -- so an off-screen capture switches at
+// its own buffer's scale rather than the main window's. IVBodyPSF collapses the two edges to
+// one for a lit body, making the trade a step at a size the handoff solve has matched; only
+// an emissive disc (sun_surface, already transparent) can afford to crossfade. The defaults
+// saturate fully ON, so a body with no quad (nothing to hand off to, and its fixed distance
+// cull still in place) renders exactly as it did before this existed.
+uniform float angular_radius = 0.0; // body mean radius / camera distance
+uniform float handoff_low = -2.0;   // px on-screen radius at/below which the quad replaces this
+uniform float handoff_high = -1.0;  // px at/above which this disc fully replaces the quad's core
+
 
 varying vec3 model_position;   // unit-sphere local position; the pattern's only input
 varying vec3 v_world_position; // true world position; VERTEX is farwarp-remapped
 varying vec3 v_camera_local;   // the camera in this shell's local frame, for atm_disc_air()
 varying vec3 v_sun_local;      // the sun direction in that frame, unit
 varying flat float v_far_floor; // atm_far_floor() is uniform-only: per vertex, not per fragment
+varying flat float v_disc_weight; // disc/point trade; >0 draw, 0 handed off (a step here)
 
 
 float gaussian_band(float latitude_deg, vec3 band) {
@@ -208,10 +222,22 @@ void vertex() {
 	}
 	// No normal map, so the smooth sphere normal farwarp sets is the final one.
 	farwarp_lit_vertex(MODELVIEW_MATRIX, MODELVIEW_NORMAL_MATRIX, VERTEX, NORMAL);
+	v_disc_weight = body_disc_weight(body_pixel_radius(angular_radius,
+			PROJECTION_MATRIX[1][1], VIEWPORT_SIZE.y), handoff_low, handoff_high);
 }
 
 
 void fragment() {
+	// Below the handoff the body's IVBodyPSF quad has taken over and this disc must go. It
+	// goes by DISCARD rather than by fading ALPHA, and that is not a style choice: writing
+	// ALPHA moves this material to the transparent pass, where it stops writing depth and so
+	// stops occluding anything -- the star field through a night side, bodies not sorting
+	// against each other, and the body's own quad drawing through it. Discarding keeps the
+	// surface opaque and the whole depth model intact. Resolved here rather than by a CPU
+	// "visible" flag, which could only ever answer for the viewport its node lives in.
+	if (v_disc_weight <= 0.0) {
+		discard;
+	}
 	vec3 dir = normalize(model_position);
 	float rho = length(dir.xz);
 

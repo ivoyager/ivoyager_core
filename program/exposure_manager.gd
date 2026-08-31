@@ -623,7 +623,8 @@ func _get_metering_target() -> float:
 				star_absolute_magnitude, star_distance)
 		var illuminance := IVPhotometry.get_illuminance_from_apparent_magnitude(
 				apparent_magnitude)
-		var shadow_fraction := _get_parent_shadow_fraction(body, star_vector, star_distance)
+		var shadow_fraction := IVSunOcclusionManager.get_parent_shadow_fraction(body, _star,
+				star_vector, star_distance)
 		# Ambient starlight is the floor of both candidates: eclipse shadow
 		# removes sunlight, not starlight, matching the shaders.
 		var lit_luminance := albedo * (illuminance * shadow_fraction
@@ -916,26 +917,6 @@ func _get_lit_visible_fraction(body: IVBody, star_vector: Vector3, star_distance
 	lit *= 1.0 - smoothstep(lit_visible_cutoff - nightside_twilight_angle,
 			lit_visible_cutoff, phase_angle)
 	return clampf(lit, 0.0, 1.0)
-
-
-## Satellite-in-parent-shadow term (e.g. the Moon in Earth's umbra), so an
-## eclipsed body meters dark and exposure rises as an eye would. Parent only:
-## other occluder geometries are negligible for metering.
-func _get_parent_shadow_fraction(body: IVBody, star_vector: Vector3,
-		star_distance: float) -> float:
-	var parent := body.get_parent() as IVBody
-	if !parent or parent == _star or !_star:
-		return 1.0
-	var parent_vector := parent.global_position - body.global_position
-	var parent_distance := parent_vector.length()
-	if parent_distance <= 0.0 or parent.mean_radius <= 0.0:
-		return 1.0
-	var star_angular_radius := _star.mean_radius / star_distance
-	var parent_angular_radius := parent.mean_radius / parent_distance
-	var cos_separation := star_vector.dot(parent_vector) / (star_distance * parent_distance)
-	var separation := acos(clampf(cos_separation, -1.0, 1.0))
-	return IVSunOcclusionManager.get_two_disc_visible_fraction(star_angular_radius,
-			parent_angular_radius, separation)
 
 
 func _get_star_absolute_magnitude() -> float:

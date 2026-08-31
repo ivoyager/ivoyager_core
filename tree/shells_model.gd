@@ -107,14 +107,7 @@ const PROPERTY_FEATURES := {
 	&"refraction_scale": BaseMaterial3D.FEATURE_REFRACTION,
 }
 
-# sun-mode LOD ramp (see the sun-mode section). Solved per star rather than authored, then
-# pushed to both sun shaders, which resolve the on-screen pixel radius against their own
-# VIEWPORT_SIZE. Kept here as the single source: the disc's fade-out and the point's fade-in
-# are two ends of one crossfade.
-const _SUN_HANDOFF_LOW_RATIO := 0.4 # fade span, as a fraction of the solved handoff (was 1.0/2.5)
-const _SUN_HANDOFF_FALLBACK := 2.5 # px radius, if the star never saturates (see the solver)
 const _SUN_DISC_BRIGHTNESS := 3.0 # nonphysical disc level; physical light derives it instead
-const _SUN_EXPOSURE_REFRESH_RATIO := 1.07 # ~0.1 EV; exposure moves past this re-solve the handoff
 
 
 ## Registry of 'process' methods, keyed by the name used in a shells.tsv
@@ -132,18 +125,14 @@ var _shell: int # 0 is the surface and orchestrator; 1..N are child shells
 var _body_name: StringName
 var _mean_radius: float
 var _process_callable: Callable
-var _star_body: IVBody # sun-mode: owning body, for its true (un-farwarped) position and photometry
-var _is_sun: bool # sun-mode (shell 0 with is_sun): dual disc + point; see the sun-mode section
-var _sun_bv := 0.63 # sun-mode: cached B-V (disc/point color); fallback if the characteristic is missing
-var _sun_abs_mag := 4.83 # sun-mode: cached V absolute magnitude (for the per-frame apparent magnitude)
-var _sun_surface_material: ShaderMaterial # sun-mode: the disc material, angular size driven each frame
-var _sun_point: MeshInstance3D # sun-mode: far point sprite, a child of _star_body (freed in _exit_tree)
-var _sun_point_material: ShaderMaterial # sun-mode: the point material, driven each frame
-var _sun_glare: MeshInstance3D # sun-mode: glare quad, a child of _star_body (freed in _exit_tree)
-var _sun_glare_material: ShaderMaterial # sun-mode: the glare material, driven each frame
-var _star_settings: IVStarSettings # sun-mode: shared star photometry; the point's, not the disc's
+var _body: IVBody # owning body, for its true (un-farwarped) position and its published handoff
+var _applies_psf: bool # this body draws an IVBodyPSF, so this shell fades at the handoff
+var _disc_material: ShaderMaterial # the shell's own material, LOD-driven each frame
+var _is_sun: bool # sun-mode (shell 0 with is_sun); see the disc LOD section
+var _sun_bv := 0.63 # sun-mode: cached B-V (disc color); fallback if the characteristic is missing
+var _sun_abs_mag := 4.83 # sun-mode: cached V absolute magnitude (for the disc's surface brightness)
+var _star_settings: IVStarSettings # sun-mode: shared star photometry (color ramp only, here)
 var _applied_sun_disc_brightness := NAN # sun-mode: change gate; NAN forces the first-frame write
-var _applied_sun_exposure := NAN # sun-mode: exposure at last handoff solve; NAN forces it
 
 var _times := IVGlobal.times
 
@@ -187,6 +176,9 @@ func _ready() -> void:
 	var asset_preloader: IVAssetPreloader = IVGlobal.program[&"AssetPreloader"]
 	var shell_specs := asset_preloader.get_body_shell_specs(_body_name)
 	var spec: Dictionary = shell_specs[_shell]
+	# Resolved before _set_visibility_and_layers(), which gates the distance cull on it.
+	_body = IVBody.bodies.get(_body_name)
+	_applies_psf = IVBodyPSF.is_applicable(_body)
 	if _shell == 0:
 		_is_sun = spec[&"is_sun"]
 		# A surface need not sit at the body's mean radius: what we see of Venus is its cloud
@@ -204,6 +196,7 @@ func _ready() -> void:
 	cast_shadow = spec[&"cast_shadow"]
 	_set_visibility_and_layers()
 	_resolve_process(process_method, process_args)
+	_enter_disc_lod()
 	if _is_sun:
 		_enter_sun_mode()
 	if _shell == 0:
@@ -214,262 +207,129 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if _process_callable.is_valid():
 		_process_callable.call(self, delta)
+	if _applies_psf:
+		_process_disc_lod()
 	if _is_sun:
-		_process_sun_lod(delta)
-
-
-func _exit_tree() -> void:
-	# The far point is parented to the body (not this model's subtree), so free it explicitly
-	# when this model is torn down while the body lives (e.g. remove_and_disable_body_visual).
-	if is_instance_valid(_sun_point):
-		_sun_point.queue_free()
-	if is_instance_valid(_sun_glare):
-		_sun_glare.queue_free()
+		_process_sun_physical_light()
 
 
 
 # *****************************************************************************
-# sun-mode: near disc + far point for an in-scene star (shell 0 with is_sun)
+# disc LOD (a body that draws an IVBodyPSF), and sun-mode within it
 
-# A star spans many au of viewing distance: near, it is a resolved sphere (this model's disc,
-# the sun_surface shader); far, it shrinks below a pixel and must be a point on the same
-# photometric footing as the background star field (a child sun_point sprite of the body). The
-# two crossfade by the star's on-screen pixel radius, so neither the fake growth of the old
-# hack nor a vanishing sub-pixel disc occurs. The disc holds a constant surface brightness
-# (distance-invariant); the point carries the distance dimming.
+# A body spans many decades of viewing distance: near, it is a resolved sphere (this model's
+# disc); far, it shrinks below a pixel and must become a point on the same photometric
+# footing as the background star field. That point is the body's IVBodyPSF quad, and this
+# is the disc's half of the trade -- the two crossfade by the body's on-screen pixel radius,
+# so neither a vanishing sub-pixel disc nor the fixed distance cull it used to take occurs.
+# Both halves ride one handoff, solved by IVBodyPSF and published on IVBody.psf_handoff;
+# solving it twice is how they would come to disagree.
 #
-# Both halves live in the two shaders, which resolve against their own VIEWPORT_SIZE; only
-# what distance alone determines stays here (angular size and apparent magnitude). Nothing
-# viewport-dependent is left on this side on purpose -- a CPU cull could only ever answer for
-# the viewport this node lives in, and would leak that answer into an off-screen capture
-# rendered at another size. The shaders drop themselves instead: the disc discards at alpha 0
-# (its depth write is why it cannot simply linger) and the point's fade reaches 0 under
-# blend_add.
+# EVERY shell of such a body leaves on the same weight: an overlay deck left drawn over a
+# point would be the whole body's silhouette in cloud. Each shell drives itself rather than
+# shell 0 recursing, matching _set_visibility_and_layers -- so IVBodyVisual need not know the
+# shell structure, and an overlay built late needs no catching up.
+#
+# HOW a shell leaves depends on which pass it is already in, and the difference is not
+# cosmetic. A lit SURFACE is opaque and must stay so -- writing ALPHA would move it to the
+# transparent pass, where it stops writing depth and stops occluding anything -- so it
+# discards at one threshold, which IVBodyPSF supplies by collapsing the ramp for a lit body.
+# An already-transparent shell (a cloud deck, a limb, an emissive star disc) can afford to
+# fade, and does.
+#
+# Either way it happens in the shaders, which resolve the threshold against their own
+# VIEWPORT_SIZE; only what distance alone determines is set here (angular size). Nothing
+# viewport-dependent is on this side on purpose -- a CPU answer could only ever suit the
+# viewport this node lives in, and would leak that into an off-screen capture rendered at
+# another size.
+#
+# SUN-MODE (shell 0 with is_sun) adds what only a star needs on this side: the disc holds a
+# constant surface brightness, derived from the star's own luminosity under physical light,
+# where a lit body's comes from the light that reaches it.
 
 
-func _enter_sun_mode() -> void:
-	_star_body = IVBody.bodies.get(_body_name)
-	if _star_body:
-		var color_bv: float = _star_body.characteristics.get(&"color_b_v", _sun_bv)
-		var absolute_magnitude: float = _star_body.characteristics.get(&"absolute_magnitude", _sun_abs_mag)
-		_sun_bv = color_bv
-		_sun_abs_mag = absolute_magnitude
-	# Connected here rather than with the far point, which is built lazily and rebuilt if this
-	# model is torn down and re-added -- _ready() would not fire again, so connecting there
-	# would stack a second connection onto the same settings object.
-	_star_settings = IVGlobal.program[&"StarSettings"]
-	_star_settings.changed.connect(_on_star_settings_changed)
-	var surface_material := get_surface_override_material(0)
-	if surface_material is ShaderMaterial:
-		_sun_surface_material = surface_material
-		_sun_surface_material.set_shader_parameter(&"color_bv", _sun_bv)
-		# Nonphysical placeholder; the first LOD frame applies the mode-correct
-		# value (physical light derives the star's true surface brightness).
-		_sun_surface_material.set_shader_parameter(&"brightness", _SUN_DISC_BRIGHTNESS)
-		_star_settings.apply_color_to(_sun_surface_material)
-	_refresh_sun_handoff() # solved from _sun_abs_mag / _mean_radius, so it must follow both
+func _enter_disc_lod() -> void:
+	# Resolved even without a quad: sun-mode drives this same material, and the disc's own
+	# surface brightness must not depend on whether the point half is enabled.
+	var material := get_surface_override_material(0)
+	if material is ShaderMaterial:
+		_disc_material = material
+	if !_applies_psf:
+		return
+	if !_disc_material:
+		# Benign but wasteful: with no handoff to fade on (and the distance cull dropped for
+		# this body) the disc draws at every distance, sub-pixel and contributing nothing,
+		# under the quad that has taken over. No shipped body reaches this.
+		push_warning("Body %s shell %d draws an IVBodyPSF but has no ShaderMaterial to"
+				% [_body_name, _shell] + " fade; it will not hand off")
 	# The empty 'process' column leaves idle processing off; the LOD driver needs it on.
 	set_process(true)
 
 
-func _process_sun_lod(_delta: float) -> void:
-	const FIVE_OVER_LN10 := 2.1714724095162594 # 5 / ln(10), for m = M + 5*log10(d / 10pc)
+func _enter_sun_mode() -> void:
+	if _body:
+		var color_bv: float = _body.characteristics.get(&"color_b_v", _sun_bv)
+		var absolute_magnitude: float = _body.characteristics.get(&"absolute_magnitude",
+				_sun_abs_mag)
+		_sun_bv = color_bv
+		_sun_abs_mag = absolute_magnitude
+	# Connected here rather than in _ready(): this model can be torn down and re-added, and
+	# _ready() would not fire again, so connecting there would stack a second connection onto
+	# the same settings object.
+	_star_settings = IVGlobal.program[&"StarSettings"]
+	_star_settings.changed.connect(_on_star_settings_changed)
+	if _disc_material:
+		_disc_material.set_shader_parameter(&"color_bv", _sun_bv)
+		# Nonphysical placeholder; the first LOD frame applies the mode-correct
+		# value (physical light derives the star's true surface brightness).
+		_disc_material.set_shader_parameter(&"brightness", _SUN_DISC_BRIGHTNESS)
+		_star_settings.apply_color_to(_disc_material)
+	set_process(true)
+
+
+func _process_disc_lod() -> void:
+	if !_disc_material:
+		return
 	var viewport := get_viewport()
-	if not viewport:
+	if !viewport:
 		return
 	var camera := viewport.get_camera_3d()
-	if not camera:
+	if !camera:
 		return
-	if not _star_body:
-		return
-	if not _sun_point:
-		_build_sun_point()
-	if not _sun_glare:
-		_build_sun_glare()
-	# True (un-farwarped) distance: the model sits at the body's true position (farwarp is a
+	# True (un-farwarped) distance: this model sits at the body's true position (farwarp is a
 	# per-vertex shader remap), so the body's own global_position gives the real distance.
-	var camera_distance := _star_body.global_position.distance_to(camera.global_position)
+	var camera_distance := _body.global_position.distance_to(camera.global_position)
 	if camera_distance <= 0.0:
 		return
-	# Angular size and apparent magnitude (m = M + 5*log10(d / 10pc)) are functions of distance
-	# alone, so they are the same for every viewport. Each shader scales angular_radius by its
-	# own VIEWPORT_SIZE to get pixels and runs the crossfade from there.
-	var angular_radius := _mean_radius / camera_distance
-	if _sun_surface_material:
-		_sun_surface_material.set_shader_parameter(&"angular_radius", angular_radius)
-	if _sun_point_material:
-		var apparent_magnitude := _sun_abs_mag + FIVE_OVER_LN10 * log(camera_distance / (10.0 * IVUnits.PARSEC))
-		_sun_point_material.set_shader_parameter(&"angular_radius", angular_radius)
-		_sun_point_material.set_shader_parameter(&"apparent_magnitude", apparent_magnitude)
-		# The glare takes the same magnitude and NOT the LOD ramp: the crossfade decides
-		# whether the camera resolves the star, and glare belongs to the camera.
-		if _sun_glare_material:
-			_sun_glare_material.set_shader_parameter(&"apparent_magnitude", apparent_magnitude)
-	_process_sun_physical_light()
+	# The body's mean radius, not this shell's scaled one: the whole body fades as one thing,
+	# and a deck 0.16 % out would otherwise cross the ramp at a slightly different distance.
+	_disc_material.set_shader_parameter(&"angular_radius", _mean_radius / camera_distance)
+	var handoff := _body.psf_handoff
+	_disc_material.set_shader_parameter(&"handoff_low", handoff.x)
+	_disc_material.set_shader_parameter(&"handoff_high", handoff.y)
 
 
-# Keeps the disc's brightness and the CPU handoff solve in step with
-# IVExposureManager. Change-gated writes; the NAN-initialized caches make the
-# first frame after (re)build apply the mode-correct values before first
-# render, and make a deactivation restore the nonphysical constant.
+# Keeps a star disc's brightness in step with IVExposureManager. Change-gated
+# writes; the NAN-initialized cache makes the first frame after (re)build apply
+# the mode-correct value before first render, and makes a deactivation restore
+# the nonphysical constant.
 func _process_sun_physical_light() -> void:
+	if !_disc_material:
+		return
 	var disc_brightness := _SUN_DISC_BRIGHTNESS
-	var exposure := 1.0
 	if IVExposureManager.physical_active and IVExposureManager.gain > 0.0:
 		disc_brightness = (IVPhotometry.get_star_disc_luminance(_sun_abs_mag, _mean_radius)
 				* IVExposureManager.gain)
-		exposure = IVExposureManager.exposure
-	if disc_brightness != _applied_sun_disc_brightness and _sun_surface_material:
-		_applied_sun_disc_brightness = disc_brightness
-		_sun_surface_material.set_shader_parameter(&"brightness", disc_brightness)
-	# The point's intensity carries iv_exposure in-shader, so the handoff solve
-	# must see the same factor or the crossfade steps in size as exposure moves.
-	var ratio := exposure / _applied_sun_exposure # NAN on first pass; comparisons false
-	if ratio > _SUN_EXPOSURE_REFRESH_RATIO or ratio < 1.0 / _SUN_EXPOSURE_REFRESH_RATIO:
-		_applied_sun_exposure = exposure
-		_refresh_sun_handoff()
-	elif is_nan(ratio):
-		_applied_sun_exposure = exposure
-		_refresh_sun_handoff()
+	if disc_brightness == _applied_sun_disc_brightness:
+		return
+	_applied_sun_disc_brightness = disc_brightness
+	_disc_material.set_shader_parameter(&"brightness", disc_brightness)
 
 
-func _build_sun_point() -> void:
-	# A 1-vertex points mesh mirroring IVStarsVisual: farwarp is applied in-shader, so the
-	# true-position AABB fails the frustum test -- size it to always contain the camera. Parented
-	# to the body (never rotated or scaled) so it sits at the true position; freed in _exit_tree.
-	var vertices := PackedVector3Array([Vector3.ZERO])
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = vertices
-	var points_mesh := ArrayMesh.new()
-	points_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_POINTS, arrays)
-	var half_extent := IVCoreSettings.max_camera_distance
-	points_mesh.custom_aabb = AABB(-Vector3.ONE * half_extent, 2.0 * Vector3.ONE * half_extent)
-	var shader: Shader = IVGlobal.resources.get(&"sun_point_shader")
-	_sun_point_material = ShaderMaterial.new()
-	_sun_point_material.shader = shader
-	_sun_point_material.set_shader_parameter(&"color_bv", _sun_bv)
-	# Past the handoff this point is a field star, so it images through the same camera the
-	# star field does -- one settings object, or the two drift apart on the first edit.
-	_star_settings.apply_to(_sun_point_material)
-	_refresh_sun_handoff() # the point material exists now and takes the same ramp as the disc
-	_sun_point = MeshInstance3D.new()
-	_sun_point.name = &"SunPoint"
-	_sun_point.mesh = points_mesh
-	_sun_point.material_override = _sun_point_material
-	_sun_point.cast_shadow = SHADOW_CASTING_SETTING_OFF
-	_star_body.add_child(_sun_point)
-
-
-func _build_sun_glare() -> void:
-	# Two triangles at the corners of a unit quad; sun_glare.gdshader reads VERTEX.xy as the
-	# corner sign and sizes the quad in pixels itself, so the mesh carries no scale. It is a
-	# quad rather than a point sprite only because POINT_SIZE has a driver maximum as low as
-	# 1 in the GLES3 spec and the glare runs to hundreds of px -- see that shader's header.
-	# Same AABB and parenting as the far point: farwarp is in-shader, so the true-position
-	# AABB fails the frustum test and must be sized to contain the camera.
-	var vertices := PackedVector3Array([
-		Vector3(-1.0, -1.0, 0.0), Vector3(1.0, -1.0, 0.0), Vector3(1.0, 1.0, 0.0),
-		Vector3(-1.0, -1.0, 0.0), Vector3(1.0, 1.0, 0.0), Vector3(-1.0, 1.0, 0.0),
-	])
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = vertices
-	var quad_mesh := ArrayMesh.new()
-	quad_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	var half_extent := IVCoreSettings.max_camera_distance
-	quad_mesh.custom_aabb = AABB(-Vector3.ONE * half_extent, 2.0 * Vector3.ONE * half_extent)
-	var shader: Shader = IVGlobal.resources.get(&"sun_glare_shader")
-	_sun_glare_material = ShaderMaterial.new()
-	_sun_glare_material.shader = shader
-	_sun_glare_material.set_shader_parameter(&"color_bv", _sun_bv)
-	# One settings object with the field and the far point, or the three drift apart.
-	_star_settings.apply_to(_sun_glare_material)
-	_sun_glare = MeshInstance3D.new()
-	_sun_glare.name = &"SunGlare"
-	_sun_glare.mesh = quad_mesh
-	_sun_glare.material_override = _sun_glare_material
-	_sun_glare.cast_shadow = SHADOW_CASTING_SETTING_OFF
-	_star_body.add_child(_sun_glare)
-
-
-# The far point is lazy, so this fires before there is a material to push to.
 func _on_star_settings_changed() -> void:
-	if _sun_surface_material:
-		_star_settings.apply_color_to(_sun_surface_material) # the disc shares only the B-V ramp
-	if _sun_point_material:
-		_star_settings.apply_to(_sun_point_material)
-	if _sun_glare_material:
-		_star_settings.apply_to(_sun_glare_material)
-	_refresh_sun_handoff()
+	if _disc_material:
+		_star_settings.apply_color_to(_disc_material) # the disc shares only the B-V ramp
 
-
-func _refresh_sun_handoff() -> void:
-	var handoff_high := _solve_sun_handoff_high()
-	var handoff_low := handoff_high * _SUN_HANDOFF_LOW_RATIO
-	if _sun_surface_material:
-		_sun_surface_material.set_shader_parameter(&"handoff_low", handoff_low)
-		_sun_surface_material.set_shader_parameter(&"handoff_high", handoff_high)
-	if _sun_point_material:
-		_sun_point_material.set_shader_parameter(&"handoff_low", handoff_low)
-		_sun_point_material.set_shader_parameter(&"handoff_high", handoff_high)
-
-
-# On-screen pixel radius where the far point's saturated core matches the disc's diameter,
-# i.e. where the two can trade places without stepping in size. Both are orders of magnitude
-# above saturation throughout the handoff, so brightness is not what the eye has to go on --
-# size is, and a crossfade that steps it reads as the abrupt shrink this ramp exists to
-# prevent. Solving it also retires a hand-tuned constant that only ever suited one star at
-# one psf_sigma: the answer moves with psf_sigma roughly linearly (0.5 -> 3.8 px, 1.0 -> 7.8),
-# so a literal would silently go stale the first time that shared slider moved.
-#
-# Viewport-independence is what lets this live on this side at all, and it is not luck: hold
-# pixel_radius fixed and a taller render puts the star proportionally farther, so the flux it
-# loses to 1/d^2 is exactly what the shader's resolution law returns; fov cancels the same way
-# against fov_compensation. So there is no viewport answer here to leak into an off-screen
-# capture (see the section note). Both cancellations are exact only at the calibrated
-# intensity_gamma 1.0 / fov_compensation 1.0, which is why this evaluates at the reference
-# height and fov; off-nominal it drifts a few percent, well inside the ~9% that star surface
-# brightness moves the match across Proxima-to-Sirius-B anyway.
-func _solve_sun_handoff_high() -> float:
-	const FIVE_OVER_LN10 := 2.1714724095162594 # 5 / ln(10), for m = M + 5*log10(d / 10pc)
-	const ITERATIONS := 8 # p <- sigma*sqrt(2*ln I(p)) contracts by ~2*sigma^2/p^2 per step
-	var reference_height := _get_reference_viewport_height()
-	var reference_proj_11 := 1.0 / tan(deg_to_rad(_star_settings.fov_reference_deg) * 0.5)
-	var distance_numerator := _mean_radius * reference_proj_11 * reference_height * 0.5
-	var pixels := 1.0
-	for _iteration in ITERATIONS:
-		var camera_distance := distance_numerator / pixels
-		var apparent_magnitude := _sun_abs_mag + FIVE_OVER_LN10 * log(
-				camera_distance / (10.0 * IVUnits.PARSEC))
-		var flux := pow(10.0, -0.4 * (apparent_magnitude - _star_settings.intensity_faint_mag))
-		var intensity := _star_settings.intensity_scale * pow(flux, _star_settings.intensity_gamma)
-		# Mirrors the shader chain, which multiplies iv_exposure unconditionally
-		# (the static is 1.0 whenever physical light is inactive).
-		intensity *= IVExposureManager.exposure
-		if intensity <= 1.0:
-			return _SUN_HANDOFF_FALLBACK # no saturated core to match; the disc is always bigger
-		pixels = _star_settings.psf_sigma * sqrt(2.0 * log(intensity))
-	return pixels
-
-
-# The height the shaders' resolution law is normalized to, read from the setting the editor
-# plugin writes from ivoyager_core.cfg -- the same one the shaders take as a global, so the
-# two cannot disagree. RenderingServer.global_shader_parameter_get() would be the obvious
-# reader and is a trap: it is editor-only, and in a running project it warns and hands back
-# null rather than the value.
-static func _get_reference_viewport_height() -> float:
-	const FALLBACK := 1080.0
-	var setting: Variant = ProjectSettings.get_setting(
-			"shader_globals/iv_reference_viewport_height")
-	if setting is Dictionary:
-		var setting_dict: Dictionary = setting
-		var value: Variant = setting_dict.get("value")
-		if value is float:
-			return value
-	push_warning("IVShellsModel: no iv_reference_viewport_height shader global; using %s"
-			% FALLBACK)
-	return FALLBACK
 
 
 func _build_material(spec: Dictionary, asset_preloader: IVAssetPreloader,
@@ -653,9 +513,12 @@ func _assert_overrides_are_uniforms(overrides: Dictionary, shader: Shader) -> vo
 func _set_visibility_and_layers() -> void:
 	# Each shell self-configures (vs. a parent recursing) so [IVBodyVisual] need
 	# not know the shell structure. Mirrors the packed-model path's settings.
-	# Sun-mode owns the disc's visibility via the pixel-radius fade, so it opts out of the fixed
-	# distance cull (which is zoom-blind and would clip a still-resolved disc when zooming in).
-	if not _is_sun:
+	# A body with an IVBodyPSF owns its disc's visibility via the pixel-radius fade, so it
+	# opts out of the fixed distance cull. That cull is zoom-blind (it would clip a still
+	# resolved disc when zooming in) and, at 4000 radii, fires several times FARTHER out than
+	# the handoff does -- so for these bodies it is unreachable anyway. It stays for every
+	# body without a quad, which has nothing to hand off to.
+	if not _applies_psf:
 		visibility_range_end = _mean_radius * IVCoreSettings.radius_multiplier_visibility_range_end
 	var node_layers := IVCoreSettings.get_visualinstance3d_layer_for_size(_mean_radius)
 	if _is_local_shadow_caster():
@@ -791,20 +654,20 @@ func _resolve_process(method: StringName, process_args: Array) -> void:
 # static preview
 
 
-## Scales a static preview's star disc to the preview camera, given its distance to the body.
+## Scales a static preview's disc to the preview camera, given its distance to the body.
 ## Call again whenever that camera moves; [method set_static_preview] applies it once and stops
-## the per-frame update that would otherwise maintain it. Without a live value the photosphere's
-## detail — granulation, sunspot groups, faculae — fades out entirely and the disc renders flat.
-## No-op on a shell that is not a star.
+## the per-frame update that would otherwise maintain it. Without a live value a star's
+## photosphere detail — granulation, sunspot groups, faculae — fades out entirely and the disc
+## renders flat. No-op on a shell with no LOD-driven disc.
 func set_preview_camera_distance(camera_distance: float) -> void:
-	if !_is_sun or !_sun_surface_material or camera_distance <= 0.0:
+	if !_applies_psf or !_disc_material or camera_distance <= 0.0:
 		return
-	_sun_surface_material.set_shader_parameter(&"angular_radius", _mean_radius / camera_distance)
+	_disc_material.set_shader_parameter(&"angular_radius", _mean_radius / camera_distance)
 
 
 ## Detaches this shell from the live simulation so it can be staged elsewhere as a still
-## image: it stops animating, stops reaching outside its own subtree, and (for a star)
-## renders as a plain resolved disc instead of the distance-driven disc/point crossfade.
+## image: it stops animating, stops reaching outside its own subtree, and renders as a plain
+## resolved disc instead of the distance-driven disc/point crossfade.
 ## Call on a model built for anything other than the body it belongs to — an icon capture,
 ## a thumbnail, a GUI preview — right after adding it to the tree, before it can process a
 ## frame. One way: there is no restoring the live behavior afterward. Overlay shells are
@@ -815,27 +678,29 @@ func set_preview_camera_distance(camera_distance: float) -> void:
 ## [method set_preview_camera_distance], which this applies once.
 func set_static_preview(camera_distance: float) -> void:
 	# Idle processing is the only thing here that reaches outside this node: _rotate would
-	# animate the shell against sim time, and _process_sun_lod would build the far point as a
-	# child of the REAL star body and size it against a camera in a different World3D.
+	# animate the shell against sim time, and _process_disc_lod would read the REAL body's
+	# position and size the disc against a camera in a different World3D.
 	set_process(false)
-	if not _is_sun:
-		return
-	# IVStarSettings is shared with the live scene, so any edit to it would call
-	# _refresh_sun_handoff() and undo the overrides below.
-	if _star_settings.changed.is_connected(_on_star_settings_changed):
-		_star_settings.changed.disconnect(_on_star_settings_changed)
-	if not _sun_surface_material:
+	if _is_sun and _star_settings:
+		# IVStarSettings is shared with the live scene, so any edit to it would re-apply the
+		# B-V ramp over the overrides below.
+		if _star_settings.changed.is_connected(_on_star_settings_changed):
+			_star_settings.changed.disconnect(_on_star_settings_changed)
+	if not _applies_psf or not _disc_material:
 		return
 	# The disc's alpha is a crossfade against its own on-screen pixel radius, and only
-	# _process_sun_lod knows how to measure that; with it off, angular_radius keeps the shader
-	# default and every fragment discards. Negative edges saturate the crossfade instead.
-	_sun_surface_material.set_shader_parameter(&"handoff_low", -2.0)
-	_sun_surface_material.set_shader_parameter(&"handoff_high", -1.0)
-	# Saturating the crossfade is not all angular_radius was feeding. It also carries the disc's
-	# on-screen scale to the photosphere, whose every alias fade is written against px per
-	# radian, so the shader default renders granulation, spots and faculae faded fully out --
-	# an identically flat disc. A preview must supply a distance of its own.
+	# _process_disc_lod knows how to measure that; with it off, angular_radius keeps the
+	# shader default and every fragment discards. Negative edges saturate the crossfade
+	# instead, so the disc always renders whatever the preview camera's distance.
+	_disc_material.set_shader_parameter(&"handoff_low", -2.0)
+	_disc_material.set_shader_parameter(&"handoff_high", -1.0)
+	# Saturating the crossfade is not all angular_radius was feeding. On a star it also carries
+	# the disc's on-screen scale to the photosphere, whose every alias fade is written against
+	# px per radian, so the shader default renders granulation, spots and faculae faded fully
+	# out -- an identically flat disc. A preview must supply a distance of its own.
 	set_preview_camera_distance(camera_distance)
+	if not _is_sun:
+		return
 	# DISC_BRIGHTNESS is HDR for a scene that tonemaps. Read back into an RGBA8 image it would
 	# clip to white and take the B-V tint with it.
-	_sun_surface_material.set_shader_parameter(&"brightness", 1.0)
+	_disc_material.set_shader_parameter(&"brightness", 1.0)

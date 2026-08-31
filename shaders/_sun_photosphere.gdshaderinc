@@ -31,8 +31,8 @@
 //     derives from the star's absolute magnitude, and the disc/point crossfade stays
 //     photometric. Spots and faculae dent this by well under a percent, as real ones do.
 //   - CHROMATICALLY NEUTRAL AT THE MEAN: photosphere_color(1.0) is exactly white, so
-//     the star's absolute tint remains star_color(B-V)'s business and the disc matches
-//     the far point by construction. These functions carry only *relative* color:
+//     the star's absolute tint remains color_from_b_v(B-V)'s business and the disc matches
+//     its PSF quad by construction. These functions carry only *relative* color:
 //     umbrae redden as they darken, the limb reddens as it darkens.
 //
 // The photometric anchors, so the numbers are auditable:

@@ -772,9 +772,10 @@ tiny float passes `> 0.0` yet comes out of the GPU's `log()` as −∞.
 The sun disc's surface brightness is derived from its absolute magnitude and radius
 (`IVPhotometry.get_star_disc_luminance` — ~1.8×10⁹ cd/m²) times gain and exposure, so
 approaching it, the metering dims the scene until granulation and sunspots resolve
-instead of a white blowout. The disc and the far point sprite are co-calibrated and
-crossfade by apparent size (`IVShellsModel` sun mode), both capped at the shared
-half-float-safe constant that also bounds the star field. As a metering subject the sun
+instead of a white blowout. The disc and the star's PSF quad are co-calibrated and
+crossfade by apparent size (`IVShellsModel`'s disc LOD against the handoff `IVBodyPSF`
+solves), both capped at the shared half-float-safe constant that also bounds the star
+field. As a metering subject the sun
 uses its own late screen-fraction ramp (see above).
 
 What resolves is generated, not sampled: `_sun_photosphere.gdshaderinc` draws limb
@@ -786,7 +787,7 @@ so the disc keeps exactly the derived mean surface brightness and the disc/point
 crossfade stays photometric. And the intensity→color relation is a closed-form Planck
 ratio that is **exactly white at the mean**, so an umbra reddens as it darkens (~4100 K
 at 0.15 of continuum) while the star's absolute tint remains the B−V chain's business
-and the disc matches the far point by construction. The photometric anchors — Pierce &
+and the disc matches the quad by construction. The photometric anchors — Pierce &
 Slaughter (1977) limb darkening, the Neckel & Labs center-to-limb color trend, the
 umbral brightness-size relation — are cited in the include.
 
@@ -1130,11 +1131,12 @@ property says, `glow_hdr_luminance_cap` and `glow_levels` are byte-for-byte iner
 sun's halo measures the same 4 px with glow on as with it off. The far sun therefore read as
 an ordinary bright star on both renderers and as an ordinary star full stop on the web.
 
-So a star now carries its own wings, in the shader, where the intensity is still a float32
-that nothing has clamped: `star_glare_*` in `_star_point.gdshaderinc`, shared by the catalog
-field (on its own point sprites) and by an in-scene star (on a quad, `sun_glare.gdshader` —
-the law is the same, only the geometry differs, because POINT_SIZE's driver maximum is as low
-as 1 in the GLES3 spec and the sun's glare runs to hundreds of px). It is the same structural
+So a source now carries its own wings, in the shader, where the intensity is still a float32
+that nothing has clamped: `psf_glare_*` in `_point_spread_function.gdshaderinc`, shared by the catalog
+field (on its own point sprites) and by every in-scene body bright enough to warrant one (on a
+quad, `body_psf.gdshader` — the law is the same, only the geometry differs, because
+POINT_SIZE's driver maximum is as low as 1 in the GLES3 spec and the sun's glare runs to
+hundreds of px). It is the same structural
 move as the atmosphere's disc air and its beyond-limb ring: what a display-stage pass cannot
 carry identically on two renderers gets computed before the conversion instead. Four things
 about it:
@@ -1155,7 +1157,7 @@ about it:
 - **Where the wing stops is a rendering boundary and is drawn as one.** The core's rule — cut
   where it falls below one 8-bit step — needs nothing else, because a Gaussian is two orders
   down a pixel later. On a `1/r²` wing that same cut is 13 display codes and drew a plain
-  circle around the sun. So the wing is faded to zero over its last octave (`STAR_GLARE_TAPER`),
+  circle around the sun. So the wing is faded to zero over its last octave (`PSF_GLARE_TAPER`),
   the same treatment the atmosphere ring takes at its shell, costing only the part below one
   step. `glare_max_px` bounds it, and bounds the AMPLITUDE rather than the radius, so the
   "drawn until it stops being representable" rule stays exactly true.
@@ -1167,8 +1169,11 @@ about it:
   `stars.gdshader` calls known-good, which is a stated platform risk rather than a hazard —
   a driver clamp truncates the wing's faint outer part and nothing else.
 
-The glare does NOT take the sun's disc/point crossfade: that ramp decides whether the camera
-*resolves* the star, and glare belongs to the camera rather than to the subject. On Forward+
+The glare does NOT take the disc/point crossfade: that ramp decides whether the camera
+*resolves* the body, and glare belongs to the camera rather than to the subject. That is what
+makes the persisting wing over a resolved disc the same thing as crescent glow — see *Point
+sources: one PSF quad per bright body* in the sibling document, which owns the spatial half of
+this system and the reflected-light magnitude a sunlit body rides on. On Forward+
 the glow pass still adds its own halo on top, so the two renderers are close rather than
 identical (Saturn station: 32-code radius 55 px against 59); the residual is the
 display-referred blend's encoded add over a non-black sky, the boundary `_display.gdshaderinc`
@@ -1186,7 +1191,7 @@ renormalization of the level weights, no GPU cost — but at fixed levels it onl
 whole effect by 1/1.3, which is why toggling it showed nothing; default off is right.
 
 **The sun is glow-continuous through its handoff only under physical light.** There the disc
-and the point both saturate the shared `STAR_LIGHT_MAX` through the crossfade, both sides
+and the point both saturate the shared `PSF_LIGHT_MAX` through the crossfade, both sides
 bloom at the cap, and the halo carries through. **With physical light off it does not**: the
 nonphysical disc constant (~3.0, `IVShellsModel`) meets a point whose peak holds the f16 cap
 through essentially the whole fade (at the sun's flux, `(1−w) × intensity` clears 32768 until
@@ -1229,19 +1234,20 @@ The 2D icon rig runs its own `World3D` on the default environment: **no glow in 
 which keeps transparent readbacks clean and costs the exact in-sim look of overexposed
 content. Accepted.
 
-**Compatibility gets a different pass, and it is OFF there since 2026-08-31.**
-`IVWorldEnvironment._ready()` clears `glow_enabled` under `IVGlobal.is_gl_compatibility`,
-beside the `adjustment_enabled` gate it joins, because measured it is a pure loss: it adds no
-halo (above) and it costs the dim end badly. Enabling it moves tonemapping into a post pass
-that re-runs the transfer bracket `display_write()` pre-inverts exactly once, and background
-content measured **0.041x at 6-8 codes, 0.19x at 8-10, 0.66x at 12-18, and 0.84x over the
-whole frame**, where Forward+ measures 1.000x at every level. That is the Milky Way and the
-faint stars. With it off the two renderers agree on the same frame to 0.8 %, and four parity
-views that had been 21 % dark on Compatibility (Callisto, Mimas, Mimas' lit disc, Saturn) came
-back to 0.99-1.01. The rest of this paragraph is why. A project that wants the pass anyway can
-author glow into its own Environment.
+**Compatibility gets a different pass, and it is ON there — a deliberate trade, not a free
+win.** It was gated off on 2026-08-31 and back on with the PSF quad system, and the
+measurements that argued for the gate all still stand: the pass adds no halo to a point source
+(above), and enabling it moves tonemapping into a post pass that re-runs the transfer bracket
+`display_write()` pre-inverts exactly once, so background content measures **0.041x at 6-8
+codes, 0.19x at 8-10, 0.66x at 12-18, and 0.84x over the whole frame**, where Forward+
+measures 1.000x at every level. That is the Milky Way and the faint stars, and with the pass
+off the two renderers agree on the same frame to 0.8 %. What buys it back is **extended
+sources**: spacecraft parts, small moons and asteroids sit outside the `IVBodyPSF` quad
+system, which now draws its own wings for every source that has one, and the pass is the only
+glow those others get anywhere. The rest of this paragraph is the mechanism. A project that
+wants it off can author its own Environment.
 
-**Compatibility gets a different pass, and turning glow on there is an open decision.**
+**What the pass actually does on that renderer.**
 Verified in the 4.7.2 GLES3 source (`drivers/gles3/rasterizer_scene_gles3.cpp`,
 `shaders/effects/glow.glsl`, `post.glsl`): only `glow_intensity`, `glow_bloom` and the three
 HDR properties act — levels, strength, blend mode, map and normalized are RD-only — the blend
@@ -1258,10 +1264,13 @@ extra pass and the shader repermute the web build was spared. The threshold also
 *encoded* values — full feedback spans linear ≈ 1–13, and the cap is unreachable under the
 4.0-encoded storage ceiling — so what glow the web gets is dimmer and differently shaped than
 Forward+'s even where it works. (In a transparent render target the format is RGBA8, the
-headroom trick is off, and glow is inert while the post pass still runs.) Before glow ships
-as a Core default, either gate it off under `IVGlobal.is_gl_compatibility` beside the
-existing adjustment gate, or keep it and re-measure the *Renderer parity* numbers with it
-on. Measured, it is the first: see the gate above.
+headroom trick is off, and glow is inert while the post pass still runs.) All of which is why
+the pass earns its keep here only for the extended sources the quad system does not reach; the
+*Renderer parity* numbers are measured with it off, and are that much better than the shipped
+configuration on dim content. Recovering most of the crush would take a third display mode
+that pre-inverts the bracket twice — not the bottom few codes, each pass's encode having a
+hard zero floor — or extending the quad system to every body with a computable magnitude,
+which would shrink the pass's remaining role to spacecraft parts.
 
 **And the one lever is inert there, which is why the far sun reads as an ordinary star.**
 The glow buffers are allocated in the render target's own format

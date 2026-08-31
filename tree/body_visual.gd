@@ -203,13 +203,11 @@ func _build_shells_model(asset_preloader: IVAssetPreloader) -> void:
 # to set their visibility ranges and layers. Shells models self-configure (see
 # [IVShellsModel]).
 func _set_visibility_ranges() -> void:
-	# Sun-mode (is_sun) manages the disc's visibility itself (pixel-radius fade), so skip the
-	# fixed distance cull, matching the shells-model self-config path. Shell 0's spec exists
-	# for every body, packed-scene ones included, so it answers here too.
-	var asset_preloader: IVAssetPreloader = IVGlobal.program[&"AssetPreloader"]
-	var surface_spec: Dictionary = asset_preloader.get_body_shell_specs(_body_name)[0]
-	if surface_spec[&"is_sun"]:
-		return # is_sun disc self-culls; default 0.0 is no distance cull
+	# A body with an [IVBodyPSF] manages its own visibility (the pixel-radius fade to its
+	# PSF quad), so skip the fixed distance cull, matching the shells-model self-config path.
+	var body: IVBody = IVBody.bodies.get(_body_name)
+	if IVBodyPSF.is_applicable(body):
+		return # the disc self-culls at its handoff; default 0.0 is no distance cull
 	var visibility_range_end := _m_radius * IVCoreSettings.radius_multiplier_visibility_range_end
 	_set_visibility_ranges_recursive(_model, visibility_range_end)
 

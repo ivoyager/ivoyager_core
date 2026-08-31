@@ -49,6 +49,7 @@ render_mode skip_vertex_transform, ambient_light_disabled;
 #include "_photometry.gdshaderinc"
 #include "_sun_occlusion.gdshaderinc"
 #include "_atmosphere.gdshaderinc"
+#include "_point_spread_function.gdshaderinc" // body_pixel_radius / body_disc_weight (the handoff)
 
 uniform sampler2D albedo : source_color; // auto-bound: <prefix>.<file_tag>.albedo.*
 uniform vec3 clouds_color : source_color = vec3(1.0); // tint over the map's own rgb
@@ -89,6 +90,17 @@ varying vec3 v_world_position; // true world position; VERTEX is farwarp-remappe
 varying vec3 v_camera_local;   // the camera in this shell's local frame, for atm_disc_air()
 varying vec3 v_sun_local;      // the sun direction in that frame, unit
 varying flat float v_far_floor; // atm_far_floor() is uniform-only: per vertex, not per fragment
+varying flat float v_disc_weight; // disc/point crossfade; 1 resolved, 0 fully handed off
+
+// Disc/point handoff, set each frame by IVShellsModel's disc LOD from IVBody.psf_handoff.
+// Every shell of a body fades together, on the body's mean radius rather than this shell's
+// scaled one: an overlay left drawn over a handed-off point would be the whole body's
+// silhouette in cloud. The defaults saturate the ramp fully ON, so a body with no
+// IVBodyPSF renders exactly as it did before this existed.
+uniform float angular_radius = 0.0; // body mean radius / camera distance
+uniform float handoff_low = -2.0;   // px on-screen radius at/below which the quad replaces this
+uniform float handoff_high = -1.0;  // px at/above which this shell fully replaces the quad's core
+
 
 
 void vertex() {
@@ -104,6 +116,8 @@ void vertex() {
 		v_far_floor = atm_far_floor();
 	}
 	farwarp_lit_vertex(MODELVIEW_MATRIX, MODELVIEW_NORMAL_MATRIX, VERTEX, NORMAL);
+	v_disc_weight = body_disc_weight(body_pixel_radius(angular_radius,
+			PROJECTION_MATRIX[1][1], VIEWPORT_SIZE.y), handoff_low, handoff_high);
 }
 
 
@@ -216,4 +230,6 @@ void fragment() {
 
 	ALBEDO = display_write_albedo(ALBEDO);
 	EMISSION = display_write(EMISSION);
+	// Alpha-blended, so the one weight fades everything this shell contributes.
+	ALPHA *= v_disc_weight;
 }

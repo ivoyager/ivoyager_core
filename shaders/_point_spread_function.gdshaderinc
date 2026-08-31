@@ -1,4 +1,4 @@
-// _star_point.gdshaderinc
+// _point_spread_function.gdshaderinc
 // This file is part of I, Voyager
 // https://ivoyager.dev
 // *****************************************************************************
@@ -18,16 +18,25 @@
 // limitations under the License.
 // *****************************************************************************
 
-// Shared star-photometry helpers for the catalog star field (stars.gdshader), the
-// far-sun point (sun_point.gdshader), and the sun disc (sun_surface.gdshader). Pure
-// functions only -- no uniforms, varyings, or entry points -- so each shader keeps
-// its own uniforms. Sizing splits on whether the star is resolved, not on which shader
-// draws it: the field and the sun's far point both size from intensity through one
-// camera PSF, and only the sun's near disc is geometric (an angular radius the camera
-// actually resolves). farwarp is provided separately by _farwarp.gdshaderinc.
+// The camera's POINT SPREAD FUNCTION and everything that feeds it: the flux and colour a
+// source is imaged from, the Gaussian core, the r^-2 glare wing, the size law that bounds
+// both, and the pixel radius at which a source stops being a point at all.
 //
-// The sun's two halves also share their LOD ramp here. Its disc fade-out and its point
-// fade-in are opposite ends of one crossfade, so they must come from one expression
+// Nothing here is star-specific, and the names say so: every function works for any source
+// given a magnitude and a colour index. Qualify a name only where it is not generic --
+// psf_* for the point spread function proper, body_* for the disc geometry that ends it.
+// Current consumers are the catalog star field (stars.gdshader), the per-body PSF quad
+// (body_psf.gdshader) and a star's resolved disc (sun_surface.gdshader); an asteroid point
+// field would be the next, and should need no new function.
+//
+// Pure functions only -- no uniforms, varyings, or entry points -- so each shader keeps its
+// own uniforms. Sizing splits on whether the source is resolved, not on which shader draws
+// it: the field and the quad both size from intensity through one camera PSF, and only a
+// resolved disc is geometric (an angular radius the camera actually resolves). farwarp is
+// provided separately by _farwarp.gdshaderinc.
+//
+// The two sides of that split share their LOD ramp here. A disc's fade-out and its quad's
+// core fade-in are opposite ends of one crossfade, so they must come from one expression
 // against one pixel radius or they would not sum to a constant through the handoff.
 
 // B-V -> linear sRGB: the blackbody color of the temperature B-V implies, sampled at
@@ -53,7 +62,7 @@
 // toward white on the way to 8-bit -- a screenshot's channel numbers therefore read
 // far paler than the values here. That is the encode being correct (the monitor decodes
 // it back to this light); it is not a loss to pre-compensate for.
-vec3 star_color(float bv, float saturation) {
+vec3 color_from_b_v(float bv, float saturation) {
 	bv = clamp(bv, -0.4, 2.0);
 	vec3 color;
 	if (bv < -0.1) {
@@ -80,7 +89,7 @@ vec3 star_color(float bv, float saturation) {
 // flux 1.0). Brighter (smaller) magnitude -> larger flux. The caller applies its own
 // dynamic-range compression and clamp (or, for the sun, no clamp). Params avoid the
 // callers' uniform names -- Godot rejects a function parameter that shadows a uniform.
-float star_flux(float mag, float ref_mag) {
+float flux_from_magnitude(float mag, float ref_mag) {
 	return pow(10.0, -0.4 * (mag - ref_mag));
 }
 
@@ -94,7 +103,7 @@ float star_flux(float mag, float ref_mag) {
 // radius) while every star keeps a distinct size, and the faint end shrinks to nothing
 // exactly where the star drops below one 8-bit step. The max() holds the log's domain
 // there; the point vanishing at that size is correct, as there is no light left to draw.
-float star_visible_size(float intensity, float sigma) {
+float psf_visible_size(float intensity, float sigma) {
 	return 2.0 * sigma * sqrt(2.0 * max(log(255.0 * intensity), 0.0));
 }
 
@@ -102,7 +111,7 @@ float star_visible_size(float intensity, float sigma) {
 // across a sprite of point_size (px). Derived from the rendered size so the PSF keeps the
 // width the camera has whatever the sprite spans: a fixed falloff would tie the Gaussian to
 // the sprite, making a bright star a scaled-up copy of a faint one rather than a brighter one.
-float star_psf_falloff(float point_size, float sigma) {
+float psf_sprite_falloff(float point_size, float sigma) {
 	return (point_size * point_size) / (8.0 * sigma * sigma);
 }
 
@@ -119,7 +128,7 @@ float star_psf_falloff(float point_size, float sigma) {
 // as 1/tan^2(fov/2) into a PSF that stays fixed in pixels. Omitting it for the sun would
 // desync it from its own neighbors: zoom in from the Oort cloud and the whole field would
 // brighten around a sun that sat still.
-float star_fov_compensation(float proj_11, float ref_tan_half_fov, float amount) {
+float point_fov_compensation(float proj_11, float ref_tan_half_fov, float amount) {
 	float fov_ratio = proj_11 * ref_tan_half_fov;
 	return pow(fov_ratio * fov_ratio, amount);
 }
@@ -129,29 +138,31 @@ float star_fov_compensation(float proj_11, float ref_tan_half_fov, float amount)
 // by the Vulkan Y-flip, so it is abs()'d) and viewport_height is VIEWPORT_SIZE.y -- the 3D
 // render target rather than the window, so a SubViewport or scaling_3d render sizes the sun
 // for the buffer it actually rasterizes into.
-float sun_pixel_radius(float angular_radius, float proj_11, float viewport_height) {
+float body_pixel_radius(float angular_radius, float proj_11, float viewport_height) {
 	return angular_radius * abs(proj_11) * viewport_height * 0.5;
 }
 
-// Sun disc<->point crossfade: 0 at/below handoff_low (the point fully replaces the disc),
-// 1 at/above handoff_high (the disc fully replaces the point). The disc uses this as its
-// alpha and the point uses 1.0 - this as its fade-in.
-float sun_disc_weight(float pixel_radius, float handoff_low, float handoff_high) {
+// Disc<->PSF-core crossfade: 0 at/below handoff_low (the quad's core fully replaces the
+// disc), 1 at/above handoff_high (the disc fully replaces the core). The disc uses this as
+// its alpha and the quad uses 1.0 - this as its fade-in. The quad's glare wing does NOT
+// take it: that ramp decides whether the camera RESOLVES the body, and glare belongs to the
+// camera rather than to the subject.
+float body_disc_weight(float pixel_radius, float handoff_low, float handoff_high) {
 	return smoothstep(handoff_low, handoff_high, pixel_radius);
 }
 
 // Squared radial distance across a point sprite: 0 at center, 1 at the inscribed
 // circle (>1 in the square corners, which the caller discards for a round mask).
-float star_point_dist_sq(vec2 point_coord) {
+float sprite_dist_sq(vec2 point_coord) {
 	vec2 offset = point_coord - vec2(0.5);
 	return dot(offset, offset) * 4.0;
 }
 
 // f16-safe ceiling on any star-photometry radiance scalar, shared by the field and the
-// sun's far point (through star_point_light below) and by the sun's near disc
+// sun's far point (through psf_core_light_sprite below) and by the sun's near disc
 // (sun_surface caps its brightness * iv_exposure product with it). One constant because
 // the disc/point handoff needs both halves to saturate at the same level.
-const float STAR_LIGHT_MAX = 32768.0;
+const float PSF_LIGHT_MAX = 32768.0;
 
 // A star fragment's additive light: intensity through the PSF at this fragment's
 // radius, evaluated in shader float32 and capped below float16 max. The cap is load-
@@ -162,14 +173,25 @@ const float STAR_LIGHT_MAX = 32768.0;
 // size. Multiplying here first keeps each fragment's true value wherever f16 can
 // represent it; the cap only touches values tonemapping clips to white anyway, and
 // keeps inf out of any downstream pass (e.g. glow).
-float star_point_light(float intensity, float dist_sq, float falloff) {
-	return min(intensity * exp(-dist_sq * falloff), STAR_LIGHT_MAX);
+float psf_core_light_sprite(float intensity, float dist_sq, float falloff) {
+	return min(intensity * exp(-dist_sq * falloff), PSF_LIGHT_MAX);
+}
+
+// The same Gaussian core as psf_core_light_sprite, for a consumer that has its fragment's radius
+// in PIXELS rather than a point sprite's normalized POINT_COORD -- a quad, which sizes itself
+// (body_psf.gdshader). Identical by construction and must stay so: psf_sprite_falloff cancels
+// POINT_SIZE against sprite_dist_sq's normalization, leaving dist_sq * falloff equal to
+// radius_px^2 / (2 sigma^2), which is what this evaluates directly. The f16 cap is the same
+// and load-bearing for the same reason (see psf_core_light_sprite).
+float psf_core_light(float intensity, float radius_px, float sigma) {
+	return min(intensity * exp(-(radius_px * radius_px) / (2.0 * sigma * sigma)),
+			PSF_LIGHT_MAX);
 }
 
 
 // A star's GLARE: the wide r^-2 wings the Gaussian core does not have.
 //
-// WHY THE CORE IS NOT ENOUGH. star_visible_size grows as sqrt(ln I), so over the sun's own
+// WHY THE CORE IS NOT ENOUGH. psf_visible_size grows as sqrt(ln I), so over the sun's own
 // range -- V -26.7 at Earth to -19.0 at Pluto, a factor 1225 in flux -- its image widens by
 // 13 %. Every stage past the shader then flattens what is left: the color buffer saturates,
 // and the engine's glow pass caps its per-texel feed (12.0 on Forward+, and 4.0 on
@@ -196,8 +218,8 @@ float star_point_light(float intensity, float dist_sq, float falloff) {
 // growth law restores a bright-end hierarchy the pass had flattened.
 //
 // How far past the one-step radius the wing is drawn while fading out; see
-// star_glare_draw_size.
-const float STAR_GLARE_TAPER = 2.0;
+// psf_glare_draw_size.
+const float PSF_GLARE_TAPER = 2.0;
 
 // The wing's amplitude at 1 px, for a source of linear intensity. The outer radius grows as
 // intensity^(gamma/2) -- with the default gamma that is one doubling per 5.3 magnitudes,
@@ -207,19 +229,19 @@ const float STAR_GLARE_TAPER = 2.0;
 // would cut the wing while it was still far above one 8-bit step and leave a hard ring, where
 // capping the amplitude keeps "drawn until it stops being representable" exactly true and
 // simply stops the glare growing. Only the last au or two before a star's disc resolves
-// reaches it. Every caller must size its sprite from THIS value, through star_glare_draw_size.
-float star_glare_amplitude(float intensity, float scale, float gamma, float max_px) {
-	float ceiling = (max_px / STAR_GLARE_TAPER) * (max_px / STAR_GLARE_TAPER) / 255.0;
+// reaches it. Every caller must size its sprite from THIS value, through psf_glare_draw_size.
+float psf_glare_amplitude(float intensity, float scale, float gamma, float max_px) {
+	float ceiling = (max_px / PSF_GLARE_TAPER) * (max_px / PSF_GLARE_TAPER) / 255.0;
 	return min(scale * pow(max(intensity, 0.0), gamma), ceiling);
 }
 
 // Where the wing falls to one 8-bit step, the same rule that cuts the core
-// (star_visible_size). On the core that rule needs nothing else: a Gaussian is already
+// (psf_visible_size). On the core that rule needs nothing else: a Gaussian is already
 // two orders down a pixel later, so the cut is invisible. On a 1/r^2 wing it is not --
 // one LINEAR step is 13 display codes, and cutting a 100 px halo there drew a plain
 // circle around the sun. So this is where the wing STOPS BEING PHYSICS, not where it
 // stops being drawn.
-float star_glare_size(float amplitude) {
+float psf_glare_size(float amplitude) {
 	return sqrt(255.0 * max(amplitude, 0.0));
 }
 
@@ -227,15 +249,15 @@ float star_glare_size(float amplitude) {
 // fade is a rendering boundary, like the atmosphere ring's taper at its shell, and it costs
 // only the part below one 8-bit step. smoothstep is flat at both ends, so neither the start
 // of the taper nor the outer cut leaves an edge.
-float star_glare_draw_size(float amplitude) {
-	return STAR_GLARE_TAPER * star_glare_size(amplitude);
+float psf_glare_draw_size(float amplitude) {
+	return PSF_GLARE_TAPER * psf_glare_size(amplitude);
 }
 
 // The wing at a fragment's own radius. Held at its 1 px value inside that, where the core
 // is orders of magnitude above it anyway and 1/r^2 would otherwise diverge.
-float star_glare_light(float amplitude, float radius_px) {
+float psf_glare_light(float amplitude, float radius_px) {
 	float radius = max(radius_px, 1.0);
-	float inner = star_glare_size(amplitude);
-	float fade = 1.0 - smoothstep(inner, STAR_GLARE_TAPER * inner, radius);
-	return min(amplitude / (radius * radius), STAR_LIGHT_MAX) * fade;
+	float inner = psf_glare_size(amplitude);
+	float fade = 1.0 - smoothstep(inner, PSF_GLARE_TAPER * inner, radius);
+	return min(amplitude / (radius * radius), PSF_LIGHT_MAX) * fade;
 }

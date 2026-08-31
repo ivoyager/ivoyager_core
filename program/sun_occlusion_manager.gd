@@ -101,6 +101,29 @@ var _keeper_scores := PackedFloat64Array()
 # shaders/_sun_occlusion.gdshaderinc; keep the math in exact sync.
 
 
+## Returns the satellite-in-parent-shadow fraction for [param body] — the Moon in
+## Earth's umbra — so an eclipsed body meters dark and renders dark. Parent only:
+## other occluder geometries are negligible at this granularity, which is why this
+## is the CPU whole-body term and not the per-fragment shader path.
+## [param star_vector] points body -> [param star] and [param star_distance] is its
+## length. 1.0 for a heliocentric body or where the geometry is degenerate.
+static func get_parent_shadow_fraction(body: IVBody, star: IVBody, star_vector: Vector3,
+		star_distance: float) -> float:
+	var parent := body.get_parent() as IVBody
+	if !parent or parent == star or !star:
+		return 1.0
+	var parent_vector := parent.global_position - body.global_position
+	var parent_distance := parent_vector.length()
+	if parent_distance <= 0.0 or parent.mean_radius <= 0.0:
+		return 1.0
+	var star_angular_radius := star.mean_radius / star_distance
+	var parent_angular_radius := parent.mean_radius / parent_distance
+	var cos_separation := star_vector.dot(parent_vector) / (star_distance * parent_distance)
+	var separation := acos(clampf(cos_separation, -1.0, 1.0))
+	return get_two_disc_visible_fraction(star_angular_radius, parent_angular_radius,
+			separation)
+
+
 ## Returns the visible fraction of the sun's disc given an occluding disc:
 ## exact two-circle (lens) overlap in the planar small-angle approximation,
 ## with exact containment tests, so totality, annularity and partial phases

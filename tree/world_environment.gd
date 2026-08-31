@@ -70,19 +70,19 @@ var starmaps_search: Array[String] = ["res://addons/ivoyager_assets/starmaps"]
 func _ready() -> void:
 	if IVGlobal.is_gl_compatibility:
 		environment.tonemap_exposure = gl_compatibility_exposure
-		# Glow joins the same gate as adjustment_enabled below, and measured it is a pure
-		# loss here. Its buffers inherit the scene buffer's RGB10_A2 and store 0.25 x color,
-		# so the per-texel feed clamps at 4.0 whatever glow_hdr_luminance_cap says -- that
-		# property and glow_levels are byte-for-byte inert, and the far sun's halo comes out
-		# the same 4 px with glow on as with it off. What the pass does cost is the dim end:
-		# moving tonemapping into a post pass re-runs the transfer bracket that
-		# display_write() pre-inverts exactly once, and background content measured 0.041x
-		# at 6-8 codes, 0.19x at 8-10, 0.66x at 12-18, and 0.84x over the whole frame, where
-		# Forward+ measures 1.000x at every level. With it off the two renderers agree on
-		# the same frame to 0.8 %. The glare a bright source needs is drawn in the shader
-		# instead (star_glare_* in _star_point.gdshaderinc), which is renderer-independent.
-		# A project that wants the pass anyway can author glow into its own Environment.
-		environment.glow_enabled = false
+		# Glow stays ON here, and it is a deliberate trade rather than a free win. It is
+		# measurably worse than useless for a POINT source: the glow buffers inherit the
+		# scene buffer's RGB10_A2 and store 0.25 x color, so the per-texel feed clamps at
+		# 4.0 whatever glow_hdr_luminance_cap says (that property and glow_levels are
+		# byte-for-byte inert), and the far sun's halo is the same 4 px with the pass on as
+		# off. And it costs the dim end: enabling it moves tonemapping into a post pass that
+		# re-runs the transfer bracket display_write() pre-inverts exactly once, measured at
+		# 0.041x on 6-8 code content, 0.19x at 8-10, 0.66x at 12-18 and 0.84x over the whole
+		# frame, where Forward+ measures 1.000x at every level. What buys it back is
+		# EXTENDED sources: spacecraft parts, small moons and asteroids sit outside the
+		# IVBodyPSF quad system, which draws its own wings (psf_glare_* in
+		# _point_spread_function.gdshaderinc) for every source that has one, and the pass is the only
+		# glow those others get. A project that wants it off can author its own Environment.
 	else:
 		# The adjustment stage, which [IVScreenshotManager] tweens for its capture dim. Kept
 		# out of the Environment resource and off under Compatibility, where it is anything
