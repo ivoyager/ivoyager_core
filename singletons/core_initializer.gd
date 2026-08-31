@@ -160,7 +160,7 @@ var program_refcounteds: Dictionary[StringName, Variant] = {
 	SleepManager = IVSleepManager,
 	LanguageManager = IVLanguageManager,
 	LazyModelInitializer = IVLazyModelInitializer,
-	StarSettings = IVStarSettings, # shared photometry; the star field and each sun's far point
+	PSFSettings = IVPSFSettings, # the camera shared by the star field and every body's PSF quad
 }
 ## Include keys from [member program_refcounteds] that need to be instantiated
 ## first and in order. (This probably shouldn't be needed. Consider adding the

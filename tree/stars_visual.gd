@@ -57,83 +57,83 @@ const _BINARY_VERSION := 1
 ## remove bin files from the asset directory) to trade completeness for size.
 @export var magnitude_cutoff := 99.9
 
-# The tuning surface for IVStarSettings, which every star point sprite reads -- this
-# field and each in-scene sun's far point alike, so an edit here moves both. Values
+# The tuning surface for IVPSFSettings, the camera every source images through -- this
+# field and every in-scene body's PSF quad alike, so an edit here moves both. Values
 # write through on change (and on build, once the settings object exists); the live
 # material updates from the settings object's 'changed' signal, not from these setters.
 # See stars.gdshader for each uniform's role. Each range runs from one visibly wrong
 # extreme to the other, so dragging a slider end to end shows what the uniform does;
 # the shipped value sits well inside.
-@export_group("Star Appearance")
+@export_group("Point Spread Function")
 ## 0.1 = sub-pixel specks that scintillate; 1.5 = fat blurry discs.
 @export_range(0.1, 1.5, 0.05, "or_greater") var psf_sigma := 0.5:
 	set(value):
 		psf_sigma = value
-		if _star_settings:
-			_star_settings.psf_sigma = value
+		if _psf_settings:
+			_psf_settings.psf_sigma = value
 ## 0 = only the very brightest stars remain; 14 = every star saturates to white.
 @export_range(0.0, 14.0, 0.1) var intensity_faint_mag := 6.5:
 	set(value):
 		intensity_faint_mag = value
-		if _star_settings:
-			_star_settings.intensity_faint_mag = value
+		if _psf_settings:
+			_psf_settings.intensity_faint_mag = value
 ## 0.05 = every star the same brightness; 2.0 = only a handful survive, the rest go black.
 @export_range(0.05, 2.0, 0.05) var intensity_gamma := 1.0:
 	set(value):
 		intensity_gamma = value
-		if _star_settings:
-			_star_settings.intensity_gamma = value
+		if _psf_settings:
+			_psf_settings.intensity_gamma = value
 ## 0 = no stars at all; 1.5 = the field washes out to saturated blobs.
 @export_range(0.0, 1.5, 0.01, "or_greater") var intensity_scale := 0.5:
 	set(value):
 		intensity_scale = value
-		if _star_settings:
-			_star_settings.intensity_scale = value
+		if _psf_settings:
+			_psf_settings.intensity_scale = value
 ## The fov at which [member fov_compensation] neither brightens nor dims the field. Away
 ## from the camera's actual fov the whole field shifts: 10 = far too dim, 120 = blown out.
 @export_range(10.0, 120.0, 0.5) var fov_reference_deg := 50.0:
 	set(value):
 		fov_reference_deg = value
-		if _star_settings:
-			_star_settings.fov_reference_deg = value
+		if _psf_settings:
+			_psf_settings.fov_reference_deg = value
 ## 0 = stars hold brightness as you zoom (they swamp or fade against the background);
 ## 2 = double-compensated, so zooming in blows the field out.
 @export_range(0.0, 2.0, 0.05) var fov_compensation := 1.0:
 	set(value):
 		fov_compensation = value
-		if _star_settings:
-			_star_settings.fov_compensation = value
+		if _psf_settings:
+			_psf_settings.fov_compensation = value
 ## Amplitude of the [code]r^-2[/code] glare wing every star carries outside its Gaussian
-## core, at 1 px and unit intensity; 0 turns it off. See [member IVStarSettings.glare_scale].
+## core, at 1 px and unit intensity; 0 turns it off. See [member IVPSFSettings.glare_scale].
 @export_range(0.0, 0.05, 0.001, "or_greater") var glare_scale := 0.0126:
 	set(value):
 		glare_scale = value
-		if _star_settings:
-			_star_settings.glare_scale = value
+		if _psf_settings:
+			_psf_settings.glare_scale = value
 ## How fast the glare widens with flux: its outer radius grows as
-## [code]intensity^(glare_gamma / 2)[/code]. See [member IVStarSettings.glare_gamma].
+## [code]intensity^(glare_gamma / 2)[/code]. See [member IVPSFSettings.glare_gamma].
 @export_range(0.0, 1.0, 0.005) var glare_gamma := 0.286:
 	set(value):
 		glare_gamma = value
-		if _star_settings:
-			_star_settings.glare_gamma = value
+		if _psf_settings:
+			_psf_settings.glare_gamma = value
 ## Largest glare radius in px at the reference viewport height.
-## See [member IVStarSettings.glare_max_px].
+## See [member IVPSFSettings.glare_max_px].
 @export_range(16.0, 1024.0, 1.0, "or_greater") var glare_max_px := 384.0:
 	set(value):
 		glare_max_px = value
-		if _star_settings:
-			_star_settings.glare_max_px = value
+		if _psf_settings:
+			_psf_settings.glare_max_px = value
 ## 0 = a white field; 1 = each star's physical blackbody color; 2.5 = a candy-colored sky.
 ## Unlike the sliders above, this changes no star's brightness or size.
 @export_range(0.0, 2.5, 0.05) var color_saturation := 1.0:
 	set(value):
 		color_saturation = value
-		if _star_settings:
-			_star_settings.color_saturation = value
+		if _psf_settings:
+			_psf_settings.color_saturation = value
 
 var _shader_material: ShaderMaterial
-var _star_settings: IVStarSettings
+var _psf_settings: IVPSFSettings
 
 
 
@@ -161,10 +161,10 @@ func _build() -> void:
 	_shader_material = ShaderMaterial.new()
 	_shader_material.shader = IVGlobal.resources[&"stars_shader"]
 	material_override = _shader_material
-	_star_settings = IVGlobal.program[&"StarSettings"]
-	_push_star_settings()
-	_star_settings.changed.connect(_apply_star_uniforms)
-	_apply_star_uniforms() # _push_star_settings emits nothing if every export is a default
+	_psf_settings = IVGlobal.program[&"PSFSettings"]
+	_push_psf_settings()
+	_psf_settings.changed.connect(_apply_psf_uniforms)
+	_apply_psf_uniforms() # _push_psf_settings emits nothing if every export is a default
 	cast_shadow = SHADOW_CASTING_SETTING_OFF
 
 	var arrays := []
@@ -185,21 +185,21 @@ func _build() -> void:
 # Seeds the shared settings from this node's authored exports. The property setters
 # cannot: they fire during scene load, before IVCoreInitializer has built the settings
 # object, so their write-through no-ops and the authored values would never arrive.
-func _push_star_settings() -> void:
-	_star_settings.psf_sigma = psf_sigma
-	_star_settings.intensity_faint_mag = intensity_faint_mag
-	_star_settings.intensity_gamma = intensity_gamma
-	_star_settings.intensity_scale = intensity_scale
-	_star_settings.fov_reference_deg = fov_reference_deg
-	_star_settings.fov_compensation = fov_compensation
-	_star_settings.color_saturation = color_saturation
-	_star_settings.glare_scale = glare_scale
-	_star_settings.glare_gamma = glare_gamma
-	_star_settings.glare_max_px = glare_max_px
+func _push_psf_settings() -> void:
+	_psf_settings.psf_sigma = psf_sigma
+	_psf_settings.intensity_faint_mag = intensity_faint_mag
+	_psf_settings.intensity_gamma = intensity_gamma
+	_psf_settings.intensity_scale = intensity_scale
+	_psf_settings.fov_reference_deg = fov_reference_deg
+	_psf_settings.fov_compensation = fov_compensation
+	_psf_settings.color_saturation = color_saturation
+	_psf_settings.glare_scale = glare_scale
+	_psf_settings.glare_gamma = glare_gamma
+	_psf_settings.glare_max_px = glare_max_px
 
 
-func _apply_star_uniforms() -> void:
-	_star_settings.apply_to(_shader_material)
+func _apply_psf_uniforms() -> void:
+	_psf_settings.apply_to(_shader_material)
 
 
 # Appends one magnitude bin's stars to [param vertices] (internal units) and

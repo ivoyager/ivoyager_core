@@ -81,7 +81,7 @@ var _lunar_lambert: float # phase-function blend; the surface shader's own L
 var _absolute_magnitude := NAN # star only
 var _color_bv := 0.63
 var _material: ShaderMaterial
-var _star_settings: IVStarSettings
+var _psf_settings: IVPSFSettings
 var _applied_exposure := NAN # change gate; NAN forces the first-frame solve
 var _applied_unit_magnitude := NAN # ditto (phase and heliocentric distance move it)
 
@@ -138,7 +138,7 @@ static func get_geometric_albedo(body: IVBody) -> float:
 ## magnitude above saturation throughout the handoff, so brightness is not what the
 ## eye has to go on — size is, and a crossfade that steps it reads as the abrupt
 ## shrink this ramp exists to prevent. Solving it also retires a hand-tuned constant
-## that only ever suited one star at one [member IVStarSettings.psf_sigma]: the
+## that only ever suited one star at one [member IVPSFSettings.psf_sigma]: the
 ## answer moves with that roughly linearly (0.5 -> 3.8 px, 1.0 -> 7.8), so a literal
 ## would go stale the first time that shared slider moved.[br][br]
 ##
@@ -146,33 +146,33 @@ static func get_geometric_albedo(body: IVBody) -> float:
 ## luck: hold the pixel radius fixed and a taller render puts the source
 ## proportionally farther, so the flux it loses to 1/d^2 is exactly what the shader's
 ## resolution law returns; fov cancels the same way against
-## [member IVStarSettings.fov_compensation]. Both cancellations are exact only at the
+## [member IVPSFSettings.fov_compensation]. Both cancellations are exact only at the
 ## calibrated [code]intensity_gamma[/code] 1.0 / [code]fov_compensation[/code] 1.0,
 ## which is why this evaluates at the reference height and fov; off-nominal it drifts
 ## a few percent, well inside the ~9% that star surface brightness moves the match
 ## across Proxima-to-Sirius-B anyway.
 static func solve_handoff(magnitude_at_unit_distance: float, mean_radius: float,
-		star_settings: IVStarSettings, can_crossfade: bool) -> Vector2:
+		psf_settings: IVPSFSettings, can_crossfade: bool) -> Vector2:
 	const ITERATIONS := 8 # p <- sigma*sqrt(2*ln I(p)) contracts by ~2*sigma^2/p^2 per step
 	var high := HANDOFF_FALLBACK
 	if is_finite(magnitude_at_unit_distance) and mean_radius > 0.0:
 		var reference_height := get_reference_viewport_height()
-		var reference_proj_11 := 1.0 / tan(deg_to_rad(star_settings.fov_reference_deg) * 0.5)
+		var reference_proj_11 := 1.0 / tan(deg_to_rad(psf_settings.fov_reference_deg) * 0.5)
 		var distance_numerator := mean_radius * reference_proj_11 * reference_height * 0.5
 		var pixels := 1.0
 		for _iteration in ITERATIONS:
 			var camera_distance := distance_numerator / pixels
 			var apparent_magnitude := (magnitude_at_unit_distance
 					+ FIVE_OVER_LN10 * log(camera_distance))
-			var flux := 10.0 ** (-0.4 * (apparent_magnitude - star_settings.intensity_faint_mag))
-			var intensity := star_settings.intensity_scale * flux ** star_settings.intensity_gamma
+			var flux := 10.0 ** (-0.4 * (apparent_magnitude - psf_settings.intensity_faint_mag))
+			var intensity := psf_settings.intensity_scale * flux ** psf_settings.intensity_gamma
 			# Mirrors the shader chain, which multiplies iv_exposure unconditionally
 			# (the static is 1.0 whenever physical light is inactive).
 			intensity *= IVExposureManager.exposure
 			if intensity <= 1.0:
 				pixels = HANDOFF_FALLBACK # no saturated core to match; the disc is always bigger
 				break
-			pixels = star_settings.psf_sigma * sqrt(2.0 * log(intensity))
+			pixels = psf_settings.psf_sigma * sqrt(2.0 * log(intensity))
 		high = pixels
 	var low_ratio := HANDOFF_LOW_RATIO if can_crossfade else HANDOFF_STEP_RATIO
 	return Vector2(high * low_ratio, high)
@@ -236,9 +236,9 @@ func _ready() -> void:
 	_material.set_shader_parameter(&"color_bv", _color_bv)
 	# Past its handoff a source is a field star, so it images through the same camera the
 	# field does -- one settings object, or the two drift apart on the first edit.
-	_star_settings = IVGlobal.program[&"StarSettings"]
-	_star_settings.changed.connect(_on_star_settings_changed)
-	_star_settings.apply_to(_material)
+	_psf_settings = IVGlobal.program[&"PSFSettings"]
+	_psf_settings.changed.connect(_on_psf_settings_changed)
+	_psf_settings.apply_to(_material)
 
 
 func _process(_delta: float) -> void:
@@ -288,7 +288,7 @@ func _refresh_handoff(apparent_magnitude: float, camera_distance: float) -> void
 		return
 	_applied_exposure = exposure
 	_applied_unit_magnitude = unit_magnitude
-	var handoff := solve_handoff(unit_magnitude, _mean_radius, _star_settings, _is_sun)
+	var handoff := solve_handoff(unit_magnitude, _mean_radius, _psf_settings, _is_sun)
 	_material.set_shader_parameter(&"handoff_low", handoff.x)
 	_material.set_shader_parameter(&"handoff_high", handoff.y)
 	_body.psf_handoff = handoff
@@ -344,6 +344,6 @@ func _get_phase_blend() -> float:
 	return DEFAULT_LUNAR_LAMBERT
 
 
-func _on_star_settings_changed() -> void:
-	_star_settings.apply_to(_material)
+func _on_psf_settings_changed() -> void:
+	_psf_settings.apply_to(_material)
 	_applied_exposure = NAN # the handoff moves with psf_sigma and the intensity chain

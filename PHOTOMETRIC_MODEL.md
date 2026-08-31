@@ -57,7 +57,7 @@ brightest bulge patches ~20.
 
 The single absolute anchor is `IVExposureManager.background_peak_magnitude_per_arcsec2`
 (default 20.0): the surface brightness represented by a full-white texel in the Milky
-Way background panorama. From it and the star-field settings (`IVStarSettings`), the
+Way background panorama. From it and the PSF camera settings (`IVPSFSettings`), the
 manager derives:
 
 - `sky_energy` — the panorama's physical `energy_multiplier` at exposure 1.0 (≈ 0.087).
@@ -793,7 +793,7 @@ umbral brightness-size relation — are cited in the include.
 
 ## Stars and the Milky Way background
 
-The star field (`stars.gdshader`, `IVStarsVisual`, settings in `IVStarSettings`) is
+The star field (`stars.gdshader`, `IVStarsVisual`, settings in `IVPSFSettings`) is
 already photometric: each star's rendered intensity follows its catalog magnitude
 through a PSF (point-spread function — the little blur disc a lens makes of a point)
 with FOV and resolution compensation equivalent to a fixed-f-number camera. Physical
@@ -1177,10 +1177,9 @@ this system and the reflected-light magnitude a sunlit body rides on. On Forward
 the glow pass still adds its own halo on top, so the two renderers are close rather than
 identical (Saturn station: 32-code radius 55 px against 59); the residual is the
 display-referred blend's encoded add over a non-black sky, the boundary `_display.gdshaderinc`
-already documents, and it vanishes over truly black sky. The shader headers that anticipated
-"bloom in proportion to true brightness" (`stars.gdshader`, `IVStarSettings`'s
-FUTURE_BLOOM_IMPLEMENTATION note) were describing this; they get corrected with the eventual
-tuning change.
+already documents, and it vanishes over truly black sky. The shader header that anticipated
+"bloom in proportion to true brightness" (`stars.gdshader`) was describing this; it gets
+corrected with the eventual tuning change.
 
 **The other defaults are right, or near enough.** `glow_bloom` must stay 0.0 — it blooms
 below-threshold content, i.e. correctly exposed surfaces. The threshold at 1.0 means "what
@@ -1196,9 +1195,8 @@ bloom at the cap, and the halo carries through. **With physical light off it doe
 nonphysical disc constant (~3.0, `IVShellsModel`) meets a point whose peak holds the f16 cap
 through essentially the whole fade (at the sun's flux, `(1−w) × intensity` clears 32768 until
 the last sliver of the ramp), so per-texel glow steps from the 12 cap to ~3 and the halo pops
-off at the top of the crossfade instead of fading. This is the historical gap
-`IVStarSettings` documents — invisible while both halves merely clipped to white, and the
-glow pass is its first consumer. See TODO; noting, for that fix, that
+off at the top of the crossfade instead of fading. This gap is long-standing —
+invisible while both halves merely clipped to white, and the glow pass is its first consumer. See TODO; noting, for that fix, that
 `IVBody2DCapturer` already writes its own preview brightness and must keep it.
 
 **The HUD stays out of it, and the one thing that did not is fixed.** Orbit lines, labels
@@ -1491,13 +1489,13 @@ lever a capped pass cannot offer is one the shader does not need.
   Forward+ at the engine defaults (see *Glow: the bloom pass* for the audit). Still open:
   - **The nonphysical sun handoff.** With physical light off, the disc's
     `_SUN_DISC_BRIGHTNESS` (3.0, `IVShellsModel`) meets a point holding the f16 cap, so the
-    halo pops off at the top of the disc/point crossfade instead of carrying through — the
-    historical gap `IVStarSettings` documents, made visible by its first consumer. Fix by
+    halo pops off at the top of the disc/point crossfade instead of carrying through — a
+    long-standing gap made visible by its first consumer. Fix by
     co-leveling the nonphysical disc with the point at the cap (one constant; both halves
     already clip to identical white without glow, so nothing else moves), minding
     `IVBody2DCapturer`'s sun preview, which writes its own brightness for RGBA8 readback
-    and must keep it. The stale "future glow pass" wording in `stars.gdshader` and
-    `IVStarSettings` goes with that change.
+    and must keep it. The stale "future glow pass" wording left in
+    `stars.gdshader` goes with that change.
   - **Night-side metering re-judgment** (see *Night-side emission*): clipped city cores now
     spread instead of being contained. Judge in-app; the 0.3 cd/m² anchor and Earth's
     `exposure_ceiling` are the knobs if the blowout stops reading correctly.
@@ -1513,7 +1511,7 @@ lever a capped pass cannot offer is one the shader does not need.
     they replace, and the growth law is a stated representation, not a measurement — the
     physical amplitude is unrenderable at any exposure a star field can use. Candidates at
     0.5x and 2x scale, and gamma 0.20 and 0.40, are rendered and measured; the sweep is
-    reproducible in one app run through the probe suite's `set_star_settings`. An in-app
+    reproducible in one app run through the probe suite's `set_psf_settings`. An in-app
     judgment, at Earth (the largest halo, 102-122 px at 32 codes) as well as at Pluto.
 - **Anchor refinement**: the 20.0 mag/arcsec² anchor is good to a few tenths against
   LMC/SMC levels in the shipped map; a tighter cross-check against published integrated

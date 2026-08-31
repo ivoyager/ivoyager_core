@@ -1,4 +1,4 @@
-# star_settings.gd
+# psf_settings.gd
 # This file is part of I, Voyager
 # https://ivoyager.dev
 # *****************************************************************************
@@ -17,44 +17,45 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # *****************************************************************************
-class_name IVStarSettings
+class_name IVPSFSettings
 extends RefCounted
 
-## Photometry shared by every point source: the catalog star field
-## ([IVStarsVisual]) and each in-scene body's PSF quad ([IVBodyPSF]).
+## The camera that images every source: PSF shape, flux response and color rendering.
 ##
-## Past its disc handoff an in-scene source [i]is[/i] a field star, so both must
-## image through one camera. These values are that camera. They live here rather
-## than on either visual because a value owned by one silently desyncs the other:
-## the field would follow an edit and the quads would not, leaving them disagreeing
-## with the sky around them.[br][br]
+## Shared by the catalog star field ([IVStarsVisual]) and each in-scene body's PSF quad
+## ([IVBodyPSF]). Past its disc handoff an in-scene source [i]is[/i] a field star, so both
+## must image through one camera. These values are that camera, and every one of them is a
+## property of the observer rather than of anything observed -- which is what the name
+## says: a point spread function belongs to an instrument by definition, never to a
+## subject. They live here rather than on either visual because a value owned by one
+## silently desyncs the other: the field would follow an edit and the quads would not,
+## leaving them disagreeing with the sky around them.[br][br]
 ##
-## [IVStarsVisual]'s "Star Appearance" exports are the tuning surface and write
-## through to here. Consumers apply via [method apply_to], on [signal changed] and
-## once on build. See [code]stars.gdshader[/code] for what each value does, how it
-## was calibrated against the NASA starmap_2020 reference, and why nothing clamps.[br][br]
+## These are the parameters of [code]_point_spread_function.gdshaderinc[/code]: most are
+## arguments to a function in it, while [member intensity_scale] and [member intensity_gamma]
+## are applied by each consumer where it forms its own intensity. Consumers apply via
+## [method apply_to], on [signal changed] and once on build. See [code]stars.gdshader[/code]
+## for what each value does, how it was calibrated against the NASA starmap_2020 reference,
+## and why nothing clamps.[br][br]
 ##
-## FUTURE_BLOOM_IMPLEMENTATION: nothing here is a glow control. Under physical
-## light ([member IVExposureManager.physical_active]) the sun's two halves are
-## co-calibrated: the disc carries the star's true surface brightness through the
-## shared gain, the point carries the field's photometry, and both cap at the shared
-## [code]PSF_LIGHT_MAX[/code] f16-safe ceiling (see
-## [code]_point_spread_function.gdshaderinc[/code]) — one consistent energy through the handoff
-## for a glow pass to see. Nonphysical mode keeps the historical gap (disc at the
-## [IVShellsModel] nonphysical constant, ~3.0, vs the point at the cap). The
-## remaining obstacle either way is the cap itself: it is a float16 limit, not a
-## brightness choice, and the sun sits at it everywhere the camera can reach — so
-## its bloom can only grow through saturated area, not in proportion to true
-## brightness as the star field does (whose brightest star peaks well under the cap
-## and blooms proportionally).
+## A [RefCounted] has no inspector, so the tuning surface lives on a node: [IVStarsVisual]'s
+## "Point Spread Function" export group, whose setters write through to here. That holds while
+## the sim runs -- an edit reaches every consumer through [signal changed]. The split is the
+## point of the arrangement: an export needs a node to live on, the values need one home to be
+## shared from, and keeping those apart is what lets a single edit move the star field and
+## every body's quad together instead of desyncing them. So these are not the star field's
+## settings, whatever the sliders sit next to.[br][br]
+##
+## Nothing here is a glow control: the [member glare_scale] wing is drawn in the shader, not
+## by the engine's glow (bloom) pass.
 
 
 ## Emitted when any value changes. Consumers re-apply via [method apply_to].
 signal changed()
 
 
-## Width in px of the camera point-spread function that images every star, at any
-## resolution. The sole input to star size, together with intensity.
+## Width in px of the camera point-spread function that images every source, at any
+## resolution. The sole input to a source's size, together with intensity.
 var psf_sigma := 0.5:
 	set(value):
 		if psf_sigma == value:
@@ -69,15 +70,15 @@ var intensity_faint_mag := 6.5:
 		intensity_faint_mag = value
 		changed.emit()
 ## Flux compression exponent. 1.0 is photometric (no compression), as calibrated;
-## below 1.0 compresses the field a second time on top of the PSF saturation that
-## already models a camera's own.
+## below 1.0 compresses the rendered range a second time on top of the PSF saturation
+## that already models a camera's own.
 var intensity_gamma := 1.0:
 	set(value):
 		if intensity_gamma == value:
 			return
 		intensity_gamma = value
 		changed.emit()
-## Linear intensity of a star at [member intensity_faint_mag].
+## Linear intensity of a source at [member intensity_faint_mag].
 var intensity_scale := 0.5:
 	set(value):
 		if intensity_scale == value:
@@ -85,14 +86,14 @@ var intensity_scale := 0.5:
 		intensity_scale = value
 		changed.emit()
 ## The fov (degrees) at which [member fov_compensation] neither brightens nor dims
-## the field.
+## a source.
 var fov_reference_deg := 50.0:
 	set(value):
 		if fov_reference_deg == value:
 			return
 		fov_reference_deg = value
 		changed.emit()
-## How much of the 1/tan^2(fov/2) point-source law to apply. 0 = off (stars hold
+## How much of the 1/tan^2(fov/2) point-source law to apply. 0 = off (sources hold
 ## brightness across zoom); 1 = full.
 var fov_compensation := 1.0:
 	set(value):
@@ -100,9 +101,9 @@ var fov_compensation := 1.0:
 			return
 		fov_compensation = value
 		changed.emit()
-## Saturation of a star's B-V color. 1.0 is the physical blackbody color, computed
+## Saturation of a source's B-V color. 1.0 is the physical blackbody color, computed
 ## rather than tuned (see [code]color_from_b_v()[/code] in
-## [code]_point_spread_function.gdshaderinc[/code]); 0 renders every star white; above 1.0
+## [code]_point_spread_function.gdshaderinc[/code]); 0 renders every source white; above 1.0
 ## exaggerates. Unlike the rest of this class it does not touch brightness or size:
 ## the ramp is normalized to peak channel 1.0 at any saturation.
 var color_saturation := 1.0:
@@ -113,7 +114,7 @@ var color_saturation := 1.0:
 		changed.emit()
 
 
-## Amplitude at 1 px of a star's [code]r^-2[/code] glare wing, for a source of linear
+## Amplitude at 1 px of a source's [code]r^-2[/code] glare wing, for a source of linear
 ## intensity 1.0. Zero turns the glare off entirely. The wing is the wide skirt a
 ## Gaussian core does not have; see [code]_point_spread_function.gdshaderinc[/code] for what it is,
 ## why it is drawn in the shader rather than left to the engine's glow pass, and why its
@@ -141,7 +142,7 @@ var glare_gamma := 0.286:
 ## the render's own height. It bounds the AMPLITUDE, not the radius, so the wing still
 ## ends where it falls below one 8-bit step and the bound simply stops the glare growing;
 ## capping the radius instead would cut the wing mid-white and leave a ring. Only the last
-## au or two before a star's disc resolves reaches it.
+## au or two before a source's disc resolves reaches it.
 var glare_max_px := 384.0:
 	set(value):
 		if glare_max_px == value:
@@ -160,8 +161,8 @@ func apply_color_to(shader_material: ShaderMaterial) -> void:
 	shader_material.set_shader_parameter(&"color_saturation", color_saturation)
 
 
-## Pushes every value to [param shader_material], which must declare the star
-## photometry uniforms (see [code]stars.gdshader[/code] or
+## Pushes every value to [param shader_material], which must declare the PSF
+## uniforms (see [code]stars.gdshader[/code] or
 ## [code]body_psf.gdshader[/code]). Keeping the uniform names here rather than in
 ## each consumer is the point: two visuals naming them separately is how they drift.
 func apply_to(shader_material: ShaderMaterial) -> void:

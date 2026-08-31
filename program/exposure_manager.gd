@@ -26,7 +26,7 @@ extends Node
 ## as a real camera's image would.
 ##
 ## The photometric frame is the star field's: catalog V magnitudes through the
-## camera PSF model ([IVStarSettings]), anchored by
+## camera PSF model ([IVPSFSettings]), anchored by
 ## [constant IVPhotometry.MAG0_ILLUMINANCE]. One member welds everything else to
 ## that frame - [member background_peak_magnitude_per_arcsec2], the surface
 ## brightness of the background panorama's brightest texel - from which this
@@ -110,11 +110,11 @@ static var auto_exposure_ev := 0.0
 ## True while the system is applied (core setting + user setting + activation
 ## requirements all satisfied). Read-only.
 static var physical_active := false
-## Rendered units per unit internal luminance, derived from [IVStarSettings]
+## Rendered units per unit internal luminance, derived from [IVPSFSettings]
 ## and the anchor; 0.0 until first activation. Read-only.
 static var gain := 0.0
 ## The background panorama's physical energy_multiplier (at exposure 1.0),
-## derived from [IVStarSettings] and the anchor; 0.0 until first activation.
+## derived from [IVPSFSettings] and the anchor; 0.0 until first activation.
 ## Read-only.
 static var sky_energy := 0.0
 
@@ -285,9 +285,9 @@ func _ready() -> void:
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
 	IVStateManager.assets_preloaded.connect(_on_assets_preloaded)
 	IVSettingsManager.changed.connect(_settings_listener)
-	var star_settings := _get_star_settings()
-	if star_settings:
-		star_settings.changed.connect(_on_star_settings_changed)
+	var psf_settings := _get_psf_settings()
+	if psf_settings:
+		psf_settings.changed.connect(_on_psf_settings_changed)
 
 
 func _exit_tree() -> void:
@@ -349,14 +349,14 @@ func _apply_transition() -> void:
 
 ## Returns false (with warning) if prerequisites are missing.
 func _recompute_photometry() -> bool:
-	var star_settings := _get_star_settings()
-	if !star_settings:
-		push_warning("IVExposureManager: no StarSettings in IVGlobal.program; staying inactive")
+	var psf_settings := _get_psf_settings()
+	if !psf_settings:
+		push_warning("IVExposureManager: no PSFSettings in IVGlobal.program; staying inactive")
 		return false
-	if !_warned_off_nominal and (star_settings.intensity_gamma != 1.0
-			or star_settings.fov_compensation != 1.0):
+	if !_warned_off_nominal and (psf_settings.intensity_gamma != 1.0
+			or psf_settings.fov_compensation != 1.0):
 		_warned_off_nominal = true
-		push_warning("IVExposureManager: IVStarSettings intensity_gamma/fov_compensation differ "
+		push_warning("IVExposureManager: IVPSFSettings intensity_gamma/fov_compensation differ "
 				+ "from 1.0; the physical calibration assumes the photometric values")
 	# The star chain's fov/resolution compensation is exactly the inverse pixel
 	# solid angle of the PSF (a fixed-f-number camera), so the panorama's level
@@ -365,11 +365,11 @@ func _recompute_photometry() -> bool:
 	# omega_ref uses the same reference fov and viewport height the star
 	# shaders compensate against, which is what makes the result view-invariant.
 	var reference_height := _get_reference_viewport_height()
-	var arcsec_per_pixel := star_settings.fov_reference_deg * 3600.0 / reference_height
+	var arcsec_per_pixel := psf_settings.fov_reference_deg * 3600.0 / reference_height
 	var omega_ref := arcsec_per_pixel * arcsec_per_pixel
-	var psf_area := TAU * star_settings.psf_sigma * star_settings.psf_sigma
-	sky_energy = (star_settings.intensity_scale * psf_area * omega_ref
-			* 10.0 ** (0.4 * (star_settings.intensity_faint_mag
+	var psf_area := TAU * psf_settings.psf_sigma * psf_settings.psf_sigma
+	sky_energy = (psf_settings.intensity_scale * psf_area * omega_ref
+			* 10.0 ** (0.4 * (psf_settings.intensity_faint_mag
 			- background_peak_magnitude_per_arcsec2)))
 	var anchor_luminance := IVPhotometry.get_luminance_from_surface_brightness(
 			background_peak_magnitude_per_arcsec2)
@@ -520,10 +520,10 @@ func _find_starmap_material() -> void:
 		_starmap_material = sky_material
 
 
-func _get_star_settings() -> IVStarSettings:
-	var star_settings_var: Variant = IVGlobal.program.get(&"StarSettings")
-	if star_settings_var is IVStarSettings:
-		return star_settings_var
+func _get_psf_settings() -> IVPSFSettings:
+	var psf_settings_var: Variant = IVGlobal.program.get(&"PSFSettings")
+	if psf_settings_var is IVPSFSettings:
+		return psf_settings_var
 	return null
 
 
@@ -1012,7 +1012,7 @@ func _on_assets_preloaded() -> void:
 		_apply_starmap_energy()
 
 
-func _on_star_settings_changed() -> void:
+func _on_psf_settings_changed() -> void:
 	if !physical_active:
 		return
 	_recompute_photometry()

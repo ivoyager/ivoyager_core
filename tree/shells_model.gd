@@ -131,7 +131,7 @@ var _disc_material: ShaderMaterial # the shell's own material, LOD-driven each f
 var _is_sun: bool # sun-mode (shell 0 with is_sun); see the disc LOD section
 var _sun_bv := 0.63 # sun-mode: cached B-V (disc color); fallback if the characteristic is missing
 var _sun_abs_mag := 4.83 # sun-mode: cached V absolute magnitude (for the disc's surface brightness)
-var _star_settings: IVStarSettings # sun-mode: shared star photometry (color ramp only, here)
+var _psf_settings: IVPSFSettings # sun-mode: the shared PSF camera (color ramp only, here)
 var _applied_sun_disc_brightness := NAN # sun-mode: change gate; NAN forces the first-frame write
 
 var _times := IVGlobal.times
@@ -276,14 +276,14 @@ func _enter_sun_mode() -> void:
 	# Connected here rather than in _ready(): this model can be torn down and re-added, and
 	# _ready() would not fire again, so connecting there would stack a second connection onto
 	# the same settings object.
-	_star_settings = IVGlobal.program[&"StarSettings"]
-	_star_settings.changed.connect(_on_star_settings_changed)
+	_psf_settings = IVGlobal.program[&"PSFSettings"]
+	_psf_settings.changed.connect(_on_psf_settings_changed)
 	if _disc_material:
 		_disc_material.set_shader_parameter(&"color_bv", _sun_bv)
 		# Nonphysical placeholder; the first LOD frame applies the mode-correct
 		# value (physical light derives the star's true surface brightness).
 		_disc_material.set_shader_parameter(&"brightness", _SUN_DISC_BRIGHTNESS)
-		_star_settings.apply_color_to(_disc_material)
+		_psf_settings.apply_color_to(_disc_material)
 	set_process(true)
 
 
@@ -326,9 +326,9 @@ func _process_sun_physical_light() -> void:
 	_disc_material.set_shader_parameter(&"brightness", disc_brightness)
 
 
-func _on_star_settings_changed() -> void:
+func _on_psf_settings_changed() -> void:
 	if _disc_material:
-		_star_settings.apply_color_to(_disc_material) # the disc shares only the B-V ramp
+		_psf_settings.apply_color_to(_disc_material) # the disc shares only the B-V ramp
 
 
 
@@ -681,11 +681,11 @@ func set_static_preview(camera_distance: float) -> void:
 	# animate the shell against sim time, and _process_disc_lod would read the REAL body's
 	# position and size the disc against a camera in a different World3D.
 	set_process(false)
-	if _is_sun and _star_settings:
-		# IVStarSettings is shared with the live scene, so any edit to it would re-apply the
+	if _is_sun and _psf_settings:
+		# IVPSFSettings is shared with the live scene, so any edit to it would re-apply the
 		# B-V ramp over the overrides below.
-		if _star_settings.changed.is_connected(_on_star_settings_changed):
-			_star_settings.changed.disconnect(_on_star_settings_changed)
+		if _psf_settings.changed.is_connected(_on_psf_settings_changed):
+			_psf_settings.changed.disconnect(_on_psf_settings_changed)
 	if not _applies_psf or not _disc_material:
 		return
 	# The disc's alpha is a crossfade against its own on-screen pixel radius, and only
