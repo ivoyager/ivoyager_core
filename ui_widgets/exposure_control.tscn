@@ -1,0 +1,41 @@
+[gd_scene format=3 uid="uid://costgpjxqhe1m"]
+
+[ext_resource type="Script" uid="uid://bbuid5x5cjwwn" path="res://addons/ivoyager_core/ui_widgets/exposure_control.gd" id="1_expos"]
+
+[node name="ExposureControl" type="HBoxContainer" unique_id=1701059693]
+offset_right = 41.0
+offset_bottom = 24.0
+size_flags_horizontal = 4
+size_flags_vertical = 4
+mouse_filter = 2
+script = ExtResource("1_expos")
+
+[node name="Label" type="Label" parent="." unique_id=76496271]
+layout_mode = 2
+text = "LABEL_EV_AUTO"
+
+[node name="AutoCkbx" type="CheckBox" parent="." unique_id=1131148195]
+layout_mode = 2
+tooltip_text = "HINT_EXPOSURE_AUTO"
+button_pressed = true
+
+[node name="AutoLabel" type="Label" parent="." unique_id=1415608623]
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="ManualSpinBox" type="SpinBox" parent="." unique_id=1414028314]
+visible = false
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+tooltip_text = "HINT_EXPOSURE_MANUAL"
+max_value = 12.0
+alignment = 2
+
+[node name="AdjustmentSpinBox" type="SpinBox" parent="." unique_id=776305347]
+custom_minimum_size = Vector2(70, 0)
+layout_mode = 2
+tooltip_text = "HINT_EXPOSURE_ADJUSTMENT"
+max_value = 6.0
+alignment = 2

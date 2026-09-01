@@ -41,7 +41,7 @@ void vertex() {
 
 void fragment() {
 	if (is_id_fragment(FRAGCOORD.xy)) {
-		ALBEDO = fragment_id;
+		ALBEDO = id_broadcast(fragment_id);
 	} else {
 		discard;
 	}

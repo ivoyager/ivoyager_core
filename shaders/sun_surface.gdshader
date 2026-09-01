@@ -40,7 +40,7 @@ render_mode unshaded, skip_vertex_transform, depth_draw_opaque;
 //
 // Driven by IVShellsModel sun-mode, which sets "angular_radius" (the star's true angular
 // size, radius/distance) each frame; this shader ramps the disc out against its own
-// VIEWPORT_SIZE as the star shrinks toward a pixel and the sun_point takes over, so an
+// VIEWPORT_SIZE as the star shrinks toward a pixel and its IVBodyPSF quad takes over, so an
 // off-screen capture fades at its own buffer's scale rather than the main window's.
 // "brightness" is the star's HDR surface brightness (distance-invariant -- a resolved disc's
 // surface brightness does not change with distance; only the point carries the distance
@@ -52,8 +52,9 @@ render_mode unshaded, skip_vertex_transform, depth_draw_opaque;
 // shells_model.gd for what that costs.
 
 #include "_detail.gdshaderinc"          // hash, value_noise (the photosphere's noise)
+#include "_display.gdshaderinc"
 #include "_farwarp.gdshaderinc"
-#include "_star_point.gdshaderinc"
+#include "_point_spread_function.gdshaderinc"
 #include "_sun_photosphere.gdshaderinc"
 
 uniform sampler2D emission : source_color, hint_default_white; // optional modulation map; unbound = white
@@ -61,8 +62,8 @@ uniform float color_bv = 0.63;       // star B-V; tints the disc (esp. with no s
 uniform float color_saturation = 1.0; // shared with the field, so B-V reads the same either side
 uniform float brightness = 1.0;      // HDR-capable surface-brightness multiplier (sun-mode sets)
 uniform float angular_radius = 0.0;  // star radius / camera distance (sun-mode sets per frame)
-uniform float handoff_low = 1.0;     // px on-screen radius at/below which the point fully replaces this disc
-uniform float handoff_high = 2.5;    // px at/above which this disc fully replaces the point
+uniform float handoff_low = -2.0;    // px on-screen radius at/below which the quad replaces this disc
+uniform float handoff_high = -1.0;   // px at/above which this disc fully replaces the quad core (defaults saturate ON)
 global uniform float iv_exposure;    // compensating-camera exposure; 1.0 when off (see stars.gdshader)
 
 // Photosphere parameters (see _sun_photosphere.gdshaderinc for the physics and units;
@@ -94,14 +95,14 @@ void vertex() {
 	// A unit sphere's normal is its own local position.
 	v_view_normal = MODELVIEW_NORMAL_MATRIX * VERTEX;
 	VERTEX = farwarp(view_position);
-	float pixel_radius = sun_pixel_radius(angular_radius, PROJECTION_MATRIX[1][1], VIEWPORT_SIZE.y);
+	float pixel_radius = body_pixel_radius(angular_radius, PROJECTION_MATRIX[1][1], VIEWPORT_SIZE.y);
 	v_pixel_radius = pixel_radius;
-	v_alpha = sun_disc_weight(pixel_radius, handoff_low, handoff_high);
+	v_alpha = body_disc_weight(pixel_radius, handoff_low, handoff_high);
 }
 
 void fragment() {
 	// Discard rather than draw a fully-faded disc. depth_draw_opaque means an alpha-0 disc
-	// would still write depth and punch out the sun_point sitting at the body's center behind
+	// would still write depth and punch out the IVBodyPSF quad sitting at the body's center behind
 	// it, so something has to drop it -- and doing that here resolves per viewport, where a
 	// CPU "visible" flag could only ever answer for the viewport its node lives in.
 	if (v_alpha <= 0.0) {
@@ -117,14 +118,16 @@ void fragment() {
 			spot_belt_center_deg, spot_belt_width_deg, umbra_level, penumbra_level,
 			facula_contrast, spot_seed, v_pixel_radius);
 	vec3 surface = photosphere_color(intensity) * photosphere_limb_darkening(mu);
-	surface *= texture(emission, UV).rgb;
+	surface *= display_decode(texture(emission, UV).rgb);
 	// The photometric scalar caps at the point's shared f16-safe ceiling: under physical
 	// light, brightness carries the star's true surface brightness (~1e11 in rendered
 	// units), which nothing meters down while the star is a minor part of the frame, and
 	// an inf in the f16 buffer would poison downstream passes. Capping the scalar (not
 	// the channels) keeps surface contrast and B-V hue wherever f16 can represent
-	// the value, exactly as star_point_light does for the far point.
-	float disc_light = min(brightness * iv_exposure, STAR_LIGHT_MAX);
-	ALBEDO = surface * star_color(color_bv, color_saturation) * disc_light;
+	// the value, exactly as psf_core_light_sprite does for the far point.
+	float disc_light = min(brightness * iv_exposure, PSF_LIGHT_MAX);
+	// Nothing sampled this radiance, so no renderer decode cancels against it: it crosses
+	// into the renderer's own colour space here (see _display.gdshaderinc).
+	ALBEDO = display_write(surface * color_from_b_v(color_bv, color_saturation) * disc_light);
 	ALPHA = v_alpha;
 }

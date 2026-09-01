@@ -21,7 +21,8 @@ class_name IVBodyFinisher
 extends RefCounted
 
 ## Adds non-persistant [IVBody]-associated nodes including a label, an orbit
-## visual graphic, lights, and rings (as applicable).
+## visual graphic, a point-spread quad ([IVBodyPSF]), lights, and rings (as
+## applicable).
 ##
 ## Graphic nodes added here are not referenced anywhere else so can be fully
 ## replaced by modifying script members here. Replacement classes must have
@@ -39,6 +40,7 @@ extends RefCounted
 var disable_threads := false
 
 var replacement_body_position_visual_class: Script
+var replacement_body_psf_class: Script
 var replacement_path_visual_class: Script
 var replacement_dynamic_light_class: Script
 var replacement_rings_class: Script
@@ -76,7 +78,9 @@ func _finish(body: IVBody) -> void:
 	var body_visual_nodes: Array[Node3D] = []
 	
 	_get_body_position_visual(body, children)
-	
+
+	if IVBodyPSF.is_applicable(body):
+		_get_body_psf(body, children)
 	if body.has_orbit():
 		_get_path_visual(body, siblings)
 	if body.has_light():
@@ -113,6 +117,18 @@ func _get_body_position_visual(body: IVBody, children: Array[Node]) -> void:
 	else:
 		body_position_visual = IVBodyPositionVisual.new(body)
 	children.append(body_position_visual)
+
+
+func _get_body_psf(body: IVBody, children: Array[Node]) -> void:
+	# A child of the body rather than of its IVBodyVisual: a lazy body has no visual until
+	# the camera visits it, and the point regime is exactly the case where it has not.
+	var body_psf: Node
+	if replacement_body_psf_class:
+		@warning_ignore("unsafe_method_access")
+		body_psf = replacement_body_psf_class.new(body)
+	else:
+		body_psf = IVBodyPSF.new(body)
+	children.append(body_psf)
 
 
 func _get_path_visual(body: IVBody, siblings: Array[Node]) -> void:

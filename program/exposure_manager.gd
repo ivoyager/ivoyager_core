@@ -26,8 +26,8 @@ extends Node
 ## as a real camera's image would.
 ##
 ## The photometric frame is the star field's: catalog V magnitudes through the
-## camera PSF model ([IVStarSettings]), anchored by
-## [constant IVAstronomy.MAG0_ILLUMINANCE]. One member welds everything else to
+## camera PSF model ([IVPSFSettings]), anchored by
+## [constant IVPhotometry.MAG0_ILLUMINANCE]. One member welds everything else to
 ## that frame - [member background_peak_magnitude_per_arcsec2], the surface
 ## brightness of the background panorama's brightest texel - from which this
 ## node derives [member sky_energy] (the panorama's physical energy_multiplier)
@@ -45,6 +45,11 @@ extends Node
 ## adaptation responds to how much lit surface is in the view - not to phase
 ## geometry, and not to the star, whose disc clips white at any scene exposure
 ## and so meters only when it grows into the subject.[br][br]
+##
+## Metering and adaptation produce [member auto_exposure_ev]; what is applied
+## is 2^([member auto_exposure_ev] or [member manual_exposure_ev], per
+## [member auto], plus [member exposure_adjustment_ev]). The defaults - auto,
+## no adjustment - make [member exposure] the metered result itself.[br][br]
 ##
 ## Writers and readers, one frame-consistent set per frame:[br]
 ## - Writes the [code]iv_exposure[/code] shader global, which every photometric
@@ -96,16 +101,35 @@ extends Node
 ## Current relative exposure; the value written to the [code]iv_exposure[/code]
 ## shader global. 1.0 whenever inactive. Read-only.
 static var exposure := 1.0
+## The metered and adapted auto exposure, in EV relative to the authored sky
+## look (log2 of the exposure it alone would apply): rests at
+## [member exposure_max_ev] fully dark-adapted and falls as metering pulls
+## exposure down. Updated every frame while active, whether or not
+## [member auto] is true. Read-only.
+static var auto_exposure_ev := 0.0
 ## True while the system is applied (core setting + user setting + activation
 ## requirements all satisfied). Read-only.
 static var physical_active := false
-## Rendered units per unit internal luminance, derived from [IVStarSettings]
+## Rendered units per unit internal luminance, derived from [IVPSFSettings]
 ## and the anchor; 0.0 until first activation. Read-only.
 static var gain := 0.0
 ## The background panorama's physical energy_multiplier (at exposure 1.0),
-## derived from [IVStarSettings] and the anchor; 0.0 until first activation.
+## derived from [IVPSFSettings] and the anchor; 0.0 until first activation.
 ## Read-only.
 static var sky_energy := 0.0
+
+## If false, [member manual_exposure_ev] replaces the metered result. Metering
+## runs either way, so [member auto_exposure_ev] stays live and a return to
+## auto resumes without a settling delay.
+var auto := true
+## The exposure applied while [member auto] is false, in EV relative to the
+## authored sky look; ignored otherwise. A GUI taking manual control should
+## seed this from [member auto_exposure_ev] so the view does not jump.
+var manual_exposure_ev := 0.0
+## Added to whichever of [member auto_exposure_ev] or [member manual_exposure_ev]
+## is in force. This is the viewer's exposure compensation rather than something
+## the camera adapts to, so it applies instantly.
+var exposure_adjustment_ev := 0.0
 
 ## The absolute anchor: V surface brightness (mag/arcsec^2) represented by the
 ## background panorama's brightest texel (value 1.0). Initial value from
@@ -251,21 +275,19 @@ var _limb_geometry: Dictionary[StringName, Vector2] = {} # body name -> (disc, s
 var _exposure_ceilings: Dictionary[StringName, Array] = {} # body name -> [(shell radius, ceiling)]
 var _limb_ceilings: Dictionary[StringName, float] = {} # body name -> limb_exposure_ceiling
 var _shell_meter_data_built := false
-var _ring_litside_phase_boost := 3.0 # rings.gdshader default; Compatibility override in _ready
+var _ring_litside_phase_boost := 3.0 # rings.gdshader default
 
 
 func _ready() -> void:
 	process_priority = -1 # before camera/lights/visuals (0); see class doc
-	if IVGlobal.is_gl_compatibility:
-		_ring_litside_phase_boost = 1.25 # the IVRings Compatibility override value
 	IVGlobal.current_camera_changed.connect(_on_current_camera_changed)
 	IVGlobal.camera_tree_changed.connect(_on_camera_tree_changed)
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
 	IVStateManager.assets_preloaded.connect(_on_assets_preloaded)
 	IVSettingsManager.changed.connect(_settings_listener)
-	var star_settings := _get_star_settings()
-	if star_settings:
-		star_settings.changed.connect(_on_star_settings_changed)
+	var psf_settings := _get_psf_settings()
+	if psf_settings:
+		psf_settings.changed.connect(_on_psf_settings_changed)
 
 
 func _exit_tree() -> void:
@@ -273,6 +295,7 @@ func _exit_tree() -> void:
 		_restore_scene_values()
 		physical_active = false
 	exposure = 1.0
+	auto_exposure_ev = 0.0
 	_neutralize_shader_globals()
 
 
@@ -287,7 +310,8 @@ func _process(delta: float) -> void:
 	var time_scale := Engine.time_scale
 	if time_scale > 0.0:
 		delta /= time_scale # adaptation rates are wall-clock
-	_update_exposure(_get_metering_target(), delta)
+	_update_auto_exposure(_get_metering_target(), delta)
+	_apply_exposure()
 
 
 # *****************************************************************************
@@ -319,19 +343,20 @@ func _apply_transition() -> void:
 		_restore_scene_values()
 		physical_active = false
 		exposure = 1.0
+		auto_exposure_ev = 0.0
 		_neutralize_shader_globals()
 
 
 ## Returns false (with warning) if prerequisites are missing.
 func _recompute_photometry() -> bool:
-	var star_settings := _get_star_settings()
-	if !star_settings:
-		push_warning("IVExposureManager: no StarSettings in IVGlobal.program; staying inactive")
+	var psf_settings := _get_psf_settings()
+	if !psf_settings:
+		push_warning("IVExposureManager: no PSFSettings in IVGlobal.program; staying inactive")
 		return false
-	if !_warned_off_nominal and (star_settings.intensity_gamma != 1.0
-			or star_settings.fov_compensation != 1.0):
+	if !_warned_off_nominal and (psf_settings.intensity_gamma != 1.0
+			or psf_settings.fov_compensation != 1.0):
 		_warned_off_nominal = true
-		push_warning("IVExposureManager: IVStarSettings intensity_gamma/fov_compensation differ "
+		push_warning("IVExposureManager: IVPSFSettings intensity_gamma/fov_compensation differ "
 				+ "from 1.0; the physical calibration assumes the photometric values")
 	# The star chain's fov/resolution compensation is exactly the inverse pixel
 	# solid angle of the PSF (a fixed-f-number camera), so the panorama's level
@@ -340,13 +365,13 @@ func _recompute_photometry() -> bool:
 	# omega_ref uses the same reference fov and viewport height the star
 	# shaders compensate against, which is what makes the result view-invariant.
 	var reference_height := _get_reference_viewport_height()
-	var arcsec_per_pixel := star_settings.fov_reference_deg * 3600.0 / reference_height
+	var arcsec_per_pixel := psf_settings.fov_reference_deg * 3600.0 / reference_height
 	var omega_ref := arcsec_per_pixel * arcsec_per_pixel
-	var psf_area := TAU * star_settings.psf_sigma * star_settings.psf_sigma
-	sky_energy = (star_settings.intensity_scale * psf_area * omega_ref
-			* 10.0 ** (0.4 * (star_settings.intensity_faint_mag
+	var psf_area := TAU * psf_settings.psf_sigma * psf_settings.psf_sigma
+	sky_energy = (psf_settings.intensity_scale * psf_area * omega_ref
+			* 10.0 ** (0.4 * (psf_settings.intensity_faint_mag
 			- background_peak_magnitude_per_arcsec2)))
-	var anchor_luminance := IVAstronomy.get_luminance_from_surface_brightness(
+	var anchor_luminance := IVPhotometry.get_luminance_from_surface_brightness(
 			background_peak_magnitude_per_arcsec2)
 	gain = sky_energy / anchor_luminance
 	return true
@@ -495,10 +520,10 @@ func _find_starmap_material() -> void:
 		_starmap_material = sky_material
 
 
-func _get_star_settings() -> IVStarSettings:
-	var star_settings_var: Variant = IVGlobal.program.get(&"StarSettings")
-	if star_settings_var is IVStarSettings:
-		return star_settings_var
+func _get_psf_settings() -> IVPSFSettings:
+	var psf_settings_var: Variant = IVGlobal.program.get(&"PSFSettings")
+	if psf_settings_var is IVPSFSettings:
+		return psf_settings_var
 	return null
 
 
@@ -574,7 +599,7 @@ func _get_metering_target() -> float:
 					star_meter_fraction_start, star_meter_fraction_full)
 			if star_weight <= 0.0:
 				continue
-			var disc_luminance := IVAstronomy.get_star_disc_luminance(
+			var disc_luminance := IVPhotometry.get_star_disc_luminance(
 					star_absolute_magnitude, body.mean_radius)
 			min_exposure = minf(min_exposure, _get_candidate_exposure(disc_luminance,
 					star_weight, log_rest, rest_exposure))
@@ -594,11 +619,12 @@ func _get_metering_target() -> float:
 		var lit_visible := _get_lit_visible_fraction(body, star_vector, star_distance,
 				camera_vector, camera_distance)
 		var albedo := _get_albedo(body)
-		var apparent_magnitude := IVAstronomy.get_apparent_magnitude(
+		var apparent_magnitude := IVPhotometry.get_apparent_magnitude(
 				star_absolute_magnitude, star_distance)
-		var illuminance := IVAstronomy.get_illuminance_from_apparent_magnitude(
+		var illuminance := IVPhotometry.get_illuminance_from_apparent_magnitude(
 				apparent_magnitude)
-		var shadow_fraction := _get_parent_shadow_fraction(body, star_vector, star_distance)
+		var shadow_fraction := IVSunOcclusionManager.get_parent_shadow_fraction(body, _star,
+				star_vector, star_distance)
 		# Ambient starlight is the floor of both candidates: eclipse shadow
 		# removes sunlight, not starlight, matching the shaders.
 		var lit_luminance := albedo * (illuminance * shadow_fraction
@@ -893,26 +919,6 @@ func _get_lit_visible_fraction(body: IVBody, star_vector: Vector3, star_distance
 	return clampf(lit, 0.0, 1.0)
 
 
-## Satellite-in-parent-shadow term (e.g. the Moon in Earth's umbra), so an
-## eclipsed body meters dark and exposure rises as an eye would. Parent only:
-## other occluder geometries are negligible for metering.
-func _get_parent_shadow_fraction(body: IVBody, star_vector: Vector3,
-		star_distance: float) -> float:
-	var parent := body.get_parent() as IVBody
-	if !parent or parent == _star or !_star:
-		return 1.0
-	var parent_vector := parent.global_position - body.global_position
-	var parent_distance := parent_vector.length()
-	if parent_distance <= 0.0 or parent.mean_radius <= 0.0:
-		return 1.0
-	var star_angular_radius := _star.mean_radius / star_distance
-	var parent_angular_radius := parent.mean_radius / parent_distance
-	var cos_separation := star_vector.dot(parent_vector) / (star_distance * parent_distance)
-	var separation := acos(clampf(cos_separation, -1.0, 1.0))
-	return IVAstronomy.get_two_disc_visible_fraction(star_angular_radius, parent_angular_radius,
-			separation)
-
-
 func _get_star_absolute_magnitude() -> float:
 	if !_star:
 		return NAN
@@ -924,41 +930,58 @@ func _get_star_absolute_magnitude() -> float:
 
 
 func _get_albedo(body: IVBody) -> float:
-	# An empty table cell reaches characteristics as a non-positive float (not a
-	# missing key), and a 0 albedo would zero the body's luminance and silently
-	# remove it from metering - so only a positive value counts as known.
-	var albedo_var: Variant = body.characteristics.get(&"albedo")
-	if typeof(albedo_var) == TYPE_FLOAT:
-		var albedo: float = albedo_var
-		if albedo > 0.0:
-			return albedo
+	# meter_albedo first: metering wants the reflectance the camera actually sees,
+	# which is the catalog albedo only where a body's map is all there is to see.
+	# A body whose shells add light over that map - an atmosphere drawn across the
+	# disc - returns more, and nothing else in the metering path can say so.
+	var albedo := _get_albedo_characteristic(body, &"meter_albedo")
+	if albedo > 0.0:
+		return albedo
+	albedo = _get_albedo_characteristic(body, &"albedo")
+	if albedo > 0.0:
+		return albedo
 	return default_albedo
 
 
+# Returns a non-positive value where the field is absent or its cell empty: an empty
+# table cell reaches characteristics as a non-positive float (not a missing key), and
+# a 0 albedo would zero the body's luminance and silently remove it from metering - so
+# only a positive value counts as known.
+func _get_albedo_characteristic(body: IVBody, field: StringName) -> float:
+	var albedo_var: Variant = body.characteristics.get(field)
+	if typeof(albedo_var) != TYPE_FLOAT:
+		return 0.0
+	var albedo: float = albedo_var
+	return albedo
+
+
 # *****************************************************************************
-# Exposure adaptation
+# Exposure adaptation & apply
 
 
-func _update_exposure(target: float, delta: float) -> void:
+func _update_auto_exposure(target: float, delta: float) -> void:
 	const LOG_2 := 0.6931471805599453
-	if _snap_next or target == exposure:
+	var target_ev := log(target) / LOG_2
+	if _snap_next or target_ev == auto_exposure_ev:
 		_snap_next = false
-		exposure = target
+		auto_exposure_ev = target_ev
+		return
+	var diff := target_ev - auto_exposure_ev
+	if absf(diff) > snap_ev_threshold:
+		auto_exposure_ev = target_ev
+		return
+	# Negative diff = darkening (exposure falling toward a bright body).
+	var rate := adapt_darken_ev_per_second if diff < 0.0 else adapt_brighten_ev_per_second
+	var step := rate * delta
+	if absf(diff) <= step:
+		auto_exposure_ev = target_ev
 	else:
-		var current_ev := -log(exposure) / LOG_2
-		var target_ev := -log(target) / LOG_2
-		var diff := target_ev - current_ev
-		if absf(diff) > snap_ev_threshold:
-			exposure = target
-		else:
-			# Positive diff = darkening (exposure falling toward a bright body).
-			var rate := adapt_darken_ev_per_second if diff > 0.0 else adapt_brighten_ev_per_second
-			var step := rate * delta
-			if absf(diff) <= step:
-				exposure = target
-			else:
-				current_ev += signf(diff) * step
-				exposure = 2.0 ** -current_ev
+		auto_exposure_ev += signf(diff) * step
+
+
+func _apply_exposure() -> void:
+	var ev := (auto_exposure_ev if auto else manual_exposure_ev) + exposure_adjustment_ev
+	exposure = 2.0 ** ev
 	RenderingServer.global_shader_parameter_set(&"iv_exposure", exposure)
 	RenderingServer.global_shader_parameter_set(&"iv_emission_luminance_scale",
 			exposure * gain)
@@ -989,7 +1012,7 @@ func _on_assets_preloaded() -> void:
 		_apply_starmap_energy()
 
 
-func _on_star_settings_changed() -> void:
+func _on_psf_settings_changed() -> void:
 	if !physical_active:
 		return
 	_recompute_photometry()
@@ -1007,6 +1030,7 @@ func _clear_procedural() -> void:
 	_star = null
 	_snap_next = true
 	exposure = 1.0
+	auto_exposure_ev = 0.0
 	_neutralize_shader_globals()
 
 

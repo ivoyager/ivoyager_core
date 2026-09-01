@@ -41,10 +41,12 @@ render_mode skip_vertex_transform, ambient_light_disabled;
 //   - Past a body's contrast headroom the band tops flatten (see albedo_color).
 
 #include "_detail.gdshaderinc"       // value_noise, fbm
+#include "_display.gdshaderinc"
 #include "_farwarp.gdshaderinc"
 #include "_photometry.gdshaderinc"
 #include "_sun_occlusion.gdshaderinc"
 #include "_atmosphere.gdshaderinc"
+#include "_point_spread_function.gdshaderinc" // body_pixel_radius / body_disc_weight (the handoff)
 
 
 // ----- color and level -----
@@ -155,9 +157,25 @@ uniform float albedo_scale = 1.0;
 const int STREAK_OCTAVES = 4;
 const int TURBULENCE_OCTAVES = 3;
 
+// Disc/point handoff, set each frame by IVShellsModel's disc LOD from IVBody.psf_handoff:
+// as the body shrinks toward a pixel its IVBodyPSF quad's core takes over and this disc
+// discards, resolved against its OWN VIEWPORT_SIZE -- so an off-screen capture switches at
+// its own buffer's scale rather than the main window's. IVBodyPSF collapses the two edges to
+// one for a lit body, making the trade a step at a size the handoff solve has matched; only
+// an emissive disc (sun_surface, already transparent) can afford to crossfade. The defaults
+// saturate fully ON, so a body with no quad (nothing to hand off to, and its fixed distance
+// cull still in place) renders exactly as it did before this existed.
+uniform float angular_radius = 0.0; // body mean radius / camera distance
+uniform float handoff_low = -2.0;   // px on-screen radius at/below which the quad replaces this
+uniform float handoff_high = -1.0;  // px at/above which this disc fully replaces the quad's core
+
 
 varying vec3 model_position;   // unit-sphere local position; the pattern's only input
 varying vec3 v_world_position; // true world position; VERTEX is farwarp-remapped
+varying vec3 v_camera_local;   // the camera in this shell's local frame, for atm_disc_air()
+varying vec3 v_sun_local;      // the sun direction in that frame, unit
+varying flat float v_far_floor; // atm_far_floor() is uniform-only: per vertex, not per fragment
+varying flat float v_disc_weight; // disc/point trade; >0 draw, 0 handed off (a step here)
 
 
 float gaussian_band(float latitude_deg, vec3 band) {
@@ -193,12 +211,33 @@ vec3 shear_about_axis(vec3 dir, float tilt_deg) {
 void vertex() {
 	model_position = VERTEX; // captured before farwarp overwrites VERTEX
 	v_world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	if (atm_present()) {
+		// The ray geometry for atm_disc_air() runs in the shell's own frame, where the
+		// (oblate) shell is the unit sphere; see atmosphere_limb.gdshader. Skipped on an
+		// airless body, whose varyings then go unread.
+		mat4 inverse_model = inverse(MODEL_MATRIX);
+		v_camera_local = (inverse_model * vec4(CAMERA_POSITION_WORLD, 1.0)).xyz;
+		v_sun_local = normalize(mat3(inverse_model) * sun_direction);
+		v_far_floor = atm_far_floor();
+	}
 	// No normal map, so the smooth sphere normal farwarp sets is the final one.
 	farwarp_lit_vertex(MODELVIEW_MATRIX, MODELVIEW_NORMAL_MATRIX, VERTEX, NORMAL);
+	v_disc_weight = body_disc_weight(body_pixel_radius(angular_radius,
+			PROJECTION_MATRIX[1][1], VIEWPORT_SIZE.y), handoff_low, handoff_high);
 }
 
 
 void fragment() {
+	// Below the handoff the body's IVBodyPSF quad has taken over and this disc must go. It
+	// goes by DISCARD rather than by fading ALPHA, and that is not a style choice: writing
+	// ALPHA moves this material to the transparent pass, where it stops writing depth and so
+	// stops occluding anything -- the star field through a night side, bodies not sorting
+	// against each other, and the body's own quad drawing through it. Discarding keeps the
+	// surface opaque and the whole depth model intact. Resolved here rather than by a CPU
+	// "visible" flag, which could only ever answer for the viewport its node lives in.
+	if (v_disc_weight <= 0.0) {
+		discard;
+	}
 	vec3 dir = normalize(model_position);
 	float rho = length(dir.xz);
 
@@ -238,9 +277,13 @@ void fragment() {
 
 	pattern *= band_contrast;
 
-	vec3 base = albedo_color.rgb;
+	// Decoded here and encoded at the end of fragment() (see _display.gdshaderinc): the tint
+	// mix, albedo_scale, the pattern and the ceiling all state linear reflectance, and none
+	// of them means anything applied to a display-referred colour.
+	vec3 base = display_decode(albedo_color.rgb);
 	if (band_tint_strength != 0.0) {
-		base = mix(base, band_tint_color.rgb, clamp(-pattern * band_tint_strength, 0.0, 1.0));
+		base = mix(base, display_decode(band_tint_color.rgb),
+				clamp(-pattern * band_tint_strength, 0.0, 1.0));
 	}
 	// albedo_color and band_tint_color are sRGB Colors, so neither can carry a channel
 	// above 1.0 - the conversion clamps there. A body whose physical reflectance exceeds
@@ -266,6 +309,9 @@ void fragment() {
 
 	// Rebuilt ambient (engine ambient is disabled; see render_mode). Added before the
 	// shadow so occlusion removes sunlight, not starlight; see the include.
+	// Kept for the twilight term below, which is DIFFUSE light and so takes the
+	// unfactored albedo, exactly as the isotropic ambient on the next line does.
+	vec3 unlit_albedo = ALBEDO;
 	EMISSION = ALBEDO * ambient_light; // the feed already carries exposure; see the include
 
 	// Disc photometry, AFTER the isotropic ambient above (which takes the unfactored
@@ -273,23 +319,66 @@ void fragment() {
 	// NORMAL, so the interpolated macroscopic normal is what is wanted and what is here.
 	vec3 macro_normal = normalize(NORMAL);
 	vec3 sun_view = normalize(mat3(VIEW_MATRIX) * sun_direction);
-	ALBEDO *= minnaert_albedo_factor(macro_normal, sun_view, VIEW, minnaert_k);
-	ALBEDO *= lunar_lambert_albedo_factor(macro_normal, sun_view, VIEW, lunar_lambert);
+	float atm_beam_response = minnaert_albedo_factor(macro_normal, sun_view, VIEW, minnaert_k)
+			* lunar_lambert_albedo_factor(macro_normal, sun_view, VIEW, lunar_lambert);
+	ALBEDO *= atm_beam_response;
 	// The body's atmosphere above this shell (the limb row's atm_* columns, propagated
 	// here; an exact no-op without them): direct light reddened along the sun path, and
-	// the chromatic half of the view-path extinction whose luma the limb shell removes.
-	// See _atmosphere.gdshaderinc.
+	// the chromatic half of the view-path extinction whose luma the atm_disc_air() block
+	// below removes. See _atmosphere.gdshaderinc.
 	float atm_mu0 = dot(macro_normal, sun_view);
 	float atm_mu = dot(macro_normal, VIEW);
-	ALBEDO *= atm_sun_transmittance(atm_mu0) * atm_view_tint(atm_mu);
+	vec3 atm_tint = atm_view_tint(atm_mu);
+	ALBEDO *= atm_sun_transmittance(atm_mu0) * atm_tint;
 
+	float sun_visible = 1.0;
 	if (ring_texture_outer > 0.0 || occluder_count > 0) {
-		float sun_visible = sun_occlusion_visible_fraction(v_world_position);
+		sun_visible = sun_occlusion_visible_fraction(v_world_position);
 		if (compat_albedo_shadow) {
 			ALBEDO *= sun_visible;
+			// AO is ambient-only on this renderer, so the albedo multiply stands in for
+			// it -- and the SPECULAR lobe needs the same shadow, or an eclipsed body
+			// keeps its full sunlit sheen, which a dark-adapted exposure amplifies into
+			// a solid white disc (measured: Mimas in Saturn's shadow). F0 scales as
+			// SPECULAR^2, so the square root carries the fraction onto specular energy.
+			SPECULAR *= sqrt(sun_visible);
 		} else {
 			AO = sun_visible;
 			AO_LIGHT_AFFECT = 1.0; // attenuates direct light, not just ambient
 		}
 	}
+
+	// The twilight this shell is lit by once the plane-parallel beam has run out, which
+	// is what the engine's own N.L cannot carry: it is zero at mu0 = 0 and the sky is not.
+	// EMISSION for that reason, so it needs the shadow applied by hand (emission sits
+	// outside the AO path) -- it is sunlight, unlike the starlight ambient above. Exactly
+	// zero wherever the beam still dominates, so the day side is untouched; see the
+	// include for why the subtraction inside makes that identical rather than merely small.
+	// It takes the disc law's ISOTROPIC response and not the beam factor above: this light
+	// arrives from the whole sky, and mu0^(k-1) is an answer about one incidence angle. On a
+	// Lambert body both are 1 and nothing changes; on Venus the beam factor had been
+	// collapsing the twilight toward the terminator exactly where it takes over.
+	float atm_sky_response = minnaert_isotropic_response(macro_normal, VIEW, minnaert_k)
+			* lunar_lambert_isotropic_response(macro_normal, VIEW, lunar_lambert);
+	EMISSION += unlit_albedo * atm_sky_excess(atm_mu0, atm_sky_response,
+			atm_beam_response) * atm_tint * (sun_light_energy * sun_visible);
+
+	// The air in FRONT of this fragment (atm_disc_air: the veil over the lit disc, the
+	// twilight glow past the terminator, the far half of a ray whose disc is an optical
+	// limb), composited here rather than blended by the limb shell — in the fragment the
+	// sum runs in linear light on every renderer, where the blend does not (THE
+	// COMPOSITING SPLIT in the include). The luma is what the limb's alpha used to remove
+	// from everything behind it: lit albedo, every emission term above, and the specular
+	// lobe as its square root (F0 scales as SPECULAR^2, as for the shadow above). The
+	// path stands in front, undimmed — and, like the shell term it replaces, un-eclipsed.
+	vec3 atm_path;
+	float atm_behind_luma;
+	atm_disc_air(v_camera_local, model_position, v_sun_local, sun_angular_radius,
+			v_far_floor, atm_path, atm_behind_luma);
+	ALBEDO *= atm_behind_luma;
+	SPECULAR *= sqrt(atm_behind_luma);
+	EMISSION = EMISSION * atm_behind_luma + atm_path * sun_light_energy;
+
+	ALBEDO = display_write_albedo(ALBEDO);
+	EMISSION = display_write(EMISSION);
 }

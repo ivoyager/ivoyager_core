@@ -26,11 +26,12 @@ extends CompositorEffect
 ## Runs at [code]EFFECT_CALLBACK_TYPE_POST_TRANSPARENT[/code] each frame:[br]
 ## 1. Iterates a sparse 3-pixel grid around [member _world_mouse], bounded by
 ##    the fragment range passed in to [method _init].[br]
-## 2. Each grid pixel is decoded as [code]ivec3(round(rgb))[/code]; channel
-##    values in [code][1, 2048][/code] are valid id-encoded pixels (offset-by-1
-##    sentinel; any zero rejects). Without MSAA this reads the resolved HDR color
-##    buffer; with MSAA it reads the unresolved multisampled buffer and scans
-##    samples, since a resolve would average the exact encoding away.[br]
+## 2. Each grid pixel is lifted out of the broadcast band (see
+##    [code]id_broadcast()[/code] in [code]_fragment_id.gdshaderinc[/code]) and
+##    rounded; channel values in [code][1, 1024][/code] are valid id-encoded
+##    pixels (offset-by-1 sentinel). Without MSAA this reads the resolved HDR
+##    color buffer; with MSAA it reads the unresolved multisampled buffer and
+##    scans samples, since a resolve would average the exact encoding away.[br]
 ## 3. Tracks the closest-to-center valid sample and writes it to a small SSBO.[br]
 ## 4. Issues an asynchronous readback. The callback decodes the id and emits
 ##    [signal fragment_decoded] on the main thread via [code]call_deferred[/code].[br][br]

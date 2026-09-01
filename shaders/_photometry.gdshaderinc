@@ -97,3 +97,39 @@ float minnaert_albedo_factor(vec3 macro_normal, vec3 sun_dir, vec3 view_dir, flo
 	float mu = max(dot(macro_normal, view_dir), 0.0);
 	return pow(mu0 * mu, k - 1.0);
 }
+
+
+// THE SAME TWO LAWS' RESPONSE TO ISOTROPIC ILLUMINATION, which is a different integral and
+// emphatically not the same factor. A BRDF's beam factor answers "how bright at THIS
+// incidence angle"; skylight, and the diffuse half of a two-stream, have no single incidence
+// angle, so what they get is the BRDF integrated over the whole incident hemisphere. Using
+// the beam factor for diffuse light applies mu0^(k-1) to light that has no mu0, which on a
+// limb-darkened body collapses the diffuse term toward the terminator exactly where it is
+// supposed to be taking over -- rendered, that put a flat shelf a couple of degrees wide in
+// Venus's terminator gradient, bracketed by steep gradients, which is a Mach band.
+//
+// Both are FULL responses, not albedo factors: the emission path they feed has no engine
+// N.L to supply a leading mu0. Both reduce to exactly 1.0 at Lambert.
+//
+// Minnaert, f_r proportional to mu0^(k-1) mu^(k-1):
+//     int over the hemisphere of mu0^k dw  =>  2/(k+1) mu^(k-1)
+float minnaert_isotropic_response(vec3 macro_normal, vec3 view_dir, float k) {
+	if (k <= 1.0) {
+		return 1.0;
+	}
+	float mu = max(dot(macro_normal, view_dir), 1.0e-4);
+	return 2.0 / (k + 1.0) * pow(mu, k - 1.0);
+}
+
+
+// Lunar-Lambert, f_r proportional to 2L/(mu + mu0) + (1 - L):
+//     int_0^1 mu0/(mu + mu0) dmu0 = 1 - mu ln(1 + 1/mu)   =>  4L(1 - mu ln(1 + 1/mu)) + (1 - L)
+// Bounded without a clamp, unlike the beam factor: it runs from 1 + 0.227 L at the
+// sub-observer point to 1 + 3L at the limb, where the beam factor diverges.
+float lunar_lambert_isotropic_response(vec3 macro_normal, vec3 view_dir, float el) {
+	if (el <= 0.0) {
+		return 1.0;
+	}
+	float mu = max(dot(macro_normal, view_dir), 1.0e-4);
+	return 4.0 * el * (1.0 - mu * log(1.0 + 1.0 / mu)) + (1.0 - el);
+}

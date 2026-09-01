@@ -49,6 +49,12 @@ extends DirectionalLight3D
 ## Re-test these on a given target before relying on Compatibility shadows.[br]
 
 
+## Rendered light energy of each star's top light, keyed by star body name — the number the
+## engine multiplies a lit ALBEDO by. Published for the shaders that composite their own
+## result and so have to apply that multiply themselves; [IVSunOcclusionManager] feeds it to
+## them per body, beside the star's direction and angular radius.
+static var star_light_energies: Dictionary[StringName, float] = {}
+
 # from table
 var energy_multiplier: float
 var shadow_max_floor: float
@@ -122,9 +128,9 @@ func _process(_delta: float) -> void:
 			# Lambert convention (rendered diffuse = ALBEDO * energy * NdotL).
 			var absolute_magnitude := _get_star_absolute_magnitude()
 			if !is_nan(absolute_magnitude):
-				var apparent_magnitude := IVAstronomy.get_apparent_magnitude(absolute_magnitude,
+				var apparent_magnitude := IVPhotometry.get_apparent_magnitude(absolute_magnitude,
 						source_vector.length())
-				var illuminance := IVAstronomy.get_illuminance_from_apparent_magnitude(
+				var illuminance := IVPhotometry.get_illuminance_from_apparent_magnitude(
 						apparent_magnitude)
 				energy = IVExposureManager.exposure * illuminance * IVExposureManager.gain / PI
 		if is_nan(energy):
@@ -151,6 +157,8 @@ func _process(_delta: float) -> void:
 		# per-fragment shading. One-frame lag (manager processes at 100).
 		total_energy *= IVSunOcclusionManager.camera_sun_visible_fraction
 	light_energy = total_energy
+	if _top_light:
+		star_light_energies[_body_name] = total_energy
 	if _process_shadow_distances:
 		var shadow_max_dist := shadow_max_floor
 		if _add_shadow_target_dist:
@@ -175,6 +183,7 @@ func _clear_procedural() -> void:
 	# Only connected for top light.
 	_camera = null
 	_camera_star_orbiter = null
+	star_light_energies.erase(_body_name)
 
 
 func _get_star_absolute_magnitude() -> float:

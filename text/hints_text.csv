@@ -5,6 +5,9 @@ HINT_CAMERA_LOCK,Camera follows selection
 HINT_CENTAURS,Show Centaurs
 HINT_COLOR_PICKER,Color Picker
 HINT_DECREASE_FOCAL_LENGTH,Decrease camera focal length
+HINT_EXPOSURE_ADJUSTMENT,Adjust exposure in 1/3 stops
+HINT_EXPOSURE_AUTO,Meter camera exposure automatically
+HINT_EXPOSURE_MANUAL,Set camera exposure in 1/3 stops
 HINT_INCREASE_FOCAL_LENGTH,Increase camera focal length
 HINT_L4_TROJANS,Show Jupiter L4 (Greek Camp) Trojans
 HINT_L5_TROJANS,Show Jupiter L5 (Trojan Camp) Trojans

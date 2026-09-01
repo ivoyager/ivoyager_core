@@ -21,7 +21,8 @@ class_name IVGraphicsManager
 extends Node
 
 ## Applies user graphics settings (antialiasing and directional shadow
-## resolution) to the rendering server and main window viewport.
+## resolution) to the rendering server and main window viewport, and publishes
+## the renderer's colour-space convention to shaders.
 ##
 ## Added by [IVCoreInitializer]. Settings [code]msaa_3d[/code], [code]fxaa[/code],
 ## [code]use_taa[/code] and [code]directional_shadow_size[/code] are defined in
@@ -34,7 +35,15 @@ extends Node
 ## the Compatibility renderer (including web exports); TAA is Forward+ only; and
 ## directional shadows on Compatibility depend on
 ## [member IVCoreSettings.apply_gl_compatibility_shadows] (see [IVDynamicLight]).
-## Unsupported settings are skipped here and hidden by [IVOptionsPopup].
+## Unsupported settings are skipped here and hidden by [IVOptionsPopup].[br][br]
+##
+## It also writes the [code]iv_display_encode[/code] shader global once at startup:
+## the Compatibility renderer is display-referred at both ends of a shader — a
+## source_color texture arrives still encoded, and what a shader writes is taken
+## as encoded too — so a shader must decode what it samples, do its colour
+## arithmetic in linear, and encode what it writes. Every colour-handling shader
+## does so through [code]shaders/_display.gdshaderinc[/code]; see that file for
+## what the global means and what it does not cover.
 
 ## Enumeration backing the [code]msaa_3d[/code] dropdown in [IVOptionsPopup].
 ## Values match [enum Viewport.MSAA]. Insertion order must equal value order
@@ -62,6 +71,9 @@ var shadow_size_settings: Dictionary[StringName, int] = {
 
 func _ready() -> void:
 	IVSettingsManager.changed.connect(_settings_listener)
+	# The renderer cannot change without a restart, so this is written once and never again.
+	RenderingServer.global_shader_parameter_set(&"iv_display_encode",
+			1.0 if IVGlobal.is_gl_compatibility else 0.0)
 	_apply_msaa()
 	_apply_fxaa()
 	_apply_taa()

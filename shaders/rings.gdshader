@@ -44,7 +44,9 @@ render_mode cull_disabled, skip_vertex_transform, ambient_light_disabled;
 // see IVRings._process. FRONT_FACING would be simpler but is unreliable (wrong
 // on some GPUs as of Godot 4.2.2), hence the model-space test.
 
+#include "_display.gdshaderinc"
 #include "_farwarp.gdshaderinc"
+#include "_photometry.gdshaderinc"
 #include "_sun_occlusion.gdshaderinc"
 
 const float DFDR_MULTIPLIER = 1.0; // smaller for more detail & more aliasing
@@ -169,6 +171,9 @@ void fragment() {
 		float phase_mix = dot(illumination_direction, VIEW) / 2.0 + 0.5;
 		phase_mix = pow(phase_mix, PHASE_EXPONENT);
 
+		// Decoded here and encoded at the end (see _display.gdshaderinc): the phase mix and
+		// the boosts below are linear coefficients, and the ambient added as emission is a
+		// linear radiance.
 		vec4 color;
 		vec3 albedo;
 
@@ -178,11 +183,11 @@ void fragment() {
 			vec4 forwardscatter = sample_color(texel, texel_fraction, 1, lod);
 			forwardscatter.r *= forwardscatter_redshift;
 			color = mix(forwardscatter, backscatter, phase_mix);
-			albedo = color.rgb * (litside_phase_boost * phase_mix + 1.0);
+			albedo = display_decode(color.rgb) * (litside_phase_boost * phase_mix + 1.0);
 		} else {
 			// unlit side
 			color = sample_color(texel, texel_fraction, 2, lod);
-			albedo = color.rgb * unlitside_boost;
+			albedo = display_decode(color.rgb) * unlitside_boost;
 			albedo *= (unlitside_phase_boost * phase_mix + 1.0);
 		}
 
@@ -204,11 +209,46 @@ void fragment() {
 			float sun_visible = sun_occlusion_visible_fraction(v_world_position);
 			if (compat_albedo_shadow) {
 				ALBEDO *= sun_visible;
+				// AO is ambient-only on this renderer, so the albedo multiply stands in
+				// for it -- and the SPECULAR lobe needs the same shadow, or an eclipsed
+				// body keeps its full sunlit sheen, which a dark-adapted exposure
+				// amplifies into a solid white disc (measured: Mimas in Saturn's shadow).
+				// F0 scales as SPECULAR^2, so the square root carries the fraction onto
+				// specular energy.
+				SPECULAR *= sqrt(sun_visible);
 			} else {
 				AO = sun_visible;
 				AO_LIGHT_AFFECT = 1.0; // attenuates direct light, not just ambient
 			}
 		}
 
+		if (iv_display_encode >= 0.5) {
+			// The alpha blend runs on display-referred values, which dims a partially
+			// transparent sheet: alpha * enc(C) against the linear pipeline's enc(alpha * C),
+			// 0.84x over this ring's lit face. Restate the whole mix instead (display_mix),
+			// self-lighting on the engine's own convention -- the engine lights only the
+			// sunlit face (the unlit face is ambient alone), and the existing model-space
+			// side test says which this fragment is. The pedestal is 0.0 -- a CONSTANT, not
+			// an estimate of another shell's render (see display_mix's hazard note): the
+			// ring stands over empty sky almost everywhere, and where it crosses the disc
+			// the escalation case is pedestal-blind anyway.
+			// Lambert, not the engine's Burley: with the legacy Compatibility boost
+			// overrides retired, the end-to-end measurement puts a Lambert restatement at
+			// 0.99x of Forward+'s ring face and a Burley one at 1.23x -- at this
+			// near-equinox grazing incidence the engine's own shading sits close to
+			// Lambert here, whatever it does on a sphere.
+			float diffuse_factor = camera_model_elevation > 0.0
+					? max(dot(normalize(NORMAL), illumination_direction), 0.0) : 0.0;
+			vec3 ring_radiance = ALBEDO * (diffuse_factor * sun_light_energy) + EMISSION;
+			vec3 mix_color;
+			float mix_alpha;
+			display_mix(ring_radiance, ALPHA, vec3(0.0), mix_color, mix_alpha);
+			ALBEDO = vec3(0.0);
+			EMISSION = mix_color;
+			ALPHA = mix_alpha;
+		} else {
+			ALBEDO = display_write_albedo(ALBEDO);
+			EMISSION = display_write(EMISSION);
+		}
 	}
 }

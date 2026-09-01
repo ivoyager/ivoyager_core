@@ -74,18 +74,36 @@
 // a top-of-atmosphere map was re-referenced and it was retired: the choice belongs to how a map is built, and a knob
 // for it only let the convention be broken silently.
 //
-// A RECEIVING SURFACE OR CLOUD SHADER multiplies its direct light by
-// atm_sun_transmittance(mu0) in its photometry slot, after the disc law: the column
-// above that shell's own altitude along the sun ray, which is what turns the cloud deck
-// at the limb the colour of sunset. The limb shader calls atm_limb().
+// A RECEIVING SURFACE OR CLOUD SHADER multiplies its sunlight by
+// atm_sun_transmittance(mu0) in its photometry slot, after the disc law: the total
+// illumination reaching that shell's own altitude, direct beam plus diffuse sky, which is
+// what turns the cloud deck at the limb the colour of sunset and what keeps a surface
+// legible through a terminator its direct beam alone does not survive. It also composites
+// the air IN FRONT of itself, through atm_disc_air(); the limb shader calls atm_limb(),
+// which is the beyond-limb rays alone and discards the rest.
 //
-// THE COMPOSITING SPLIT. The limb shell composites with blend_premul_alpha: its colour is
-// the path radiance and its alpha is one minus the transmittance of what lies behind - but
-// alpha is one number and the transmittance is three, Rayleigh air letting red through
-// where it stops blue. So the limb's alpha carries the LUMA of the disc's transmittance,
-// and every shell beneath it multiplies in atm_view_tint(mu): the per-channel
-// transmittance of the column above ITS OWN altitude over that luma. The product is exact,
-// and it is also what keeps a cloud deck 10 km up from being dimmed by the air below it.
+// THE COMPOSITING SPLIT. A ray that meets the disc is composited by the DISC'S OWN
+// SHADERS, not by the limb shell: atm_disc_air() hands each of them the path radiance in
+// front of its fragment and the LUMA of the disc's view transmittance, which the shader
+// adds over and multiplies into everything it renders. Alpha is one number and the
+// transmittance is three, Rayleigh air letting red through where it stops blue — so the
+// luma carries the achromatic half and every shell multiplies in atm_view_tint(mu), the
+// per-channel transmittance of the column above ITS OWN altitude over that luma. The
+// product is exact, and it is also what keeps a cloud deck 10 km up from being dimmed by
+// the air below it. The limb shell used to draw the disc term and remove the luma through
+// its blend_premul_alpha — an identity only where the blend runs in linear light, and the
+// Compatibility renderer's blend is display-referred and clamped, which is the one
+// boundary _display.gdshaderinc cannot reach: a faint veil over a lit disc landed crushed
+// there. Summed inside the fragment the composite is exact on every renderer, and in
+// linear light it is algebraically the same frame — the path distributes through a deck's
+// alpha mix with weight alpha + (1 - alpha) = 1. Beyond the limb nothing stands behind
+// the ray but sky and stars, so the shell's premultiplied blend remains correct there —
+// and at the very silhouette the two owners hand off over a thin feathered band, because
+// no polygonal disc mesh covers its own mathematical silhouette (ATM_RIM_HANDOFF).
+//
+// THE COLOUR SPACE. Everything here is physical linear radiance and linear transmittance, and
+// it stays that way: converting to whatever the running renderer expects is the calling
+// shader's boundary, not this file's. See _display.gdshaderinc.
 
 // ---------------------------------------------------------------- the shared uniform interface
 
@@ -112,6 +130,12 @@ uniform float atm_layer_altitude_km = 0.0;        // its centre above the disc
 uniform float atm_layer_width_km = 10.0;          // its sigma
 uniform vec3 atm_layer_albedo = vec3(1.0);
 uniform float atm_layer_g = 0.3;
+// The twilight curve: what a shell is lit by once the plane-parallel beam has run out. Fitted
+// per body by limb_model.py --fit-skylight against its hemisphere integral; zero disables it.
+uniform vec3 atm_sky_flux = vec3(0.0);   // downwelling diffuse at the disc at mu0 = 0, / vacuum
+uniform vec3 atm_sky_slope = vec3(0.0);  // d ln(flux) / d mu0 there
+uniform vec3 atm_sky_bend = vec3(0.0);   // its curvature; NEGATIVE, which is what kills the
+                                         // term at high sun with no clamp
 uniform float atm_intensity = 1.0;  // nonphysical taste: radiance multiplier (gated, see header)
 uniform float atm_thickness = 1.0;  // nonphysical taste: altitude-scale multiplier (gated)
 global uniform float iv_limb_scale; // 1.0 = taste multipliers act; 0.0 = physical, they are 1.0
@@ -121,6 +145,18 @@ global uniform float iv_limb_scale; // 1.0 = taste multipliers act; 0.0 = physic
 const float ATM_PI = 3.14159265358979;
 // Scale heights over which the ring fades out at the shell's own edge; see atm_limb().
 const float ATM_EDGE_FADE = 3.0;
+// The disc-air handoff band, as a fraction of the disc radius inside the silhouette. The
+// disc's air is composited by the disc's own shaders (atm_disc_air) — except at the very
+// silhouette, where no disc fragment is guaranteed to exist: every mesh is a polyhedron
+// whose silhouette sits up to its facet sagitta INSIDE the true sphere (7.5e-5 R at the
+// stock 256 segments), and the surface, deck and limb meshes each interpolate their own
+// copy of the ray, so a hard partition at b = R leaves a dotted arc of pixels that no
+// branch owns (measured: ~270 per view, up to 77 codes dark). Over this band the veil
+// hands from the disc shaders to the limb shell by complementary smoothstep weights, so
+// the sum is exact wherever both draw and the shell alone covers the sliver the disc
+// meshes miss; the seam error is bounded by sagitta / band, ~1.5 % of the veil at stock
+// segments and still ~12 % for a project at 64.
+const float ATM_RIM_HANDOFF = 0.01;
 const float ATM_FAR_GATE_TAU = 30.0;  // chord extinction at which a ray's far half is dropped
 // Sigmas above a Gaussian layer's centre at which its column is treated as the exact zero it
 // rounds to (e^-32 of its tau): the early-out this feeds is what spares the layer machinery
@@ -128,6 +164,10 @@ const float ATM_FAR_GATE_TAU = 30.0;  // chord extinction at which a ray's far h
 const float ATM_LAYER_REACH = 8.0;
 const float ATM_PENUMBRA_FLOOR_KM = 1.0;  // the planet's shadow edge is never sharper than this
 const float ATM_INF = 1.0e30;
+// The conservative two-stream coefficient, 3/4, in T = 1 / (1 + k tau_scattered): the total
+// downward flux through a scattering column, direct plus diffuse, where exp(-tau) is the
+// direct beam alone. See atm_sun_transmittance().
+const float ATM_TWO_STREAM_K = 0.75;
 // Gauss-Legendre nodes and weights on (0, 1): six along a ray, three across a thin layer.
 const float ATM_GL6_T[6] = {0.0337652, 0.1693953, 0.3806904, 0.6193096, 0.8306047, 0.9662348};
 const float ATM_GL6_W[6] = {0.0856622, 0.1803808, 0.2339570, 0.2339570, 0.1803808, 0.0856622};
@@ -146,6 +186,16 @@ const float ATM_ABEL[37] = {
 	0.86004, 0.74559, 0.61574, 0.48322, 0.35964, 0.25346,
 	0.16892, 0.10636, 0.06322, 0.03544, 0.01873, 0.00933,
 	0.00438};
+
+// Whether this shell HAS an atmosphere: the geometry is fed and some layer carries optical
+// depth. IVShellsModel feeds body_radius_km to every shader shell, airless bodies included,
+// so the radius alone does not answer this; the taus do. The callers that must be a true
+// no-op on an airless body — atm_disc_air() and the per-vertex atm_far_floor() — gate on
+// it; the sampled-transmittance functions stay numerical no-ops as before.
+bool atm_present() {
+	return body_radius_km > 0.0
+			&& dot(atm_gas_tau + atm_haze_tau + atm_layer_tau, vec3(1.0)) > 0.0;
+}
 
 // ------------------------------------------------------------------- special functions
 
@@ -387,6 +437,18 @@ vec3 atm_exp_column(AtmLayers L, float R, float z, float mu) {
 vec3 atm_exp_column_beneath(AtmLayers L, float R, float z, float mu) {
 	return atm_exp_slant(R, z, L.H_g, mu, atm_gas_tau) + atm_haze_column(L, R, z, mu) * L.delta_h;
 }
+
+// The same column split into what is ABSORBED and what is SCATTERED, for the sun leg. The
+// split is exact and introduces no parameter, because 1 - omega g = (1 - omega) + omega (1 - g)
+// -- so the two pieces sum to the delta-scaled depth above, term for term. Rayleigh gas is
+// conservative (no albedo cell, omega = 1) and so is entirely the scattered half.
+void atm_exp_column_split(AtmLayers L, float R, float z, float mu, out vec3 absorbed,
+		out vec3 scattered) {
+	vec3 haze = atm_haze_column(L, R, z, mu);
+	absorbed = haze * (1.0 - atm_haze_albedo);
+	scattered = atm_exp_slant(R, z, L.H_g, mu, atm_gas_tau)
+			+ haze * (atm_haze_albedo * (1.0 - atm_haze_g));
+}
 vec3 atm_exp_scatter(AtmLayers L, float z) {
 	vec3 haze = L.z_k > 0.0 && z > L.z_k
 			? L.tau_t * (exp(-z / L.H_t) / L.H_t)
@@ -412,6 +474,9 @@ vec3 atm_exp_tangent_column(AtmLayers L, float R, float h) {
 // the limb shader evaluates it once per VERTEX (v_far_floor) -- the chord costs several
 // Chapman functions per call.
 float atm_far_floor() {
+	if (!atm_present()) {
+		return 0.0; // no atmosphere: spare the airless bodies the tangent columns per vertex
+	}
 	AtmLayers L = atm_layers(0.0);
 	float R = body_radius_km * surface_scale;
 	vec3 disc_chord = atm_exp_tangent_column(L, R, 0.0);
@@ -591,7 +656,18 @@ void atm_ring(AtmLayers L, float R, float h, float qs, float sz, float sun_ang,
 void atm_disc(AtmLayers L, float R, float mu, float mu0, float sz, float sun_ang,
 		float far_floor, out vec3 path, out vec3 transmittance) {
 	float b_ray = R * sqrt(max(1.0 - mu * mu, 0.0));
-	float h_v = b_ray - R; // the view ray's own tangent altitude, below the surface
+	// The view ray's own tangent altitude, below the surface -- as -R mu^2 / (1 + sqrt(1 - mu^2))
+	// and NEVER as b_ray - R, which is the difference of two planetary radii: in float32 that
+	// quantizes to ~0.5 m at Earth's and collapses to EXACTLY zero for a grazing ray. A zero
+	// tangent depth puts the last quadrature node on the ray's own tangent point, where
+	// atm_chord returns 0, the Jacobian (R + z) / chord is +inf, and inf times an extinction
+	// that has underflowed to zero is a NaN -- which reaches the HDR buffer and is not a local
+	// defect there, since the glow pass smears it into a bright blob with a black core. That
+	// is what flashed at a rotating body's lit-side silhouette, where the disc shaders sample
+	// mu from the MESH (a facet at the silhouette presents mu at or below zero) rather than
+	// from a ray-sphere intersection, which cannot. Same rule atm_chord itself follows, for
+	// the same reason: never difference two squares of order R.
+	float h_v = -R * mu * mu / (1.0 + sqrt(max(1.0 - mu * mu, 0.0)));
 	vec2 lit = atm_lit_interval(R, R * R * (1.0 - mu0 * mu0), R * mu0, sz, R * (mu - mu0 * sz),
 			max(1.0 - sz * sz, 1.0e-12));
 	float u_lo = lit.x;
@@ -676,6 +752,29 @@ void atm_disc(AtmLayers L, float R, float mu, float mu0, float sz, float sun_ang
 		}
 	}
 	transmittance = exp(-view_total);
+	// A FINITE GUARD, and the shipped answer to a defect that could not be cornered any
+	// closer than this. At grazing incidence this quadrature's intermediates span tens of
+	// orders of magnitude -- a Chapman column that clamps at e^60 against an extinction
+	// that underflows to exactly zero -- and their product is a NaN, measured reaching the
+	// frame from here at about one fragment per two dozen views, always at the silhouette
+	// and on the lit side. It cannot be attributed to a term, because it is SENSITIVE TO
+	// THE SURROUNDING COMPILATION: with isnan() reads on t, z, chord, weight, view, sun
+	// and shadow inside the loop it stops happening altogether, while this guard, reading
+	// the same values one scope out, catches it without suppressing it (both builds
+	// compile; the difference is reproducible on the same two poses). That is the same
+	// driver behaviour atm_present() was added for, one defect earlier, and what reaches
+	// the frame must not depend on it. A fragment falling back to no air in front of it is
+	// invisible in a field this smooth; a single NaN in the HDR buffer is not local at all,
+	// because the glow pass smears it into a bright blob with a black core -- which is what
+	// the four atmosphere bodies flashed at their lit-side silhouettes as they turned,
+	// under Forward+ ONLY, the display-referred path's own max(value, 0.0) having scrubbed
+	// it before it could bloom.
+	if (any(isnan(path)) || any(isinf(path))) {
+		path = vec3(0.0);
+	}
+	if (any(isnan(transmittance)) || any(isinf(transmittance))) {
+		transmittance = vec3(1.0);
+	}
 }
 
 // --------------------------------------------------------------------- the entry points
@@ -683,11 +782,17 @@ void atm_disc(AtmLayers L, float R, float mu, float mu0, float sz, float sun_ang
 // The limb shell's fragment: camera and fragment positions and the sun direction in the
 // shell's LOCAL frame (unit sphere = this shell), sun_ang the sun's angular radius, and
 // far_floor the vertex stage's atm_far_floor(). Returns the path radiance (I/F, taste
-// applied) and the transmittance of whatever lies behind.
+// applied) and the transmittance of whatever lies behind — for the beyond-limb rays that
+// are this shell's whole job, plus the shell's share of the disc-air handoff band
+// (ATM_RIM_HANDOFF, drawn as a pure add: the luma dimming is the disc shaders', in full).
+// A ray that meets the disc below the band sets disc_hit and returns nothing instead: its
+// air belongs to the disc's own shaders (atm_disc_air, and THE COMPOSITING SPLIT above),
+// so the caller discards rather than paying for a quadrature another fragment already ran.
 void atm_limb(vec3 camera_local, vec3 fragment_local, vec3 sun_local, float sun_ang,
-		float far_floor, out vec3 path, out vec3 transmittance) {
+		float far_floor, out vec3 path, out vec3 transmittance, out bool disc_hit) {
 	path = vec3(0.0);
 	transmittance = vec3(1.0);
+	disc_hit = false;
 	if (body_radius_km <= 0.0) {
 		return;
 	}
@@ -699,35 +804,44 @@ void atm_limb(vec3 camera_local, vec3 fragment_local, vec3 sun_local, float sun_
 	vec3 d = normalize(p - c);                    // the view ray, camera -> fragment
 	vec3 e = -d;
 	float sz = dot(e, sun_local);
-	AtmLayers L = atm_layers(-sz);               // cos(theta) = dot(s, d)
 	float tc = -dot(c, d);
 	vec3 q = c + tc * d;                          // closest approach to the centre
 	float b = length(q);
-	if (b >= R) {
-		float h = b - R;
-		float qs = dot(q / b, sun_local);
-		atm_ring(L, R, h, qs, sz, sun_ang, path, transmittance);
-		// The shell is where the MODEL stops, not where the atmosphere does - a ray tangent
-		// above it gets no fragment at all. Its scale is chosen (see tables/README.md) so
-		// that what is left up there is under half a display code, which makes this a no-op;
-		// but the camera can sit 20 EV over the limb while dark-adapted against a crescent,
-		// and then the shell's own silhouette is a hard white edge against the sky. Taking
-		// the last few scale heights smoothly to nothing makes the boundary a ramp at every
-		// exposure, at the cost of some of the faintest real signal. It is a rendering
-		// boundary condition and not part of the model, so limb_model.py's closed_form does
-		// not carry it (its --verify compares the physics).
-		float fade = smoothstep(0.0, ATM_EDGE_FADE * L.H_ref, h_top - h);
-		path *= fade;
-		transmittance = mix(vec3(1.0), transmittance, fade);
-	} else {
-		// The hit point on the near side of the disc.
+	if (b < R) {
+		float w_shell = smoothstep(R * (1.0 - ATM_RIM_HANDOFF), R, b);
+		if (w_shell <= 0.0) {
+			disc_hit = true;
+			return;
+		}
+		// The shell's share of the handoff band (see ATM_RIM_HANDOFF): the sliver at the
+		// silhouette that the polygonal disc meshes fail to cover gets its air from here.
+		AtmLayers L_disc = atm_layers(-sz);
 		float half_chord = sqrt(max(R * R - b * b, 0.0));
 		vec3 hit = q - half_chord * d;
 		vec3 n = hit / R;
 		float mu = dot(n, e);
 		float mu0 = dot(n, sun_local);
-		atm_disc(L, R, mu, mu0, sz, sun_ang, far_floor, path, transmittance);
+		vec3 disc_transmittance;
+		atm_disc(L_disc, R, mu, mu0, sz, sun_ang, far_floor, path, disc_transmittance);
+		path *= w_shell * mix(1.0, atm_intensity, iv_limb_scale);
+		return;
 	}
+	AtmLayers L = atm_layers(-sz);               // cos(theta) = dot(s, d)
+	float h = b - R;
+	float qs = dot(q / b, sun_local);
+	atm_ring(L, R, h, qs, sz, sun_ang, path, transmittance);
+	// The shell is where the MODEL stops, not where the atmosphere does - a ray tangent
+	// above it gets no fragment at all. Its scale is chosen (see tables/README.md) so
+	// that what is left up there is under half a display code, which makes this a no-op;
+	// but the camera can sit 20 EV over the limb while dark-adapted against a crescent,
+	// and then the shell's own silhouette is a hard white edge against the sky. Taking
+	// the last few scale heights smoothly to nothing makes the boundary a ramp at every
+	// exposure, at the cost of some of the faintest real signal. It is a rendering
+	// boundary condition and not part of the model, so limb_model.py's closed_form does
+	// not carry it (its --verify compares the physics).
+	float fade = smoothstep(0.0, ATM_EDGE_FADE * L.H_ref, h_top - h);
+	path *= fade;
+	transmittance = mix(vec3(1.0), transmittance, fade);
 	path *= mix(1.0, atm_intensity, iv_limb_scale);
 }
 
@@ -735,7 +849,7 @@ void atm_limb(vec3 camera_local, vec3 fragment_local, vec3 sun_local, float sun_
 // cosine mu (so the ray's tangent altitude is the disc's, below the surface).
 vec3 atm_view_transmittance(AtmLayers L, float R, float z, float mu) {
 	float b_ray = R * sqrt(max(1.0 - mu * mu, 0.0));
-	float h_v = b_ray - R;
+	float h_v = -R * mu * mu / (1.0 + sqrt(max(1.0 - mu * mu, 0.0))); // see atm_disc: never b_ray - R
 	// the ray's zenith cosine at altitude z, from its impact parameter
 	float mu_z = sqrt(max(1.0 - b_ray * b_ray / ((R + z) * (R + z)), 0.0));
 	vec3 column = atm_exp_column_beneath(L, R, z, mu_z);
@@ -749,28 +863,205 @@ float atm_luma(vec3 c) {
 	return dot(c, vec3(0.2126, 0.7152, 0.0722));
 }
 
-// What a surface or cloud shell multiplies its direct light by: the transmittance of the
-// column above this shell's own altitude along the sun ray, windowed like the disc branch.
-// mu0 and mu are the fragment's sun and view cosines on the macroscopic normal. A sun below
-// the horizon needs no branch: the engine's own N.L has already removed its light.
+// The disc branch, for the shells that ARE the disc's stack (see THE COMPOSITING SPLIT):
+// the air in front of a surface, band or cloud fragment, composited by that fragment
+// itself. Returns the path radiance of the ray from the camera to the disc (I/F, taste
+// applied — the veil over the lit disc, the twilight glow past the terminator, and the
+// far half of a ray whose disc is an optical limb) and the LUMA of the disc's view
+// transmittance. The caller ADDS the path over everything it renders and MULTIPLIES the
+// luma into all of it — lit albedo, every emission term, and the specular lobe as its
+// square root — with atm_view_tint() still carrying the chromatic complement.
+//
+// Inputs are in the calling shell's LOCAL frame, as for atm_limb(), and far_floor is the
+// vertex stage's atm_far_floor(). A shell above the disc (a cloud deck) traces its
+// fragment's ray down to the disc; where that ray misses the disc entirely — a deck
+// fragment past the disc's silhouette — this returns the no-op and the limb shell's ring
+// branch covers the ray as it always did. The path fades out over the last
+// ATM_RIM_HANDOFF of the disc's radius, where the limb shell draws the complement — see
+// the constant for why a hard partition cannot work there. The luma is NOT feathered:
+// it dims this fragment's own content, which needs no second owner.
+void atm_disc_air(vec3 camera_local, vec3 fragment_local, vec3 sun_local, float sun_ang,
+		float far_floor, out vec3 path, out float behind_luma) {
+	path = vec3(0.0);
+	behind_luma = 1.0;
+	// Gated on the atmosphere EXISTING (atm_present), not only on the geometry being fed:
+	// an airless body's "no-op" was otherwise merely numerical — a full six-node quadrature
+	// per fragment multiplying everything by a tau of zero. That is a cost with no output
+	// on every airless body, and driver arithmetic on its extreme zero-tau intermediates
+	// was observed emitting garbage (bright glow-bloomed beads along Saturn's silhouette in
+	// the rings view, sensitive to the surrounding compilation). No evaluation, no beads.
+	if (!atm_present()) {
+		return;
+	}
+	float k = body_radius_km * shell_scale;       // km per local unit
+	float R = body_radius_km * surface_scale;     // the disc, km
+	vec3 c = camera_local * k;
+	vec3 p = fragment_local * k;
+	vec3 d = normalize(p - c);                    // the view ray, camera -> fragment
+	vec3 e = -d;
+	float sz = dot(e, sun_local);
+	vec3 n;
+	float b_ray;
+	if (shell_scale > surface_scale) {
+		// A shell above the disc: continue the ray to the disc's near side, or miss.
+		float tc = -dot(c, d);
+		vec3 q = c + tc * d;
+		b_ray = length(q);
+		if (b_ray >= R) {
+			return;
+		}
+		n = (q - sqrt(max(R * R - b_ray * b_ray, 0.0)) * d) / R;
+	} else {
+		// This fragment IS the disc: its own direction is the hit normal, better
+		// conditioned at the silhouette than re-intersecting its ray with the sphere.
+		n = normalize(fragment_local);
+	}
+	float mu = dot(n, e);
+	float mu0 = dot(n, sun_local);
+	if (shell_scale <= surface_scale) {
+		b_ray = R * sqrt(max(1.0 - mu * mu, 0.0));
+	}
+	// The handoff fade, decided BEFORE the quadrature runs. Where it is zero the shell owns
+	// the air outright and this fragment's own answer is multiplied away -- so evaluating it
+	// is pure cost, and worse than free: that is exactly the tangent ray (mu -> 0, b_ray -> R),
+	// whose h_v = b_ray - R is the cancellation-limited difference of two planetary radii,
+	// quantized in float32 to ~5e-4 km at Earth's. A NaN out of that degenerate evaluation
+	// survives `NaN * 0.0` and reaches the frame, and an HDR NaN is not a local defect: the
+	// glow pass smears it into a bright blob with a black core, which is what a rotating body
+	// flashed at its lit-side silhouette. Skipping is exact for every finite path -- the
+	// factor really is zero -- and removes the degenerate ray entirely.
+	float rim_fade = 1.0 - smoothstep(R * (1.0 - ATM_RIM_HANDOFF), R, b_ray);
+	if (rim_fade <= 0.0) {
+		return;
+	}
+	AtmLayers L = atm_layers(-sz);                // cos(theta) = dot(s, d)
+	vec3 transmittance;
+	atm_disc(L, R, mu, mu0, sz, sun_ang, far_floor, path, transmittance);
+	path *= rim_fade * mix(1.0, atm_intensity, iv_limb_scale);
+	behind_luma = atm_luma(transmittance);
+}
+
+// What a surface or cloud shell multiplies its sunlight by: the TOTAL illumination reaching
+// this shell's own altitude relative to vacuum, direct beam plus diffuse sky. mu0 is the
+// fragment's sun cosine on the macroscopic normal. A sun below the horizon needs no branch:
+// the engine's own N.L has already removed its light.
+//
+// NOT exp(-column). Absorbed light is gone and takes the exponential; SCATTERED light is not
+// -- roughly a quarter of it arrives anyway, off the sky, and is what lets you see the ground
+// at sunset. exp() throws all of it away, and the error is unbounded as the column grows: at
+// Earth's terminator the direct beam alone is 7.4e-4 of vacuum in green, which is why the
+// surface and the cloud deck both vanished there and left the atmosphere's own glow standing
+// in a band with nothing in it, while thin-aired Mars stayed legible to the last code.
+// 1 / (1 + k tau) is the conservative two-stream result for the total downward flux, exact in
+// the diffusion limit and a standard interpolation elsewhere; against real sky-plus-sun
+// illuminance it is right to a few percent from noon down to a solar zenith of 87 degrees.
+// It is the same kind of stand-in as the delta-scaling above and deliberately shares its
+// depth: what the two-stream returns is precisely the half of `1 - omega g` that is scattered.
+//
+// The VIEW leg keeps exp() and must -- see atm_view_transmittance. Light scattered out of a
+// view ray is not lost from the model, it is the path radiance, and that is added separately.
+// Nothing adds the light scattered out of the SUN leg, so this is where it belongs.
+vec3 atm_sun_transmittance_at(AtmLayers L, float R, float z, float mu0) {
+	float up = max(mu0, 0.0);
+	vec3 absorbed;
+	vec3 scattered;
+	atm_exp_column_split(L, R, z, up, absorbed, scattered);
+	if (L.has_layer) {
+		vec3 layer = atm_shell_ray_column(L, R, z, up);
+		absorbed += layer * (1.0 - atm_layer_albedo);
+		scattered += layer * (atm_layer_albedo * (1.0 - atm_layer_g));
+	}
+	return exp(-absorbed) / (1.0 + ATM_TWO_STREAM_K * scattered);
+}
+
 vec3 atm_sun_transmittance(float mu0) {
 	if (body_radius_km <= 0.0) {
 		return vec3(1.0);
 	}
-	AtmLayers L = atm_layers(0.0);
 	float R = body_radius_km * surface_scale;
 	float z = max((shell_scale - surface_scale) * body_radius_km, 0.0);
-	float up = max(mu0, 0.0);
-	vec3 column = atm_exp_column_beneath(L, R, z, up);
-	if (L.has_layer) {
-		column += atm_shell_ray_column(L, R, z, up) * L.delta_l;
+	return atm_sun_transmittance_at(atm_layers(0.0), R, z, mu0);
+}
+
+// The twilight a shell must ADD to what the engine already gives it, as emission.
+//
+// Everything above is plane-parallel on the sun leg: flux entering the column goes as mu0, so
+// illumination is pinned to zero at the geometric terminator, with a CORNER. On a sphere it is
+// not. The air above a point at mu0 = 0 is still fully lit -- the terminator at altitude z
+// stands sunward of the one on the ground -- and it shines down. Nothing here or in the engine
+// puts that light anywhere, so a surface and a cloud deck both stop dead at the same line while
+// the atmosphere's own glow renders on past it, which is the band with nothing in it. Measured
+// against the hemisphere integral, real ground at the terminator gets 0.7 % of full sun, and
+// the decay past it has no feature at mu0 = 0 at all: the sky does not know where the ground's
+// terminator is.
+//
+// The engine hands a shell albedo x max(mu0, 0) x atm_sun_transmittance and nothing below the
+// horizon. The target is direct + max(plane-parallel diffuse, twilight), so what is missing is
+// max(twilight - plane-parallel diffuse, 0) and nothing else: the beam and the day-side diffuse
+// cancel term for term, which is why the DAY SIDE CANNOT MOVE. The subtraction is not a fudge
+// -- atm_sun_transmittance is a TOTAL, direct plus diffuse, so adding a twilight curve on top
+// of it would count the diffuse twice.
+//
+// Evaluated at the DISC for every shell, not at the shell's own altitude. A deck a few km up
+// really does see a little more (Earth's measures 1.19x at the terminator, and stays lit 3.2 deg
+// longer), but one illumination for all of them is what makes surface and cloud fade TOGETHER;
+// give the deck its own and the two part company at the very place the wall was. What the deck
+// legitimately keeps beyond this is its direct beam, which is a separate term and not this one.
+// The twilight curve alone, from the atm_sky_* cells, HELD at its own vertex. The reference
+// is monotone in mu0 -- the sky only brightens as the sun rises -- and a downward parabola is
+// not, so past its vertex the raw fit falls where the truth climbs. The cells are fitted so
+// that vertex lies beyond the crossover, so nothing is clamped where the term acts; what the
+// hold buys is the day side, released because the plane-parallel diffuse overtakes a CONSTANT
+// and stays past it rather than because the parabola decayed fast enough.
+vec3 atm_sky_illumination(float mu0) {
+	if (body_radius_km <= 0.0 || atm_sky_flux == vec3(0.0)) {
+		return vec3(0.0);
 	}
-	return exp(-column);
+	vec3 held = min(vec3(mu0), atm_sky_slope / (-2.0 * atm_sky_bend));
+	return atm_sky_flux * exp(held * (atm_sky_slope + held * atm_sky_bend));
+}
+
+// The DIFFUSE half of what the disc already receives from the plane-parallel two-stream: the
+// total less the beam. Absorbed light is gone and takes the exponential; scattered light
+// largely is not -- roughly a quarter of it arrives anyway, off the sky, and is what lets you
+// see the ground at sunset. Evaluated at the disc for every shell, as the twilight is.
+vec3 atm_plane_diffuse(float mu0) {
+	if (body_radius_km <= 0.0) {
+		return vec3(0.0);
+	}
+	AtmLayers L = atm_layers(0.0);
+	float R = body_radius_km * surface_scale;
+	float up = max(mu0, 0.0);
+	vec3 beam = atm_exp_column(L, R, 0.0, up);
+	if (L.has_layer) {
+		beam += atm_shell_ray_column(L, R, 0.0, up);
+	}
+	return up * max(atm_sun_transmittance_at(L, R, 0.0, up) - exp(-beam), vec3(0.0));
+}
+
+// What a shell adds as EMISSION over what the engine already gives it. The engine hands it
+// `beam_response * (direct + plane_diffuse)`, so the plane-parallel diffuse has ALREADY been
+// delivered -- through the BEAM factor, which is the wrong response for it but is what was
+// applied. Subtract what was actually delivered, `beam_response * plane_diffuse`, not the
+// unfactored quantity.
+//
+// SUBTRACTING THE UNFACTORED ONE LEAVES A NOTCH THAT CLOSES AT THE TERMINATOR, AND THE
+// PROFILE SPRINGS BACK UP AS IT DOES. Expanded, that mistake renders
+// `beam*direct + iso*sky - plane*(iso - beam)`, whose last term is a spurious dip that
+// vanishes as beam -> iso*0 at mu0 = 0: on Venus it put a local MAXIMUM in the last 1.2 deg
+// before the terminator -- a narrow lighter band, carrying the surface's own chromaticity
+// because that is exactly what it is. With the delivered quantity subtracted the sum is
+// `beam*direct + iso*sky` wherever the term acts, both terms monotone in mu0, and the profile
+// cannot bump. Note the engagement locus is independent of the view angle: iso and the beam
+// factor share the same mu^(k-1), which cancels, so it runs parallel to the terminator.
+vec3 atm_sky_excess(float mu0, float sky_response, float beam_response) {
+	return max(sky_response * atm_sky_illumination(mu0)
+			- beam_response * atm_plane_diffuse(mu0), vec3(0.0));
 }
 
 // The chromatic half of the view-path extinction, for a surface or cloud shell beneath the
 // limb (see THE COMPOSITING SPLIT): the windowed transmittance of the column above this
-// shell's own altitude over the luma of the disc's, which is what the limb's alpha removes.
+// shell's own altitude over the luma of the disc's, which is what atm_disc_air() removes.
 vec3 atm_view_tint(float mu) {
 	if (body_radius_km <= 0.0) {
 		return vec3(1.0);

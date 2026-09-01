@@ -22,29 +22,34 @@ shader_type spatial;
 // (1 - ALPHA); see below. skip_vertex_transform: the farwarp vertex remap.
 render_mode blend_premul_alpha, ambient_light_disabled, shadows_disabled, skip_vertex_transform;
 
-// A body's atmosphere, drawn on an IVShellsModel overlay shell that encloses it (Earth's at
-// scale 1.02, Titan's at 1.20). Name it in the shell's shells.tsv "shader" column; the row's
-// atm_* columns are the atmosphere (see _atmosphere.gdshaderinc for every one of them and
-// for the model), and IVShellsModel propagates them to the body's surface and cloud shells,
-// which take their sunlight through the same air.
+// A body's atmosphere BEYOND ITS LIMB, drawn on an IVShellsModel overlay shell that
+// encloses it (Earth's at scale 1.035, Titan's at 1.415). Name it in the shell's shells.tsv
+// "shader" column; the row's atm_* columns are the atmosphere (see _atmosphere.gdshaderinc
+// for every one of them and for the model), and IVShellsModel propagates them to the body's
+// surface and cloud shells, which take their sunlight through the same air and composite
+// the air in front of themselves (atm_disc_air).
 //
-// WHAT IT DRAWS. Single scattering of sunlight along the view ray through the atmosphere:
-// the thin bright band beyond the limb (Earth's blue band from orbit, Titan's stacked haze
-// shells), the veil in front of the disc that fades it toward the edge, the twilight
-// stratification where the sun's grazing light reddens, the forward-scattered ring and the
-// cusps that reach round a backlit crescent. All from one integral and one set of physical
-// parameters; nothing is a phase-function pastiche. Its output is I/F, so it rides the
-// sun's light_energy exactly like the surface beneath it, exposure and all, and meters
-// with it (IVExposureManager's limb candidate).
+// WHAT IT DRAWS. Single scattering of sunlight along the view rays that MISS the disc: the
+// thin bright band beyond the limb (Earth's blue band from orbit, Titan's stacked haze
+// shells), the forward-scattered ring and the cusps that reach round a backlit crescent.
+// The rays that MEET the disc — the veil that fades it toward the edge, the twilight
+// stratification where the sun's grazing light reddens — are composited by the disc's own
+// shaders instead (THE COMPOSITING SPLIT in the include): this shader draws only its share
+// of the thin handoff band at the silhouette (ATM_RIM_HANDOFF) and discards below it.
+// All from one integral and one set of physical parameters; nothing is a phase-function
+// pastiche. Its output is I/F, so it rides the sun's light_energy exactly like the surface
+// beneath it, exposure and all, and meters with it (IVExposureManager's limb candidate).
 //
 // HOW IT COMPOSITES. Per fragment the include returns the path radiance and the
 // transmittance of whatever lies behind the ray. With blend_premul_alpha the engine forms
 // src.rgb + dst.rgb * (1 - src.a), so ALBEDO is the radiance as-is and ALPHA is one minus
-// the transmittance's luma; the chromatic part of that transmittance is applied by the
-// surface and cloud shaders themselves (atm_view_tint), which is exact and lets a cloud
-// deck escape the air below it. Where the air is thin, alpha is ~0 and nothing darkens.
-// The shell renders its front faces only, so every pixel gets exactly one fragment whose
-// whole ray - both halves of a beyond-limb ray - the include integrates.
+// the transmittance's luma. On the display-referred renderer the fragment self-lights and
+// writes the finished value instead (see fragment()): behind a beyond-limb ray stand only
+// the sky and the stars, so the pedestal is the provable constant 0 and the restatement
+// needs no estimate of anything — the rings shell's pattern, simpler here because a
+// premultiplied fragment's colour IS its whole term. Where the air is thin, alpha is ~0
+// and nothing darkens. The shell renders its front faces only, so every pixel gets exactly
+// one fragment whose whole ray - both halves - the include integrates.
 //
 // LIGHTING. A custom light() adds LIGHT_COLOR * ATTENUATION / PI; the engine multiplies by
 // ALBEDO afterwards, and LIGHT_COLOR carries a factor PI, so the rendered value is
@@ -56,14 +61,27 @@ render_mode blend_premul_alpha, ambient_light_disabled, shadows_disabled, skip_v
 // atm_thickness act as by-eye multipliers; the iv_limb_scale global (1.0 then, 0.0 under
 // physical light) gates them to exactly 1.0 while the physical model runs.
 
+#include "_display.gdshaderinc"
 #include "_farwarp.gdshaderinc"
 #include "_sun_occlusion.gdshaderinc"
 #include "_atmosphere.gdshaderinc"
+#include "_point_spread_function.gdshaderinc" // body_pixel_radius / body_disc_weight (the handoff)
 
 varying vec3 model_position; // unit-sphere local position (captured before farwarp overwrites VERTEX)
 varying vec3 v_camera_local; // the camera in this shell's local frame; the same at every vertex
 varying vec3 v_sun_local;    // the sun direction in that frame, unit; the same at every vertex
 varying flat float v_far_floor; // atm_far_floor() is uniform-only: per vertex, not per fragment
+varying flat float v_disc_weight; // disc/point crossfade; 1 resolved, 0 fully handed off
+
+// Disc/point handoff, set each frame by IVShellsModel's disc LOD from IVBody.psf_handoff.
+// Every shell of a body fades together, on the body's mean radius rather than this shell's
+// scaled one: an overlay left drawn over a handed-off point would be the whole body's
+// silhouette in cloud. The defaults saturate the ramp fully ON, so a body with no
+// IVBodyPSF renders exactly as it did before this existed.
+uniform float angular_radius = 0.0; // body mean radius / camera distance
+uniform float handoff_low = -2.0;   // px on-screen radius at/below which the quad replaces this
+uniform float handoff_high = -1.0;  // px at/above which this shell fully replaces the quad's core
+
 
 
 void vertex() {
@@ -76,16 +94,45 @@ void vertex() {
 	v_sun_local = normalize(mat3(inverse_model) * sun_direction);
 	v_far_floor = atm_far_floor();
 	farwarp_lit_vertex(MODELVIEW_MATRIX, MODELVIEW_NORMAL_MATRIX, VERTEX, NORMAL);
+	v_disc_weight = body_disc_weight(body_pixel_radius(angular_radius,
+			PROJECTION_MATRIX[1][1], VIEWPORT_SIZE.y), handoff_low, handoff_high);
 }
 
 
 void fragment() {
 	vec3 path;
 	vec3 transmittance;
+	bool disc_hit;
 	atm_limb(v_camera_local, model_position, normalize(v_sun_local), sun_angular_radius,
-			v_far_floor, path, transmittance);
-	ALBEDO = path;
+			v_far_floor, path, transmittance, disc_hit);
+	if (disc_hit) {
+		// The air in front of the disc is the disc shaders' own term (atm_disc_air);
+		// drawing it here too would count it twice.
+		discard;
+	}
+	if (iv_display_encode >= 0.5) {
+		// The display-referred renderer would hand a linear radiance to its own
+		// conversion and crush it hardest where faintest — the ring measured 0.03–0.22
+		// of Forward+, effectively absent. So self-light and give the blend the finished
+		// value, the rings shell's restatement: with blend_premul_alpha the fragment's
+		// colour is the whole premultiplied term, so display_write() alone restates it
+		// and no display_mix pair is needed. The pedestal is 0 — a CONSTANT, not an
+		// estimate (see display_mix's hazard note): a beyond-limb ray stands over empty
+		// sky and the stars, and the handoff band's few silhouette pixels ride the same
+		// restatement over the disc, where an encoded add is approximate either way.
+		// sun_light_energy is the same self-light every emission-slot sunlight term and
+		// the rings ride; ALBEDO 0 keeps the engine's own light multiply out of it.
+		EMISSION = display_write(path * sun_light_energy);
+		ALBEDO = vec3(0.0);
+	} else {
+		ALBEDO = path;
+	}
 	ALPHA = clamp(1.0 - atm_luma(transmittance), 0.0, 1.0);
+	// blend_premul_alpha: the colour IS the premultiplied term, so it scales with the alpha.
+	// Fading alpha alone would leave the limb glow at full strength over a handed-off point.
+	ALBEDO *= v_disc_weight;
+	EMISSION *= v_disc_weight;
+	ALPHA *= v_disc_weight;
 	ROUGHNESS = 1.0;
 	METALLIC = 0.0;
 	SPECULAR = 0.0;

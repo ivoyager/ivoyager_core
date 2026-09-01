@@ -114,9 +114,6 @@ func _ready() -> void:
 	_rings_material.set_shader_parameter(&"outer_margin", _outer_margin)
 	set_surface_override_material(0, _rings_material)
 	
-	if IVGlobal.is_gl_compatibility:
-		_rings_material.set_shader_parameter(&"litside_phase_boost", 1.25)
-		_rings_material.set_shader_parameter(&"unlitside_phase_boost", 1.5)
 
 
 func _process(_delta: float) -> void:

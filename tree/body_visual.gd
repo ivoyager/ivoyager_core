@@ -161,11 +161,7 @@ func _build_packed_model(asset_preloader: IVAssetPreloader, packed_model: Packed
 	reference_basis = get_packed_model_reference_basis(model_scale)
 	_model = packed_model.instantiate()
 	_model.basis = reference_basis
-	# The disable_auto_visual_range flag opts a packed scene out entirely, preserving any
-	# visibility values authored in the .glb/.tscn.
-	var disable_auto_visual_range := asset_preloader.get_body_disable_auto_visual_range(_body_name)
-	if not disable_auto_visual_range:
-		_set_visibility_ranges()
+	_set_visibility_ranges()
 	_set_layers()
 
 
@@ -207,20 +203,20 @@ func _build_shells_model(asset_preloader: IVAssetPreloader) -> void:
 # to set their visibility ranges and layers. Shells models self-configure (see
 # [IVShellsModel]).
 func _set_visibility_ranges() -> void:
-	# Sun-mode (is_sun) manages the disc's visibility itself (pixel-radius fade), so skip the
-	# fixed distance cull, matching the shells-model self-config path. Shell 0's spec exists
-	# for every body, packed-scene ones included, so it answers here too.
-	var asset_preloader: IVAssetPreloader = IVGlobal.program[&"AssetPreloader"]
-	var surface_spec: Dictionary = asset_preloader.get_body_shell_specs(_body_name)[0]
-	if surface_spec[&"is_sun"]:
-		return # is_sun disc self-culls; default 0.0 is no distance cull
+	# A body with an [IVBodyPSF] manages its own visibility (the pixel-radius fade to its
+	# PSF quad), so skip the fixed distance cull, matching the shells-model self-config path.
+	var body: IVBody = IVBody.bodies.get(_body_name)
+	if IVBodyPSF.is_applicable(body):
+		return # the disc self-culls at its handoff; default 0.0 is no distance cull
 	var visibility_range_end := _m_radius * IVCoreSettings.radius_multiplier_visibility_range_end
 	_set_visibility_ranges_recursive(_model, visibility_range_end)
 
 
 func _set_visibility_ranges_recursive(node3d: Node3D, visibility_range_end: float) -> void:
 	var geometry := node3d as GeometryInstance3D
-	if geometry:
+	# A packed scene may author its own cull distance; 0.0 is the engine's "unset" and so the
+	# only case we have anything to say about.
+	if geometry and geometry.visibility_range_end == 0.0:
 		geometry.visibility_range_end = visibility_range_end
 	for child in node3d.get_children():
 		var child_node3d := child as Node3D

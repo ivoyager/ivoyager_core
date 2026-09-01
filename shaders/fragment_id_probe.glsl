@@ -20,10 +20,14 @@
 
 // Compute shader paired with IVFragmentIDCompositorEffect.
 // Iterates a sparse 3-pixel grid around probe_pixel in the resolved scene HDR
-// color buffer (RGBA16F linear, pre-tonemap). For each sample, decodes the
-// rounded RGB to ivec3. Channels in [1, 2048] are valid encoded ids
-// (offset-by-1 sentinel); any zero rejects the sample. Writes the closest
-// valid sample to the SSBO; (0, 0, 0) means no valid id was found.
+// color buffer (RGBA16F linear, pre-tonemap). Each sample is lifted out of the
+// broadcast band and rounded to ivec3; channels in [1, 1024] are valid encoded
+// ids (offset-by-1 sentinel), and anything outside rejects the sample. Writes
+// the closest valid sample to the SSBO; (0, 0, 0) means no valid id was found.
+//
+// The band constants invert id_broadcast() in _fragment_id.gdshaderinc, which
+// documents why an id is carried in [0.5, 1.0] rather than as a raw magnitude.
+// Nothing shares them across the two pipelines, so they must be edited in step.
 
 #[compute]
 #version 450
@@ -55,10 +59,15 @@ void main() {
 				continue;
 			}
 			vec4 c = texelFetch(color_tex, px, 0);
-			ivec3 v = ivec3(round(c.rgb));
-			if (any(lessThan(v, ivec3(1))) || any(greaterThan(v, ivec3(2048)))) {
+			// Tested before the int conversion, and as an inside-the-band test rather
+			// than its negation, so a NaN or a huge scene radiance rejects here instead
+			// of reaching ivec3().
+			vec3 channels = c.rgb * 2048.0 - 1024.0;
+			if (!all(greaterThanEqual(channels, vec3(0.5)))
+					|| !all(lessThanEqual(channels, vec3(1024.5)))) {
 				continue;
 			}
+			ivec3 v = ivec3(round(channels));
 			int d = dx * dx + dy * dy;
 			if (d < best_dist) {
 				best_dist = d;
