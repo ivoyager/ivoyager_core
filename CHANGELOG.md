@@ -11,7 +11,7 @@ See cloning and downloading instructions [here](https://www.ivoyager.dev/develop
 
 Under development using Godot 4.7.2.
 
-Requires ivoyager_assets v0.2.1.dev.20260826. The Core plugin editor will offer to download this for you.
+Requires ivoyager_assets v0.2.1.dev.20260901. The Core plugin editor will offer to download this for you.
 
 **Project Notes:**
 1. Physical light is opt-in: set `IVCoreSettings.enable_physical_light = true` to instantiate the system and surface its "Physical Light" user Option (user can toggle it on/off at runtime). It requires `dynamic_lights`.
@@ -33,7 +33,7 @@ Requires ivoyager_assets v0.2.1.dev.20260826. The Core plugin editor will offer 
 * Two design documents. [PHOTOMETRIC_MODEL.md](PHOTOMETRIC_MODEL.md) is the logic and science of the physical light system: the one-anchor calibration chain, the compensating camera, surface/shell/ring/star/background handling, renderer parity and the settings. [VISUAL_MODEL.md](VISUAL_MODEL.md) is its spatial companion: how a double-precision simulation renders through a float32 pipeline (parenting cancellation, origin shifting, farwarp compression, the ~2^24 near:far ceiling), the shadow systems, culling and lifecycle, orbit-line tiers, point fields and mouse picking. Each carries its own TODO list.
 
 ### Changed
-* Updated asset download pointer to v0.2.1.dev.20260826.
+* Updated asset download pointer to v0.2.1.dev.20260901.
 * [Project breaking] New shader globals `iv_exposure`, `iv_emission_energy_scale`, `iv_emission_luminance_scale`, `iv_limb_scale` and `iv_display_encode`, which the Core editor plugin writes into your project.godot from ivoyager_core.cfg on editor load. Core shaders require these with or without physical light; the default values tell a shader that physical light is inactive.
 * [API breaking] IVStarSettings is renamed IVPSFSettings (`program/psf_settings.gd`, `IVGlobal.program` key `PSFSettings`), and IVStarsVisual's "Star Appearance" export group is now "Point Spread Function". No member, method or signal changed name. The class was never star-specific: it is the camera every source images through, and it now has a second consumer in every body's PSF quad.
 * [Project breaking] An "id" shader must write its fragment id through the new `id_broadcast()` in `shaders/_fragment_id.gdshaderinc` rather than assigning the encoded vector to ALBEDO raw, and an id is 30 bits rather than 33. A raw broadcast writes values far above the glow threshold into the buffer the glow pass reads, which blooms a blob at the cursor; `id_broadcast()` carries each channel in [0.5, 1.0] instead, at a cost of one bit per channel. A project that only calls `IVFragmentIdentifier.get_new_id()` / `get_new_id_as_vec3()` needs no change.
