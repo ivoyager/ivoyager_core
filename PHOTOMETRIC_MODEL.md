@@ -3,7 +3,12 @@
 This document describes how I, Voyager renders physically calibrated light: what the
 numbers mean, where they come from, and which classes, shaders and settings carry them.
 It is about the logic and the science; implementation detail lives in the class and
-shader docs.
+shader docs. It has two siblings. [VISUAL_MODEL.md](VISUAL_MODEL.md) covers where
+everything is drawn and how big, what stands between it and the light, and how the mouse
+finds it; a system with both a photometric and a spatial face (rings, the sun, the star
+field) appears in both documents, split by concern and cross-referenced.
+[PHYSICAL_MODEL.md](PHYSICAL_MODEL.md) is the objective simulation underneath both —
+bodies, orbits, rotation, time and scale — which light physics reads and never modifies.
 
 ## Overview
 

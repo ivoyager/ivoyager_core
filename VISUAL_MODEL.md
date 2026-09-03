@@ -4,11 +4,14 @@ This document describes how I, Voyager places, scales, culls, shadows and picks 
 camera sees: the machinery that turns a double-precision simulation spanning some fifteen
 orders of magnitude into a scene a float32 render pipeline can draw without shakes,
 missing geometry or absurd shadows. It is about the logic and the invariants;
-implementation detail lives in the class and shader docs. Its sibling
-[PHOTOMETRIC_MODEL.md](PHOTOMETRIC_MODEL.md) covers how bright each pixel is; this one
-covers where everything is, how big it renders, what stands between it and the light, and
-how the mouse finds it. A system that has both a photometric and a spatial face (rings,
-the sun, the star field) appears in both documents, split by concern and cross-referenced.
+implementation detail lives in the class and shader docs. It has two siblings.
+[PHYSICAL_MODEL.md](PHYSICAL_MODEL.md) is the objective simulation underneath — bodies,
+orbits, rotation, time and scale, the 64-bit truth that everything here renders and never
+modifies. [PHOTOMETRIC_MODEL.md](PHOTOMETRIC_MODEL.md) covers how bright each pixel is; this
+one covers where everything is, how big it renders, what stands between it and the light,
+and how the mouse finds it. A system that has both a photometric and a spatial face (rings,
+the sun, the star field) appears in both this document and the photometric one, split by
+concern and cross-referenced.
 
 ## Overview: two number systems
 
