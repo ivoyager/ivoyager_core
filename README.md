@@ -20,6 +20,8 @@ Three design documents describe the simulation at the level of logic and invaria
 * [VISUAL_MODEL.md](https://github.com/ivoyager/ivoyager_core/blob/master/VISUAL_MODEL.md) for how that double-precision truth renders through a float32 pipeline: parenting, origin shifting, farwarp, shadows, culling, orbit lines, point fields, and mouse picking.
 * [PHOTOMETRIC_MODEL.md](https://github.com/ivoyager/ivoyager_core/blob/master/PHOTOMETRIC_MODEL.md) for physically calibrated light: the calibration chain, the compensating camera, surfaces, atmospheres, rings, stars, and renderer parity.
 
+[SHADER_COMPILE_COST.md](https://github.com/ivoyager/ivoyager_core/blob/master/SHADER_COMPILE_COST.md) is a measurement rather than a model: what each shader costs the GPU driver to compile, why that dominates a first run on the Compatibility renderer and so in a web export, what IVShaderWarmup does about it, and what an edit to a given `.gdshaderinc` costs.
+
 ### Requirements
 
 * ivoyager_tables (plugin) - See [repository](https://github.com/ivoyager/ivoyager_tables) for installation instructions.

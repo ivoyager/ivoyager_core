@@ -173,6 +173,15 @@ const float ATM_GL6_T[6] = {0.0337652, 0.1693953, 0.3806904, 0.6193096, 0.830604
 const float ATM_GL6_W[6] = {0.0856622, 0.1803808, 0.2339570, 0.2339570, 0.1803808, 0.0856622};
 const float ATM_SHELL_P[3] = {0.1127017, 0.5, 0.8872983};
 const float ATM_SHELL_W[3] = {0.2777778, 0.4444444, 0.2777778};
+// THE TRIP COUNTS ARE UNIFORMS, AND NEVER SET. They restate the table lengths above, which
+// every loop indexes, so any other value is wrong; what a uniform buys is a bound the GL
+// compiler cannot see. Handed a constant, it unrolls every quadrature and layer loop, inlines
+// the columns each node draws and then optimizes a body some hundred times this source:
+// 26 s to compile the limb shader on the Compatibility renderer, 4 s with the bounds opaque,
+// and the surface and cloud shaders 12 s to 4 s. Every Godot 4 GL target is GLSL ES 3.0 or
+// WebGL 2, where a dynamic trip count is ordinary.
+uniform int atm_gl6_nodes = 6;
+uniform int atm_shell_nodes = 3;
 // F(delta) = int_0^inf u^-1/2 exp(-(u + delta)^2 / 2) du / sqrt(2 pi), the Abel transform of a
 // unit Gaussian, on delta = -6 .. 3 by 0.25 (a parabolic cylinder function; no closed form).
 // A ray tangent delta sigma above a Gaussian layer's centre carries tau sqrt(2 r_c / sigma) F.
@@ -315,7 +324,7 @@ float atm_gauss_abel_partial(float a, float b) {
 	float d = max(a - b, 0.0);
 	float s = sqrt(d);
 	float near = atm_gauss_abel(b);
-	for (int i = 0; i < 3; i++) {
+	for (int i = 0; i < atm_shell_nodes; i++) {
 		float p = ATM_SHELL_P[i];
 		near -= 2.0 * s * ATM_SHELL_W[i] * atm_gauss_density(b + d * p * p);
 	}
@@ -576,7 +585,7 @@ vec3 atm_ray_half(AtmLayers L, float R, float h, float z_floor, float a, float p
 	float tau_hi = open ? 1.0 : atm_erf(min(v_hi, 6.0));
 	float span = tau_hi - tau_lo;
 	if (span > 0.0) {
-		for (int k = 0; k < 6; k++) {
+		for (int k = 0; k < atm_gl6_nodes; k++) {
 			float v = atm_erfinv(tau_lo + span * ATM_GL6_T[k]);
 			float z = h + L.H_ref * v * v;
 			float u = atm_chord(R, z, h);
@@ -611,7 +620,7 @@ vec3 atm_ray_half(AtmLayers L, float R, float h, float z_floor, float a, float p
 		float zs[3];
 		float gs[3];
 		float g_total = 0.0;
-		for (int i = 0; i < 3; i++) {
+		for (int i = 0; i < atm_shell_nodes; i++) {
 			float q = lower + ATM_SHELL_P[i] * (upper - lower);
 			float z = L.z_c + L.sigma * 1.41421356 * atm_erfinv(2.0 * q - 1.0);
 			z = clamp(z, z_lo, z_hi);
@@ -619,7 +628,7 @@ vec3 atm_ray_half(AtmLayers L, float R, float h, float z_floor, float a, float p
 			gs[i] = ATM_SHELL_W[i] * (R + z) / max(atm_chord(R, z, h), 1.0e-3);
 			g_total += gs[i];
 		}
-		for (int i = 0; i < 3; i++) {
+		for (int i = 0; i < atm_shell_nodes; i++) {
 			float z = zs[i];
 			float share = gs[i] / g_total;
 			float u = atm_chord(R, z, h);
@@ -688,8 +697,9 @@ void atm_ring(AtmLayers L, float R, float h, float qs, float sz, float sun_ang,
 // One sample per scale height across the window, capped. The count is what keeps the cost
 // where the need is, and the two move opposite ways: a close camera spreads the annulus over
 // many fragments but resolves the profile, so it takes one or two samples each; a distant one
-// needs the full set but has a rim of a few hundred fragments to pay it on.
-const int ATM_RING_MAX_TAPS = 8;
+// needs the full set but has a rim of a few hundred fragments to pay it on. A uniform, never
+// set, for the reason atm_gl6_nodes gives: the loop it bounds wraps both ray halves.
+uniform int atm_ring_max_taps = 8;
 // The reconstruction filter's width in pixels. A box one pixel wide is the pixel's own MEAN,
 // which is correct and still leaves the arc a one-pixel line — and a one-pixel line following a
 // shallow curve is a staircase, in runs as long as the curve stays within a row. Reconstructing
@@ -731,16 +741,11 @@ bool atm_ring_pixel(AtmLayers L, float R, float h, float footprint, float qs, fl
 	// One tap per scale height, and never coarser than one per pixel: close in, where the
 	// annulus spreads over many fragments, the profile is resolved and a couple of taps carry
 	// the filter; far out it takes the full set, on a rim of a few hundred fragments.
-	int taps = int(clamp(ceil(span / min(L.H_ref, footprint)), 1.0, float(ATM_RING_MAX_TAPS)));
+	int taps = int(clamp(ceil(span / min(L.H_ref, footprint)), 1.0, float(atm_ring_max_taps)));
 	float step = span / float(taps);
 	vec3 transmittance_sum = vec3(0.0);
 	float weight_sum = 0.0;
-	// Constant trip bound with a break, so no target has to support a dynamic loop count (the
-	// same caution the small-body Kepler solver carries).
-	for (int i = 0; i < ATM_RING_MAX_TAPS; i++) {
-		if (i >= taps) {
-			break;
-		}
+	for (int i = 0; i < taps; i++) {
 		float tap_h = lo + (float(i) + 0.5) * step;
 		// Tent, normalized so its integral over the full width is exactly 1.
 		float weight = max(1.0 - abs(tap_h - h) / half_width, 0.0) * step / half_width;
@@ -793,7 +798,7 @@ void atm_disc(AtmLayers L, float R, float mu, float mu0, float sz, float sun_ang
 		float t_lo = exp(-z_lit / L.H_ref);
 		float t_hi = open ? 0.0 : exp(-z_cap / L.H_ref);
 		float span = t_lo - t_hi;
-		for (int k = 0; k < 6; k++) {
+		for (int k = 0; k < atm_gl6_nodes; k++) {
 			float t = t_hi + span * ATM_GL6_T[k];
 			float z = -L.H_ref * log(t);
 			float chord = atm_chord(R, z, h_v);
@@ -839,14 +844,14 @@ void atm_disc(AtmLayers L, float R, float mu, float mu0, float sz, float sun_ang
 		float zs[3];
 		float gs[3];
 		float g_total = 0.0;
-		for (int i = 0; i < 3; i++) {
+		for (int i = 0; i < atm_shell_nodes; i++) {
 			float q = lower + ATM_SHELL_P[i] * (1.0 - lower);
 			float z = max(L.z_c + L.sigma * 1.41421356 * atm_erfinv(2.0 * q - 1.0), z_lit);
 			zs[i] = z;
 			gs[i] = ATM_SHELL_W[i] * (R + z) / max(atm_chord(R, z, h_v), 1.0e-3);
 			g_total += gs[i];
 		}
-		for (int i = 0; i < 3; i++) {
+		for (int i = 0; i < atm_shell_nodes; i++) {
 			float z = zs[i];
 			float share = gs[i] / g_total;
 			float u = atm_chord(R, z, h_v) - R * mu;

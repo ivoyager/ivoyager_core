@@ -175,6 +175,12 @@ float pore_profile(float d, float pore_radius, float depth_fade) {
 	return mix(1.0, level, depth_fade);
 }
 
+// The cell reach is a uniform, and never set: 1 is the 3x3x3 neighbourhood a jittered
+// centre can land in. It is a uniform only so the GL compiler cannot unroll the 27 cells
+// and inline a hash-drawn group into each; unrolled, this loop alone costs the sun shader
+// 1 s to compile on the Compatibility renderer, opaque 0.4 s.
+uniform int spot_cell_reach = 1;
+
 // Sunspot groups from a 3D cell grid over the unit sphere. Each cell hashes a spawn
 // decision gated by the butterfly-belt envelope at the CELL's latitude (never the
 // fragment's, or spots would smear along parallels); a spawned cell projects a
@@ -201,9 +207,9 @@ float photosphere_spots(vec3 dir, float cell_scale, float activity, float belt_c
 	float shading = 1.0;
 	float umbra_warp = 1.0 + 0.45 * warp_coarse;
 	float penumbra_warp = 1.0 + 0.22 * warp_coarse + 0.18 * warp_fine;
-	for (int i = -1; i <= 1; i++) {
-		for (int j = -1; j <= 1; j++) {
-			for (int k = -1; k <= 1; k++) {
+	for (int i = -spot_cell_reach; i <= spot_cell_reach; i++) {
+		for (int j = -spot_cell_reach; j <= spot_cell_reach; j++) {
+			for (int k = -spot_cell_reach; k <= spot_cell_reach; k++) {
 				vec3 cell = base + vec3(float(i), float(j), float(k));
 				vec3 cell_center = (cell + 0.5) / cell_scale;
 				float radius = length(cell_center);
