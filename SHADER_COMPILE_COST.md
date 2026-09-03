@@ -7,7 +7,8 @@ long a shader is, and the file you would guess is expensive is not.
 
 Measured 2026-09-02 and 2026-09-03 in the Planetarium against Godot 4.7.2 on an AMD RX 7900 XTX
 (driver 32.0.12033). Numbers are one machine's -- treat the *ordering* and the *ratios* as the
-finding, not the absolute seconds.
+finding, not the absolute seconds. A weaker GPU multiplies them by about five without changing
+their order; see *A slower machine*.
 
 
 ## The symptom
@@ -192,6 +193,38 @@ run whose programs the driver has cached passes through the warm-up in a frame p
 about a second in all.
 
 
+## A slower machine
+
+The same cold start on a laptop GTX 1650 Ti (Godot 4.7.2, driver 581.95, Compatibility), measured
+2026-09-03 with every shader source made novel so neither cache could answer:
+
+**About 200 s under the boot screen, against 38 s** -- 99 s of it in the single start-sequence
+frame, and 82 s in the warm-up. Nothing reorders: the same shaders dominate, at tens of seconds
+each where the RX 7900 XTX pays seconds.
+
+The honest denominator is the same run with the driver's cache warm, which reaches the end of the
+boot screen in **26 s** and passes the warm-up in 4.4 s. Compiling therefore costs this machine
+about 170 s and everything else about 26 s -- and the *first processed frame* line in the table
+above is not compile cost here at all: that frame ran 8-9 s whether the shaders were novel or
+cached.
+
+Two things do not simply scale:
+
+- **One shader's warm-up frame reached 35 s** (`surface`; `cloud_shell` 28 s). That frame covers
+  the few specializations two layers select rather than a single program, so no one program is
+  measured at 35 s -- but several seconds each is what it implies, and that is not comfortably
+  clear of the ten-second Chrome GPU watchdog (*The web export*). The weak GPU is where that risk
+  lives.
+- **The residual after the warm-up is a freeze rather than a blip.** Flying the same tour, Titan
+  stalled 12 s and then 4 s and Mars 5 s, the other eight bodies clean, against 0.4 s and 1.3 s on
+  the faster GPU. Whatever specialization the quads miss costs proportionally more here, and is
+  worth finding.
+
+Forward+ on the same machine, equally cold, clears the boot screen in **31 s** including its
+warm-up -- a sixth of the Compatibility figure, and barely worse than a fully cached Compatibility
+run. The renderer gap is not an artefact of the fast GPU.
+
+
 ## What an edit costs
 
 Editing a file invalidates every shader that `#include`s it, so its cost is the sum over that
@@ -240,7 +273,8 @@ update" the boot screen speaks of. Firefox may not; measure before promising.
 Chrome's GPU process has a watchdog that kills the process, and with it the WebGL context, when
 a single GPU operation runs on the order of ten seconds. The 16-26 s limb compiles of the old
 code sat inside that range, which is what could make a first web visit fatal rather than slow;
-the current worst single compile is under 4 s on this GPU.
+the current worst single compile is under 4 s on this GPU. On a weaker one it is not, and the
+margin there is thin (*A slower machine*).
 
 **The browser has not been measured.** The harness exports to web (see below); in the Claude
 desktop app's embedded Chromium the opaque-bound limb shader had not finished compiling after
