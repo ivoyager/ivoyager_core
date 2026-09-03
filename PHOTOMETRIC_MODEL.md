@@ -517,6 +517,39 @@ generous toward the terminator as a body swings away from full. Making `L` a fun
 phase is the refinement; the shader already has both `µ` and `µ₀` in hand and the phase
 angle is one dot product away.
 
+## Imaging a pixel: the rim, coverage, and one camera
+
+A body's rim at high phase is where a point sample stops being a photometric answer. With
+the sun within a radius or so of the limb the whole lit crescent is a sliver narrower than
+a pixel — 0.55 px at 175° phase on a Jupiter 145 px across — so one shading sample per
+pixel decides the rim by where the sample happens to land, and the line comes apart into
+full-brightness dots and gaps. What is short is the shading **rate**, not coverage, which
+is why no MSAA setting ever touched it: MSAA shades once per fragment.
+
+The answer is to stop treating a pixel as a point and treat it as what it is, **the
+camera's sampling aperture**. `limb_mean_incidence()` in `_photometry.gdshaderinc` images
+each rim pixel through the camera's own PSF: the sunlight along the pixel's radial reach is
+integrated in closed form on the sphere's exact parameterization (`µ₀ = A cos t + B sin t`,
+whose chord integral is elementary), cell by cell under a Gaussian of `iv_psf_sigma` — the
+same σ the star field and every PSF quad draw with. It costs 16 cells over ±3 px and only
+within a few pixels of the silhouette; everywhere else the point sample is already the
+answer and the function returns it. Two numbers come back: the pixel's true mean sun angle,
+and its **coverage**, the fraction of the PSF's mass that lands on the body.
+
+**Coverage is the silhouette's alpha**, replacing the fixed pixel-and-a-half fade the
+shells used to carry. A body's edge is now the camera's own edge rather than a tuned ramp —
+and that is what makes the resolved-to-unresolved handoff continuous. A crescent's rim, an
+atmosphere's beyond-limb ring (`ATM_RING_FILTER_PX`) and the PSF quad's core are three
+evaluations of one camera model instead of three separately fitted falloffs, so a body
+shrinking toward a point hands its light across without a step, and a ring or a cusp thins
+out instead of ending.
+
+**The direction that sets:** where this renderer needs a fade, a ramp or a handoff at a
+body's edge, derive it from the camera's PSF rather than tune a width — and name whatever
+is left tuned. What is left tuned here is the specular fade, which keeps the old
+pixel-and-a-half: put on coverage, the grazing lobe brightened a band along the rim, which
+is a question about the BRDF at grazing incidence and not about sampling.
+
 ## Night-side emission
 
 A body's emission map (Earth's city lights) is self-luminous, so it reads

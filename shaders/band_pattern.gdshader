@@ -329,7 +329,28 @@ void fragment() {
 	float atm_mu0 = dot(macro_normal, sun_view);
 	float atm_mu = dot(macro_normal, VIEW);
 	vec3 atm_tint = atm_view_tint(atm_mu);
-	ALBEDO *= atm_sun_transmittance(atm_mu0) * atm_tint;
+	vec3 atm_sun_t = atm_sun_transmittance(atm_mu0);
+	ALBEDO *= atm_sun_t * atm_tint;
+	// The sun angle averaged across this pixel's radial extent, which one shading sample cannot
+	// resolve at the rim (see limb_mean_incidence). The engine's diffuse carries
+	// albedo * mu0, so rescaling ALBEDO delivers the mean wherever mu0 is positive; where the
+	// centre sample missed the sliver entirely no albedo factor can reach it, and that
+	// remainder goes to emission below. Formed here with the other screen-derivative terms,
+	// under uniform control flow. It also reports the pixel's coverage by this shell, which
+	// is applied at the very end.
+	float limb_mu0_centre = max(atm_mu0, 0.0);
+	float limb_fade; // the pixel's coverage by this shell
+	float limb_specular_fade; // the silhouette fade specular alone keeps
+	float limb_mu0_mean = limb_mean_incidence(macro_normal, VIEW, sun_view, atm_mu,
+			limb_radius_px(v_world_position, MODEL_MATRIX[3].xyz, CAMERA_POSITION_WORLD,
+			PROJECTION_MATRIX[1][1], VIEWPORT_SIZE.y), limb_fade, limb_specular_fade);
+	float limb_engine_mu0 = min(limb_mu0_mean, LIMB_INCIDENCE_ALBEDO_MAX * limb_mu0_centre);
+	float limb_emission_mu0 = limb_mu0_mean - limb_engine_mu0;
+	if (limb_mu0_centre > 0.0) {
+		float limb_ratio = limb_engine_mu0 / limb_mu0_centre;
+		ALBEDO *= limb_ratio;
+		SPECULAR *= sqrt(limb_ratio); // F0 scales as SPECULAR^2
+	}
 
 	float sun_visible = 1.0;
 	if (ring_texture_outer > 0.0 || occluder_count > 0) {
@@ -362,6 +383,11 @@ void fragment() {
 			* lunar_lambert_isotropic_response(macro_normal, VIEW, lunar_lambert);
 	EMISSION += unlit_albedo * atm_sky_excess(atm_mu0, atm_sky_response,
 			atm_beam_response) * atm_tint * (sun_light_energy * sun_visible);
+	// The share of the pixel's mean sun angle the engine's own N.L cannot deliver, because at
+	// this pixel that N.L is zero (see limb_mean_incidence). Direct sunlight, so it takes the
+	// beam response, the sun path's transmittance and the tint exactly as the lit albedo did.
+	EMISSION += unlit_albedo * atm_beam_response * atm_sun_t * atm_tint * limb_emission_mu0
+			* (sun_light_energy * sun_visible);
 
 	// The air in FRONT of this fragment (atm_disc_air: the veil over the lit disc, the
 	// twilight glow past the terminator, the far half of a ray whose disc is an optical
@@ -378,6 +404,12 @@ void fragment() {
 	ALBEDO *= atm_behind_luma;
 	SPECULAR *= sqrt(atm_behind_luma);
 	EMISSION = EMISSION * atm_behind_luma + atm_path * sun_light_energy;
+
+	// The pixel's coverage by this shell goes last, so it takes every term above it --
+	// except specular, which keeps the silhouette fade instead (see limb_mean_incidence).
+	ALBEDO *= limb_fade;
+	SPECULAR *= sqrt(limb_specular_fade);
+	EMISSION *= limb_fade;
 
 	ALBEDO = display_write_albedo(ALBEDO);
 	EMISSION = display_write(EMISSION);

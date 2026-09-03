@@ -88,6 +88,14 @@ uniform float emission_luminance = 0.0;         // physical, cd/m^2 at a full-wh
 // Lunar-Lambert L (see _photometry.gdshaderinc): 0.0 = Lambert, the exact-no-op default;
 // 1.0 = Lommel-Seeliger, a flat disc at zero phase. Set per surface class in shells.tsv.
 uniform float lunar_lambert : hint_range(0.0, 1.0) = 0.0;
+// Minnaert k, the OTHER direction (see _photometry.gdshaderinc): 1.0 = Lambert, the exact-no-op
+// default; above 1.0 darkens the limb, which no lunar_lambert can do. Carried here so a body
+// with a MAP can hold that direction at all -- the cloud-deck shaders have had both laws, while
+// a mapped surface could only ever flatten its disc. Shipped bodies set neither: Uranus and
+// Neptune measure k < 1 and take lunar_lambert instead, and Jupiter and Saturn have no measured
+// value (see PHOTOMETRIC_MODEL.md). Note the two are coupled to LEVEL through the disc factor
+// F = 2/(2k+1), so a body adopting one must re-derive its map level against A x F = p.
+uniform float minnaert_k : hint_range(1.0, 2.0) = 1.0;
 global uniform float iv_emission_energy_scale;    // 1.0 with physical light off, else 0.0
 global uniform float iv_emission_luminance_scale; // rendered units per cd/m^2; 0.0 with physical light off
 
@@ -182,8 +190,8 @@ void fragment() {
 	// direction, and therefore VIEW, is untouched.
 	vec3 macro_normal = normalize(NORMAL);
 	vec3 sun_view = normalize(mat3(VIEW_MATRIX) * sun_direction);
-	float atm_beam_response = lunar_lambert_albedo_factor(macro_normal, sun_view, VIEW,
-			lunar_lambert);
+	float atm_beam_response = minnaert_albedo_factor(macro_normal, sun_view, VIEW, minnaert_k)
+			* lunar_lambert_albedo_factor(macro_normal, sun_view, VIEW, lunar_lambert);
 	ALBEDO *= atm_beam_response;
 	// The body's atmosphere above this shell (the limb row's atm_* columns, propagated
 	// here; an exact no-op without them): direct light reddened along the sun path, and
@@ -192,7 +200,28 @@ void fragment() {
 	float atm_mu0 = dot(macro_normal, sun_view);
 	float atm_mu = dot(macro_normal, VIEW);
 	vec3 atm_tint = atm_view_tint(atm_mu);
-	ALBEDO *= atm_sun_transmittance(atm_mu0) * atm_tint;
+	vec3 atm_sun_t = atm_sun_transmittance(atm_mu0);
+	ALBEDO *= atm_sun_t * atm_tint;
+	// The sun angle averaged across this pixel's radial extent, which one shading sample cannot
+	// resolve at the rim (see limb_mean_incidence). The engine's diffuse carries
+	// albedo * mu0, so rescaling ALBEDO delivers the mean wherever mu0 is positive; where the
+	// centre sample missed the sliver entirely no albedo factor can reach it, and that
+	// remainder goes to emission below. Formed here with the other screen-derivative terms,
+	// under uniform control flow. It also reports the pixel's coverage by this shell, which
+	// is applied at the very end.
+	float limb_mu0_centre = max(atm_mu0, 0.0);
+	float limb_fade; // the pixel's coverage by this shell
+	float limb_specular_fade; // the silhouette fade specular alone keeps
+	float limb_mu0_mean = limb_mean_incidence(macro_normal, VIEW, sun_view, atm_mu,
+			limb_radius_px(v_world_position, MODEL_MATRIX[3].xyz, CAMERA_POSITION_WORLD,
+			PROJECTION_MATRIX[1][1], VIEWPORT_SIZE.y), limb_fade, limb_specular_fade);
+	float limb_engine_mu0 = min(limb_mu0_mean, LIMB_INCIDENCE_ALBEDO_MAX * limb_mu0_centre);
+	float limb_emission_mu0 = limb_mu0_mean - limb_engine_mu0;
+	if (limb_mu0_centre > 0.0) {
+		float limb_ratio = limb_engine_mu0 / limb_mu0_centre;
+		ALBEDO *= limb_ratio;
+		SPECULAR *= sqrt(limb_ratio); // F0 scales as SPECULAR^2
+	}
 
 	float sun_visible = 1.0;
 	if (ring_texture_outer > 0.0 || occluder_count > 0) {
@@ -221,9 +250,15 @@ void fragment() {
 	// arrives from the whole sky, and mu0^(k-1) is an answer about one incidence angle. On a
 	// Lambert body both are 1 and nothing changes; on Venus the beam factor had been
 	// collapsing the twilight toward the terminator exactly where it takes over.
-	float atm_sky_response = lunar_lambert_isotropic_response(macro_normal, VIEW, lunar_lambert);
+	float atm_sky_response = minnaert_isotropic_response(macro_normal, VIEW, minnaert_k)
+			* lunar_lambert_isotropic_response(macro_normal, VIEW, lunar_lambert);
 	EMISSION += unlit_albedo * atm_sky_excess(atm_mu0, atm_sky_response,
 			atm_beam_response) * atm_tint * (sun_light_energy * sun_visible);
+	// The share of the pixel's mean sun angle the engine's own N.L cannot deliver, because at
+	// this pixel that N.L is zero (see limb_mean_incidence). Direct sunlight, so it takes the
+	// beam response, the sun path's transmittance and the tint exactly as the lit albedo did.
+	EMISSION += unlit_albedo * atm_beam_response * atm_sun_t * atm_tint * limb_emission_mu0
+			* (sun_light_energy * sun_visible);
 
 	// The air in FRONT of this fragment (atm_disc_air: the veil over the lit disc, the
 	// twilight glow past the terminator, the far half of a ray whose disc is an optical
@@ -240,6 +275,12 @@ void fragment() {
 	ALBEDO *= atm_behind_luma;
 	SPECULAR *= sqrt(atm_behind_luma);
 	EMISSION = EMISSION * atm_behind_luma + atm_path * sun_light_energy;
+
+	// The pixel's coverage by this shell goes last, so it takes every term above it --
+	// except specular, which keeps the silhouette fade instead (see limb_mean_incidence).
+	ALBEDO *= limb_fade;
+	SPECULAR *= sqrt(limb_specular_fade);
+	EMISSION *= limb_fade;
 
 	ALBEDO = display_write_albedo(ALBEDO);
 	EMISSION = display_write(EMISSION);

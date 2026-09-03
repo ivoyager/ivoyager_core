@@ -25,14 +25,17 @@ extends MeshInstance3D
 ## A PSF is the imaging system's response to a point of light, and the "point" names
 ## that impulse rather than the subject: convolving an extended source with it is what
 ## puts a glow around a crescent. So this stands whether the body is resolved or not.
-## [code]body_psf.gdshader[/code] draws the Gaussian PSF core plus the
-## [code]r^-2[/code] glare wing on one camera-facing quad.[br][br]
+## [code]body_psf.gdshader[/code] draws the Gaussian PSF core, the [code]r^-2[/code]
+## glare wing and the sky side of the body's own rim on one camera-facing quad.[br][br]
 ##
 ## Unresolved, this quad IS the body — the core takes the disc handoff below, so a
 ## body that shrinks past its disc becomes a photometric point on the catalog star
 ## field's own footing instead of vanishing at a distance cull. Resolved, the WING
 ## persists (glare belongs to the camera, not to the subject) and is what renders
-## crescent glow. One mechanism, three jobs.[br][br]
+## crescent glow, and the RIM's spread beyond the silhouette is drawn here because
+## this is the one item that covers the sky beside a body's limb — the surface can
+## image its rim through the camera's PSF but has no fragment to put the outward half
+## on. One mechanism, four jobs.[br][br]
 ##
 ## A direct child of its [IVBody] rather than of [IVBodyVisual], and that is
 ## load-bearing: a lazy body has no visual until the camera visits it, so a quad
@@ -75,7 +78,10 @@ const FIVE_OVER_LN10 := 2.1714724095162594 # 5 / ln(10), for m = M + 5*log10(d)
 var _body: IVBody
 var _star: IVBody
 var _is_sun: bool
+var _draws_rim: bool # false for a star, and for a body the table figure does not outline
 var _mean_radius: float
+var _equatorial_radius: float
+var _polar_radius: float
 var _geometric_albedo: float # 0.0 for a star, which emits rather than reflects
 var _lunar_lambert: float # phase-function blend; the surface shader's own L
 var _absolute_magnitude := NAN # star only
@@ -227,7 +233,18 @@ func _init(body: IVBody) -> void:
 func _ready() -> void:
 	_star = _body.star
 	_is_sun = bool(_body.flags & BodyFlags.BODYFLAGS_STAR)
+	# The quad's rim is drawn against the SILHOUETTE OF THE TABLE FIGURE (see get_limb_conic),
+	# so it can only be drawn where that is the silhouette: the shared sphere, which the body
+	# scales to its own radii. A body drawn with a mesh of its own outlines wherever its terrain
+	# does -- 1.9 % of the radius inside the figure on Charon, 16 px on a 785 px disc -- and the
+	# rim would stand off it as a detached arc of open sky. There is nothing here that could
+	# find that outline, so such a body gets no rim (see RIM_SEAM_PX in the shader).
+	var asset_preloader: IVAssetPreloader = IVGlobal.program[&"AssetPreloader"]
+	_draws_rim = (!_is_sun and !asset_preloader.get_body_packed_model(_body.name)
+			and !asset_preloader.get_body_mesh(_body.name))
 	_mean_radius = _body.mean_radius
+	_equatorial_radius = _body.get_equatorial_radius()
+	_polar_radius = _body.get_polar_radius()
 	_geometric_albedo = 0.0 if _is_sun else get_geometric_albedo(_body)
 	_color_bv = _body.characteristics.get(&"color_b_v", _color_bv)
 	if _is_sun:
@@ -267,6 +284,7 @@ func _process(_delta: float) -> void:
 	_refresh_handoff(apparent_magnitude, camera_distance)
 	_material.set_shader_parameter(&"apparent_magnitude", apparent_magnitude)
 	_material.set_shader_parameter(&"angular_radius", _mean_radius / camera_distance)
+	_set_rim_parameters(camera)
 
 
 # Re-solves the crossfade when the exposure or the source's distance-independent
@@ -292,6 +310,176 @@ func _refresh_handoff(apparent_magnitude: float, camera_distance: float) -> void
 	_material.set_shader_parameter(&"handoff_low", handoff.x)
 	_material.set_shader_parameter(&"handoff_high", handoff.y)
 	_body.psf_handoff = handoff
+
+
+# The body's rim, as the quad's shader needs it: where the sun is on screen, at what phase,
+# and the ellipse the body's silhouette actually is. The quad places its glare wing and draws
+# the sky side of the rim's point spread from these (see body_psf.gdshader).
+#
+# The sun's screen direction falls to zero length as the sun goes directly behind or in front
+# of the body, which is exactly where a lit side stops having a screen direction at all -- so
+# both consumers collapse on their own there. A star gets a zero limb radius: it has no phase
+# and no reflected rim, and its glare is its own.
+#
+# The apparent limb comes from the body's figure the way the analytic shadows take it
+# (IVSunOcclusionManager, which treats the same bodies as oblate spheroids): the outline of a
+# spheroid is an ellipse with the equatorial radius across the projected pole and
+# sqrt(a^2 cos^2 + c^2 sin^2) along it, for the angle between the pole and the line of sight.
+# A body whose real figure is a mesh gets no rim at all: the ellipse its table radii describe
+# is not the outline the rasterizer draws, and the difference is percents of a radius rather
+# than the fraction of a pixel RIM_SEAM_PX absorbs.
+func _set_rim_parameters(camera: Camera3D) -> void:
+	# The rim's geometry goes over in the camera's own frame, in units of the equatorial
+	# radius (see get_limb_ellipsoid): the shader derives the phase angle and the sun's screen
+	# direction from it, and the sun's angles at any limb point for the camera where it is.
+	var camera_basis := camera.global_transform.basis
+	var to_body := _body.global_position - camera.global_position
+	var pole := _body.get_north_axis()
+	var sun_direction := Vector3.ZERO
+	if !_is_sun and _star:
+		var star_vector := _star.global_position - _body.global_position
+		if !star_vector.is_zero_approx():
+			sun_direction = to_camera_frame(star_vector.normalized(), camera_basis)
+	var radius_scale := 1.0 / _equatorial_radius if _equatorial_radius > 0.0 else 0.0
+	var conic := get_limb_conic(to_body, pole, _equatorial_radius, _polar_radius, camera_basis)
+	_material.set_shader_parameter(&"sun_direction", sun_direction)
+	_material.set_shader_parameter(&"limb_camera_offset",
+			to_camera_frame(-to_body, camera_basis) * radius_scale)
+	_material.set_shader_parameter(&"limb_ellipsoid",
+			get_limb_ellipsoid(pole, _equatorial_radius, _polar_radius, camera_basis))
+	_material.set_shader_parameter(&"limb_conic", conic)
+	_material.set_shader_parameter(&"limb_semi_axes",
+			get_conic_semi_axes(conic) if _draws_rim else Vector2.ZERO)
+	_material.set_shader_parameter(&"limb_centre_offset", get_conic_centre(conic).length())
+
+
+## Returns the body's SILHOUETTE as a conic in the camera's tangent coordinates — screen
+## offsets in units of tan(angle) from the body's own projected position, +Y up — so that
+## [code][u v 1] C [u v 1]^T = 0[/code] is its limb. The quad's fragment solves that along
+## its own direction for the radius it measures its distance beyond the limb from.[br][br]
+##
+## Exact for an oblate spheroid at any distance and orientation, which the rim needs and an
+## angular radius cannot give: what a perspective projection draws is the TANGENT cone, wider
+## than [code]r / d[/code] by 8 % at 2.6 radii out, and an oblate body's outline is an ellipse
+## whose flattening is not the body's own. Both errors are tens of pixels on a body filling the
+## screen, against a spread measured in single pixels — so the whole of it would land inside
+## the silhouette and be culled. Tangent coordinates keep this viewport-independent (see the
+## class note): the shader scales by its own focal length in pixels.[br][br]
+##
+## The derivation is the tangent cone of the quadric. For the ellipsoid [code]x^T A x = 1[/code]
+## with the camera at [param P] (body-centred), a ray of direction [code]D[/code] is tangent
+## where [code](P^T A D)^2 = (D^T A D)(P^T A P - 1)[/code]; writing D as the ray through screen
+## offset (u, v) makes that a conic in (u, v). GLSL twin: none — the shader takes the answer.
+static func get_limb_conic(to_body: Vector3, pole: Vector3, equatorial_radius: float,
+		polar_radius: float, camera_basis: Basis) -> Basis:
+	var forward := -camera_basis.z
+	var depth := to_body.dot(forward)
+	if depth <= 0.0 or equatorial_radius <= 0.0 or polar_radius <= 0.0:
+		return Basis(Vector3.ZERO, Vector3.ZERO, Vector3.ZERO)
+	# The ray through the body's own projected position, normalized to the tangent plane, so
+	# that (u, v) are offsets from it rather than from the camera's axis.
+	var centre_ray := to_body / depth
+	var camera_offset := -to_body # camera, body-centred
+	var inverse_equatorial_sq := 1.0 / (equatorial_radius * equatorial_radius)
+	var pole_excess := 1.0 / (polar_radius * polar_radius) - inverse_equatorial_sq
+	# A * v for the spheroid's quadric, without building the matrix.
+	var a_right := camera_basis.x * inverse_equatorial_sq + pole * (pole_excess
+			* camera_basis.x.dot(pole))
+	var a_up := camera_basis.y * inverse_equatorial_sq + pole * (pole_excess
+			* camera_basis.y.dot(pole))
+	var a_centre := centre_ray * inverse_equatorial_sq + pole * (pole_excess
+			* centre_ray.dot(pole))
+	var a_camera := camera_offset * inverse_equatorial_sq + pole * (pole_excess
+			* camera_offset.dot(pole))
+	var outside := camera_offset.dot(a_camera) - 1.0 # > 0 with the camera outside the body
+	var p_right := camera_offset.dot(a_right)
+	var p_up := camera_offset.dot(a_up)
+	var p_centre := camera_offset.dot(a_centre)
+	var m_uu := outside * camera_basis.x.dot(a_right) - p_right * p_right
+	var m_vv := outside * camera_basis.y.dot(a_up) - p_up * p_up
+	var m_uv := outside * camera_basis.x.dot(a_up) - p_right * p_up
+	var m_u1 := outside * centre_ray.dot(a_right) - p_centre * p_right
+	var m_v1 := outside * centre_ray.dot(a_up) - p_centre * p_up
+	var m_11 := outside * centre_ray.dot(a_centre) - p_centre * p_centre
+	# A conic is defined up to scale, and this one is built from 1/radius^2 terms: Jupiter's
+	# entries come out at 1e-15, whose 3x3 determinant is 1e-45 -- under float32's smallest
+	# normal, so both Basis.determinant() here and the mat3 the shader solves would collapse to
+	# zero. Normalizing costs nothing and puts every body's conic in the same numeric range.
+	var largest := maxf(maxf(maxf(absf(m_uu), absf(m_vv)), maxf(absf(m_uv), absf(m_u1))),
+			maxf(absf(m_v1), absf(m_11)))
+	if largest <= 0.0:
+		return Basis(Vector3.ZERO, Vector3.ZERO, Vector3.ZERO)
+	var normalize := 1.0 / largest
+	m_uu *= normalize
+	m_vv *= normalize
+	m_uv *= normalize
+	m_u1 *= normalize
+	m_v1 *= normalize
+	m_11 *= normalize
+	return Basis(Vector3(m_uu, m_uv, m_u1), Vector3(m_uv, m_vv, m_v1), Vector3(m_u1, m_v1, m_11))
+
+
+## Returns [param vector] in the camera's own frame — x right, y up, z FORWARD (the
+## negative of the basis' z) — the frame the quad's rim uniforms share.
+static func to_camera_frame(vector: Vector3, camera_basis: Basis) -> Vector3:
+	return Vector3(vector.dot(camera_basis.x), vector.dot(camera_basis.y),
+			-vector.dot(camera_basis.z))
+
+
+## Returns the body's figure as the quadric [code]x^T E x = 1[/code], in the camera's frame
+## (see [method to_camera_frame]) and in units of the equatorial radius so that its entries
+## are of order one: the identity plus [code](a/c)^2 - 1[/code] times the pole's outer
+## product. The quad's fragment takes the figure's normal at the point its limb ray touches:
+## the sun's incidence THERE is what lights a rim, and from a camera at finite distance that
+## point sees the sun lower than the body's centre does by the body's angular radius.
+static func get_limb_ellipsoid(pole: Vector3, equatorial_radius: float, polar_radius: float,
+		camera_basis: Basis) -> Basis:
+	if equatorial_radius <= 0.0 or polar_radius <= 0.0:
+		return Basis.IDENTITY
+	var pole_excess := (equatorial_radius / polar_radius) ** 2 - 1.0
+	var pole_camera := to_camera_frame(pole, camera_basis)
+	var pole_outer := pole_excess * pole_camera
+	return Basis(
+			Vector3(1.0 + pole_outer.x * pole_camera.x, pole_outer.x * pole_camera.y,
+					pole_outer.x * pole_camera.z),
+			Vector3(pole_outer.y * pole_camera.x, 1.0 + pole_outer.y * pole_camera.y,
+					pole_outer.y * pole_camera.z),
+			Vector3(pole_outer.z * pole_camera.x, pole_outer.z * pole_camera.y,
+					1.0 + pole_outer.z * pole_camera.z))
+
+
+## Returns the centre, in tangent units, of the ellipse [method get_limb_conic]
+## returns — which is NOT the body's own projected position: a sphere seen off the
+## camera's axis has a silhouette offset outward from it, by 15 px here on a body
+## filling a 4K frame. The quad is drawn on the body, so this is what its own extent
+## has to carry beyond the ellipse's semi-axis.
+static func get_conic_centre(conic: Basis) -> Vector2:
+	var minor_determinant := conic.x.x * conic.y.y - conic.x.y * conic.x.y
+	if minor_determinant == 0.0:
+		return Vector2.ZERO
+	return Vector2(conic.x.y * conic.y.z - conic.y.y * conic.x.z,
+			conic.x.y * conic.x.z - conic.x.x * conic.y.z) / minor_determinant
+
+
+## Returns the (major, minor) semi-axes, in tangent units, of the ellipse
+## [method get_limb_conic] returns, or [constant Vector2.ZERO] if it is not one.
+static func get_conic_semi_axes(conic: Basis) -> Vector2:
+	var m_uu := conic.x.x
+	var m_vv := conic.y.y
+	var m_uv := conic.x.y
+	var minor_determinant := m_uu * m_vv - m_uv * m_uv
+	if minor_determinant <= 0.0:
+		return Vector2.ZERO
+	var offset_scale := -conic.determinant() / minor_determinant
+	if offset_scale <= 0.0:
+		return Vector2.ZERO
+	var half_trace := 0.5 * (m_uu + m_vv)
+	var spread := sqrt(maxf(half_trace * half_trace - minor_determinant, 0.0))
+	var eigenvalue_low := half_trace - spread
+	var eigenvalue_high := half_trace + spread
+	if eigenvalue_low <= 0.0:
+		return Vector2.ZERO
+	return Vector2(sqrt(offset_scale / eigenvalue_low), sqrt(offset_scale / eigenvalue_high))
 
 
 func _get_star_apparent_magnitude(camera_distance: float) -> float:

@@ -651,6 +651,113 @@ void atm_ring(AtmLayers L, float R, float h, float qs, float sz, float sun_ang,
 	transmittance = exp(-exp_total - shell_total);
 }
 
+
+// ONE PIXEL OF THE RING RATHER THAN ONE POINT OF IT, which is the difference between a thin
+// continuous band and a dotted arc of saturated single pixels.
+//
+// THE PROBLEM. The ring's bright band is a few scale heights — some 25 km on a 6371 km Earth —
+// so it is thinner than a pixel unless the disc spans a couple of hundred px of radius. Below
+// that, which is nearly all of the time, one sample per pixel decides the whole band: the
+// screen grid meets the limb circle at a different sub-pixel offset at every azimuth, so the
+// pixel nearest the limb lands on the band at one angle and above it at the next, and the ring
+// renders as a dotted arc that glow then amplifies. What the pixel stands for is the ring's
+// MEAN over the altitude band it covers, and that is what this returns.
+//
+// WHY IT IS SAMPLED RATHER THAN SOLVED, which is worth recording because the closed forms are
+// tempting and both are wrong here. The ring's radiance is NOT a decaying exponential in
+// tangent altitude: it peaks where the slant path reaches unit optical depth and is reddened
+// and dim BELOW that, the limb's own sunset. So an estimator anchored at the bottom of the
+// window — H (I(h_lo) - I(h_hi)) / footprint, exact for A exp(-h/H) — reads the reddened foot
+// of the profile and misses the peak entirely; measured, it drained the blue out of Earth's
+// ring (arc RGB 136,140,149 -> 144,142,138) without touching the dashing. Compressing the
+// altitude axis to widen the band fails the same way and worse, since it puts the dense, red
+// low atmosphere across the whole annulus: the arc went orange (146,129,102) and its crest
+// fell from 188 to 103. A plain box average over the window has no shape assumption to be
+// wrong about, and samples at TRUE altitudes, so the colour comes out right.
+//
+// Dividing by the FULL footprint while integrating only from h_lo = max(h - footprint/2, 0)
+// is deliberate: the part of a pixel below the disc's silhouette carries no ring, its air
+// being the disc shaders' own term (atm_disc_air). The result is therefore coverage-weighted,
+// and the ring fades across the last pixel at the silhouette instead of ending on a step.
+//
+// A RENDERING BOUNDARY CONDITION, like the shell-edge fade in atm_limb() and not part of the
+// model: limb_model.py's closed_form does not carry it, and it is an exact no-op wherever the
+// camera resolves the profile. Its cost is ATM_RING_TAPS ring quadratures on the fragments of
+// a thin annulus, paid only where the ring is unresolved. HAZARD: the caller must measure
+// `footprint` with screen derivatives under UNIFORM control flow (see atm_limb).
+// One sample per scale height across the window, capped. The count is what keeps the cost
+// where the need is, and the two move opposite ways: a close camera spreads the annulus over
+// many fragments but resolves the profile, so it takes one or two samples each; a distant one
+// needs the full set but has a rim of a few hundred fragments to pay it on.
+const int ATM_RING_MAX_TAPS = 8;
+// The reconstruction filter's width in pixels. A box one pixel wide is the pixel's own MEAN,
+// which is correct and still leaves the arc a one-pixel line — and a one-pixel line following a
+// shallow curve is a staircase, in runs as long as the curve stays within a row. Reconstructing
+// over rather more than a pixel is what gives the arc a soft cross-section, so consecutive rows
+// overlap and the steps blur into each other. It is the same width as the camera's own PSF --
+// the same camera [code]limb_mean_incidence()[/code] measures a silhouette's coverage through.
+const float ATM_RING_FILTER_PX = 2.5;
+
+// Altitude above which the ring carries nothing worth sampling, so the taps can be spent on the
+// part of the window that has structure: 8 scale heights is e^-8 of the peak, and the haze top
+// and a detached layer each push it up if they stand higher.
+float atm_ring_reach(AtmLayers L) {
+	float reach = 8.0 * L.H_ref;
+	if (L.z_k > 0.0) {
+		reach = max(reach, L.z_k + 8.0 * L.H_t);
+	}
+	if (L.has_layer) {
+		reach = max(reach, L.z_c + 4.0 * L.sigma);
+	}
+	return reach;
+}
+
+bool atm_ring_pixel(AtmLayers L, float R, float h, float footprint, float qs, float sz,
+		float sun_ang, out vec3 path, out vec3 transmittance) {
+	path = vec3(0.0);
+	transmittance = vec3(1.0);
+	// The filter spans this much altitude, and the samples are taken over the part of it that
+	// both exists (above the silhouette) and carries signal (below the reach). Normalizing by
+	// the FULL width rather than by the sampled part is what makes the clipping mean something:
+	// a fragment whose filter hangs half over the silhouette gets half the ring, which is how
+	// the band fades out at the limb instead of ending on a step.
+	float half_width = 0.5 * ATM_RING_FILTER_PX * footprint;
+	float lo = max(h - half_width, 0.0);
+	float hi = min(h + half_width, atm_ring_reach(L));
+	if (hi <= lo) {
+		return false; // no beyond-limb ray with anything on it reaches this pixel
+	}
+	float span = hi - lo;
+	// One tap per scale height, and never coarser than one per pixel: close in, where the
+	// annulus spreads over many fragments, the profile is resolved and a couple of taps carry
+	// the filter; far out it takes the full set, on a rim of a few hundred fragments.
+	int taps = int(clamp(ceil(span / min(L.H_ref, footprint)), 1.0, float(ATM_RING_MAX_TAPS)));
+	float step = span / float(taps);
+	vec3 transmittance_sum = vec3(0.0);
+	float weight_sum = 0.0;
+	// Constant trip bound with a break, so no target has to support a dynamic loop count (the
+	// same caution the small-body Kepler solver carries).
+	for (int i = 0; i < ATM_RING_MAX_TAPS; i++) {
+		if (i >= taps) {
+			break;
+		}
+		float tap_h = lo + (float(i) + 0.5) * step;
+		// Tent, normalized so its integral over the full width is exactly 1.
+		float weight = max(1.0 - abs(tap_h - h) / half_width, 0.0) * step / half_width;
+		vec3 tap_path;
+		vec3 tap_transmittance;
+		atm_ring(L, R, tap_h, qs, sz, sun_ang, tap_path, tap_transmittance);
+		path += tap_path * weight;
+		transmittance_sum += tap_transmittance * weight;
+		weight_sum += weight;
+	}
+	if (weight_sum <= 0.0) {
+		return false;
+	}
+	transmittance = mix(vec3(1.0), transmittance_sum / weight_sum, min(weight_sum, 1.0));
+	return true;
+}
+
 // Surface-hit ray at a point with view cosine mu and sun cosine mu0 (sz = dot(e, s) as for the
 // ring): path radiance above it and the view transmittance through the whole column.
 void atm_disc(AtmLayers L, float R, float mu, float mu0, float sz, float sun_ang,
@@ -807,29 +914,54 @@ void atm_limb(vec3 camera_local, vec3 fragment_local, vec3 sun_local, float sun_
 	float tc = -dot(c, d);
 	vec3 q = c + tc * d;                          // closest approach to the centre
 	float b = length(q);
-	if (b < R) {
-		float w_shell = smoothstep(R * (1.0 - ATM_RIM_HANDOFF), R, b);
-		if (w_shell <= 0.0) {
-			disc_hit = true;
-			return;
-		}
-		// The shell's share of the handoff band (see ATM_RIM_HANDOFF): the sliver at the
-		// silhouette that the polygonal disc meshes fail to cover gets its air from here.
-		AtmLayers L_disc = atm_layers(-sz);
-		float half_chord = sqrt(max(R * R - b * b, 0.0));
-		vec3 hit = q - half_chord * d;
-		vec3 n = hit / R;
-		float mu = dot(n, e);
-		float mu0 = dot(n, sun_local);
-		vec3 disc_transmittance;
-		atm_disc(L_disc, R, mu, mu0, sz, sun_ang, far_floor, path, disc_transmittance);
-		path *= w_shell * mix(1.0, atm_intensity, iv_limb_scale);
-		return;
-	}
+	// The pixel's own radial footprint, in km of tangent altitude, for atm_ring_pixel() below.
+	// Taken HERE because screen derivatives require uniform control flow and the disc branch
+	// under it is not uniform — which is also why this function must be called unconditionally
+	// (it is, from atmosphere_limb.gdshader's fragment; see also the ring shadow's fwidth in
+	// _sun_occlusion.gdshaderinc, which carries the same rule).
+	float b_footprint = length(vec2(dFdx(b), dFdy(b)));
 	AtmLayers L = atm_layers(-sz);               // cos(theta) = dot(s, d)
 	float h = b - R;
 	float qs = dot(q / b, sun_local);
-	atm_ring(L, R, h, qs, sz, sun_ang, path, transmittance);
+	// THE RING'S SHARE OF THIS PIXEL, computed for a pixel on EITHER side of the silhouette.
+	// That is what closes the dashing, and the reason is a footprint that straddles the limb:
+	// the ring's bright band is a fraction of a pixel, and where the screen grid falls so that
+	// the innermost pixel with b > R already sits above the band, the band lands in the pixel
+	// below it — a DISC pixel, which used to draw no beyond-limb ray at all. So at those
+	// azimuths the ring's flux was not misplaced but lost, and the arc broke into dashes.
+	// Letting a straddling pixel carry the part of its footprint that lies above the limb
+	// makes the flux drawn per azimuth constant; the split between the two pixels still moves
+	// with the sub-pixel offset, which now reads as a band of shifting thickness rather than
+	// one that comes and goes.
+	vec3 ring_path;
+	vec3 ring_transmittance;
+	bool has_ring = atm_ring_pixel(L, R, h, b_footprint, qs, sz, sun_ang, ring_path,
+			ring_transmittance);
+	if (b < R) {
+		float w_shell = smoothstep(R * (1.0 - ATM_RIM_HANDOFF), R, b);
+		if (w_shell <= 0.0 && !has_ring) {
+			disc_hit = true;
+			return;
+		}
+		if (w_shell > 0.0) {
+			// The shell's share of the handoff band (see ATM_RIM_HANDOFF): the sliver at the
+			// silhouette that the polygonal disc meshes fail to cover gets its air from here.
+			float half_chord = sqrt(max(R * R - b * b, 0.0));
+			vec3 hit = q - half_chord * d;
+			vec3 n = hit / R;
+			float mu = dot(n, e);
+			float mu0 = dot(n, sun_local);
+			vec3 disc_transmittance;
+			atm_disc(L, R, mu, mu0, sz, sun_ang, far_floor, path, disc_transmittance);
+			path *= w_shell;
+		}
+		// Added, and the transmittance left at 1: this side of the silhouette is a pure add,
+		// the luma dimming being the disc shaders' in full (see the header).
+		path = (path + ring_path) * mix(1.0, atm_intensity, iv_limb_scale);
+		return;
+	}
+	path = ring_path;
+	transmittance = ring_transmittance;
 	// The shell is where the MODEL stops, not where the atmosphere does - a ray tangent
 	// above it gets no fragment at all. Its scale is chosen (see tables/README.md) so
 	// that what is left up there is under half a display code, which makes this a no-op;

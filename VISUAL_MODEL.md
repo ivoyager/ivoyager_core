@@ -440,6 +440,51 @@ point instead of disappearing. Resolved, the **wing persists** — glare belongs
 camera, not to the subject, so it takes no crossfade — and that persisting wing is
 crescent glow.
 
+**The rim's sky side is drawn here too, because nothing else can.** A body's surface images
+each rim pixel through the camera's PSF (`limb_mean_incidence()`, and *Imaging a pixel* in
+the sibling document), but it can only put that light on fragments it has: its rim ends at
+the rasterized silhouette, and the outward half of a rim pixel's spread belongs beyond it.
+Undrawn, a rim compressed to a line keeps a knife edge, which on a shallow curve is a
+staircase. This quad already covers the sky beside the limb, so `limb_sky_side_incidence()`
+draws the missing half there — the same closed-form chord integral under the same Gaussian,
+evaluated outward, so the two halves partition one convolution rather than overlapping. Its
+cells are spaced uniformly in `sqrt(depth)` rather than in depth: seen from outside, the whole
+lit sliver sits *at* the limb, and a uniform grid's first sample lands past it and weights it
+as if it were that much deeper — 40 % low at three pixels out. And the sun angles it
+integrates are the limb point's for the camera where it is (`limb_sun_angles()`), not the
+phase at the body's centre: a camera at finite distance sees the tangent circle, whose points
+see the sun lower than the centre does by the body's angular radius — 18° from three radii
+out. Lit from the centre's phase, the rim stood as if the sun were that far above a limb it
+was sitting on, stayed lit after the sun had set behind the disc, and went out only at phase
+180°, while the surface beneath it, which has the real normal, had gone dark with the sun.
+
+**What scales it is the body's own flux**, spread over a Lambert sphere's disc, rather than
+anything sampled from the surface — which this quad cannot read. The total is therefore the
+body's true flux through its true phase law while the distribution across the crescent is
+Lambert's, and the seam is where that shows: a body whose rim albedo differs from its disc
+average meets its own spread at a slightly different level.
+
+**The silhouette it measures from is the exact conic**, not an angular radius
+(`IVBodyPSF.get_limb_conic()`, the tangent cone of the body's own spheroid, handed over in
+tangent units and solved per fragment along its own direction). Both of the obvious
+approximations fail here by tens of pixels against a spread that is a few pixels wide: a
+perspective projection draws the tangent cone, 8 % wider than `r / d` at 2.6 radii out, and an
+oblate body's outline is an ellipse whose flattening is not the body's own. Either error puts
+the whole of the spread inside the silhouette, where the depth test drops it. The conic is
+normalized before it is sent — built from `1/radius^2` terms, Jupiter's raw entries are 1e-15
+and their 3x3 determinant underflows float32.
+
+**And it is the table figure's conic, which two of the bodies with a quad do not have.** The
+shared sphere a body scales to its own radii *is* that ellipse to within the tessellation
+`RIM_SEAM_PX` absorbs — measured against the projected vertices at three radii out, the two
+edges agree to 0.3 px of a 393 px disc. A body carrying its own mesh does not: Ceres and
+Charon are drawn from a displaced sphere whose outline stands wherever their terrain does,
+1.9 % of the radius inside the figure on Charon, and the rim drew there as a smooth arc of
+open sky detached from the limb it belonged to — 16 px off it on a 785 px disc, over a fifth
+of the azimuths, at every phase that lights the limb at all. No constant can absorb an error
+in percents of a radius, and nothing on this quad can find that outline, so `IVBodyPSF` sends
+those bodies a zero `limb_semi_axes` and they get the inward half of the spread only.
+
 **Scope is a flag, but the mechanism is a magnitude.** A quad is built for an in-scene
 star and for every body carrying `BODYFLAGS_PLANETARY_MASS_OBJECT` with a geometric
 albedo — 26 bodies: eight planets, Ceres and Pluto, and the sixteen planetary-mass moons.
@@ -495,13 +540,36 @@ Each shader resolves the pixel radius against its **own** `VIEWPORT_SIZE`, so an
 off-screen capture fades at its own buffer's scale rather than the main window's — the
 same reason nothing viewport-dependent is allowed on the CPU side here.
 
-Three approximations worth carrying:
+Four approximations worth carrying:
 
-- **The wing is symmetric about the body's centre while a crescent's light is not.** If
-  the eye objects, shift the quad centre toward the lit limb by a phase-dependent fraction
-  of the disc radius — still analytic, still free. Not a reason to reach for a screen-space
-  convolution: the engine pass is structurally unable for point sources (its feed is
-  capped), which is why this system exists.
+- **The wing is offset toward the lit limb by a phase-dependent fraction of the
+  silhouette's own radius in that direction** (direction the sun's on screen, magnitude
+  `(1 − cos phase)/2`), because a crescent's light is not centred on the body and the wing
+  used to be. What that cost showed worst with the sun near the limb, where the rim is a
+  saturated line and the one thing that could gradate it — the camera's own spill — sat
+  half a disc away as an even halo. It takes the silhouette's radius rather than a mean one
+  because that is what holds the `1/r²` singularity on the disc, which draws over it: a mean
+  lies *between* an oblate body's polar and equatorial extents, and past Saturn's pole the
+  centre stood ten pixels out in open sky, where an unoccluded peak is a dot with a glow
+  around it. The core keeps the body's own centre, and the silhouette radius retires the
+  offset on its own as the disc shrinks toward the unresolved regime. The fraction is by
+  eye: a Lambert sphere's lit centroid is at 4/(3π) of the radius at quarter phase
+  against this curve's 0.5, and closing that gap would mean carrying the disc integral of
+  whichever BRDF the body renders with.
+- **The wing carries the flux this camera receives, not a distant observer's.** The
+  magnitude driving the quad evaluates the body's phase law at the body's *centre*, which is
+  a distant observer's crescent. From close range the camera sees less than a hemisphere, so
+  the sun sets behind the disc while that law still reports one: at Saturn from 3.7 radii the
+  whole visible face is dark past 164° of phase, where the law still says 4 × 10⁻⁴ of full —
+  and the wing glared for a body with no light anywhere on it. Every limb point sees the sun
+  at `sin(phase + ρ)` for the silhouette's own angular radius ρ, so a distant observer with
+  that much more phase has this camera's geometry; the substitution is exact where the
+  crescent dies and where the body is far (ρ → 0), and within a third of a magnitude between,
+  which on a glare halo is nothing. Only the wing takes it. The core is a point source only
+  where the body is unresolved, and the two fluxes agree exactly there; the rim divides the
+  same flux by the same disc integral, so the correction cancels out of it — which is right,
+  a crescent's surface brightness being its albedo and its illuminance however little of it
+  is left.
 - **On Forward+ a resolved bright disc still feeds the engine glow pass**, so the
   resolved-regime wing stacks on that pass's bloom there and the two renderers are close
   rather than identical. Its amplitude in that regime is an in-app anchor to judge,
