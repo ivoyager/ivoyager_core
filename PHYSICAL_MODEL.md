@@ -14,50 +14,78 @@ v0.3 rework of `IVBody` is tracked separately in
 [IVBody_REDESIGN_v0.3.md](https://github.com/ivoyager/planetarium/blob/master/IVBody_REDESIGN_v0.3.md);
 where a section below describes a v0.2 mechanism that plan replaces, it says so.
 
-## Overview: a model that is a function of time
+## Overview: elements are the state
 
-The simulation does not integrate. Every body's translation relative to its parent at
-time *t* is a closed-form evaluation of its orbit's elements at *t*, and its orientation is
-a rotation angle that is a linear function of *t*; nothing is carried from one frame to
-the next except the clock. That single decision shapes almost everything else in this
-document:
+A body's translation relative to its parent is held as a set of orbital elements rather
+than as a position and a velocity. That is a change of coordinates, not a change of kind:
+the two representations convert into each other in both directions (`IVOrbit.get_state`,
+`IVOrbit.create_from_state_and_precessions`), and either one together with a time is the
+same physical fact about the body. What the choice buys is that the closed-form solution
+of the two-body problem is written in exactly these variables, so between the events that
+change a body's state the simulator evaluates where an integrator would step — no step
+size, no accumulated error, and no constraint on the order in which bodies are updated.
+Orientation is the same bargain in a single variable, an angle linear in time (the
+spacecraft attitude laws being the standing exception; *Rotation*). Two consequences run
+through the whole document:
 
 - **Any time is as cheap as now.** Every state query on `IVBody` takes an optional
   `time`, and every `IVOrbit` getter named `_at_time` (and every static) is valid without
   an `update()` call. That is what makes projected positions, orbit-line sampling, the
   trajectory joins, OS-time synchronization and time reversal ordinary calls rather than
-  features.
+  features — and it is why a body whose per-frame processing is switched off loses
+  nothing.
 - **Nothing accumulates, so nothing drifts.** Two machines holding the same elements and
   the same time compute the same position, to the rounding of identical operations. The
   multiplayer consequences are drawn out under *Persistence, determinism and sync*.
-- **A body that is not processing loses nothing.** `IVSleepManager` disables `_process()`
-  on far-from-camera moons and spacecraft; their `Node3D.position` goes stale, but every
-  API query re-evaluates from time and stays exact.
-- **Perturbations are element rates, not forces.** The two-body conic is exact, and the
-  real world's departures from it that matter at the eye's scale are slow and secular;
-  those enter as rates on the elements (*Orbits* below). Anything faster or
-  non-secular — thrust, a close encounter — is a change of elements, made through the
-  state-to-elements conversion that already exists.
 
-### Physical state versus visual state
+**Elements are live state, not a recorded path.** Nothing here is a keyframed trajectory
+or a time-indexed lookup of pre-computed positions: change an orbit's elements and the
+body goes somewhere else from that moment on. An impulse is already three lines — read
+the state at *t*, add Δv, solve the new orbit — and a rocket under continuous thrust is
+that same call repeated as often as the accuracy wants, which is how a project can fly one
+today; `IVManeuveringOrbit` is on the roadmap to make impulse and constant thrust a
+first-class orbit rather than each project's own loop. What the model does *not* do is
+derive such changes for you. There is no N-body force integration, so a third body
+perturbs nothing unless something writes the perturbation into the elements — which is why
+the slow perturbations of the real solar system arrive as published rates on elements
+(*Orbits*), and why the routes to a body that perturbs its neighbors are sketched rather
+than built (*Two kinds of project*, TODO). The line worth keeping is between the machinery
+and the data: the Planetarium's solar system unfolds the same way in every session because
+its tables transcribe a known past, which is a property of that data and not a limit of
+what the machinery can be given.
 
-Two states coexist, and the line between them is exactly the line the `PERSIST_` constants
-draw. The **physical state** is the objective truth: 64-bit, persisted, and the same for
-every observer. It is simulator time; every `IVBody`'s identity, flags, mass and figure,
-rotation parameters, characteristics and components; every `IVOrbit`'s elements, rates and
-epoch; every `IVTrajectory`'s segments; and every `IVSmallBodiesGroup`'s element arrays.
-The **visual state** is derived from it every frame for one viewpoint: `Node3D` transforms
-(float32, origin-shifted), farwarp positions, orbit lines and their pins, HUD visibility,
-lazy model instantiation, sleep, and the camera itself. The visual state is *subjective*
-by construction — origin shifting, farwarp and every other mechanism in the sibling
-document condition the frame for exactly one camera — and that is precisely why it is not
-a constraint on multiplayer: only the physical state need be shared, and each client
-derives its own view from it. The Planetarium does not ship the save plugin, but the
-`PERSIST_PROPERTIES` lists in `IVBody`, `IVOrbit`, `IVRealPlanetOrbit`, `IVTrajectory`,
-`IVSmallBodiesGroup`, `IVTimekeeper` and `IVSpeedManager` are the authoritative inventory
-of the physical state regardless; *Persistence* below tabulates it.
+## Physical state versus visual state
 
-### Where it lives
+Two states coexist. The **physical state** is the objective truth: 64-bit, authored rather
+than derived, and the same for every observer. It is simulator time; every `IVBody`'s
+identity, flags, mass and figure, rotation parameters, characteristics and components; every
+`IVOrbit`'s elements, rates and epoch; every `IVTrajectory`'s segments; and every
+`IVSmallBodiesGroup`'s element arrays. The **visual state** is what a frame computes from it
+for one viewpoint: `Node3D` transforms (float32, origin-shifted), farwarp positions, orbit
+lines and their pins, HUD visibility, lazy model instantiation, sleep, and the camera
+itself. The visual state is *subjective* by construction — origin shifting, farwarp and
+every other mechanism in the sibling document condition the frame for exactly one camera —
+and that is precisely why it is not a constraint on multiplayer: only the physical state
+need be shared, and each client derives its own view from it.
+
+The `PERSIST_` constants very nearly draw that same line. The `PERSIST_PROPERTIES` lists in
+`IVBody`, `IVOrbit`, `IVRealPlanetOrbit`, `IVTrajectory`, `IVSmallBodiesGroup`,
+`IVTimekeeper` and `IVSpeedManager` are the authoritative inventory of the physical state
+(*Persistence* below tabulates it); what the constants carry past it is the viewer's own
+state — the camera, saved views, HUD visibilities and colors — which is per client and
+never the world's. They are also what the optional save plugin reads and writes: with
+`ivoyager_save` present, the whole physical state of the simulation saves and loads, which
+is what a game needs and what the
+[Project Template](https://github.com/ivoyager/project_template) ships working, dialogs and
+all. The [Planetarium](https://github.com/ivoyager/planetarium) does not use it. It caches
+instead a single hand-picked `IVView` between sessions — camera target, position and
+tracking, HUD visibilities and colors, and the time state (speed, pause, clock), which is
+the only part of it that is physical at all. Everything else about the world is rebuilt
+from the tables at every launch. That shortcut is available only because nothing in the
+Planetarium can move the simulation off what its tables imply: no thrust, no player, no
+divergence to record. A project that has any of those wants the save plugin.
+
+## Where it lives
 
 | Concern | Classes | Authored in |
 |---|---|---|
@@ -69,74 +97,6 @@ of the physical state regardless; *Persistence* below tabulates it.
 | Frames, constants, scale | `IVAstronomy`, `IVUnits`, `IVMath64` | `ivoyager_override.cfg` (both autoloads are replaceable) |
 | Construction | `IVTableSystemBuilder` → `IVTableBodyBuilder` → `IVTableOrbitBuilder`, `IVTableCompositionBuilder`; `IVTableSBGBuilder` + `IVBinaryAsteroidsBuilder`; `IVBodyFinisher`, `IVSBGFinisher` | — |
 
-## Frames, units and constants
-
-**One frame: the ecliptic of J2000.** Ecliptic north is +z, the vernal equinox is +x, and
-every `IVBody` node is *never rotated or scaled*, so a local translation at any depth of
-the body tree is already an ecliptic vector and a frame change between two bodies is pure
-vector addition up the parent chain (`get_translation_to_ancestor`). `IVAstronomy` holds
-the constants that connect this to how astronomers publish — the obliquity (23.4392911°
-at J2000), the equatorial↔ecliptic rotations, and the basis constructions that turn a pole
-direction into a body or orbit frame. Nothing in the simulator is expressed in equatorial
-coordinates except at the table boundary, where a pole's or a Laplace plane's RA/dec is
-converted once, and in GUI readouts.
-
-**Two number widths, one idiom.** Real spatial quantities are 64-bit: a "translation" is
-a size-3 `PackedFloat64Array`, a "state" size 6, a "basis" size 9 (`IVMath64`). Any method
-returning a `Vector3`, `Basis` or `PackedVector3Array` is flagging its result as float32,
-for graphics. `IVOrbit` carries both getters side by side (`get_translation` /
-`get_state` against `get_position_vector` / `get_state_vectors`), and the builders, the
-trajectory joins and the Lambert solver stay in doubles end to end — a near-180° transfer
-would lose ~1e4 km at planetary distances through one float32 round trip. GDScript's
-`float` is 64-bit in any Godot build; none of this needs a double-precision engine.
-
-**Units are SI internally and scale is one constant.** `IVUnits` defines the internal
-units (second, meter, kilogram, …) and every derived unit and constant from them. Table
-values are converted at import from the `Unit` row of each `.tsv`, and the asteroid
-binaries are rescaled at load, so the whole model follows `IVUnits.METER` if a project
-changes it (the Planetarium's `units.gd` keeps the running record of what that constant
-has cost the lighting across Godot versions). `IVUnits` is replaced through
-`ivoyager_override.cfg`, which is also how a project changes the base units themselves.
-
-**G, GM and mass.** `IVAstronomy.G` is Newton's constant in internal units, and
-`IVAstronomy` is an autoload precisely so a fictional universe can replace it. Orbits
-never touch G: they take a gravitational parameter (GM), because for real bodies GM is
-measured directly and known far better than mass (the Sun's GM to ten significant
-figures, its mass to about five). So the tables carry GM where it is known,
-`IVBody.get_mass()` divides by G only when no mass was given, and `IVTableBodyBuilder`
-multiplies by G only when a body has a mass but no GM. A fictional system authored in
-masses therefore picks up the project's G everywhere; a real one is unaffected by it.
-Changing a body's GM at runtime does not propagate to its satellites' orbits (see TODO).
-
-## Time
-
-**Simulator time is Terrestrial Time in seconds from J2000**, a 64-bit float that
-`IVTimekeeper` advances each frame by `delta × speed_multiplier` and publishes at
-`IVGlobal.times[0]` and in the `iv_time` shader global. At present values (~8e8 s) a
-float64 resolves ~1e-7 s; the float32 copy the GPU sees resolves 64 s, which the sibling
-document shows is harmless for point fields through this century. `IVAstronomy` records
-the eventual limit — spans of 10,000+ years want a movable epoch — as a TODO.
-
-**Speed is a multiplier, sign included.** `IVSpeedManager` holds a project-defined ladder
-of speeds (`speeds`; the Planetarium's runs to 1e8×), optional eased transitions, and time
-reversal when `IVCoreSettings.allow_time_reversal` permits. `Engine.time_scale` follows
-the speed only if `manage_engine_time_scale` is set (the Planetarium sets it false; Core
-itself almost never uses `delta`). Pause is a tree pause managed by `IVStateManager`, and
-the timekeeper is pausable whatever the Universe's own process mode.
-
-**The clock is a second, separate model.** Calendar date, Julian Day Number and the
-displayed clock derive from TT but roll over on *clock time*, which by default is a
-simulated Universal Time: `IVTimekeeper` counts the synodic days of `universal_time_body`
-(Earth) from the sim's own rotation rate and orbital mean motion, offset so that UT1's
-present 69.184 s lag behind TT is reproduced. Point it at Mars and the clock runs on sols.
-A TT clock is an option; leap seconds are a constant (`utc_leap_seconds`, 37); OS
-synchronization (`operating_system_time_sync`, the Planetarium's default) sets TT from the
-OS's UTC plus leap seconds plus the 32.184 s TAI offset.
-
-**Sim-time scheduling.** `IVScheduler` emits interval signals in simulator time (capped at
-once per frame), for anything that must recur every simulated day or year rather than
-every real second.
-
 ## The body tree
 
 An `IVBody` is a named, persistent, selectable `Node3D` in the physical tree whose
@@ -145,6 +105,17 @@ scene-tree parent is its gravitational primary. `Node.name` is the table row nam
 `IVBody.bodies`. Parenting *is* the orbital hierarchy: a body is a child of the body it
 orbits, and nothing else about the tree's shape is arbitrary (this is also what lets
 float32 imprecision cancel in the render — sibling document).
+
+**The frame stays ecliptic all the way down.** Depth in the tree changes what a body's
+translation is measured *from*, never what it is measured *in*: no `IVBody` node is ever
+rotated, so a translation at any depth is an ecliptic vector. Holding one frame everywhere
+is less a convenience than the absence of an alternative, because there is no privileged
+local frame to hand a subtree. A planet's rotation, each of its satellites' orbits and the
+plane each of those precesses about are naturally stated in different planes, and the
+parent's equator is only one candidate among unboundedly many. So each such plane is named
+in the data that needs it and rotated into the ecliptic once, at import (*Orbits*,
+*Rotation*), and the tree itself carries no orientation — which is what leaves the relation
+between any two bodies an addition up the parent chain rather than a walk through frames.
 
 **Identity is a bitmask.** `BodyFlags` carries orbit-context and identity bits (top, star,
 star-orbiter, planet, dwarf planet, moon and its planetary-mass split, asteroid,
@@ -197,8 +168,8 @@ skips its update. This is a physical fact about the body, yet the two values are
 **Sleep and lazy models are process economies, not state.** With `IVSleepManager` present,
 `can_sleep` bodies process only while the camera is in their star-orbiter's system; with
 `IVLazyModelInitializer`, `lazy_model` bodies build no visual until visited. Neither
-touches the physical state, and every query stays valid through both, by the
-function-of-time argument above. Both currently key on camera parenting; the redesign
+touches the physical state, and every query stays valid through both, because every
+query re-evaluates from time. Both currently key on camera parenting; the redesign
 plans a proximity service in their place.
 
 **Statics.** `IVBody.replacement_subclass` and `IVOrbit.replacement_subclass` let a project
@@ -223,9 +194,9 @@ the reference basis.
   who is updated first.
 - **Real departures from a conic are slow.** For everything the eye can see, the
   perturbations that matter over human spans are secular: the node regresses, the
-  periapsis advances, and (for the planets, over millennia) *a*, *e* and *i* creep. Those
-  are rates on elements — the next subsection — not accelerations, and they cost nothing
-  per frame.
+  periapsis advances, and (for the planets, over millennia) *a*, *e* and *i* creep. Each is
+  a rate on an element — the next subsection — exact under the evaluation and costing
+  nothing per frame.
 - **An orbit is small data.** `serialize()` packs one in 30 floats. That is what makes an
   orbit cheap to persist, to send, and to instantiate speculatively — a trajectory planner
   can hold dozens of candidate `IVOrbit`s without a node among them, which is why the class
@@ -233,22 +204,31 @@ the reference basis.
 - **Elements are the published language.** Planetary theories, satellite mean elements,
   asteroid catalogs and spacecraft ephemerides are all delivered as elements of one kind
   or another; the tables transcribe them.
+- **They are the field's state variables, not a simplification of them.** Celestial
+  mechanics has worked in this representation since Lagrange: variation of parameters
+  treats the elements as the state and a perturbing force as rates on them, which is what
+  every general-perturbation and mean-element theory propagates — the satellite theories
+  behind JPL's published moon elements, SGP4 behind every Earth-satellite two-line element
+  set. Mission design is conic-shaped for the same reason: patched conics, Lambert arcs,
+  and a burn written as the change it makes to an osculating orbit. Where the profession
+  leaves elements is where it wants meter-level accuracy under a full force model — and
+  even that arrives back as elements on request (*Approaching the real solar system*).
 
 ### Reference planes and the node convention
 
 An orbit's `reference_basis` is the frame its elements are measured in and the plane it
-precesses about. Three kinds are supported: **ecliptic** (identity; planets, asteroids,
-spacecraft, the Moon), the parent's **equatorial** plane (built from the parent's positive
-pole; close-in regular moons), and a **Laplace** plane given by its own pole RA/dec (most
-moons — the plane a satellite's node actually regresses about, between the planet's
-equator and its orbit). In the shipped `orbits.tsv`, 162 rows are ecliptic, 25 equatorial
-and 43 Laplace. For the two body-centric kinds the basis x-axis — the zero of Ω — is the
-plane's ascending node on the ICRF equator, which is the convention of JPL's planetary
-satellite mean elements and is what makes those tables transcribable verbatim. The other
-zero that matters is the projection of the vernal equinox onto the orbit plane, which is
-what a body's rotation basis is built against; `get_vernal_referenced_mean_longitude_at_epoch()`
-bridges the two (a tidally locked moon anchored to the wrong zero turns by the angle
-between them — 131° for Saturn's inner moons).
+precesses about. Three kinds are supported: **ecliptic** (identity — the model's one frame
+is the ecliptic of J2000; planets, asteroids, spacecraft, the Moon), the parent's
+**equatorial** plane (built from the parent's positive pole; close-in regular moons), and a
+**Laplace** plane given by its own pole RA/dec (most moons — the plane a satellite's node
+actually regresses about, between the planet's equator and its orbit). In the shipped
+`orbits.tsv`, 162 rows are ecliptic, 25 equatorial and 43 Laplace. For the two body-centric
+kinds the basis x-axis — the zero of Ω — is the plane's ascending node on the ICRF equator,
+which is the convention of JPL's planetary satellite mean elements and is what makes those
+tables transcribable verbatim. The other zero that matters is the projection of the vernal
+equinox onto the orbit plane, which is what a body's rotation basis is built against;
+`get_vernal_referenced_mean_longitude_at_epoch()` bridges the two (a tidally locked moon
+anchored to the wrong zero turns by the angle between them — 131° for Saturn's inner moons).
 
 ### Precession for free
 
@@ -441,6 +421,74 @@ the epoch elements while the points precess, so line and point separate over cen
 and a blanket factor of three on every group's *g* and *s*, added to keep the Hildas in
 place over ±5,000 years, is marked in code as working for an unknown reason.
 
+## Frames, units and constants
+
+**One frame: the ecliptic of J2000.** Ecliptic north is +z, the vernal equinox is +x, and
+every `IVBody` node is *never rotated or scaled*, so a local translation at any depth of
+the body tree is already an ecliptic vector and a frame change between two bodies is pure
+vector addition up the parent chain (`get_translation_to_ancestor`). `IVAstronomy` holds
+the constants that connect this to how astronomers publish — the obliquity (23.4392911°
+at J2000), the equatorial↔ecliptic rotations, and the basis constructions that turn a pole
+direction into a body or orbit frame. Nothing in the simulator is expressed in equatorial
+coordinates except at the table boundary, where a pole's or a Laplace plane's RA/dec is
+converted once, and in GUI readouts.
+
+**Two number widths, one idiom.** Real spatial quantities are 64-bit: a "translation" is
+a size-3 `PackedFloat64Array`, a "state" size 6, a "basis" size 9 (`IVMath64`). Any method
+returning a `Vector3`, `Basis` or `PackedVector3Array` is flagging its result as float32,
+for graphics. `IVOrbit` carries both getters side by side (`get_translation` /
+`get_state` against `get_position_vector` / `get_state_vectors`), and the builders, the
+trajectory joins and the Lambert solver stay in doubles end to end — a near-180° transfer
+would lose ~1e4 km at planetary distances through one float32 round trip. GDScript's
+`float` is 64-bit in any Godot build; none of this needs a double-precision engine.
+
+**Units are SI internally and scale is one constant.** `IVUnits` defines the internal
+units (second, meter, kilogram, …) and every derived unit and constant from them. Table
+values are converted at import from the `Unit` row of each `.tsv`, and the asteroid
+binaries are rescaled at load, so the whole model follows `IVUnits.METER` if a project
+changes it (the Planetarium's `units.gd` keeps the running record of what that constant
+has cost the lighting across Godot versions). `IVUnits` is replaced through
+`ivoyager_override.cfg`, which is also how a project changes the base units themselves.
+
+**G, GM and mass.** `IVAstronomy.G` is Newton's constant in internal units, and
+`IVAstronomy` is an autoload precisely so a fictional universe can replace it. Orbits
+never touch G: they take a gravitational parameter (GM), because for real bodies GM is
+measured directly and known far better than mass (the Sun's GM to ten significant
+figures, its mass to about five). So the tables carry GM where it is known,
+`IVBody.get_mass()` divides by G only when no mass was given, and `IVTableBodyBuilder`
+multiplies by G only when a body has a mass but no GM. A fictional system authored in
+masses therefore picks up the project's G everywhere; a real one is unaffected by it.
+Changing a body's GM at runtime does not propagate to its satellites' orbits (see TODO).
+
+## Time
+
+**Simulator time is Terrestrial Time in seconds from J2000**, a 64-bit float that
+`IVTimekeeper` advances each frame by `delta × speed_multiplier` and publishes at
+`IVGlobal.times[0]` and in the `iv_time` shader global. At present values (~8e8 s) a
+float64 resolves ~1e-7 s; the float32 copy the GPU sees resolves 64 s, which the sibling
+document shows is harmless for point fields through this century. `IVAstronomy` records
+the eventual limit — spans of 10,000+ years want a movable epoch — as a TODO.
+
+**Speed is a multiplier, sign included.** `IVSpeedManager` holds a project-defined ladder
+of speeds (`speeds`; the Planetarium's runs to 1e8×), optional eased transitions, and time
+reversal when `IVCoreSettings.allow_time_reversal` permits. `Engine.time_scale` follows
+the speed only if `manage_engine_time_scale` is set (the Planetarium sets it false; Core
+itself almost never uses `delta`). Pause is a tree pause managed by `IVStateManager`, and
+the timekeeper is pausable whatever the Universe's own process mode.
+
+**The clock is a second, separate model.** Calendar date, Julian Day Number and the
+displayed clock derive from TT but roll over on *clock time*, which by default is a
+simulated Universal Time: `IVTimekeeper` counts the synodic days of `universal_time_body`
+(Earth) from the sim's own rotation rate and orbital mean motion, offset so that UT1's
+present 69.184 s lag behind TT is reproduced. Point it at Mars and the clock runs on sols.
+A TT clock is an option; leap seconds are a constant (`utc_leap_seconds`, 37); OS
+synchronization (`operating_system_time_sync`, the Planetarium's default) sets TT from the
+OS's UTC plus leap seconds plus the 32.184 s TAI offset.
+
+**Sim-time scheduling.** `IVScheduler` emits interval signals in simulator time (capped at
+once per frame), for anything that must recur every simulated day or year rather than
+every real second.
+
 ## Persistence, determinism and sync
 
 **What the truth consists of.** The complete physical state, as the `PERSIST_PROPERTIES`
@@ -505,27 +553,37 @@ joins would follow it for free because they fit against whatever the primaries a
 do. Nothing in Core has to change for a project to build it; that is the point of elements
 as a coordinate system.
 
-**How this compares to JPL.** The reference solutions for the solar system — the JPL
-Development Ephemerides (DE440 and successors) and their satellite and small-body
-counterparts — are produced by numerically integrating the full N-body problem, with
-relativity, the largest asteroids and detailed force models, and fitting the integration
-to decades of radar, spacecraft ranging and VLBI. But they are *distributed* as tables of
-Chebyshev polynomial coefficients: positions as a function of time, which a consumer
-evaluates rather than integrates. In that sense our runtime resembles theirs — the running
-simulator only ever evaluates functions of time — and what differs is the function. Ours
-is a conic with linearly evolving elements (plus the JPL fit terms for the planets); theirs
-is a piecewise polynomial fit to an integration, good to sub-kilometre for the inner
-planets over the span of the data. Every product we transcribe is one JPL derives *from*
-that integration: HORIZONS converts it to osculating elements about any center (our
-spacecraft segments); the planetary satellite service publishes mean elements with Laplace
-planes and precession rates (our moons); the *approximate positions* page fits Keplerian
-elements with rates to it (our `IVRealPlanetOrbit`); and AstDyS computes proper elements
-and frequencies for the asteroids (our groups). The price of the simpler function is drift
-away from the epoch — arcminutes over centuries for the planets, faster for close moons
-whose mean elements omit the periodic terms — which is invisible at the eye's scale and
-inadequate for navigation; the price of the JPL function is that it exists only where
-there are observations. The ephemeris-orbit rung would close the gap over exactly the span
-JPL covers.
+**The reference ephemerides are served as elements.** The solar system's reference
+solutions — the JPL Development Ephemerides (DE440 and successors) and their satellite and
+small-body counterparts — are numerical integrations of the full N-body problem, fit to
+decades of radar, spacecraft ranging and VLBI. HORIZONS serves them, and it serves them in
+either representation: `EPHEM_TYPE='VECTORS'` returns a Cartesian state,
+`EPHEM_TYPE='ELEMENTS'` returns the osculating elements about whatever center you name, at
+any time or cadence. Rates are published wherever they are the natural product — JPL's
+planetary satellite service gives mean elements with their nodal and apsidal precession
+rates and the Laplace plane those precess about (our moons), the *approximate positions*
+page gives Keplerian elements with linear rates on *a*, *e* and *i* (our
+`IVRealPlanetOrbit`), and AstDyS computes proper elements and their frequencies for the
+asteroids (our groups). An element set is therefore not something a project has to derive;
+for every class of body it is something to fetch. Each maps onto columns of `orbits.tsv` or
+onto `IVOrbit` setters — which is how every spacecraft trajectory in the Planetarium was
+authored (`addons/tools/TRAJECTORIES.md`) — and a state vector converts in one call
+(`create_from_state_and_precessions`) when elements are not what you have.
+
+That is worth knowing before deciding to write body positions from an ephemeris directly
+each frame and step around `IVOrbit`. The two are not equivalent, because the orbit is what
+the rest of the simulator asks: orbit lines and projected positions sample it at times that
+are not now, the trajectory joins fit against it, tidally locked rotation and the
+orbit-tracking bases are derived from it, Hill sphere and satellite ordering are computed
+from it, and save, sync and time reversal all carry it as thirty floats. A body whose
+position is written from outside answers none of that, and answers nothing at all for a
+time it holds no sample for. Refreshing its elements instead — once at build,
+once a session, or as often as accuracy demands — keeps all of it working, and is the same
+move `IVEphemerisOrbit` would make on the project's behalf. What the simpler function costs
+between refreshes is drift away from its epoch: arcminutes over centuries for the planets,
+faster for close moons whose mean elements omit the periodic terms — invisible at the
+eye's scale, inadequate for navigation, and bounded by how often one chooses to
+re-osculate.
 
 ### A free-standing physical simulation
 
