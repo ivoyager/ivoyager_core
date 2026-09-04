@@ -293,7 +293,13 @@ domain 0b0001, 0.1–100 km → middle 0b0010, < 0.1 km → near 0b0100). Only t
 middle lights carry shadow maps; the far light never does. Shadow reach follows the
 camera (`floor`, `+ target distance`, `+ star-orbiter distance`, capped by `ceiling` —
 100 km near, 1e5 km middle), and the near/middle energies carry the camera-point
-occlusion fraction above.
+occlusion fraction above. Reach is the whole of the texel budget: a split's texel is its
+share of the reach over its share of the atlas, so every metre of reach past the target is
+resolution thrown away. It cannot simply be minimised, though — Godot fades a directional
+shadow out from `directional_shadow_fade_start` (0.8) of the reach, so the reach must stay
+above ~1.25× the camera-to-target distance or the target itself fades. With an additive
+`+ target distance` that ratio decays with distance, which is what bounds how far out a
+craft keeps its self-shadows (~1 km at the shipped 0.25 km `target_plus`).
 
 Two rules keep the maps honest across the warp boundary:
 

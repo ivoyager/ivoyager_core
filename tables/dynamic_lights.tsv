@@ -6,7 +6,7 @@ Prefix/DYNAMIC_LIGHT_
 SUN_NO_SHADOWS	TRUE	STAR_SUN																	TRUE
 SUN_FAR		STAR_SUN											0b0001						
 SUN_MIDDLE_SHADOWS		STAR_SUN		1e3	1e5	1e3		TRUE	0.25	0.4	0.7	TRUE	0b0010	0b100000000					TRUE
-SUN_NEAR_SHADOWS		STAR_SUN		1	100	1		TRUE	0.2	0.3	0.7	TRUE	0b0100	0b100000000					TRUE
+SUN_NEAR_SHADOWS		STAR_SUN		0.1	100	0.25		TRUE	0.2	0.3	0.7	TRUE	0b0100	0b100000000					TRUE
 # Astronomical-scale shadows (rings, eclipses, transits) are analytic; see IVSunOcclusionManager.																			
 # The far light has no shadow map. Near/middle maps serve the local scene only: casters carry the																			
 # LOCAL_SHADOW_CASTER layer bit (see IVGlobal), and apply_sun_occlusion dims these lights by the																			
