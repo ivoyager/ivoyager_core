@@ -14,6 +14,16 @@ Functionality of this plugin can be modified extensively using external scripts 
 * [IVBody](https://github.com/ivoyager/ivoyager_core/blob/master/tree/body.gd) for the physical 3D world.
 * [IVOrbit](https://github.com/ivoyager/ivoyager_core/blob/master/tree_components/orbit.gd) for orbital mechanics.
 
+Three design documents describe the simulation at the level of logic and invariants, each with its own TODO list:
+
+* [PHYSICAL_MODEL.md](https://github.com/ivoyager/ivoyager_core/blob/master/PHYSICAL_MODEL.md) for the objective simulation: bodies, orbits, trajectories, rotation, time, scale, small-body groups, and the persisted state.
+* [VISUAL_MODEL.md](https://github.com/ivoyager/ivoyager_core/blob/master/VISUAL_MODEL.md) for how that double-precision truth renders through a float32 pipeline: parenting, origin shifting, farwarp, shadows, culling, orbit lines, point fields, and mouse picking.
+* [PHOTOMETRIC_MODEL.md](https://github.com/ivoyager/ivoyager_core/blob/master/PHOTOMETRIC_MODEL.md) for physically calibrated light: the calibration chain, the compensating camera, surfaces, atmospheres, rings, stars, and renderer parity.
+
+[IVBody_REDESIGN_v0.3.md](https://github.com/ivoyager/ivoyager_core/blob/master/IVBody_REDESIGN_v0.3.md) is the living plan for the v0.3 IVBody rework: positioner / rotator / geometry composition, surface anchors, the proximity service, and a body that answers its own surface geometry. It goes away when the rework lands.
+
+[SHADER_COMPILE_COST.md](https://github.com/ivoyager/ivoyager_core/blob/master/SHADER_COMPILE_COST.md) is a measurement rather than a model: what each shader costs the GPU driver to compile, why that dominates a first run on the Compatibility renderer and so in a web export, what IVShaderWarmup does about it, and what an edit to a given `.gdshaderinc` costs.
+
 ### Requirements
 
 * ivoyager_tables (plugin) - See [repository](https://github.com/ivoyager/ivoyager_tables) for installation instructions.

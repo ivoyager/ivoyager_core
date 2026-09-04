@@ -16,7 +16,7 @@ PLANET_NEPTUNE_SURFACE		x			band_pattern_shader														0.466														
 PLANET_NEPTUNE_CLOUDS			1.002	clouds	cloud_shell_shader				OFF										0.466																																												0.0	0.0			
 # Surface-class rows. Each is the default shell 0 for its surface_class; a body's																																																																			
 # own shell0 row replaces it wholly (never a merge).																																																																			
-G_STAR	G_STAR	x			sun_surface_shader			x	OFF																																																										
+G_STAR	G_STAR	x			photosphere_shader			x	OFF																																																										
 ROCKY_WORLD	ROCKY_WORLD	x			surface_shader														0.6																																																
 DESERT_WORLD	DESERT_WORLD	x			surface_shader														0.6																																																
 CONTINENTAL_WORLD	CONTINENTAL_WORLD	x			surface_shader													0.35																																																	

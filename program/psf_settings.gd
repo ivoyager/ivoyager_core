@@ -55,12 +55,15 @@ signal changed()
 
 
 ## Width in px of the camera point-spread function that images every source, at any
-## resolution. The sole input to a source's size, together with intensity.
+## resolution. The sole input to a source's size, together with intensity. Also written
+## to the [code]iv_psf_sigma[/code] shader global, through which a body's surface shaders
+## image its sunlit rim with the same PSF (see [code]_photometry.gdshaderinc[/code]).
 var psf_sigma := 0.5:
 	set(value):
 		if psf_sigma == value:
 			return
 		psf_sigma = value
+		RenderingServer.global_shader_parameter_set(&"iv_psf_sigma", value)
 		changed.emit()
 ## V magnitude mapping to flux 1.0, i.e. to [member intensity_scale].
 var intensity_faint_mag := 6.5:
@@ -153,7 +156,7 @@ var glare_max_px := 384.0:
 
 ## Pushes only the [code]color_from_b_v()[/code] inputs to [param shader_material]. For a
 ## consumer that maps B-V through the shared ramp but takes none of the point-source
-## photometry — a resolved star's disc ([code]sun_surface.gdshader[/code]), which is
+## photometry — a resolved star's disc ([code]photosphere.gdshader[/code]), which is
 ## lit by geometry rather than by a PSF. It still needs this: the disc and the quad
 ## trade places at the handoff, and a B-V that changed color across that trade would
 ## show. [method apply_to] calls this, so a point-source consumer needs only that.

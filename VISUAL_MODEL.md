@@ -4,11 +4,14 @@ This document describes how I, Voyager places, scales, culls, shadows and picks 
 camera sees: the machinery that turns a double-precision simulation spanning some fifteen
 orders of magnitude into a scene a float32 render pipeline can draw without shakes,
 missing geometry or absurd shadows. It is about the logic and the invariants;
-implementation detail lives in the class and shader docs. Its sibling
-[PHOTOMETRIC_MODEL.md](PHOTOMETRIC_MODEL.md) covers how bright each pixel is; this one
-covers where everything is, how big it renders, what stands between it and the light, and
-how the mouse finds it. A system that has both a photometric and a spatial face (rings,
-the sun, the star field) appears in both documents, split by concern and cross-referenced.
+implementation detail lives in the class and shader docs. It has two siblings.
+[PHYSICAL_MODEL.md](PHYSICAL_MODEL.md) is the objective simulation underneath — bodies,
+orbits, rotation, time and scale, the 64-bit truth that everything here renders and never
+modifies. [PHOTOMETRIC_MODEL.md](PHOTOMETRIC_MODEL.md) covers how bright each pixel is; this
+one covers where everything is, how big it renders, what stands between it and the light,
+and how the mouse finds it. A system that has both a photometric and a spatial face (rings,
+the sun, the star field) appears in both this document and the photometric one, split by
+concern and cross-referenced.
 
 ## Overview: two number systems
 
@@ -56,8 +59,9 @@ would hand the farwarp, occlusion, picking and world-controller systems to a thr
 
 Each frame `IVCamera` processes its own motion, then subtracts its global position from
 the Universe root's translation — camera at origin, to the f32 rounding of its ancestor
-chain. Ordinary tree children ride the shift automatically (their locals are untouched;
-the world moves under them). Two kinds of code do not, and both are ordered explicitly:
+chain, which at planetary distances is kilometres (*Smallness, not stationarity*, below).
+Ordinary tree children ride the shift automatically (their locals are untouched; the world
+moves under them). Two kinds of code do not, and both are ordered explicitly:
 
 | Process priority | Who | What it does / reads |
 |---|---|---|
@@ -82,6 +86,30 @@ star's subtree processed, typically the previous frame's.
 Distance computations are shift-invariant (both endpoints carry the same Universe
 translation), so code at priority 0 may difference two same-frame globals freely; what it
 may not do is place a world-space node from them before the shift settles.
+
+### Smallness, not stationarity
+
+The shift does what it was built to do. It takes near-camera world magnitudes from ~1e11
+units down to a few kilometres, and that smallness is the whole point: one f32 ULP at 5 km is
+half a millimetre, against 16 km at 1 au. Relative geometry stays exact on top of it because
+the error is shared (*Overview*). Nothing below is a defect in that.
+
+What the shift does not deliver — and was never asked to — is a *stationary* world frame. The
+subtraction runs in float32 on a number holding the camera's distance from the Universe
+origin, where one ULP at 1 au is ~16 km, so the camera comes to rest *within* ~8 km of the
+origin rather than *on* it, and that residual is free to drift. Measured on the ISS:
+`Universe.x` unchanged across 109 consecutive frames, the camera 1.1–6.6 km out, and the whole
+near-camera scene translating **129 m per frame** — the ISS's orbital speed over the frame
+rate — with jumps to ~4 km on the frames where the lattice does move.
+
+That cost nothing until 2026-09, when a consumer turned out to need stationarity rather than
+smallness: Godot anchors its directional-shadow texel lattice in absolute world space (*Local
+shadow maps*, and the TODO entry). Two things follow for anyone re-opening it. The quantum is
+*relative*, so it is ~16 km at 1 au whatever `IVUnits.METER` is — a project cannot tune its
+way out by changing sim scale, and a scale-sensitivity hunt is the wrong investigation. And
+the general form of the finding is that the render frame is anchored to the Universe root, so
+a body sweeps through it at its **absolute** speed rather than its speed relative to the
+camera; anything reading world-space *position* rather than a difference sees that sweep.
 
 ## The depth range
 
@@ -290,7 +318,20 @@ domain 0b0001, 0.1–100 km → middle 0b0010, < 0.1 km → near 0b0100). Only t
 middle lights carry shadow maps; the far light never does. Shadow reach follows the
 camera (`floor`, `+ target distance`, `+ star-orbiter distance`, capped by `ceiling` —
 100 km near, 1e5 km middle), and the near/middle energies carry the camera-point
-occlusion fraction above.
+occlusion fraction above. Reach is the whole of the texel budget: a split's texel is its
+share of the reach over its share of the atlas, so every metre of reach past the target is
+resolution thrown away. It cannot simply be minimised, though — Godot fades a directional
+shadow out from `directional_shadow_fade_start` (0.8) of the reach, so the reach must stay
+above ~1.25× the camera-to-target distance or the target itself fades. With an additive
+`+ target distance` that ratio decays with distance, which is what bounds how far out a
+craft keeps its self-shadows (~1 km at the shipped 0.25 km `target_plus`).
+
+One thing reach cannot buy back is steadiness. Godot stabilises a directional shadow by
+snapping the ortho bounds to a texel lattice anchored in **absolute world space**
+(`renderer_scene_cull.cpp`, `_light_instance_setup_directional_shadow`), which holds static
+world geometry on the same texels every frame. Our near scene is not static in world space —
+see *Smallness, not stationarity* — so its sub-texel phase re-randomises every frame and craft
+self-shadowing boils. Reach and atlas size set the amplitude of that boil, not its existence.
 
 Two rules keep the maps honest across the warp boundary:
 
@@ -315,6 +356,13 @@ path; the historical defects that once forced the fallback — cull masks not re
 wrong energy with multiple lights, color shifts once any light casts (godotengine/godot
 #90259) — should be re-tested on a given target before relying on it. The analytic
 astronomical shadows are independent of all of this and work either way.
+
+The fallback is also much the cheaper configuration to compile, taking a lit shader from four
+GL programs to one — a large part of a Compatibility cold start, and the only configuration
+the shader warm-up covers completely at its default radii
+([SHADER_COMPILE_COST.md](SHADER_COMPILE_COST.md), *The light configuration*). The
+[Planetarium](https://github.com/ivoyager/planetarium) ships with it off, trading spacecraft
+self-shadowing for that.
 
 ## Culling, visibility and lifecycle
 
@@ -440,6 +488,51 @@ point instead of disappearing. Resolved, the **wing persists** — glare belongs
 camera, not to the subject, so it takes no crossfade — and that persisting wing is
 crescent glow.
 
+**The rim's sky side is drawn here too, because nothing else can.** A body's surface images
+each rim pixel through the camera's PSF (`limb_mean_incidence()`, and *Imaging a pixel* in
+the sibling document), but it can only put that light on fragments it has: its rim ends at
+the rasterized silhouette, and the outward half of a rim pixel's spread belongs beyond it.
+Undrawn, a rim compressed to a line keeps a knife edge, which on a shallow curve is a
+staircase. This quad already covers the sky beside the limb, so `limb_sky_side_incidence()`
+draws the missing half there — the same closed-form chord integral under the same Gaussian,
+evaluated outward, so the two halves partition one convolution rather than overlapping. Its
+cells are spaced uniformly in `sqrt(depth)` rather than in depth: seen from outside, the whole
+lit sliver sits *at* the limb, and a uniform grid's first sample lands past it and weights it
+as if it were that much deeper — 40 % low at three pixels out. And the sun angles it
+integrates are the limb point's for the camera where it is (`limb_sun_angles()`), not the
+phase at the body's centre: a camera at finite distance sees the tangent circle, whose points
+see the sun lower than the centre does by the body's angular radius — 18° from three radii
+out. Lit from the centre's phase, the rim stood as if the sun were that far above a limb it
+was sitting on, stayed lit after the sun had set behind the disc, and went out only at phase
+180°, while the surface beneath it, which has the real normal, had gone dark with the sun.
+
+**What scales it is the body's own flux**, spread over a Lambert sphere's disc, rather than
+anything sampled from the surface — which this quad cannot read. The total is therefore the
+body's true flux through its true phase law while the distribution across the crescent is
+Lambert's, and the seam is where that shows: a body whose rim albedo differs from its disc
+average meets its own spread at a slightly different level.
+
+**The silhouette it measures from is the exact conic**, not an angular radius
+(`IVBodyPSF.get_limb_conic()`, the tangent cone of the body's own spheroid, handed over in
+tangent units and solved per fragment along its own direction). Both of the obvious
+approximations fail here by tens of pixels against a spread that is a few pixels wide: a
+perspective projection draws the tangent cone, 8 % wider than `r / d` at 2.6 radii out, and an
+oblate body's outline is an ellipse whose flattening is not the body's own. Either error puts
+the whole of the spread inside the silhouette, where the depth test drops it. The conic is
+normalized before it is sent — built from `1/radius^2` terms, Jupiter's raw entries are 1e-15
+and their 3x3 determinant underflows float32.
+
+**And it is the table figure's conic, which two of the bodies with a quad do not have.** The
+shared sphere a body scales to its own radii *is* that ellipse to within the tessellation
+`RIM_SEAM_PX` absorbs — measured against the projected vertices at three radii out, the two
+edges agree to 0.3 px of a 393 px disc. A body carrying its own mesh does not: Ceres and
+Charon are drawn from a displaced sphere whose outline stands wherever their terrain does,
+1.9 % of the radius inside the figure on Charon, and the rim drew there as a smooth arc of
+open sky detached from the limb it belonged to — 16 px off it on a 785 px disc, over a fifth
+of the azimuths, at every phase that lights the limb at all. No constant can absorb an error
+in percents of a radius, and nothing on this quad can find that outline, so `IVBodyPSF` sends
+those bodies a zero `limb_semi_axes` and they get the inward half of the spread only.
+
 **Scope is a flag, but the mechanism is a magnitude.** A quad is built for an in-scene
 star and for every body carrying `BODYFLAGS_PLANETARY_MASS_OBJECT` with a geometric
 albedo — 26 bodies: eight planets, Ceres and Pluto, and the sixteen planetary-mass moons.
@@ -495,13 +588,36 @@ Each shader resolves the pixel radius against its **own** `VIEWPORT_SIZE`, so an
 off-screen capture fades at its own buffer's scale rather than the main window's — the
 same reason nothing viewport-dependent is allowed on the CPU side here.
 
-Three approximations worth carrying:
+Four approximations worth carrying:
 
-- **The wing is symmetric about the body's centre while a crescent's light is not.** If
-  the eye objects, shift the quad centre toward the lit limb by a phase-dependent fraction
-  of the disc radius — still analytic, still free. Not a reason to reach for a screen-space
-  convolution: the engine pass is structurally unable for point sources (its feed is
-  capped), which is why this system exists.
+- **The wing is offset toward the lit limb by a phase-dependent fraction of the
+  silhouette's own radius in that direction** (direction the sun's on screen, magnitude
+  `(1 − cos phase)/2`), because a crescent's light is not centred on the body and the wing
+  used to be. What that cost showed worst with the sun near the limb, where the rim is a
+  saturated line and the one thing that could gradate it — the camera's own spill — sat
+  half a disc away as an even halo. It takes the silhouette's radius rather than a mean one
+  because that is what holds the `1/r²` singularity on the disc, which draws over it: a mean
+  lies *between* an oblate body's polar and equatorial extents, and past Saturn's pole the
+  centre stood ten pixels out in open sky, where an unoccluded peak is a dot with a glow
+  around it. The core keeps the body's own centre, and the silhouette radius retires the
+  offset on its own as the disc shrinks toward the unresolved regime. The fraction is by
+  eye: a Lambert sphere's lit centroid is at 4/(3π) of the radius at quarter phase
+  against this curve's 0.5, and closing that gap would mean carrying the disc integral of
+  whichever BRDF the body renders with.
+- **The wing carries the flux this camera receives, not a distant observer's.** The
+  magnitude driving the quad evaluates the body's phase law at the body's *centre*, which is
+  a distant observer's crescent. From close range the camera sees less than a hemisphere, so
+  the sun sets behind the disc while that law still reports one: at Saturn from 3.7 radii the
+  whole visible face is dark past 164° of phase, where the law still says 4 × 10⁻⁴ of full —
+  and the wing glared for a body with no light anywhere on it. Every limb point sees the sun
+  at `sin(phase + ρ)` for the silhouette's own angular radius ρ, so a distant observer with
+  that much more phase has this camera's geometry; the substitution is exact where the
+  crescent dies and where the body is far (ρ → 0), and within a third of a magnitude between,
+  which on a glare halo is nothing. Only the wing takes it. The core is a point source only
+  where the body is unresolved, and the two fluxes agree exactly there; the rim divides the
+  same flux by the same disc integral, so the correction cancels out of it — which is right,
+  a crescent's surface brightness being its albedo and its illuminance however little of it
+  is left.
 - **On Forward+ a resolved bright disc still feeds the engine glow pass**, so the
   resolved-regime wing stacks on that pass's bloom there and the two renderers are close
   rather than identical. Its amplitude in that regime is an in-app anchor to judge,
@@ -607,7 +723,7 @@ this is the spatial one.
 | | `farwarp_start_ratio` | T as a multiple of camera-to-parent distance (1e4). Must stay well under `FAR_MULTIPLIER`; 1e4 leaves 100× headroom while the compressed universe spans < ~29× T. |
 | | `apply_body_psf` | Enables the per-body PSF quad ([IVBodyPSF]). Off, those bodies take the fixed distance cull like any other and their discs do not fade. |
 | | `apply_analytic_shadows` | Enables the analytic shadow terms and the camera-fraction light dimming. Off, astronomical shadows are absent entirely (maps don't serve them); the ambient feed continues regardless. |
-| | `apply_gl_compatibility_shadows` | Shadowed multi-light stack on the Compatibility renderer (vs. one unshadowed light). |
+| | `apply_gl_compatibility_shadows` | Shadowed multi-light stack on the Compatibility renderer (vs. one unshadowed light). Off, a lit shader compiles one GL program instead of four; see [SHADER_COMPILE_COST.md](SHADER_COMPILE_COST.md). |
 | | `apply_size_layers` / `size_layers` | Layer bits by body radius — the lighting size domains ([100 km, 0.1 km] → three domains). |
 | | `local_shadow_caster_ceiling` | Dynamic `LOCAL_SHADOW_CASTER` grant range (1e5 km; must cover the largest shadowed `shadow_max_ceiling` in `dynamic_lights.tsv`). |
 | | `radius_multiplier_visibility_range_end` | Distance cull in body radii (4000 ≈ 0.6 px angular diameter). |
@@ -637,6 +753,32 @@ this is the spatial one.
   No fix is designed; candidate directions are re-anchoring visuals more aggressively
   at high speed, or accepting and hiding it (HUD-only rendering above a speed × distance
   product).
+- **Craft self-shadowing boils: the world frame is small but not stationary.** The
+  near-camera scene translates through world space at the camera target's orbital speed
+  (129 m/frame on the ISS, with ~4 km lattice snaps), because the origin shift resolves
+  onto a ~16 km f32 lattice at 1 au and so holds the camera *near* the origin rather than
+  *on* it (*Smallness, not stationarity*). Godot's directional-shadow texel lattice is
+  anchored in absolute world space, so the sub-texel phase re-rolls every frame.
+  Established 2026-09 by the decisive experiment: pause, translate the scene rigidly by
+  one frame's worth of real motion, and ~25k pixels change — every one of them on the
+  craft's self-shadowing, against 250 with shadows off; a **5 cm** translation already
+  changes the image. Established what it is *not*: a light-rig defect (light direction and
+  `directional_shadow_max_distance` both measured perfectly constant); not `IVUnits.METER`
+  sensitivity (the f32 quantum is relative); and not a defect in origin shifting, which
+  delivers the smallness it was designed for — stationarity is a requirement this
+  investigation discovered, not one the mechanism ever failed. ISS is the worst case,
+  being the fastest-moving thing the camera can be parented to and in the only size domain
+  that gets small shadow-map texels. No fix in v0.2 — the shipped near-light reach cuts
+  the amplitude, not the cause. Candidate directions, in ascending order of scope:
+  re-translate the camera's ancestor chain from f64 each frame (fixes it, and the depth of
+  the walk decides where the residual parallax lands — one node puts it between craft and
+  planet at ~1.5 px, two nodes puts it between planet and star where it is invisible);
+  make every body `top_level` and place it camera-relatively from f64, which subsumes
+  origin shifting entirely and gives a constant ~1.2e-7 rad angular error at every
+  distance (under consideration for v0.3, §4.3 of
+  [IVBody_REDESIGN_v0.3.md](IVBody_REDESIGN_v0.3.md));
+  or a `precision=double` engine build, which would let the existing shift resolve to
+  millimetres, at the cost of custom builds for every export target including web.
 - **Bodies outside the PSF quad's scope still vanish at the cull.** The quad covers the
   sun and the 26 planetary-mass objects; the other ~150 named moons, the named
   asteroids, and every spacecraft still take the 4000-radii cull, at which they are

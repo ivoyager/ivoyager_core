@@ -26,7 +26,7 @@
 // given a magnitude and a colour index. Qualify a name only where it is not generic --
 // psf_* for the point spread function proper, body_* for the disc geometry that ends it.
 // Current consumers are the catalog star field (stars.gdshader), the per-body PSF quad
-// (body_psf.gdshader) and a star's resolved disc (sun_surface.gdshader); an asteroid point
+// (body_psf.gdshader) and a star's resolved disc (photosphere.gdshader); an asteroid point
 // field would be the next, and should need no new function.
 //
 // Pure functions only -- no uniforms, varyings, or entry points -- so each shader keeps its
@@ -160,7 +160,7 @@ float sprite_dist_sq(vec2 point_coord) {
 
 // f16-safe ceiling on any star-photometry radiance scalar, shared by the field and the
 // sun's far point (through psf_core_light_sprite below) and by the sun's near disc
-// (sun_surface caps its brightness * iv_exposure product with it). One constant because
+// (photosphere caps its brightness * iv_exposure product with it). One constant because
 // the disc/point handoff needs both halves to saturate at the same level.
 const float PSF_LIGHT_MAX = 32768.0;
 

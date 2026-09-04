@@ -365,14 +365,8 @@ func _build_shader_material(shader_name: StringName, channels: Dictionary,
 	# uniforms, and each shells.tsv override column feeds the uniform of the same name
 	# (so e.g. a "clouds_detail_strength" column tunes the shader per body); a column
 	# that isn't a uniform is ignored. The shader owns its own blending.
-	# When the discovered channels are Cubemaps, swap the table-named shader for its
-	# cubemap variant (the asset format decides; the tables stay format-agnostic).
-	if _channels_are_cube(channels):
-		if asset_preloader.cube_shader_variants.has(shader_name):
-			shader_name = asset_preloader.cube_shader_variants[shader_name]
-		else:
-			push_warning("Body %s shell %d: Cubemap channels but shader '%s' has no cube variant"
-					% [_body_name, _shell, shader_name])
+	# The spec names the cubemap variant already where the channels are cubemaps; the
+	# asset format decides that and IVAssetPreloader resolves it (cube_shader_variants).
 	var resource: Resource = IVGlobal.resources.get(shader_name)
 	var shader := resource as Shader
 	if not shader:
@@ -390,25 +384,6 @@ func _build_shader_material(shader_name: StringName, channels: Dictionary,
 	_assert_overrides_are_uniforms(overrides, shader)
 	_apply_overrides_to_shader_material(material, overrides)
 	set_surface_override_material(0, material)
-
-
-func _channels_are_cube(channels: Dictionary) -> bool:
-	# A shell's channels are all one texture format — a shader is samplerCube or
-	# sampler2D, not both. Return whether they are cubemaps; a mix is a bake/asset error.
-	# Test TextureLayered, NOT Cubemap: an imported cubemap is a CompressedCubemap, which
-	# derives from CompressedTextureLayered and is not a Cubemap (they are siblings), so
-	# `is Cubemap` silently misses every imported cubemap and routes it to the 2D shader.
-	var any_cube := false
-	var any_2d := false
-	for param: int in channels:
-		if channels[param] is TextureLayered:
-			any_cube = true
-		else:
-			any_2d = true
-	assert(not (any_cube and any_2d),
-			"Body %s shell %d: channels mix cubemap and Texture2D (a shell must be all one format)"
-			% [_body_name, _shell])
-	return any_cube
 
 
 func _apply_channels_to_material(material: BaseMaterial3D, channels: Dictionary) -> void:
