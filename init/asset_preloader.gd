@@ -62,7 +62,6 @@ static var texture_channels: Dictionary[int, StringName] = {
 static var cube_shader_variants: Dictionary[StringName, StringName] = {
 	&"surface_shader": &"surface_cube_shader",
 	&"cloud_shell_shader": &"cloud_shell_cube_shader",
-	&"sun_surface_shader": &"sun_surface_cube_shader",
 }
 ## [code]shells.tsv[/code] columns that are NOT [StandardMaterial3D] properties (read
 ## explicitly into the shell spec). Every other column is set on the shell material

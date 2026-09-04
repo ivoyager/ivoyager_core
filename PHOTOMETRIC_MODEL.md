@@ -816,7 +816,7 @@ solves), both capped at the shared half-float-safe constant that also bounds the
 field. As a metering subject the sun
 uses its own late screen-fraction ramp (see above).
 
-What resolves is generated, not sampled: `_sun_photosphere.gdshaderinc` draws limb
+What resolves is generated, not sampled: `photosphere.gdshader` draws limb
 darkening, granulation, bipolar spot groups and faculae as functions of the unit-sphere
 direction, with no map, no pole and no seam. Two invariants keep it inside the
 calibration rather than beside it. Every modulation is **mean-neutral** over the disc —
@@ -827,7 +827,7 @@ ratio that is **exactly white at the mean**, so an umbra reddens as it darkens (
 at 0.15 of continuum) while the star's absolute tint remains the B−V chain's business
 and the disc matches the quad by construction. The photometric anchors — Pierce &
 Slaughter (1977) limb darkening, the Neckel & Labs center-to-limb color trend, the
-umbral brightness-size relation — are cited in the include.
+umbral brightness-size relation — are cited in the shader.
 
 ## Stars and the Milky Way background
 

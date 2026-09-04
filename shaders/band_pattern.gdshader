@@ -162,7 +162,7 @@ const int TURBULENCE_OCTAVES = 3;
 // discards, resolved against its OWN VIEWPORT_SIZE -- so an off-screen capture switches at
 // its own buffer's scale rather than the main window's. IVBodyPSF collapses the two edges to
 // one for a lit body, making the trade a step at a size the handoff solve has matched; only
-// an emissive disc (sun_surface, already transparent) can afford to crossfade. The defaults
+// an emissive disc (photosphere, already transparent) can afford to crossfade. The defaults
 // saturate fully ON, so a body with no quad (nothing to hand off to, and its fixed distance
 // cull still in place) renders exactly as it did before this existed.
 uniform float angular_radius = 0.0; // body mean radius / camera distance

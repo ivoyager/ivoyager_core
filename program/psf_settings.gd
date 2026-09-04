@@ -156,7 +156,7 @@ var glare_max_px := 384.0:
 
 ## Pushes only the [code]color_from_b_v()[/code] inputs to [param shader_material]. For a
 ## consumer that maps B-V through the shared ramp but takes none of the point-source
-## photometry — a resolved star's disc ([code]sun_surface.gdshader[/code]), which is
+## photometry — a resolved star's disc ([code]photosphere.gdshader[/code]), which is
 ## lit by geometry rather than by a PSF. It still needs this: the disc and the quad
 ## trade places at the handoff, and a B-V that changed color across that trade would
 ## show. [method apply_to] calls this, so a point-source consumer needs only that.

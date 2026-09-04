@@ -50,9 +50,8 @@ var preloads: Dictionary[StringName, Resource] = {
 	# Textureless procedural surface; no cube variant, because it samples no texture.
 	band_pattern_shader = preload("res://addons/ivoyager_core/shaders/band_pattern.gdshader"),
 	stars_shader = preload("res://addons/ivoyager_core/shaders/stars.gdshader"),
-	sun_surface_shader = preload("res://addons/ivoyager_core/shaders/sun_surface.gdshader"),
-	sun_surface_cube_shader = preload(
-			"res://addons/ivoyager_core/shaders/sun_surface.cube.gdshader"),
+	# Textureless procedural photosphere; no cube variant, because it samples no texture.
+	photosphere_shader = preload("res://addons/ivoyager_core/shaders/photosphere.gdshader"),
 	body_psf_shader = preload(
 			"res://addons/ivoyager_core/shaders/body_psf.gdshader"),
 	starmap_background_shader = preload("res://addons/ivoyager_core/shaders/starmap_background.gdshader"),

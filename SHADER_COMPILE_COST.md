@@ -44,8 +44,7 @@ configuration changed, or a shadow pass -- which the renderer compiles in full.
 | `cloud_shell` | 10.6 s | 3.5 s | 6.1 s | 1.5 s |
 | `cloud_shell.cube` | 10.8 s | 3.6 s | 6.2 s | 1.6 s |
 | `band_pattern` | 10.6 s | 3.9 s | 5.7 s | 1.5 s |
-| `sun_surface` | 1.0 s | 0.42 s | (unshaded: none) | |
-| `sun_surface.cube` | 1.0 s | 0.42 s | (unshaded: none) | |
+| `photosphere` | 1.0 s | 0.42 s | (unshaded: none) | |
 
 The rest were measured once, in-app and in sequence, on 2026-09-02, and did not change:
 `body_psf` 1.08 s, `rings` 0.55 s, `stars` 0.24 s, `path` 0.21 s, `farwarp_vertex` 0.20 s,
@@ -69,7 +68,7 @@ The sun shader's 3x3x3 sunspot cell loop is the same thing at a smaller scale: 2
 hash-drawn spot groups.
 
 **Not source length, and not lit versus `unshaded`.** `body_psf.gdshader` is the longest source
-in the plugin and among the cheapest to compile. `sun_surface` is `unshaded` and cost 1 s;
+in the plugin and among the cheapest to compile. `photosphere` is `unshaded` and cost 1 s;
 `rings` is lit and costs 0.55 s. Nor is it "heavy includes" as such: `_photometry.gdshaderinc`
 carries two 16-cell constant-bound loops that unroll just the same, and the two cheapest lit
 shaders in the plugin include it. What matters is the *product* of trip count and what one
@@ -106,7 +105,7 @@ neighbouring fragments. It has never argued for longhand.
 
 ## What was done
 
-The trip counts in `_atmosphere.gdshaderinc` and `_sun_photosphere.gdshaderinc` are now
+The trip counts in `_atmosphere.gdshaderinc` and `photosphere.gdshader` are now
 `uniform int`s -- `atm_gl6_nodes`, `atm_shell_nodes`, `atm_ring_max_taps`, `spot_cell_reach` --
 carrying exactly the values the constants had. Nothing sets them and nothing should: they
 restate the lengths of the node tables the loops index, so any other value is wrong. What a
@@ -238,7 +237,7 @@ set, at the "after" figures:
 | `body_psf.gdshader` | 1 | **1.1 s** |
 
 `_display`, `_farwarp` and `_point_spread_function` reach nearly every shader in the plugin, so
-editing one of those costs roughly the whole 25 s; `_detail.gdshaderinc` reaches eight and costs
+editing one of those costs roughly the whole 25 s; `_detail.gdshaderinc` reaches seven and costs
 about 24 s. With the warm-up in place the whole of that is paid on the loading screen of the
 next Compatibility run.
 
@@ -292,7 +291,7 @@ option naming which shader to time, so one run measures one shader. The traps, e
 cost a run:
 
 - **One shader per process.** In a sequence the AMD driver leaks work from earlier compiles into
-  later first-draw frames: `sun_surface` read 9.7 s after three limb compiles and 1.07 s alone,
+  later first-draw frames: `photosphere` read 9.7 s after three limb compiles and 1.07 s alone,
   and the 10.6 s this document used to carry for it was that artefact.
 - **A comment does not invalidate anything.** Godot hashes the GLSL it generates and the parser
   drops comments, so appending `// bust` changes the file on disk and nothing downstream. Append a
