@@ -5,10 +5,14 @@ hurts on, what drives it, what was done about it, and what an edit to a given fi
 here because the answer is counter-intuitive in both directions: the cost does not track how
 long a shader is, and the file you would guess is expensive is not.
 
-Measured 2026-09-02 and 2026-09-03 in the Planetarium against Godot 4.7.2 on an AMD RX 7900 XTX
-(driver 32.0.12033). Numbers are one machine's -- treat the *ordering* and the *ratios* as the
-finding, not the absolute seconds. A weaker GPU multiplies them by about five without changing
-their order; see *A slower machine*.
+Measured 2026-09-02 and 2026-09-03 in the [Planetarium](https://github.com/ivoyager/planetarium)
+against Godot 4.7.2 on an AMD RX 7900 XTX (driver 32.0.12033). Numbers are one machine's -- treat
+the *ordering* and the *ratios* as the finding, not the absolute seconds. A weaker GPU multiplies
+them by about five without changing their order; see *A slower machine*.
+
+Every figure here was taken under the shadowed multi-light stack, `apply_gl_compatibility_shadows`
+at its default `true`. That setting is the largest remaining lever in this document, and the
+Planetarium has since turned it off; see *The light configuration*.
 
 
 ## The symptom
@@ -23,9 +27,9 @@ compiles the first time it is drawn, which is when you fly to a body whose shade
 drawn yet. Forward+ shows the same effect an order of magnitude smaller.
 
 Two things now stand between a first run and that experience. The expensive shaders compile
-several times faster than they did (*What was done*), and `IVShaderWarmup` draws every shader
-under the boot screen as soon as the simulator starts (*The warm-up*), so what remains is paid
-under a progress message rather than in flight.
+several times faster than they did (*What was done*), and `IVShaderWarmup` draws every shader the
+project will use under the boot screen as soon as the simulator starts (*The warm-up*), so what
+remains is paid under a progress message rather than in flight.
 
 
 ## What it costs
@@ -77,6 +81,10 @@ iteration inlines.
 **The outer loop is not enough.** Making only the 8-tap ring loop's bound opaque changed nothing
 (28 s). The inner quadrature and layer loops are what had to stop unrolling; the ring loop's bound
 went opaque with them because its body wraps both ray halves.
+
+**And the light configuration decides how many of them there are.** Everything above is what
+*one* program costs. How many a shader compiles is set by the lights reaching it, and that is the
+other factor of four -- with a settings flag on it. See *The light configuration*.
 
 
 ## Don't hand-unroll, and don't fear a `while`
@@ -133,17 +141,61 @@ The per-shader figure is not one program. Read from `drivers/gles3/shader_gles3.
   specialization actually requested, which practically always differs from the default (the
   default has every light type enabled). Nothing in the engine avoids this.
 - **Every further specialization is a full compile.** The mask is set per draw from the lights
-  reaching the instance, the reflection probes, the lightmap, and the pass: base pass; one
-  additive pass per shadowed directional light, with `USE_ADDITIVE_LIGHTING` cleared when the
-  light's cull mask misses the instance's layer but the PSSM and PCF bits still set; and the
-  shadow-map depth pass (`RENDER_SHADOWS`) for anything carrying `IVGlobal.LOCAL_SHADOW_CASTER`.
-  Under the Compatibility light set IVDynamicLight builds -- the far sun light plus the shadowed
-  middle and near lights -- a lit body shader therefore compiles three color programs across the
-  size layers, plus the shadow pass once the camera is close enough for the body to be "terrain",
-  each at the "+1 specialization" cost in the table.
+  reaching the instance, the reflection probes, the lightmap, and the pass. An instance is drawn
+  `MAX(1, positional light passes + directional_shadow_count)` times, so the base pass is fused
+  with the first shadowed directional light and each further one adds a pass of its own.
+  `RENDER_SHADOWS` is a separate depth-pass specialization, taken by anything carrying
+  `IVGlobal.LOCAL_SHADOW_CASTER`.
+- **The base pass does not read the instance's layer mask.** It reads the instance's omni, spot
+  and area caches, its reflection probes and its lightmap, and it sets `DISABLE_LIGHT_DIRECTIONAL`
+  from `directional_light_count == directional_shadow_count` -- a fact about the frame, not about
+  the instance. The layer mask enters through the additive branch alone, where a light whose cull
+  mask misses the instance *clears* `USE_ADDITIVE_LIGHTING` while leaving the PSSM and PCF bits
+  set: a different program, not a cheaper one. That is the whole reason one shader compiles a
+  different program per size domain.
 - **Compile is synchronous.** `glLinkProgram` is followed at once by the `GL_LINK_STATUS` query;
   there is no use of `KHR_parallel_shader_compile`, and the queue-and-use-defaults branch is an
   `if (false)` TODO. Nothing short of an engine patch changes that.
+
+
+## The light configuration
+
+What a lit shell shader compiles, per Compatibility light set:
+
+| `apply_gl_compatibility_shadows` | color programs | depth programs | what a first visit can still pay |
+|---|---|---|---|
+| `true` (default) | 3 | +1 (`RENDER_SHADOWS`) | 1 -- the middle domain, which the default `warm_radii` never takes |
+| `false` (single-light fallback) | 1 | 0 | nothing |
+
+With shadows on, `dynamic_lights.tsv` gives Compatibility the far sun light (unshadowed, cull
+`0b0001`) plus the shadowed middle (`0b0010`) and near (`0b0100`) lights, so
+`directional_shadow_count` is 2 and every lit instance is drawn twice. A shell shader draws in the
+two larger size domains, and across them the additive clearing above yields three distinct color
+programs; anything close enough to count as "terrain" adds the shadow depth pass.
+
+With shadows off there is one unshadowed light, `directional_shadow_count` is 0, and so
+`uses_additive_lighting` is false: one pass, no additive, PSSM or PCF bits, and no shadow pass at
+all. Nothing per-instance is left in the mask, so **every lit body in every size domain binds the
+same program** -- and a first visit can no longer reach a specialization the quads missed.
+
+The saving is two of the table's "+1 specialization" columns per lit shader plus a depth program,
+wherever they were being paid: partly in the start sequence, partly in the opening view's first
+frame, partly in the warm-up. Not separately measured. What it can be held against is the slower
+machine's worst frame -- `surface` at 35 s, which *A slower machine* describes as "the few
+specializations two layers select rather than a single program", and which the fallback makes a
+single program. That was the one figure not comfortably clear of the ten-second Chrome GPU
+watchdog.
+
+Two side effects, neither about compiling. `update_directional_shadow_atlas()` runs only under
+`if (r_directional_shadow_count)`, so with no shadowed light the 4096² depth atlas is never
+allocated. And IVGraphicsManager skips `directional_shadow_atlas_set_size()` on this path, which
+is safe precisely because that allocation is lazy: the project setting behind it is read into
+`LightStorage` at construction, long before any GDScript runs, but nothing is committed until a
+directional shadow is actually rendered.
+
+What the fallback costs is local shadow maps -- spacecraft self-shadowing, and crater walls
+shadowing a lander. The analytic astronomical shadows (rings, eclipses, transits, and the
+camera-fraction dimming that carries them onto craft) are independent and work either way.
 
 
 ## The warm-up
@@ -202,6 +254,19 @@ Its `trigger` picks the moment, and the two cases differ in what they can reach:
   start button on `finished` and even that residual stays off the user's flight.
 
 A project that wants the moment itself uses `MANUAL` and calls `warm_up()`.
+
+**What the two radii buy.** `warm_radii` defaults to a planet-scale and a craft-scale radius,
+which resolve to layers `0b0001` and `0b0100`, the second carrying the shadow-caster bit. Under
+the shadowed stack the second radius earns its place through the shadow-caster bit, which is the
+only way to reach the `RENDER_SHADOWS` depth program; its *color* program is one no body binds,
+since a craft-scale body draws a packed model's engine material rather than a shell shader. Under
+the single-light fallback both radii select the same program, so the second quad costs a frame
+rather than a compile.
+
+Neither radius lands in the middle domain (`0b0010`, 0.1-100 km), so with shadows on the middle
+light's additive specialization is never warmed and is paid on the first visit to a small moon.
+That is a real gap in the coverage -- closable by adding a radius between the two -- but it does
+not explain the residual stalls below: Titan and Mars are both `0b0001` bodies.
 
 What a cold start costs on this GPU under the default trigger, both caches emptied (2026-09-03):
 

@@ -319,6 +319,13 @@ wrong energy with multiple lights, color shifts once any light casts (godotengin
 #90259) — should be re-tested on a given target before relying on it. The analytic
 astronomical shadows are independent of all of this and work either way.
 
+The fallback is also much the cheaper configuration to compile, taking a lit shader from four
+GL programs to one — a large part of a Compatibility cold start, and the only configuration
+the shader warm-up covers completely at its default radii
+([SHADER_COMPILE_COST.md](SHADER_COMPILE_COST.md), *The light configuration*). The
+[Planetarium](https://github.com/ivoyager/planetarium) ships with it off, trading spacecraft
+self-shadowing for that.
+
 ## Culling, visibility and lifecycle
 
 **Distance culling is angular-size culling in disguise.** Bodies (and rings) set
@@ -678,7 +685,7 @@ this is the spatial one.
 | | `farwarp_start_ratio` | T as a multiple of camera-to-parent distance (1e4). Must stay well under `FAR_MULTIPLIER`; 1e4 leaves 100× headroom while the compressed universe spans < ~29× T. |
 | | `apply_body_psf` | Enables the per-body PSF quad ([IVBodyPSF]). Off, those bodies take the fixed distance cull like any other and their discs do not fade. |
 | | `apply_analytic_shadows` | Enables the analytic shadow terms and the camera-fraction light dimming. Off, astronomical shadows are absent entirely (maps don't serve them); the ambient feed continues regardless. |
-| | `apply_gl_compatibility_shadows` | Shadowed multi-light stack on the Compatibility renderer (vs. one unshadowed light). |
+| | `apply_gl_compatibility_shadows` | Shadowed multi-light stack on the Compatibility renderer (vs. one unshadowed light). Off, a lit shader compiles one GL program instead of four; see [SHADER_COMPILE_COST.md](SHADER_COMPILE_COST.md). |
 | | `apply_size_layers` / `size_layers` | Layer bits by body radius — the lighting size domains ([100 km, 0.1 km] → three domains). |
 | | `local_shadow_caster_ceiling` | Dynamic `LOCAL_SHADOW_CASTER` grant range (1e5 km; must cover the largest shadowed `shadow_max_ceiling` in `dynamic_lights.tsv`). |
 | | `radius_multiplier_visibility_range_end` | Distance cull in body radii (4000 ≈ 0.6 px angular diameter). |
