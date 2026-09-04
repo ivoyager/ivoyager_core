@@ -55,10 +55,10 @@ static var texture_channels: Dictionary[int, StringName] = {
 }
 ## Maps a surface/shell shader (as named in a [code]shells.tsv[/code] [code]shader[/code] cell)
 ## to its cubemap counterpart. When a body's discovered channels are [TextureLayered]s
-## (files found under [member cubemaps_search]), [IVShellsModel] swaps the table-named shader
-## for the variant here, so the tables never encode "cube vs. equirect" — the asset type
-## decides. Add an entry to route a custom shader; a project with only equirect maps never
-## triggers it. See [method IVShellsModel._build_shader_material].
+## (files found under [member cubemaps_search]), the shell spec's [code]shader[/code] is the
+## variant here rather than the table-named one, so the tables never encode "cube vs.
+## equirect" — the asset type decides. Add an entry to route a custom shader; a project with
+## only equirect maps never triggers it. See [method get_body_shell_specs].
 static var cube_shader_variants: Dictionary[StringName, StringName] = {
 	&"surface_shader": &"surface_cube_shader",
 	&"cloud_shell_shader": &"cloud_shell_cube_shader",
@@ -128,6 +128,7 @@ var _symbol_atlas: Texture2D
 var _symbol_textures: Array[AtlasTexture] = []
 var _symbol_point_texture: Texture2D
 var _body_resources: Dictionary[StringName, Array] = {}
+var _warned_cube_shaders: Array[StringName] = []
 var _rings_resources: Dictionary[String, Array] = {}
 var _map_regex := RegEx.new()
 var _range_tag_regex := RegEx.new()
@@ -329,13 +330,51 @@ func _read_shell_spec(channels: Dictionary, channel_ranges: Dictionary, shell_ro
 		&"channel_ranges": channel_ranges,
 		&"tag": tag,
 		&"scale": shell_scale,
-		&"shader": IVTableData.get_db_string_name(&"shells", &"shader", shell_row),
+		&"shader": _resolve_shell_shader(
+				IVTableData.get_db_string_name(&"shells", &"shader", shell_row), channels,
+				shell_row),
 		&"process": IVTableData.get_db_string_name(&"shells", &"process", shell_row),
 		&"process_args": IVTableData.get_db_array(&"shells", &"process_args", shell_row),
 		&"is_sun": IVTableData.get_db_bool(&"shells", &"is_sun", shell_row),
 		&"cast_shadow": cast_shadow,
 		&"overrides": read_material_fields(&"shells", shell_row, shells_nonmaterial_fields),
 	}
+
+
+# A shader is samplerCube or sampler2D, not both, so the discovered channels decide which
+# variant the shell gets and the table stays format-agnostic. Resolved here, once, so that a
+# spec's "shader" is the shader that will really be used — IVShellsModel binds it and
+# IVShaderWarmup warms it without either having to re-derive this. A surface_class row is
+# shared by many bodies, so the misconfiguration warning is deduplicated on the shader.
+func _resolve_shell_shader(shader_name: StringName, channels: Dictionary,
+		shell_row: int) -> StringName:
+	if !shader_name or !_channels_are_cube(channels, shell_row):
+		return shader_name
+	if cube_shader_variants.has(shader_name):
+		return cube_shader_variants[shader_name]
+	if !_warned_cube_shaders.has(shader_name):
+		_warned_cube_shaders.append(shader_name)
+		push_warning(("shells.tsv '%s': cubemap channels, but shader '%s' has no entry in "
+				+ "IVAssetPreloader.cube_shader_variants; sampling its equirect map instead")
+				% [IVTableData.get_db_entity_name(&"shells", shell_row), shader_name])
+	return shader_name
+
+
+# Test TextureLayered, NOT Cubemap: an imported cubemap is a CompressedCubemap, which derives
+# from CompressedTextureLayered and is not a Cubemap (they are siblings), so `is Cubemap`
+# silently misses every imported cubemap and routes it to the 2D shader.
+func _channels_are_cube(channels: Dictionary, shell_row: int) -> bool:
+	var any_cube := false
+	var any_2d := false
+	for param: int in channels:
+		if channels[param] is TextureLayered:
+			any_cube = true
+		else:
+			any_2d = true
+	assert(not (any_cube and any_2d),
+			"shells.tsv '%s': channels mix cubemap and Texture2D (a shell must be all one format)"
+			% IVTableData.get_db_entity_name(&"shells", shell_row))
+	return any_cube
 
 
 # Resolves every surface_classes.tsv row once, returning class row ->

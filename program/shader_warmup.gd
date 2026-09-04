@@ -20,8 +20,8 @@
 class_name IVShaderWarmup
 extends Node
 
-## Draws every spatial shader in [member IVGlobal.resources] under a loading or
-## splash screen, so the first visit to a body does not stall on the GPU driver.
+## Draws the spatial shaders a project will actually use, under a loading or splash
+## screen, so the first visit to a body does not stall on the GPU driver.
 ##
 ## The GL renderer compiles a shader program the first time it is drawn,
 ## synchronously, on the main thread, and a program is compiled per light-mask
@@ -31,6 +31,19 @@ extends Node
 ## planet-scale layer and at a craft-scale, shadow-casting layer. A program the
 ## opening view has already drawn costs nothing here, and a repeat run answers
 ## from the driver's cache in a frame per shader.[br][br]
+##
+## What it draws comes from two places. Core's own shaders are selected from the tables
+## and the loaded assets ([member warm_core_shaders]): a body's shell shaders from the
+## specs [IVAssetPreloader] has already resolved, which is exact and picks up a project's
+## own shader named in a [code]shells.tsv[/code] [code]shader[/code] cell; and the rest on
+## the same conditions [IVBodyFinisher] and [IVSBGFinisher] apply when they add the node
+## that binds one. A shader no such condition can decide is deliberately NOT warmed, since
+## a needless compile is seconds of loading screen — name it in
+## [member extra_shader_names], which is also where a project's own shaders go.
+## [code]stars_shader[/code] is the one Core shader in that position: [IVStarsVisual] is a
+## scene node, so nothing in the tables says whether the project kept it. Under the default
+## trigger the star field is in the opening view and has compiled before this node runs
+## anyway.[br][br]
 ##
 ## Opt in by adding this class to [member IVCoreInitializer.program_nodes], and
 ## set [member trigger] for the project's boot sequence (from
@@ -81,6 +94,13 @@ var trigger := Trigger.SIMULATOR_STARTED
 ## Skip the warm-up under the Forward+ and Mobile renderers, where a compile
 ## costs a tenth of what it does under Compatibility.
 var gl_compatibility_only := false
+## Whether Core's own shaders are selected automatically (see the class description).
+## Set false to take full control through [member extra_shader_names].
+var warm_core_shaders := true
+## Additional shaders to warm, as keys in [member IVGlobal.resources]: a project's own
+## spatial shaders, and any Core shader the automatic selection leaves out. A key naming
+## no [Shader], or naming a non-spatial one, warns and is skipped.
+var extra_shader_names: Array[StringName] = []
 ## Body mean radii whose size layers the quads take (see
 ## [member IVCoreSettings.size_layers]); the last also carries
 ## [constant IVGlobal.LOCAL_SHADOW_CASTER]. Each distinct layer value is one
@@ -120,7 +140,7 @@ func _run() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	var start_msec := Time.get_ticks_msec()
-	var shader_names := _get_spatial_shader_names()
+	var shader_names := _get_shader_names()
 	var camera := get_viewport().get_camera_3d()
 	if !camera:
 		camera = _add_temporary_rig()
@@ -154,15 +174,113 @@ func _clear_procedural() -> void:
 	_running = false
 
 
-func _get_spatial_shader_names() -> Array[StringName]:
-	# Sky shaders can't go on a mesh, and canvas shaders have no reason to.
+func _get_shader_names() -> Array[StringName]:
 	var shader_names: Array[StringName] = []
-	for key: StringName in IVGlobal.resources:
-		var resource: Resource = IVGlobal.resources[key]
-		var shader := resource as Shader
-		if shader and shader.get_mode() == Shader.MODE_SPATIAL:
-			shader_names.append(key)
+	if warm_core_shaders:
+		_add_shell_shaders(shader_names)
+		_add_body_node_shaders(shader_names)
+		_add_small_bodies_shaders(shader_names)
+	for shader_name in extra_shader_names:
+		_add_shader_name(shader_names, shader_name, true)
 	return shader_names
+
+
+func _add_shell_shaders(shader_names: Array[StringName]) -> void:
+	# Every shader IVShellsModel will bind, read off the specs IVAssetPreloader resolved at
+	# load — cubemap variants included, and a project's own shader with them. The scene tree
+	# cannot answer this: a body's visual is built lazily, on the camera's first visit, which
+	# is the very stall being warmed against.
+	var asset_preloader: IVAssetPreloader = IVGlobal.program.get(&"AssetPreloader")
+	if !asset_preloader:
+		return
+	for table in IVCoreSettings.body_tables:
+		for row in IVTableData.get_n_rows(table):
+			var body_name := IVTableData.get_db_entity_name(table, row)
+			for shell_spec: Dictionary in asset_preloader.get_body_shell_specs(body_name):
+				var shader_name: StringName = shell_spec[&"shader"]
+				if shader_name: # else the shell takes a StandardMaterial3D
+					_add_shader_name(shader_names, shader_name, false)
+
+
+func _add_body_node_shaders(shader_names: Array[StringName]) -> void:
+	# The per-body nodes IVBodyFinisher adds, on the conditions it applies there. Unlike a
+	# body's shells these are not lazy, so each draws as soon as its body is built.
+	if IVBodyPSF.is_applicable_to_any_body():
+		_add_shader_name(shader_names, &"body_psf_shader", false)
+	if _any_body_has_rings():
+		_add_shader_name(shader_names, &"rings_shader", false)
+	if _any_body_orbits():
+		_add_shader_name(shader_names, &"path_shader", false)
+		if IVGlobal.program.has(&"FragmentIdentifier"): # absent under Compatibility
+			_add_shader_name(shader_names, &"path_id_shader", false)
+
+
+func _add_small_bodies_shaders(shader_names: Array[StringName]) -> void:
+	# IVSBGFinisher adds an orbits and a positions visual per group IVTableSystemBuilder
+	# builds, which is every small_bodies_groups row not flagged 'skip'. The positions
+	# visual takes a different shader for a Lagrange-point group.
+	var has_group := false
+	var has_point_group := false
+	var has_lagrange_group := false
+	for row in IVTableData.get_n_rows(&"small_bodies_groups"):
+		if IVTableData.get_db_bool(&"small_bodies_groups", &"skip", row):
+			continue
+		has_group = true
+		var lp_integer := IVTableData.get_db_int(&"small_bodies_groups", &"lp_integer", row)
+		if lp_integer == -1:
+			has_point_group = true
+		elif lp_integer >= 4:
+			has_lagrange_group = true
+	if !has_group:
+		return
+	_add_shader_name(shader_names, &"farwarp_vertex_shader", false)
+	if IVGlobal.program.has(&"FragmentIdentifier"): # absent under Compatibility
+		_add_shader_name(shader_names, &"instance_id_shader", false)
+	if has_point_group:
+		_add_shader_name(shader_names, &"orbiting_positions_id_shader", false)
+	if has_lagrange_group:
+		_add_shader_name(shader_names, &"orbiting_positions_lp_id_shader", false)
+
+
+func _any_body_has_rings() -> bool:
+	for table in IVCoreSettings.body_tables:
+		if IVTableData.db_find(table, &"has_rings", true) != -1:
+			return true
+	return false
+
+
+func _any_body_orbits() -> bool:
+	# IVTableSystemBuilder reads parentage from the 'orbit' reference, and its absence marks
+	# the tree root — the one body IVBodyFinisher gives no IVPathVisual.
+	for table in IVCoreSettings.body_tables:
+		for row in IVTableData.get_n_rows(table):
+			if IVTableData.get_db_int(table, &"orbit", row) != -1:
+				return true
+	return false
+
+
+# Appends shader_name if it names a spatial Shader in IVGlobal.resources not already listed.
+# A sky shader cannot go on a mesh and a canvas shader has no reason to. report_missing is
+# for a project-supplied key, where a typo is the likely cause; a Core key that a
+# stripped-down project has removed from the registry is not worth a warning.
+func _add_shader_name(shader_names: Array[StringName], shader_name: StringName,
+		report_missing: bool) -> void:
+	if shader_names.has(shader_name):
+		return
+	var shader: Shader
+	if IVGlobal.resources.get(shader_name) is Shader:
+		shader = IVGlobal.resources[shader_name]
+	if !shader:
+		if report_missing:
+			push_warning("IVShaderWarmup: '%s' is not a Shader in IVGlobal.resources"
+					% shader_name)
+		return
+	if shader.get_mode() != Shader.MODE_SPATIAL:
+		if report_missing:
+			push_warning("IVShaderWarmup: skipping '%s'; only a spatial shader can be warmed"
+					% shader_name)
+		return
+	shader_names.append(shader_name)
 
 
 func _get_layers() -> Array[int]:

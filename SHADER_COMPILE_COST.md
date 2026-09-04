@@ -148,14 +148,43 @@ The per-shader figure is not one program. Read from `drivers/gles3/shader_gles3.
 
 ## The warm-up
 
-`IVShaderWarmup` (`program/shader_warmup.gd`) draws every spatial shader in `IVGlobal.resources`
-on a small quad in front of the camera, one shader per frame, once at a planet-scale layer and
-once at a craft-scale layer carrying the shadow-caster bit; between them those reach the base,
-additive and shadow specializations bodies use. It is opt-in: add it to
-`IVCoreInitializer.program_nodes` from a preinitializer. Its `progress_changed` signal is
-emitted one frame before the draw that stalls, so the text a handler sets is the text that stays
-on screen through the stall, and the screen covering it should wait for `finished` rather than
-`simulator_started`.
+`IVShaderWarmup` (`program/shader_warmup.gd`) draws spatial shaders on a small quad in front of
+the camera, one shader per frame, once at a planet-scale layer and once at a craft-scale layer
+carrying the shadow-caster bit; between them those reach the base, additive and shadow
+specializations bodies use. It is opt-in: add it to `IVCoreInitializer.program_nodes` from a
+preinitializer. Its `progress_changed` signal is emitted one frame before the draw that stalls,
+so the text a handler sets is the text that stays on screen through the stall, and the screen
+covering it should wait for `finished` rather than `simulator_started`.
+
+**Which shaders, and why not all of them.** It warmed every spatial `Shader` in
+`IVGlobal.resources` until 2026-09-04, which compiles whatever the project does not draw. The
+shell shaders are where that costs real time, and they are also the ones that can be selected
+*exactly*: `IVAssetPreloader` resolves each body's shell spec at load -- including the swap to a
+cubemap variant, so the spec names the shader that will really be bound -- and the warm-up reads
+those specs. The scene tree cannot answer the same question, because a body's visual is built
+lazily on the camera's first visit, which is the stall being warmed against. The rest of Core's
+shaders are added on the conditions `IVBodyFinisher` and `IVSBGFinisher` apply when they add the
+node that binds one: a body with rings, a body with an orbit, `IVBodyPSF.is_applicable_to_any_body()`,
+a `small_bodies_groups` row not flagged `skip` (and its `lp_integer` for the Lagrange variant),
+and `IVFragmentIdentifier` in `IVGlobal.program` for the three id overlays -- which it is not
+under Compatibility, where it erases itself.
+
+A shader that no such condition can decide is deliberately **not** warmed, and `stars_shader` is
+the one Core shader in that position: `IVStarsVisual` is a scene node, so nothing in the tables
+says whether the project kept it. Under the default trigger that costs nothing anyway -- the star
+field is in the opening view, so it has compiled before this node runs. Set
+`extra_shader_names` (keys in `IVGlobal.resources`) for it, and for a project's own shaders;
+`warm_core_shaders = false` turns the automatic selection off entirely.
+
+In the Planetarium this selects **14 shaders** where the sweep took 16, and the two it drops are
+`cloud_shell_shader` and `stars_shader`. `cloud_shell_shader` is the one the project genuinely
+never draws: only `PLANET_EARTH_CLOUDS` and `PLANET_NEPTUNE_CLOUDS` name it, both bodies ship
+cubemap decks, and unlike a surface a cloud shell cannot arise with no channels at all. Against
+the table above that is 3.5 s plus a further specialization, so roughly 5 s of the 11 s warm-up
+line below -- inferred from those figures, not separately measured. Note that `surface_shader`
+is *not* in that category and never was: a shell with no channels keeps the table-named shader,
+and 29 of ~190 bodies have a cubemap, so the plain `surface.gdshader` is what every
+fallback-coloured moon draws.
 
 Its `trigger` picks the moment, and the two cases differ in what they can reach:
 

@@ -112,6 +112,22 @@ static func is_applicable(body: IVBody) -> bool:
 			and get_geometric_albedo(body) > 0.0)
 
 
+## Returns whether any body in [member IVCoreSettings.body_tables] will get a quad — the
+## table-side form of [method is_applicable], for a caller that must decide before the
+## bodies exist ([IVShaderWarmup]). Reads the same two flags and the same
+## [code]albedo[/code] cell, so the two answers cannot drift apart.
+static func is_applicable_to_any_body() -> bool:
+	if !IVCoreSettings.apply_body_psf:
+		return false
+	for table in IVCoreSettings.body_tables:
+		if IVTableData.db_find(table, &"star", true) != -1:
+			return true
+		for row in IVTableData.get_db_true_rows(table, &"planetary_mass_object"):
+			if IVTableData.get_db_float(table, &"albedo", row) > 0.0:
+				return true
+	return false
+
+
 ## Returns [param body]'s geometric albedo from its table [code]albedo[/code], or
 ## 0.0 where absent (an empty cell reaches characteristics as a non-positive float,
 ## not a missing key).[br][br]
