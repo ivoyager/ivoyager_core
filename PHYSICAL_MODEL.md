@@ -11,8 +11,8 @@ shifting, farwarp, shadows, culling, picking — and [PHOTOMETRIC_MODEL.md](PHOT
 is how bright each pixel is. Light physics belongs to those two entirely, shadows and
 eclipses included; this one covers mass, motion, rotation, time and scale. The planned
 v0.3 rework of `IVBody` is tracked separately in
-[IVBody_REDESIGN_v0.3.md](https://github.com/ivoyager/planetarium/blob/master/IVBody_REDESIGN_v0.3.md);
-where a section below describes a v0.2 mechanism that plan replaces, it says so.
+[IVBody_REDESIGN_v0.3.md](IVBody_REDESIGN_v0.3.md); where a section below describes a
+v0.2 mechanism that plan replaces, it says so.
 
 ## Overview: elements are the state
 
@@ -720,7 +720,7 @@ Roadmap items consolidated from the class headers (`IVBody`, `IVOrbit`,
   surface anchors (pads, rovers), fixed positioners, the proximity service replacing
   camera-parented sleep and lazy triggers, and the body answering its own surface
   geometry — the prerequisite for project-built collisions.
-  [IVBody_REDESIGN_v0.3.md](https://github.com/ivoyager/planetarium/blob/master/IVBody_REDESIGN_v0.3.md).
+  [IVBody_REDESIGN_v0.3.md](IVBody_REDESIGN_v0.3.md).
 - **Editor constructability** of bodies and orbits alongside table generation (ongoing).
 - **Long spans.** A movable epoch (`IVAstronomy`) for applications past ~10,000 years,
   where float32 `iv_time` fails first and float64 seconds eventually follow; the JPL planet

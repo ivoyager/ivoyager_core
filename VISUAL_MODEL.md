@@ -776,7 +776,7 @@ this is the spatial one.
   make every body `top_level` and place it camera-relatively from f64, which subsumes
   origin shifting entirely and gives a constant ~1.2e-7 rad angular error at every
   distance (under consideration for v0.3, §4.3 of
-  [IVBody_REDESIGN_v0.3.md](https://github.com/ivoyager/planetarium/blob/master/IVBody_REDESIGN_v0.3.md));
+  [IVBody_REDESIGN_v0.3.md](IVBody_REDESIGN_v0.3.md));
   or a `precision=double` engine build, which would let the existing shift resolve to
   millimetres, at the cost of custom builds for every export target including web.
 - **Bodies outside the PSF quad's scope still vanish at the cull.** The quad covers the
