@@ -73,10 +73,12 @@ hash-drawn spot groups.
 
 **Not source length, and not lit versus `unshaded`.** `body_psf.gdshader` is the longest source
 in the plugin and among the cheapest to compile. `photosphere` is `unshaded` and cost 1 s;
-`rings` is lit and costs 0.55 s. Nor is it "heavy includes" as such: `_photometry.gdshaderinc`
-carries two 16-cell constant-bound loops that unroll just the same, and the two cheapest lit
-shaders in the plugin include it. What matters is the *product* of trip count and what one
-iteration inlines.
+`rings` is lit and costs 0.55 s. Nor is it "heavy includes" as such -- but be careful what an
+include proves. `rings` costs 0.55 s while including `_photometry.gdshaderinc`, whose limb
+kernels are two 16-cell loops of exactly the expensive shape; it calls neither, so they are
+unreferenced and never reach the optimizer. An include a shader does not call into is free, and
+says nothing about the loops in it. What matters is the *product* of trip count and what one
+iteration inlines, in the functions actually reached.
 
 **The outer loop is not enough.** Making only the 8-tap ring loop's bound opaque changed nothing
 (28 s). The inner quadrature and layer loops are what had to stop unrolling; the ring loop's bound
@@ -128,6 +130,19 @@ view matched the reference within that floor; the residual pixels were orbit lin
 symbols moving with the sub-second timing jitter between runs, not the limb or the crescent.
 Forward+ was bit-identical on most views. The `atm_disc` finite guard, which is documented as
 sensitive to the surrounding compilation, produced no new artefact at grazing incidence.
+
+`_photometry.gdshaderinc`'s limb kernel took the same treatment on 2026-09-04: `LIMB_KERNEL_CELLS`
+is now `uniform int limb_kernel_cells`, never set. Its loops are the shape that unrolls badly --
+sixteen cells each inlining `limb_cell_light()`, an `asin` and several trig calls -- and the five
+shell shaders and `body_psf` reach them.
+
+**This one is not measured.** What bounds it is `body_psf` at 1.08 s while unrolling the sky-side
+kernel at two call sites, which puts one unroll well under half a second there; the shell shaders
+unroll the surface kernel once each but inside a far larger body, where the optimizer's
+superlinear cost may make the same loop dearer. Expect tenths of a second per shader rather than
+the atmosphere's twenty, and about five times that on a weak GPU. Renders were spot-checked at
+Earth and Jupiter rather than A/B'd -- the loop runs the same sixteen iterations either way, so
+only float reassociation could move a pixel.
 
 
 ## Specializations

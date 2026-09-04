@@ -230,7 +230,14 @@ float lunar_lambert_isotropic_response(vec3 macro_normal, vec3 view_dir, float e
 //
 // COST is confined to the rim by the kernel's reach, and there is no texture work in it --
 // per rim fragment, one asin and a few trig calls per cell.
-const int LIMB_KERNEL_CELLS = 16;
+//
+// THE TRIP COUNT IS A UNIFORM, AND NEVER SET. It restates the cell count the accuracy note on
+// limb_sky_side_incidence() fixes, so any other value is wrong; what a uniform buys is a bound
+// the GL compiler cannot see, and a loop it cannot unroll into sixteen inlined copies of
+// limb_cell_light() and its trig, inside shaders that are already large. Same reasoning and
+// same hazard as atm_gl6_nodes in _atmosphere.gdshaderinc, where the saving was measured;
+// here it is not.
+uniform int limb_kernel_cells = 16;
 // Half-width of the kernel in px. Three sigma would be 1.5 px; this is set by the size law
 // instead, as a star's sprite is: the rim at the camera's dark-adapted rest exposure stands
 // four to five decades above saturation, and its Gaussian is still above one 8-bit step at
@@ -320,9 +327,9 @@ const float LIMB_SQRT_TWO_PI = 2.5066283;
 // against a high-accuracy integral, 16 cells then hold to 1% at the limb and 4% at 3 px.
 float limb_sky_side_incidence(float a, float b, float distance_px, float radius_px,
 		float sigma) {
-	float scale = LIMB_KERNEL_REACH_PX / float(LIMB_KERNEL_CELLS * LIMB_KERNEL_CELLS);
+	float scale = LIMB_KERNEL_REACH_PX / float(limb_kernel_cells * limb_kernel_cells);
 	float light = 0.0;
-	for (int i = 0; i < LIMB_KERNEL_CELLS; i++) {
+	for (int i = 0; i < limb_kernel_cells; i++) {
 		float x1 = scale * float(i * i);
 		float x2 = scale * float((i + 1) * (i + 1));
 		float centre = 0.5 * (x1 + x2) + distance_px;
@@ -381,11 +388,11 @@ float limb_mean_incidence(vec3 macro_normal, vec3 view_dir, vec3 sun_dir, float 
 	float along_view = dot(view_dir, sun_dir);
 	float along_radial = dot(radial, sun_dir);
 	float sigma = max(iv_psf_sigma, 0.1);
-	float cell = 2.0 * LIMB_KERNEL_REACH_PX / float(LIMB_KERNEL_CELLS);
+	float cell = 2.0 * LIMB_KERNEL_REACH_PX / float(limb_kernel_cells);
 	float light = 0.0;
 	float covered_weight = 0.0;
 	float weight_sum = 0.0;
-	for (int i = 0; i < LIMB_KERNEL_CELLS; i++) {
+	for (int i = 0; i < limb_kernel_cells; i++) {
 		float offset = (float(i) + 0.5) * cell - LIMB_KERNEL_REACH_PX;
 		float weight = exp(-offset * offset / (2.0 * sigma * sigma));
 		weight_sum += weight * cell;
