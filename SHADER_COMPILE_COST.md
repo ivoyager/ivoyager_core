@@ -7,8 +7,9 @@ long a shader is, and the file you would guess is expensive is not.
 
 Measured 2026-09-02 and 2026-09-03 in the [Planetarium](https://github.com/ivoyager/planetarium)
 against Godot 4.7.2 on an AMD RX 7900 XTX (driver 32.0.12033). Numbers are one machine's -- treat
-the *ordering* and the *ratios* as the finding, not the absolute seconds. A weaker GPU multiplies
-them by about five without changing their order; see *A slower machine*.
+the *ordering* and the *ratios* as the finding, not the absolute seconds -- and even the ordering
+is this vendor's. See *A slower machine*, where a weaker NVIDIA part multiplies the totals by
+about five and puts the shell shaders four times above the atmosphere shader that leads here.
 
 Every figure here was taken under the shadowed multi-light stack, `apply_gl_compatibility_shadows`
 at its default `true`. That setting is the largest remaining lever in this document, and the
@@ -195,11 +196,14 @@ same program** -- and a first visit can no longer reach a specialization the qua
 
 The saving is two of the table's "+1 specialization" columns per lit shader plus a depth program,
 wherever they were being paid: partly in the start sequence, partly in the opening view's first
-frame, partly in the warm-up. Not separately measured. What it can be held against is the slower
-machine's worst frame -- `surface` at 35 s, which *A slower machine* describes as "the few
-specializations two layers select rather than a single program", and which the fallback makes a
-single program. That was the one figure not comfortably clear of the ten-second Chrome GPU
-watchdog.
+frame, partly in the warm-up. *A slower machine* remeasures that GPU's whole cold start after this
+landed alongside three other changes -- the warm-up's shader selection, the photosphere
+consolidation and the limb kernel's bound -- so the drop from about 200 s to about 120 s is their
+sum. Two effects are this change's alone, nothing else being able to produce them: the warm-up
+falls from 82 s to 1.5 s, and the residual after the boot screen disappears. The `surface` frame
+that section used to report at 35 s -- "the few specializations two layers select rather than a
+single program", and the one figure not comfortably clear of the ten-second Chrome GPU watchdog --
+is a single program under the fallback, and out of this measurement's reach entirely.
 
 Two side effects, neither about compiling. `update_directional_shadow_atlas()` runs only under
 `if (r_directional_shadow_count)`, so with no shadowed light the 4096² depth atlas is never
@@ -303,34 +307,48 @@ about a second in all.
 
 ## A slower machine
 
-The same cold start on a laptop GTX 1650 Ti (Godot 4.7.2, driver 581.95, Compatibility), measured
-2026-09-03 with every shader source made novel so neither cache could answer:
+A laptop GTX 1650 Ti (Godot 4.7.2, driver 581.95), remeasured 2026-09-04 against the current code
+with every shader source made novel so neither cache could answer:
 
-**About 200 s under the boot screen, against 38 s** -- 99 s of it in the single start-sequence
-frame, and 82 s in the warm-up. Nothing reorders: the same shaders dominate, at tens of seconds
-each where the RX 7900 XTX pays seconds.
+**About 120 s under the boot screen, against the fast GPU's 38 s** -- 82 s of it in the single
+start-sequence frame, 22 s in the opening view's first frame, and 1.5 s in the warm-up. The same
+run with the driver's cache warm reaches the end of the boot screen in **14 s**, so compiling
+costs this machine about 105 s and everything else about 14 s. Forward+, equally cold, clears it
+in **20 s**.
 
-The honest denominator is the same run with the driver's cache warm, which reaches the end of the
-boot screen in **26 s** and passes the warm-up in 4.4 s. Compiling therefore costs this machine
-about 170 s and everything else about 26 s -- and the *first processed frame* line in the table
-above is not compile cost here at all: that frame ran 8-9 s whether the shaders were novel or
-cached.
+**Nothing stalls after the boot screen.** The ten-body tour -- Earth, Venus, Titan, Mars, the Sun,
+Jupiter, Saturn, Phobos, Uranus, Neptune -- produced no frame over 100 ms, where the shadowed
+light stack had cost 12 s at Titan and 5 s at Mars.
 
-Two things do not simply scale:
+That, and the warm-up's collapse from 82 s to 1.5 s, is the single-light fallback doing what *The
+light configuration* says it does: one program per lit shader means the opening view compiles the
+whole set, and the quads that follow find nothing left. The warm-up still earns its place -- it is
+what guarantees a shader nothing in view binds is drawn under the screen rather than in flight --
+but on this configuration it is no longer where the time goes.
 
-- **One shader's warm-up frame reached 35 s** (`surface`; `cloud_shell` 28 s). That frame covers
-  the few specializations two layers select rather than a single program, so no one program is
-  measured at 35 s -- but several seconds each is what it implies, and that is not comfortably
-  clear of the ten-second Chrome GPU watchdog (*The web export*). The weak GPU is where that risk
-  lives.
-- **The residual after the warm-up is a freeze rather than a blip.** Flying the same tour, Titan
-  stalled 12 s and then 4 s and Mars 5 s, the other eight bodies clean, against 0.4 s and 1.3 s on
-  the faster GPU. Whatever specialization the quads miss costs proportionally more here, and is
-  worth finding.
+**Per shader, from the harness** (`addons/tools/time_shader_compiles.py`, one process each, same
+day). This is where the two machines stop agreeing about which shader is expensive:
+`atmosphere_limb` costs **6 s**, while `surface`, `surface.cube`, `cloud_shell`,
+`cloud_shell.cube` and `band_pattern` cost **27-32 s each** -- four to five times the shader that
+leads on the RX 7900 XTX, where all six sat within 3.5-3.9 s of one another. Everything else is
+under 2 s. Whatever the AMD compiler does cheaply with a shell shader's body, this one does not,
+so *What it costs* cannot be read as a ranking that holds anywhere but where it was taken.
 
-Forward+ on the same machine, equally cold, clears the boot screen in **31 s** including its
-warm-up -- a sixth of the Compatibility figure, and barely worse than a fully cached Compatibility
-run. The renderer gap is not an artefact of the fast GPU.
+That figure is five programs rather than one (*Specializations*), and the harness times a single
+program directly in its second column: **about 5 s** for each of those five shaders, against
+1.4-1.6 s on the fast GPU. One program is therefore inside the ten-second Chrome GPU watchdog on
+this part, but by a factor of two rather than a margin -- and this is a discrete GPU. The browser
+remains unmeasured (*The web export*), where ANGLE's D3D11 path is a third compiler again.
+
+Two consequences worth carrying:
+
+- **The in-app measurement no longer isolates a single program.** With the warm-up compiling
+  nothing, the smallest unit it can time is a frame holding many shaders. Per-program figures come
+  only from the harness now.
+- **Most of the old warm-cache baseline was the shadow atlas, not compiling.** Before the
+  fallback, the opening view's first frame cost 8-9 s whether the shaders were novel or cached;
+  with no shadowed light the 4096² depth atlas is never allocated, and that frame is 1.2 s warm.
+  The warm baseline fell from 26 s to 14 s with it.
 
 
 ## What an edit costs
@@ -381,8 +399,9 @@ update" the boot screen speaks of. Firefox may not; measure before promising.
 Chrome's GPU process has a watchdog that kills the process, and with it the WebGL context, when
 a single GPU operation runs on the order of ten seconds. The 16-26 s limb compiles of the old
 code sat inside that range, which is what could make a first web visit fatal rather than slow;
-the current worst single compile is under 4 s on this GPU. On a weaker one it is not, and the
-margin there is thin (*A slower machine*).
+the current worst single compile is under 4 s on this GPU. What it is on a weak one is now
+unmeasured: the in-app method can no longer isolate one program (*A slower machine*), so the
+harness is what has to answer it.
 
 **The browser has not been measured.** The harness exports to web (see below); in the Claude
 desktop app's embedded Chromium the opaque-bound limb shader had not finished compiling after
@@ -393,33 +412,46 @@ compiler again. Measure an actual load in each before trusting any number here f
 
 ## How to measure it again
 
-Use a scratch Godot project, outside this one, that puts a shader on a quad in front of a camera
-and prints the frame time of its first draw. It needs a full copy of the shaders directory (so
-the relative `#include`s resolve), a trivial shader drawn first, and a command-line or URL
-option naming which shader to time, so one run measures one shader. The traps, each of which
-cost a run:
+`addons/tools/time_shader_compiles.py`, in the [tools](https://github.com/ivoyager/tools)
+submodule, is the harness. Run it from the project directory:
+
+```
+python addons/tools/time_shader_compiles.py                  # every shader
+python addons/tools/time_shader_compiles.py surface atmosphere_limb
+python addons/tools/time_shader_compiles.py --renderer forward_plus
+```
+
+It generates a throwaway Godot project holding a copy of this directory, the hosting project's
+`[shader_globals]` block, and a scene that draws one shader on a quad and reports the frame time
+of its first draw and of the frame after the light is hidden. Then it runs one Godot process per
+shader. The copy is made fresh every run, so there is nothing to keep in sync: it measures the
+shaders as they are on disk. A sky shader cannot go on a mesh and is reported as unmeasurable
+rather than skipped silently -- `starmap_background` is the one.
+
+Why it is built that way. Each of these cost a run before the harness existed:
 
 - **One shader per process.** In a sequence the AMD driver leaks work from earlier compiles into
   later first-draw frames: `photosphere` read 9.7 s after three limb compiles and 1.07 s alone,
   and the 10.6 s this document used to carry for it was that artefact.
 - **A comment does not invalidate anything.** Godot hashes the GLSL it generates and the parser
-  drops comments, so appending `// bust` changes the file on disk and nothing downstream. Append a
-  uniform, and give it a new name every run, or the driver cache answers.
-- **Time across frames.** `RenderingServer.force_draw()` cannot be used from inside an
-  `ivoyager_assistant` method: the server dispatches in `_process`, and re-entering the renderer
-  there deadlocks the application. A helper with `_process` and `Time.get_ticks_usec()` deltas,
-  assigning the material on frame N and reading the delta on N+1, is what the harness does. A
-  deadlocked instance keeps holding port 29071, so every later run talks to the corpse; check for
-  stray processes before believing a "no response".
+  drops comments, so appending `// bust` changes the file on disk and nothing downstream. The
+  harness appends a uniquely named uniform instead, which is why a rerun is a real compile and
+  not a cache hit.
+- **Time across frames.** The material is assigned on frame N and the delta read on N+1, from
+  `_process` and `Time.get_ticks_usec()`. `RenderingServer.force_draw()` is not an alternative
+  from inside an `ivoyager_assistant` method: the server dispatches in `_process`, and re-entering
+  the renderer there deadlocks the application. A deadlocked instance keeps holding port 29071, so
+  every later run talks to the corpse; check for stray processes before believing a "no response".
 - **A runtime `Shader` has no resource path**, so the relative `#include "_x.gdshaderinc"` the
-  shipped files use will not resolve. Load the shader from a file, in a full copy of the shaders
-  directory.
-- **Discard the first shader measured.** It also pays the probe quad's own first draw; the
-  harness draws a trivial shader first for that reason.
-- **Toggle the light for the specialization cost.** Hiding the directional light after a first
-  draw forces one more specialization of every lit material in view; the harness reports it as
-  its own line. An `unshaded` shader shows nothing there, because the renderer pins its light
-  bits.
+  shipped files use will not resolve. The shader is loaded from a file, in a full copy of this
+  directory -- which is why the whole directory is copied and not just the file under test.
+- **The first shader measured is discarded.** It would also pay the probe quad's own first draw,
+  so a trivial shader is drawn first.
+- **The light is toggled for the specialization cost.** Hiding the directional light after a first
+  draw forces one more specialization of every lit material in view, which is the second column.
+  An `unshaded` shader shows almost nothing there, because the renderer pins its light bits.
 
 Godot's `--print-fps` is enough to *find* a stall in a normal session -- it prints one line per
-second, and a hang shows up as a single low-FPS second -- but not to attribute one.
+second, and a hang shows up as a single low-FPS second -- but not to attribute one. For a stall
+inside a running Planetarium rather than a bare compile, a per-frame probe on the main scene root
+that prints any frame over ~100 ms is what produced *A slower machine*'s phase numbers.
