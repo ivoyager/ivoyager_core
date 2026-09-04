@@ -59,8 +59,9 @@ would hand the farwarp, occlusion, picking and world-controller systems to a thr
 
 Each frame `IVCamera` processes its own motion, then subtracts its global position from
 the Universe root's translation — camera at origin, to the f32 rounding of its ancestor
-chain. Ordinary tree children ride the shift automatically (their locals are untouched;
-the world moves under them). Two kinds of code do not, and both are ordered explicitly:
+chain, which at planetary distances is kilometres (*Smallness, not stationarity*, below).
+Ordinary tree children ride the shift automatically (their locals are untouched; the world
+moves under them). Two kinds of code do not, and both are ordered explicitly:
 
 | Process priority | Who | What it does / reads |
 |---|---|---|
@@ -85,6 +86,30 @@ star's subtree processed, typically the previous frame's.
 Distance computations are shift-invariant (both endpoints carry the same Universe
 translation), so code at priority 0 may difference two same-frame globals freely; what it
 may not do is place a world-space node from them before the shift settles.
+
+### Smallness, not stationarity
+
+The shift does what it was built to do. It takes near-camera world magnitudes from ~1e11
+units down to a few kilometres, and that smallness is the whole point: one f32 ULP at 5 km is
+half a millimetre, against 16 km at 1 au. Relative geometry stays exact on top of it because
+the error is shared (*Overview*). Nothing below is a defect in that.
+
+What the shift does not deliver — and was never asked to — is a *stationary* world frame. The
+subtraction runs in float32 on a number holding the camera's distance from the Universe
+origin, where one ULP at 1 au is ~16 km, so the camera comes to rest *within* ~8 km of the
+origin rather than *on* it, and that residual is free to drift. Measured on the ISS:
+`Universe.x` unchanged across 109 consecutive frames, the camera 1.1–6.6 km out, and the whole
+near-camera scene translating **129 m per frame** — the ISS's orbital speed over the frame
+rate — with jumps to ~4 km on the frames where the lattice does move.
+
+That cost nothing until 2026-09, when a consumer turned out to need stationarity rather than
+smallness: Godot anchors its directional-shadow texel lattice in absolute world space (*Local
+shadow maps*, and the TODO entry). Two things follow for anyone re-opening it. The quantum is
+*relative*, so it is ~16 km at 1 au whatever `IVUnits.METER` is — a project cannot tune its
+way out by changing sim scale, and a scale-sensitivity hunt is the wrong investigation. And
+the general form of the finding is that the render frame is anchored to the Universe root, so
+a body sweeps through it at its **absolute** speed rather than its speed relative to the
+camera; anything reading world-space *position* rather than a difference sees that sweep.
 
 ## The depth range
 
@@ -300,6 +325,13 @@ shadow out from `directional_shadow_fade_start` (0.8) of the reach, so the reach
 above ~1.25× the camera-to-target distance or the target itself fades. With an additive
 `+ target distance` that ratio decays with distance, which is what bounds how far out a
 craft keeps its self-shadows (~1 km at the shipped 0.25 km `target_plus`).
+
+One thing reach cannot buy back is steadiness. Godot stabilises a directional shadow by
+snapping the ortho bounds to a texel lattice anchored in **absolute world space**
+(`renderer_scene_cull.cpp`, `_light_instance_setup_directional_shadow`), which holds static
+world geometry on the same texels every frame. Our near scene is not static in world space —
+see *Smallness, not stationarity* — so its sub-texel phase re-randomises every frame and craft
+self-shadowing boils. Reach and atlas size set the amplitude of that boil, not its existence.
 
 Two rules keep the maps honest across the warp boundary:
 
@@ -721,6 +753,32 @@ this is the spatial one.
   No fix is designed; candidate directions are re-anchoring visuals more aggressively
   at high speed, or accepting and hiding it (HUD-only rendering above a speed × distance
   product).
+- **Craft self-shadowing boils: the world frame is small but not stationary.** The
+  near-camera scene translates through world space at the camera target's orbital speed
+  (129 m/frame on the ISS, with ~4 km lattice snaps), because the origin shift resolves
+  onto a ~16 km f32 lattice at 1 au and so holds the camera *near* the origin rather than
+  *on* it (*Smallness, not stationarity*). Godot's directional-shadow texel lattice is
+  anchored in absolute world space, so the sub-texel phase re-rolls every frame.
+  Established 2026-09 by the decisive experiment: pause, translate the scene rigidly by
+  one frame's worth of real motion, and ~25k pixels change — every one of them on the
+  craft's self-shadowing, against 250 with shadows off; a **5 cm** translation already
+  changes the image. Established what it is *not*: a light-rig defect (light direction and
+  `directional_shadow_max_distance` both measured perfectly constant); not `IVUnits.METER`
+  sensitivity (the f32 quantum is relative); and not a defect in origin shifting, which
+  delivers the smallness it was designed for — stationarity is a requirement this
+  investigation discovered, not one the mechanism ever failed. ISS is the worst case,
+  being the fastest-moving thing the camera can be parented to and in the only size domain
+  that gets small shadow-map texels. No fix in v0.2 — the shipped near-light reach cuts
+  the amplitude, not the cause. Candidate directions, in ascending order of scope:
+  re-translate the camera's ancestor chain from f64 each frame (fixes it, and the depth of
+  the walk decides where the residual parallax lands — one node puts it between craft and
+  planet at ~1.5 px, two nodes puts it between planet and star where it is invisible);
+  make every body `top_level` and place it camera-relatively from f64, which subsumes
+  origin shifting entirely and gives a constant ~1.2e-7 rad angular error at every
+  distance (under consideration for v0.3, §4.3 of
+  [IVBody_REDESIGN_v0.3.md](https://github.com/ivoyager/planetarium/blob/master/IVBody_REDESIGN_v0.3.md));
+  or a `precision=double` engine build, which would let the existing shift resolve to
+  millimetres, at the cost of custom builds for every export target including web.
 - **Bodies outside the PSF quad's scope still vanish at the cull.** The quad covers the
   sun and the 26 planetary-mass objects; the other ~150 named moons, the named
   asteroids, and every spacecraft still take the 4000-radii cull, at which they are
