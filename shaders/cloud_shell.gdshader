@@ -217,8 +217,10 @@ void fragment() {
 	// here; an exact no-op without them): direct light reddened along the sun path, and
 	// the chromatic half of the view-path extinction whose luma the atm_disc_air() block
 	// below removes. See _atmosphere.gdshaderinc.
-	vec3 atm_tint = atm_view_tint(atm_mu);
-	vec3 atm_sun_t = atm_sun_transmittance(atm_mu0);
+	vec3 atm_tint;
+	vec3 atm_sun_t;
+	vec3 atm_diffuse;
+	atm_receiver_light(atm_mu, atm_mu0, atm_tint, atm_sun_t, atm_diffuse);
 	ALBEDO *= atm_sun_t * atm_tint;
 	// The sun angle averaged across this pixel's radial extent, which one shading sample cannot
 	// resolve at the rim (see limb_mean_incidence). The engine's diffuse carries
@@ -270,7 +272,7 @@ void fragment() {
 	// collapsing the twilight toward the terminator exactly where it takes over.
 	float atm_sky_response = minnaert_isotropic_response(macro_normal, VIEW, minnaert_k)
 			* lunar_lambert_isotropic_response(macro_normal, VIEW, lunar_lambert);
-	EMISSION += unlit_albedo * atm_sky_excess(atm_mu0, atm_sky_response,
+	EMISSION += unlit_albedo * atm_sky_excess(atm_mu0, atm_diffuse, atm_sky_response,
 			atm_beam_response) * atm_tint * (sun_light_energy * sun_visible);
 	// The share of the pixel's mean sun angle the engine's own N.L cannot deliver, because at
 	// this pixel that N.L is zero (see limb_mean_incidence). Direct sunlight, so it takes the

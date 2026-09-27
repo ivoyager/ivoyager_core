@@ -14,10 +14,12 @@ whether it can start, that one says how it then runs.
 Measured 2026-09-02 and 2026-09-03 in the [Planetarium](https://github.com/ivoyager/planetarium)
 against Godot 4.7.2 on an AMD RX 7900 XTX (driver 32.0.12033). Numbers are one machine's -- treat
 the *ordering* and the *ratios* as the finding, not the absolute seconds -- and even the ordering
-is this vendor's. Two later sections carry other parts: *A slower machine*, where a weaker
+is this vendor's. Three later sections carry other parts: *A slower machine*, where a weaker
 NVIDIA part multiplies the totals by about five and puts the shell shaders four times above the
-atmosphere shader that leads here, and *The web export*, whose Intel and ANGLE figures were taken
-on 2026-09-10.
+atmosphere shader that leads here; *The web export*, whose Intel and ANGLE figures were taken
+on 2026-09-10, with the v0.2.1 dev build's on 2026-09-27; and *The atmosphere's structure*, the
+rebuild those last figures forced, timed on the slower machine the same day. The atmosphere
+shaders' figures in the sections before it predate that rebuild.
 
 Every figure here was taken under the shadowed multi-light stack, `apply_gl_compatibility_shadows`
 at its default `true`. That setting is the largest remaining lever in this document, and the
@@ -121,6 +123,12 @@ every lane in the group the maximum, so a loop with an early `break` saves nothi
 warp that contains one slow fragment. That argues for keeping trip counts uniform across
 neighbouring fragments. It has never argued for longhand.
 
+**Nor call a heavy function from a second place.** A call site is a copy as surely as a
+written-out loop is: every compiler here may inline, and FXC -- a browser's on Windows -- inlines
+every call, so a function reached from ten places is compiled ten times. That, not any loop, is
+what the atmosphere was paying for; see *The atmosphere's structure*. Write the second use as
+another iteration of a loop the first already runs.
+
 
 ## What was done
 
@@ -218,8 +226,9 @@ consolidation and the limb kernel's bound -- so the drop from about 200 s to abo
 sum. Two effects are this change's alone, nothing else being able to produce them: the warm-up
 falls from 82 s to 1.5 s, and the residual after the boot screen disappears. The `surface` frame
 that section used to report at 35 s -- "the few specializations two layers select rather than a
-single program", and the one figure not comfortably clear of the ten-second Chrome GPU watchdog --
-is a single program under the fallback, and out of this measurement's reach entirely.
+single program", and a frame longer than Chrome's 30-second GPU watchdog, though no one program in
+it was (*The web export*) -- is a single program under the fallback, and out of this measurement's
+reach entirely.
 
 Two side effects, neither about compiling. `update_directional_shadow_atlas()` runs only under
 `if (r_directional_shadow_count)`, so with no shadowed light the 4096² depth atlas is never
@@ -407,10 +416,11 @@ so *What it costs* cannot be read as a ranking that holds anywhere but where it 
 
 That figure is five programs rather than one (*Specializations*), and the harness times a single
 program directly in its second column: **about 5 s** for each of those five shaders, against
-1.4-1.6 s on the fast GPU. One program is therefore inside the ten-second Chrome GPU watchdog on
-this part, but by a factor of two rather than a margin -- and this is a discrete GPU. The browser
-remains unmeasured, and ANGLE's D3D11 path is a third compiler again -- on an Intel iGPU it
-multiplies the limb shader about 17x (*The web export*).
+1.4-1.6 s on the fast GPU. One program is therefore well inside Chrome's 30-second GPU watchdog on
+this part -- but through native GL, on a discrete GPU. A browser on Windows compiles through
+ANGLE's D3D11 path, a third compiler again, which on an Intel iGPU multiplied the limb shader about
+17x and on this GPU put one limb program past a minute, until *The atmosphere's structure* took it
+under 2 s (*The web export*).
 
 Two consequences worth carrying:
 
@@ -468,12 +478,16 @@ is only the browser's. Chrome keeps a GPU shader disk cache, so a repeat visitor
 browser profile compiles nothing until the site's shaders change -- the "first run after an
 update" the boot screen speaks of. Firefox may not; measure before promising.
 
-Chrome's GPU process has a watchdog that kills the process, and with it the WebGL context, when
-a single GPU operation runs on the order of ten seconds. The 16-26 s limb compiles of the old
-code sat inside that range, which is what could make a first web visit fatal rather than slow;
-the current worst single compile is under 4 s on this GPU. But this GPU is a fast discrete part,
-and the in-app method can no longer isolate one program (*A slower machine*), so the harness is
-what has to answer a weak one.
+Chrome's GPU process has a watchdog that kills the process, and with it every WebGL context, when
+its main thread spends too long in one task: 30 s on Windows, 25 s on macOS and 15 s elsewhere
+(`kGpuWatchdogTimeout` in Chromium's `gpu/ipc/common/gpu_watchdog_timeout.h`), and on Windows up
+to four such periods when the thread was waiting rather than working
+(`kMaxCountOfMoreGpuThreadTimeAllowed`, `gpu_watchdog_thread.h`). Godot queries each program's link
+status as soon as it links (*Specializations*), so the figure to hold against that limit is one
+program's compile, not a frame's. Through native GL on this GPU the worst single program is under
+4 s. But this GPU is a fast discrete part, the in-app method can no longer isolate one program (*A
+slower machine*), and a browser on Windows does not compile through native GL at all, so the
+harness is what has to answer.
 
 **A weak part, through both compilers.** Measured 2026-09-10 on the Intel UHD iGPU of the laptop
 [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md) uses, one shader per process, both caches
@@ -496,11 +510,19 @@ which also covers reaching the iGPU rather than the discrete part.
 
 **Through ANGLE the limb shader is a first-visit hazard, not a delay.** It takes 283 s to reach
 its first draw and 50 s for every further variant, about 17x its native-GL time, and
-`surface.cube` takes 69 s. Both are far past the ten-second watchdog, so a first visit in Chrome,
-on Windows, on an iGPU like this one probably cannot finish compiling them at all. The tier that
-leaves the limb shader out entirely is then the only one sure to load, which is why atmosphere
-quality earns a restart option rather than a runtime one (*A possible option set* in
-[GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)).
+`surface.cube` takes 69 s. One limb program alone outlasts the 30 s watchdog, so a first visit in
+Chrome, on Windows, on an iGPU like this one probably cannot finish compiling it at all;
+`surface.cube`, at about 13 s a program here, is merely minutes of unresponsive page. A tier that
+leaves the atmosphere's quadrature out is then the only one sure to load -- out of the limb shader,
+and, by *The v0.2.1 dev build* below, out of the disc shaders' `atm_disc_air()` as well -- which
+is why atmosphere quality earns a restart option rather than a runtime one (*A possible option
+set* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)).
+
+**That was the include before *The atmosphere's structure*, below.** On this same part through
+ANGLE the rebuilt limb shader reaches its first draw in 10.9 s and `surface.cube` in 22.9 s, five
+programs each, and a further variant of either takes 3.6 s at most. The hazard is now a delay,
+and a tier without the quadrature is what would shorten a first visit rather than what lets one
+load at all.
 
 **Code volume is what compiles, not iteration count.** The 4-node atmosphere variant compiles no
 faster than the shipped shader, and by this measurement slightly slower, because its loop bounds
@@ -508,14 +530,192 @@ are already opaque uniforms -- the node count never reaches the compiler (*Don't
 don't fear a `while`*). A tier that has to pay less at first load must therefore leave code out,
 not run fewer iterations of it.
 
-**The browser itself has still not been measured.** Nothing in this toolchain runs in one.
+**The browser itself has still not been timed.** Nothing in this toolchain runs in one.
 `--driver opengl3_angle` gets as close as a desktop run can -- the same ANGLE and D3D11 path, out
 of the libraries Godot ships -- but Godot's ANGLE build is not Chrome's and its compile flags may
-differ; Firefox is a third path again. The one browser-shaped data point is a bad one --
-in the Claude desktop app's embedded Chromium the opaque-bound limb shader had not finished
-compiling after 14 minutes, against 1.8 s for a trivial shader, with no watchdog and an
-unidentifiable GL backend. Measure an actual load in real Chrome and Firefox, on a weak machine,
-before trusting any number here for the web -- and before releasing on the strength of one.
+differ; Firefox is a third path again. The browser-shaped data points are all bad ones: the
+Claude desktop app's embedded Chromium had not finished compiling the opaque-bound limb shader
+after 14 minutes, against 1.8 s for a trivial shader, with no watchdog and an unidentifiable GL
+backend; and the dev build below never loads. Do not load the export in that embedded browser at
+all -- it shares a renderer and a GPU process with the app's own UI, which freezes with it. Measure
+an actual load in real Chrome and Firefox, on a weak machine, before trusting any number here for
+the web -- and before releasing on the strength of one.
+
+### The v0.2.1 dev build
+
+**The hazard, realised.** The v0.2.1.dev1 web export, deployed 2026-09-27, never passes its boot
+screen, where v0.2 loads after Chrome's page-unresponsive prompt. In the embedded Chromium above it
+logged `Loaded assets` and then held its GPU process at a full core for 14 minutes, the page's
+renderer idle -- a program compiling, not a script looping -- until the process was killed. It
+never reaches the warm-up: the opening view (`VIEW_HOME`, Earth at three radii) draws
+`surface.cube`, `cloud_shell.cube` and `atmosphere_limb` in its first frames.
+
+Measured the same day through `--driver opengl3_angle` on the GTX 1650 Ti, one shader per process
+but eight to twelve processes at a time, so every absolute figure carries contention and the ratios
+are the finding. v0.2 was tagged on 2026-08-01, before physical light and the single-scattering
+atmosphere:
+
+| Shader | v0.2, first draw | +1 variant | now, first draw | +1 variant |
+|---|---:|---:|---:|---:|
+| `atmosphere_limb` | 5.3 s | 0.1 s | 479 s | 167 s |
+| `surface.cube` | 10.5 s | 0.5 s | 239 s | 46 s |
+| `cloud_shell.cube` | 9.8 s | 0.6 s | 209 s | 49 s |
+| `surface` | | | 213 s | 45 s |
+| `cloud_shell` | | | 204 s | 47 s |
+| `band_pattern` | | | 229 s | 36 s |
+
+Those six are the shaders that include `_atmosphere.gdshaderinc`. Every other spatial shader
+stays under 14 s a first draw and 1.5 s a variant even so (`rings` 13.6 s, `photosphere` 6.5 s,
+`body_psf` 3.1 s, the path and id shaders about 1 s).
+
+**Under that contention each of the six had a program past the 30 s watchdog; alone, only the
+limb shader does.** Timed again one process at a time (*The atmosphere's structure*), a limb
+program took 74 s and a disc shader's 16 to 24 s -- inside the watchdog, by less than a factor of
+two, which a CPU half as fast as this laptop's i7-10875H would use up.
+
+**What FXC chokes on is the disc quadrature, and it is volume rather than any one construct.**
+`surface.cube` with one piece cut out at a time, same conditions:
+
+| `surface.cube`, through ANGLE | first draw | +1 variant |
+|---|---:|---:|
+| as shipped | 239 s | 46 s |
+| loop bounds constant again | 230 s | 48 s |
+| no `isnan()` in `atm_disc()`'s finite guard | 256 s | 35 s |
+| no far half-ray in `atm_disc()` | 116 s | 12 s |
+| haze column without its top | 96 s | 12 s |
+| detached layer compiled out | 72 s | 7.7 s |
+| no `atm_disc_air()` | 21 s | 1.8 s |
+| no atmosphere call at all | 14 s | 0.7 s |
+| textures alone | 11 s | 0.4 s |
+
+- **The opaque loop bounds are a native-GL lever only.** Under FXC a constant and a uniform
+  bound compile alike, so restoring constants on the web would buy nothing.
+- **Nor is it `isnan()`.** ANGLE compiles a shader that calls it with
+  `D3DCOMPILE_IEEE_STRICTNESS`, but taking it out left the first draw where it was. Otherwise its
+  D3D11 backend compiles every shader at `D3DCOMPILE_OPTIMIZATION_LEVEL2`, retrying with
+  validation and then optimization skipped only when a compile fails
+  (`Renderer11::compileToExecutable`), so nothing a page does can ask for a cheaper compile.
+- **It was how many times the columns were inlined.** FXC inlines every call. `atm_disc()`
+  reached the exponential column about ten times, and each could inline up to fourteen Chapman
+  columns through the haze's branches -- on the order of 140 copies before optimization started.
+  Removing any one large piece halved the time or better, as an optimizer superlinear in body
+  size would, and no one piece was the culprit. The limb shader carried `atm_disc()` and the
+  ring's two half-rays both, which is why it was the worst.
+
+**So a fix had to shrink what FXC sees**: evaluate each column once per loop iteration rather
+than once per call site, which keeps the model, or leave the quadrature out of the web build.
+The first is done -- *The atmosphere's structure*, below. The second is not; see *TODO* in
+[PHOTOMETRIC_MODEL.md](PHOTOMETRIC_MODEL.md).
+
+
+## The atmosphere's structure
+
+**Every heavy function now has one call site.** Rebuilt on 2026-09-27 on the finding above, that
+FXC inlines every call, so a function reached from ten places is compiled ten times and the
+atmosphere reached its heaviest ones from dozens. Each is now reached once, inside a loop:
+
+- `atm_exp_columns()` evaluates an exponential column's terms in a loop, so a call site carries
+  one Chapman function where the haze's branches wrote out up to seven slants.
+- `atm_ray_path()` integrates a whole view ray as one loop over four segments, so one quadrature
+  node, `atm_node()`, serves the lit part in front of a disc, both halves of a tangent ray and
+  every thin-layer crossing. There had been four copies of it in a disc shader and eight in the
+  limb shader.
+- A node's view and sun columns, and the thin layer's partial columns, each come from one loop.
+- `atm_receiver_light()` hands a surface or cloud shell everything it takes from the air above
+  it -- the view tint, the sun transmittance, and the plane-parallel diffuse the twilight
+  subtracts -- from one loop of two columns, four for a cloud deck, where three helpers had each
+  evaluated their own.
+- The limb shader integrates the handoff band's disc-hit ray as one more pass of the ring's tap
+  loop, so it has one ray integral where it had two.
+
+The model is untouched -- the same arithmetic, in the same order save where a loop now
+accumulates a sum. The rule is in the include's header as THE STRUCTURE: a new term is a new
+iteration, not a new call. It has one exception, and it is not a compiling one: under Forward+ and
+Mobile only, `atm_exp_columns()` writes out the common case -- a haze with no top, Earth's,
+Venus' and Mars' -- because Vulkan runs the term loop a third slower than two written-out terms,
+while under Compatibility those two extra calls slow Intel's GL compiler's whole shader instead
+(*Addendum: the atmosphere's structure, at runtime* in
+[GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)). Compatibility, and so everything below, compiles
+without it.
+
+**What it bought.** Timed one process at a time on this laptop -- an i7-10875H, with the GTX
+1650 Ti and the Intel UHD iGPU -- both caches bypassed. Each cell is seconds to the first draw,
+which is five programs (*Specializations*), then for one more variant. Through ANGLE and D3D11,
+which is Chrome's path on Windows:
+
+| Shader | v0.2, GTX | before, GTX | after, GTX | before, Intel | after, Intel |
+|---|---:|---:|---:|---:|---:|
+| `atmosphere_limb` | 2.9 / 0.1 | 286 / 74 | 10.8 / 1.7 | 324 / 85 | 10.9 / 1.6 |
+| `surface.cube` | 5.1 / 0.2 | 114 / 19 | 20.2 / 3.0 | 101 / 18 | 19.0 / 3.0 |
+| `band_pattern` | | 118 / 24 | 19.5 / 4.1 | | 18.8 / 3.0 |
+| `surface` | | 105 / 18 | 18.7 / 3.1 | | 16.4 / 2.6 |
+| `cloud_shell.cube` | 4.9 / 0.4 | 95 / 20 | 16.3 / 3.4 | | 16.5 / 2.8 |
+| `cloud_shell` | | 91 / 16 | 16.1 / 2.7 | | 16.0 / 2.7 |
+
+Through native GL, which is what the desktop Compatibility renderer compiles with:
+
+| Shader | before, GTX | after, GTX | before, Intel | after, Intel |
+|---|---:|---:|---:|---:|
+| `atmosphere_limb` | 7.3 / 1.5 | 4.9 / 0.9 | 16.4 / 3.8 | 2.8 / 0.5 |
+| `surface.cube` | 31.1 / 5.0 | 8.2 / 1.2 | 9.5 / 2.1 | 5.2 / 0.9 |
+| `band_pattern` | 30.1 / 5.2 | 7.3 / 1.1 | 8.5 / 1.6 | 4.0 / 0.8 |
+| `surface` | 29.4 / 4.9 | 6.9 / 1.0 | 8.9 / 1.7 | 4.1 / 0.8 |
+| `cloud_shell.cube` | 24.7 / 3.9 | 6.4 / 1.2 | 7.8 / 1.9 | 3.4 / 0.7 |
+| `cloud_shell` | 26.2 / 5.0 | 5.9 / 1.0 | 7.7 / 1.9 | 3.2 / 0.7 |
+
+- **Through ANGLE the six now take an eighth of the time between them**: 808 s to 102 s to a
+  first draw on the GTX. The limb shader is 26x faster to its first draw and 43x per variant; a
+  disc shader is 5-6x faster either way.
+- **The two GPUs agree through ANGLE to within 13 %**, which says most of that time is FXC's, on
+  the CPU, before either driver sees the shader. So a slower CPU than this one scales every
+  figure in the first table, whatever GPU it drives.
+- **Native GL gains less, and differently by vendor**: 3.8x across the six through NVIDIA's
+  compiler, where a disc shader gains 4x and the limb shader 1.5x; 2.6x through Intel's, where
+  the limb shader gains 6x and a disc shader 2x.
+- **Two compiles of the same code differ by as much as 13 %** (`surface.cube` through ANGLE on
+  the GTX, the same afternoon), which is the resolution of any one comparison here. At that
+  resolution the three trims kept for the Intel iGPU's frame time (*Addendum: the atmosphere's
+  structure, at runtime* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)) cost no measurable
+  compile time. Folding the helpers into `atm_receiver_light()` took 9 to 23 % off every disc
+  shader through ANGLE on both GPUs, ten measurements the same way.
+
+**What it did not change, which is the picture.** Measured two ways, against the include as it
+was:
+
+- *Numerically*, by evaluating the include's entry points -- `atm_disc_air()` on surface and
+  cloud shells, `atm_limb()`, and the per-fragment helpers -- over a grid of 262,144 geometries
+  (four camera distances, sixteen phase angles, eight rolls, impact parameters packed toward the
+  silhouette) for Earth, Venus, Mars and Titan at the Normal and Reduced tiers and with the taste
+  multipliers on, each float written out as its own four bytes. The largest change anywhere is
+  6.6e-6 of an image's maximum through NVIDIA's GL, 5.9e-5 through Vulkan and 1.2e-4 through
+  Intel's GL, with no NaN or infinity appearing or disappearing; the unchanged include differs
+  from itself by 1.3e-3 between the NVIDIA and the Intel driver. So what moves is reassociation,
+  a tenth of what a change of GPU already moves.
+- *On screen*, in 18 poses -- Earth, Venus, Mars and Titan each at four longitudes 90 degrees
+  apart, and Earth at 1.6 and 30 radii -- with sim time frozen and the HUDs hidden: on
+  Compatibility at most 1 code, which is what a second run of the same build moves; on Forward+
+  one pixel of the 37 million moves 3 codes, at the pose where a same-build rerun moves one pixel
+  3 codes too, and nothing else moves more than 2. Folding in the receiver's helpers, measured
+  against the rebuilt include before it, moves no more than that floor: 1 code on
+  Compatibility, and the same one pixel 3 codes on Forward+.
+
+**What it costs each frame** depends on the compiler, and the four paths measured disagree; the
+figures, and the reasons found, are in *Addendum: the atmosphere's structure, at runtime* in
+[GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md). Through NVIDIA's GL every atmosphere view got 25
+to 42 % faster, and under Forward+ every one is within 11 % of what it was. Through the Intel
+iGPU's GL the atmosphere views got faster but for Earth close up, and the bodies with no
+atmosphere 24 to 46 % slower; through ANGLE, the web's path, the atmosphere itself costs 1.3 to
+1.5 times what it did on that iGPU.
+
+**What is left.** Without any atmosphere call, `surface.cube` takes 7.3 s to a first draw through
+ANGLE on the GTX, against 5.1 s for v0.2's whole shader, and that floor is the photometry kernel,
+the point-spread function, the occlusion and four bicubic cube samples. The receiver's helpers
+add 1.0 s to it, `atm_disc_air()` 9.9 s, and the two together 12.9 s -- FXC's cost still grows
+faster than the code does. Every program now compiles well inside Chrome's watchdog; but a first
+web visit still compiles every shader the opening view and the warm-up draw, the six above take
+about 100 s of this laptop's CPU between them, and a slower CPU pays more. The tier that leaves
+the quadrature out of the web build stays on the *TODO* in
+[PHOTOMETRIC_MODEL.md](PHOTOMETRIC_MODEL.md).
 
 
 ## How to measure it again
@@ -536,6 +736,16 @@ separate step: Godot exports `NvOptimusEnablement`, so on a hybrid laptop every 
 discrete part until you use an executable copy with that export cleared -- see *How this was
 measured* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md). Running the flag alone gets you ANGLE
 on the wrong GPU.
+
+**To A/B an edit before making it**, copy this directory, edit the copy, and time the same shaders
+from both with `--shaders-dir`. Time them one process at a time: a compile is CPU-bound, other
+processes compiling at the same time can double a figure, and a pair run side by side is not
+fair either, since the shorter finishes under the load and the longer then runs alone. Every
+comparison in *The atmosphere's structure* was timed that way.
+
+**The rest of that section's instruments are not in the tools submodule yet**: the entry-point
+probe that writes the include's outputs as raw floats and times them, and the in-app frame and
+screenshot A/Bs that swap shader files under a running Planetarium, were session scripts.
 
 It generates a throwaway Godot project holding a copy of this directory, the hosting project's
 `[shader_globals]` block, and a scene that draws one shader on a quad and reports the frame time

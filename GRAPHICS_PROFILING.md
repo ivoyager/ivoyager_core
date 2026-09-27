@@ -31,7 +31,8 @@ in the rendered image, measured in 8-bit display codes on screenshots taken befo
    shell alone is 75-95% of those frames: Earth close up takes ~490 ms and Titan ~900 ms.
 2. The four big levers, in order:
    - **Atmosphere quality.** A reduced tier saves 22-38% with no visible change; off saves
-     76-95%.
+     76-95%. Both predate the atmosphere's rebuild, since which Reduced buys far less through
+     Intel's GL (*Addendum: below Reduced*).
    - **3D render scale.** 75% saves 17-28%; 50% saves 30-66%.
    - **The renderer itself, on desktop.** Compatibility is 1.4-8x faster than Forward+ on the
      iGPU.
@@ -42,17 +43,23 @@ in the rendered image, measured in 8-bit display codes on screenshots taken befo
    - **MSAA** is a modest lever: off saves 5-13% on the iGPU against 2x, and 5-23% on the GTX.
    - **FXAA and TAA** cost rather than save.
    - **Physical Light** saves nothing, and turning it off costs up to 35%.
-4. **The web may not load at all on these machines.** Through ANGLE on the iGPU, which is
-   Chrome's path on Windows, the limb shader's compile runs far past Chrome's roughly 10-second
-   GPU watchdog. This is a first-load hazard rather than a frame-rate one, and it outranks
-   everything above; see *The web export* in
-   [SHADER_COMPILE_PROFILING.md](SHADER_COMPILE_PROFILING.md).
+4. **A first web visit is minutes of compiling on these machines.** Through ANGLE on the iGPU,
+   which is Chrome's path on Windows, one limb-shader program used to compile for longer than
+   Chrome's 30-second GPU watchdog allows, so the web could not load at all. Since 2026-09-27 each
+   program compiles in seconds, but every shader the first view draws still has to. This is a
+   first-load cost rather than a frame-rate one; see *The web export* and *The atmosphere's
+   structure* in [SHADER_COMPILE_PROFILING.md](SHADER_COMPILE_PROFILING.md).
 5. Several costs buy nothing visible and can go with no option at all: the Milky Way and most of
    the star field in any lit-body view, the limb shell's disc-interior fragments, and sphere
    detail a body's on-screen size does not earn. Together they are worth 10-30% in most views and
    far more at Earth and Titan. The limb's interior has since gone, for 19-54% of an iGPU
    atmosphere frame (see *Addendum: the limb annulus, measured*), and the sphere detail is now
    distance-selected (see *Addendum: the sphere LOD ladder*).
+6. **The atmosphere was rebuilt on 2026-09-27 for what it costs to compile, and it runs at a
+   different speed through every compiler measured**: faster through NVIDIA's GL, level under
+   Forward+, mixed through Intel's GL and dearer through ANGLE. The largest runtime lever it leaves
+   is a shader variant for the bodies with no atmosphere, which carry all of its code today and
+   run none of it (see *Addendum: the atmosphere's structure, at runtime*).
 
 
 ## Where the frame goes today
@@ -410,24 +417,31 @@ read up to about 11% bright.
 ## First load on the web
 
 Frame time is only half of the web story. The other half is shader compilation, which the web pays
-on every first visit because WebGL has no program-binary cache, and on a weak part it is the more
-serious half: through Chrome's ANGLE and D3D11 path the limb shader's compile runs far past
-Chrome's roughly ten-second GPU watchdog. **A first visit on a machine like this one probably
-cannot finish compiling it at all** — a hazard rather than a delay, and it outranks every
-frame-time finding in this report.
+on every first visit because WebGL has no program-binary cache. Until 2026-09-27 it was the more
+serious half: through Chrome's ANGLE and D3D11 path one limb-shader program compiled for longer
+than Chrome's 30-second GPU watchdog allows, so a first visit on a machine like this one could not
+finish compiling it at all, and the v0.2.1 dev build never passed its boot screen. Since *The
+atmosphere's structure* in [SHADER_COMPILE_PROFILING.md](SHADER_COMPILE_PROFILING.md) one program
+compiles in a few seconds there, and the hazard is a delay: a first visit still compiles every
+shader its opening view and the warm-up draw, about two minutes of this laptop's CPU for the
+atmosphere shaders alone. The rebuild also left the atmosphere dearer to draw through ANGLE than
+it was (*Addendum: the atmosphere's structure, at runtime*).
 
 The per-shader figures, both compilers, and what they mean for how a shader is written are in
 *The web export* in [SHADER_COMPILE_PROFILING.md](SHADER_COMPILE_PROFILING.md). Two consequences
 land on the option set, and this is where they come from:
 
-- **An Off tier that omits the limb shader entirely is the only one sure to load** on such a
-  machine. A reduced tier does not help here: what compiles is code volume, not iteration count.
+- **An Off tier is what would shorten a first visit**, and it has to leave the quadrature out of
+  the disc shaders as well as out of the limb shader: `atm_disc_air()` and the helpers are most of
+  a disc shader's compile. A reduced tier does not help here: what compiles is code volume, not
+  iteration count. An airless shader variant, worth building for its own sake, would be most of
+  the machinery (*Addendum: the atmosphere's structure, at runtime*).
 - **Atmosphere quality therefore earns a restart option rather than a runtime one.** A session
   then compiles only the tier it uses, and the warm-up covers it.
 
 **That second consequence applies only to an Off tier, and the built setting has none**, so it
-is a runtime one — see *Addendum: the quality tiers, built*. The first stands untouched: nothing
-in the built setting helps a machine that cannot compile the limb shader at all.
+is a runtime one — see *Addendum: the quality tiers, built*, and *Addendum: below Reduced* for
+what a runtime tier under it could still give.
 
 
 ## A possible option set
@@ -446,7 +460,8 @@ in the built setting helps a machine that cannot compile the limb shader at all.
 **Graphics (requires restart)**
 
 - Renderer (desktop): Forward+ / Compatibility, default by adapter (built)
-- Atmosphere Off (the tier that omits the limb shader, and the only one needing a restart)
+- Atmosphere Off (the tier that omits the quadrature from the limb and the disc shaders alike, and
+  the only one needing a restart; every body on the airless variant the runtime addendum proposes)
 - Star catalogue: V 15 / V 11 / V 9.5, shown as 2.6 million / 940,000 / 220,000 stars (built)
 - Cloud decks: on / off
 
@@ -472,6 +487,22 @@ or the web it would pick Compatibility, Reduced atmospheres, 75% scale on hi-DPI
   ([SHADER_COMPILE_PROFILING.md](SHADER_COMPILE_PROFILING.md), *The web export*).
 
 
+## Open questions
+
+- **Should Compatibility run through ANGLE on Intel iGPUs on desktop?** Opened 2026-09-27. Through
+  ANGLE's D3D11 path the probe draws the rebuilt atmosphere on this laptop's UHD up to twice as
+  fast as Intel's own GL driver does, and ANGLE takes the Forward+ fast path in
+  `atm_exp_columns()` well where Intel's GL is slowed by it, so moving these parts would also let
+  that path into Compatibility (*Addendum: the atmosphere's structure, at runtime*). Godot can do
+  it by project setting (`rendering/gl_compatibility/driver.windows`, or per device,
+  `force_angle_on_devices`). To answer it: whether a whole frame, not only the atmosphere, is
+  faster through ANGLE on these parts -- ANGLE has no GPU timestamps, so that needs frame time
+  measured in the app; what a desktop user's first run then pays compiling through FXC, which is
+  the web's first visit (*The atmosphere's structure* in
+  [SHADER_COMPILE_PROFILING.md](SHADER_COMPILE_PROFILING.md)); and whether Intel's newer parts and
+  drivers agree with this one.
+
+
 ## Addendum: the limb ring and surface twilight
 
 Added after the report was published, in answer to two questions: would a ring-shaped limb shell
@@ -483,8 +514,8 @@ themselves every frame, from the same `atm_*` values that `IVShellsModel` copies
 limb row:
 
 - the veil and twilight glow: `atm_disc_air()`;
-- the sunset-reddened sunlight on the ground and on Earth's cloud deck: `atm_sun_transmittance()`;
-- the colour shift from looking through the air: `atm_view_tint()`.
+- the sunset-reddened sunlight on the ground and on Earth's cloud deck, and the colour shift from
+  looking through the air: `atm_receiver_light()`.
 
 The limb shell contributes nothing over the disc interior. Any fragment whose ray meets the disc is
 discarded (`atm_limb()` in `_atmosphere.gdshaderinc`, and the `discard` in
@@ -835,7 +866,8 @@ figure, taken before the limb annulus. The annulus addendum argues the two stack
 annulus's remaining cost is the rim's own fragments, running the taps and the quadrature that
 Reduced cuts — so the share should now be larger, not smaller. Confirming that needs the
 `NvOptimusEnablement`-cleared executable copy described under *How this was measured*, and is
-outstanding along with the sphere ladder's and the exposure skips'.
+outstanding along with the sphere ladder's and the exposure skips'. The atmosphere's own share of
+it has since been measured on the rebuilt include, probe by probe, in *Addendum: below Reduced*.
 
 **One thing this measurement found that was not about the tiers, and is now fixed.** Earth,
 alone of the four, did not render identically across two *processes*: about 1 code over its lit
@@ -856,3 +888,176 @@ A/B at Earth now has no floor of its own**: an excursion of 426,672 sim s and ba
 instant, and two separate processes over all six poses, each render 0 of 2,073,600 pixels
 changed. The 1-code, tens-of-pixels floor the other three bodies show across processes is
 unrelated and remains.
+
+
+## Addendum: the atmosphere's structure, at runtime
+
+On 2026-09-27 `_atmosphere.gdshaderinc` was rebuilt so that each heavy function is reached from one
+call site, inside a loop, for what it saves in compiling (*The atmosphere's structure* in
+[SHADER_COMPILE_PROFILING.md](SHADER_COMPILE_PROFILING.md)). The same code runs at a different
+speed, and the four compiler paths here -- NVIDIA's GL and Vulkan, Intel's GL, and ANGLE's D3D11 on
+the Intel iGPU, which is the web's -- disagree about which way, so every figure below names its
+path.
+
+**In the app, the atmosphere views.** GPU milliseconds per frame at 1920x1080, sim paused and HUDs
+hidden, the old include against the new, interleaved, median; Intel over three processes each,
+the GTX over two:
+
+| View | Intel, Compatibility | GTX, Compatibility | GTX, Forward+ |
+|---|---|---|---|
+| Earth at 3 radii | 84.6 → 75.4 | 6.63 → 4.77 | 5.19 → 5.34 |
+| Earth at 1.6 radii | 141.3 → 182.3 | 15.26 → 8.82 | 9.59 → 8.80 |
+| Venus at 3 radii | 69.0 → 45.9 | 3.83 → 2.64 | 3.92 → 3.49 |
+| Mars at 3 radii | 162.5 → 88.5 | 8.43 → 5.30 | 6.84 → 6.34 |
+| Titan at 3 radii | 281.6 → 95.3 | 8.06 → 6.02 | 7.88 → 8.07 |
+
+- **Through NVIDIA's GL every view is faster**, by 25 to 42 %.
+- **Under Forward+ every view is within 11 % of the old include**, given the one exception to
+  the include's structure described below; without it Earth at 3 radii was 20 % slower.
+- **On the Intel iGPU's GL the atmosphere views are faster but for Earth close up**, 29 % slower.
+  The new include's runs scatter by about 25 % from process to process on this GPU where the old
+  one's hold within a few percent; the ratios are medians over that scatter.
+
+**Evaluated alone**, through the entry-point probe of
+[SHADER_COMPILE_PROFILING.md](SHADER_COMPILE_PROFILING.md) -- GPU time over a 512x512 grid on the
+iGPU and 2048x1024 on the GTX, and the frame interval through ANGLE, which has no GPU timestamps
+-- the new include's cost against the old one's:
+
+| Path | Air in front of a disc (`atm_disc_air()`) | Limb |
+|---|---:|---:|
+| Intel, GL | 2.4 to 2.9 | 0.12 |
+| Intel, ANGLE | 1.45 | 1.32 |
+| GTX, GL | 0.81 to 0.82 | 1.07 |
+| GTX, Vulkan | 1.19 to 1.28 | 0.96 |
+
+Earth close up is the one view the Intel GL disc cost decides: its surface and its cloud deck
+each run `atm_disc_air()` over most of the screen, about three million evaluations a frame, where
+the limb shell is a thin annulus. Through ANGLE -- the web, on this iGPU -- the atmosphere itself
+now costs 1.3 to 1.5 times what it did, which is the price of the web loading at all.
+
+**Why the disc is slower through Intel's GL, which is a property of that compiler worth
+knowing.** A disc
+shader's lit part in front of the disc, integrated by a plain loop in a shader holding nothing
+else of the ray, runs at the old include's speed (0.98 to 1.1 of it); the same loop in a shader
+that also holds the half-ray and thin-layer segments, even with those never executing for Earth,
+runs at 2.1 to 2.4 times -- the Intel GL compiler evidently sizes a whole shader for its heaviest
+part. Three changes that cut the state live across the ray's loop were kept for what they bought
+on this GPU (no layer-node arrays, one accumulator, the half-ray's setup skipped when the far half
+is off: 0.80 of the limb's cost and 0.87 to 0.93 of the disc's), and a second copy of the node for
+the disc was not (it bought the disc 10 to 17 % and doubled the limb's cost).
+
+**Why Vulkan was slower, and the one exception to the structure that it bought.** Through
+NVIDIA's Vulkan the whole rebuild at first cost 1.7 to 1.8 times the old include in front of a
+disc and 1.34 times at the limb, and what cost was the term loop in `atm_exp_columns()`, not the
+loops around it: writing out its common case -- a haze with no top, which is Earth's, Venus' and
+Mars' -- takes those to the table's 1.19 to 1.28 and 0.96, where unrolling a node's two columns
+instead, the other suspect, changed nothing. Through ANGLE on the iGPU the same change takes 23 to
+33 % off both. But under Compatibility its two extra calls slow Intel's GL compiler's whole shader
+by 11 to 33 % in the app, airless bodies included, so it is compiled for Forward+ and Mobile only
+(`CURRENT_RENDERER`). Compatibility keeps the loop -- desktop GL and the web alike, since the
+preprocessor cannot tell them apart.
+
+**Intel's two paths disagree with each other more than with anything else.** Through ANGLE this
+iGPU runs the rebuilt limb up to twice as fast as through its own GL driver -- Venus 9.5 against
+19.1 ms, Mars 25.7 against 38.7, Titan level -- although what ANGLE's column reports is a frame
+interval, which can only overstate a GPU's time. Godot can run Compatibility through ANGLE on
+Windows (`rendering/gl_compatibility/driver.windows`, or per device,
+`force_angle_on_devices`), and moving Intel iGPUs there would also remove the one reason the Vulkan
+exception above is kept out of Compatibility, which ANGLE takes well. Whether to is under *Open
+questions*, with what it would take to answer.
+
+**Bodies with no atmosphere pay for its code, and the three compilers here disagree about how
+much.** Every airless body -- the Moon, Mercury, Jupiter and most of the rest -- draws with the
+same surface shader as Earth, the atmosphere gated off by `atm_present()`, so it runs none of the
+atmosphere and carries all of it. GPU milliseconds per frame at 1920x1080, sim paused and HUDs
+hidden, two processes each, for the old include, the new one, and the new one with the
+atmosphere compiled out of the surface shaders -- which renders an airless body identically:
+
+| View | Intel, Compatibility | GTX, Compatibility | GTX, Forward+ |
+|---|---|---|---|
+| Moon at 3 radii | 23.7 / 32.1 / 10.7 | 2.96 / 1.26 / 0.97 | 2.68 / 2.65 / 2.46 |
+| Moon at 1.5 radii | 55.3 / 80.6 / 18.9 | 7.84 / 2.34 / 1.59 | 4.55 / 4.33 / 3.70 |
+| Mercury at 3 radii | 24.1 / 32.5 / 10.3 | 3.12 / 1.21 / 1.08 | 2.64 / 2.73 / 2.49 |
+| Jupiter at 3 radii | 36.1 / 44.7 / 23.3 | 4.12 / 2.33 / 2.11 | 4.20 / 4.24 / 4.00 |
+| Europa at 3 radii | 27.1 / 35.0 / 12.9 | 3.13 / 1.61 / 1.43 | 3.01 / 3.05 / 2.75 |
+
+- **On Intel the new include costs these views 24 to 46 %**, for code they never execute: the
+  whole-shader sizing above, on bodies with no atmosphere to size for. Compiled out, they draw
+  in 0.34 to 0.64 of the old include's time.
+- **Through NVIDIA's GL it is the new include that is faster, 1.8 to 3.4x**, and compiling the
+  atmosphere out takes a further 9 to 32 % off.
+- **Through Vulkan the include makes no difference to them** (within 5 %), and compiling it out
+  takes 6 to 15 % off. That column predates the Vulkan exception above, which moves these views
+  by at most 6 % either way.
+
+**So an airless shader variant is the largest runtime lever this rebuild leaves**, on every GPU
+and renderer measured, and the only one that turns the Intel result from a regression into a gain.
+It fits `IVAssetPreloader.cube_shader_variants`, which already swaps a shell's table-named shader
+for the variant its assets need, and IVShaderWarmup warms whatever a spec resolves to; a body is
+airless when no shell of its carries `atm_*` depths. What it costs is layout and compiling. A
+`.gdshader` cannot include another, so each disc shader's body would move into an include behind
+two thin wrappers, one of them defining a switch that `_atmosphere.gdshaderinc` answers with
+no-op entry points. A first visit would compile the airless programs as well, which through ANGLE
+here is about what `surface.cube` takes with no atmosphere call, 7.3 s to a first draw, per disc
+shader in use. Not built. The same machinery is most of the Off tier the web wants (*First load
+on the web*): with every body on its airless variant and the limb shells not drawn, a first visit
+would compile none of the quadrature.
+
+A second variant would recover Earth: a disc shader without the far half and the thin layer, for
+a body whose atmosphere has neither to show. Earth is that body among the four: it has no thin
+layer, and its far half renders bit-identically without it (*Atmospheres* in
+[PHOTOMETRIC_MODEL.md](PHOTOMETRIC_MODEL.md)). Not built either; it is a third program per disc
+shader for one body.
+
+
+## Addendum: below Reduced
+
+Asked on 2026-09-27: is a runtime tier below Reduced worth having, or should Reduced itself be
+redefined? Both tiers are one program selecting a rule out of a packed node table, so a lower one
+would cost no compile either -- the question is what it gives up and what it buys.
+
+**What it gives up**, from the entry-point probe of *The atmosphere's structure* in
+[SHADER_COMPILE_PROFILING.md](SHADER_COMPILE_PROFILING.md), on a table extended with the 3- and
+2-node Gauss-Legendre rules: each candidate against Normal, as the largest change anywhere and
+the 99th percentile, both relative to the image's maximum.
+
+| Earth | Limb, max | Limb, p99 | Disc air, max | Disc air, p99 |
+|---|---:|---:|---:|---:|
+| Reduced (4 nodes, 2 taps) | 8.0 % | 5.0 % | 0.60 % | 0.15 % |
+| 4 nodes, 1 tap | 62 % | 39 % | 0.60 % | 0.15 % |
+| 3 nodes, 2 taps | 9.8 % | 5.1 % | 2.9 % | 0.42 % |
+| 3 nodes, 1 tap | 62 % | 39 % | 2.9 % | 0.42 % |
+| 2 nodes, 1 tap | 61 % | 38 % | 18 % | 3.2 % |
+
+- **The ring cannot go below two taps.** One tap is one sample per pixel, which is exactly the
+  dotted arc the pixel filter exists to close (`atm_ring_pixel()`); it moves the limb by 60 to
+  100 % of its maximum on every body.
+- **Two nodes is too coarse.** The disc's air moves 18 % at Earth and 17 % at Titan.
+- **Three nodes and two taps is Reduced plus a little.** The limb moves about as Reduced moves it,
+  since the taps decide that; the disc's air moves 1.5 to 5 times as much as under Reduced, 2.9 %
+  at worst on Earth and 12 % on Titan, where Reduced moves 8.4 %.
+
+**What it buys**, from the same probe's bench: each rule's cost against Reduced's, the median over
+the four bodies, for the air in front of a surface and for the limb. GPU time over 512x512 on the
+iGPU through its GL, the frame interval there through ANGLE, and GPU time over 2048x1024 on the
+GTX through its GL:
+
+| Against Reduced: disc air / limb | Intel, GL | Intel, ANGLE | GTX, GL |
+|---|---|---|---|
+| Normal | 1.12 / 1.27 | 1.33 / 1.85 | 1.28 / 1.89 |
+| 3 nodes, 2 taps | 1.01 / 0.95 | 0.90 / 0.91 | 0.85 / 0.84 |
+| 3 nodes, 1 tap | 0.98 / 0.84 | 0.87 / 0.74 | 0.85 / 0.63 |
+| 2 nodes, 1 tap | 0.92 / 0.84 | 0.77 / 0.73 | 0.71 / 0.56 |
+
+- **The one acceptable candidate buys 9 to 16 % of the atmosphere's own cost, and nothing
+  through Intel's GL.** The atmosphere being a share of an atmosphere view's frame rather than all
+  of it, that is a few percent of a frame, for disc air that moves up to five times as much.
+- **Through Intel's GL even Reduced now buys little**: 8 to 17 % off the disc air and 6 to 33 %
+  off the limb, where the old include's Reduced took 14 to 21 % and 40 to 47 % (Earth's disc too
+  noisy to read), and where ANGLE on the same iGPU takes 25 and 46 %. There the new include's cost is set by the compiler's
+  whole-shader sizing (*Addendum: the atmosphere's structure, at runtime*), not by the node
+  count.
+
+**So there is no runtime tier worth adding below Reduced, and nothing gained by redefining it.**
+What lowers the floor is compiling and carrying less, not iterating less: the airless variant and
+the Off tier built on it, both in the runtime addendum above.

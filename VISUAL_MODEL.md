@@ -1283,7 +1283,7 @@ this is the spatial one.
     a lit path the renderer no longer multiplies for us, and map self-shadowing for
     middle-domain shells (Phobos), which would keep the engine path or forgo it.
   - **Either way the single-sun coupling lives in the ALBEDO-riding terms.** Lunar-Lambert,
-    Minnaert, `atm_sun_transmittance`, the rim ratio and the compat albedo/specular shadow
+    Minnaert, the atmosphere's sun transmittance, the rim ratio and the compat albedo/specular shadow
     all multiply ALBEDO to divide out the engine's ONE µ₀; two stars sum two µ₀ and no ALBEDO
     factor separates them, so each becomes a per-star weight on that star's diffuse, and the
     twilight and limb-remainder EMISSION terms become per-star sums. `atmosphere_limb`'s

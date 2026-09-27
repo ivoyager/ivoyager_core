@@ -845,8 +845,8 @@ How it lands in the renderer:
   twilight glow and the far half of an optical-limb ray for its own ray, adds the path
   over everything it renders and multiplies the luma of the disc's view transmittance
   into all of it — lit albedo, emission, and the specular lobe as its square root — with
-  `atm_view_tint` still carrying the chromatic complement, which is exact and lets a
-  cloud deck 10 km up escape the air beneath it. In linear light this is algebraically
+  the tint from `atm_receiver_light()` still carrying the chromatic complement, which is exact
+  and lets a cloud deck 10 km up escape the air beneath it. In linear light this is algebraically
   identical to the limb shell's old disc branch (the path distributes through the deck's
   alpha mix with weight `α + (1 − α) = 1`); what it buys is that the composite no longer
   passes through the hardware blend at all, which is the one boundary the Compatibility
@@ -858,12 +858,13 @@ How it lands in the renderer:
   covers that sliver — a hard partition measured as a dotted arc of ~270 dark pixels.
 - **Every shell of the body takes its sunlight through the same atmosphere.** `IVShellsModel`
   propagates the limb row's `atm_*` columns to the surface and cloud shells, whose photometry
-  slot multiplies its sunlight by `atm_sun_transmittance` — the column above that shell's own
-  altitude along the sun ray. This is what turns a cloud deck at the limb the colour of sunset.
+  slot multiplies its sunlight by the sun transmittance `atm_receiver_light()` returns — the
+  column above that shell's own altitude along the sun ray. This is what turns a cloud deck at
+  the limb the colour of sunset.
 - **That factor is the TOTAL illumination, direct plus diffuse, and not `exp(-column)`**
   (2026-08-28). Absorbed light is gone and takes the exponential; scattered light is not, and
   the sun leg is the one place nothing else accounts for it — a view ray's scattered light IS
-  the path radiance, which the model adds separately, so `atm_view_tint` and the limb's alpha
+  the path radiance, which the model adds separately, so the view tint and the limb's alpha
   keep `exp()` and must. The split needs no new parameter, because the delta-scaling's own
   depth already contains it: `1 − ωg = (1 − ω) + ω(1 − g)`, absorption plus delta-scaled
   scattering. The scattered half then takes the conservative two-stream `1 / (1 + ¾τ)`, exact
@@ -890,7 +891,8 @@ How it lands in the renderer:
   `atm_veil_extent` mixed the disc term against a rim-and-twilight window, for a body whose
   map already carried its own atmosphere. With every body converted it was identically 1, so
   it was retired along with `atm_veil_window()` and the `mix` in `atm_sun_transmittance` and
-  `atm_view_tint` (both of which lost an argument). Removing it re-rendered all four bodies
+  `atm_view_tint` (both of which lost an argument, and are now `atm_receiver_light()`'s
+  outputs). Removing it re-rendered all four bodies
   bit-identically but for a single pixel of Mars at 1 DN, a last-ULP difference where the old
   `mix` compiled to a fused multiply-add. It bought no performance either way: `atm_limb()`
   called `atm_disc()` unconditionally and applied the window afterward, so an extent-0 body
@@ -931,12 +933,12 @@ How it lands in the renderer:
   at tangent optical depth 1.0, so discarding the far half threw away 0.60 of the ray at the
   rim — a 1.60× step sunlit — and at high phase threw away *all* of it, since the lit part of a
   backlit ray is entirely the far half. That was a 255 → 0 cliff in one pixel, and it cut off
-  the whole warm inner band of the backlit ring. `atm_ray_half()` now runs for the far half too,
-  at the ray's own tangent altitude *below* the disc and floored at the disc, which makes its
-  view extinction `tangent column − own column above z` exactly as for the ring — (down to the
-  far surface) + (the sub-disc chord) + (the near half) — with no new term. Rendered, the rim
-  is continuous at every phase, and Earth and Mars are **bit-identical** while Venus gains at
-  most 3 DN over 204 pixels of its rim.
+  the whole warm inner band of the backlit ring. The far half is now integrated too, as a
+  segment of `atm_ray_path()`, at the ray's own tangent altitude *below* the disc and floored at
+  the disc, which makes its view extinction `tangent column − own column above z` exactly as for
+  the ring — (down to the far surface) + (the sub-disc chord) + (the near half) — with no new
+  term. Rendered, the rim is continuous at every phase, and Earth and Mars are
+  **bit-identical** while Venus gains at most 3 DN over 204 pixels of its rim.
 - **What ends the far half is that chord, so its gate is set on the chord's own EXTINCTION and
   not on a count of scale heights.** The two coincide only for a body whose disc tangent
   optical depth is already of order the threshold. A fixed `h_v > −2 H_ref` cut Titan where the
@@ -2151,6 +2153,17 @@ lever a capped pass cannot offer is one the shader does not need.
 
 ## TODO
 
+- **An atmosphere tier for the web's first visit** (2026-09-27). The v0.2.1.dev1 web export
+  never loaded: through Chrome's ANGLE and D3D11 path one limb-shader program compiled for longer
+  than Chrome's GPU watchdog allows. Restructuring the quadrature so each heavy function has one
+  call site took every atmosphere program well inside it (*The atmosphere's structure* in
+  [SHADER_COMPILE_PROFILING.md](SHADER_COMPILE_PROFILING.md)), but a first visit still compiles
+  every shader the opening view and the warm-up draw, and the atmosphere is still most of that.
+  What would shorten it is a tier that leaves the quadrature out of the limb and the disc shaders
+  alike, chosen at restart. It needs Venus, Titan and Mars re-levelled (*Addendum: the limb ring
+  and surface twilight* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)), and an airless shader
+  variant for the bodies with no atmosphere would be most of its machinery (*Addendum: the
+  atmosphere's structure, at runtime*, there).
 - **Report the glow threshold mismatch upstream** (*Render height*, above): the pass computes
   levels above 0.01, the tonemapper samples levels above 0.0001. A 4.6 regression from
   godotengine/godot#110077; 4.5 computed every level above 0. Once Godot makes them agree,
@@ -2228,7 +2241,7 @@ lever a capped pass cannot offer is one the shader does not need.
     tag would still buy nothing: the deck spans half the scale and a tag is for a map that
     does not.
   - **Fixed: the shells were lit plane-parallel, so nothing was lit past the terminator.**
-    Every shell took `albedo x max(mu0, 0) x atm_sun_transmittance`: flux entering the column
+    Every shell took `albedo x max(mu0, 0) x sun transmittance`: flux entering the column
     goes as mu0, so illumination was pinned to zero at the geometric terminator WITH A CORNER,
     and surface and deck stopped at the same line while the glow ran on to mu0 -0.13. On a
     sphere the air above a point at mu0 = 0 is still fully lit and shines down; nothing put
@@ -2400,8 +2413,8 @@ lever a capped pass cannot offer is one the shader does not need.
     map, so white-balance to the home star and let an M dwarf read red *relative* to it. The
     photosphere's limb darkening and Planck anchors are solar (5777 K) and stand as an
     approximation for other types.
-  - **Per-star terms in the shell shaders.** The disc laws, `limb_mean_incidence()`,
-    `atm_sun_transmittance`, the twilight excess and the atmosphere's shadow cylinder each
+  - **Per-star terms in the shell shaders.** The disc laws, `limb_mean_incidence()`, the sun
+    transmittance, the twilight excess and the atmosphere's shadow cylinder each
     take one sun; the `atm_sky_*` curve is a function of µ₀ scaling linearly with
     illuminance, so it reuses per star with no refit. `IVBodyPSF` should sum reflected flux
     over stars, each through its own phase law, while its geometry — phase, wing offset, limb

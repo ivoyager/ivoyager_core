@@ -40,12 +40,21 @@
 // layer's crossing is sampled at three altitudes, because a grazing sun's transmittance
 // changes severalfold across its own thickness.
 //
+// THE STRUCTURE. Each heavy function -- the Chapman column, the thin layer's partial column, a
+// quadrature node, a whole ray -- is reached from ONE call site in a shader, inside a loop,
+// never written out or called from several places: a compiler that inlines every call
+// compiles a function once per call site, and a browser's on Windows is one. A new term is a
+// new iteration, not a new call. The one exception is Forward+'s and Mobile's alone: the
+// common case of an exponential column, written out in atm_exp_columns(). See *The
+// atmosphere's structure* in SHADER_COMPILE_PROFILING.md.
+//
 // THE CONTRACT. scripts/limb_model.py in the assets build tree is the reference
 // transcription of this file, verified against a numeric single-scatter integral for
 // Earth, Venus, Mars and Titan at every phase (within 11 % worst case, usually under 3 %).
 // Change nothing here without changing it there and re-running --verify: keep the two
-// identical, constant for constant. What it binds is the NORMAL quality tier; Reduced is a
-// declared approximation of that rule, not a second model, and carries no transcription.
+// identical, constant for constant. The arithmetic is what must match; the structure above is
+// this file's own. What it binds is the NORMAL quality tier; Reduced is a declared
+// approximation of that rule, not a second model, and carries no transcription.
 //
 // TWO FLOAT32 TRAPS, both found as a black curve across Venus' night side. A float literal
 // below about 1e-14 compiles to ZERO in the shader language (1.0e-20 reads as 0.0; 1e-12 is
@@ -75,8 +84,8 @@
 // a top-of-atmosphere map was re-referenced and it was retired: the choice belongs to how a map is built, and a knob
 // for it only let the convention be broken silently.
 //
-// A RECEIVING SURFACE OR CLOUD SHADER multiplies its sunlight by
-// atm_sun_transmittance(mu0) in its photometry slot, after the disc law: the total
+// A RECEIVING SURFACE OR CLOUD SHADER multiplies its sunlight by the sun transmittance
+// atm_receiver_light() returns, in its photometry slot, after the disc law: the total
 // illumination reaching that shell's own altitude, direct beam plus diffuse sky, which is
 // what turns the cloud deck at the limb the colour of sunset and what keeps a surface
 // legible through a terminator its direct beam alone does not survive. It also composites
@@ -88,9 +97,9 @@
 // front of its fragment and the LUMA of the disc's view transmittance, which the shader
 // adds over and multiplies into everything it renders. Alpha is one number and the
 // transmittance is three, Rayleigh air letting red through where it stops blue — so the
-// luma carries the achromatic half and every shell multiplies in atm_view_tint(mu), the
-// per-channel transmittance of the column above ITS OWN altitude over that luma. The
-// product is exact, and it is also what keeps a cloud deck 10 km up from being dimmed by
+// luma carries the achromatic half and every shell multiplies in the tint atm_receiver_light()
+// returns, the per-channel transmittance of the column above ITS OWN altitude over that luma.
+// The product is exact, and it is also what keeps a cloud deck 10 km up from being dimmed by
 // the air below it. The limb shell used to draw the disc term and remove the luma through
 // its blend_premul_alpha — an identity only where the blend runs in linear light, and the
 // Compatibility renderer's blend is display-referred and clamped, which is the one
@@ -169,7 +178,7 @@ const float ATM_PENUMBRA_FLOOR_KM = 1.0;  // the planet's shadow edge is never s
 const float ATM_INF = 1.0e30;
 // The conservative two-stream coefficient, 3/4, in T = 1 / (1 + k tau_scattered): the total
 // downward flux through a scattering column, direct plus diffuse, where exp(-tau) is the
-// direct beam alone. See atm_sun_transmittance().
+// direct beam alone. See atm_sun_transmittance_of().
 const float ATM_TWO_STREAM_K = 0.75;
 // Gauss-Legendre nodes and weights on (0, 1), three across a thin layer and, along a ray,
 // both rules of the quality tier in one table: the 6-node rule at 0..5 and the 4-node rule
@@ -412,63 +421,92 @@ AtmLayers atm_layers(float cos_theta) {
 	return L;
 }
 
-// Slant column above altitude z of a unit-tau exponential, at zenith cosine mu.
-vec3 atm_exp_slant(float R, float z, float H, float mu, vec3 tau) {
-	return tau * (exp(-z / H) * atm_chapman(R, z, H, mu));
-}
-
-// The haze's slant column above z along an UPWARD ray (mu >= 0). Below a top, the ray crosses
-// it at its own zenith cosine there and the two regions are two exponentials joined at that
-// crossing; above it, only the upper one is left.
-vec3 atm_haze_up(AtmLayers L, float R, float z, float mu) {
-	if (z > L.z_k) {
-		return atm_exp_slant(R, z, L.H_t, mu, L.tau_t);
-	}
-	float b = (R + z) * sqrt(max(1.0 - mu * mu, 0.0));
-	float mu_k = sqrt(max(1.0 - (b / (R + L.z_k)) * (b / (R + L.z_k)), 0.0));
-	return atm_exp_slant(R, z, L.H_h, mu, atm_haze_tau)
-			- atm_exp_slant(R, L.z_k, L.H_h, mu_k, atm_haze_tau)
-			+ atm_exp_slant(R, L.z_k, L.H_t, mu_k, L.tau_t);
-}
-
-// The haze's slant column above z at any zenith cosine. A ray below the horizon descends to
-// its tangent altitude and comes back: two upward halves less the part above its start, the
+// The slant columns of the two exponential layers above altitude z, at zenith cosine mu, each
+// the sum of Chapman slants tau exp(-z_i / H) chapman(z_i, mu_i): `gas`, one term (left zero
+// unless with_gas), and `haze`, a signed sum of up to six. Every other exponential column here
+// is built from this. The haze with a top is two exponentials joined at it: a ray starting
+// below the top crosses it at its own zenith cosine there, which takes three slants, and a ray
+// starting above it has only the upper region's one. A ray below the horizon descends to its
+// tangent altitude and comes back -- two upward halves less the part above its start, the
 // identity atm_chapman() applies internally to a single exponential.
-vec3 atm_haze_column(AtmLayers L, float R, float z, float mu) {
-	if (L.z_k <= 0.0) {
-		return atm_exp_slant(R, z, L.H_h, mu, atm_haze_tau);
+//
+// ONE LOOP, ONE CHAPMAN FUNCTION: the terms are evaluated in a loop rather than written out.
+// See THE STRUCTURE in the header, and its one exception, below.
+void atm_exp_columns(AtmLayers L, float R, float z, float mu, bool with_gas, out vec3 gas,
+		out vec3 haze) {
+	bool has_top = L.z_k > 0.0;
+#if CURRENT_RENDERER != RENDERER_COMPATIBILITY
+	// A haze without a top is one term like the gas. Through Vulkan (NVIDIA's, measured) the
+	// term loop's generic setup costs a third more than the two terms written out; under
+	// Compatibility the two extra calls would instead slow Intel's GL compiler's whole shader, on
+	// every body. See *The atmosphere's structure* in SHADER_COMPILE_PROFILING.md.
+	if (!has_top) {
+		gas = with_gas ? atm_gas_tau * (exp(-z / L.H_g) * atm_chapman(R, z, L.H_g, mu)) : vec3(0.0);
+		haze = atm_haze_tau * (exp(-z / L.H_h) * atm_chapman(R, z, L.H_h, mu));
+		return;
 	}
-	if (mu >= 0.0) {
-		return atm_haze_up(L, R, z, mu);
-	}
+#endif
+	bool descends = has_top && mu < 0.0; // the column is 2 x first - second
 	float h_t = (R + z) * sqrt(max(1.0 - mu * mu, 0.0)) - R;
-	return 2.0 * atm_haze_up(L, R, max(h_t, 0.0), 0.0) - atm_haze_up(L, R, z, -mu);
+	float first_z = descends ? max(h_t, 0.0) : z;
+	float first_mu = descends ? 0.0 : mu;
+	int first_count = has_top && first_z <= L.z_k ? 3 : 1;
+	int second_count = descends ? (z <= L.z_k ? 3 : 1) : 0;
+	int start = with_gas ? 0 : 1;
+	int count = 1 + first_count + second_count;
+	gas = vec3(0.0);
+	vec3 first = vec3(0.0);
+	vec3 second = vec3(0.0);
+	for (int i = start; i < count; i++) {
+		float term_z = z;
+		float term_h = L.H_g;
+		float term_mu = mu;
+		vec3 term_tau = atm_gas_tau;
+		float term_sign = 1.0;
+		bool in_first = i <= first_count;
+		if (i > 0) {
+			// Which upward column of the haze this term belongs to, and which of its terms.
+			int k = in_first ? i - 1 : i - 1 - first_count;
+			float up_z = in_first ? first_z : z;
+			float up_mu = in_first ? first_mu : -mu;
+			if ((in_first ? first_count : second_count) == 1) {
+				term_z = up_z;
+				term_mu = up_mu;
+				term_h = has_top ? L.H_t : L.H_h;
+				term_tau = has_top ? L.tau_t : atm_haze_tau;
+			} else {
+				float b = (R + up_z) * sqrt(max(1.0 - up_mu * up_mu, 0.0));
+				float mu_k = sqrt(max(1.0 - (b / (R + L.z_k)) * (b / (R + L.z_k)), 0.0));
+				term_z = k == 0 ? up_z : L.z_k;
+				term_mu = k == 0 ? up_mu : mu_k;
+				term_h = k == 2 ? L.H_t : L.H_h;
+				term_tau = k == 2 ? L.tau_t : atm_haze_tau;
+				term_sign = k == 1 ? -1.0 : 1.0;
+			}
+		}
+		vec3 term = term_tau * (exp(-term_z / term_h) * atm_chapman(R, term_z, term_h, term_mu));
+		if (i == 0) {
+			gas = term;
+		} else if (in_first) {
+			first += term_sign * term;
+		} else {
+			second += term_sign * term;
+		}
+	}
+	haze = descends ? 2.0 * first - second : first;
 }
 
-// Extinction of the two exponential layers along a ray from altitude z at zenith cosine mu.
-vec3 atm_exp_column(AtmLayers L, float R, float z, float mu) {
-	return atm_exp_slant(R, z, L.H_g, mu, atm_gas_tau) + atm_haze_column(L, R, z, mu);
+// The extinction of the two exponential layers for a ray that ends on something BENEATH the
+// atmosphere. The haze column is linear in atm_haze_tau (L.tau_t is proportional to it too), so
+// scaling the column is identical to scaling the depth, and no separate column math is needed.
+vec3 atm_exp_column_beneath(AtmLayers L, float R, float z, float mu) {
+	vec3 gas;
+	vec3 haze;
+	atm_exp_columns(L, R, z, mu, true, gas, haze);
+	return gas + haze * L.delta_h;
 }
 
 // Radiance coefficient of the exponential layers at altitude z (per km of path).
-// atm_exp_column for a ray that ends on something BENEATH the atmosphere. The haze column
-// is linear in atm_haze_tau (L.tau_t is proportional to it too), so scaling the column is
-// identical to scaling the depth, and no separate column math is needed.
-vec3 atm_exp_column_beneath(AtmLayers L, float R, float z, float mu) {
-	return atm_exp_slant(R, z, L.H_g, mu, atm_gas_tau) + atm_haze_column(L, R, z, mu) * L.delta_h;
-}
-
-// The same column split into what is ABSORBED and what is SCATTERED, for the sun leg. The
-// split is exact and introduces no parameter, because 1 - omega g = (1 - omega) + omega (1 - g)
-// -- so the two pieces sum to the delta-scaled depth above, term for term. Rayleigh gas is
-// conservative (no albedo cell, omega = 1) and so is entirely the scattered half.
-void atm_exp_column_split(AtmLayers L, float R, float z, float mu, out vec3 absorbed,
-		out vec3 scattered) {
-	vec3 haze = atm_haze_column(L, R, z, mu);
-	absorbed = haze * (1.0 - atm_haze_albedo);
-	scattered = atm_exp_slant(R, z, L.H_g, mu, atm_gas_tau)
-			+ haze * (atm_haze_albedo * (1.0 - atm_haze_g));
-}
 vec3 atm_exp_scatter(AtmLayers L, float z) {
 	vec3 haze = L.z_k > 0.0 && z > L.z_k
 			? L.tau_t * (exp(-z / L.H_t) / L.H_t)
@@ -478,8 +516,10 @@ vec3 atm_exp_scatter(AtmLayers L, float z) {
 
 // Whole tangent columns of the exponential layers for a ray tangent at altitude h.
 vec3 atm_exp_tangent_column(AtmLayers L, float R, float h) {
-	return atm_gas_tau * (exp(-h / L.H_g) * sqrt(2.0 * ATM_PI * (R + h) / L.H_g))
-			+ 2.0 * atm_haze_column(L, R, h, 0.0);
+	vec3 gas;
+	vec3 haze;
+	atm_exp_columns(L, R, h, 0.0, false, gas, haze);
+	return atm_gas_tau * (exp(-h / L.H_g) * sqrt(2.0 * ATM_PI * (R + h) / L.H_g)) + 2.0 * haze;
 }
 
 // The altitude floor below the disc at which a ray's far half is dropped (see atm_disc): where
@@ -515,16 +555,30 @@ vec3 atm_shell_partial(AtmLayers L, float R, float z, float h_t) {
 	return atm_layer_tau * (scale * atm_gauss_abel_partial((z - L.z_c) / L.sigma, (h_t - L.z_c) / L.sigma));
 }
 
-// Extinction of the thin layer along a ray from altitude z at zenith cosine mu: an upward ray
-// takes what lies above it; one below the horizon descends to its tangent altitude and comes
-// back, so it takes that side twice less the part above its start.
-vec3 atm_shell_ray_column(AtmLayers L, float R, float z, float mu) {
-	float h_t = min((R + z) * sqrt(max(1.0 - mu * mu, 0.0)) - R, z);
-	vec3 up = atm_shell_partial(L, R, z, h_t);
-	if (mu >= 0.0) {
-		return up;
+// The thin layer's two columns at a quadrature node at altitude z: `above`, along the view ray
+// of tangent altitude h_ray, and `sun_column`, along the sun path at zenith cosine mu_s --
+// which, below the horizon, descends to its tangent altitude and comes back, so it takes that
+// side twice less the part above its start. Their partial columns (atm_shell_partial()) come
+// from one loop (THE STRUCTURE in the header).
+void atm_shell_node_columns(AtmLayers L, float R, float z, float h_ray, float mu_s,
+		out vec3 above, out vec3 sun_column) {
+	float h_t = min((R + z) * sqrt(max(1.0 - mu_s * mu_s, 0.0)) - R, z);
+	above = vec3(0.0);
+	vec3 up = vec3(0.0);
+	sun_column = vec3(0.0);
+	for (int i = 0; i < (mu_s >= 0.0 ? 2 : 3); i++) {
+		vec3 partial = atm_shell_partial(L, R, i == 2 ? h_t : z, i == 0 ? h_ray : h_t);
+		if (i == 0) {
+			above = partial;
+		} else if (i == 1) {
+			up = partial;
+		} else {
+			sun_column = 2.0 * partial - up;
+		}
 	}
-	return 2.0 * atm_shell_partial(L, R, h_t, h_t) - up;
+	if (mu_s >= 0.0) {
+		sun_column = up;
+	}
 }
 
 // The part of a half-ray p0 + u e (u >= 0) that the sun lights, as (u_lo, u_hi), u_hi = ATM_INF
@@ -565,112 +619,264 @@ vec2 atm_lit_interval(float R, float p0_perp2, float a, float b, float cross, fl
 
 // --------------------------------------------------------------------- the two branches
 
-// One half of a ray of tangent altitude h, integrated outward from z_floor: the radiance it
-// delivers to the camera, attenuated over its whole route. sign_s +1 is the half on the
-// camera's side of the tangent point, -1 the half beyond it, whose light crosses the near half
-// too -- which is why exp_total and shell_total are the WHOLE tangent columns and the far
-// half's view extinction is `total - own`. a is the sun's component along the tangent-point
-// radius (r_t * dot(q_hat, s)) and sz its component along the ray toward the camera.
-//
-// h may lie BELOW the disc, which is the far half of a ray that meets a disc placed inside its
-// own atmosphere. Then z_floor is the disc rather than the tangent point, so the half starts
-// where the ray leaves the body -- and `total - own` picks up the sub-disc chord with no new
-// term.
-vec3 atm_ray_half(AtmLayers L, float R, float h, float z_floor, float a, float p0_perp2,
-		float sz, float sun_ang, float sign_s, vec3 exp_total, vec3 shell_total) {
-	float r_t = R + h;
-	vec3 path = vec3(0.0);
-	float b = sign_s * sz;
-	vec2 lit = atm_lit_interval(R, p0_perp2, a, b, -a * b, max(1.0 - b * b, 1.0e-12));
-	float u_lo = lit.x;
-	float u_hi = lit.y;
-	bool open = u_hi >= ATM_INF;
-	// altitude along the ray, as h + u^2 / (sqrt(r_t^2 + u^2) + r_t) to keep float32 precision
-	float z_lo = max(h + u_lo * u_lo / (sqrt(r_t * r_t + u_lo * u_lo) + r_t), z_floor);
-	float u_hi_c = min(u_hi, 1.0e9);
-	float z_hi = open ? ATM_INF : h + u_hi_c * u_hi_c / (sqrt(r_t * r_t + u_hi_c * u_hi_c) + r_t);
-	z_hi = max(z_hi, z_lo);   // the lit part can end below a floored start
-	float v_lo = sqrt(max(z_lo - h, 0.0) / L.H_ref);
-	float v_hi = sqrt(max(min(z_hi, 1.0e9) - h, 0.0) / L.H_ref);
-	float tau_lo = atm_erf(v_lo);
-	float tau_hi = open ? 1.0 : atm_erf(min(v_hi, 6.0));
-	float span = tau_hi - tau_lo;
-	if (span > 0.0) {
-		int gl_last = iv_atm_gl_first + iv_atm_gl_nodes;
-		for (int k = iv_atm_gl_first; k < gl_last; k++) {
-			float v = atm_erfinv(tau_lo + span * ATM_GL_T[k]);
-			float z = h + L.H_ref * v * v;
-			float u = atm_chord(R, z, h);
-			float du_dv = u > 0.0 ? 2.0 * L.H_ref * v * (R + z) / u : sqrt(2.0 * r_t * L.H_ref);
-			float weight = 0.88622693 * ATM_GL_W[k] * span * exp(v * v) * du_dv;
-			float mu_v = u / (R + z);
-			vec3 near_exp = atm_exp_column(L, R, z, mu_v);
-			vec3 view = sign_s > 0.0 ? near_exp : exp_total - near_exp;
-			float mu_s = (a + sign_s * u * sz) / (R + z);
-			vec3 sun = atm_exp_column(L, R, z, mu_s);
-			if (L.has_layer) {
-				vec3 above = atm_shell_partial(L, R, z, h);
-				view += sign_s > 0.0 ? above : shell_total - above;
-				sun += atm_shell_ray_column(L, R, z, mu_s);
-			}
-			float shadow = atm_sun_shadow(R, z, mu_s, sun_ang);
-			path += weight * atm_exp_scatter(L, z) * exp(-view - sun) * shadow;
+// The segments atm_ray_path() integrates a ray over.
+const int ATM_SEGMENT_DISC = 0;  // a disc-hit ray's lit part, its nodes spaced in exp(-z / H_ref)
+const int ATM_SEGMENT_HALF = 1;  // a half of a tangent ray, spaced in erf(sqrt((z - h) / H_ref))
+const int ATM_SEGMENT_LAYER = 2; // the thin layer's crossing on a ray, three nodes
+// A ray is four segments, and a node takes two columns (view and sun); uniforms for the reason
+// the trip counts above are, and nothing sets them.
+uniform int atm_ray_segments = 4;
+uniform int atm_node_rays = 2;
+
+// One quadrature node of a view ray, at altitude z where the ray's zenith cosine is mu_v and
+// the sun's mu_s: `source`, the light scattered there toward the camera with the node's weight
+// folded in, attenuated to the camera and along the sun path and cut by the planet's shadow.
+// h_ray is the ray's tangent altitude. A node on the FAR half of a tangent ray (far) takes its
+// view extinction as the ray's whole tangent columns, exp_total and shell_total, less its own,
+// because its light crosses the near half too.
+vec3 atm_node(AtmLayers L, float R, float z, float mu_v, float mu_s, float h_ray, bool far,
+		vec3 exp_total, vec3 shell_total, float sun_ang, vec3 source) {
+	// The view and the sun column from one loop (THE STRUCTURE in the header).
+	vec3 near_exp = vec3(0.0);
+	vec3 sun = vec3(0.0);
+	for (int ray = 0; ray < atm_node_rays; ray++) {
+		vec3 gas;
+		vec3 haze;
+		atm_exp_columns(L, R, z, ray == 0 ? mu_v : mu_s, true, gas, haze);
+		if (ray == 0) {
+			near_exp = gas + haze;
+		} else {
+			sun = gas + haze;
 		}
 	}
-	// The reach gate is exact, not approximate: past it the column this block scales is the
-	// zero atm_shell_partial returns, so skipping the block changes nothing but the cost.
-	if (L.has_layer && z_lo - L.z_c < ATM_LAYER_REACH * L.sigma) {
-		// The thin layer's crossing on this side: its lit column, spread over three
-		// altitude nodes at the quantiles of the profile between the lit altitudes,
-		// weighted by the path length each takes.
-		vec3 column = atm_shell_partial(L, R, z_lo, h);
-		if (!open) {
-			column -= atm_shell_partial(L, R, min(z_hi, 1.0e9), h);
+	vec3 view = far ? exp_total - near_exp : near_exp;
+	if (L.has_layer) {
+		vec3 above;
+		vec3 sun_column;
+		atm_shell_node_columns(L, R, z, h_ray, mu_s, above, sun_column);
+		view += far ? shell_total - above : above;
+		sun += sun_column;
+	}
+	float shadow = atm_sun_shadow(R, z, mu_s, sun_ang);
+	return source * exp(-view - sun) * shadow;
+}
+
+// The radiance one view ray delivers to the camera, attenuated over its whole route. A ray that
+// meets the disc (meets_disc; mu and mu0 its view and sun cosines at the disc, far_floor the
+// vertex stage's atm_far_floor()) returns the air in front of the disc. One that misses it is
+// tangent at altitude h (qs the sun's cosine at the tangent point) and returns the whole ray,
+// with the transmittance of what lies behind it in tangent_transmittance. sz is the sun's
+// component along the ray toward the camera either way.
+//
+// Either ray is four segments. A tangent ray is its half on the camera's side of the tangent
+// point, then the half beyond it, each followed by the thin layer's crossing on it; the far
+// half's light crosses the near half too, which is why its view extinction is the WHOLE tangent
+// column less its own. A disc-hit ray is its lit part in front of the disc, then the far half
+// of its tangent ray (below), then the crossings on that half and in front of the disc.
+//
+// ONE LOOP FOR ALL FOUR, so atm_node() is compiled once, and a shader should call this from one
+// place: the limb shell's is inside atm_ring_pixel()'s tap loop. See THE STRUCTURE in the header.
+vec3 atm_ray_path(AtmLayers L, float R, bool meets_disc, float mu, float mu0, float h, float qs,
+		float sz, float sun_ang, float far_floor, out vec3 tangent_transmittance) {
+	// The disc-hit ray: its own tangent altitude, and where its lit part begins and ends.
+	float h_v = 0.0;
+	float z_lit = 0.0;
+	float z_cap = 0.0;
+	bool disc_open = true;
+	// The tangent ray whose halves are integrated: its tangent altitude, the altitude each half
+	// starts from, the sun's component along its tangent-point radius and perpendicular to it.
+	float half_h = h;
+	float half_floor = h;
+	float half_a = (R + h) * qs;
+	float half_p0_perp2 = (R + h) * (R + h) * (1.0 - qs * qs);
+	vec3 half_exp_total = vec3(0.0); // its whole tangent columns
+	vec3 half_shell_total = vec3(0.0);
+	bool half_enabled = true;
+	if (meets_disc) {
+		float b_ray = R * sqrt(max(1.0 - mu * mu, 0.0));
+		// The view ray's own tangent altitude, below the surface -- as -R mu^2 / (1 + sqrt(1 -
+		// mu^2)) and NEVER as b_ray - R, which is the difference of two planetary radii: in
+		// float32 that quantizes to ~0.5 m at Earth's and collapses to EXACTLY zero for a
+		// grazing ray. A zero tangent depth puts the last quadrature node on the ray's own
+		// tangent point, where atm_chord returns 0, the Jacobian (R + z) / chord is +inf, and
+		// inf times an extinction that has underflowed to zero is a NaN -- which reaches the HDR
+		// buffer and is not a local defect there, since the glow pass smears it into a bright
+		// blob with a black core. That is what flashed at a rotating body's lit-side
+		// silhouette, where the disc shaders sample mu from the MESH (a facet at the silhouette
+		// presents mu at or below zero) rather than from a ray-sphere intersection, which
+		// cannot. Same rule atm_chord itself follows, for the same reason: never difference two
+		// squares of order R.
+		h_v = -R * mu * mu / (1.0 + sqrt(max(1.0 - mu * mu, 0.0)));
+		vec2 lit = atm_lit_interval(R, R * R * (1.0 - mu0 * mu0), R * mu0, sz,
+				R * (mu - mu0 * sz), max(1.0 - sz * sz, 1.0e-12));
+		float u_lo = lit.x;
+		float u_hi = lit.y;
+		disc_open = u_hi >= ATM_INF;
+		z_lit = sqrt(R * R + 2.0 * R * mu * u_lo + u_lo * u_lo) - R;
+		float u_hi_c = min(u_hi, 1.0e9);
+		z_cap = disc_open ? ATM_INF : sqrt(R * R + 2.0 * R * mu * u_hi_c + u_hi_c * u_hi_c) - R;
+		// The disc is not always a surface. Where it is the body's own optical limb -- Titan's
+		// is, at tangent optical depth 1.0 -- the ray does not stop there: the half beyond it
+		// reaches the camera through the sub-disc chord and the near half. At the rim that half
+		// is worth exp(-tau/2) of the one we keep, 0.60 on Titan and 0.07 on Venus, and nothing
+		// at all on a body whose disc IS the ground, where the profile's extrapolation below it
+		// extinguishes the half within a scale height. far_floor is where the sub-disc chord
+		// ends it: atm_far_floor(), evaluated in the vertex stage. The half starts where the
+		// ray leaves the body, and `total - own` picks up the sub-disc chord with no new term.
+		half_enabled = h_v > far_floor;
+		float qs_far = clamp(R * (mu0 - mu * sz) / max(b_ray, 1.0e-3), -1.0, 1.0);
+		half_h = h_v;
+		half_floor = 0.0;
+		half_a = b_ray * qs_far;
+		half_p0_perp2 = b_ray * b_ray * (1.0 - qs_far * qs_far);
+	}
+	if (half_enabled) {
+		half_exp_total = atm_exp_tangent_column(L, R, half_h);
+		half_shell_total = L.has_layer ? 2.0 * atm_shell_partial(L, R, half_h, half_h)
+				: vec3(0.0);
+	}
+	tangent_transmittance = exp(-half_exp_total - half_shell_total);
+	vec3 path = vec3(0.0);
+	float z_lo = 0.0; // the half's lit part, which its crossing also takes
+	float z_hi = 0.0;
+	bool half_open = true;
+	for (int segment = 0; segment < atm_ray_segments; segment++) {
+		int kind = segment % 2 == 0 ? ATM_SEGMENT_HALF : ATM_SEGMENT_LAYER;
+		if (meets_disc) {
+			kind = segment == 0 ? ATM_SEGMENT_DISC
+					: (segment == 1 ? ATM_SEGMENT_HALF : ATM_SEGMENT_LAYER);
 		}
-		float lower = 1.0 - atm_gauss_tail((z_lo - L.z_c) / L.sigma);
-		float upper = open ? 1.0 : 1.0 - atm_gauss_tail((min(z_hi, 1.0e9) - L.z_c) / L.sigma);
-		float zs[3];
-		float gs[3];
+		bool on_disc_ray = meets_disc && (segment == 0 || segment == 3);
+		float sign_s = meets_disc || segment >= 2 ? -1.0 : 1.0; // +1 the camera's side
+		float ray_h = on_disc_ray ? h_v : half_h;
+		int node_count = 0;
+		float span = 0.0;
+		float t_hi = 0.0;
+		float tau_lo = 0.0;
+		vec3 layer_column = vec3(0.0);
+		float layer_lower = 0.0; // the crossing's quantiles and altitudes at its two ends
+		float layer_upper = 1.0;
+		float layer_lo = 0.0;
+		float layer_hi = 0.0;
 		float g_total = 0.0;
-		for (int i = 0; i < atm_shell_nodes; i++) {
-			float q = lower + ATM_SHELL_P[i] * (upper - lower);
-			float z = L.z_c + L.sigma * 1.41421356 * atm_erfinv(2.0 * q - 1.0);
-			z = clamp(z, z_lo, z_hi);
-			zs[i] = z;
-			gs[i] = ATM_SHELL_W[i] * (R + z) / max(atm_chord(R, z, h), 1.0e-3);
-			g_total += gs[i];
+		if (kind == ATM_SEGMENT_DISC) {
+			// The lit part of the ray is skipped outright when it starts more than 46 scale
+			// heights up (e^-46 of nothing), decided in ALTITUDE before any exp(): where the
+			// shadow exit sat ~90 scale heights up, t_lo was a valid but tiny float32 (~1e-36)
+			// that the GPU's log() turned into -inf, and the node altitude into NaN - a curve of
+			// black across the night side, found on Venus. Inside the window every
+			// transcendental stays in range.
+			if (z_lit < 46.0 * L.H_ref && z_cap > z_lit) {
+				float t_lo = exp(-z_lit / L.H_ref);
+				t_hi = disc_open ? 0.0 : exp(-z_cap / L.H_ref);
+				span = t_lo - t_hi;
+				node_count = iv_atm_gl_nodes;
+			}
+		} else if (kind == ATM_SEGMENT_HALF && half_enabled) {
+			float r_t = R + half_h;
+			float b = sign_s * sz;
+			vec2 lit = atm_lit_interval(R, half_p0_perp2, half_a, b, -half_a * b,
+					max(1.0 - b * b, 1.0e-12));
+			float u_lo = lit.x;
+			float u_hi = lit.y;
+			half_open = u_hi >= ATM_INF;
+			// altitude along the ray, as h + u^2 / (sqrt(r_t^2 + u^2) + r_t) to keep float32
+			// precision
+			z_lo = max(half_h + u_lo * u_lo / (sqrt(r_t * r_t + u_lo * u_lo) + r_t), half_floor);
+			float u_hi_c = min(u_hi, 1.0e9);
+			z_hi = half_open ? ATM_INF
+					: half_h + u_hi_c * u_hi_c / (sqrt(r_t * r_t + u_hi_c * u_hi_c) + r_t);
+			z_hi = max(z_hi, z_lo); // the lit part can end below a floored start
+			float v_lo = sqrt(max(z_lo - half_h, 0.0) / L.H_ref);
+			float v_hi = sqrt(max(min(z_hi, 1.0e9) - half_h, 0.0) / L.H_ref);
+			tau_lo = atm_erf(v_lo);
+			float tau_hi = half_open ? 1.0 : atm_erf(min(v_hi, 6.0));
+			span = tau_hi - tau_lo;
+			node_count = span > 0.0 ? iv_atm_gl_nodes : 0;
+		} else if (kind == ATM_SEGMENT_LAYER) {
+			// The thin layer's crossing: its lit column, spread over three altitude nodes at
+			// the quantiles of the profile between the lit altitudes, weighted by the path
+			// length each takes. In front of the disc the crossing is open above. The reach gate
+			// is exact, not approximate: past it the column this block scales is the zero
+			// atm_shell_partial returns, so skipping the block changes nothing but the cost.
+			layer_lo = on_disc_ray ? z_lit : z_lo;
+			layer_hi = on_disc_ray ? ATM_INF : z_hi;
+			bool layer_open = on_disc_ray || half_open;
+			if (L.has_layer && (on_disc_ray || half_enabled)
+					&& layer_lo - L.z_c < ATM_LAYER_REACH * L.sigma) {
+				// The column and the profile's quantile at each end of the lit altitudes.
+				for (int end = 0; end < (layer_open ? 1 : 2); end++) {
+					float end_z = end == 0 ? layer_lo : min(layer_hi, 1.0e9);
+					vec3 partial = atm_shell_partial(L, R, end_z, ray_h);
+					float quantile = 1.0 - atm_gauss_tail((end_z - L.z_c) / L.sigma);
+					if (end == 0) {
+						layer_column = partial;
+						layer_lower = quantile;
+					} else {
+						layer_column -= partial;
+						layer_upper = quantile;
+					}
+				}
+				for (int i = 0; i < atm_shell_nodes; i++) {
+					float q = layer_lower + ATM_SHELL_P[i] * (layer_upper - layer_lower);
+					float z = L.z_c + L.sigma * 1.41421356 * atm_erfinv(2.0 * q - 1.0);
+					z = clamp(z, layer_lo, layer_hi);
+					g_total += ATM_SHELL_W[i] * (R + z) / max(atm_chord(R, z, ray_h), 1.0e-3);
+				}
+				node_count = atm_shell_nodes;
+			}
 		}
-		for (int i = 0; i < atm_shell_nodes; i++) {
-			float z = zs[i];
-			float share = gs[i] / g_total;
-			float u = atm_chord(R, z, h);
-			float mu_v = u / (R + z);
-			vec3 near_exp = atm_exp_column(L, R, z, mu_v);
-			vec3 above = atm_shell_partial(L, R, z, h);
-			vec3 view = sign_s > 0.0 ? near_exp + above : exp_total - near_exp + shell_total - above;
-			float mu_s = (a + sign_s * u * sz) / (R + z);
-			vec3 sun = atm_exp_column(L, R, z, mu_s) + atm_shell_ray_column(L, R, z, mu_s);
-			float shadow = atm_sun_shadow(R, z, mu_s, sun_ang);
-			path += share * L.scatter_l * column * exp(-view - sun) * shadow;
+		for (int node = 0; node < node_count; node++) {
+			int k = iv_atm_gl_first + node;
+			float z = 0.0;
+			float t = 0.0;
+			float v = 0.0;
+			if (kind == ATM_SEGMENT_DISC) {
+				t = t_hi + span * ATM_GL_T[k];
+				z = -L.H_ref * log(t);
+			} else {
+				float x = tau_lo + span * ATM_GL_T[k];
+				if (kind == ATM_SEGMENT_LAYER) {
+					x = 2.0 * (layer_lower + ATM_SHELL_P[node] * (layer_upper - layer_lower)) - 1.0;
+				}
+				float w = atm_erfinv(x);
+				if (kind == ATM_SEGMENT_HALF) {
+					v = w;
+					z = half_h + L.H_ref * v * v;
+				} else {
+					z = clamp(L.z_c + L.sigma * 1.41421356 * w, layer_lo, layer_hi);
+				}
+			}
+			// Along a tangent ray a node sits its chord from the tangent point; along the
+			// disc-hit ray, that chord less the stretch of it below the disc.
+			float chord = atm_chord(R, z, ray_h);
+			float u = on_disc_ray ? chord - R * mu : chord;
+			float mu_v = on_disc_ray ? (R * mu + u) / (R + z) : u / (R + z);
+			float mu_s = on_disc_ray ? (R * mu0 + u * sz) / (R + z)
+					: (half_a + sign_s * u * sz) / (R + z);
+			vec3 source;
+			if (kind == ATM_SEGMENT_LAYER) {
+				source = ATM_SHELL_W[node] * (R + z) / max(chord, 1.0e-3) / g_total * L.scatter_l
+						* layer_column;
+			} else {
+				float weight;
+				if (kind == ATM_SEGMENT_DISC) {
+					weight = ATM_GL_W[k] * span * (L.H_ref / t) * (R + z) / chord;
+				} else {
+					float du_dv = u > 0.0 ? 2.0 * L.H_ref * v * (R + z) / u
+							: sqrt(2.0 * (R + half_h) * L.H_ref);
+					weight = 0.88622693 * ATM_GL_W[k] * span * exp(v * v) * du_dv;
+				}
+				source = weight * atm_exp_scatter(L, z);
+			}
+			vec3 light = atm_node(L, R, z, mu_v, mu_s, ray_h, sign_s < 0.0 && !on_disc_ray,
+					half_exp_total, half_shell_total, sun_ang, source);
+			path += light;
 		}
 	}
 	return path;
 }
 
-// Beyond-limb ray tangent at altitude h: path radiance and view transmittance. qs is the sun's
-// cosine at the tangent point (dot(q_hat, s)), sz its component along the ray toward the
-// camera (dot(e, s)).
-void atm_ring(AtmLayers L, float R, float h, float qs, float sz, float sun_ang,
-		out vec3 path, out vec3 transmittance) {
-	float r_t = R + h;
-	float a = r_t * qs;
-	float p0_perp2 = r_t * r_t * (1.0 - qs * qs);
-	vec3 exp_total = atm_exp_tangent_column(L, R, h);
-	vec3 shell_total = L.has_layer ? 2.0 * atm_shell_partial(L, R, h, h) : vec3(0.0);
-	path = atm_ray_half(L, R, h, h, a, p0_perp2, sz, sun_ang, 1.0, exp_total, shell_total)
-			+ atm_ray_half(L, R, h, h, a, p0_perp2, sz, sun_ang, -1.0, exp_total, shell_total);
-	transmittance = exp(-exp_total - shell_total);
-}
 
 
 // ONE PIXEL OF THE RING RATHER THAN ONE POINT OF IT, which is the difference between a thin
@@ -735,10 +941,16 @@ float atm_ring_reach(AtmLayers L) {
 	return reach;
 }
 
+// Returns false when no beyond-limb ray with anything on it reaches this pixel. With with_disc
+// it also evaluates the pixel's own disc-hit ray (mu, mu0 and far_floor as for atm_disc())
+// into disc_path, as one more pass of the tap loop: the limb shell's handoff band needs that
+// ray too, and one loop is what keeps atm_ray_path() to one call site in the shader.
 bool atm_ring_pixel(AtmLayers L, float R, float h, float footprint, float qs, float sz,
-		float sun_ang, out vec3 path, out vec3 transmittance) {
+		float sun_ang, bool with_disc, float mu, float mu0, float far_floor, out vec3 path,
+		out vec3 transmittance, out vec3 disc_path) {
 	path = vec3(0.0);
 	transmittance = vec3(1.0);
+	disc_path = vec3(0.0);
 	// The filter spans this much altitude, and the samples are taken over the part of it that
 	// both exists (above the silhouette) and carries signal (below the reach). Normalizing by
 	// the FULL width rather than by the sampled part is what makes the clipping mean something:
@@ -747,29 +959,33 @@ bool atm_ring_pixel(AtmLayers L, float R, float h, float footprint, float qs, fl
 	float half_width = 0.5 * ATM_RING_FILTER_PX * footprint;
 	float lo = max(h - half_width, 0.0);
 	float hi = min(h + half_width, atm_ring_reach(L));
-	if (hi <= lo) {
-		return false; // no beyond-limb ray with anything on it reaches this pixel
-	}
+	bool has_taps = hi > lo;
 	float span = hi - lo;
 	// One tap per scale height, and never coarser than one per pixel: close in, where the
 	// annulus spreads over many fragments, the profile is resolved and a couple of taps carry
 	// the filter; far out it takes the full set, on a rim of a few hundred fragments.
-	int taps = int(clamp(ceil(span / min(L.H_ref, footprint)), 1.0, float(iv_atm_ring_max_taps)));
-	float step = span / float(taps);
+	int taps = has_taps ? int(clamp(ceil(span / min(L.H_ref, footprint)), 1.0,
+			float(iv_atm_ring_max_taps))) : 0;
+	float step = span / float(max(taps, 1));
 	vec3 transmittance_sum = vec3(0.0);
 	float weight_sum = 0.0;
-	for (int i = 0; i < taps; i++) {
+	for (int i = 0; i < taps + (with_disc ? 1 : 0); i++) {
+		bool disc_pass = i == taps;
 		float tap_h = lo + (float(i) + 0.5) * step;
-		// Tent, normalized so its integral over the full width is exactly 1.
-		float weight = max(1.0 - abs(tap_h - h) / half_width, 0.0) * step / half_width;
-		vec3 tap_path;
 		vec3 tap_transmittance;
-		atm_ring(L, R, tap_h, qs, sz, sun_ang, tap_path, tap_transmittance);
-		path += tap_path * weight;
-		transmittance_sum += tap_transmittance * weight;
-		weight_sum += weight;
+		vec3 ray_path = atm_ray_path(L, R, disc_pass, mu, mu0, tap_h, qs, sz, sun_ang, far_floor,
+				tap_transmittance);
+		if (disc_pass) {
+			disc_path = ray_path;
+		} else {
+			// Tent, normalized so its integral over the full width is exactly 1.
+			float weight = max(1.0 - abs(tap_h - h) / half_width, 0.0) * step / half_width;
+			path += ray_path * weight;
+			transmittance_sum += tap_transmittance * weight;
+			weight_sum += weight;
+		}
 	}
-	if (weight_sum <= 0.0) {
+	if (!has_taps || weight_sum <= 0.0) {
 		return false;
 	}
 	transmittance = mix(vec3(1.0), transmittance_sum / weight_sum, min(weight_sum, 1.0));
@@ -780,102 +996,17 @@ bool atm_ring_pixel(AtmLayers L, float R, float h, float footprint, float qs, fl
 // ring): path radiance above it and the view transmittance through the whole column.
 void atm_disc(AtmLayers L, float R, float mu, float mu0, float sz, float sun_ang,
 		float far_floor, out vec3 path, out vec3 transmittance) {
-	float b_ray = R * sqrt(max(1.0 - mu * mu, 0.0));
-	// The view ray's own tangent altitude, below the surface -- as -R mu^2 / (1 + sqrt(1 - mu^2))
-	// and NEVER as b_ray - R, which is the difference of two planetary radii: in float32 that
-	// quantizes to ~0.5 m at Earth's and collapses to EXACTLY zero for a grazing ray. A zero
-	// tangent depth puts the last quadrature node on the ray's own tangent point, where
-	// atm_chord returns 0, the Jacobian (R + z) / chord is +inf, and inf times an extinction
-	// that has underflowed to zero is a NaN -- which reaches the HDR buffer and is not a local
-	// defect there, since the glow pass smears it into a bright blob with a black core. That
-	// is what flashed at a rotating body's lit-side silhouette, where the disc shaders sample
-	// mu from the MESH (a facet at the silhouette presents mu at or below zero) rather than
-	// from a ray-sphere intersection, which cannot. Same rule atm_chord itself follows, for
-	// the same reason: never difference two squares of order R.
-	float h_v = -R * mu * mu / (1.0 + sqrt(max(1.0 - mu * mu, 0.0)));
-	vec2 lit = atm_lit_interval(R, R * R * (1.0 - mu0 * mu0), R * mu0, sz, R * (mu - mu0 * sz),
-			max(1.0 - sz * sz, 1.0e-12));
-	float u_lo = lit.x;
-	float u_hi = lit.y;
-	bool open = u_hi >= ATM_INF;
-	float z_lit = sqrt(R * R + 2.0 * R * mu * u_lo + u_lo * u_lo) - R;
-	float u_hi_c = min(u_hi, 1.0e9);
-	float z_cap = open ? ATM_INF : sqrt(R * R + 2.0 * R * mu * u_hi_c + u_hi_c * u_hi_c) - R;
-	path = vec3(0.0);
-	// The lit part of the ray is skipped outright when it starts more than 46 scale heights
-	// up (e^-46 of nothing), decided in ALTITUDE before any exp(): where the shadow exit sat
-	// ~90 scale heights up, t_lo was a valid but tiny float32 (~1e-36) that the GPU's log()
-	// turned into -inf, and the node altitude into NaN - a curve of black across the night
-	// side, found on Venus. Inside the window every transcendental stays in range.
-	if (z_lit < 46.0 * L.H_ref && z_cap > z_lit) {
-		float t_lo = exp(-z_lit / L.H_ref);
-		float t_hi = open ? 0.0 : exp(-z_cap / L.H_ref);
-		float span = t_lo - t_hi;
-		int gl_last = iv_atm_gl_first + iv_atm_gl_nodes;
-		for (int k = iv_atm_gl_first; k < gl_last; k++) {
-			float t = t_hi + span * ATM_GL_T[k];
-			float z = -L.H_ref * log(t);
-			float chord = atm_chord(R, z, h_v);
-			float u = chord - R * mu;
-			float weight = ATM_GL_W[k] * span * (L.H_ref / t) * (R + z) / chord;
-			float mu_v = (R * mu + u) / (R + z);
-			float mu_s = (R * mu0 + u * sz) / (R + z);
-			vec3 view = atm_exp_column(L, R, z, mu_v);
-			vec3 sun = atm_exp_column(L, R, z, mu_s);
-			if (L.has_layer) {
-				view += atm_shell_partial(L, R, z, h_v);
-				sun += atm_shell_ray_column(L, R, z, mu_s);
-			}
-			float shadow = atm_sun_shadow(R, z, mu_s, sun_ang);
-			path += weight * atm_exp_scatter(L, z) * exp(-view - sun) * shadow;
-		}
-	}
-	// The disc is not always a surface. Where it is the body's own optical limb -- Titan's is,
-	// at tangent optical depth 1.0 -- the ray does not stop there: the half beyond it reaches
-	// the camera through the sub-disc chord and the near half. At the rim that half is worth
-	// exp(-tau/2) of the one we keep, 0.60 on Titan and 0.07 on Venus, and nothing at all on a
-	// body whose disc IS the ground, where the profile's extrapolation below it extinguishes
-	// the half within a scale height. far_floor is where the sub-disc chord ends it:
-	// atm_far_floor(), evaluated in the vertex stage.
-	if (h_v > far_floor) {
-		float qs_far = clamp(R * (mu0 - mu * sz) / max(b_ray, 1.0e-3), -1.0, 1.0);
-		vec3 far_exp = atm_exp_tangent_column(L, R, h_v);
-		vec3 far_shell = L.has_layer ? 2.0 * atm_shell_partial(L, R, h_v, h_v) : vec3(0.0);
-		path += atm_ray_half(L, R, h_v, 0.0, b_ray * qs_far,
-				b_ray * b_ray * (1.0 - qs_far * qs_far), sz, sun_ang, -1.0, far_exp, far_shell);
-	}
+	vec3 unused_transmittance;
+	path = atm_ray_path(L, R, true, mu, mu0, 0.0, 0.0, sz, sun_ang, far_floor,
+			unused_transmittance);
 	// Not part of the path integral: this is what the disc BENEATH keeps, so it is
 	// delta-scaled. The quadrature above attenuates its own scattered light by the full
-	// extinction and is untouched.
+	// extinction and is untouched. h_v is the ray's tangent altitude, formed as atm_ray_path()
+	// forms it.
+	float h_v = -R * mu * mu / (1.0 + sqrt(max(1.0 - mu * mu, 0.0)));
 	vec3 view_total = atm_exp_column_beneath(L, R, 0.0, mu);
 	if (L.has_layer) {
 		view_total += atm_shell_partial(L, R, 0.0, h_v) * L.delta_l;
-	}
-	// Gated like the ring's crossing: past the reach the column is the exact zero.
-	if (L.has_layer && z_lit - L.z_c < ATM_LAYER_REACH * L.sigma) {
-		vec3 column = atm_shell_partial(L, R, z_lit, h_v);
-		float lower = 1.0 - atm_gauss_tail((z_lit - L.z_c) / L.sigma);
-		float zs[3];
-		float gs[3];
-		float g_total = 0.0;
-		for (int i = 0; i < atm_shell_nodes; i++) {
-			float q = lower + ATM_SHELL_P[i] * (1.0 - lower);
-			float z = max(L.z_c + L.sigma * 1.41421356 * atm_erfinv(2.0 * q - 1.0), z_lit);
-			zs[i] = z;
-			gs[i] = ATM_SHELL_W[i] * (R + z) / max(atm_chord(R, z, h_v), 1.0e-3);
-			g_total += gs[i];
-		}
-		for (int i = 0; i < atm_shell_nodes; i++) {
-			float z = zs[i];
-			float share = gs[i] / g_total;
-			float u = atm_chord(R, z, h_v) - R * mu;
-			float mu_v = (R * mu + u) / (R + z);
-			float mu_s = (R * mu0 + u * sz) / (R + z);
-			vec3 view = atm_exp_column(L, R, z, mu_v) + atm_shell_partial(L, R, z, h_v);
-			vec3 sun = atm_exp_column(L, R, z, mu_s) + atm_shell_ray_column(L, R, z, mu_s);
-			float shadow = atm_sun_shadow(R, z, mu_s, sun_ang);
-			path += share * L.scatter_l * column * exp(-view - sun) * shadow;
-		}
 	}
 	transmittance = exp(-view_total);
 	// A FINITE GUARD, and the shipped answer to a defect that could not be cornered any
@@ -952,27 +1083,36 @@ void atm_limb(vec3 camera_local, vec3 fragment_local, vec3 sun_local, float sun_
 	// makes the flux drawn per azimuth constant; the split between the two pixels still moves
 	// with the sub-pixel offset, which now reads as a band of shifting thickness rather than
 	// one that comes and goes.
+	// The shell's share of the handoff band (see ATM_RIM_HANDOFF): the sliver at the silhouette
+	// that the polygonal disc meshes fail to cover gets its air from here, by the pixel's own
+	// disc-hit ray, which atm_ring_pixel() evaluates along with the ring.
+	float w_shell = 0.0;
+	float mu = 0.0;
+	float mu0 = 0.0;
+	if (b < R) {
+		w_shell = smoothstep(R * (1.0 - ATM_RIM_HANDOFF), R, b);
+		float half_chord = sqrt(max(R * R - b * b, 0.0));
+		vec3 hit = q - half_chord * d;
+		vec3 n = hit / R;
+		mu = dot(n, e);
+		mu0 = dot(n, sun_local);
+	}
 	vec3 ring_path;
 	vec3 ring_transmittance;
-	bool has_ring = atm_ring_pixel(L, R, h, b_footprint, qs, sz, sun_ang, ring_path,
-			ring_transmittance);
+	vec3 disc_path;
+	bool has_ring = atm_ring_pixel(L, R, h, b_footprint, qs, sz, sun_ang, w_shell > 0.0, mu,
+			mu0, far_floor, ring_path, ring_transmittance, disc_path);
 	if (b < R) {
-		float w_shell = smoothstep(R * (1.0 - ATM_RIM_HANDOFF), R, b);
 		if (w_shell <= 0.0 && !has_ring) {
 			disc_hit = true;
 			return;
 		}
 		if (w_shell > 0.0) {
-			// The shell's share of the handoff band (see ATM_RIM_HANDOFF): the sliver at the
-			// silhouette that the polygonal disc meshes fail to cover gets its air from here.
-			float half_chord = sqrt(max(R * R - b * b, 0.0));
-			vec3 hit = q - half_chord * d;
-			vec3 n = hit / R;
-			float mu = dot(n, e);
-			float mu0 = dot(n, sun_local);
-			vec3 disc_transmittance;
-			atm_disc(L, R, mu, mu0, sz, sun_ang, far_floor, path, disc_transmittance);
-			path *= w_shell;
+			// atm_disc()'s finite guard, for the same ray.
+			if (any(isnan(disc_path)) || any(isinf(disc_path))) {
+				disc_path = vec3(0.0);
+			}
+			path = disc_path * w_shell;
 		}
 		// Added, and the transmittance left at 1: this side of the silhouette is a pure add,
 		// the luma dimming being the disc shaders' in full (see the header).
@@ -996,20 +1136,6 @@ void atm_limb(vec3 camera_local, vec3 fragment_local, vec3 sun_local, float sun_
 	path *= mix(1.0, atm_intensity, iv_limb_scale);
 }
 
-// Transmittance of the column above altitude z along a view ray that meets the DISC at view
-// cosine mu (so the ray's tangent altitude is the disc's, below the surface).
-vec3 atm_view_transmittance(AtmLayers L, float R, float z, float mu) {
-	float b_ray = R * sqrt(max(1.0 - mu * mu, 0.0));
-	float h_v = -R * mu * mu / (1.0 + sqrt(max(1.0 - mu * mu, 0.0))); // see atm_disc: never b_ray - R
-	// the ray's zenith cosine at altitude z, from its impact parameter
-	float mu_z = sqrt(max(1.0 - b_ray * b_ray / ((R + z) * (R + z)), 0.0));
-	vec3 column = atm_exp_column_beneath(L, R, z, mu_z);
-	if (L.has_layer) {
-		column += atm_shell_partial(L, R, z, h_v) * L.delta_l;
-	}
-	return exp(-column);
-}
-
 float atm_luma(vec3 c) {
 	return dot(c, vec3(0.2126, 0.7152, 0.0722));
 }
@@ -1021,7 +1147,7 @@ float atm_luma(vec3 c) {
 // far half of a ray whose disc is an optical limb) and the LUMA of the disc's view
 // transmittance. The caller ADDS the path over everything it renders and MULTIPLIES the
 // luma into all of it — lit albedo, every emission term, and the specular lobe as its
-// square root — with atm_view_tint() still carrying the chromatic complement.
+// square root — with atm_receiver_light()'s tint still carrying the chromatic complement.
 //
 // Inputs are in the calling shell's LOCAL frame, as for atm_limb(), and far_floor is the
 // vertex stage's atm_far_floor(). A shell above the disc (a cloud deck) traces its
@@ -1092,10 +1218,11 @@ void atm_disc_air(vec3 camera_local, vec3 fragment_local, vec3 sun_local, float 
 	behind_luma = atm_luma(transmittance);
 }
 
-// What a surface or cloud shell multiplies its sunlight by: the TOTAL illumination reaching
-// this shell's own altitude relative to vacuum, direct beam plus diffuse sky. mu0 is the
-// fragment's sun cosine on the macroscopic normal. A sun below the horizon needs no branch:
-// the engine's own N.L has already removed its light.
+// The TOTAL illumination reaching an altitude relative to vacuum, direct beam plus diffuse sky,
+// from the columns of its sun path: the exponential layers' (atm_exp_columns()) and the thin
+// layer's (atm_shell_partial()). It is what a surface or cloud shell multiplies its sunlight
+// by, and a sun below the horizon needs no branch: the engine's own N.L has already removed
+// its light.
 //
 // NOT exp(-column). Absorbed light is gone and takes the exponential; SCATTERED light is not
 // -- roughly a quarter of it arrives anyway, off the sky, and is what lets you see the ground
@@ -1108,30 +1235,22 @@ void atm_disc_air(vec3 camera_local, vec3 fragment_local, vec3 sun_local, float 
 // illuminance it is right to a few percent from noon down to a solar zenith of 87 degrees.
 // It is the same kind of stand-in as the delta-scaling above and deliberately shares its
 // depth: what the two-stream returns is precisely the half of `1 - omega g` that is scattered.
+// So each column is split into what is ABSORBED and what is SCATTERED. The split is exact and
+// introduces no parameter, because 1 - omega g = (1 - omega) + omega (1 - g) -- so the two
+// pieces sum to the delta-scaled depth, term for term. Rayleigh gas is conservative (no albedo
+// cell, omega = 1) and so is entirely the scattered half.
 //
-// The VIEW leg keeps exp() and must -- see atm_view_transmittance. Light scattered out of a
-// view ray is not lost from the model, it is the path radiance, and that is added separately.
+// The VIEW leg keeps exp() and must -- see atm_receiver_light(). Light scattered out of a view
+// ray is not lost from the model, it is the path radiance, and that is added separately.
 // Nothing adds the light scattered out of the SUN leg, so this is where it belongs.
-vec3 atm_sun_transmittance_at(AtmLayers L, float R, float z, float mu0) {
-	float up = max(mu0, 0.0);
-	vec3 absorbed;
-	vec3 scattered;
-	atm_exp_column_split(L, R, z, up, absorbed, scattered);
+vec3 atm_sun_transmittance_of(AtmLayers L, vec3 gas, vec3 haze, vec3 layer) {
+	vec3 absorbed = haze * (1.0 - atm_haze_albedo);
+	vec3 scattered = gas + haze * (atm_haze_albedo * (1.0 - atm_haze_g));
 	if (L.has_layer) {
-		vec3 layer = atm_shell_ray_column(L, R, z, up);
 		absorbed += layer * (1.0 - atm_layer_albedo);
 		scattered += layer * (atm_layer_albedo * (1.0 - atm_layer_g));
 	}
 	return exp(-absorbed) / (1.0 + ATM_TWO_STREAM_K * scattered);
-}
-
-vec3 atm_sun_transmittance(float mu0) {
-	if (body_radius_km <= 0.0) {
-		return vec3(1.0);
-	}
-	float R = body_radius_km * surface_scale;
-	float z = max((shell_scale - surface_scale) * body_radius_km, 0.0);
-	return atm_sun_transmittance_at(atm_layers(0.0), R, z, mu0);
 }
 
 // The twilight a shell must ADD to what the engine already gives it, as emission.
@@ -1146,11 +1265,11 @@ vec3 atm_sun_transmittance(float mu0) {
 // the decay past it has no feature at mu0 = 0 at all: the sky does not know where the ground's
 // terminator is.
 //
-// The engine hands a shell albedo x max(mu0, 0) x atm_sun_transmittance and nothing below the
+// The engine hands a shell albedo x max(mu0, 0) x its sun transmittance and nothing below the
 // horizon. The target is direct + max(plane-parallel diffuse, twilight), so what is missing is
 // max(twilight - plane-parallel diffuse, 0) and nothing else: the beam and the day-side diffuse
 // cancel term for term, which is why the DAY SIDE CANNOT MOVE. The subtraction is not a fudge
-// -- atm_sun_transmittance is a TOTAL, direct plus diffuse, so adding a twilight curve on top
+// -- the sun transmittance is a TOTAL, direct plus diffuse, so adding a twilight curve on top
 // of it would count the diffuse twice.
 //
 // Evaluated at the DISC for every shell, not at the shell's own altitude. A deck a few km up
@@ -1172,25 +1291,8 @@ vec3 atm_sky_illumination(float mu0) {
 	return atm_sky_flux * exp(held * (atm_sky_slope + held * atm_sky_bend));
 }
 
-// The DIFFUSE half of what the disc already receives from the plane-parallel two-stream: the
-// total less the beam. Absorbed light is gone and takes the exponential; scattered light
-// largely is not -- roughly a quarter of it arrives anyway, off the sky, and is what lets you
-// see the ground at sunset. Evaluated at the disc for every shell, as the twilight is.
-vec3 atm_plane_diffuse(float mu0) {
-	if (body_radius_km <= 0.0) {
-		return vec3(0.0);
-	}
-	AtmLayers L = atm_layers(0.0);
-	float R = body_radius_km * surface_scale;
-	float up = max(mu0, 0.0);
-	vec3 beam = atm_exp_column(L, R, 0.0, up);
-	if (L.has_layer) {
-		beam += atm_shell_ray_column(L, R, 0.0, up);
-	}
-	return up * max(atm_sun_transmittance_at(L, R, 0.0, up) - exp(-beam), vec3(0.0));
-}
-
-// What a shell adds as EMISSION over what the engine already gives it. The engine hands it
+// What a shell adds as EMISSION over what the engine already gives it, from
+// atm_receiver_light()'s plane_diffuse. The engine hands it
 // `beam_response * (direct + plane_diffuse)`, so the plane-parallel diffuse has ALREADY been
 // delivered -- through the BEAM factor, which is the wrong response for it but is what was
 // applied. Subtract what was actually delivered, `beam_response * plane_diffuse`, not the
@@ -1205,24 +1307,75 @@ vec3 atm_plane_diffuse(float mu0) {
 // `beam*direct + iso*sky` wherever the term acts, both terms monotone in mu0, and the profile
 // cannot bump. Note the engagement locus is independent of the view angle: iso and the beam
 // factor share the same mu^(k-1), which cancels, so it runs parallel to the terminator.
-vec3 atm_sky_excess(float mu0, float sky_response, float beam_response) {
-	return max(sky_response * atm_sky_illumination(mu0)
-			- beam_response * atm_plane_diffuse(mu0), vec3(0.0));
+vec3 atm_sky_excess(float mu0, vec3 plane_diffuse, float sky_response, float beam_response) {
+	return max(sky_response * atm_sky_illumination(mu0) - beam_response * plane_diffuse,
+			vec3(0.0));
 }
 
-// The chromatic half of the view-path extinction, for a surface or cloud shell beneath the
-// limb (see THE COMPOSITING SPLIT): the windowed transmittance of the column above this
-// shell's own altitude over the luma of the disc's, which is what atm_disc_air() removes.
-vec3 atm_view_tint(float mu) {
+// What a surface or cloud shell beneath the limb takes from the atmosphere above it besides
+// the air in front of it (atm_disc_air), at the view and sun cosines mu and mu0 of its
+// macroscopic normal. A shell calls it once, for three things:
+//
+// `tint`, the chromatic half of the view-path extinction (see THE COMPOSITING SPLIT): the
+// transmittance of the column above this shell's own altitude over the luma of the disc's,
+// which is what atm_disc_air() removes.
+//
+// `sun_transmittance`, what the shell multiplies its sunlight by: atm_sun_transmittance_of()
+// for the sun path above its own altitude.
+//
+// `plane_diffuse`, for atm_sky_excess(): the DIFFUSE half of what the disc already receives
+// from the plane-parallel two-stream, the total less the beam. Evaluated at the disc for every
+// shell, as the twilight is.
+//
+// Their columns come from one loop (THE STRUCTURE in the header): a shell at the disc needs the
+// view ray's and the sun path's above the disc, and a cloud deck both of those above its own
+// altitude as well.
+void atm_receiver_light(float mu, float mu0, out vec3 tint, out vec3 sun_transmittance,
+		out vec3 plane_diffuse) {
+	tint = vec3(1.0);
+	sun_transmittance = vec3(1.0);
+	plane_diffuse = vec3(0.0);
 	if (body_radius_km <= 0.0) {
-		return vec3(1.0);
+		return;
 	}
 	AtmLayers L = atm_layers(0.0);
 	float R = body_radius_km * surface_scale;
 	float z = max((shell_scale - surface_scale) * body_radius_km, 0.0);
-	vec3 disc = atm_view_transmittance(L, R, 0.0, mu);
-	// A shell AT the disc -- every surface and band shell -- has the disc's own column, so
-	// the second evaluation exists only for a shell above it (a cloud deck).
-	vec3 own = z > 0.0 ? atm_view_transmittance(L, R, z, mu) : disc;
-	return own / max(atm_luma(disc), 1.0e-6);
+	float up = max(mu0, 0.0);
+	// The view ray meets the DISC at view cosine mu, so its tangent altitude is the disc's,
+	// below the surface, formed as atm_ray_path() forms it (never as b_ray - R).
+	float b_ray = R * sqrt(max(1.0 - mu * mu, 0.0));
+	float h_v = -R * mu * mu / (1.0 + sqrt(max(1.0 - mu * mu, 0.0)));
+	vec3 disc_view = vec3(1.0);
+	vec3 own_view = vec3(1.0);
+	for (int i = 0; i < (z > 0.0 ? 4 : 2); i++) {
+		// The view ray above the disc, the sun path above this shell; for a deck, the view ray
+		// above the deck and the sun path above the disc.
+		bool view = i % 2 == 0;
+		float column_z = i == 1 || i == 2 ? z : 0.0;
+		float r = R + column_z;
+		// the view ray's zenith cosine at this altitude, from its impact parameter
+		float column_mu = view ? sqrt(max(1.0 - b_ray * b_ray / (r * r), 0.0)) : up;
+		float h_t = view ? h_v : min(r * sqrt(max(1.0 - up * up, 0.0)) - R, column_z);
+		vec3 gas;
+		vec3 haze;
+		atm_exp_columns(L, R, column_z, column_mu, true, gas, haze);
+		vec3 layer = L.has_layer ? atm_shell_partial(L, R, column_z, h_t) : vec3(0.0);
+		if (view) {
+			vec3 transmittance = exp(-(gas + haze * L.delta_h + layer * L.delta_l));
+			if (i == 0) {
+				disc_view = transmittance;
+			}
+			own_view = transmittance;
+		} else {
+			vec3 total = atm_sun_transmittance_of(L, gas, haze, layer);
+			if (i == 1) {
+				sun_transmittance = total;
+			}
+			if (i == 3 || z <= 0.0) {
+				plane_diffuse = up * max(total - exp(-(gas + haze + layer)), vec3(0.0));
+			}
+		}
+	}
+	tint = own_view / max(atm_luma(disc_view), 1.0e-6);
 }
