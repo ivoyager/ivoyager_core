@@ -860,7 +860,10 @@ How it lands in the renderer:
   propagates the limb row's `atm_*` columns to the surface and cloud shells, whose photometry
   slot multiplies its sunlight by the sun transmittance `atm_receiver_light()` returns — the
   column above that shell's own altitude along the sun ray. This is what turns a cloud deck at
-  the limb the colour of sunset.
+  the limb the colour of sunset. A body with no such row carries none of it: its shells bind
+  the airless variant of each shader (`IVAssetPreloader.airless_shader_variants`), which
+  renders it identically and runs faster (*Addendum: the atmosphere's structure, at runtime* in
+  [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)).
 - **That factor is the TOTAL illumination, direct plus diffuse, and not `exp(-column)`**
   (2026-08-28). Absorbed light is gone and takes the exponential; scattered light is not, and
   the sun leg is the one place nothing else accounts for it — a view ray's scattered light IS
@@ -2161,9 +2164,10 @@ lever a capped pass cannot offer is one the shader does not need.
   every shader the opening view and the warm-up draw, and the atmosphere is still most of that.
   What would shorten it is a tier that leaves the quadrature out of the limb and the disc shaders
   alike, chosen at restart. It needs Venus, Titan and Mars re-levelled (*Addendum: the limb ring
-  and surface twilight* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)), and an airless shader
-  variant for the bodies with no atmosphere would be most of its machinery (*Addendum: the
-  atmosphere's structure, at runtime*, there).
+  and surface twilight* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)). Most of its
+  machinery exists: the airless shader variants that bodies with no atmosphere already bind
+  (*Addendum: the atmosphere's structure, at runtime*, there) would draw every body, and the
+  limb shells would not be drawn.
 - **Report the glow threshold mismatch upstream** (*Render height*, above): the pass computes
   levels above 0.01, the tonemapper samples levels above 0.0001. A 4.6 regression from
   godotengine/godot#110077; 4.5 computed every level above 0. Once Godot makes them agree,

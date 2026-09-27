@@ -59,6 +59,20 @@ static var cube_shader_variants: Dictionary[StringName, StringName] = {
 	&"surface_shader": &"surface_cube_shader",
 	&"cloud_shell_shader": &"cloud_shell_cube_shader",
 }
+## Maps a surface/shell shader, after its [member cube_shader_variants] swap, to the variant
+## for a body with no atmosphere: the same shader with [code]_atmosphere.gdshaderinc[/code]
+## compiled down to no-ops, which renders such a body identically and faster. A body is airless
+## when [method get_atmosphere_overrides] finds nothing in its shell specs, and the swap is made
+## here, so a spec's [code]shader[/code] is the one [IVShellsModel] binds and [IVShaderWarmup]
+## warms. Remove an entry to keep the full shader for every body. See THE AIRLESS VARIANT in
+## [code]_atmosphere.gdshaderinc[/code].
+static var airless_shader_variants: Dictionary[StringName, StringName] = {
+	&"surface_shader": &"surface_airless_shader",
+	&"surface_cube_shader": &"surface_cube_airless_shader",
+	&"cloud_shell_shader": &"cloud_shell_airless_shader",
+	&"cloud_shell_cube_shader": &"cloud_shell_cube_airless_shader",
+	&"band_pattern_shader": &"band_pattern_airless_shader",
+}
 ## [code]shells.tsv[/code] columns that are NOT [StandardMaterial3D] properties (read
 ## explicitly into the shell spec). Every other column is set on the shell material
 ## directly by [IVShellsModel] — to add a material override, just add that property's
@@ -131,6 +145,20 @@ var _range_tag_regex := RegEx.new()
 var _model_scale_regex := RegEx.new()
 
 
+## Returns the [code]atm_*[/code] columns of the overlay shells in [param shell_specs] (from
+## [method get_body_shell_specs]): the atmosphere authored on a body's limb row, which
+## [IVShellsModel] pushes to every shader shell of the body. Empty for a body with no
+## atmosphere, whose shells take their [member airless_shader_variants].
+static func get_atmosphere_overrides(shell_specs: Array) -> Dictionary[StringName, Variant]:
+	var atmosphere: Dictionary[StringName, Variant] = {}
+	for shell_index in range(1, shell_specs.size()):
+		var overrides: Dictionary = shell_specs[shell_index][&"overrides"]
+		for field: StringName in overrides:
+			if field.begins_with("atm_"):
+				atmosphere[field] = overrides[field]
+	return atmosphere
+
+
 func _init() -> void:
 	IVStateManager.core_initialized.connect(_on_core_inited)
 
@@ -176,6 +204,8 @@ func get_body_model_scale(body_name: StringName) -> float:
 ## [Dictionary] with keys [code]channels, tag, scale, shader, process, process_args, is_sun,
 ## cast_shadow, overrides[/code]. [code]tag[/code] is the body's own name for the shell (e.g.
 ## [code]CLOUDS[/code]), empty for a shell 0 taken from the body's surface class.
+## [code]shader[/code] is the one that will be bound, its [member cube_shader_variants] and
+## [member airless_shader_variants] swaps already made.
 ## Built from the body's [code]shells[/code] field and the [code]shells[/code] table;
 ## shell 0 falls back to the [code]shells.tsv[/code] row of the body's [code]surface_class[/code]
 ## when the body has no [code]shell0[/code] row of its own. Consumed by [IVShellsModel].
@@ -561,6 +591,14 @@ func _load_body_resources() -> void:
 				var ranges: Dictionary = shell_channel_ranges.get(file_tag, {})
 				shell_specs.append(_read_shell_spec(channels, ranges, overlay_row,
 						overlay_tags[overlay_index]))
+
+			# Some GPU compilers slow a shader for code it never runs, so a body with no
+			# atmosphere binds the variant of each shell shader that carries none.
+			if get_atmosphere_overrides(shell_specs).is_empty():
+				for spec: Dictionary in shell_specs:
+					var shader_name: StringName = spec[&"shader"]
+					if airless_shader_variants.has(shader_name):
+						spec[&"shader"] = airless_shader_variants[shader_name]
 
 			# A surface with no color map would otherwise render white (an unbound sampler,
 			# or the StandardMaterial3D default). Hand IVShellsModel the surface class's

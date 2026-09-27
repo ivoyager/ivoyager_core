@@ -315,15 +315,17 @@ field is in the opening view, so it has compiled before this node runs. Set
 `extra_shader_names` (keys in `IVGlobal.resources`) for it, and for a project's own shaders;
 `warm_core_shaders = false` turns the automatic selection off entirely.
 
-In the Planetarium this selects **14 shaders** where the sweep took 16, and the two it drops are
-`cloud_shell_shader` and `stars_shader`. `cloud_shell_shader` is the one the project genuinely
-never draws: only `PLANET_EARTH_CLOUDS` and `PLANET_NEPTUNE_CLOUDS` name it, both bodies ship
-cubemap decks, and unlike a surface a cloud shell cannot arise with no channels at all. Against
-the table above that is 3.5 s plus a further specialization, so roughly 5 s of the 11 s warm-up
-line below -- inferred from those figures, not separately measured. Note that `surface_shader`
-is *not* in that category and never was: a shell with no channels keeps the table-named shader,
-and 29 of ~190 bodies have a cubemap, so the plain `surface.gdshader` is what every
-fallback-coloured moon draws.
+In the Planetarium this selects **17 shaders** under Forward+ -- 15 under Compatibility, which
+has no id overlays -- of the 21 spatial shaders in `IVGlobal.resources`, and the four it leaves
+out are ones the project never draws. `stars_shader` is the case above. `cloud_shell_shader` and
+its airless variant are named only by `PLANET_EARTH_CLOUDS` and `PLANET_NEPTUNE_CLOUDS`, both of
+which ship cubemap decks, and unlike a surface a cloud shell cannot arise with no channels at
+all; against the table above that saving was 3.5 s plus a further specialization, roughly 5 s
+of the 11 s warm-up line below, inferred from those figures rather than separately measured.
+And the full `surface_shader` would be bound only by a body with an atmosphere and equirect
+maps, which none of the four has. Its airless variant is the opposite case: a shell with no
+channels keeps the table-named shader, and 29 of ~190 bodies have a cubemap, so
+`surface.airless.gdshader` is what every fallback-coloured moon draws.
 
 Its `trigger` picks the moment, and the two cases differ in what they can reach:
 
@@ -440,15 +442,21 @@ set, at the "after" figures:
 
 | edited file | shaders hit | Compatibility |
 |---|---|---|
-| `_atmosphere.gdshaderinc` | 6 | **22 s** (was 88 s) |
-| `_sun_occlusion.gdshaderinc` | 7 | **23 s** (was 88 s) |
-| `_photometry.gdshaderinc` | 7 | **20 s** (was 63 s) |
+| `_atmosphere.gdshaderinc` | 11 | **22 s** (was 88 s) |
+| `_sun_occlusion.gdshaderinc` | 12 | **23 s** (was 88 s) |
+| `_photometry.gdshaderinc` | 11 | **20 s** (was 63 s) |
 | `body_psf.gdshader` | 1 | **1.1 s** |
 
 `_display`, `_farwarp` and `_point_spread_function` reach nearly every shader in the plugin, so
-editing one of those costs roughly the whole 25 s; `_detail.gdshaderinc` reaches seven and costs
+editing one of those costs roughly the whole 25 s; `_detail.gdshaderinc` reaches twelve and cost
 about 24 s. With the warm-up in place the whole of that is paid on the loading screen of the
 next Compatibility run.
+
+The counts are the current layout's, in which each disc shader is a body include
+(`_surface.gdshaderinc` and the rest) that a full and an airless wrapper both compile; editing a
+body costs both. The times are this machine's of 2026-09-02, before *The atmosphere's structure*
+rebuilt the atmosphere and gave each disc shader its airless twin, and have not been taken again
+here.
 
 
 ## Where the caches are
@@ -711,9 +719,13 @@ atmosphere 24 to 46 % slower; through ANGLE, the web's path, the atmosphere itse
 ANGLE on the GTX, against 5.1 s for v0.2's whole shader, and that floor is the photometry kernel,
 the point-spread function, the occlusion and four bicubic cube samples. The receiver's helpers
 add 1.0 s to it, `atm_disc_air()` 9.9 s, and the two together 12.9 s -- FXC's cost still grows
-faster than the code does. Every program now compiles well inside Chrome's watchdog; but a first
-web visit still compiles every shader the opening view and the warm-up draw, the six above take
-about 100 s of this laptop's CPU between them, and a slower CPU pays more. The tier that leaves
+faster than the code does. A body with no atmosphere now binds a shader at about that floor: the
+airless variants take 5.0 to 8.8 s to a first draw through ANGLE here (*Addendum: the
+atmosphere's structure, at runtime* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)). Every
+program compiles well inside Chrome's watchdog; but a first web visit still compiles every shader
+the opening view and the warm-up draw, and the atmosphere shaders the Planetarium draws -- the
+limb, the full disc shaders its four atmospheres use and the airless ones for everything else --
+take about 90 s of this laptop's CPU between them, more on a slower one. The tier that leaves
 the quadrature out of the web build stays on the *TODO* in
 [PHOTOMETRIC_MODEL.md](PHOTOMETRIC_MODEL.md).
 

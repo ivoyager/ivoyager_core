@@ -499,8 +499,9 @@ func _build_shader_material(shader_name: StringName, channels: Dictionary,
 	# uniforms, and each shells.tsv override column feeds the uniform of the same name
 	# (so e.g. a "clouds_relief" column tunes the shader per body); a column
 	# that isn't a uniform is ignored. The shader owns its own blending.
-	# The spec names the cubemap variant already where the channels are cubemaps; the
-	# asset format decides that and IVAssetPreloader resolves it (cube_shader_variants).
+	# The spec names the variant already -- the cubemap one where the channels are cubemaps,
+	# the airless one where the body has no atmosphere -- as IVAssetPreloader resolves them
+	# (cube_shader_variants, airless_shader_variants).
 	var resource: Resource = IVGlobal.resources.get(shader_name)
 	var shader := resource as Shader
 	if not shader:
@@ -705,12 +706,7 @@ func _propagate_atmosphere_overrides(shell_specs: Array) -> void:
 	# needs it: the limb draws it, and the surface and cloud shaders redden their direct light
 	# through it. Push each overlay row's atm_* columns to shell 0 and to every child (blind
 	# sets, as above). Runs after the children exist, which add_child guarantees.
-	var atmosphere: Dictionary[StringName, Variant] = {}
-	for shell_index in range(1, shell_specs.size()):
-		var overrides: Dictionary = shell_specs[shell_index][&"overrides"]
-		for field: StringName in overrides:
-			if field.begins_with("atm_"):
-				atmosphere[field] = overrides[field]
+	var atmosphere := IVAssetPreloader.get_atmosphere_overrides(shell_specs)
 	if atmosphere.is_empty():
 		return
 	var materials: Array[ShaderMaterial] = []

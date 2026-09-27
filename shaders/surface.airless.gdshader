@@ -1,4 +1,4 @@
-// surface.cube.gdshader
+// surface.airless.gdshader
 // This file is part of I, Voyager
 // https://ivoyager.dev
 // *****************************************************************************
@@ -19,6 +19,9 @@
 // *****************************************************************************
 shader_type spatial;
 
-// A lit surface for a shell 0, sampled from cubemaps. The body is _surface.cube.gdshaderinc,
-// which surface.cube.airless.gdshader shares for a body with no atmosphere.
-#include "_surface.cube.gdshaderinc"
+// surface.gdshader for a body with no atmosphere, which IVAssetPreloader binds in its place
+// (airless_shader_variants). ATM_AIRLESS makes _atmosphere.gdshaderinc's entry points the no-
+// ops such a body gets from them anyway, so the shader carries none of the atmosphere's code;
+// see THE AIRLESS VARIANT in that file's header.
+#define ATM_AIRLESS
+#include "_surface.gdshaderinc"

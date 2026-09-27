@@ -55,6 +55,16 @@ var preloads: Dictionary[StringName, Resource] = {
 	surface_cube_shader = preload("res://addons/ivoyager_core/shaders/surface.cube.gdshader"),
 	# Textureless procedural surface; no cube variant, because it samples no texture.
 	band_pattern_shader = preload("res://addons/ivoyager_core/shaders/band_pattern.gdshader"),
+	# The above for a body with no atmosphere (IVAssetPreloader.airless_shader_variants).
+	cloud_shell_airless_shader = preload(
+			"res://addons/ivoyager_core/shaders/cloud_shell.airless.gdshader"),
+	cloud_shell_cube_airless_shader = preload(
+			"res://addons/ivoyager_core/shaders/cloud_shell.cube.airless.gdshader"),
+	surface_airless_shader = preload("res://addons/ivoyager_core/shaders/surface.airless.gdshader"),
+	surface_cube_airless_shader = preload(
+			"res://addons/ivoyager_core/shaders/surface.cube.airless.gdshader"),
+	band_pattern_airless_shader = preload(
+			"res://addons/ivoyager_core/shaders/band_pattern.airless.gdshader"),
 	stars_shader = preload("res://addons/ivoyager_core/shaders/stars.gdshader"),
 	# Textureless procedural photosphere; no cube variant, because it samples no texture.
 	photosphere_shader = preload("res://addons/ivoyager_core/shaders/photosphere.gdshader"),

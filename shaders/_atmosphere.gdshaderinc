@@ -92,6 +92,14 @@
 // the air IN FRONT of itself, through atm_disc_air(); the limb shader calls atm_limb(),
 // which is the beyond-limb rays alone and discards the rest.
 //
+// THE AIRLESS VARIANT. A shader that defines ATM_AIRLESS before including this file -- each
+// disc shader's .airless twin, which IVAssetPreloader binds for a body with no atmosphere
+// (airless_shader_variants) -- gets those entry points as the no-ops such a body gets from the
+// full ones anyway, and none of the rest of this file, which some GPU compilers make an airless
+// body pay for without running it. The uniforms stay, so the two bind alike. Never give it a body
+// with an atmosphere: that body would draw airless. See *Addendum: the atmosphere's structure, at
+// runtime* in GRAPHICS_PROFILING.md.
+//
 // THE COMPOSITING SPLIT. A ray that meets the disc is composited by the DISC'S OWN
 // SHADERS, not by the limb shell: atm_disc_air() hands each of them the path radiance in
 // front of its fragment and the LUMA of the disc's view transmittance, which the shader
@@ -149,6 +157,42 @@ uniform vec3 atm_sky_bend = vec3(0.0);   // its curvature; NEGATIVE, which is wh
 uniform float atm_intensity = 1.0;  // nonphysical taste: radiance multiplier (gated, see header)
 uniform float atm_thickness = 1.0;  // nonphysical taste: altitude-scale multiplier (gated)
 global uniform float iv_limb_scale; // 1.0 = taste multipliers act; 0.0 = physical, they are 1.0
+
+float atm_luma(vec3 c) {
+	return dot(c, vec3(0.2126, 0.7152, 0.0722));
+}
+
+// ------------------------------------------------------------------ the airless variant
+
+// THE AIRLESS VARIANT (see the header): the disc shaders' entry points as no-ops.
+#ifdef ATM_AIRLESS
+
+bool atm_present() {
+	return false;
+}
+
+float atm_far_floor() {
+	return 0.0;
+}
+
+void atm_disc_air(vec3 camera_local, vec3 fragment_local, vec3 sun_local, float sun_ang,
+		float far_floor, out vec3 path, out float behind_luma) {
+	path = vec3(0.0);
+	behind_luma = 1.0;
+}
+
+void atm_receiver_light(float mu, float mu0, out vec3 tint, out vec3 sun_transmittance,
+		out vec3 plane_diffuse) {
+	tint = vec3(1.0);
+	sun_transmittance = vec3(1.0);
+	plane_diffuse = vec3(0.0);
+}
+
+vec3 atm_sky_excess(float mu0, vec3 plane_diffuse, float sky_response, float beam_response) {
+	return vec3(0.0);
+}
+
+#else
 
 // ---------------------------------------------------------------------------- constants
 
@@ -218,9 +262,9 @@ const float ATM_ABEL[37] = {
 
 // Whether this shell HAS an atmosphere: the geometry is fed and some layer carries optical
 // depth. IVShellsModel feeds body_radius_km to every shader shell, airless bodies included,
-// so the radius alone does not answer this; the taus do. The callers that must be a true
-// no-op on an airless body — atm_disc_air() and the per-vertex atm_far_floor() — gate on
-// it; the sampled-transmittance functions stay numerical no-ops as before.
+// so the radius alone does not answer this; the taus do. atm_disc_air(), atm_receiver_light()
+// and the per-vertex atm_far_floor() gate on it, and atm_sky_excess() is zero on the zeros they
+// hand it, so an airless body gets exactly what the airless variant's no-ops return.
 bool atm_present() {
 	return body_radius_km > 0.0
 			&& dot(atm_gas_tau + atm_haze_tau + atm_layer_tau, vec3(1.0)) > 0.0;
@@ -1136,10 +1180,6 @@ void atm_limb(vec3 camera_local, vec3 fragment_local, vec3 sun_local, float sun_
 	path *= mix(1.0, atm_intensity, iv_limb_scale);
 }
 
-float atm_luma(vec3 c) {
-	return dot(c, vec3(0.2126, 0.7152, 0.0722));
-}
-
 // The disc branch, for the shells that ARE the disc's stack (see THE COMPOSITING SPLIT):
 // the air in front of a surface, band or cloud fragment, composited by that fragment
 // itself. Returns the path radiance of the ray from the camera to the disc (I/F, taste
@@ -1335,7 +1375,7 @@ void atm_receiver_light(float mu, float mu0, out vec3 tint, out vec3 sun_transmi
 	tint = vec3(1.0);
 	sun_transmittance = vec3(1.0);
 	plane_diffuse = vec3(0.0);
-	if (body_radius_km <= 0.0) {
+	if (!atm_present()) {
 		return;
 	}
 	AtmLayers L = atm_layers(0.0);
@@ -1379,3 +1419,5 @@ void atm_receiver_light(float mu, float mu0, out vec3 tint, out vec3 sun_transmi
 	}
 	tint = own_view / max(atm_luma(disc_view), 1.0e-6);
 }
+
+#endif // ATM_AIRLESS

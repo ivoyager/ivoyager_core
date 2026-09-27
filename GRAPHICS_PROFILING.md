@@ -57,9 +57,10 @@ in the rendered image, measured in 8-bit display codes on screenshots taken befo
    distance-selected (see *Addendum: the sphere LOD ladder*).
 6. **The atmosphere was rebuilt on 2026-09-27 for what it costs to compile, and it runs at a
    different speed through every compiler measured**: faster through NVIDIA's GL, level under
-   Forward+, mixed through Intel's GL and dearer through ANGLE. The largest runtime lever it leaves
-   is a shader variant for the bodies with no atmosphere, which carry all of its code today and
-   run none of it (see *Addendum: the atmosphere's structure, at runtime*).
+   Forward+, mixed through Intel's GL and dearer through ANGLE. The bodies with no atmosphere
+   now draw with airless variants of their shaders, which carry none of it: identical on screen,
+   and on the iGPU in a quarter to three fifths of the time (see *Addendum: the atmosphere's
+   structure, at runtime*).
 
 
 ## Where the frame goes today
@@ -407,7 +408,9 @@ micro-optimizations landed anywhere from -10% to +15% on the iGPU, depending on 
 are gating airless bodies out of the atmosphere functions, and two Newton steps in place of three
 in the Compatibility colour write. Intel's code generation for shaders this large is erratic.
 Structural changes are what paid every time: fewer nodes and taps, fewer fragments, fewer
-vertices, less sky.
+vertices, less sky -- and, since, less code, where a runtime gate was not enough: an airless body's
+shader now carries none of the atmosphere at all (*Addendum: the atmosphere's structure, at
+runtime*).
 
 The same review found a likely bug: `atm_ring_pixel()` doesn't normalize `path` by `weight_sum`,
 and its midpoint tent weights sum to 2 at one tap and 10/9 at three. That lets a close-range ring
@@ -434,8 +437,8 @@ land on the option set, and this is where they come from:
 - **An Off tier is what would shorten a first visit**, and it has to leave the quadrature out of
   the disc shaders as well as out of the limb shader: `atm_disc_air()` and the helpers are most of
   a disc shader's compile. A reduced tier does not help here: what compiles is code volume, not
-  iteration count. An airless shader variant, worth building for its own sake, would be most of
-  the machinery (*Addendum: the atmosphere's structure, at runtime*).
+  iteration count. The airless shader variants, built for their own sake, are most of the
+  machinery (*Addendum: the atmosphere's structure, at runtime*).
 - **Atmosphere quality therefore earns a restart option rather than a runtime one.** A session
   then compiles only the tier it uses, and the warm-up covers it.
 
@@ -461,7 +464,8 @@ what a runtime tier under it could still give.
 
 - Renderer (desktop): Forward+ / Compatibility, default by adapter (built)
 - Atmosphere Off (the tier that omits the quadrature from the limb and the disc shaders alike, and
-  the only one needing a restart; every body on the airless variant the runtime addendum proposes)
+  the only one needing a restart; every body on the airless shader variants of the runtime
+  addendum)
 - Star catalogue: V 15 / V 11 / V 9.5, shown as 2.6 million / 940,000 / 220,000 stars (built)
 - Cloud decks: on / off
 
@@ -990,18 +994,45 @@ atmosphere compiled out of the surface shaders -- which renders an airless body 
   takes 6 to 15 % off. That column predates the Vulkan exception above, which moves these views
   by at most 6 % either way.
 
-**So an airless shader variant is the largest runtime lever this rebuild leaves**, on every GPU
-and renderer measured, and the only one that turns the Intel result from a regression into a gain.
-It fits `IVAssetPreloader.cube_shader_variants`, which already swaps a shell's table-named shader
-for the variant its assets need, and IVShaderWarmup warms whatever a spec resolves to; a body is
-airless when no shell of its carries `atm_*` depths. What it costs is layout and compiling. A
-`.gdshader` cannot include another, so each disc shader's body would move into an include behind
-two thin wrappers, one of them defining a switch that `_atmosphere.gdshaderinc` answers with
-no-op entry points. A first visit would compile the airless programs as well, which through ANGLE
-here is about what `surface.cube` takes with no atmosphere call, 7.3 s to a first draw, per disc
-shader in use. Not built. The same machinery is most of the Off tier the web wants (*First load
-on the web*): with every body on its airless variant and the limb shells not drawn, a first visit
-would compile none of the quadrature.
+**So every disc shader now has an airless variant**, built on 2026-09-27 as the largest runtime
+lever the rebuild left. Each shader's body moved into an include (`_surface.gdshaderinc` and the
+rest) behind two thin wrappers, and the `.airless` one defines `ATM_AIRLESS`, which
+`_atmosphere.gdshaderinc` answers with no-op entry points (THE AIRLESS VARIANT in its header).
+`IVAssetPreloader.airless_shader_variants` binds one wherever a body's overlay rows carry no
+`atm_*` column -- the same test IVShellsModel applies before it propagates an atmosphere, now one
+function for both -- beside the `cube_shader_variants` swap, and IVShaderWarmup warms whatever a
+spec resolves to. In the Planetarium that is every body but Earth, Venus, Mars and Titan: the
+surfaces of all the rest, Uranus' and Neptune's banded ones among them, and Neptune's cloud deck.
+
+It renders them identically. Screenshots of the eight views below and of Venus, Mars, Titan and
+Earth close up, against the build before it on the GTX, are bit-identical on Compatibility for
+every airless body, and on Forward+ for all but 4 pixels of Jupiter at 1 code, the floor two
+processes show anyway. GPU milliseconds per frame, before and after, the builds interleaved:
+
+| View | Intel, Compatibility | GTX, Compatibility | GTX, Forward+ |
+|---|---|---|---|
+| Moon at 3 radii | 28.2 → 11.0 | 1.27 → 0.97 | 2.60 → 2.46 |
+| Moon at 1.5 radii | 67.9 → 18.1 | 2.75 → 1.59 | 4.28 → 3.66 |
+| Mercury at 3 radii | 28.0 → 10.8 | 1.33 → 0.96 | 2.55 → 2.55 |
+| Jupiter at 3 radii | 39.0 → 22.9 | 2.36 → 2.23 | 3.96 → 4.02 |
+| Europa at 3 radii | 35.0 → 13.8 | 1.87 → 1.32 | 2.96 → 2.74 |
+| Uranus at 3 radii | 31.3 → 15.6 | 2.08 → 1.54 | 3.16 → 2.94 |
+| Neptune at 3 radii | 48.9 → 21.5 | 2.50 → 1.95 | 4.54 → 3.72 |
+| Earth at 3 radii, full shaders in both | 63.7 → 65.3 | 4.38 → 4.40 | 5.33 → 5.24 |
+
+- **On the Intel iGPU these views now take 0.27 to 0.59 of their time**, well under what the old
+  include drew them in too. The figures are the first of two rounds: in the second the build
+  before fell into this driver's slow state (*Caveats*) and the airless one did not.
+- **Through NVIDIA's GL they take 0.58 to 0.95, and under Forward+ 0.82 to 1.01**, the Earth
+  control holding within 3 % on every path.
+- **A first visit compiles about the same.** An airless shader takes 5.0 to 8.8 s to a first
+  draw through ANGLE here, against 16 to 20 s for the full ones, and in the Planetarium no body
+  draws the full `surface.gdshader` any more: the web's first visit drops that one and adds four
+  airless ones, about 7 s on balance on this CPU.
+
+The same machinery is most of the Off tier the web wants (*First load on the web*): with every
+body on its airless variant and the limb shells not drawn, a first visit would compile none of
+the quadrature.
 
 A second variant would recover Earth: a disc shader without the far half and the thin layer, for
 a body whose atmosphere has neither to show. Earth is that body among the four: it has no thin
@@ -1059,5 +1090,5 @@ GTX through its GL:
   count.
 
 **So there is no runtime tier worth adding below Reduced, and nothing gained by redefining it.**
-What lowers the floor is compiling and carrying less, not iterating less: the airless variant and
-the Off tier built on it, both in the runtime addendum above.
+What lowers the floor is compiling and carrying less, not iterating less: the airless shader
+variants, now built, and an Off tier on top of them, both in the runtime addendum above.
