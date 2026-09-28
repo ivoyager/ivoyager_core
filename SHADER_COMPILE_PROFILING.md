@@ -193,6 +193,21 @@ The per-shader figure is not one program. Read from `drivers/gles3/shader_gles3.
   mask misses the instance *clears* `USE_ADDITIVE_LIGHTING` while leaving the PSSM and PCF bits
   set: a different program, not a cheaper one. That is the whole reason one shader compiles a
   different program per size domain.
+- **`USE_RADIANCE_MAP` switches on once, for everything.** The base color pass sets it for every
+  instance, unshaded ones included, once the sky has a radiance map (`sky->radiance != 0` in
+  `rasterizer_scene_gles3.cpp`'s `_render_list_template()`; additive passes clear it).
+  `_setup_sky()` allocates the map in the first frame that uses the sky -- here, the first drawn
+  with `BG_SKY` -- and nothing but a radiance-size change or the Sky's release frees it. So a
+  session's first sky frame gives every scene shader a new key, and each compiles a second program
+  the next time it is drawn. In the Planetarium that frame falls in the start sequence, when
+  `IVWorldEnvironment` adds the starmap on `assets_preloaded`: the cubemap filter that builds the
+  map compiled 1.2-1.6 s after `Loaded assets` in three runs on 2026-09-28 (native GL twice, ANGLE
+  once), long before the warm-up, every color program the start and the warm-up compiled carried
+  the bit, and a flight to Titan afterwards compiled none. What could move that frame is
+  `skip_invisible_starmap`, which turns the sky off while exposure has metered it black. A skip
+  engaging before the sky's first draw would have the warm-up compile every shader without the
+  bit, and the first view dark enough to show the Milky Way would compile everything on screen
+  again, in flight.
 - **Compile is synchronous.** `glLinkProgram` is followed at once by the `GL_LINK_STATUS` query;
   there is no use of `KHR_parallel_shader_compile`, and the queue-and-use-defaults branch is an
   `if (false)` TODO. Nothing short of an engine patch changes that.

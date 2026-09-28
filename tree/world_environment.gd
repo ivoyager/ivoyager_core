@@ -221,6 +221,12 @@ func _update_glow_levels() -> void:
 # the panorama's brightest texel to be. energy_multiplier is read from the material rather
 # than taken as IVExposureManager.sky_energy so that whatever last wrote it is what this
 # answers to.
+#
+# WARNING: Under Compatibility, the first frame that draws the sky adds USE_RADIANCE_MAP to
+# every scene shader's specialization for the rest of the session. The start sequence draws
+# it before IVShaderWarmup runs, so the warm-up compiles with it. A skip that engaged before
+# the sky's first draw would move a recompile of everything in view into flight. See
+# Specializations in SHADER_COMPILE_PROFILING.md.
 func _update_starmap_skip() -> void:
 	var skip := false
 	if skip_invisible_starmap and IVExposureManager.physical_active:
