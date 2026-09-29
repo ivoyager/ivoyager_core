@@ -561,6 +561,48 @@ What frame rate each tier then delivers has not been measured; the reliefs above
 option's own.
 
 
+## A setting the machine can't carry
+
+Built on 2026-09-29. An option too heavy for a machine can leave its user unable to reach Options
+to undo it. Options applies a change at once but writes it only on Confirm Changes, so a live
+change that crashes or freezes the app is gone at the next start. Three things get past that:
+
+- **A restart option is confirmed blind.** Atmosphere into or out of Min or Off, Star Catalog and
+  Renderer show their cost only at the next start. Through ANGLE on the UHD, Min to Normal is a
+  72 s first compile and then 159 ms frames at Earth (*Addendum: the Off tier, built*).
+- **A confirmed option can be fine where it was tried and not elsewhere**, and the Planetarium
+  reopens the last view at every start, so a view that brings a machine down does so every time.
+- **A crash, a GPU reset or a lost WebGL context gives no frames at all**, and a web visitor has
+  no practical way to clear the site's storage.
+
+`IVCoreSettings.enable_graphics_rescue`, on by default outside editor builds, answers each:
+
+- **A start that never finishes resets the next one.** `IVSettingsManager` marks each start
+  unfinished in `start_marker.ivbinary`, beside the settings cache and before anything is drawn,
+  and finished after 10 s of running simulator, a quit or a window close. A start that finds the
+  last one unfinished restores `IVSettingsManager.graphics_settings` to the fitted defaults, if
+  any differed, and IVGraphicsRescue says why. A crash at a restored view recurs within those
+  10 s, so a crash loop repeats once at most. The false positive is a start ended from outside in
+  its first seconds, a killed process or a closed tab, which costs a user their graphics choices
+  with a notice. Editor builds are excluded because stopping a run from the editor is exactly
+  that, and a deliberate restart or reload that skips `IVStateManager.quit()`, as the
+  Planetarium's web-app update does, calls `IVSettingsManager.mark_start_finished()` first.
+- **A crawl gets an offer.** IVGraphicsRescue asks once a session whether to restore the fitted
+  defaults when more than half the frames over 10 s take longer than 250 ms and a graphics
+  setting differs from its default. 250 ms sits above every fitted-default frame measured (Min
+  at Earth 1.6 radii through ANGLE takes 128 ms), so the offer marks a choice beyond the fit on
+  a machine near the limit of use; faster than that, Options stays within reach. Frames drawn
+  while a popup is open or Options holds an unconfirmed change don't count.
+- **A reset on request.** User argument `--reset-graphics` restores them on any start. The
+  Planetarium's web page passes it for a URL ending `#reset-graphics`, and on a lost WebGL
+  context, where Godot's own page says only to reload and the same settings would likely lose it
+  again, offers a reload that does.
+
+Not yet tried in a browser: Godot saves `user://` to IndexedDB between frames, so the start
+marker should land well before the first shader compiles, but a tab lost in its first frames may
+not have it.
+
+
 ## Caveats
 
 - **One machine.** Treat ratios and rankings as the finding, and absolute milliseconds as this

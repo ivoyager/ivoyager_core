@@ -99,6 +99,12 @@ var gui_size_multipliers: Array[float] = [0.625, 0.75, 1.0, 1.25]
 ## [IVGraphicsManager]. False leaves 1 GUI pixel to 1 screen pixel. Assumes the project's
 ## stretch mode is disabled.
 var apply_display_scale := true
+## Keeps a user from being stranded by a graphics setting the machine can't carry: a start that
+## crashes or freezes has the next one restore the graphics settings to their defaults (see
+## [member IVSettingsManager.graphics_settings]), and [IVGraphicsRescue] offers them when
+## frames crawl. False by default in editor builds, where a run stopped from the editor would
+## count as a failed start. False costs nothing (the rescue node is never instantiated).
+var enable_graphics_rescue := !OS.has_feature("editor")
 
 ## Start time as an array of [year, month, day, hour, minute, second]. Used by
 ## [IVTimekeeper].

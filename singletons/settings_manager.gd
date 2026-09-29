@@ -39,6 +39,12 @@ extends Node
 ## session actually uses with [method set_running_value]. [method
 ## is_restart_pending] then tells whether the current settings need a restart, and
 ## [method is_restart_pending_for] whether one setting does.[br][br]
+##
+## With [member IVCoreSettings.enable_graphics_rescue], a start that crashes, freezes or is
+## killed before it finishes has the next start restore [member graphics_settings] to their
+## defaults, and [member graphics_reset] says so. User argument [constant
+## RESET_GRAPHICS_ARGUMENT] asks for the same on any start. See [i]A setting the machine can't
+## carry[/i] in [code]GRAPHICS_PROFILING.md[/code].[br][br]
 
 
 
@@ -62,9 +68,29 @@ enum GraphicsTarget {
 	MODERN_GPU,
 }
 
+## Why this start restored [member graphics_settings] to their defaults; see [member
+## graphics_reset].
+enum GraphicsReset {
+	## It didn't, or none differed from its default.
+	NONE,
+	## The last start never finished; see [member IVCoreSettings.enable_graphics_rescue].
+	FAILED_START,
+	## The command line asked, with [constant RESET_GRAPHICS_ARGUMENT].
+	REQUESTED,
+}
+
+## A command-line user argument (after [code]--[/code]) that has this start restore [member
+## graphics_settings] to their defaults.
+const RESET_GRAPHICS_ARGUMENT := "--reset-graphics"
+## Seconds of running simulator after which a start counts as finished. A start that ends sooner,
+## other than by quitting, counts as failed; see [member IVCoreSettings.enable_graphics_rescue].
+const START_CHECK_TIME := 10.0
+
 
 ## Name of the settings cache file.
 var file_name := "settings.ivbinary"
+## Name of the file, beside the settings cache, that records whether the last start finished.
+var start_marker_file_name := "start_marker.ivbinary"
 ## A new value obsoletes existing cache files. Update only when old cache files
 ## might be problematic.
 var file_version := "0.0.23"
@@ -75,6 +101,14 @@ var file_version := "0.0.23"
 ## wherever it runs. A setting the project gives its own default with [method
 ## set_default] keeps it on every machine.
 var graphics_target := GraphicsTarget.NONE
+## Settings that decide what the GPU draws each frame: the ones [method
+## restore_graphics_defaults] restores, as does a start after a failed one. A project that adds
+## such a setting with [method set_default] should append it here.
+var graphics_settings: Array[StringName] = [&"atmosphere_quality", &"render_scale", &"msaa_3d",
+		&"fxaa", &"use_taa", &"shadow_resolution", &"star_catalog", &"renderer"]
+## Why this start restored [member graphics_settings] to their defaults, if it did. Valid after
+## [signal initialized].
+var graphics_reset := GraphicsReset.NONE
 
 
 var _defaults: Dictionary[StringName, Variant] = {
@@ -135,6 +169,11 @@ func _ready() -> void:
 	IVStateManager.core_init_preinitialized.connect(_on_core_init_preinitialized)
 
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		mark_start_finished()
+
+
 ## Add or change a default setting.
 ## For preinitializer script only! Defaults become read-only at cache init.
 ## Supply [param value] = null to remove a setting. A default set here holds on
@@ -188,6 +227,14 @@ func is_defaults() -> bool:
 	return _cache_handler.is_defaults()
 
 
+## Returns true if every one of [member graphics_settings] currently equals its default.
+func is_graphics_defaults() -> bool:
+	for key in graphics_settings:
+		if _defaults.has(key) and !_cache_handler.is_default(key):
+			return false
+	return true
+
+
 ## If [param suppress_caching] == true, be sure to call [method cache_now] later.
 func restore_default(key: StringName, suppress_caching := false) -> void:
 	_cache_handler.restore_default(key, suppress_caching)
@@ -196,6 +243,16 @@ func restore_default(key: StringName, suppress_caching := false) -> void:
 ## If [param suppress_caching] == true, be sure to call [method cache_now] later.
 func restore_defaults(suppress_caching := false) -> void:
 	_cache_handler.restore_defaults(suppress_caching)
+
+
+## Restores each of [member graphics_settings] to its default. If [param suppress_caching] ==
+## true, be sure to call [method cache_now] later.
+func restore_graphics_defaults(suppress_caching := false) -> void:
+	for key in graphics_settings:
+		if _defaults.has(key):
+			_cache_handler.restore_default(key, true)
+	if !suppress_caching:
+		_cache_handler.cache_now()
 
 
 ## Returns true if the in-memory settings match the cache file (i.e., no
@@ -234,6 +291,14 @@ func is_restart_pending_for(key: StringName) -> bool:
 	return _running_values.has(key) and _settings[key] != _running_values[key]
 
 
+## Records this start as finished before [constant START_CHECK_TIME] s of running simulator, so
+## the next start doesn't take it for a failed one. Call before a deliberate restart or page
+## reload that doesn't go through [method IVStateManager.quit].
+func mark_start_finished() -> void:
+	if IVCoreSettings.enable_graphics_rescue and _cache_handler:
+		_write_start_marker(false)
+
+
 func _on_core_init_preinitialized() -> void:
 	assert(!_cache_handler)
 	if graphics_target != GraphicsTarget.NONE:
@@ -241,7 +306,46 @@ func _on_core_init_preinitialized() -> void:
 	_defaults.make_read_only()
 	_cache_handler = IVCacheHandler.new(_defaults, _settings, file_name, file_version)
 	_cache_handler.current_changed.connect(_on_current_changed)
+	_check_last_start()
 	initialized.emit()
+
+
+func _check_last_start() -> void:
+	if OS.get_cmdline_user_args().has(RESET_GRAPHICS_ARGUMENT):
+		graphics_reset = GraphicsReset.REQUESTED
+	elif (IVCoreSettings.enable_graphics_rescue and _is_last_start_unfinished()
+			and !is_graphics_defaults()):
+		graphics_reset = GraphicsReset.FAILED_START
+	if graphics_reset != GraphicsReset.NONE:
+		restore_graphics_defaults()
+	if !IVCoreSettings.enable_graphics_rescue:
+		return
+	_write_start_marker(true)
+	IVStateManager.simulator_started.connect(_on_simulator_started, CONNECT_ONE_SHOT)
+	IVStateManager.about_to_quit.connect(mark_start_finished)
+
+
+func _on_simulator_started() -> void:
+	get_tree().create_timer(START_CHECK_TIME, true, false, true).timeout.connect(
+			mark_start_finished)
+
+
+func _is_last_start_unfinished() -> bool:
+	var file := FileAccess.open(_get_start_marker_path(), FileAccess.READ)
+	return file != null and file.get_var() == true
+
+
+func _write_start_marker(is_unfinished: bool) -> void:
+	var file := FileAccess.open(_get_start_marker_path(), FileAccess.WRITE)
+	if !file:
+		push_warning("Could not write %s: %s" % [_get_start_marker_path(),
+				error_string(FileAccess.get_open_error())])
+		return
+	file.store_var(is_unfinished)
+
+
+func _get_start_marker_path() -> String:
+	return IVCoreSettings.cache_dir.path_join(start_marker_file_name)
 
 
 func _fit_graphics_defaults() -> void:

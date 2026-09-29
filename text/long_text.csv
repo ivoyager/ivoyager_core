@@ -1,4 +1,8 @@
 id,en
+TXT_GRAPHICS_RESET_AFTER_FAILED_START,"The last start didn't finish, so the graphics settings
+are back to those recommended for this device."
+TXT_GRAPHICS_RESET_REQUESTED,The graphics settings are back to those recommended for this device.
+TXT_GRAPHICS_RESTART_TO_FINISH,Some graphics settings take effect only after a restart.
 TXT_HTML5_LOADING,"Building the solar system and loading graphics...
 
 This may take a while...
@@ -12,4 +16,6 @@ TXT_PBD_LONG,"Pale Blue Dot\n\nEarth as seen by Voyager 1 from a distance of 6.4
 TXT_PBD_SHORT,Pale Blue Dot\n\nEarth as seen by Voyager 1 from a distance of 6.4 billion kilometers
 TXT_PBD_HTML5_BOOT,Pale Blue Dot\n\nEarth as seen by Voyager 1 from a distance of 6.4 billion kilometers
 TXT_PWA_UPDATE_AVAILABLE,\n   A Planetarium update is available!   \n\n   Press 'Update' to download and run the new version.   \n   Press 'Continue' to continue using the old version.   \n
+TXT_Q_USE_RECOMMENDED_GRAPHICS,"The simulation is running slowly.
+Switch to the graphics settings recommended for this device?"
 TXT_VALID_3000BC_3000AD,Approximate planet positions are [url=https://ssd.jpl.nasa.gov/planets/approx_pos.html]valid from 3000 BC to 3000 AD[/url].

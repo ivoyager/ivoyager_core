@@ -73,7 +73,7 @@ signal selection_invalidated(name: StringName)
 ## visible size in logical pixels, the 2D GUI's; for the 3D render's, see [method
 ## IVGraphicsManager.get_render_size].
 signal viewport_size_changed(size: Vector2)
-## Emit from anywhere for [IVConfirmationDialog].
+## Emit from anywhere for [IVConfirmationDialog]. An empty [param cancel_txt] makes a notice.
 signal confirmation_required(text: StringName, action: Callable, stop_sim: bool,
 		title_txt: StringName, ok_txt: StringName, cancel_txt: StringName)
 ## Emit from anywhere for [IVMainMenuBasePopup].
