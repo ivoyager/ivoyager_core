@@ -33,7 +33,8 @@ extends Node
 ##
 ## A setting that takes effect only at startup can register the value the running
 ## session actually uses with [method set_running_value]. [method
-## is_restart_pending] then tells whether the current settings need a restart.[br][br]
+## is_restart_pending] then tells whether the current settings need a restart, and
+## [method is_restart_pending_for] whether one setting does.[br][br]
 
 
 
@@ -196,6 +197,13 @@ func is_restart_pending() -> bool:
 		if _settings[key] != _running_values[key]:
 			return true
 	return false
+
+
+## Returns true if setting [param key] is registered with [method set_running_value]
+## and now differs from the value the running session uses. Valid after [signal
+## initialized].
+func is_restart_pending_for(key: StringName) -> bool:
+	return _running_values.has(key) and _settings[key] != _running_values[key]
 
 
 func _on_core_init_preinitialized() -> void:

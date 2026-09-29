@@ -1,5 +1,5 @@
 id,en
-ATMOSPHERE_MIN,Min
+ATMOSPHERE_MIN,Minimum
 ATMOSPHERE_NORMAL,Normal
 ATMOSPHERE_REDUCED,Reduced
 BUTTON_45_DEG,45\u00B0
@@ -180,8 +180,7 @@ LABEL_FULLSCREEN,Full Screen
 LABEL_FXAA,Fast Approx. AA (FXAA)
 LABEL_GALACTIC_PERIOD,Galactic Period
 LABEL_GRAPHICS_PERFORMANCE,Graphics
-LABEL_GRAPHICS_REQUIRES_RESTART,Graphics (requires restart)
-LABEL_GRAPHICS_RESTART_REQUIRED,One or more Graphics settings require restart to take effect.
+LABEL_GRAPHICS_RESTART_REQUIRED,*One or more Graphics settings require restart to take effect.
 LABEL_GROUND,Ground
 LABEL_GUI,GUI
 LABEL_GUI_AND_HUD,GUI & HUD

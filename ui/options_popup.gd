@@ -42,7 +42,9 @@ extends PopupPanel
 ##
 ## A section with no options to show is hidden. While any setting registered with
 ## [method IVSettingsManager.set_running_value] differs from the value the running
-## session uses, a warning at the bottom says that a restart is needed.[br][br]
+## session uses, a warning at the bottom says that a restart is needed, and that
+## option's name turns the warning's color with an asterisk. Its tooltip should say
+## that it needs a restart.[br][br]
 ##
 ## [signal IVGlobal.options_requested] opens this popup, or closes it as Cancel
 ## does if it's open. See [member modal] for the two ways it can work.
@@ -83,7 +85,7 @@ extends PopupPanel
 	# column 1
 	[&"LABEL_SAVE_LOAD", &"LABEL_CAMERA", &"LABEL_SCREENSHOTS"],
 	# column 2
-	[&"LABEL_GUI_AND_HUD", &"LABEL_GRAPHICS_PERFORMANCE", &"LABEL_GRAPHICS_REQUIRES_RESTART"],
+	[&"LABEL_GUI_AND_HUD", &"LABEL_GRAPHICS_PERFORMANCE"],
 ]
 
 ## Section keys are the header labels used in [member layout]. Content of each
@@ -125,18 +127,16 @@ extends PopupPanel
 		[&"LABEL_SMALL_BODIES_POINT_SIZE", &"small_bodies_point_size"],
 		[&"LABEL_HIDE_HUDS_WHEN_CLOSE", &"hide_hud_when_close"],
 	],
-	LABEL_GRAPHICS_PERFORMANCE = [
+	LABEL_GRAPHICS_PERFORMANCE = [ # ordered as "All options, ranked" in GRAPHICS_PROFILING.md
 		[&"LABEL_ATMOSPHERE_QUALITY", &"atmosphere_quality"],
 		[&"LABEL_RENDER_SCALE", &"render_scale"],
+		[&"LABEL_RENDERER", &"renderer"],
+		[&"LABEL_STAR_CATALOG", &"star_catalog"],
 		[&"LABEL_SHADOW_RESOLUTION", &"shadow_resolution"],
 		[&"LABEL_MSAA", &"msaa_3d"],
 		[&"LABEL_FRAME_RATE_CAP", &"frame_rate_cap"],
 		[&"LABEL_FXAA", &"fxaa"],
 		[&"LABEL_TAA", &"use_taa"],
-	],
-	LABEL_GRAPHICS_REQUIRES_RESTART = [
-		[&"LABEL_RENDERER", &"renderer"],
-		[&"LABEL_STAR_CATALOG", &"star_catalog"],
 	],
 }
 
@@ -220,6 +220,7 @@ extends PopupPanel
 }
 
 var _enumerations: Dictionary[StringName, Dictionary] = {}
+var _option_names: Dictionary[StringName, HBoxContainer] = {} # built rows' name and restart mark
 var _suppress_close := true
 
 
@@ -348,9 +349,7 @@ func _remove_option(setting: StringName) -> void:
 
 
 func _build_content() -> void:
-	for child in _content_container.get_children():
-		_content_container.remove_child(child)
-		child.queue_free()
+	_clear_content()
 	for column_array in layout:
 		var headers := column_array.filter(_has_existing_option)
 		if headers.is_empty():
@@ -380,6 +379,13 @@ func _build_content() -> void:
 	_on_content_built()
 
 
+func _clear_content() -> void:
+	_option_names.clear()
+	for child in _content_container.get_children():
+		_content_container.remove_child(child)
+		child.queue_free()
+
+
 func _has_existing_option(header: StringName) -> bool:
 	for option_array: Array in section_content[header]:
 		var setting: StringName = option_array[1]
@@ -396,10 +402,21 @@ func _build_item(option_text: StringName, setting: StringName) -> HBoxContainer:
 		tooltip = option_compatibility_tooltips.get(setting, tooltip)
 	var setting_hbox := HBoxContainer.new()
 	setting_hbox.tooltip_text = tooltip
+	# The restart mark is its own Label so that the name keeps translating itself.
+	var name_hbox := HBoxContainer.new()
+	setting_hbox.add_child(name_hbox)
+	name_hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_hbox.add_theme_constant_override(&"separation", 0)
 	var label := Label.new()
-	setting_hbox.add_child(label)
-	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_hbox.add_child(label)
 	label.text = option_text
+	var restart_mark := Label.new()
+	name_hbox.add_child(restart_mark)
+	restart_mark.text = "*"
+	restart_mark.add_theme_color_override(&"font_color",
+			_restart_warning.get_theme_color(&"font_color"))
+	restart_mark.hide()
+	_option_names[setting] = name_hbox
 	var default_button := Button.new()
 	default_button.text = default_button_text
 	default_button.icon = default_button_icon
@@ -492,6 +509,17 @@ func _on_content_built() -> void:
 
 
 func _update_restart_warning() -> void:
+	var warning_color := _restart_warning.get_theme_color(&"font_color")
+	for setting in _option_names:
+		var name_hbox := _option_names[setting]
+		var label: Label = name_hbox.get_child(0)
+		var restart_mark: Label = name_hbox.get_child(1)
+		var is_setting_pending := IVSettingsManager.is_restart_pending_for(setting)
+		restart_mark.visible = is_setting_pending
+		if is_setting_pending:
+			label.add_theme_color_override(&"font_color", warning_color)
+		else:
+			label.remove_theme_color_override(&"font_color")
 	var is_restart_pending := IVSettingsManager.is_restart_pending()
 	if _restart_warning.visible == is_restart_pending:
 		return
@@ -557,9 +585,7 @@ func _on_popup_hide() -> void:
 		show.call_deferred()
 		return
 	_suppress_close = true
-	for child in _content_container.get_children():
-		_content_container.remove_child(child)
-		child.queue_free()
+	_clear_content()
 	if stop_sim:
 		IVStateManager.allow_run(self)
 

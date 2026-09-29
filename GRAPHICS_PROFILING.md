@@ -288,11 +288,11 @@ What Compatibility gives up on desktop:
 - FXAA and TAA
 - Local shadow maps (already off for Compatibility in the Planetarium)
 
-**Built since** as the user option Renderer (setting `renderer`): Forward+ or Compatibility, in a
-"Graphics (requires restart)" Options section, and on desktop only. IVGraphicsManager writes the
-choice to the file the project names in `application/config/project_settings_override`, so it takes
-effect at the next start, and a Forward+ run records the GPU's type there for `IVGlobal`, since the
-Compatibility renderer cannot read it. The default by adapter is the project's to set: the
+**Built since** as the user option Renderer (setting `renderer`): Forward+ or Compatibility, at
+restart, and on desktop only. IVGraphicsManager writes the choice to the file the project names in
+`application/config/project_settings_override`, so it takes effect at the next start, and a
+Forward+ run records the GPU's type there for `IVGlobal`, since the Compatibility renderer cannot
+read it. The default by adapter is the project's to set: the
 Planetarium defaults an integrated GPU to Compatibility, and a first run that starts in Forward+
 there restarts itself into it before init builds anything (`planetarium/preinitializer.gd`). A
 laptop with both GPUs counts as discrete, since Godot picks the discrete one.
@@ -317,10 +317,9 @@ Build times are single-threaded GDScript decode on this CPU, and the web's WASM 
 longer. In lit-body views the cut is invisible, because exposure already buries those stars. In
 dark-adapted wide views V 11 thins the faint glow and V 9.5 visibly empties the sky.
 
-**Built since** as the user option Star Catalog (setting `star_catalog`), in the "Graphics
-(requires restart)" section, its three choices named by star count: 2.6 million, 940,000 and
-220,000. `IVStarsVisual` loads the lower of that cut and its own `magnitude_cutoff` when it
-builds, so a change takes effect at the next start. Its default is the whole catalogue in every
+**Built since** as the user option Star Catalog (setting `star_catalog`), at restart, its three
+choices named by star count: 2.6 million, 940,000 and 220,000. `IVStarsVisual` loads the lower of
+that cut and its own `magnitude_cutoff` when it builds, so a change takes effect at the next start. Its default is the whole catalogue in every
 configuration. The relief is not re-measured: the figures above are these same cuts, taken
 before the field was split into bins, and in lit-body views the exposure skips now drop most of
 what the cut would have saved (see *Addendum: the exposure skips, built and verified*).
@@ -466,25 +465,24 @@ what a runtime tier under it could still give.
 
 ## A possible option set
 
-**Graphics**
+One **Graphics** section, in the order of *All options, ranked*. A restart option sits at its
+rank rather than in a section of its own, since Atmosphere quality needs a restart for some
+changes and not others; its tooltip says so, and the Options popup marks it while a change waits.
 
-- Atmosphere quality: Normal / Reduced / Min (built; Min at restart)
+- Atmosphere quality: Normal / Reduced / Minimum (built; Minimum at restart), and Off (at restart:
+  the tier that omits the quadrature from the limb and the disc shaders alike, every body on the
+  airless shader variants of the runtime addendum)
 - 3D render scale: 100 / 85 / 70 / 50% (built)
-- Star field: Full / Reduced (no wing) / Minimal (no wing, no Milky Way)
-- Glow: on / off
-- MSAA: off / 2x / 4x
-- FXAA (Forward+)
+- Renderer (desktop): Forward+ / Compatibility, default by adapter (built; at restart)
+- Star catalogue: V 15 / V 11 / V 9.5, shown as 2.6 million / 940,000 / 220,000 stars (built; at
+  restart)
 - Shadow resolution (Forward+): off / 2048 / 4096 / 8192 (built)
+- MSAA: off / 2x / 4x
+- Glow: on / off
+- Star field: Full / Reduced (no wing) / Minimal (no wing, no Milky Way)
+- Cloud decks: on / off (at restart)
 - Frame-rate cap: none / 60 / 30 fps (built)
-
-**Graphics (requires restart)**
-
-- Renderer (desktop): Forward+ / Compatibility, default by adapter (built)
-- Atmosphere Off (the tier that omits the quadrature from the limb and the disc shaders alike, and
-  the only one needing a restart; every body on the airless shader variants of the runtime
-  addendum)
-- Star catalogue: V 15 / V 11 / V 9.5, shown as 2.6 million / 940,000 / 220,000 stars (built)
-- Cloud decks: on / off
+- FXAA (Forward+)
 
 A first-run preset, chosen from the adapter, could set all of these at once. On an integrated GPU
 or the web it would pick Compatibility, Reduced atmospheres, 75% scale on hi-DPI and MSAA off --
