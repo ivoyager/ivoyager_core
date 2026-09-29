@@ -20,5 +20,6 @@
 shader_type spatial;
 
 // A lit surface for a shell 0, sampled from equirect maps. The body is _surface.gdshaderinc,
-// which surface.airless.gdshader shares for a body with no atmosphere.
+// which surface.airless.gdshader shares for a body with no atmosphere and surface.min.gdshader
+// for the Min tier of Atmosphere Quality.
 #include "_surface.gdshaderinc"

@@ -45,16 +45,17 @@
 // never written out or called from several places: a compiler that inlines every call
 // compiles a function once per call site, and a browser's on Windows is one. A new term is a
 // new iteration, not a new call. The one exception is Forward+'s and Mobile's alone: the
-// common case of an exponential column, written out in atm_exp_columns(). See *The
-// atmosphere's structure* in SHADER_COMPILE_PROFILING.md.
+// common case of an exponential column, written out in atm_exp_columns(). THE MIN VARIANT
+// relaxes the rule too, and says where. See *The atmosphere's structure* in
+// SHADER_COMPILE_PROFILING.md.
 //
 // THE CONTRACT. scripts/limb_model.py in the assets build tree is the reference
 // transcription of this file, verified against a numeric single-scatter integral for
 // Earth, Venus, Mars and Titan at every phase (within 11 % worst case, usually under 3 %).
 // Change nothing here without changing it there and re-running --verify: keep the two
 // identical, constant for constant. The arithmetic is what must match; the structure above is
-// this file's own. What it binds is the NORMAL quality tier; Reduced is a declared
-// approximation of that rule, not a second model, and carries no transcription.
+// this file's own. What it binds is the NORMAL quality tier; Reduced and Min are declared
+// approximations of that rule, not second models, and carry no transcription.
 //
 // TWO FLOAT32 TRAPS, both found as a black curve across Venus' night side. A float literal
 // below about 1e-14 compiles to ZERO in the shader language (1.0e-20 reads as 0.0; 1e-12 is
@@ -99,6 +100,15 @@
 // body pay for without running it. The uniforms stay, so the two bind alike. Never give it a body
 // with an atmosphere: that body would draw airless. See *Addendum: the atmosphere's structure, at
 // runtime* in GRAPHICS_PROFILING.md.
+//
+// THE MIN VARIANT. A shader that defines ATM_MIN before including this file -- each atmosphere
+// shader's .min twin, which IVAssetPreloader binds for a body with an atmosphere when the session
+// runs the Min tier of Atmosphere Quality (min_shader_variants) -- integrates each view ray in
+// closed form, in _atmosphere.min.gdshaderinc, rather than by the quadrature, and is otherwise
+// this file: the same model, columns, receiver light and entry points, so a surface's own colour
+// does not change and only the air in front of it and beyond the limb is approximated. It is its
+// own program, bound when bodies are built, which is why that tier takes a restart. See *The Min
+// tier* under *Atmospheres* in PHOTOMETRIC_MODEL.md.
 //
 // THE COMPOSITING SPLIT. A ray that meets the disc is composited by the DISC'S OWN
 // SHADERS, not by the limb shell: atm_disc_air() hands each of them the path radiance in
@@ -672,6 +682,10 @@ const int ATM_SEGMENT_LAYER = 2; // the thin layer's crossing on a ray, three no
 uniform int atm_ray_segments = 4;
 uniform int atm_node_rays = 2;
 
+// The quadrature, down to atm_ray_path(); THE MIN VARIANT (see the header) integrates in closed
+// form instead.
+#ifndef ATM_MIN
+
 // One quadrature node of a view ray, at altitude z where the ray's zenith cosine is mu_v and
 // the sun's mu_s: `source`, the light scattered there toward the camera with the node's weight
 // folded in, attenuated to the camera and along the sun path and cut by the planet's shadow.
@@ -921,6 +935,8 @@ vec3 atm_ray_path(AtmLayers L, float R, bool meets_disc, float mu, float mu0, fl
 	return path;
 }
 
+#endif // ATM_MIN
+
 
 
 // ONE PIXEL OF THE RING RATHER THAN ONE POINT OF IT, which is the difference between a thin
@@ -984,6 +1000,9 @@ float atm_ring_reach(AtmLayers L) {
 	}
 	return reach;
 }
+
+// The two functions the entry points below call; THE MIN VARIANT supplies its own.
+#ifndef ATM_MIN
 
 // Returns false when no beyond-limb ray with anything on it reaches this pixel. With with_disc
 // it also evaluates the pixel's own disc-hit ray (mu, mu0 and far_floor as for atm_disc())
@@ -1077,6 +1096,12 @@ void atm_disc(AtmLayers L, float R, float mu, float mu0, float sz, float sun_ang
 		transmittance = vec3(1.0);
 	}
 }
+
+#else
+
+#include "_atmosphere.min.gdshaderinc"
+
+#endif // ATM_MIN
 
 // --------------------------------------------------------------------- the entry points
 

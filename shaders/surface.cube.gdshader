@@ -20,5 +20,6 @@
 shader_type spatial;
 
 // A lit surface for a shell 0, sampled from cubemaps. The body is _surface.cube.gdshaderinc,
-// which surface.cube.airless.gdshader shares for a body with no atmosphere.
+// which surface.cube.airless.gdshader shares for a body with no atmosphere and
+// surface.cube.min.gdshader for the Min tier of Atmosphere Quality.
 #include "_surface.cube.gdshaderinc"

@@ -1,4 +1,4 @@
-// cloud_shell.cube.gdshader
+// surface.cube.min.gdshader
 // This file is part of I, Voyager
 // https://ivoyager.dev
 // *****************************************************************************
@@ -19,7 +19,9 @@
 // *****************************************************************************
 shader_type spatial;
 
-// A lit, translucent cloud deck, sampled from a cubemap. The body is
-// _cloud_shell.cube.gdshaderinc, which cloud_shell.cube.airless.gdshader shares for a body with
-// no atmosphere and cloud_shell.cube.min.gdshader for the Min tier of Atmosphere Quality.
-#include "_cloud_shell.cube.gdshaderinc"
+// surface.cube.gdshader for a body with an atmosphere under the Min tier of Atmosphere Quality,
+// which IVAssetPreloader binds in its place (min_shader_variants). ATM_MIN integrates the
+// atmosphere's view rays in closed form rather than by quadrature; see THE MIN VARIANT in
+// _atmosphere.gdshaderinc's header.
+#define ATM_MIN
+#include "_surface.cube.gdshaderinc"

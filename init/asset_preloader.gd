@@ -73,6 +73,20 @@ static var airless_shader_variants: Dictionary[StringName, StringName] = {
 	&"cloud_shell_cube_shader": &"cloud_shell_cube_airless_shader",
 	&"band_pattern_shader": &"band_pattern_airless_shader",
 }
+## Maps a surface/shell shader, after its [member cube_shader_variants] swap, to its Min twin:
+## the same shader with the atmosphere's view rays integrated in closed form. A body WITH an
+## atmosphere binds it when the session runs the Min tier of Atmosphere Quality ([member
+## IVGraphicsManager.is_atmosphere_min_session]); the swap is made here, as the airless one
+## is. Remove an entry to keep the full shader for that shell. See THE MIN VARIANT in
+## [code]_atmosphere.gdshaderinc[/code].
+static var min_shader_variants: Dictionary[StringName, StringName] = {
+	&"surface_shader": &"surface_min_shader",
+	&"surface_cube_shader": &"surface_cube_min_shader",
+	&"cloud_shell_shader": &"cloud_shell_min_shader",
+	&"cloud_shell_cube_shader": &"cloud_shell_cube_min_shader",
+	&"band_pattern_shader": &"band_pattern_min_shader",
+	&"atmosphere_limb_shader": &"atmosphere_limb_min_shader",
+}
 ## [code]shells.tsv[/code] columns that are NOT [StandardMaterial3D] properties (read
 ## explicitly into the shell spec). Every other column is set on the shell material
 ## directly by [IVShellsModel] — to add a material override, just add that property's
@@ -205,7 +219,7 @@ func get_body_model_scale(body_name: StringName) -> float:
 ## cast_shadow, overrides[/code]. [code]tag[/code] is the body's own name for the shell (e.g.
 ## [code]CLOUDS[/code]), empty for a shell 0 taken from the body's surface class.
 ## [code]shader[/code] is the one that will be bound, its [member cube_shader_variants] and
-## [member airless_shader_variants] swaps already made.
+## [member airless_shader_variants] or [member min_shader_variants] swaps already made.
 ## Built from the body's [code]shells[/code] field and the [code]shells[/code] table;
 ## shell 0 falls back to the [code]shells.tsv[/code] row of the body's [code]surface_class[/code]
 ## when the body has no [code]shell0[/code] row of its own. Consumed by [IVShellsModel].
@@ -599,6 +613,11 @@ func _load_body_resources() -> void:
 					var shader_name: StringName = spec[&"shader"]
 					if airless_shader_variants.has(shader_name):
 						spec[&"shader"] = airless_shader_variants[shader_name]
+			elif IVGraphicsManager.is_atmosphere_min_session:
+				for spec: Dictionary in shell_specs:
+					var shader_name: StringName = spec[&"shader"]
+					if min_shader_variants.has(shader_name):
+						spec[&"shader"] = min_shader_variants[shader_name]
 
 			# A surface with no color map would otherwise render white (an unbound sampler,
 			# or the StandardMaterial3D default). Hand IVShellsModel the surface class's

@@ -2,7 +2,7 @@ id,en
 HINT_ADD_HOTKEY,Add hotkey
 HINT_ALL_ASTEROIDS,Show all asteroids
 HINT_APPEND_DATE_TO_SAVE,Add the simulated date to new save file names
-HINT_ATMOSPHERE_QUALITY,"Detail of the scattering calculation that renders air on Earth,\nVenus, Mars and Titan. Reduced integrates each view ray at\nfewer points: no visible change beyond a slight shift in the\nthin band at the limb.\n\nGPU cost: MODERATE at Normal, close to a body with air"
+HINT_ATMOSPHERE_QUALITY,"Detail of the scattering calculation that renders air on Earth,\nVenus, Mars and Titan. Reduced integrates each view ray at\nfewer points: no visible change beyond a slight shift in the\nthin band at the limb. Min estimates each ray in closed form:\nsurfaces are unchanged, but the limb and twilight shift,\nmost of all around a crescent. Min takes a restart.\n\nGPU cost: MODERATE at Normal, close to a body with air"
 HINT_AUTOSAVE_TIME_MIN,"Minutes between autosaves, not counting time paused.\nSet to 0 to turn autosave off"
 HINT_BODY_SYMBOL_SIZE_PERCENT,"Size of body symbols in the 3D view, relative to GUI Size"
 HINT_CAMERA_KEY_IN_OUT_RATE,Speed of the keys that move the camera toward or away from its target
@@ -18,7 +18,7 @@ HINT_CAMERA_MOUSE_ROLL_RATE,"Speed of rolling the camera with the mouse:\nAlt dr
 HINT_CAMERA_TRANSFER_TIME,Seconds the camera takes to fly to a new target or view
 HINT_CENTAURS,Show Centaurs
 HINT_COLOR_PICKER,Color Picker
-HINT_COMPATIBILITY_ATMOSPHERE_QUALITY,"Detail of the scattering calculation that renders air on Earth,\nVenus, Mars and Titan. Reduced integrates each view ray at\nfewer points: no visible change beyond a slight shift in the\nthin band at the limb.\n\nGPU cost: HIGH at Normal, close to a body with air"
+HINT_COMPATIBILITY_ATMOSPHERE_QUALITY,"Detail of the scattering calculation that renders air on Earth,\nVenus, Mars and Titan. Reduced integrates each view ray at\nfewer points: no visible change beyond a slight shift in the\nthin band at the limb. Min estimates each ray in closed form:\nsurfaces are unchanged, but the limb and twilight shift,\nmost of all around a crescent. Min takes a restart.\n\nGPU cost: HIGH at Normal, close to a body with air"
 HINT_COMPATIBILITY_MSAA_3D,"Multisample antialiasing: smooths jagged edges on orbit\nlines, ring edges and spacecraft.\n\nGPU cost: MODERATE at 2x or 4x; HIGH at 8x"
 HINT_COMPATIBILITY_RENDER_SCALE,"Resolution of the 3D view as a share of the window's,\nscaled up to fill it. Menus and panels are not affected.\nLower is faster but softer: orbit lines and names blur,\nand faint stars thin out.\n\nGPU cost: HIGH at 100% on a high-resolution screen.\n50% renders a quarter of the pixels"
 HINT_COMPATIBILITY_SHADOW_RESOLUTION,"Resolution of shadows cast by spacecraft and other objects\nnear the camera, or Off for none. Higher is sharper, but\nuses more video memory (8192: 256 MB). Eclipse and ring\nshadows are not affected.\n\nGPU cost: LOW"

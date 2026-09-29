@@ -20,5 +20,6 @@
 shader_type spatial;
 
 // A textureless banded surface for a shell 0. The body is _band_pattern.gdshaderinc, which
-// band_pattern.airless.gdshader shares for a body with no atmosphere.
+// band_pattern.airless.gdshader shares for a body with no atmosphere and
+// band_pattern.min.gdshader for the Min tier of Atmosphere Quality.
 #include "_band_pattern.gdshaderinc"

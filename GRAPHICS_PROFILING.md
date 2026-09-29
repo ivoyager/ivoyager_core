@@ -32,8 +32,11 @@ in the rendered image, measured in 8-bit display codes on screenshots taken befo
 2. The four big levers, in order:
    - **Atmosphere quality.** A reduced tier saves 22-38% with no visible change; off saves
      76-95%. Both predate the atmosphere's rebuild, since which Reduced buys far less through
-     Intel's GL (*Addendum: below Reduced*).
-   - **3D render scale.** 75% saves 17-28%; 50% saves 30-66%.
+     Intel's GL (*Addendum: below Reduced*). Min, a closed-form tier built since, takes 20-63%
+     off an atmosphere frame through ANGLE (*Addendum: the Min tier, built*).
+   - **3D render scale.** 75% saves 17-28%; 50% saves 30-66%, through a native driver. Through
+     ANGLE, which is the web's path on Windows, any scale below 100% costs instead (*3D render
+     scale*).
    - **The renderer itself, on desktop.** Compatibility is 1.4-8x faster than Forward+ on the
      iGPU.
    - **Star-catalogue depth.** V 11 saves 29-31% in dark-sky views; V 9.5 saves 43-52%.
@@ -132,7 +135,7 @@ Intel figures for the atmosphere views come from runs in the driver's normal sta
 | # | Option | Relief, Intel iGPU | Relief, GTX 1650 Ti | Visual cost | Verdict |
 |---|---|---|---|---|---|
 | 1 | **Atmosphere quality**: Full / Reduced / Off. Runtime shader swap, or restart. | Reduced -22 to -38%; Off -76 to -95% (atmosphere views) | The shell is 15-39% of the frame | Reduced: none visible. Up to 15 codes on 1-2% of pixels, confined to the limb band. Off: no air at all, and Titan loses its identity. | Built as Normal / Reduced, and a runtime setting rather than a restart one (see *Addendum: the quality tiers, built*). Off is not built. |
-| 2 | **3D render scale**: 100 / 85 / 75 / 50%. Runtime. FSR 1 on Forward+. | 75%: -17 to -28%; 50%: -30 to -66% | 75%: -13 to -36%; 50%: -25 to -64% | Soft lines and HUD text. At 50%, orbit lines turn chunky, and the star field coarsens because star size follows render height. | Built as 100 / 85 / 70 / 50% (see *3D render scale*). On a 2x hi-DPI screen, 50% simply restores 1x cost. |
+| 2 | **3D render scale**: 100 / 85 / 75 / 50%. Runtime. FSR 1 on Forward+. | 75%: -17 to -28%; 50%: -30 to -66% | 75%: -13 to -36%; 50%: -25 to -64% | Soft lines and HUD text. At 50%, orbit lines turn chunky, and the star field coarsens because star size follows render height. | Built as 100 / 85 / 70 / 50% (see *3D render scale*). On a 2x hi-DPI screen, 50% simply restores 1x cost. Through ANGLE, the web's path on Windows, any scale below 100% costs 20-40 ms a frame instead. |
 | 3 | **Renderer** (desktop): Auto / Forward+ / Compatibility. Restart. | Compatibility 1.4-8x faster than Forward+ | Mixed: Compatibility faster in 5 of 8 views | Compatibility loses mouse-over identification of orbit lines and asteroids, FXAA and TAA, and local shadow maps. The picture itself matches. | Built as Forward+ / Compatibility, with the Planetarium defaulting integrated GPUs to Compatibility (see *The renderer, on desktop*). |
 | 4 | **Star catalogue depth**: all (V 15) / V 11 / V 9.5. Restart, or a 0.3-1.1 s rebuild. | V 11: -17 to -29%; V 9.5: -26 to -43% (star-heavy views) | V 11: -28 to -31%; V 9.5: -44 to -52% | None in lit-body views, where exposure hides faint stars. In dark-sky views, V 11 dims the diffuse star glow (about 7 codes over a third of the sky) and V 9.5 is visibly sparser. | Built as a restart option, its choices named by star count (see *The star field*). It also saves memory and load time. |
 | 5 | **Shadow resolution** (existing; Forward+ only in the Planetarium) | vs 8192 on Forward+: 2048 -27 to -39%; 16384 +18 to +88% | 2048: -1 to -10%; 16384: +28 to +387% | Spacecraft-scale self-shadowing only. Eclipses and ring shadows are analytic and unaffected. | Keep. Drop 16384, add Off, and default to 4096. All three are built. |
@@ -222,9 +225,10 @@ left (see *Addendum: the limb annulus, measured*).
 
 ## 3D render scale
 
-Rendering the 3D scene at a fraction of the window and upscaling is the one lever that works
-everywhere, in proportion to pixel count. It costs 12-30% less than its pixel share because some
-work doesn't scale: vertex work, and glow at fixed sizes. Compatibility upscales bilinearly.
+Rendering the 3D scene at a fraction of the window and upscaling is the one lever that works on
+every native driver, in proportion to pixel count -- but not through ANGLE (below). It costs
+12-30% less than its pixel share because some work doesn't scale: vertex work, and glow at fixed
+sizes. Compatibility upscales bilinearly.
 Forward+ can use FSR 1, which measured the same as bilinear at 75% (-9 to -39%) and is sharper.
 
 Two things make it matter more than the table suggests:
@@ -250,6 +254,19 @@ where they had widened as 1/scale; on Compatibility, whose glow has no levels to
 still do, twice as wide at 50% (*Glow: the bloom pass* in
 [PHOTOMETRIC_MODEL.md](PHOTOMETRIC_MODEL.md)). The relief at 85% and 70% is not measured; the
 figures above are for 75% and 50%.
+
+**Not through ANGLE.** Measured 2026-09-28 with Compatibility on `--rendering-driver
+opengl3_angle`, which is Chrome's path on Windows: any scale below 100% adds a roughly fixed 25 to
+40 ms to every iGPU frame and about 20 ms to every GTX frame, whatever the scale and whatever is in
+view. The Moon at 3 radii takes 19 ms at 100% on the iGPU and 44 to 48 ms at 85, 70 and 50%, where
+Intel's own GL takes 15, 12, 10 and 8.5 ms; the GTX takes 4.7 ms at 100% and 24.7 at 85%. The time
+is the render thread's, not the GPU's: through ANGLE it grows to the whole frame, where native GL
+spends about a millisecond there. At a reduced scale Godot 4.7.2's GLES3 renderer ends each frame
+by stretching the depth and stencil buffer into the full-size target (`glBlitFramebuffer` in
+`drivers/gles3/rasterizer_scene_gles3.cpp`), and D3D11 has no stretching copy for depth and
+stencil, so ANGLE evidently does it off the GPU. No browser was measured, but the web runs the same
+renderer through the same translation, so on Windows this option should be expected to cost until
+that copy is avoided.
 
 
 ## The renderer, on desktop
@@ -451,7 +468,7 @@ what a runtime tier under it could still give.
 
 **Graphics**
 
-- Atmosphere quality: Normal / Reduced (built)
+- Atmosphere quality: Normal / Reduced / Min (built; Min at restart)
 - 3D render scale: 100 / 85 / 70 / 50% (built)
 - Star field: Full / Reduced (no wing) / Minimal (no wing, no Milky Way)
 - Glow: on / off
@@ -470,7 +487,8 @@ what a runtime tier under it could still give.
 - Cloud decks: on / off
 
 A first-run preset, chosen from the adapter, could set all of these at once. On an integrated GPU
-or the web it would pick Compatibility, Reduced atmospheres, 75% scale on hi-DPI and MSAA off.
+or the web it would pick Compatibility, Reduced atmospheres, 75% scale on hi-DPI and MSAA off --
+though not the reduced scale through ANGLE, where it costs (*3D render scale*).
 
 
 ## Caveats
@@ -493,18 +511,36 @@ or the web it would pick Compatibility, Reduced atmospheres, 75% scale on hi-DPI
 
 ## Open questions
 
-- **Should Compatibility run through ANGLE on Intel iGPUs on desktop?** Opened 2026-09-27. Through
-  ANGLE's D3D11 path the probe draws the rebuilt atmosphere on this laptop's UHD up to twice as
-  fast as Intel's own GL driver does, and ANGLE takes the Forward+ fast path in
-  `atm_exp_columns()` well where Intel's GL is slowed by it, so moving these parts would also let
-  that path into Compatibility (*Addendum: the atmosphere's structure, at runtime*). Godot can do
-  it by project setting (`rendering/gl_compatibility/driver.windows`, or per device,
-  `force_angle_on_devices`). To answer it: whether a whole frame, not only the atmosphere, is
-  faster through ANGLE on these parts -- ANGLE has no GPU timestamps, so that needs frame time
-  measured in the app; what a desktop user's first run then pays compiling through FXC, which is
-  the web's first visit (*The atmosphere's structure* in
-  [SHADER_COMPILE_PROFILING.md](SHADER_COMPILE_PROFILING.md)); and whether Intel's newer parts and
-  drivers agree with this one.
+- **Should Compatibility run through ANGLE on Intel iGPUs on desktop?** Opened 2026-09-27, and
+  answered for the Planetarium on 2026-09-28: it now forces ANGLE on every Intel GPU, one
+  `{"vendor": "Intel", "name": "*"}` entry added to its `force_angle_on_devices` beside Godot's
+  own list, and Core holds render scale at 100 % there (`IVGraphicsManager.can_scale_render()`).
+  Through ANGLE's D3D11 path the probe draws the rebuilt atmosphere on this laptop's UHD up to
+  twice as fast as Intel's own GL driver does, and ANGLE takes the Forward+ fast path in
+  `atm_exp_columns()` well where Intel's GL is slowed by it, so these parts could also take that
+  path into Compatibility (*Addendum: the atmosphere's structure, at runtime*). Measured in the app
+  on 2026-09-28, both drivers from one build on the UHD, 1920x1080, Normal atmospheres, frame
+  intervals:
+  - **At 100% render scale ANGLE is faster where frames are slowest and slower where they are
+    fast.** Earth, Venus and Mars take 0.62 to 0.85 of native GL's frame (Earth at 1.6 radii, 169
+    against 272 ms) and Titan as long as GL; the airless views take 1.1 to 1.9 times as long
+    (Jupiter 56 against 31 ms), because the star field's point sprites cost about four times as
+    much through ANGLE -- all 24 magnitude bins, at Jupiter, 42 against 11 ms. Below 100% ANGLE
+    loses 25 to 40 ms a frame (*3D render scale*), which is why the switch takes that option from
+    these parts. Min is the fast tier there (*Addendum: the Min tier, built*).
+  - **On screen the two match to a few codes, except that Intel's GL driver (31.0.101.2137) does
+    not draw Saturn's rings at all**; ANGLE draws them as the GTX does (TODO in
+    [PHOTOMETRIC_MODEL.md](PHOTOMETRIC_MODEL.md)). Around a bright crescent ANGLE's glow halo sits
+    a pixel or so higher, 15 codes at most.
+  - **A first run compiles the atmosphere set through FXC in about 90 s**, against about 23 s
+    through Intel's GL on this CPU; ANGLE caches it after, in `shader_cache/EGL`.
+  - **Godot already forces ANGLE on these parts' predecessors.** Its default
+    `rendering/gl_compatibility/force_angle_on_devices` names Intel "HD Graphics" and the Iris
+    models of Gen 7 to 9.5, but not "UHD Graphics" -- the same Gen 9.5 silicon renamed, as here --
+    nor Iris Xe; the wildcard entry covers those and every later part.
+
+  Still open: whether Intel's newer parts and drivers agree with this one, which the wildcard
+  assumes.
 
 
 ## Addendum: the limb ring and surface twilight
@@ -1091,4 +1127,44 @@ GTX through its GL:
 
 **So there is no runtime tier worth adding below Reduced, and nothing gained by redefining it.**
 What lowers the floor is compiling and carrying less, not iterating less: the airless shader
-variants, now built, and an Off tier on top of them, both in the runtime addendum above.
+variants, now built, and an Off tier on top of them, both in the runtime addendum above. A tier
+of different code rather than fewer nodes -- its own programs, chosen at restart -- is the next
+addendum.
+
+
+## Addendum: the Min tier, built
+
+Built on 2026-09-28 as the third value of Atmosphere Quality. Min integrates each view ray in
+closed form in shaders of its own, the `.min` twins, so it carries less rather than iterating
+less, and it takes a restart; its model, and what it moves on screen, are *The Min tier* in
+[PHOTOMETRIC_MODEL.md](PHOTOMETRIC_MODEL.md).
+
+**What it saves**, whole frames in the app against Normal, Reduced's in brackets. The GTX and
+Intel's GL are GPU time at the 85 % render scale; ANGLE is the frame interval at 100 %, since a
+reduced scale costs there (*3D render scale*):
+
+| View | GTX, GL | Intel, GL | Intel, ANGLE |
+|---|---:|---:|---:|
+| Earth at 3 radii | 0.87 (0.85) | 1.39 (0.97) | 0.65 (0.83) |
+| Earth at 1.6 radii | 0.94 (0.93) | 1.54 (0.98) | 0.80 (0.92) |
+| Venus at 3 radii | 0.59 (0.59) | 1.08 (0.88) | 0.68 (0.79) |
+| Mars at 3 radii | 0.52 (0.76) | 0.88 (0.86) | 0.49 (0.81) |
+| Titan at 3 radii | 0.41 (0.62) | 0.62 (0.83) | 0.37 (0.78) |
+
+- **Through ANGLE it takes 20 to 63 % off an atmosphere frame**, one and a half to three times
+  what Reduced does.
+- **Through Intel's own GL it is slower than Normal at Earth and Venus.** That compiler sizes a
+  whole shader for its heaviest part (*Addendum: the atmosphere's structure, at runtime*), and
+  the Min disc's stratified state is enough to set it off; through ANGLE on the same iGPU the
+  same shaders are the fast tier, which is one reason the Planetarium runs Intel parts through
+  ANGLE (*Open questions*).
+- **On the GTX it saves 41 to 59 % at Venus, Mars and Titan**, and at Earth what Reduced does.
+
+**What it costs to compile.** A cold start through ANGLE on the iGPU compiled Min's four
+atmosphere shaders in about 51 s against 65 s for Normal's; per program, on the GTX through
+ANGLE, the cubemap surface took 17.4 s against 20.9 and the limb 10.6 against 12.1. A first web
+visit at Min compiles somewhat less, not a great deal less.
+
+**Why a restart.** A program switched in mid-flight compiles at its first draw, which through
+ANGLE is tens of seconds of a frozen view; chosen at startup, the shader warm-up covers it.
+Normal and Reduced still switch live between themselves.

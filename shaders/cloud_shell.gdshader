@@ -21,5 +21,5 @@ shader_type spatial;
 
 // A lit, translucent cloud deck, sampled from an equirect map. The body is
 // _cloud_shell.gdshaderinc, which cloud_shell.airless.gdshader shares for a body with no
-// atmosphere.
+// atmosphere and cloud_shell.min.gdshader for the Min tier of Atmosphere Quality.
 #include "_cloud_shell.gdshaderinc"

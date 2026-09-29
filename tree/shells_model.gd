@@ -185,6 +185,7 @@ var _clouds_shadow_material: ShaderMaterial # shell 0's own, for the per-frame s
 static func _static_init() -> void:
 	process_methods[&"_rotate"] = _rotate
 	shader_meshes[&"atmosphere_limb_shader"] = &"limb_annulus_mesh"
+	shader_meshes[&"atmosphere_limb_min_shader"] = &"limb_annulus_mesh"
 
 
 ## The rotation the simulator clock alone gives a shell spinning at [param deg_per_sec]
@@ -500,8 +501,9 @@ func _build_shader_material(shader_name: StringName, channels: Dictionary,
 	# (so e.g. a "clouds_relief" column tunes the shader per body); a column
 	# that isn't a uniform is ignored. The shader owns its own blending.
 	# The spec names the variant already -- the cubemap one where the channels are cubemaps,
-	# the airless one where the body has no atmosphere -- as IVAssetPreloader resolves them
-	# (cube_shader_variants, airless_shader_variants).
+	# the airless one where the body has no atmosphere, the Min one under that tier -- as
+	# IVAssetPreloader resolves them (cube_shader_variants, airless_shader_variants,
+	# min_shader_variants).
 	var resource: Resource = IVGlobal.resources.get(shader_name)
 	var shader := resource as Shader
 	if not shader:

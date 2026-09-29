@@ -984,17 +984,19 @@ Two float32 traps the include documents, both found as a black curve across Venu
 side: a literal below about 1e-14 compiles to zero in the shader language, and a valid but
 tiny float passes `> 0.0` yet comes out of the GPU's `log()` as −∞.
 
-#### Atmosphere quality, and what Reduced gives up
+#### Atmosphere quality, and what Reduced and Min give up
 
 The limb shell is 75–95 % of an integrated-GPU frame in any view with air
 ([GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)), which is why the user setting
-`atmosphere_quality` exists. Its two tiers are the same shader:
+`atmosphere_quality` exists. Its first two tiers are the same shader:
 
 - **Normal** — the six-node along-ray quadrature and up to eight ring taps described above.
   This is the rule `limb_model.py` verifies, and the contract in the include binds it.
 - **Reduced** — a four-node rule and two ring taps. The quadrature is a valid
   Gauss–Legendre rule of its own, packed into the same table, so it is a coarser evaluation
   of the same model rather than a different one.
+- **Min** — the same model integrated in closed form, in shaders of its own (*The Min tier*,
+  below).
 
 What moves on screen is small and confined to the limb: at most 2 display codes on Earth and
 up to 15 on 0.4 % of Titan's pixels, 1.2–1.8 % of pixels past 2 codes. The surface and cloud
@@ -1008,6 +1010,52 @@ which is what lets this be a live setting on a renderer where a compile costs se
 ([SHADER_COMPILE_PROFILING.md](SHADER_COMPILE_PROFILING.md)). A project whose
 `IVGraphicsManager` never writes them renders at Normal, those being the defaults the Core
 editor plugin puts in `project.godot`.
+
+##### The Min tier
+
+Min is a different program rather than a coarser rule: each atmosphere shader's `.min` twin,
+compiled with `ATM_MIN` so that `_atmosphere.min.gdshaderinc` stands in for the quadrature.
+Everything else is shared — the layers and their columns, `atm_receiver_light()`, the twilight,
+the entry points — so **a surface's own colour is Normal's exactly** (the entry-point probe reads
+0.000 % on the receiver light, the sky excess and the luma), and what is approximated is the air
+in front of it and beyond the limb.
+
+Each segment of a view ray is integrated in closed form from its columns at a few points,
+instead of at quadrature nodes:
+
+- **The lit part in front of a disc.** Its radiance is the source per unit optical depth times
+  the integral of e^−(T + S) over the view column T, S the sun's column. Taking the layers'
+  mixture as uniform in optical depth along the segment, and S as proportional to T — the
+  plane-parallel identity, carried to the sphere by the Chapman slants — makes the exponent
+  linear in T and the integral exact. Where the sun is low along the segment, or the segment is
+  capped or starts above the disc, S does not fall with T; a second point one upper scale height
+  along measures how it runs, and the exponent is taken piecewise linear through the points.
+- **Two exponential layers are not a mixture.** Earth's gas (8.4 km) over its haze (1.5 km) is
+  two stacked slabs, and the uniform-mixture form fails on it by 14–20 % at the 99th percentile.
+  The integral is blended between that MIXED form and a STACKED one — each layer's own run, the
+  lower layer's light crossing the whole upper — with weight (r − 1)/(r + 1), r the ratio of the
+  two scale heights: the thin limit of the exact two-layer integral, within ~2 % along Earth's
+  and Venus' real curves.
+- **A tangent half-ray** holds half its ray's column, spread from the tangent point as
+  erf(√(Δz / H)), so its lit part lies between two fractions of it; the sun's column is held at
+  the point that halves what the camera sees of that part, and the same blend stacks the layers.
+  The thin layer — Mars' water-ice haze, Titan's detached layer — takes the mixed form, its
+  columns from the shared Abel tables, so Titan's blue shell is drawn.
+
+What moves on screen, in the app on the GTX at the 18 atmosphere poses against Normal: day sides
+and the limb band hold to 3 display codes at the 99th percentile (Earth close up 5), Titan's
+shell included, and the error gathers at high phase. **Earth's crescent cusps turn yellow**, by
+up to 180 codes, 0.2 % of the frame past 8: one sun point per tangent half cannot follow a sun
+column that grows toward the camera. **Mars' twilight is too bright**, by up to 14 codes at the 99th percentile over
+3 % of a crescent frame, half of it the thin layer's mixed treatment. Reduced moves 31 codes at
+most. The probe puts Min's limb and disc air within 3.4 % of the image maximum at the 99th
+percentile on all four bodies, against Reduced's 5.0 % on Earth's limb.
+
+Being its own program, Min is chosen when bodies are built: `IVAssetPreloader` binds the `.min`
+shaders (`min_shader_variants`) for every body with air, the shader warm-up compiles those
+instead of the full ones, and a change into or out of Min waits for a restart, which the Options
+popup says. What it costs and saves is *Addendum: the Min tier, built* in
+[GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md).
 
 ## The Sun
 
@@ -2125,7 +2173,7 @@ lever a capped pass cannot offer is one the shader does not need.
 |---|---|---|
 | `IVCoreSettings` | `enable_physical_light` | Instantiates the system (default false; zero cost off). Requires `dynamic_lights`. |
 | user options | `physical_light` | Runtime toggle (cached setting; Options row appears when enabled). |
-| | `atmosphere_quality` | Normal or Reduced, applied by `IVGraphicsManager` as the `iv_atm_*` globals. Reduced runs a 4-node along-ray quadrature and 2 ring taps; see *Atmospheres*. |
+| | `atmosphere_quality` | Normal, Reduced or Min. Normal and Reduced are applied live by `IVGraphicsManager` as the `iv_atm_*` globals, Reduced running a 4-node along-ray quadrature and 2 ring taps; Min is its own shaders, bound at startup, so it takes a restart. See *Atmospheres*. |
 | `IVExposureManager` | `background_peak_magnitude_per_arcsec2` | The absolute anchor (mag/arcsec² of a full-white panorama texel). |
 | | `metering_key` | Rendered value a fully metered surface lands at (mid-exposure target). |
 | | `meter_fraction_start` / `meter_fraction_full` | Screen-fraction ramp: when a body begins to influence metering / fully drives it. |
@@ -2167,7 +2215,18 @@ lever a capped pass cannot offer is one the shader does not need.
   and surface twilight* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)). Most of its
   machinery exists: the airless shader variants that bodies with no atmosphere already bind
   (*Addendum: the atmosphere's structure, at runtime*, there) would draw every body, and the
-  limb shells would not be drawn.
+  limb shells would not be drawn. The Min tier (*The Min tier*, above) has since built the
+  restart-bound tier this would be another value of, and takes about a fifth off an ANGLE
+  first run by itself.
+- **Saturn's rings do not draw through Intel's GL driver** (2026-09-28). On the profiling
+  laptop's UHD (driver 31.0.101.2137) under Compatibility the ring plane renders nothing --
+  either face, near or far, at 85 or 100 % render scale, with or without MSAA -- and logs no
+  shader error. The same build through ANGLE on that GPU, and the GTX through its own GL and
+  through ANGLE, agree to within a code, so the fault is the ring material on this one compiler.
+  Bisect `rings.gdshader` there, starting with a flat `EMISSION` and `ALPHA` at the top of
+  `fragment()` to learn whether any fragment reaches it. Moving these parts to ANGLE (*Open
+  questions* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)) would sidestep it; until then a
+  project running Compatibility on such a part shows Saturn without rings.
 - **Report the glow threshold mismatch upstream** (*Render height*, above): the pass computes
   levels above 0.01, the tonemapper samples levels above 0.0001. A 4.6 regression from
   godotengine/godot#110077; 4.5 computed every level above 0. Once Godot makes them agree,

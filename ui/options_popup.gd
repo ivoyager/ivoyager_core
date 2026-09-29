@@ -335,6 +335,8 @@ func _configure_after_core_inited() -> void:
 			_remove_option(&"shadow_resolution")
 	if !IVGraphicsManager.can_set_renderer():
 		_remove_option(&"renderer")
+	if !IVGraphicsManager.can_scale_render():
+		_remove_option(&"render_scale")
 
 
 func _remove_option(setting: StringName) -> void:

@@ -730,6 +730,15 @@ iGPU's GL the atmosphere views got faster but for Earth close up, and the bodies
 atmosphere 24 to 46 % slower; through ANGLE, the web's path, the atmosphere itself costs 1.3 to
 1.5 times what it did on that iGPU.
 
+**The Min tier relaxes the rule and still compiles faster.** Its closed form
+(`_atmosphere.min.gdshaderinc`; *The Min tier* in [PHOTOMETRIC_MODEL.md](PHOTOMETRIC_MODEL.md))
+reaches its per-point function from one call site per segment kind, which in the limb shader is
+two. Measured the same day through ANGLE on the GTX, `surface.cube.min` took 17.4 s to a first
+draw against 20.9 s for `surface.cube`, and `atmosphere_limb.min` 10.6 s against 12.1 s; a cold
+start on the iGPU compiled Min's four atmosphere shaders in about 51 s against 65 s for Normal's.
+A Min session's first run through ANGLE compiles about a fifth less -- not the cut an Off tier
+would make.
+
 **What is left.** Without any atmosphere call, `surface.cube` takes 7.3 s to a first draw through
 ANGLE on the GTX, against 5.1 s for v0.2's whole shader, and that floor is the photometry kernel,
 the point-spread function, the occlusion and four bicubic cube samples. The receiver's helpers
