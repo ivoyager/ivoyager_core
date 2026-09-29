@@ -346,6 +346,32 @@ Three obligations fall on every farwarp consumer:
   path visuals, SBG points and orbit lines, the star field, the sun point. A new farwarp
   consumer that forgets this renders correctly until the camera zooms in somewhere, then
   vanishes.
+
+  The box costs everything else the engine does with an instance's bounds. A boxed
+  instance is never culled, so off screen or behind the camera it still submits every
+  vertex. **Its mesh LOD never engages**: every renderer measures LOD distance to the AABB,
+  and one that contains the camera measures zero, so a mesh imported with LODs draws its
+  finest at any range. And **its `visibility_range_end` never fires**, since Godot measures
+  that from the transformed AABB's centre, which f32 collapses (next obligation): Saturn's
+  rings, measured before they had a gate of their own, drew from the Moon at three times
+  their range.
+
+  So **a shells model holds the box only while it needs it.** While its body may reach past
+  `IVFarwarpManager.true_bounds_distance`, a quarter of the camera's far plane, it takes the
+  box; inside that it culls on its own bounds, the mesh's or, for a shader that places its
+  own vertices, its unit sphere (`IVShellsModel.shader_meshes`). There true bounds give the
+  drawn geometry's answer: farwarp scales positions along camera rays and only beyond T, so
+  nothing crosses a side or the near plane, and the true distance is the right one for LOD
+  because the remap preserves angular size. A body's own mesh then takes the engine's LODs,
+  held by `lod_bias` to the sphere ladder's 0.15 px silhouette budget (*The sphere LOD
+  ladder*) rather than the viewport's coarser pixel threshold. The quarter keeps clear of the
+  far plane itself, which the engine extracts in float32 and which at a 1e7 ratio can sit
+  tens of percent off (derived, not measured). `IVBody.update_farwarp()` decides at +100, per body and
+  change-gated, beside the local shadow grant (`IVBodyVisual.set_farwarp_box()`); a shell
+  built later adopts its visual's current state. Rings keep the box always, their shader
+  tilting and widening the plane past any bounds its mesh has, and their handoff gate retires
+  them instead (*Culling, visibility and lifecycle*). Measured in *Addendum: what a view costs
+  depends on the view before it* ([GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)).
 - **Opt out of AABB-centre sorting.** Godot takes an instance's sort depth from the centre
   of its *transformed* AABB, which for the box above is not where the object is: at
   `max_camera_distance` a f32 coordinate quantizes at ~6.7e7 m, and the model scale a
@@ -620,7 +646,7 @@ self-shadowing for that.
 
 ## Culling, visibility and lifecycle
 
-**Distance culling is angular-size culling in disguise.** Bodies (and rings) set
+**Distance culling is angular-size culling in disguise.** Bodies set
 `visibility_range_end` to `radius × radius_multiplier_visibility_range_end` (4000), so a
 body culls when its angular diameter falls to ~1/2000 rad — about 0.6 px at the reference
 view. Sub-pixel, so the pop is invisible; but note what it forfeited, and why it is gone
@@ -631,7 +657,20 @@ disappears, from Venus at V −9.1 down to Charon at +0.3, with Bennu (a 242 m r
 −5.1. Bodies that draw a PSF quad (below) therefore opt out of the cull entirely and hand
 off to that quad instead; everything else still takes it, having nothing to hand off to.
 A packed-scene model that authors its own `visibility_range_end` keeps it; only the
-engine's "unset" 0.0 is filled in.
+engine's "unset" 0.0 is filled in. A shell takes the cull only while it holds no farwarp box
+(*Farwarp*); rings, which always hold one, are retired by their handoff instead (below).
+
+**A handed-off body stops drawing its shells** (`IVShellsModel.cull_handed_off`). At or under
+the handoff's low edge every fragment they draw discards, so all that was left of them was
+vertex work — a body's own mesh, Ceres's 65,000 triangles, in every view in the system. The
+gate measures the on-screen radius at the greater of the live and the capture render height,
+the handshake the sphere ladder takes, so no viewport drawing the node could have drawn a
+fragment of it. A local shadow caster is exempt: its shadow pass resolves the handoff against
+the shadow map rather than a viewport. **Rings stop drawing at their own handoff**
+(`IVRings.cull_handed_off`), once the body's point has all of their light: `IVRings` decides
+that fraction at the same greatest render height and hands it to the shader, which discards
+every fragment at zero. Their gate hides the instance through the rendering server, the node's
+own `visible` being a project's switch for the ring and its light together.
 
 **Layers place a body in a lighting domain, not a visibility class** — `size_layers`
 exists so each size scale can be lit (and shadow-mapped) at its own range; see *Local
@@ -1162,6 +1201,9 @@ this is the spatial one.
 | `IVPathVisual` | `REBASE_*`, `PIN_*` (constants) | Rebase trigger (500 → ~0.3 px), rebake policy, tessellation bounds, pin window sizing. |
 | `IVBodyPositionVisual` | `HUD_RENDER_PRIORITY` (constant) | HUD symbol/name above the shell transparency range. |
 | `IVBodyPSF` | `HANDOFF_*` (constants) | Disc/point crossfade: fade span, the fallback for a source with no saturated core, and the exposure/magnitude shift that re-solves it. |
+| `IVFarwarpManager` | `true_bounds_far_fraction` | Share of the camera's far plane inside which a body's shells drop the farwarp box and cull on their own bounds (0.25; *Farwarp*). 0.0 keeps the box everywhere, the un-culled render an A/B measures against. |
+| `IVShellsModel` | `cull_handed_off` (static) | A body handed off to its PSF point stops drawing its shells (*Culling, visibility and lifecycle*). False draws them regardless. |
+| `IVRings` | `cull_handed_off` (static) | The same for a ring whose light the point has all of; this is what retires a distant ring. False draws the plane regardless. |
 
 ## TODO
 
@@ -1216,6 +1258,12 @@ this is the spatial one.
   shared**: `IVWorldController` assumes the pointer is its own, which an FPS controller also
   assumes. None of the three is hard; all three are unspecified, and a project hitting them
   would each solve them differently.
+- **A shell past the true-bounds distance is still never culled.** In a close-up of something
+  small the far plane shrinks, and a body beyond a quarter of it keeps the farwarp box: drawn
+  off screen, a body's own mesh at its finest LOD. The handoff gate retires such a body once it
+  is a point, but only a body with a quad. A box that followed the drawn geometry — the
+  compressed sphere, placed camera-relative each frame — would close it, for an AABB write per
+  shell per frame.
 - **Bodies outside the PSF quad's scope still vanish at the cull.** The quad covers the
   sun and the 26 planetary-mass objects; the other ~150 named moons, the named
   asteroids, and every spacecraft still take the 4000-radii cull, at which they are

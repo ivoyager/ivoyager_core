@@ -121,6 +121,8 @@ const _SPHERE_LOD_SAGITTA_PX := 0.15
 # How far inside a coarser rung's range a body must fall before that rung is taken. Rung ceilings
 # are 4x apart, so this is slack against jitter rather than a tuned crossover.
 const _SPHERE_LOD_HYSTERESIS := 0.8
+# Float32 slack between this side's pixel radius and the shaders' own, taken toward drawing.
+const _HANDOFF_GATE_SLACK := 0.99
 
 
 ## Registry of 'process' methods, keyed by the name used in a shells.tsv
@@ -133,7 +135,9 @@ static var process_methods: Dictionary[StringName, Callable] = {}
 ## [code]shader[/code] that needs one, as keys into [member IVGlobal.resources]. A shader
 ## listed here places its own vertices, so the two travel together: a copy of it under a new
 ## key needs its own entry, and its shells must not cast shadows (a shadow pass would place
-## the mesh for the light). Register entries in [method _static_init] or from project code.
+## the mesh for the light). It must place them within the shell's unit sphere, which is what
+## such a shell culls on when it has no farwarp box (see [method set_farwarp_box]). Register
+## entries in [method _static_init] or from project code.
 static var shader_meshes: Dictionary[StringName, StringName] = {}
 
 ## Render height an off-screen capture is about to use, or 0.0 for none. The shared sphere's LOD
@@ -144,6 +148,11 @@ static var shader_meshes: Dictionary[StringName, StringName] = {}
 ## the live viewport, so a stale value can only hold a rung finer than needed, never coarser.
 ## [IVStarsVisual] keeps the counterpart of this for its magnitude-bin cull.
 static var capture_render_height := 0.0
+## Stops drawing every shell of a body that has handed off to its [IVBodyPSF] point in every
+## viewport, where its disc would discard every fragment anyway, so that the vertex work goes
+## too. Set false to render (and measure) those shells regardless. See [i]Culling, visibility
+## and lifecycle[/i] in VISUAL_MODEL.md.
+static var cull_handed_off := true
 
 # Debug-only caches for the per-shell override asserts in _build_material; built
 # lazily and kept for the session. Unused unless OS.is_debug_build().
@@ -171,6 +180,8 @@ var _applied_sun_disc_brightness := NAN # sun-mode: change gate; NAN forces the 
 var _rest_basis: Basis # the basis as built, which a 'process' method poses the shell from
 var _clouds_shadow_spin_rate := 0.0 # deg/s of the deck shell 0 takes its cloud shadow from
 var _clouds_shadow_material: ShaderMaterial # shell 0's own, for the per-frame spin write
+var _own_aabb := AABB() # culling bounds without the farwarp box; AABB() takes the mesh's own
+var _handed_off := false # stopped drawing by the handoff gate (cull_handed_off)
 
 
 
@@ -247,6 +258,14 @@ func _ready() -> void:
 		var surface_scale: float = spec[&"scale"]
 		if surface_scale != 1.0:
 			transform.basis = transform.basis.scaled(Vector3.ONE * surface_scale)
+	# Before _set_visibility_and_layers(), which culls on it. The mesh a shader places draws
+	# within the shell's unit sphere, wherever its own vertices say (shader_meshes).
+	if _shell > 0 and shader_meshes.has(spec[&"shader"]):
+		_own_aabb = AABB(-Vector3.ONE, 2.0 * Vector3.ONE)
+	if _sphere_lod_rung < 0:
+		# A body's own mesh takes the engine's LODs once it has no farwarp box. Hold them to the
+		# ladder's silhouette budget rather than the viewport's pixel threshold, which is coarser.
+		lod_bias = get_viewport().mesh_lod_threshold / _SPHERE_LOD_SAGITTA_PX
 	var process_method: StringName = spec[&"process"]
 	var process_args: Array = spec[&"process_args"]
 	var render_priority := _compute_render_priority(shell_specs)
@@ -275,6 +294,21 @@ func _process(delta: float) -> void:
 		_process_size_lod()
 	if _is_sun:
 		_process_sun_physical_light()
+
+
+## Culls this shell on the farwarp box, which every frustum test passes, or on its own bounds,
+## where the engine also culls it off screen and picks its mesh LOD. The box is what keeps a
+## shell drawn while its true geometry lies past the camera's far plane; [IVBodyVisual] decides
+## per frame for all of a body's shells ([method IVBodyVisual.set_farwarp_box]). No-op when
+## [member IVCoreSettings.apply_farwarp] is false. See [i]Farwarp[/i] in VISUAL_MODEL.md.
+func set_farwarp_box(on: bool) -> void:
+	if !IVCoreSettings.apply_farwarp:
+		return
+	if !on:
+		custom_aabb = _own_aabb
+		return
+	var extent := IVCoreSettings.max_camera_distance
+	custom_aabb = AABB(-Vector3.ONE * extent, 2.0 * Vector3.ONE * extent)
 
 
 
@@ -309,12 +343,14 @@ func _process(delta: float) -> void:
 # size would then get the wrong answer -- IVScreenshotManager draws these same nodes at a size of
 # its own.
 #
-# THE MESH LADDER is the one size decision that cannot be a shader's, since no shader swaps a
-# mesh. It discharges the same hazard the way IVStarsVisual's bin cull already does, that being
-# the same problem: it takes the GREATER of the live viewport's render height and the height a
-# capture has registered (capture_render_height), and its rungs are monotone in that height. So
-# the answer can be too fine but never too coarse, and a capture gets the rung its own pixels
-# earn. A rung is chosen per frame, so nothing here outlives the viewport it was decided for.
+# THE MESH LADDER and THE HANDOFF GATE are the two size decisions that cannot be a shader's,
+# since no shader swaps a mesh or skips its own vertex stage. Both discharge that hazard the way
+# IVStarsVisual's bin cull already does, that being the same problem: they take the GREATER of the
+# live viewport's render height and the height a capture has registered (capture_render_height),
+# and both answers are monotone in that height. So a rung can be too fine but never too coarse,
+# and the gate stops a shell only once no viewport's shader could draw a fragment of it -- it
+# never decides the fade, only that the fade has finished everywhere. Both are decided per
+# frame, so nothing here outlives the viewport it was decided for.
 #
 # WHAT THE LADDER TRADES. A sphere's facet chord sags inside the true sphere by its sagitta,
 # fixed in world units; what a view changes is how many pixels that buys. Each rung holds the
@@ -384,29 +420,43 @@ func _process_size_lod() -> void:
 	# The body's mean radius, not this shell's scaled one: the whole body fades as one thing,
 	# and a deck 0.16 % out would otherwise cross the ramp at a slightly different distance.
 	var angular_radius := _mean_radius / camera_distance
+	# 3D render scale included: at 50 % a body covers half the pixels. The greater of the live
+	# and the capture height, so that no viewport drawing this node can see a larger body.
+	var render_height := maxf(IVGraphicsManager.get_render_size(viewport).y,
+			capture_render_height)
+	# The projection's own scale rather than a fov, so a KEEP_WIDTH camera needs no special case;
+	# this is the CPU side of the shaders' body_pixel_radius().
+	var pixel_radius := angular_radius * 0.5 * render_height * camera.get_camera_projection().y.y
 	if _applies_psf:
-		_apply_disc_lod(angular_radius)
+		_apply_disc_lod(angular_radius, pixel_radius)
 	if _sphere_lod_rung >= 0:
-		_apply_sphere_lod(angular_radius, camera, viewport)
+		_apply_sphere_lod(pixel_radius)
 
 
-func _apply_disc_lod(angular_radius: float) -> void:
+func _apply_disc_lod(angular_radius: float, pixel_radius: float) -> void:
 	if !_disc_material:
 		return
 	_disc_material.set_shader_parameter(&"angular_radius", angular_radius)
 	var handoff := _body.psf_handoff
 	_disc_material.set_shader_parameter(&"handoff_low", handoff.x)
 	_disc_material.set_shader_parameter(&"handoff_high", handoff.y)
+	_apply_handoff_gate(pixel_radius, handoff.x)
 
 
-func _apply_sphere_lod(angular_radius: float, camera: Camera3D, viewport: Viewport) -> void:
-	# 3D render scale included: at 50 % a body covers half the pixels and earns half the mesh.
-	var render_height := maxf(IVGraphicsManager.get_render_size(viewport).y,
-			capture_render_height)
-	# The projection's own scale rather than a fov, so a KEEP_WIDTH camera needs no special case;
-	# this is the CPU side of the atmosphere_limb vertex shader's proj_11 * VIEWPORT_SIZE.y.
-	var projection := camera.get_camera_projection()
-	var pixel_radius := angular_radius * 0.5 * render_height * projection.y.y
+# At or under the handoff's low edge the disc weight is zero and every fragment this shell draws
+# discards, in any viewport, since pixel_radius is taken at the greatest render height in use. A
+# local shadow caster keeps drawing all the same: its shadow pass resolves the weight against
+# the shadow map, not a viewport. Each shell gates itself, on the same numbers as its siblings.
+func _apply_handoff_gate(pixel_radius: float, handoff_low: float) -> void:
+	var handed_off := (cull_handed_off and pixel_radius < handoff_low * _HANDOFF_GATE_SLACK
+			and (layers & IVGlobal.LOCAL_SHADOW_CASTER) == 0)
+	if handed_off == _handed_off:
+		return
+	_handed_off = handed_off
+	visible = !handed_off
+
+
+func _apply_sphere_lod(pixel_radius: float) -> void:
 	var rung := _select_sphere_lod_rung(pixel_radius)
 	if rung == _sphere_lod_rung:
 		return
@@ -637,25 +687,36 @@ func _set_visibility_and_layers() -> void:
 		node_layers |= IVGlobal.LOCAL_SHADOW_CASTER
 	layers = node_layers
 	if IVCoreSettings.apply_farwarp:
-		# Frustum culling tests the true-scale AABB against the far plane, but the farwarp vertex
-		# remap keeps the surface on-screen even when that test fails; make it always pass.
-		var extent := IVCoreSettings.max_camera_distance
-		custom_aabb = AABB(-Vector3.ONE * extent, 2.0 * Vector3.ONE * extent)
-		sorting_use_aabb_center = false # f32 collapses that AABB's centre; sort by the node origin
+		set_farwarp_box(_has_farwarp_box())
+		sorting_use_aabb_center = false # f32 collapses the box's centre; sort by the node origin
 
 
-# A shell that readies after a dynamic grant would miss the caster bit until
-# the next state change (the ancestor's recursion is change-gated), so adopt
-# the ancestor IVBodyVisual's current state; static rule when there is none
-# (e.g., a replacement body visual class).
+# A shell that readies after a dynamic change would miss it until the next one (the
+# ancestor's recursions are change-gated), so the two below adopt the ancestor
+# IVBodyVisual's current state; a static rule when there is none (e.g., a replacement
+# body visual class).
 func _is_local_shadow_caster() -> bool:
+	var body_visual := _get_ancestor_body_visual()
+	if body_visual:
+		return body_visual.is_local_shadow_caster()
+	return IVCoreSettings.get_static_local_shadow_caster(_mean_radius)
+
+
+func _has_farwarp_box() -> bool:
+	var body_visual := _get_ancestor_body_visual()
+	if body_visual:
+		return body_visual.has_farwarp_box()
+	return true
+
+
+func _get_ancestor_body_visual() -> IVBodyVisual:
 	var node := get_parent()
 	while node:
 		var ancestor_body_visual := node as IVBodyVisual
 		if ancestor_body_visual:
-			return ancestor_body_visual.is_local_shadow_caster()
+			return ancestor_body_visual
 		node = node.get_parent()
-	return IVCoreSettings.get_static_local_shadow_caster(_mean_radius)
+	return null
 
 
 func _build_child_shells(shell_specs: Array) -> void:

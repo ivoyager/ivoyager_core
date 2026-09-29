@@ -98,7 +98,8 @@ var _applied_color_bv := NAN # ditto; moves only on a ringed body, as its rings 
 
 ## Returns whether [param body] gets a quad: an in-scene star, or a planetary-mass
 ## object with a positive geometric albedo. This is also the gate on the fixed
-## distance cull ([IVBodyVisual], [IVShellsModel]) and on a disc's handoff fade — a
+## distance cull ([IVBodyVisual], [IVShellsModel]) and on a disc's handoff fade and the
+## gate that stops a handed-off disc drawing ([member IVShellsModel.cull_handed_off]) — a
 ## body drawn as a point must not also be culled as a disc, and one that is culled
 ## must not fade.[br][br]
 ##

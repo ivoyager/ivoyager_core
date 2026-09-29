@@ -32,9 +32,9 @@ in the rendered image, measured in 8-bit display codes on screenshots taken befo
 2. The four big levers, in order:
    - **Atmosphere quality.** A reduced tier saves 22-38% with no visible change; off saves
      76-95%. Both predate the atmosphere's rebuild, since which Reduced buys far less through
-     Intel's GL (*Addendum: below Reduced*). Min, a closed-form tier built since, takes 20-63%
+     Intel's GL (*Addendum: below Reduced*). Min, a closed-form tier built since, takes 20-51%
      off an atmosphere frame through ANGLE (*Addendum: the Min tier, built*), and Off, no limb and
-     a cheap closed-form veil on the disc, 51-83% (*Addendum: the Off tier, built*).
+     a cheap closed-form veil on the disc, 52-73% (*Addendum: the Off tier, built*).
    - **3D render scale.** 75% saves 17-28%; 50% saves 30-66%, through a native driver. Through
      ANGLE, which is the web's path on Windows, any scale below 100% costs instead (*3D render
      scale*).
@@ -58,7 +58,9 @@ in the rendered image, measured in 8-bit display codes on screenshots taken befo
    detail a body's on-screen size does not earn. Together they are worth 10-30% in most views and
    far more at Earth and Titan. The limb's interior has since gone, for 19-54% of an iGPU
    atmosphere frame (see *Addendum: the limb annulus, measured*), and the sphere detail is now
-   distance-selected (see *Addendum: the sphere LOD ladder*).
+   distance-selected (see *Addendum: the sphere LOD ladder*). Shells nobody can see have since
+   stopped drawing too, and a body's own mesh now takes LODs (see *Addendum: what a view costs
+   depends on the view before it*).
 6. **The atmosphere was rebuilt on 2026-09-27 for what it costs to compile, and it runs at a
    different speed through every compiler measured**: faster through NVIDIA's GL, level under
    Forward+, mixed through Intel's GL and dearer through ANGLE. The bodies with no atmosphere
@@ -437,6 +439,7 @@ These need no option. Each removes work whose result never reaches the screen.
 | **Sphere distance LOD** (done; see addendum) | 128x64 measured indistinguishable at >= 1.6 radii, but not closer; a body drew 65,536 triangles down to a 2.5 px radius | -10 to -27% |
 | **Skip shadow passes** when no local caster **or receiver** is in range (done; opt-in, see addendum) | An empty 8192 atlas costs ~20-25 ms per iGPU frame | Measured on the iGPU under Forward+: -39 to -46%, 27-30 ms a frame |
 | **Sunspot LOD** by disc size | Sunspots are 36% of a Sun close-up | Near the Sun only |
+| **Cull shells nobody can see**, and let a body's own mesh take its LODs (done; see *Addendum: what a view costs depends on the view before it*) | The farwarp box left every shell unculled and pinned mesh LOD at the finest; Ceres submitted 65,087 triangles in every view | Measured on the iGPU through ANGLE: -2 to -16 %, 2.2-7.4 ms |
 
 **Small edits don't reliably pay on Intel.** Several of the shader-anatomy review's "exact"
 micro-optimizations landed anywhere from -10% to +15% on the iGPU, depending on the view. Examples
@@ -551,7 +554,7 @@ physical pixel count of the screen (`IVGraphicsManager.get_graphics_tier()`):
   any reduction costs.
 - **Reduced atmospheres and 2048 shadows cost nothing visible** (*All options, ranked*, rows 1
   and 5), so a discrete GPU on a dense screen takes them too. Min is Low's tier only through
-  ANGLE, where it takes 20-63% off an atmosphere frame; through Intel's own GL it is slower than
+  ANGLE, where it takes 20-51% off an atmosphere frame; through Intel's own GL it is slower than
   Normal at Earth (*Addendum: the Min tier, built*).
 - **MSAA off and V 11 are Low's alone**, since each changes what a user sees -- stair-stepped
   orbit lines, and a dimmer diffuse star glow in dark-sky views -- for 5-13% and 17-29% of an iGPU
@@ -619,6 +622,12 @@ not have it.
   measured below their bound, and the empty shadow passes above theirs. The sphere LOD ladder's
   iGPU relief is still outstanding. The Mobile renderer was not tested, and no browser was
   ([SHADER_COMPILE_PROFILING.md](SHADER_COMPILE_PROFILING.md), *The web export*).
+- **A view's cost depends on the view before it.** Which faint star bins draw is decided by the
+  exposure the camera arrived with, and at the Moon that is 6 ms of an iGPU frame through ANGLE.
+  Comparisons across sessions or pose orders taken before 2026-09-29 did not control it; toggles
+  within one pose were unaffected unless they moved the exposure. Only the tier tables have been
+  re-measured with the bins pinned (*Addendum: what a view costs depends on the view before
+  it*).
 
 
 ## Open questions
@@ -1267,9 +1276,14 @@ reduced scale costs there (*3D render scale*):
 | Earth at 1.6 radii | 0.94 (0.93) | 1.54 (0.98) | 0.80 (0.92) |
 | Venus at 3 radii | 0.59 (0.59) | 1.08 (0.88) | 0.68 (0.79) |
 | Mars at 3 radii | 0.52 (0.76) | 0.88 (0.86) | 0.49 (0.81) |
-| Titan at 3 radii | 0.41 (0.62) | 0.62 (0.83) | 0.37 (0.78) |
+| Titan at 3 radii | 0.41 (0.62) | 0.62 (0.83) | 0.55 ✱ (0.78) |
 
-- **Through ANGLE it takes 20 to 63 % off an atmosphere frame**, one and a half to three times
+✱ Re-measured on 2026-09-29 with the star bins pinned. The 0.37 first given here counted star
+bins that Normal's arrival at Titan had left drawn and Min's had not (*Addendum: what a view
+costs depends on the view before it*); the pinned re-run came within 0.01 of the other four ANGLE
+cells. Reduced's bracket and the Intel GL column were not re-measured.
+
+- **Through ANGLE it takes 20 to 51 % off an atmosphere frame**, one and a half to three times
   what Reduced does.
 - **Through Intel's own GL it is slower than Normal at Earth and Venus.** That compiler sizes a
   whole shader for its heaviest part (*Addendum: the atmosphere's structure, at runtime*), and
@@ -1300,22 +1314,23 @@ the limb.
 
 **What it saves each frame.** Intel UHD through ANGLE's D3D11, the web's path on Windows, at
 1920x1080 and 100 % render scale, MSAA off, sim paused and HUDs hidden; the frame interval,
-ANGLE having no GPU timestamps, as the median of two interleaved rounds that agreed within 1 %:
+ANGLE having no GPU timestamps. The star bins are pinned at every pose, since which faint bins
+draw otherwise depends on the view before it (*Addendum: what a view costs depends on the view
+before it*, which says what the first version of this table got wrong). Sessions
+Normal, Min, Off and Normal again, the two Normal passes within 1 % except at Venus (5 %):
 
 | View | Normal | Min | Off |
 |---|---:|---:|---:|
-| Earth at 3 radii | 89.6 ms | 59.7 ms | 32.2 ms |
-| Earth at 1.6 radii | 158.6 | 128.0 | 77.1 |
-| Venus at 3 radii | 50.5 | 34.9 | 21.2 |
-| Mars at 3 radii | 93.9 | 44.8 | 24.9 |
-| Titan at 3 radii | 137.6 | 50.5 | 23.5 |
-| Moon at 3 radii | 20.2 | 16.3 | 16.1 |
-| Jupiter at 3 radii | 52.1 | 51.9 | 51.7 |
+| Earth at 3 radii | 89.9 ms | 59.2 ms | 31.9 ms |
+| Earth at 1.6 radii | 159.9 | 129.0 | 76.9 |
+| Venus at 3 radii | 51.6 | 34.8 | 21.2 |
+| Mars at 3 radii | 94.8 | 46.1 | 25.5 |
+| Titan at 3 radii | 137.8 | 75.6 | 48.5 |
+| Moon at 3 radii | 19.9 | 20.0 | 19.8 |
+| Jupiter at 3 radii | 51.9 | 51.9 | 51.7 |
 
-- **Off takes an atmosphere frame to 0.17-0.49 of Normal's**, and to 0.47-0.61 of Min's.
-- **The Moon's frame is 4 ms dearer at Normal than at Min or Off**, with no body with air in
-  frame. Presumably that is Earth's shells drawn off screen -- farwarp gives every shell an AABB
-  that frustum culling always passes -- but it was not looked into.
+- **Off takes an atmosphere frame to 0.27-0.48 of Normal's**, and to 0.54-0.64 of Min's.
+- **An airless view costs the same in every tier.**
 
 **What a first visit compiles.** Time to a first draw through ANGLE
 (`time_shader_compiles.py --driver opengl3_angle`, one program per process, this laptop's CPU),
@@ -1399,3 +1414,108 @@ interleaved rounds:
 The field costs 35-41 ms as points and 84-88 ms as quads, and the two render the same sky, the
 quads 99.3-100 % of the points' light. Four vertex-shader runs per star instead of one outweigh
 whatever the emulation costs, so the field stays point sprites.
+
+
+## Addendum: what a view costs depends on the view before it
+
+Measured on 2026-09-29 to account for the Moon row of the first version of *Addendum: the Off
+tier, built*: 20.2 ms at Normal against 16.3 at Min and 16.1 at Off, with no body with air in
+frame. Intel UHD through ANGLE's D3D11, 1920x1080, 100 % render scale, MSAA off, the full star
+catalogue, sim paused and HUDs hidden; frame intervals, medians of about 6 s. Shells, star bins
+and bounds were changed in the running app by a probe suite, each change between re-measured
+baselines.
+
+**Not Earth.** In that pose Earth is behind the camera, 117 degrees off its axis. Its surface,
+cloud deck and limb, hidden one at a time or all together, moved the frame by 0.4 ms at most,
+inside the 0.3 ms a baseline wanders, at Normal and at Min alike.
+
+**Not the tier either, but the star field's memory.** One pose, in one session and at one
+settled exposure, costs 14.1-14.5 ms on a first visit and 20.0-20.8 ms after the camera has been
+to Jupiter or through the table's own pose order, in either tier. The two frames' instance lists
+differ by exactly five star bins, 8.5 to 10.5, which hold 537,000 stars. At that exposure those
+bins' brightest stars peak between 0.89 and 0.53 of a display code, inside the gap between the
+half code that hides a drawn bin and the whole code that restores a hidden one, so each keeps
+whatever state the camera arrived with. For a star bin that gap is about 3.5 EV, not the one EV
+it was taken to be (*Half a code* in [PHOTOMETRIC_MODEL.md](PHOTOMETRIC_MODEL.md), and a TODO
+there).
+
+**Why it passed for a tier.** The table measured the Moon straight after Titan. Both tiers settle
+Titan to one exposure, but Normal left it with bins drawn to 12.5 and Min to 9.5, bins that can
+only have come back while the exposure overshot on arrival. Why the overshoot differs was not
+examined; auto exposure moves in wall-clock EV per second, and a Normal frame at Titan takes 137
+ms against Min's 50. So the Moon kept bins 10.0 and 10.5, 366,000 stars, at Normal alone: 20.4
+against 16.2 ms, the table's 20.2 against 16.3. Titan's own row carried the same bins, about 25
+ms of star field that Normal drew there and Min and Off did not, so Min and Off were credited
+with 63 and 83 % at Titan against a true 45 and 65 %. The Off addendum's table has been
+re-measured with the bins pinned and the Min addendum's Titan cell corrected; apart from the Moon
+and Titan, no cell moved by more than 1.3 ms.
+
+**Pin the bins in any frame A/B,** or take every build through the same poses in the same order
+and check that the bins agree. Once a pose's exposure has settled, switching the skip off and
+back on leaves drawn exactly the bins whose brightest star peaks at half a code or more, whatever
+came before; the Planetarium's probe suite does it with `set_exposure_skips` and reads the state
+back with `get_exposure_skips`. Six milliseconds of a 14 ms frame is more than most changes an
+A/B sets out to measure.
+
+### The unseen shells, and the two fixes built
+
+Earth's were not the lead, but shells nobody could see did cost something. Every shells model
+carried the farwarp box (*Farwarp* in [VISUAL_MODEL.md](VISUAL_MODEL.md)), so none was ever
+culled -- off screen, behind the camera, or handed off to its PSF point -- and a body's own mesh
+drew its finest LOD at any range, since every renderer measures LOD distance to the instance's
+box and this one contains the camera. The sphere ladder takes a distant sphere-drawn body to a
+few hundred triangles; nothing took a body's own mesh anywhere. Ceres submitted 65,087 triangles
+in every view in the system, and Mimas, Iapetus, Phobos, Deimos, Miranda and Charon as many while
+their system was awake.
+
+Two fixes, prototyped in the probe suite, were built the same day (*Farwarp* and *Culling,
+visibility and lifecycle* in VISUAL_MODEL.md). A body's shells **drop the farwarp box** while the
+body lies inside a quarter of the camera's far plane, and cull and pick their mesh LOD on their
+own bounds there. And a body **handed off** to its PSF point stops drawing its shells. Both on
+against both off (`IVFarwarpManager.true_bounds_far_fraction` 0, `IVShellsModel.cull_handed_off`
+false) in one session, each pose A/B/A/B/A with its star bins pinned and its exposure frozen;
+the median of the three runs with both on against the mean of the two without:
+
+| View | Both off | Both on | Change | Triangles gone |
+|---|---:|---:|---:|---:|
+| Moon at 3 radii | 20.1 ms | 17.6 ms | -2.5 ms (-12 %) | 82,431 |
+| Earth at 3 radii | 89.8 | 87.6 | -2.2 (-2 %) | 76,447 |
+| Mars at 3 radii | 94.6 | 87.6 | -7.0 (-7 %) | 208,051 |
+| Jupiter at 3 radii | 52.1 | 49.5 | -2.6 (-5 %) | 86,267 |
+| Saturn at 3 radii | 45.1 | 37.7 | -7.4 (-16 %) | 235,327 |
+| Titan at 3 radii | 137.8 | 131.9 | -5.9 (-4 %) | 235,291 |
+| Ceres at 60 radii | 46.3 | 41.9 | -4.5 (-10 %) | 64,561 |
+| The ISS close up | 17.1 | 14.3 | -2.8 (-16 %) | 75,871 |
+| Whole system, dark sky | 55.2 | 51.8 | -3.4 (-6 %) | 80,831 |
+
+- **Ceres is most of it,** in every view: 65,087 triangles culled or gated wherever it is off
+  screen or a point, which is almost everywhere.
+- **The moons' own meshes are the rest.** At Mars and Saturn the frustum drops Phobos and Deimos,
+  or Mimas and Iapetus, while they are off screen.
+- **In view, a body's own mesh takes LODs,** held by `lod_bias` to the sphere ladder's 0.15 px
+  silhouette budget: Ceres draws 32,500 of its triangles at a 55 px radius, 16,300 at 18 px and
+  4,100 at 6 px, 1.1-2.1 ms each time. At the viewport's own 1 px threshold it had taken 8,100,
+  2,000 and 1,000 and moved 19 pixels at the crescent's cusps by more than 2 codes at 18 px; at
+  the ladder's budget, 6.
+- **The ISS close-up is the case the box stays for,** the far plane there being 90,000 km: Earth
+  culls on its own bounds, and Ceres, beyond, keeps the box but is gated as a point.
+
+**What moves on screen.** Screenshots with both on and both off, exposure frozen: 13 poses on the
+GTX under Forward+ and 9 through ANGLE on the iGPU. Earth, the Moon, Titan, Ceres close up,
+Jupiter's moons and both ISS poses come out identical. Three things move elsewhere, none a defect:
+
+- **A small moon now takes its 4000-radii cull,** which the box had defeated: two pixels at Mars
+  and one at Saturn, a sub-pixel disc gone -- at Saturn a dark one, so a star it had covered
+  comes back.
+- **Ceres's own mesh takes LODs:** the 6 cusp pixels above.
+- **Faint stars move by one to three codes** where the field is dense (Jupiter, the whole
+  system), with a signed mean of zero and a count that varies from run to run. The star bins
+  share one depth, so the order of their additive blend follows the draw list, which the fixes
+  shorten.
+
+Saturn's rings, whose distance cull the box had defeated as well, now stop drawing at their own
+handoff to the point instead (`IVRings.cull_handed_off`). That retires 8,450 triangles from every
+view outside Saturn's neighbourhood but no measurable frame time, their fragments having all
+discarded already; stepped across the 3 px edge by widening the field of view, no pixel moves
+beyond the star noise above. What is still drawn unseen is a close-up's shells past the
+true-bounds distance (TODO in VISUAL_MODEL.md).

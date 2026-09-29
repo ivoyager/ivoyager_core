@@ -51,6 +51,7 @@ var _m_radius: float
 var _triaxial_size: Vector3
 var _model: Node3D
 var _local_shadow_caster := false
+var _farwarp_box: bool = IVCoreSettings.apply_farwarp # until IVBody.update_farwarp() decides
 
 
 
@@ -89,6 +90,10 @@ func _ready() -> void:
 
 func is_local_shadow_caster() -> bool:
 	return _local_shadow_caster
+
+
+func has_farwarp_box() -> bool:
+	return _farwarp_box
 
 
 ## Returns this visual's model: an [IVShellsModel] (the surface, and parent of any overlay
@@ -151,6 +156,17 @@ func set_local_shadow_caster(on: bool) -> void:
 		IVDynamicLight.remove_local_shadow_geometry(self)
 
 
+## Gives every [IVShellsModel] shell of this visual the farwarp box, or takes it away so the
+## engine culls them and picks their mesh LOD on their own bounds (see
+## [method IVShellsModel.set_farwarp_box]). Called per frame by [method IVBody.update_farwarp];
+## the recursion runs on state change only.
+func set_farwarp_box(on: bool) -> void:
+	if _farwarp_box == on:
+		return
+	_farwarp_box = on
+	_set_farwarp_box_recursive(self, on)
+
+
 func _add_local_shadow_geometry() -> void:
 	var visual_layers := IVCoreSettings.get_visualinstance3d_layer_for_size(_m_radius)
 	IVDynamicLight.add_local_shadow_geometry(self,
@@ -168,6 +184,16 @@ func _set_local_shadow_caster_recursive(node3d: Node3D, on: bool) -> void:
 		var child_node3d := child as Node3D
 		if child_node3d:
 			_set_local_shadow_caster_recursive(child_node3d, on)
+
+
+func _set_farwarp_box_recursive(node3d: Node3D, on: bool) -> void:
+	var shells_model := node3d as IVShellsModel
+	if shells_model:
+		shells_model.set_farwarp_box(on)
+	for child in node3d.get_children():
+		var child_node3d := child as Node3D
+		if child_node3d:
+			_set_farwarp_box_recursive(child_node3d, on)
 
 
 func _build_packed_model(asset_preloader: IVAssetPreloader, packed_model: PackedScene) -> void:

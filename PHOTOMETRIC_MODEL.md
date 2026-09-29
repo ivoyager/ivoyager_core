@@ -1193,8 +1193,21 @@ stars that are plainly visible, so the test is the peak of core plus wing
 
 A drawn layer is dropped below **half** a code and is not restored until it reaches a whole
 one. The lower figure is the 8-bit rounding boundary — below it the layer alone cannot round
-to anything — and the gap between the two is hysteresis, one EV of exposure glide, without
-which a layer sitting on the line would flip every frame.
+to anything — and the gap between the two is hysteresis, without which a layer sitting on
+the line would flip every frame.
+
+**How wide that gap is depends on the layer.** For the panorama, whose radiance is linear in
+exposure, it is one EV of exposure glide. A star bin is judged by its brightest star's peak,
+and near the cut that peak is the glare wing (*One display code*, above), which grows only as
+`intensity^glare_gamma`: at the shipped 0.286 a factor of two in peak is about 3.5 EV, or 2.6
+magnitudes, so at any steady exposure some five half-magnitude bins sit inside the gap —
+drawn if the camera arrived from a darker view, skipped if it arrived from a brighter one.
+Measured 2026-09-29 at the Moon at 3 radii, one settled exposure either way: bins 8.5 to 10.5
+peak at 0.89 down to 0.53 of a code, and the path decides whether their 537,000 stars are
+submitted, which is about 6 ms of an integrated-GPU frame through ANGLE (*Addendum: what a view
+costs depends on the view before it* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)). The
+bound below holds either way; what the width costs is that neither the frame time nor, to
+about a code in the faint stars, the image is a function of the pose alone.
 
 Half a code is also what makes the guarantee provable rather than measured. In the toe the
 encode is linear at 12.92, so removing a contribution under half a code moves an encoded
@@ -2438,6 +2451,14 @@ lever a capped pass cannot offer is one the shader does not need.
   planets, and the correct Milky Way sheen on deep-space craft is likewise missing when
   the bake happened dark. Fix: retrigger the bake when exposure has moved more than
   ~half an EV since the last one.
+- **Size the star bins' hysteresis in exposure, not in peak** (*Half a code*, above). The gap
+  was meant as one EV of glide and is about 3.5 for a star bin, which leaves five bins' draw
+  to the camera's path (measured 2026-09-29). Testing a hidden bin's return at its peak under
+  half the current exposure, rather than against a whole code, would make it one EV for every
+  layer, whatever the PSF's law: the path would then decide about one and a half bins rather
+  than five, and a first visit would draw the bins peaking between about 0.6 and 1 code, which
+  it omits now — so a first visit costs more frame time and draws the faint stars the eye
+  would expect. Whether that trade is wanted is open.
 - **A project's local scene does not meter** (*A project's own lighting*, tier 2). The
   candidate set is bodies plus the two asserted shell ceilings, so a lit interior filling the
   frame leaves the camera at its dark-adapted rest and blows out; a project's only recourse

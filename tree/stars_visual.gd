@@ -62,8 +62,10 @@ const STAR_CATALOG_CUTOFFS: Array[float] = [99.9, 11.0, 9.5]
 ## Share of [constant IVPhotometry.ONE_DISPLAY_CODE_LINEAR] a DRAWN bin must fall below to
 ## be hidden, against the whole code a hidden one must reach to come back. Half a code is
 ## the 8-bit rounding boundary and so the real "cannot move a pixel" line; the gap to a
-## whole code is the hysteresis, which exposure glides through in 1 EV -- without it a bin
-## sitting on the line would flip every frame.
+## whole code is the hysteresis, without which a bin sitting on the line would flip every
+## frame. For a star bin that gap is several EV wide, so which bins draw at a given exposure
+## depends on the exposure the camera arrived with; see [i]Half a code[/i] in
+## PHOTOMETRIC_MODEL.md.
 const HIDE_THRESHOLD_FRACTION := 0.5
 
 ## Directional grid the per-bin sky density is measured over: bands of equal

@@ -85,6 +85,11 @@ const PSF_HANDOFF_LOW_PX := 3.0
 ## it. The crossfade takes the greater of this and the live viewport, so a stale value can only
 ## hold light on the plane, never hand it to the point.
 static var capture_render_height := 0.0
+## Stops drawing the plane once the point has all of the ring's light in every viewport, where
+## every fragment it draws would discard anyway; this is what retires a distant ring. Set false
+## to render (and measure) the plane regardless. See [i]Culling, visibility and lifecycle[/i]
+## in VISUAL_MODEL.md.
+static var cull_handed_off := true
 
 
 # All built from table rings.tsv.
@@ -147,6 +152,7 @@ var _psf_tau := PackedFloat64Array()
 var _psf_back := PackedFloat64Array()
 var _psf_forward := PackedFloat64Array()
 var _psf_unlit := PackedFloat64Array()
+var _handed_off := false # the plane's instance hidden by the handoff gate (cull_handed_off)
 
 
 func _init(body: IVBody) -> void:
@@ -183,12 +189,12 @@ func _ready() -> void:
 	var texture_end := texture_outer_radius / plane_radius
 
 	scale = Vector3(plane_radius, 1.0, plane_radius)
-	visibility_range_end = outer_radius * IVCoreSettings.radius_multiplier_visibility_range_end
 	# Frustum culling tests the true-scale AABB, and three things in the vertex shader move
 	# vertices where that AABB cannot follow: the farwarp remap keeps the ring on screen when
 	# the far-plane test fails, and the edge-on tilt and the aperture's outward expansion both
-	# grow the plane by view-dependent factors. Make the test always pass; the distance cull
-	# above is what actually retires the ring.
+	# grow the plane by view-dependent factors. Make the test always pass. That defeats a
+	# distance cull too (Godot measures one from this box's collapsed centre), so the handoff
+	# gate is what retires the ring (cull_handed_off).
 	var extent := IVCoreSettings.max_camera_distance
 	custom_aabb = AABB(-Vector3.ONE * extent, 2.0 * Vector3.ONE * extent)
 	sorting_use_aabb_center = false # f32 collapses that AABB's centre; sort by the node origin
@@ -216,6 +222,15 @@ func _process(_delta: float) -> void:
 	_rings_material.set_shader_parameter(&"illumination_position",
 			_illuminating_star.global_position)
 	_update_psf_handoff()
+
+
+func _notification(what: int) -> void:
+	# The engine re-shows the instance on entering the world and on any visibility change in
+	# or above this node.
+	if !_handed_off:
+		return
+	if what == NOTIFICATION_VISIBILITY_CHANGED or what == NOTIFICATION_ENTER_WORLD:
+		RenderingServer.instance_set_visible(get_instance(), false)
 
 
 func _clear_procedural() -> void:
@@ -249,11 +264,23 @@ func _update_psf_handoff() -> void:
 	var psf_fraction := 1.0 - smoothstep(PSF_HANDOFF_LOW_PX, PSF_HANDOFF_HIGH_PX,
 			outer_pixels)
 	_rings_material.set_shader_parameter(&"plane_light_fraction", 1.0 - psf_fraction)
+	_set_handed_off(cull_handed_off and psf_fraction >= 1.0)
 	if psf_fraction <= 0.0:
 		_body.rings_psf_flux_factor = 0.0
 		return
 	_body.rings_psf_flux_factor = psf_fraction * _get_psf_flux_factor(
 			camera.global_position, _illuminating_star.global_position)
+
+
+# With no light left on the plane, rings.gdshader discards every fragment in every viewport (the
+# fraction is decided at the greatest render height in use), so the plane stops drawing and its
+# vertex work goes too. Through the rendering server rather than `visible`, which _process()
+# reads as a project switching the ring off, and so without touching the point's share.
+func _set_handed_off(handed_off: bool) -> void:
+	if handed_off == _handed_off:
+		return
+	_handed_off = handed_off
+	RenderingServer.instance_set_visible(get_instance(), !handed_off and is_visible_in_tree())
 
 
 ## Returns the rings' contribution to their body's POINT-SOURCE flux, in the same terms the
