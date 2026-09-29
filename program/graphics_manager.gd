@@ -39,16 +39,25 @@ extends Node
 ## the catalog at startup.[br][br]
 ##
 ## Setting [code]renderer[/code] cannot apply live: Godot fixes the renderer at
-## engine start. On change, this node writes it to the file the project names in
-## ProjectSettings [code]application/config/project_settings_override[/code]
-## (e.g. [code]user://override.cfg[/code]), which the engine reads at the next
-## start. A project that names no such file, and any non-desktop build, gets no
-## Renderer option; see [method can_set_renderer]. A Forward+ run also records the
-## GPU's type in that file, which a Compatibility run cannot read for itself; see
-## [member IVGlobal.video_adapter_type]. Switching a first run to a hardware-dependent
-## default is the project's job, since it needs a restart before the rest of init;
-## [method write_rendering_method] and [method get_rendering_method] serve a
-## preinitializer that does so.[br][br]
+## engine start. On change, and at startup when that file still names a renderer
+## the setting no longer does (as after a settings cache reset), this node writes
+## it to the file the project names in ProjectSettings
+## [code]application/config/project_settings_override[/code] (e.g.
+## [code]user://override.cfg[/code]), which the engine reads at the next start. A
+## project that names no such file, a project whose [member
+## IVSettingsManager.graphics_target] is [code]MODERN_GPU[/code], and any
+## non-desktop build get no Renderer option; see [method can_set_renderer]. A
+## Forward+ run also records the GPU's type in that file, which a Compatibility run
+## cannot read for itself; see [member IVGlobal.video_adapter_type]. A project that
+## switches a run to a renderer other than the one it started in must restart it
+## before the rest of init; [method write_rendering_method] and [method
+## get_rendering_method] serve a preinitializer that does so.[br][br]
+##
+## [method get_graphics_tier] rates what this machine's GPU and screen can carry,
+## and [method get_fitted_defaults] gives the graphics defaults that suit it, which
+## [IVSettingsManager] applies when a project sets [member
+## IVSettingsManager.graphics_target]. See [i]Fitted defaults[/i] in
+## [code]GRAPHICS_PROFILING.md[/code] for why each tier gives up what it does.[br][br]
 ##
 ## Renderer support differs: MSAA, atmosphere quality and frame rate cap work in
 ## all renderers; render scale works everywhere but on ANGLE's Direct3D 11 path,
@@ -94,8 +103,23 @@ extends Node
 ## does so through [code]shaders/_display.gdshaderinc[/code]; see that file for
 ## what the global means and what it does not cover.
 
+## What a machine's GPU and screen can carry; see [method get_graphics_tier].
+enum GraphicsTier {
+	FULL, ## A discrete GPU driving a screen of ordinary pixel count.
+	REDUCED, ## A discrete GPU driving a screen past [constant REDUCED_TIER_SCREEN_PIXELS].
+	LOW, ## Any other GPU, including one of unknown type, as in every browser.
+}
+
 ## Godot's rendering method for each value of setting [code]renderer[/code].
 const RENDERING_METHODS: Array[String] = ["forward_plus", "gl_compatibility"]
+## The 3D render scale for each value of setting [code]render_scale[/code].
+const RENDER_SCALES: Array[float] = [1.0, 0.85, 0.7, 0.5]
+## Physical screen pixels past which a discrete GPU rates [constant GraphicsTier.REDUCED].
+const REDUCED_TIER_SCREEN_PIXELS := 6_000_000
+## 3D render pixels that [constant GraphicsTier.REDUCED] fits its render scale within.
+const REDUCED_TIER_RENDER_PIXELS := 4_700_000
+## 3D render pixels that [constant GraphicsTier.LOW] fits its render scale within.
+const LOW_TIER_RENDER_PIXELS := 2_700_000
 
 
 ## True if this session draws every atmosphere with the Min tier's shaders (THE MIN VARIANT
@@ -116,7 +140,7 @@ var atmosphere_quality_settings: Dictionary[StringName, int] = {
 }
 
 ## Enumeration backing the [code]render_scale[/code] dropdown in
-## [IVOptionsPopup]. Mapped to a 3D render scale in [method _apply_render_scale].
+## [IVOptionsPopup]. Mapped to a 3D render scale by [constant RENDER_SCALES].
 ## Insertion order must equal value order (the popup uses the setting value as
 ## the dropdown item index).
 var render_scale_settings: Dictionary[StringName, int] = {
@@ -194,11 +218,57 @@ static func get_render_size(viewport: Viewport) -> Vector2:
 	return (pixels * viewport.scaling_3d_scale).floor() # the engine truncates too
 
 
+## Returns what this machine's GPU and screen can carry, judged from the GPU's type ([member
+## IVGlobal.video_adapter_type]) and the physical pixel count of the screen the main window is
+## on. Only a discrete GPU rates above [constant GraphicsTier.LOW]; a browser, and a
+## Compatibility run that no Forward+ run has recorded the GPU for, cannot know the type.
+static func get_graphics_tier() -> GraphicsTier:
+	if IVGlobal.video_adapter_type != RenderingDevice.DEVICE_TYPE_DISCRETE_GPU:
+		return GraphicsTier.LOW
+	if _get_screen_pixels() > REDUCED_TIER_SCREEN_PIXELS:
+		return GraphicsTier.REDUCED
+	return GraphicsTier.FULL
+
+
+## Returns the graphics defaults that suit this machine, keyed by setting, which
+## [IVSettingsManager] applies when a project sets [member IVSettingsManager.graphics_target]. It
+## holds only what differs from Core's defaults. [constant GraphicsTier.REDUCED] takes atmosphere
+## quality to Reduced, shadow resolution to 2048 and render scale within [constant
+## REDUCED_TIER_RENDER_PIXELS]; [constant GraphicsTier.LOW] also takes MSAA off and the star
+## catalog to V 11, fits render scale within [constant LOW_TIER_RENDER_PIXELS], and has
+## atmospheres at Min where [method is_angle_d3d11]. Forward+ stays the default renderer wherever
+## it runs, but where the engine fell back from it, or the command line chose another, the
+## running renderer is the default.
+static func get_fitted_defaults() -> Dictionary[StringName, Variant]:
+	var fitted_defaults: Dictionary[StringName, Variant] = {}
+	match get_graphics_tier():
+		GraphicsTier.REDUCED:
+			fitted_defaults[&"atmosphere_quality"] = 1 # reduced
+			fitted_defaults[&"shadow_resolution"] = 1 # 2048
+			if can_scale_render():
+				fitted_defaults[&"render_scale"] = _get_fitted_render_scale(
+						REDUCED_TIER_RENDER_PIXELS)
+		GraphicsTier.LOW:
+			fitted_defaults[&"atmosphere_quality"] = 2 if is_angle_d3d11() else 1 # min, reduced
+			fitted_defaults[&"shadow_resolution"] = 1 # 2048
+			fitted_defaults[&"msaa_3d"] = 0 # disabled
+			fitted_defaults[&"star_catalog"] = 1 # to V 11
+			if can_scale_render():
+				fitted_defaults[&"render_scale"] = _get_fitted_render_scale(LOW_TIER_RENDER_PIXELS)
+	var running_renderer := RENDERING_METHODS.find(RenderingServer.get_current_rendering_method())
+	if running_renderer != -1 and !_is_configured_renderer_running():
+		fitted_defaults[&"renderer"] = running_renderer
+	return fitted_defaults
+
+
 ## Returns true if setting [code]renderer[/code] can take effect in this build: a
 ## desktop build whose project names a settings override file for the engine to
-## read at startup. Otherwise [IVOptionsPopup] hides the Renderer option.
+## read at startup, and whose [member IVSettingsManager.graphics_target] is not
+## [code]MODERN_GPU[/code]. Otherwise [IVOptionsPopup] hides the Renderer option.
 static func can_set_renderer() -> bool:
 	if !OS.has_feature("pc"):
+		return false
+	if IVSettingsManager.graphics_target == IVSettingsManager.GraphicsTarget.MODERN_GPU:
 		return false
 	var is_override_disabled: bool = ProjectSettings.get_setting(
 			"application/config/disable_project_settings_override")
@@ -207,16 +277,21 @@ static func can_set_renderer() -> bool:
 	return !is_override_disabled and !override_path.is_empty()
 
 
-## Returns false where a reduced 3D render scale costs frame time rather than saving it: the
-## Compatibility renderer through ANGLE's Direct3D 11 path, which is a Windows desktop build on
-## the [code]opengl3_angle[/code] driver and any browser on Windows. There setting
-## [code]render_scale[/code] is ignored, the scale holds at 100%, and [IVOptionsPopup] hides
-## the 3D Render Scale option. See [i]3D render scale[/i] in [code]GRAPHICS_PROFILING.md[/code].
-static func can_scale_render() -> bool:
+## Returns true where the Compatibility renderer runs through ANGLE's Direct3D 11 path: a
+## Windows desktop build on the [code]opengl3_angle[/code] driver, and any browser on Windows.
+static func is_angle_d3d11() -> bool:
 	if OS.has_feature("web"):
-		return !OS.has_feature("web_windows")
-	return !(OS.get_name() == "Windows"
+		return OS.has_feature("web_windows")
+	return (OS.get_name() == "Windows"
 			and RenderingServer.get_current_rendering_driver_name() == "opengl3_angle")
+
+
+## Returns false where a reduced 3D render scale costs frame time rather than saving it, which
+## is wherever [method is_angle_d3d11]. There setting [code]render_scale[/code] is ignored, the
+## scale holds at 100%, and [IVOptionsPopup] hides the 3D Render Scale option. See [i]3D render
+## scale[/i] in [code]GRAPHICS_PROFILING.md[/code].
+static func can_scale_render() -> bool:
+	return !is_angle_d3d11()
 
 
 ## Returns Godot's rendering method for [param renderer_setting], a value of
@@ -251,6 +326,28 @@ static func _write_override_file(rendering_method := "") -> Error:
 	return config.save(override_path)
 
 
+# False where the command line, or the engine's fallback from a renderer it can't run, chose the
+# renderer rather than the project settings and their override file.
+static func _is_configured_renderer_running() -> bool:
+	var configured_method: String = ProjectSettings.get_setting_with_override(
+			&"rendering/renderer/rendering_method")
+	return RenderingServer.get_current_rendering_method() == configured_method
+
+
+static func _get_fitted_render_scale(max_render_pixels: int) -> int:
+	var screen_pixels := _get_screen_pixels()
+	for setting in RENDER_SCALES.size():
+		var render_scale := RENDER_SCALES[setting]
+		if screen_pixels * render_scale * render_scale <= max_render_pixels:
+			return setting
+	return RENDER_SCALES.size() - 1
+
+
+static func _get_screen_pixels() -> int:
+	var screen_size := DisplayServer.screen_get_size(DisplayServer.window_get_current_screen())
+	return screen_size.x * screen_size.y
+
+
 func _ready() -> void:
 	IVSettingsManager.changed.connect(_settings_listener)
 	# The renderer cannot change without a restart, so this is written once and never again.
@@ -268,7 +365,7 @@ func _ready() -> void:
 	if can_set_renderer():
 		IVSettingsManager.set_running_value(&"renderer",
 				RENDERING_METHODS.find(RenderingServer.get_current_rendering_method()))
-		_record_video_adapter_type()
+		_update_override_file()
 	set_process(false)
 	if !IVCoreSettings.apply_display_scale:
 		return
@@ -365,13 +462,8 @@ func _apply_render_scale() -> void:
 	# A cached reduced scale from a run that could scale is ignored where this one cannot.
 	var setting: int = IVSettingsManager.get_setting(&"render_scale") if can_scale_render() else 0
 	var render_scale := 1.0 # also the scale for a stale cached index past the end
-	match setting:
-		1:
-			render_scale = 0.85
-		2:
-			render_scale = 0.7
-		3:
-			render_scale = 0.5
+	if setting > 0 and setting < RENDER_SCALES.size():
+		render_scale = RENDER_SCALES[setting]
 	# Only Forward+ has FSR 1. The engine would fall back to bilinear elsewhere anyway,
 	# but with a warning.
 	var is_forward_plus := RenderingServer.get_current_rendering_method() == "forward_plus"
@@ -439,6 +531,17 @@ func _apply_frame_rate_cap() -> void:
 		1:
 			max_fps = 60
 	Engine.max_fps = max_fps
+
+
+# A settings cache reset can leave the override file naming a renderer the setting no longer
+# does, and a restart alone would never correct that.
+func _update_override_file() -> void:
+	var setting: int = IVSettingsManager.get_setting(&"renderer")
+	if (get_rendering_method(setting) != RenderingServer.get_current_rendering_method()
+			and _is_configured_renderer_running()):
+		_write_renderer() # records the GPU's type too
+		return
+	_record_video_adapter_type()
 
 
 func _record_video_adapter_type() -> void:

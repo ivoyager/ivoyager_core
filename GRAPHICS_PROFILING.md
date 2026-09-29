@@ -136,7 +136,7 @@ Intel figures for the atmosphere views come from runs in the driver's normal sta
 |---|---|---|---|---|---|
 | 1 | **Atmosphere quality**: Full / Reduced / Off. Runtime shader swap, or restart. | Reduced -22 to -38%; Off -76 to -95% (atmosphere views) | The shell is 15-39% of the frame | Reduced: none visible. Up to 15 codes on 1-2% of pixels, confined to the limb band. Off: no air at all, and Titan loses its identity. | Built as Normal / Reduced, and a runtime setting rather than a restart one (see *Addendum: the quality tiers, built*). Off is not built. |
 | 2 | **3D render scale**: 100 / 85 / 75 / 50%. Runtime. FSR 1 on Forward+. | 75%: -17 to -28%; 50%: -30 to -66% | 75%: -13 to -36%; 50%: -25 to -64% | Soft lines and HUD text. At 50%, orbit lines turn chunky, and the star field coarsens because star size follows render height. | Built as 100 / 85 / 70 / 50% (see *3D render scale*). On a 2x hi-DPI screen, 50% simply restores 1x cost. Through ANGLE, the web's path on Windows, any scale below 100% costs 20-40 ms a frame instead. |
-| 3 | **Renderer** (desktop): Auto / Forward+ / Compatibility. Restart. | Compatibility 1.4-8x faster than Forward+ | Mixed: Compatibility faster in 5 of 8 views | Compatibility loses mouse-over identification of orbit lines and asteroids, FXAA and TAA, and local shadow maps. The picture itself matches. | Built as Forward+ / Compatibility, with the Planetarium defaulting integrated GPUs to Compatibility (see *The renderer, on desktop*). |
+| 3 | **Renderer** (desktop): Auto / Forward+ / Compatibility. Restart. | Compatibility 1.4-8x faster than Forward+ | Mixed: Compatibility faster in 5 of 8 views | Compatibility loses mouse-over identification of orbit lines and asteroids, FXAA and TAA, and local shadow maps. The picture itself matches. | Built as Forward+ / Compatibility, with Forward+ the default wherever it runs (see *The renderer, on desktop*). |
 | 4 | **Star catalogue depth**: all (V 15) / V 11 / V 9.5. Restart, or a 0.3-1.1 s rebuild. | V 11: -17 to -29%; V 9.5: -26 to -43% (star-heavy views) | V 11: -28 to -31%; V 9.5: -44 to -52% | None in lit-body views, where exposure hides faint stars. In dark-sky views, V 11 dims the diffuse star glow (about 7 codes over a third of the sky) and V 9.5 is visibly sparser. | Built as a restart option, its choices named by star count (see *The star field*). It also saves memory and load time. |
 | 5 | **Shadow resolution** (existing; Forward+ only in the Planetarium) | vs 8192 on Forward+: 2048 -27 to -39%; 16384 +18 to +88% | 2048: -1 to -10%; 16384: +28 to +387% | Spacecraft-scale self-shadowing only. Eclipses and ring shadows are analytic and unaffected. | Keep. Drop 16384, add Off, and default to 4096. All three are built. |
 
@@ -292,9 +292,8 @@ What Compatibility gives up on desktop:
 restart, and on desktop only. IVGraphicsManager writes the choice to the file the project names in
 `application/config/project_settings_override`, so it takes effect at the next start, and a
 Forward+ run records the GPU's type there for `IVGlobal`, since the Compatibility renderer cannot
-read it. The default by adapter is the project's to set: the
-Planetarium defaults an integrated GPU to Compatibility, and a first run that starts in Forward+
-there restarts itself into it before init builds anything (`planetarium/preinitializer.gd`). A
+read it. Forward+ stays the default on an integrated GPU too, whatever the frame rate: what
+Compatibility gives up in mouse-over identification is a user's to choose (*Fitted defaults*). A
 laptop with both GPUs counts as discrete, since Godot picks the discrete one.
 
 
@@ -486,7 +485,54 @@ changes and not others; its tooltip says so, and the Options popup marks it whil
 
 A first-run preset, chosen from the adapter, could set all of these at once. On an integrated GPU
 or the web it would pick Compatibility, Reduced atmospheres, 75% scale on hi-DPI and MSAA off --
-though not the reduced scale through ANGLE, where it costs (*3D render scale*).
+though not the reduced scale through ANGLE, where it costs (*3D render scale*). **Built since**
+as fitted defaults, chosen every run rather than once, and keeping Forward+ (next section).
+
+
+## Fitted defaults
+
+Built on 2026-09-29 as `IVSettingsManager.graphics_target`. A project that sets it to
+`BROAD_HARDWARE` or `MODERN_GPU` has Core's graphics defaults replaced at each start by those
+`IVGraphicsManager.get_fitted_defaults()` gives for the machine. `NONE`, the default, applies them
+as written, and a default the project sets itself holds on every machine. Only defaults move: a
+user's own choice is cached and stands, and Restore Defaults returns to the fitted values.
+
+The tier comes from two things Godot reports before anything is drawn, the GPU's type and the
+physical pixel count of the screen (`IVGraphicsManager.get_graphics_tier()`):
+
+| | Full | Reduced | Low |
+|---|---|---|---|
+| Machine | Discrete GPU, screen up to 6 MP | Discrete GPU, screen past 6 MP | Any other GPU, or one of unknown type, as in every browser |
+| Atmosphere quality | Normal | Reduced | Min through ANGLE's D3D11, else Reduced |
+| 3D render scale | 100% | Largest within 4.7 MP | Largest within 2.7 MP |
+| MSAA | 2x | 2x | Off |
+| Shadow resolution | 4096 | 2048 | 2048 |
+| Star catalog | All | All | To V 11 |
+
+- **The renderer is not fitted.** Forward+ stays the default wherever it runs, although
+  Compatibility is 1.4-8x faster on the iGPU (*The renderer, on desktop*): Compatibility loses
+  mouse-over identification of orbit lines and asteroids, which should be the user's trade to
+  make, through the Renderer option. The running renderer becomes the default only where the
+  engine fell back from Forward+ or the command line chose another. `MODERN_GPU` hides the option.
+- **The screen stands in for the GPU's class.** Godot reports no memory size or model tier, and a
+  laptop with both GPUs reports its discrete one -- this report's GTX 1650 Ti among them. What
+  makes such a part struggle is a dense panel: at 3840x2400 it renders 4.4 times a 1080p frame.
+  6 MP keeps a 1440p or 3440x1440 desktop at Full and puts 4K and the denser laptop panels at
+  Reduced. A fast GPU on a 4K monitor is rated Reduced too, and loses little by it.
+- **Render scale fits a pixel budget** rather than taking a fixed step. 4.7 MP puts a 4K or
+  3840x2400 screen at 70%; 2.7 MP keeps a 1920x1200 screen at 100% and takes 4K to 50%, the 1x
+  cost on a 2x screen (*3D render scale*). It stays at 100% through ANGLE's D3D11 path, where
+  any reduction costs.
+- **Reduced atmospheres and 2048 shadows cost nothing visible** (*All options, ranked*, rows 1
+  and 5), so a discrete GPU on a dense screen takes them too. Min is Low's tier only through
+  ANGLE, where it takes 20-63% off an atmosphere frame; through Intel's own GL it is slower than
+  Normal at Earth (*Addendum: the Min tier, built*).
+- **MSAA off and V 11 are Low's alone**, since each changes what a user sees -- stair-stepped
+  orbit lines, and a dimmer diffuse star glow in dark-sky views -- for 5-13% and 17-29% of an iGPU
+  frame.
+
+What frame rate each tier then delivers has not been measured; the reliefs above are each
+option's own.
 
 
 ## Caveats

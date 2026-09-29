@@ -31,6 +31,10 @@ extends Node
 ## Many settings are settable in [IVOptionsPopup]. Other settings can be added
 ## that are "hidden" from user Options and managed by code.[br][br]
 ##
+## A project that runs on a range of hardware sets [member graphics_target], and
+## its graphics defaults are then fitted to each machine rather than applied as
+## written.[br][br]
+##
 ## A setting that takes effect only at startup can register the value the running
 ## session actually uses with [method set_running_value]. [method
 ## is_restart_pending] then tells whether the current settings need a restart, and
@@ -45,11 +49,32 @@ signal initialized()
 signal changed(setting: StringName, value: Variant)
 
 
+## The hardware a project supports, which decides whether its graphics defaults are
+## fitted to each machine. See [member graphics_target].
+enum GraphicsTarget {
+	## Graphics defaults apply as written, on every machine.
+	NONE,
+	## Anything from integrated graphics and browsers up. The Renderer option offers
+	## Compatibility where the project allows it (see [method
+	## IVGraphicsManager.can_set_renderer]).
+	BROAD_HARDWARE,
+	## GPUs that run Forward+, the only renderer: the Renderer option is hidden.
+	MODERN_GPU,
+}
+
+
 ## Name of the settings cache file.
 var file_name := "settings.ivbinary"
 ## A new value obsoletes existing cache files. Update only when old cache files
 ## might be problematic.
 var file_version := "0.0.23"
+## Set in a preinitializer. Any target but [constant GraphicsTarget.NONE] replaces
+## graphics defaults at cache init with those [method
+## IVGraphicsManager.get_fitted_defaults] gives for this machine, so a weaker GPU or a
+## denser screen starts with lighter settings; Forward+ stays the default renderer
+## wherever it runs. A setting the project gives its own default with [method
+## set_default] keeps it on every machine.
+var graphics_target := GraphicsTarget.NONE
 
 
 var _defaults: Dictionary[StringName, Variant] = {
@@ -102,6 +127,7 @@ var _defaults: Dictionary[StringName, Variant] = {
 
 var _settings: Dictionary[StringName, Variant] = {}
 var _running_values: Dictionary[StringName, Variant] = {}
+var _project_default_keys: Dictionary[StringName, bool] = {}
 var _cache_handler: IVCacheHandler
 
 
@@ -111,9 +137,11 @@ func _ready() -> void:
 
 ## Add or change a default setting.
 ## For preinitializer script only! Defaults become read-only at cache init.
-## Supply [param value] = null to remove a setting.
+## Supply [param value] = null to remove a setting. A default set here holds on
+## every machine, whatever [member graphics_target] would fit.
 func set_default(key: StringName, value: Variant) -> void:
 	assert(!_defaults.is_read_only(), "Call set_default() before cache init")
+	_project_default_keys[key] = true
 	if value == null:
 		_defaults.erase(key)
 	else:
@@ -208,10 +236,19 @@ func is_restart_pending_for(key: StringName) -> bool:
 
 func _on_core_init_preinitialized() -> void:
 	assert(!_cache_handler)
+	if graphics_target != GraphicsTarget.NONE:
+		_fit_graphics_defaults()
 	_defaults.make_read_only()
 	_cache_handler = IVCacheHandler.new(_defaults, _settings, file_name, file_version)
 	_cache_handler.current_changed.connect(_on_current_changed)
 	initialized.emit()
+
+
+func _fit_graphics_defaults() -> void:
+	var fitted_defaults := IVGraphicsManager.get_fitted_defaults()
+	for key in fitted_defaults:
+		if _defaults.has(key) and !_project_default_keys.has(key):
+			_defaults[key] = fitted_defaults[key]
 
 
 func _on_current_changed(key: StringName, new_value: Variant) -> void:
