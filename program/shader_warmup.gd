@@ -48,11 +48,14 @@ extends Node
 ## Opt in by adding this class to [member IVCoreInitializer.program_nodes], and
 ## set [member trigger] for the project's boot sequence (from
 ## [signal IVStateManager.core_init_program_objects_instantiated], before this
-## node is added to the tree). The screen that covers the warm-up should stay up
-## until [signal finished] rather than [signal IVStateManager.simulator_started],
-## and can display [signal progress_changed]: it is emitted one frame before the
-## draw that may stall, so the text a handler sets is the text that stays on
-## screen through the stall.[br][br]
+## node is added to the tree). Under either automatic trigger the warm-up holds
+## [IVStateManager]'s startup state until [signal finished], so a splash or boot
+## screen that follows [member IVStateManager.show_splash_screen] and
+## [member IVStateManager.ok_to_start] covers it with no wiring of its own. It
+## runs once per session; a later new or loaded game finds its shaders compiled.
+## The screen can display [signal progress_changed]: it is emitted one frame
+## before the draw that may stall, so the text a handler sets is the text that
+## stays on screen through the stall.[br][br]
 ##
 ## See [code]SHADER_COMPILE_PROFILING.md[/code] for what a compile costs, what drives
 ## it, and what a cold start measures.
@@ -60,7 +63,8 @@ extends Node
 ## Emitted one frame before shader [param index] (0-based, of [param count]) is
 ## first drawn; [param shader_name] is its key in [member IVGlobal.resources].
 signal progress_changed(index: int, count: int, shader_name: StringName)
-## Emitted when every shader has been drawn, or at once if the warm-up is skipped.
+## Emitted when every shader has been drawn, or at once if the warm-up is skipped,
+## after the warm-up has released its hold on [IVStateManager].
 signal finished()
 
 
@@ -68,8 +72,10 @@ signal finished()
 enum Trigger {
 	## On [signal IVStateManager.simulator_started]. The system tree exists and
 	## [IVCamera] has processed, so the quads draw in the real scene and compile
-	## the base, additive and shadow specializations bodies use. For a project
-	## that boots straight into the simulator behind a loading screen.
+	## the base, additive and shadow specializations bodies use.
+	## [member IVStateManager.show_splash_screen] stays true until [signal finished],
+	## so the screen that covered the system build, whether a boot screen or a
+	## splash screen after its start button, stays up for the warm-up too.
 	SIMULATOR_STARTED,
 	## On [signal IVStateManager.assets_preloaded], which is where a splash-screen
 	## project ([member IVCoreSettings.wait_for_start] == true) waits for the user
@@ -78,10 +84,13 @@ enum Trigger {
 	## four variants at the default specialization mask, over half of what a first
 	## draw costs. The specializations the scene itself selects still compile when
 	## a body is first drawn, so this trades a smaller residual stall for a warm-up
-	## the user can watch. Gate the splash screen's start button on
-	## [signal finished] to keep even that off the user's flight.
+	## the user can watch. [member IVStateManager.ok_to_start] stays false until
+	## [signal finished], so neither [IVStartButton] nor a gamesave load can
+	## build a system tree over it.
 	ASSETS_PRELOADED,
-	## Never on its own; the project calls [method warm_up].
+	## Never on its own; the project calls [method warm_up] and covers it itself,
+	## e.g. with [method IVStateManager.hold_start] or
+	## [method IVStateManager.hold_splash_screen].
 	MANUAL,
 }
 
@@ -114,10 +123,14 @@ var _shadow_geometry_camera: Camera3D
 
 
 func _ready() -> void:
+	# IVStateManager sets the state a hold keeps immediately before it emits the
+	# trigger, so the hold is taken now.
 	match trigger:
 		Trigger.SIMULATOR_STARTED:
+			IVStateManager.hold_splash_screen(self)
 			IVStateManager.simulator_started.connect(warm_up)
 		Trigger.ASSETS_PRELOADED:
+			IVStateManager.hold_start(self)
 			IVStateManager.assets_preloaded.connect(warm_up)
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
 
@@ -129,7 +142,7 @@ func warm_up() -> void:
 	if _running:
 		return
 	if gl_compatibility_only and !IVGlobal.is_gl_compatibility:
-		finished.emit()
+		_finish()
 		return
 	_running = true
 	_run()
@@ -176,12 +189,26 @@ func _run() -> void:
 	print("Shader warm-up: %d shaders in %.1f s" % [shader_names.size(),
 			(Time.get_ticks_msec() - start_msec) / 1000.0])
 	_running = false
+	_finish()
+
+
+func _finish() -> void:
+	# Every new or loaded game emits simulator_started again, and a repeat would
+	# hold the splash screen over shaders this session has already compiled.
+	if IVStateManager.simulator_started.is_connected(warm_up):
+		IVStateManager.simulator_started.disconnect(warm_up)
+	IVStateManager.release_start(self)
+	IVStateManager.release_splash_screen(self)
 	finished.emit()
 
 
 func _clear_procedural() -> void:
 	_free_added_nodes()
 	_running = false
+	# assets_preloaded never comes again to retry a cancelled warm-up, so it must
+	# not go on holding the start. A splash-screen hold stays for the retry at the
+	# next simulator_started.
+	IVStateManager.release_start(self)
 
 
 func _get_shader_names() -> Array[StringName]:

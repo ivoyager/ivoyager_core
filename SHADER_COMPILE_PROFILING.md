@@ -354,8 +354,11 @@ Its `trigger` picks the moment, and the two cases differ in what they can reach:
   There is no system tree yet, so the warm-up adds its own camera and one unshadowed directional
   light. That reaches the scene-independent part of each shader -- the four variants at the
   default specialization mask, over half of what a first draw costs -- while the specializations
-  the scene itself selects still compile when a body is first drawn. Gate the splash screen's
-  start button on `finished` and even that residual stays off the user's flight.
+  the scene itself selects still compile when a body is first drawn.
+
+Either way the warm-up holds `IVStateManager` until `finished` -- `show_splash_screen` true under
+`SIMULATOR_STARTED`, `ok_to_start` false under `ASSETS_PRELOADED` -- so a splash or boot screen
+that follows them covers it.
 
 A project that wants the moment itself uses `MANUAL` and calls `warm_up()`.
 
