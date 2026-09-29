@@ -88,12 +88,12 @@ extends Node
 ## Atmosphere quality writes the [code]iv_atm_*[/code] shader globals that
 ## [code]shaders/_atmosphere.gdshaderinc[/code] reads. Normal and Reduced are one
 ## shader program, so a change between them costs no compile and takes effect on
-## the next frame. Min is its own program, which [IVAssetPreloader] binds when
-## bodies are built ([member is_atmosphere_min_session]), so a change into or out
-## of it waits for a restart, and [method IVSettingsManager.is_restart_pending]
-## says so. See [i]Atmospheres[/i] in [code]PHOTOMETRIC_MODEL.md[/code] for what
-## each tier gives up and [code]GRAPHICS_PROFILING.md[/code] for what it buys
-## back.[br][br]
+## the next frame. Min and Off each bind other programs, which [IVAssetPreloader]
+## chooses when bodies are built ([member is_atmosphere_min_session], [member
+## is_atmosphere_off_session]), so a change into or out of either waits for a
+## restart, and [method IVSettingsManager.is_restart_pending] says so. See
+## [i]Atmospheres[/i] in [code]PHOTOMETRIC_MODEL.md[/code] for what each tier gives
+## up and [code]GRAPHICS_PROFILING.md[/code] for what it buys back.[br][br]
 ##
 ## It also writes the [code]iv_display_encode[/code] shader global once at startup:
 ## the Compatibility renderer is display-referred at both ends of a shader — a
@@ -127,16 +127,23 @@ const LOW_TIER_RENDER_PIXELS := 2_700_000
 ## was Min when this node entered the tree. [IVAssetPreloader] reads it later, when it builds
 ## the bodies' shell specs, so it holds for the session. False without this node.
 static var is_atmosphere_min_session := false
+## True if this session draws every atmosphere with the Off tier's shaders and no limb shell
+## (THE OFF VARIANT in [code]shaders/_atmosphere.gdshaderinc[/code]): setting
+## [code]atmosphere_quality[/code] was Off when this node entered the tree. Held for the
+## session, as [member is_atmosphere_min_session] is. False without this node.
+static var is_atmosphere_off_session := false
 
 ## Enumeration backing the [code]atmosphere_quality[/code] dropdown in
 ## [IVOptionsPopup]. Normal and Reduced are mapped to the quadrature rule and ring tap
-## cap in [method _apply_atmosphere_quality]; Min to its own shaders, bound at startup
-## ([member is_atmosphere_min_session]). Insertion order must equal value order (the
-## popup uses the setting value as the dropdown item index).
+## cap in [method _apply_atmosphere_quality]; Min and Off each to shaders of their own,
+## bound at startup ([member is_atmosphere_min_session], [member
+## is_atmosphere_off_session]). Insertion order must equal value order (the popup uses
+## the setting value as the dropdown item index).
 var atmosphere_quality_settings: Dictionary[StringName, int] = {
 	ATMOSPHERE_NORMAL = 0,
 	ATMOSPHERE_REDUCED = 1,
 	ATMOSPHERE_MIN = 2,
+	ATMOSPHERE_OFF = 3,
 }
 
 ## Enumeration backing the [code]render_scale[/code] dropdown in
@@ -354,7 +361,8 @@ func _ready() -> void:
 	RenderingServer.global_shader_parameter_set(&"iv_display_encode",
 			1.0 if IVGlobal.is_gl_compatibility else 0.0)
 	var atmosphere_quality: int = IVSettingsManager.get_setting(&"atmosphere_quality")
-	is_atmosphere_min_session = _is_min_tier(atmosphere_quality)
+	is_atmosphere_min_session = _is_tier(atmosphere_quality, &"ATMOSPHERE_MIN")
+	is_atmosphere_off_session = _is_tier(atmosphere_quality, &"ATMOSPHERE_OFF")
 	_apply_atmosphere_quality()
 	_apply_render_scale()
 	_apply_msaa()
@@ -434,13 +442,14 @@ func _get_project_window_size() -> Vector2i:
 
 func _apply_atmosphere_quality() -> void:
 	var setting: int = IVSettingsManager.get_setting(&"atmosphere_quality")
-	# The session's shader program decides what a change can reach: only a tier that runs on
-	# it applies now, and any other waits for a restart.
-	if _is_min_tier(setting) == is_atmosphere_min_session:
+	# The session's shader programs decide what a change can reach: only a tier that runs on
+	# them applies now, and any other waits for a restart.
+	if (_is_tier(setting, &"ATMOSPHERE_MIN") == is_atmosphere_min_session
+			and _is_tier(setting, &"ATMOSPHERE_OFF") == is_atmosphere_off_session):
 		IVSettingsManager.set_running_value(&"atmosphere_quality", setting)
 	# The packed table in _atmosphere.gdshaderinc holds the 6-node rule at 0 and the 4-node
 	# rule at 6. Normal below is also where a stale cached index past the end lands, and Min,
-	# whose shaders read only the ring cap, keeps Normal's.
+	# whose shaders read only the ring cap, keeps Normal's; Off's read none of these.
 	var gl_first := 0
 	var gl_nodes := 6
 	var ring_max_taps := 8
@@ -454,8 +463,8 @@ func _apply_atmosphere_quality() -> void:
 	RenderingServer.global_shader_parameter_set(&"iv_atm_ring_max_taps", ring_max_taps)
 
 
-func _is_min_tier(atmosphere_quality: int) -> bool:
-	return atmosphere_quality == atmosphere_quality_settings.get(&"ATMOSPHERE_MIN", -1)
+func _is_tier(atmosphere_quality: int, tier: StringName) -> bool:
+	return atmosphere_quality == atmosphere_quality_settings.get(tier, -1)
 
 
 func _apply_render_scale() -> void:

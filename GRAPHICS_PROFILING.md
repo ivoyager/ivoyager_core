@@ -33,7 +33,8 @@ in the rendered image, measured in 8-bit display codes on screenshots taken befo
    - **Atmosphere quality.** A reduced tier saves 22-38% with no visible change; off saves
      76-95%. Both predate the atmosphere's rebuild, since which Reduced buys far less through
      Intel's GL (*Addendum: below Reduced*). Min, a closed-form tier built since, takes 20-63%
-     off an atmosphere frame through ANGLE (*Addendum: the Min tier, built*).
+     off an atmosphere frame through ANGLE (*Addendum: the Min tier, built*), and Off, no limb and
+     a cheap closed-form veil on the disc, 51-83% (*Addendum: the Off tier, built*).
    - **3D render scale.** 75% saves 17-28%; 50% saves 30-66%, through a native driver. Through
      ANGLE, which is the web's path on Windows, any scale below 100% costs instead (*3D render
      scale*).
@@ -134,7 +135,7 @@ Intel figures for the atmosphere views come from runs in the driver's normal sta
 
 | # | Option | Relief, Intel iGPU | Relief, GTX 1650 Ti | Visual cost | Verdict |
 |---|---|---|---|---|---|
-| 1 | **Atmosphere quality**: Full / Reduced / Off. Runtime shader swap, or restart. | Reduced -22 to -38%; Off -76 to -95% (atmosphere views) | The shell is 15-39% of the frame | Reduced: none visible. Up to 15 codes on 1-2% of pixels, confined to the limb band. Off: no air at all, and Titan loses its identity. | Built as Normal / Reduced, and a runtime setting rather than a restart one (see *Addendum: the quality tiers, built*). Off is not built. |
+| 1 | **Atmosphere quality**: Full / Reduced / Off. Runtime shader swap, or restart. | Reduced -22 to -38%; Off -76 to -95% (atmosphere views) | The shell is 15-39% of the frame | Reduced: none visible. Up to 15 codes on 1-2% of pixels, confined to the limb band. Off: no air at all, and Titan loses its identity. | Built as Normal / Reduced, a runtime setting (see *Addendum: the quality tiers, built*), and Min and Off at restart (*Addendum: the Min tier, built*, *Addendum: the Off tier, built*). |
 | 2 | **3D render scale**: 100 / 85 / 75 / 50%. Runtime. FSR 1 on Forward+. | 75%: -17 to -28%; 50%: -30 to -66% | 75%: -13 to -36%; 50%: -25 to -64% | Soft lines and HUD text. At 50%, orbit lines turn chunky, and the star field coarsens because star size follows render height. | Built as 100 / 85 / 70 / 50% (see *3D render scale*). On a 2x hi-DPI screen, 50% simply restores 1x cost. Through ANGLE, the web's path on Windows, any scale below 100% costs 20-40 ms a frame instead. |
 | 3 | **Renderer** (desktop): Auto / Forward+ / Compatibility. Restart. | Compatibility 1.4-8x faster than Forward+ | Mixed: Compatibility faster in 5 of 8 views | Compatibility loses mouse-over identification of orbit lines and asteroids, FXAA and TAA, and local shadow maps. The picture itself matches. | Built as Forward+ / Compatibility, with Forward+ the default wherever it runs (see *The renderer, on desktop*). |
 | 4 | **Star catalogue depth**: all (V 15) / V 11 / V 9.5. Restart, or a 0.3-1.1 s rebuild. | V 11: -17 to -29%; V 9.5: -26 to -43% (star-heavy views) | V 11: -28 to -31%; V 9.5: -44 to -52% | None in lit-body views, where exposure hides faint stars. In dark-sky views, V 11 dims the diffuse star glow (about 7 codes over a third of the sky) and V 9.5 is visibly sparser. | Built as a restart option, its choices named by star count (see *The star field*). It also saves memory and load time. |
@@ -267,6 +268,25 @@ by stretching the depth and stencil buffer into the full-size target (`glBlitFra
 stencil, so ANGLE evidently does it off the GPU. No browser was measured, but the web runs the same
 renderer through the same translation, so on Windows this option should be expected to cost until
 that copy is avoided.
+
+**The copy stays, and so render scale stays at 100 % there**
+(`IVGraphicsManager.can_scale_render()`), though that is where the pixels are: a dense laptop
+panel in Chrome, or an Intel GPU on desktop, renders every physical pixel, 4.4 times a 1080p
+frame on a 3840x2400 screen. Three ways round the copy were weighed on 2026-09-29 and none is
+acceptable:
+
+- **Change the engine** -- skip the copy when nothing reads the full-size depth, or copy depth
+  without stencil. Either is an edit to Godot's GLES3 renderer, so the Planetarium would have to
+  ship custom export templates, web ones included, until the change landed upstream, and upstream
+  is not ours to schedule.
+- **Let the browser scale instead**, by turning off `display/window/dpi/allow_hidpi` for the web
+  build. The canvas would then render at CSS pixels and the browser would stretch it, but it
+  stretches the whole window, so the GUI and every label would lose hi-DPI sharpness to buy back
+  the 3D view's pixels.
+- **Render the 3D view into a smaller SubViewport** and draw it into the window as a texture,
+  which needs no depth copy. That moves the camera, mouse picking, the 3D HUD and screenshot
+  capture into another viewport: a restructure of the whole visual pipeline for one driver's
+  missing copy.
 
 
 ## The renderer, on desktop
@@ -427,9 +447,14 @@ vertices, less sky -- and, since, less code, where a runtime gate was not enough
 shader now carries none of the atmosphere at all (*Addendum: the atmosphere's structure, at
 runtime*).
 
-The same review found a likely bug: `atm_ring_pixel()` doesn't normalize `path` by `weight_sum`,
-and its midpoint tent weights sum to 2 at one tap and 10/9 at three. That lets a close-range ring
-read up to about 11% bright.
+The same review found a bug, fixed on 2026-09-29: `atm_ring_pixel()` weighted each ring tap by the
+filter tent's height at the tap times its cell's width, whose sum is exact only at an even tap
+count. At three taps -- what a ring the camera resolves takes, at Normal -- it summed to 10/9, so
+the close-range ring read 11 % bright; five and seven taps gave 4 % and 2 %, and Reduced's two
+were exact wherever the filter was not clipped at the silhouette. Each tap now weighs the tent's
+area over its own cell, in both the full and the Min include. In the app on the GTX at Normal,
+against the build before it, only the ring moves -- by up to 15 codes, over at most 1.2 % of a
+frame (Titan) -- and Reduced moves a few silhouette pixels.
 
 
 ## First load on the web
@@ -453,13 +478,15 @@ land on the option set, and this is where they come from:
   the disc shaders as well as out of the limb shader: `atm_disc_air()` and the helpers are most of
   a disc shader's compile. A reduced tier does not help here: what compiles is code volume, not
   iteration count. The airless shader variants, built for their own sake, are most of the
-  machinery (*Addendum: the atmosphere's structure, at runtime*).
+  machinery (*Addendum: the atmosphere's structure, at runtime*). The Off tier built since
+  gives the disc shaders twins of their own instead, for the reason *Addendum: the Off tier,
+  built* gives.
 - **Atmosphere quality therefore earns a restart option rather than a runtime one.** A session
   then compiles only the tier it uses, and the warm-up covers it.
 
-**That second consequence applies only to an Off tier, and the built setting has none**, so it
-is a runtime one — see *Addendum: the quality tiers, built*, and *Addendum: below Reduced* for
-what a runtime tier under it could still give.
+**That second consequence applies only to a tier of other programs** -- Min and Off, which take
+a restart. Normal and Reduced are one program and change live; see *Addendum: the quality tiers,
+built*, and *Addendum: below Reduced* for what a runtime tier under them could still give.
 
 
 ## A possible option set
@@ -468,9 +495,8 @@ One **Graphics** section, in the order of *All options, ranked*. A restart optio
 rank rather than in a section of its own, since Atmosphere quality needs a restart for some
 changes and not others; its tooltip says so, and the Options popup marks it while a change waits.
 
-- Atmosphere quality: Normal / Reduced / Minimum (built; Minimum at restart), and Off (at restart:
-  the tier that omits the quadrature from the limb and the disc shaders alike, every body on the
-  airless shader variants of the runtime addendum)
+- Atmosphere quality: Normal / Reduced / Minimum / Off (built; Minimum and Off at restart, Off
+  omitting the quadrature from the limb and the disc shaders alike)
 - 3D render scale: 100 / 85 / 70 / 50% (built)
 - Renderer (desktop): Forward+ / Compatibility, default by adapter (built; at restart)
 - Star catalogue: V 15 / V 11 / V 9.5, shown as 2.6 million / 940,000 / 220,000 stars (built; at
@@ -569,7 +595,8 @@ option's own.
     fast.** Earth, Venus and Mars take 0.62 to 0.85 of native GL's frame (Earth at 1.6 radii, 169
     against 272 ms) and Titan as long as GL; the airless views take 1.1 to 1.9 times as long
     (Jupiter 56 against 31 ms), because the star field's point sprites cost about four times as
-    much through ANGLE -- all 24 magnitude bins, at Jupiter, 42 against 11 ms. Below 100% ANGLE
+    much through ANGLE -- all 24 magnitude bins, at Jupiter, 42 against 11 ms. Quads in their
+    place cost twice as much again (*Addendum: the star field as quads*). Below 100% ANGLE
     loses 25 to 40 ms a frame (*3D render scale*), which is why the switch takes that option from
     these parts. Min is the fast tier there (*Addendum: the Min tier, built*).
   - **On screen the two match to a few codes, except that Intel's GL driver (31.0.101.2137) does
@@ -624,6 +651,9 @@ edge must reach inside the `ATM_RIM_HANDOFF` band, plus about two pixels for the
   clouds keep their twilight. What goes is the band beyond the limb, a backlit crescent's glowing
   cusps and Titan's haze ring. The outermost 1% of the disc also loses the shell's part of the edge
   haze. This variant was measured but not screenshotted.
+
+The Off tier built since is a third: no limb shell, and the air on the disc kept in a cheap closed
+form rather than the quadrature, so the maps need no re-levelling (*Addendum: the Off tier, built*).
 
 
 ## Addendum: more shadow and MSAA measurements
@@ -914,7 +944,8 @@ Built into this plugin on 2026-09-19 as the user setting `atmosphere_quality`, w
 first two knobs and **two tiers, not three**: Normal is the shipped rule, Reduced is the
 4-node quadrature and 2 ring taps of the row above. Off is not built — it is the tier that needs
 Venus, Titan and Mars re-levelled (*Addendum: the limb ring and surface twilight*), and the only
-one a restart would buy anything for.
+one a restart would buy anything for. (Both tiers below Reduced have been built since, Off without
+re-levelling: *Addendum: the Min tier, built* and *Addendum: the Off tier, built*.)
 
 **It is a runtime setting, which this report did not expect.** *First load on the web* argues
 that atmosphere quality earns a restart option, and that argument is about Off alone: what an
@@ -1110,9 +1141,9 @@ processes show anyway. GPU milliseconds per frame, before and after, the builds 
   draws the full `surface.gdshader` any more: the web's first visit drops that one and adds four
   airless ones, about 7 s on balance on this CPU.
 
-The same machinery is most of the Off tier the web wants (*First load on the web*): with every
-body on its airless variant and the limb shells not drawn, a first visit would compile none of
-the quadrature.
+The same machinery made the Off tier: its disc shaders are twins built the same way, with a
+cheap closed form in place of the no-ops, and it draws no limb shell, so a first visit compiles
+none of the quadrature (*Addendum: the Off tier, built*).
 
 A second variant would recover Earth: a disc shader without the far half and the thin layer, for
 a body whose atmosphere has neither to show. Earth is that body among the four: it has no thin
@@ -1171,7 +1202,8 @@ GTX through its GL:
 
 **So there is no runtime tier worth adding below Reduced, and nothing gained by redefining it.**
 What lowers the floor is compiling and carrying less, not iterating less: the airless shader
-variants, now built, and an Off tier on top of them, both in the runtime addendum above. A tier
+variants, now built, and the Off tier on top of them, built since (*Addendum: the Off tier,
+built*). A tier
 of different code rather than fewer nodes -- its own programs, chosen at restart -- is the next
 addendum.
 
@@ -1214,6 +1246,57 @@ ANGLE is tens of seconds of a frozen view; chosen at startup, the shader warm-up
 Normal and Reduced still switch live between themselves.
 
 
+## Addendum: the Off tier, built
+
+Built on 2026-09-29 as the fourth value of Atmosphere Quality. Off draws no limb shell, and draws
+the air in front of each disc in a cheap closed form in each disc shader's `.off` twin; its model,
+and what it moves on screen, are *The Off tier* in [PHOTOMETRIC_MODEL.md](PHOTOMETRIC_MODEL.md).
+It is the tier *First load on the web* asked for, without the re-levelled maps *Addendum: the
+limb ring and surface twilight* expected it to need: the disc keeps its air, so a map of surface
+reflectance keeps its colour. Day sides hold to about a display code against Normal; what goes is
+the limb.
+
+**What it saves each frame.** Intel UHD through ANGLE's D3D11, the web's path on Windows, at
+1920x1080 and 100 % render scale, MSAA off, sim paused and HUDs hidden; the frame interval,
+ANGLE having no GPU timestamps, as the median of two interleaved rounds that agreed within 1 %:
+
+| View | Normal | Min | Off |
+|---|---:|---:|---:|
+| Earth at 3 radii | 89.6 ms | 59.7 ms | 32.2 ms |
+| Earth at 1.6 radii | 158.6 | 128.0 | 77.1 |
+| Venus at 3 radii | 50.5 | 34.9 | 21.2 |
+| Mars at 3 radii | 93.9 | 44.8 | 24.9 |
+| Titan at 3 radii | 137.6 | 50.5 | 23.5 |
+| Moon at 3 radii | 20.2 | 16.3 | 16.1 |
+| Jupiter at 3 radii | 52.1 | 51.9 | 51.7 |
+
+- **Off takes an atmosphere frame to 0.17-0.49 of Normal's**, and to 0.47-0.61 of Min's.
+- **The Moon's frame is 4 ms dearer at Normal than at Min or Off**, with no body with air in
+  frame. Presumably that is Earth's shells drawn off screen -- farwarp gives every shell an AABB
+  that frustum culling always passes -- but it was not looked into.
+
+**What a first visit compiles.** Time to a first draw through ANGLE
+(`time_shader_compiles.py --driver opengl3_angle`, one program per process, this laptop's CPU),
+for the programs the four bodies with air draw: Earth's and Mars' cubemap surface, Venus' and
+Titan's band pattern, Earth's cloud deck, and the limb.
+
+| Tier | Surface | Band pattern | Cloud deck | Limb | Total |
+|---|---:|---:|---:|---:|---:|
+| Normal | 21.8 s | 21.1 s | 17.9 s | 11.6 s | 72 s |
+| Min | 18.2 | 17.9 | 14.2 | 11.3 | 62 s |
+| Off | 11.1 | 11.7 | 8.9 | -- | 32 s |
+
+An airless body's cubemap surface, which every tier compiles, takes 7.2 s.
+
+**Why twins, and not the airless shaders.** The closed form is an exact no-op for a body with no
+air, so it could have lived in the airless twins' entry points and Off would have compiled no
+program of its own. Built that way first, it added about 4.5 s to every airless program through
+ANGLE -- `surface.cube.airless` 7.4 s to 11.8 s, the other four alike -- and every first visit
+compiles those in every tier, Min included, the web's default on Windows. As twins it costs
+only an Off session, the airless programs are unchanged, and airless bodies render
+bit-identically in every tier.
+
+
 ## Addendum: the asteroid points
 
 Measured on 2026-09-29 to answer whether the number of asteroids loaded earns a catalogue option
@@ -1254,3 +1337,23 @@ timestamps and so gives the frame interval:
 
 What a project loads stays its own choice, through the table's `mag_cutoff` column and
 `IVCoreSettings.sbg_mag_cutoff_override`.
+
+
+## Addendum: the star field as quads
+
+Measured on 2026-09-29, to test whether ANGLE's point sprites are why the star field costs about
+four times as much through ANGLE as through Intel's own GL (*Open questions*). D3D11 has no point
+sprites, so ANGLE emulates `gl_PointSize`, and drawing each star as a quad of two triangles would
+step round that. It does not pay. The same 2,551,210 stars as indexed quads, each corner offset in
+the vertex stage by the size the point shader computes, cost about twice what the points do.
+Intel UHD through ANGLE, frame interval at 1920x1080 with all 24 bins drawn, medians of two
+interleaved rounds:
+
+| View | Points | Quads | No field |
+|---|---:|---:|---:|
+| Whole system, dark sky | 54.0 ms | 101.1 ms | 13.3 ms |
+| Jupiter at 3 radii | 51.6 | 99.9 | 16.2 |
+
+The field costs 35-41 ms as points and 84-88 ms as quads, and the two render the same sky, the
+quads 99.3-100 % of the points' light. Four vertex-shader runs per star instead of one outweigh
+whatever the emulation costs, so the field stays point sprites.

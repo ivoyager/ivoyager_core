@@ -77,6 +77,15 @@ var preloads: Dictionary[StringName, Resource] = {
 			"res://addons/ivoyager_core/shaders/surface.cube.min.gdshader"),
 	band_pattern_min_shader = preload(
 			"res://addons/ivoyager_core/shaders/band_pattern.min.gdshader"),
+	# The same disc shaders under Atmosphere Quality Off (IVAssetPreloader.off_shader_variants).
+	cloud_shell_off_shader = preload("res://addons/ivoyager_core/shaders/cloud_shell.off.gdshader"),
+	cloud_shell_cube_off_shader = preload(
+			"res://addons/ivoyager_core/shaders/cloud_shell.cube.off.gdshader"),
+	surface_off_shader = preload("res://addons/ivoyager_core/shaders/surface.off.gdshader"),
+	surface_cube_off_shader = preload(
+			"res://addons/ivoyager_core/shaders/surface.cube.off.gdshader"),
+	band_pattern_off_shader = preload(
+			"res://addons/ivoyager_core/shaders/band_pattern.off.gdshader"),
 	stars_shader = preload("res://addons/ivoyager_core/shaders/stars.gdshader"),
 	# Textureless procedural photosphere; no cube variant, because it samples no texture.
 	photosphere_shader = preload("res://addons/ivoyager_core/shaders/photosphere.gdshader"),

@@ -550,7 +550,9 @@ func _build_shell_meter_data() -> void:
 				continue
 			_limb_geometry[body_name] = Vector2(mean_radius * surface_scale,
 					mean_radius * limb_scale)
-			if IVTableData.db_has_value(&"shells", &"limb_exposure_ceiling", limb_row):
+			# The Off tier of Atmosphere Quality draws no limb to hold a ceiling for.
+			if (IVTableData.db_has_value(&"shells", &"limb_exposure_ceiling", limb_row)
+					and !IVGraphicsManager.is_atmosphere_off_session):
 				_limb_ceilings[body_name] = IVTableData.get_db_float(&"shells",
 						&"limb_exposure_ceiling", limb_row)
 				_wide_candidate_bodies[body_name] = true

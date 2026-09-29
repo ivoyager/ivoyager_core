@@ -739,6 +739,14 @@ start on the iGPU compiled Min's four atmosphere shaders in about 51 s against 6
 A Min session's first run through ANGLE compiles about a fifth less -- not the cut an Off tier
 would make.
 
+**The Off tier makes that cut.** Its disc shaders' `.off` twins draw the air in front of the disc
+in a small closed form (`_atmosphere.off.gdshaderinc`) and it draws no limb, so the programs the
+four bodies with air need took 32 s through ANGLE against Min's 62 s and Normal's 72 s, measured
+the same day on this CPU -- `surface.cube.off` 11.1 s to a first draw, 4 s over its airless twin.
+The closed form was first put in the airless twins themselves, which would have cost Off no new
+program at all, but it added about 4.5 s to each of them, and every first visit compiles those in
+every tier; *Addendum: the Off tier, built* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md).
+
 **What is left.** Without any atmosphere call, `surface.cube` takes 7.3 s to a first draw through
 ANGLE on the GTX, against 5.1 s for v0.2's whole shader, and that floor is the photometry kernel,
 the point-spread function, the occlusion and four bicubic cube samples. The receiver's helpers

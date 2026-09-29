@@ -262,7 +262,7 @@ func _ready() -> void:
 		_enter_sun_mode()
 	if _shell == 0:
 		_build_child_shells(shell_specs)
-		_propagate_atmosphere_overrides(shell_specs)
+		_propagate_atmosphere_overrides(asset_preloader)
 		_propagate_cloud_shadow(shell_specs, asset_preloader)
 
 
@@ -501,9 +501,9 @@ func _build_shader_material(shader_name: StringName, channels: Dictionary,
 	# (so e.g. a "clouds_relief" column tunes the shader per body); a column
 	# that isn't a uniform is ignored. The shader owns its own blending.
 	# The spec names the variant already -- the cubemap one where the channels are cubemaps,
-	# the airless one where the body has no atmosphere, the Min one under that tier -- as
-	# IVAssetPreloader resolves them (cube_shader_variants, airless_shader_variants,
-	# min_shader_variants).
+	# the airless one where the body has no atmosphere, the Min or Off one under that tier --
+	# as IVAssetPreloader resolves them (cube_shader_variants, airless_shader_variants,
+	# min_shader_variants, off_shader_variants).
 	var resource: Resource = IVGlobal.resources.get(shader_name)
 	var shader := resource as Shader
 	if not shader:
@@ -703,12 +703,13 @@ func _apply_shell_geometry_uniforms(spec: Dictionary, shell_specs: Array) -> voi
 	material.set_shader_parameter(&"surface_scale", surface_scale)
 
 
-func _propagate_atmosphere_overrides(shell_specs: Array) -> void:
+func _propagate_atmosphere_overrides(asset_preloader: IVAssetPreloader) -> void:
 	# The atmosphere is authored once, on the limb row, and every shader shell of the body
 	# needs it: the limb draws it, and the surface and cloud shaders redden their direct light
-	# through it. Push each overlay row's atm_* columns to shell 0 and to every child (blind
-	# sets, as above). Runs after the children exist, which add_child guarantees.
-	var atmosphere := IVAssetPreloader.get_atmosphere_overrides(shell_specs)
+	# through it. Push the body's atm_* columns to shell 0 and to every child (blind sets, as
+	# above), the limb row's even where the Off tier drew no limb. Runs after the children
+	# exist, which add_child guarantees.
+	var atmosphere := asset_preloader.get_body_atmosphere(_body_name)
 	if atmosphere.is_empty():
 		return
 	var materials: Array[ShaderMaterial] = []

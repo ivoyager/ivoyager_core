@@ -110,6 +110,15 @@
 // own program, bound when bodies are built, which is why that tier takes a restart. See *The Min
 // tier* under *Atmospheres* in PHOTOMETRIC_MODEL.md.
 //
+// THE OFF VARIANT. A shader that defines ATM_OFF before including this file -- each disc
+// shader's .off twin, which IVAssetPreloader binds for a body with an atmosphere when the session
+// runs the Off tier of Atmosphere Quality (off_shader_variants), and draws no limb shell for it --
+// gets the entry points from _atmosphere.off.gdshaderinc, the air in front of the disc in a cheap
+// closed form over the same layers, and none of the quadrature. It is its own program, bound when
+// bodies are built, which is why that tier takes a restart; the airless twins do not carry it,
+// since every first visit compiles those. See *The Off tier* under *Atmospheres* in
+// PHOTOMETRIC_MODEL.md.
+//
 // THE COMPOSITING SPLIT. A ray that meets the disc is composited by the DISC'S OWN
 // SHADERS, not by the limb shell: atm_disc_air() hands each of them the path radiance in
 // front of its fragment and the LUMA of the disc's view transmittance, which the shader
@@ -204,6 +213,245 @@ vec3 atm_sky_excess(float mu0, vec3 plane_diffuse, float sky_response, float bea
 
 #else
 
+// ------------------------------------------------ shared by the full tier and the Off variant
+
+// Whether this shell HAS an atmosphere: the geometry is fed and some layer carries optical
+// depth. IVShellsModel feeds body_radius_km to every shader shell, airless bodies included,
+// so the radius alone does not answer this; the taus do. atm_disc_air(), atm_receiver_light()
+// and the per-vertex atm_far_floor() gate on it, and atm_sky_excess() is zero on the zeros they
+// hand it, so an airless body gets exactly what the airless variant's no-ops return.
+bool atm_present() {
+	return body_radius_km > 0.0
+			&& dot(atm_gas_tau + atm_haze_tau + atm_layer_tau, vec3(1.0)) > 0.0;
+}
+
+// The conservative two-stream coefficient, 3/4, in T = 1 / (1 + k tau_scattered): the total
+// downward flux through a scattering column, direct plus diffuse, where exp(-tau) is the
+// direct beam alone. See atm_sun_transmittance_of().
+const float ATM_TWO_STREAM_K = 0.75;
+
+float atm_phase_rayleigh(float cos_theta) {
+	return 0.1875 * (1.0 + cos_theta * cos_theta);
+}
+
+float atm_phase_hg(float cos_theta, float g) {
+	float g2 = g * g;
+	return (1.0 - g2) / (4.0 * pow(1.0 + g2 - 2.0 * g * cos_theta, 1.5));
+}
+
+// Altitude scales after the (gated) thickness taste; computed once per fragment.
+struct AtmLayers {
+	float H_g;      // gas scale height, km
+	float H_h;      // haze scale height
+	float H_ref;    // the taller of the two: the quadrature's measure
+	float z_k;      // the haze's top: above it the scale height is H_t; 0 = no top
+	float H_t;
+	vec3 tau_t;     // the region above the top as an exponential in its own right
+	float z_c;      // thin layer centre
+	float sigma;    // thin layer sigma
+	bool has_layer;
+	vec3 scatter_g; // gas radiance coefficient omega m piP tau: times the density, per km of path
+	vec3 scatter_h; // haze: omega m piP only - it multiplies a density that carries the tau
+	vec3 scatter_l; // thin layer: omega piP only -- it multiplies a column that carries the tau
+	vec3 delta_h;   // haze extinction scale for what lies BENEATH: 1 - omega g
+	vec3 delta_l;   // the same for the thin layer
+};
+
+AtmLayers atm_layers(float cos_theta) {
+	float thick = mix(1.0, atm_thickness, iv_limb_scale);
+	AtmLayers L;
+	L.H_g = atm_gas_scale_height_km * thick;
+	L.H_h = atm_haze_scale_height_km * thick;
+	L.H_ref = max(L.H_g, L.H_h);
+	L.z_k = atm_haze_top_km * thick;
+	L.H_t = max(atm_haze_top_scale_height_km * thick, 0.01);
+	L.tau_t = atm_haze_tau * ((L.H_t / L.H_h) * exp(L.z_k / L.H_t - L.z_k / L.H_h));
+	L.z_c = atm_layer_altitude_km * thick;
+	L.sigma = max(atm_layer_width_km * thick, 0.01);
+	L.has_layer = dot(atm_layer_tau, vec3(1.0)) > 0.0;
+	L.scatter_g = atm_gas_multiple * atm_phase_rayleigh(cos_theta) * atm_gas_tau;
+	L.scatter_h = atm_haze_albedo * atm_haze_multiple * atm_phase_hg(cos_theta, atm_haze_g);
+	L.scatter_l = atm_layer_albedo * atm_phase_hg(cos_theta, atm_layer_g);
+	// Delta-scaling, for what lies BENEATH the atmosphere only. Single scattering counts
+	// every interaction as removal, but a forward-scattering aerosol returns most of what it
+	// takes to the beam's own direction: tau* = tau (1 - omega g) is that truncation's
+	// similarity-scaled depth. It is a stand-in for the multiple scattering this model does
+	// not carry, so it is deliberately not energy-conserving -- the light it stops removing
+	// is not re-deposited anywhere. Rayleigh air is g = 0 and so unscaled, which is right:
+	// its removal from the direct beam is real and is what reddens a low sun. The partner
+	// relation g* = g/(1+g) belongs to the same transformation and never appears here,
+	// because g enters only the phase function and no source term is scaled -- the ring and
+	// the disc's own path radiance keep the full extinction and are bit-identical.
+	L.delta_h = 1.0 - atm_haze_albedo * atm_haze_g;
+	L.delta_l = 1.0 - atm_layer_albedo * atm_layer_g;
+	return L;
+}
+
+// (e^-a - e^-b) / (b - a) per channel: the mean of e^-x as x runs linearly from a to b.
+vec3 atm_exp_mean(vec3 a, vec3 b) {
+	vec3 d = b - a;
+	vec3 close = step(abs(d), vec3(1.0e-3));
+	vec3 series = exp(-a) * (1.0 - 0.5 * d + d * d / 6.0);
+	vec3 general = (exp(-a) - exp(-b)) / mix(d, vec3(1.0), close);
+	return mix(general, series, close);
+}
+
+// Which exponential layer lies above the other along a ray whose haze has scale height H_haze, and
+// the weight of the STACKED limit against the MIXED one: (r - 1) / (r + 1), r the ratio of their
+// scale heights -- the thin limit of the exact two-layer integral -- and 0 with one layer.
+float atm_stacking(AtmLayers L, float H_haze, out bool gas_upper) {
+	bool has_gas = dot(atm_gas_tau, vec3(1.0)) > 0.0;
+	bool has_haze = dot(atm_haze_tau, vec3(1.0)) > 0.0;
+	gas_upper = has_gas && (L.H_g >= H_haze || !has_haze);
+	if (!has_gas || !has_haze) {
+		return 0.0;
+	}
+	float r = max(L.H_g, H_haze) / min(L.H_g, H_haze);
+	return (r - 1.0) / (r + 1.0);
+}
+
+const float ATM_INF = 1.0e30;
+
+// The part of a half-ray p0 + u e (u >= 0) that the sun lights, as (u_lo, u_hi), u_hi = ATM_INF
+// when open. |p_perp|^2 = p0_perp2 + 2 u cross + u^2 e_perp2 is the squared distance from the
+// shadow axis; the shadow is the cylinder |p_perp| < R on the night side of the terminator
+// plane (a + u b < 0). The line meets the cylinder in one interval, the night side is a
+// half-line, and a ray above the surface cannot cross the terminator plane inside the
+// cylinder, so the lit set is one interval at each end; within an atmosphere's extent only
+// the one the ray starts in, or starts after, matters.
+vec2 atm_lit_interval(float R, float p0_perp2, float a, float b, float cross, float e_perp2) {
+	float disc = cross * cross - e_perp2 * (p0_perp2 - R * R);
+	if (disc <= 0.0) {
+		return vec2(0.0, ATM_INF);
+	}
+	float root = sqrt(disc);
+	float u_a = (-cross - root) / e_perp2;
+	float u_b = (-cross + root) / e_perp2;
+	float s_lo;
+	float s_hi;
+	if (b > 0.0) {
+		s_lo = u_a;
+		s_hi = min(u_b, -a / b);
+	} else if (b < 0.0) {
+		s_lo = max(u_a, -a / b);
+		s_hi = u_b;
+	} else {
+		s_lo = u_a;
+		s_hi = a < 0.0 ? u_b : u_a;
+	}
+	if (s_hi <= max(s_lo, 0.0)) {
+		return vec2(0.0, ATM_INF);
+	}
+	if (s_lo < 0.0) {
+		return vec2(s_hi, ATM_INF);
+	}
+	return vec2(0.0, s_lo);
+}
+
+// The TOTAL illumination reaching an altitude relative to vacuum, direct beam plus diffuse sky,
+// from the columns of its sun path, however a variant forms them. It is what a surface or
+// cloud shell multiplies its sunlight by, and a sun below the horizon needs no branch: the
+// engine's own N.L has already removed its light.
+//
+// NOT exp(-column). Absorbed light is gone and takes the exponential; SCATTERED light is not
+// -- roughly a quarter of it arrives anyway, off the sky, and is what lets you see the ground
+// at sunset. exp() throws all of it away, and the error is unbounded as the column grows: at
+// Earth's terminator the direct beam alone is 7.4e-4 of vacuum in green, which is why the
+// surface and the cloud deck both vanished there and left the atmosphere's own glow standing
+// in a band with nothing in it, while thin-aired Mars stayed legible to the last code.
+// 1 / (1 + k tau) is the conservative two-stream result for the total downward flux, exact in
+// the diffusion limit and a standard interpolation elsewhere; against real sky-plus-sun
+// illuminance it is right to a few percent from noon down to a solar zenith of 87 degrees.
+// It is the same kind of stand-in as the delta-scaling above and deliberately shares its
+// depth: what the two-stream returns is precisely the half of `1 - omega g` that is scattered.
+// So each column is split into what is ABSORBED and what is SCATTERED. The split is exact and
+// introduces no parameter, because 1 - omega g = (1 - omega) + omega (1 - g) -- so the two
+// pieces sum to the delta-scaled depth, term for term. Rayleigh gas is conservative (no albedo
+// cell, omega = 1) and so is entirely the scattered half.
+//
+// The VIEW leg keeps exp() and must -- see atm_receiver_light(). Light scattered out of a view
+// ray is not lost from the model, it is the path radiance, and that is added separately.
+// Nothing adds the light scattered out of the SUN leg, so this is where it belongs.
+vec3 atm_sun_transmittance_of(AtmLayers L, vec3 gas, vec3 haze, vec3 layer) {
+	vec3 absorbed = haze * (1.0 - atm_haze_albedo);
+	vec3 scattered = gas + haze * (atm_haze_albedo * (1.0 - atm_haze_g));
+	if (L.has_layer) {
+		absorbed += layer * (1.0 - atm_layer_albedo);
+		scattered += layer * (atm_layer_albedo * (1.0 - atm_layer_g));
+	}
+	return exp(-absorbed) / (1.0 + ATM_TWO_STREAM_K * scattered);
+}
+
+// The twilight a shell must ADD to what the engine already gives it, as emission.
+//
+// The sun transmittance a shell receives is plane-parallel on the sun leg, in either variant:
+// flux entering the column goes as mu0, so illumination is pinned to zero at the geometric
+// terminator, with a CORNER. On a sphere it is not. The air above a point at mu0 = 0 is still
+// fully lit -- the terminator at altitude z stands sunward of the one on the ground -- and it
+// shines down. Nothing on the sun leg or in the engine puts that light anywhere, so a surface
+// and a cloud deck both stop dead at the same line while
+// the atmosphere's own glow renders on past it, which is the band with nothing in it. Measured
+// against the hemisphere integral, real ground at the terminator gets 0.7 % of full sun, and
+// the decay past it has no feature at mu0 = 0 at all: the sky does not know where the ground's
+// terminator is.
+//
+// The engine hands a shell albedo x max(mu0, 0) x its sun transmittance and nothing below the
+// horizon. The target is direct + max(plane-parallel diffuse, twilight), so what is missing is
+// max(twilight - plane-parallel diffuse, 0) and nothing else: the beam and the day-side diffuse
+// cancel term for term, which is why the DAY SIDE CANNOT MOVE. The subtraction is not a fudge
+// -- the sun transmittance is a TOTAL, direct plus diffuse, so adding a twilight curve on top
+// of it would count the diffuse twice.
+//
+// Evaluated at the DISC for every shell, not at the shell's own altitude. A deck a few km up
+// really does see a little more (Earth's measures 1.19x at the terminator, and stays lit 3.2 deg
+// longer), but one illumination for all of them is what makes surface and cloud fade TOGETHER;
+// give the deck its own and the two part company at the very place the wall was. What the deck
+// legitimately keeps beyond this is its direct beam, which is a separate term and not this one.
+// The twilight curve alone, from the atm_sky_* cells, HELD at its own vertex. The reference
+// is monotone in mu0 -- the sky only brightens as the sun rises -- and a downward parabola is
+// not, so past its vertex the raw fit falls where the truth climbs. The cells are fitted so
+// that vertex lies beyond the crossover, so nothing is clamped where the term acts; what the
+// hold buys is the day side, released because the plane-parallel diffuse overtakes a CONSTANT
+// and stays past it rather than because the parabola decayed fast enough.
+vec3 atm_sky_illumination(float mu0) {
+	if (body_radius_km <= 0.0 || atm_sky_flux == vec3(0.0)) {
+		return vec3(0.0);
+	}
+	vec3 held = min(vec3(mu0), atm_sky_slope / (-2.0 * atm_sky_bend));
+	return atm_sky_flux * exp(held * (atm_sky_slope + held * atm_sky_bend));
+}
+
+// What a shell adds as EMISSION over what the engine already gives it, from
+// atm_receiver_light()'s plane_diffuse. The engine hands it
+// `beam_response * (direct + plane_diffuse)`, so the plane-parallel diffuse has ALREADY been
+// delivered -- through the BEAM factor, which is the wrong response for it but is what was
+// applied. Subtract what was actually delivered, `beam_response * plane_diffuse`, not the
+// unfactored quantity.
+//
+// SUBTRACTING THE UNFACTORED ONE LEAVES A NOTCH THAT CLOSES AT THE TERMINATOR, AND THE
+// PROFILE SPRINGS BACK UP AS IT DOES. Expanded, that mistake renders
+// `beam*direct + iso*sky - plane*(iso - beam)`, whose last term is a spurious dip that
+// vanishes as beam -> iso*0 at mu0 = 0: on Venus it put a local MAXIMUM in the last 1.2 deg
+// before the terminator -- a narrow lighter band, carrying the surface's own chromaticity
+// because that is exactly what it is. With the delivered quantity subtracted the sum is
+// `beam*direct + iso*sky` wherever the term acts, both terms monotone in mu0, and the profile
+// cannot bump. Note the engagement locus is independent of the view angle: iso and the beam
+// factor share the same mu^(k-1), which cancels, so it runs parallel to the terminator.
+vec3 atm_sky_excess(float mu0, vec3 plane_diffuse, float sky_response, float beam_response) {
+	return max(sky_response * atm_sky_illumination(mu0) - beam_response * plane_diffuse,
+			vec3(0.0));
+}
+
+// -------------------------------------------------------------------- the Off variant
+
+// THE OFF VARIANT (see the header): the disc shaders' entry points in closed form, and none of
+// the rest of this file.
+#ifdef ATM_OFF
+
+#include "_atmosphere.off.gdshaderinc"
+
+#else
+
 // ---------------------------------------------------------------------------- constants
 
 const float ATM_PI = 3.14159265358979;
@@ -229,11 +477,6 @@ const float ATM_FAR_GATE_TAU = 30.0;  // chord extinction at which a ray's far h
 // over the large part of a shell that stands above its own layer.
 const float ATM_LAYER_REACH = 8.0;
 const float ATM_PENUMBRA_FLOOR_KM = 1.0;  // the planet's shadow edge is never sharper than this
-const float ATM_INF = 1.0e30;
-// The conservative two-stream coefficient, 3/4, in T = 1 / (1 + k tau_scattered): the total
-// downward flux through a scattering column, direct plus diffuse, where exp(-tau) is the
-// direct beam alone. See atm_sun_transmittance_of().
-const float ATM_TWO_STREAM_K = 0.75;
 // Gauss-Legendre nodes and weights on (0, 1), three across a thin layer and, along a ray,
 // both rules of the quality tier in one table: the 6-node rule at 0..5 and the 4-node rule
 // at 6..9, selected by iv_atm_gl_first / iv_atm_gl_nodes below.
@@ -269,16 +512,6 @@ const float ATM_ABEL[37] = {
 	0.86004, 0.74559, 0.61574, 0.48322, 0.35964, 0.25346,
 	0.16892, 0.10636, 0.06322, 0.03544, 0.01873, 0.00933,
 	0.00438};
-
-// Whether this shell HAS an atmosphere: the geometry is fed and some layer carries optical
-// depth. IVShellsModel feeds body_radius_km to every shader shell, airless bodies included,
-// so the radius alone does not answer this; the taus do. atm_disc_air(), atm_receiver_light()
-// and the per-vertex atm_far_floor() gate on it, and atm_sky_excess() is zero on the zeros they
-// hand it, so an airless body gets exactly what the airless variant's no-ops return.
-bool atm_present() {
-	return body_radius_km > 0.0
-			&& dot(atm_gas_tau + atm_haze_tau + atm_layer_tau, vec3(1.0)) > 0.0;
-}
 
 // ------------------------------------------------------------------- special functions
 
@@ -414,65 +647,6 @@ float atm_gauss_abel_partial(float a, float b) {
 		far = tail / sqrt(gap) * (1.0 + 3.0 * variance / (8.0 * gap * gap));
 	}
 	return mix(near, far, smoothstep(0.3, 0.8, d));
-}
-
-// ------------------------------------------------------------------------ the layers
-
-// Altitude scales after the (gated) thickness taste; computed once per fragment.
-struct AtmLayers {
-	float H_g;      // gas scale height, km
-	float H_h;      // haze scale height
-	float H_ref;    // the taller of the two: the quadrature's measure
-	float z_k;      // the haze's top: above it the scale height is H_t; 0 = no top
-	float H_t;
-	vec3 tau_t;     // the region above the top as an exponential in its own right
-	float z_c;      // thin layer centre
-	float sigma;    // thin layer sigma
-	bool has_layer;
-	vec3 scatter_g; // gas radiance coefficient omega m piP tau: times the density, per km of path
-	vec3 scatter_h; // haze: omega m piP only - it multiplies a density that carries the tau
-	vec3 scatter_l; // thin layer: omega piP only -- it multiplies a column that carries the tau
-	vec3 delta_h;   // haze extinction scale for what lies BENEATH: 1 - omega g
-	vec3 delta_l;   // the same for the thin layer
-};
-
-float atm_phase_rayleigh(float cos_theta) {
-	return 0.1875 * (1.0 + cos_theta * cos_theta);
-}
-
-float atm_phase_hg(float cos_theta, float g) {
-	float g2 = g * g;
-	return (1.0 - g2) / (4.0 * pow(1.0 + g2 - 2.0 * g * cos_theta, 1.5));
-}
-
-AtmLayers atm_layers(float cos_theta) {
-	float thick = mix(1.0, atm_thickness, iv_limb_scale);
-	AtmLayers L;
-	L.H_g = atm_gas_scale_height_km * thick;
-	L.H_h = atm_haze_scale_height_km * thick;
-	L.H_ref = max(L.H_g, L.H_h);
-	L.z_k = atm_haze_top_km * thick;
-	L.H_t = max(atm_haze_top_scale_height_km * thick, 0.01);
-	L.tau_t = atm_haze_tau * ((L.H_t / L.H_h) * exp(L.z_k / L.H_t - L.z_k / L.H_h));
-	L.z_c = atm_layer_altitude_km * thick;
-	L.sigma = max(atm_layer_width_km * thick, 0.01);
-	L.has_layer = dot(atm_layer_tau, vec3(1.0)) > 0.0;
-	L.scatter_g = atm_gas_multiple * atm_phase_rayleigh(cos_theta) * atm_gas_tau;
-	L.scatter_h = atm_haze_albedo * atm_haze_multiple * atm_phase_hg(cos_theta, atm_haze_g);
-	L.scatter_l = atm_layer_albedo * atm_phase_hg(cos_theta, atm_layer_g);
-	// Delta-scaling, for what lies BENEATH the atmosphere only. Single scattering counts
-	// every interaction as removal, but a forward-scattering aerosol returns most of what it
-	// takes to the beam's own direction: tau* = tau (1 - omega g) is that truncation's
-	// similarity-scaled depth. It is a stand-in for the multiple scattering this model does
-	// not carry, so it is deliberately not energy-conserving -- the light it stops removing
-	// is not re-deposited anywhere. Rayleigh air is g = 0 and so unscaled, which is right:
-	// its removal from the direct beam is real and is what reddens a low sun. The partner
-	// relation g* = g/(1+g) belongs to the same transformation and never appears here,
-	// because g enters only the phase function and no source term is scaled -- the ring and
-	// the disc's own path radiance keep the full extinction and are bit-identical.
-	L.delta_h = 1.0 - atm_haze_albedo * atm_haze_g;
-	L.delta_l = 1.0 - atm_layer_albedo * atm_layer_g;
-	return L;
 }
 
 // The slant columns of the two exponential layers above altitude z, at zenith cosine mu, each
@@ -633,42 +807,6 @@ void atm_shell_node_columns(AtmLayers L, float R, float z, float h_ray, float mu
 	if (mu_s >= 0.0) {
 		sun_column = up;
 	}
-}
-
-// The part of a half-ray p0 + u e (u >= 0) that the sun lights, as (u_lo, u_hi), u_hi = ATM_INF
-// when open. |p_perp|^2 = p0_perp2 + 2 u cross + u^2 e_perp2 is the squared distance from the
-// shadow axis; the shadow is the cylinder |p_perp| < R on the night side of the terminator
-// plane (a + u b < 0). The line meets the cylinder in one interval, the night side is a
-// half-line, and a ray above the surface cannot cross the terminator plane inside the
-// cylinder, so the lit set is one interval at each end; within an atmosphere's extent only
-// the one the ray starts in, or starts after, matters.
-vec2 atm_lit_interval(float R, float p0_perp2, float a, float b, float cross, float e_perp2) {
-	float disc = cross * cross - e_perp2 * (p0_perp2 - R * R);
-	if (disc <= 0.0) {
-		return vec2(0.0, ATM_INF);
-	}
-	float root = sqrt(disc);
-	float u_a = (-cross - root) / e_perp2;
-	float u_b = (-cross + root) / e_perp2;
-	float s_lo;
-	float s_hi;
-	if (b > 0.0) {
-		s_lo = u_a;
-		s_hi = min(u_b, -a / b);
-	} else if (b < 0.0) {
-		s_lo = max(u_a, -a / b);
-		s_hi = u_b;
-	} else {
-		s_lo = u_a;
-		s_hi = a < 0.0 ? u_b : u_a;
-	}
-	if (s_hi <= max(s_lo, 0.0)) {
-		return vec2(0.0, ATM_INF);
-	}
-	if (s_lo < 0.0) {
-		return vec2(s_hi, ATM_INF);
-	}
-	return vec2(0.0, s_lo);
 }
 
 // --------------------------------------------------------------------- the two branches
@@ -969,9 +1107,9 @@ vec3 atm_ray_path(AtmLayers L, float R, bool meets_disc, float mu, float mu0, fl
 //
 // A RENDERING BOUNDARY CONDITION, like the shell-edge fade in atm_limb() and not part of the
 // model: limb_model.py's closed_form does not carry it, and it is an exact no-op wherever the
-// camera resolves the profile. Its cost is ATM_RING_TAPS ring quadratures on the fragments of
-// a thin annulus, paid only where the ring is unresolved. HAZARD: the caller must measure
-// `footprint` with screen derivatives under UNIFORM control flow (see atm_limb).
+// camera resolves the profile. Its cost is up to iv_atm_ring_max_taps ring quadratures on the
+// fragments of a thin annulus, paid only where the ring is unresolved. HAZARD: the caller must
+// measure `footprint` with screen derivatives under UNIFORM control flow (see atm_limb).
 // One sample per scale height across the window, capped. The count is what keeps the cost
 // where the need is, and the two move opposite ways: a close camera spreads the annulus over
 // many fragments but resolves the profile, so it takes one or two samples each; a distant one
@@ -999,6 +1137,14 @@ float atm_ring_reach(AtmLayers L) {
 		reach = max(reach, L.z_c + 4.0 * L.sigma);
 	}
 	return reach;
+}
+
+// The share of a unit-area tent on [-1, 1] that lies below u, which is what atm_ring_pixel()
+// weighs each tap's cell of the window by.
+float atm_tent_cdf(float u) {
+	u = clamp(u, -1.0, 1.0);
+	float a = 1.0 - abs(u);
+	return u < 0.0 ? 0.5 * a * a : 1.0 - 0.5 * a * a;
 }
 
 // The two functions the entry points below call; THE MIN VARIANT supplies its own.
@@ -1030,6 +1176,7 @@ bool atm_ring_pixel(AtmLayers L, float R, float h, float footprint, float qs, fl
 	int taps = has_taps ? int(clamp(ceil(span / min(L.H_ref, footprint)), 1.0,
 			float(iv_atm_ring_max_taps))) : 0;
 	float step = span / float(max(taps, 1));
+	float cdf_below = atm_tent_cdf((lo - h) / half_width);
 	vec3 transmittance_sum = vec3(0.0);
 	float weight_sum = 0.0;
 	for (int i = 0; i < taps + (with_disc ? 1 : 0); i++) {
@@ -1041,8 +1188,13 @@ bool atm_ring_pixel(AtmLayers L, float R, float h, float footprint, float qs, fl
 		if (disc_pass) {
 			disc_path = ray_path;
 		} else {
-			// Tent, normalized so its integral over the full width is exactly 1.
-			float weight = max(1.0 - abs(tap_h - h) / half_width, 0.0) * step / half_width;
+			// The tent's area over this tap's own cell, so the weights sum to the window's
+			// covered share at any tap count. The tent's height at the tap times the cell's
+			// width does that only at an even count: at three, which a close ring takes, it
+			// summed to 10/9.
+			float cdf_above = atm_tent_cdf((lo + float(i + 1) * step - h) / half_width);
+			float weight = cdf_above - cdf_below;
+			cdf_below = cdf_above;
 			path += ray_path * weight;
 			transmittance_sum += tap_transmittance * weight;
 			weight_sum += weight;
@@ -1283,100 +1435,6 @@ void atm_disc_air(vec3 camera_local, vec3 fragment_local, vec3 sun_local, float 
 	behind_luma = atm_luma(transmittance);
 }
 
-// The TOTAL illumination reaching an altitude relative to vacuum, direct beam plus diffuse sky,
-// from the columns of its sun path: the exponential layers' (atm_exp_columns()) and the thin
-// layer's (atm_shell_partial()). It is what a surface or cloud shell multiplies its sunlight
-// by, and a sun below the horizon needs no branch: the engine's own N.L has already removed
-// its light.
-//
-// NOT exp(-column). Absorbed light is gone and takes the exponential; SCATTERED light is not
-// -- roughly a quarter of it arrives anyway, off the sky, and is what lets you see the ground
-// at sunset. exp() throws all of it away, and the error is unbounded as the column grows: at
-// Earth's terminator the direct beam alone is 7.4e-4 of vacuum in green, which is why the
-// surface and the cloud deck both vanished there and left the atmosphere's own glow standing
-// in a band with nothing in it, while thin-aired Mars stayed legible to the last code.
-// 1 / (1 + k tau) is the conservative two-stream result for the total downward flux, exact in
-// the diffusion limit and a standard interpolation elsewhere; against real sky-plus-sun
-// illuminance it is right to a few percent from noon down to a solar zenith of 87 degrees.
-// It is the same kind of stand-in as the delta-scaling above and deliberately shares its
-// depth: what the two-stream returns is precisely the half of `1 - omega g` that is scattered.
-// So each column is split into what is ABSORBED and what is SCATTERED. The split is exact and
-// introduces no parameter, because 1 - omega g = (1 - omega) + omega (1 - g) -- so the two
-// pieces sum to the delta-scaled depth, term for term. Rayleigh gas is conservative (no albedo
-// cell, omega = 1) and so is entirely the scattered half.
-//
-// The VIEW leg keeps exp() and must -- see atm_receiver_light(). Light scattered out of a view
-// ray is not lost from the model, it is the path radiance, and that is added separately.
-// Nothing adds the light scattered out of the SUN leg, so this is where it belongs.
-vec3 atm_sun_transmittance_of(AtmLayers L, vec3 gas, vec3 haze, vec3 layer) {
-	vec3 absorbed = haze * (1.0 - atm_haze_albedo);
-	vec3 scattered = gas + haze * (atm_haze_albedo * (1.0 - atm_haze_g));
-	if (L.has_layer) {
-		absorbed += layer * (1.0 - atm_layer_albedo);
-		scattered += layer * (atm_layer_albedo * (1.0 - atm_layer_g));
-	}
-	return exp(-absorbed) / (1.0 + ATM_TWO_STREAM_K * scattered);
-}
-
-// The twilight a shell must ADD to what the engine already gives it, as emission.
-//
-// Everything above is plane-parallel on the sun leg: flux entering the column goes as mu0, so
-// illumination is pinned to zero at the geometric terminator, with a CORNER. On a sphere it is
-// not. The air above a point at mu0 = 0 is still fully lit -- the terminator at altitude z
-// stands sunward of the one on the ground -- and it shines down. Nothing here or in the engine
-// puts that light anywhere, so a surface and a cloud deck both stop dead at the same line while
-// the atmosphere's own glow renders on past it, which is the band with nothing in it. Measured
-// against the hemisphere integral, real ground at the terminator gets 0.7 % of full sun, and
-// the decay past it has no feature at mu0 = 0 at all: the sky does not know where the ground's
-// terminator is.
-//
-// The engine hands a shell albedo x max(mu0, 0) x its sun transmittance and nothing below the
-// horizon. The target is direct + max(plane-parallel diffuse, twilight), so what is missing is
-// max(twilight - plane-parallel diffuse, 0) and nothing else: the beam and the day-side diffuse
-// cancel term for term, which is why the DAY SIDE CANNOT MOVE. The subtraction is not a fudge
-// -- the sun transmittance is a TOTAL, direct plus diffuse, so adding a twilight curve on top
-// of it would count the diffuse twice.
-//
-// Evaluated at the DISC for every shell, not at the shell's own altitude. A deck a few km up
-// really does see a little more (Earth's measures 1.19x at the terminator, and stays lit 3.2 deg
-// longer), but one illumination for all of them is what makes surface and cloud fade TOGETHER;
-// give the deck its own and the two part company at the very place the wall was. What the deck
-// legitimately keeps beyond this is its direct beam, which is a separate term and not this one.
-// The twilight curve alone, from the atm_sky_* cells, HELD at its own vertex. The reference
-// is monotone in mu0 -- the sky only brightens as the sun rises -- and a downward parabola is
-// not, so past its vertex the raw fit falls where the truth climbs. The cells are fitted so
-// that vertex lies beyond the crossover, so nothing is clamped where the term acts; what the
-// hold buys is the day side, released because the plane-parallel diffuse overtakes a CONSTANT
-// and stays past it rather than because the parabola decayed fast enough.
-vec3 atm_sky_illumination(float mu0) {
-	if (body_radius_km <= 0.0 || atm_sky_flux == vec3(0.0)) {
-		return vec3(0.0);
-	}
-	vec3 held = min(vec3(mu0), atm_sky_slope / (-2.0 * atm_sky_bend));
-	return atm_sky_flux * exp(held * (atm_sky_slope + held * atm_sky_bend));
-}
-
-// What a shell adds as EMISSION over what the engine already gives it, from
-// atm_receiver_light()'s plane_diffuse. The engine hands it
-// `beam_response * (direct + plane_diffuse)`, so the plane-parallel diffuse has ALREADY been
-// delivered -- through the BEAM factor, which is the wrong response for it but is what was
-// applied. Subtract what was actually delivered, `beam_response * plane_diffuse`, not the
-// unfactored quantity.
-//
-// SUBTRACTING THE UNFACTORED ONE LEAVES A NOTCH THAT CLOSES AT THE TERMINATOR, AND THE
-// PROFILE SPRINGS BACK UP AS IT DOES. Expanded, that mistake renders
-// `beam*direct + iso*sky - plane*(iso - beam)`, whose last term is a spurious dip that
-// vanishes as beam -> iso*0 at mu0 = 0: on Venus it put a local MAXIMUM in the last 1.2 deg
-// before the terminator -- a narrow lighter band, carrying the surface's own chromaticity
-// because that is exactly what it is. With the delivered quantity subtracted the sum is
-// `beam*direct + iso*sky` wherever the term acts, both terms monotone in mu0, and the profile
-// cannot bump. Note the engagement locus is independent of the view angle: iso and the beam
-// factor share the same mu^(k-1), which cancels, so it runs parallel to the terminator.
-vec3 atm_sky_excess(float mu0, vec3 plane_diffuse, float sky_response, float beam_response) {
-	return max(sky_response * atm_sky_illumination(mu0) - beam_response * plane_diffuse,
-			vec3(0.0));
-}
-
 // What a surface or cloud shell beneath the limb takes from the atmosphere above it besides
 // the air in front of it (atm_disc_air), at the view and sun cosines mu and mu0 of its
 // macroscopic normal. A shell calls it once, for three things:
@@ -1444,5 +1502,7 @@ void atm_receiver_light(float mu, float mu0, out vec3 tint, out vec3 sun_transmi
 	}
 	tint = own_view / max(atm_luma(disc_view), 1.0e-6);
 }
+
+#endif // ATM_OFF
 
 #endif // ATM_AIRLESS

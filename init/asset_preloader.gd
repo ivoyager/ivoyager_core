@@ -87,6 +87,21 @@ static var min_shader_variants: Dictionary[StringName, StringName] = {
 	&"band_pattern_shader": &"band_pattern_min_shader",
 	&"atmosphere_limb_shader": &"atmosphere_limb_min_shader",
 }
+## Maps a surface/shell shader, after its [member cube_shader_variants] swap, to what a body WITH
+## an atmosphere binds when the session runs the Off tier of Atmosphere Quality ([member
+## IVGraphicsManager.is_atmosphere_off_session]): its Off twin, which draws the air in front of
+## the disc in a cheap closed form, or an empty name, which drops the shell for the session. The
+## limb is dropped, since the Off twins draw the disc's air out to the silhouette themselves. The
+## swap is made here, as the Min one is. See THE OFF VARIANT in
+## [code]_atmosphere.gdshaderinc[/code].
+static var off_shader_variants: Dictionary[StringName, StringName] = {
+	&"surface_shader": &"surface_off_shader",
+	&"surface_cube_shader": &"surface_cube_off_shader",
+	&"cloud_shell_shader": &"cloud_shell_off_shader",
+	&"cloud_shell_cube_shader": &"cloud_shell_cube_off_shader",
+	&"band_pattern_shader": &"band_pattern_off_shader",
+	&"atmosphere_limb_shader": &"",
+}
 ## [code]shells.tsv[/code] columns that are NOT [StandardMaterial3D] properties (read
 ## explicitly into the shell spec). Every other column is set on the shell material
 ## directly by [IVShellsModel] — to add a material override, just add that property's
@@ -219,7 +234,8 @@ func get_body_model_scale(body_name: StringName) -> float:
 ## cast_shadow, overrides[/code]. [code]tag[/code] is the body's own name for the shell (e.g.
 ## [code]CLOUDS[/code]), empty for a shell 0 taken from the body's surface class.
 ## [code]shader[/code] is the one that will be bound, its [member cube_shader_variants] and
-## [member airless_shader_variants] or [member min_shader_variants] swaps already made.
+## [member airless_shader_variants], [member min_shader_variants] or [member
+## off_shader_variants] swaps already made, and any shell the last drops already gone.
 ## Built from the body's [code]shells[/code] field and the [code]shells[/code] table;
 ## shell 0 falls back to the [code]shells.tsv[/code] row of the body's [code]surface_class[/code]
 ## when the body has no [code]shell0[/code] row of its own. Consumed by [IVShellsModel].
@@ -233,6 +249,14 @@ func get_body_shell_specs(body_name: StringName) -> Array:
 ## shared sphere. Scale it by [method get_body_mesh_scale].
 func get_body_mesh(body_name: StringName) -> Mesh:
 	return _body_resources[body_name][5]
+
+
+## Returns the body's atmosphere, the [code]atm_*[/code] columns of its shells.tsv rows (see
+## [method get_atmosphere_overrides]), which [IVShellsModel] pushes to each of its shader shells;
+## empty for a body with none. Read it here rather than from [method get_body_shell_specs], whose
+## specs no longer hold the limb row that carries it when the Off tier drops that shell.
+func get_body_atmosphere(body_name: StringName) -> Dictionary[StringName, Variant]:
+	return _body_resources[body_name][9]
 
 
 ## Returns the body's [code]file_prefix[/code] — the token every one of its asset files is
@@ -608,7 +632,8 @@ func _load_body_resources() -> void:
 
 			# Some GPU compilers slow a shader for code it never runs, so a body with no
 			# atmosphere binds the variant of each shell shader that carries none.
-			if get_atmosphere_overrides(shell_specs).is_empty():
+			var atmosphere := get_atmosphere_overrides(shell_specs)
+			if atmosphere.is_empty():
 				for spec: Dictionary in shell_specs:
 					var shader_name: StringName = spec[&"shader"]
 					if airless_shader_variants.has(shader_name):
@@ -618,6 +643,16 @@ func _load_body_resources() -> void:
 					var shader_name: StringName = spec[&"shader"]
 					if min_shader_variants.has(shader_name):
 						spec[&"shader"] = min_shader_variants[shader_name]
+			elif IVGraphicsManager.is_atmosphere_off_session:
+				var drawn_specs: Array = []
+				for spec: Dictionary in shell_specs:
+					var shader_name: StringName = spec[&"shader"]
+					if off_shader_variants.has(shader_name):
+						spec[&"shader"] = off_shader_variants[shader_name]
+						if !off_shader_variants[shader_name]:
+							continue
+					drawn_specs.append(spec)
+				shell_specs = drawn_specs
 
 			# A surface with no color map would otherwise render white (an unbound sampler,
 			# or the StandardMaterial3D default). Hand IVShellsModel the surface class's
@@ -641,6 +676,7 @@ func _load_body_resources() -> void:
 				file_prefix,
 				mesh_scale,
 				class_entry[4],
+				atmosphere,
 			]
 
 			_body_resources[body_name] = resources

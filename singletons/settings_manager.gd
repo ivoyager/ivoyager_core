@@ -114,7 +114,7 @@ var _defaults: Dictionary[StringName, Variant] = {
 	&"hide_hud_when_close" : true, # restart or load required
 	
 	# graphics/performance
-	&"atmosphere_quality" : 0, # 0,1 = normal,reduced; see IVGraphicsManager
+	&"atmosphere_quality" : 0, # 0,1,2,3 = normal,reduced,min,off; see IVGraphicsManager
 	&"render_scale" : 0, # 0,1,2,3 = 100,85,70,50%; see IVGraphicsManager
 	&"msaa_3d" : 1, # 0,1,2,3 = disabled,2x,4x,8x (== Viewport.MSAA_*)
 	&"fxaa" : false, # not available in Compatibility renderer (incl. web)

@@ -39,15 +39,6 @@
 uniform int atm_min_disc_points = 5;
 uniform int atm_min_tangent_points = 3;
 
-// (e^-a - e^-b) / (b - a) per channel: the mean of e^-x as x runs linearly from a to b.
-vec3 atm_min_exp_mean(vec3 a, vec3 b) {
-	vec3 d = b - a;
-	vec3 close = step(abs(d), vec3(1.0e-3));
-	vec3 series = exp(-a) * (1.0 - 0.5 * d + d * d / 6.0);
-	vec3 general = (exp(-a) - exp(-b)) / mix(d, vec3(1.0), close);
-	return mix(general, series, close);
-}
-
 // The share of a tangent half-ray's column between its tangent point (altitude h) and distance u
 // along it, for an exponential of scale height H.
 float atm_min_half_fraction(float R, float h, float u, float H) {
@@ -60,7 +51,7 @@ float atm_min_half_fraction(float R, float h, float u, float H) {
 // (its zenith cosine there mu_v, its tangent altitude h_ray); `source`, what each layer's share of
 // that column scatters toward the camera per unit optical depth, summed; and `sun`, the sun's
 // column along mu_s. The gas and haze parts of the view and sun columns come out separately too,
-// for the stacked limit (atm_min_stacking).
+// for the stacked limit (atm_stacking).
 void atm_min_point(AtmLayers L, float R, float z, float mu_v, float mu_s, float h_ray,
 		float gas_source, out vec3 view, out vec3 source, out vec3 sun, out vec3 gas_view,
 		out vec3 haze_view, out vec3 gas_sun, out vec3 haze_sun) {
@@ -93,27 +84,13 @@ void atm_min_point(AtmLayers L, float R, float z, float mu_v, float mu_s, float 
 	}
 }
 
-// Which exponential layer lies above the other along a ray whose haze has scale height H_haze, and
-// the weight of the STACKED limit against the MIXED one: (r - 1) / (r + 1), r the ratio of their
-// scale heights -- the thin limit of the exact two-layer integral -- and 0 with one layer.
-float atm_min_stacking(AtmLayers L, float H_haze, out bool gas_upper) {
-	bool has_gas = dot(atm_gas_tau, vec3(1.0)) > 0.0;
-	bool has_haze = dot(atm_haze_tau, vec3(1.0)) > 0.0;
-	gas_upper = has_gas && (L.H_g >= H_haze || !has_haze);
-	if (!has_gas || !has_haze) {
-		return 0.0;
-	}
-	float r = max(L.H_g, H_haze) / min(L.H_g, H_haze);
-	return (r - 1.0) / (r + 1.0);
-}
-
 // A column integrated along a segment on which the exponent runs piecewise linearly through
 // (t_top, e_top), (t_mid, e_mid), (t_bottom, e_bottom), t the column from the camera: the integral
 // of e^-E over the column, per channel.
 vec3 atm_min_piecewise(vec3 t_top, vec3 e_top, vec3 t_mid, vec3 e_mid, vec3 t_bottom,
 		vec3 e_bottom) {
-	return max(t_mid - t_top, vec3(0.0)) * atm_min_exp_mean(e_top, e_mid)
-			+ max(t_bottom - t_mid, vec3(0.0)) * atm_min_exp_mean(e_mid, e_bottom);
+	return max(t_mid - t_top, vec3(0.0)) * atm_exp_mean(e_top, e_mid)
+			+ max(t_bottom - t_mid, vec3(0.0)) * atm_exp_mean(e_mid, e_bottom);
 }
 
 // Surface-hit ray at a point with view cosine mu and sun cosine mu0 (sz = dot(e, s) as for the
@@ -140,7 +117,7 @@ void atm_disc(AtmLayers L, float R, float mu, float mu0, float sz, float sun_ang
 	// sun's column does not fall with the view column's, and a second anchor, one upper scale
 	// height along, measures how it runs.
 	bool gas_upper_disc;
-	float stacked_disc = atm_min_stacking(L, L.H_h, gas_upper_disc);
+	float stacked_disc = atm_stacking(L, L.H_h, gas_upper_disc);
 	float H_upper = gas_upper_disc ? L.H_g : L.H_h;
 	float mu_s_lit = (R * mu0 + u_lo * sz) / (R + z_lit);
 	bool drift_on = near_on && (mu_s_lit < 0.25 || !disc_open || z_lit > 0.0);
@@ -277,7 +254,7 @@ void atm_disc(AtmLayers L, float R, float mu, float mu0, float sz, float sun_ang
 	if (far_on) {
 		// Outward from the far lit start the exponent runs from the rest of the ray plus the sun's
 		// column there, to the whole ray.
-		path += far_source * atm_min_exp_mean(total - far_view + far_sun, total);
+		path += far_source * atm_exp_mean(total - far_view + far_sun, total);
 	}
 	// What the disc beneath keeps, delta-scaled, as the full tier's atm_disc() has it.
 	vec3 view_total = atm_exp_column_beneath(L, R, 0.0, mu);
@@ -309,7 +286,7 @@ vec3 atm_min_tangent(AtmLayers L, float R, float h, float qs, float sz, float su
 	vec3 haze_half = vec3(0.0);
 	float H_haze = L.z_k > 0.0 && h > L.z_k ? L.H_t : L.H_h;
 	bool gas_upper;
-	float stacked = atm_min_stacking(L, H_haze, gas_upper);
+	float stacked = atm_stacking(L, H_haze, gas_upper);
 	vec3 path = vec3(0.0);
 	// Point 0 is the tangent point, for the whole ray's columns; 1 and 2 are where each half's
 	// sun column is held.
@@ -413,13 +390,16 @@ bool atm_ring_pixel(AtmLayers L, float R, float h, float footprint, float qs, fl
 	int taps = has_taps ? int(clamp(ceil(span / min(L.H_ref, footprint)), 1.0,
 			float(iv_atm_ring_max_taps))) : 0;
 	float step = span / float(max(taps, 1));
+	float cdf_below = atm_tent_cdf((lo - h) / half_width);
 	vec3 transmittance_sum = vec3(0.0);
 	float weight_sum = 0.0;
 	for (int i = 0; i < taps; i++) {
 		float tap_h = lo + (float(i) + 0.5) * step;
 		vec3 tap_transmittance;
 		vec3 ray_path = atm_min_tangent(L, R, tap_h, qs, sz, sun_ang, tap_transmittance);
-		float weight = max(1.0 - abs(tap_h - h) / half_width, 0.0) * step / half_width;
+		float cdf_above = atm_tent_cdf((lo + float(i + 1) * step - h) / half_width);
+		float weight = cdf_above - cdf_below;
+		cdf_below = cdf_above;
 		path += ray_path * weight;
 		transmittance_sum += tap_transmittance * weight;
 		weight_sum += weight;

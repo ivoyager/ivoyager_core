@@ -984,7 +984,7 @@ Two float32 traps the include documents, both found as a black curve across Venu
 side: a literal below about 1e-14 compiles to zero in the shader language, and a valid but
 tiny float passes `> 0.0` yet comes out of the GPU's `log()` as −∞.
 
-#### Atmosphere quality, and what Reduced and Min give up
+#### Atmosphere quality, and what Reduced, Min and Off give up
 
 The limb shell is 75–95 % of an integrated-GPU frame in any view with air
 ([GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)), which is why the user setting
@@ -997,6 +997,8 @@ The limb shell is 75–95 % of an integrated-GPU frame in any view with air
   of the same model rather than a different one.
 - **Min** — the same model integrated in closed form, in shaders of its own (*The Min tier*,
   below).
+- **Off** — no limb, and the air in front of each disc in a much cheaper closed form, in
+  shaders of its own (*The Off tier*, below).
 
 What moves on screen is small and confined to the limb: at most 2 display codes on Earth and
 up to 15 on 0.4 % of Titan's pixels, 1.2–1.8 % of pixels past 2 codes. The surface and cloud
@@ -1056,6 +1058,59 @@ shaders (`min_shader_variants`) for every body with air, the shader warm-up comp
 instead of the full ones, and a change into or out of Min waits for a restart, which the Options
 popup says. What it costs and saves is *Addendum: the Min tier, built* in
 [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md).
+
+##### The Off tier
+
+Off draws no limb shell and keeps each disc's air in each disc shader's `.off` twin, whose
+entry points `_atmosphere.off.gdshaderinc` supplies, so a first visit at Off compiles no
+quadrature and no limb shader at all. The twins are separate programs, not the airless ones the
+closed form could equally have lived in, because every first visit compiles the airless programs
+and the closed form would have added about 4.5 s to each through ANGLE.
+
+Off is not "no air": Venus', Titan's and Mars' maps are surface reflectance with the air meant
+to be added on top (*Every disc is fully covered*, above), so a disc drawn with none would be the
+wrong colour. What Off drops is the integration, not the model: the same `atm_*` layers,
+`atm_layers()`, the delta-scaled view transmittance, the two-stream sun leg
+(`atm_sun_transmittance_of()`) and the twilight excess, over a plane-parallel slab.
+
+- **A column is the vertical column times an airmass**, one per layer: the path through a
+  homogeneous shell 4H/π tall at the layer's radius, which is exact toward the zenith and meets
+  Chapman's √(πx/2) along the horizon, x = r / H. A haze with a top keeps both exponentials in
+  its vertical column; the thin layer is a shell at its centre radius.
+- **The veil is single scattering**: each layer's source per unit optical depth along the
+  view, times the mean of e^−t over a view-plus-sun column — one column for the layers MIXED in
+  depth, or each exponential its own with the lower one's light crossing the whole upper one,
+  STACKED. The two are blended by the ratio of the scale heights, exactly as *The Min tier*
+  blends them (`atm_stacking()`); the mixed form alone left Earth's disc 5 codes dark, its gas
+  standing over its haze rather than through it.
+- **Only the part of the ray the sun lights scatters**, found by the full tier's own shadow test
+  (`atm_lit_interval()`), and each column is taken at that part's two ends. Past the terminator
+  the shadow starts it above the ground, so the veil fades into the night side instead of
+  stopping at the terminator; toward a camera on the night side the ray climbs back into the
+  shadow and ends it short of the top. A plane-parallel slab lit throughout had read a crescent's
+  terminator band up to 30 codes bright. A sun ray below the local horizon descends to its
+  tangent altitude and climbs out, as `atm_exp_columns()` takes it.
+
+What it gives up is everything the limb shell drew and the sphere gave: the band beyond the
+limb, a backlit crescent's forward-scattered ring and cusps, Titan's haze ring and blue detached
+shell, the far half of an optical limb's ray, and the rim handoff, since with no limb shell the
+disc keeps its air out to its own silhouette.
+
+What moves on screen, in the app on the GTX under Compatibility at the 18 atmosphere poses
+against Normal, over each lit disc from 12 px inside its edge: **day sides hold to about a
+display code** at the mean and 6 at the 99th percentile, Earth's full disc included. Past
+quarter phase Titan holds to 1.4–2.3 codes at the mean and Mars to 2.8–4.2, where a band along
+the terminator stays a few codes bright. Everything else that moves is the limb: its band, the
+ring, and the bloom a blown ring spreads over a thin crescent, which leaves Earth's and Venus'
+crescents 11–16 codes darker 12 px in. Forward+ holds the day sides the same, and loses more
+of that bloom, its glow halo being the wider. Airless bodies render bit-identically either way.
+
+Being a choice of programs, Off is made when bodies are built, as Min is: `IVAssetPreloader`
+binds `off_shader_variants` for every body with air — the `.off` twins, and no limb shell —
+and keeps the body's atmosphere apart from its shells (`get_body_atmosphere()`) so that
+`IVShellsModel` still feeds it to the discs. `IVExposureManager` drops the limb's exposure ceiling,
+there being no limb to hold it for, and a change into or out of Off waits for a restart. What it
+costs and saves is *Addendum: the Off tier, built* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md).
 
 ## The Sun
 
@@ -2173,7 +2228,7 @@ lever a capped pass cannot offer is one the shader does not need.
 |---|---|---|
 | `IVCoreSettings` | `enable_physical_light` | Instantiates the system (default false; zero cost off). Requires `dynamic_lights`. |
 | user options | `physical_light` | Runtime toggle (cached setting; Options row appears when enabled). |
-| | `atmosphere_quality` | Normal, Reduced or Min. Normal and Reduced are applied live by `IVGraphicsManager` as the `iv_atm_*` globals, Reduced running a 4-node along-ray quadrature and 2 ring taps; Min is its own shaders, bound at startup, so it takes a restart. See *Atmospheres*. |
+| | `atmosphere_quality` | Normal, Reduced, Min or Off. Normal and Reduced are applied live by `IVGraphicsManager` as the `iv_atm_*` globals, Reduced running a 4-node along-ray quadrature and 2 ring taps; Min and Off are each their own shaders, Off with no limb, bound at startup, so each takes a restart. See *Atmospheres*. |
 | `IVExposureManager` | `background_peak_magnitude_per_arcsec2` | The absolute anchor (mag/arcsec² of a full-white panorama texel). |
 | | `metering_key` | Rendered value a fully metered surface lands at (mid-exposure target). |
 | | `meter_fraction_start` / `meter_fraction_full` | Screen-fraction ramp: when a body begins to influence metering / fully drives it. |
@@ -2204,20 +2259,6 @@ lever a capped pass cannot offer is one the shader does not need.
 
 ## TODO
 
-- **An atmosphere tier for the web's first visit** (2026-09-27). The v0.2.1.dev1 web export
-  never loaded: through Chrome's ANGLE and D3D11 path one limb-shader program compiled for longer
-  than Chrome's GPU watchdog allows. Restructuring the quadrature so each heavy function has one
-  call site took every atmosphere program well inside it (*The atmosphere's structure* in
-  [SHADER_COMPILE_PROFILING.md](SHADER_COMPILE_PROFILING.md)), but a first visit still compiles
-  every shader the opening view and the warm-up draw, and the atmosphere is still most of that.
-  What would shorten it is a tier that leaves the quadrature out of the limb and the disc shaders
-  alike, chosen at restart. It needs Venus, Titan and Mars re-levelled (*Addendum: the limb ring
-  and surface twilight* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)). Most of its
-  machinery exists: the airless shader variants that bodies with no atmosphere already bind
-  (*Addendum: the atmosphere's structure, at runtime*, there) would draw every body, and the
-  limb shells would not be drawn. The Min tier (*The Min tier*, above) has since built the
-  restart-bound tier this would be another value of, and takes about a fifth off an ANGLE
-  first run by itself.
 - **Saturn's rings do not draw through Intel's GL driver** (2026-09-28). On the profiling
   laptop's UHD (driver 31.0.101.2137) under Compatibility the ring plane renders nothing --
   either face, near or far, at 85 or 100 % render scale, with or without MSAA -- and logs no
