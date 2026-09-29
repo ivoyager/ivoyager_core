@@ -160,7 +160,7 @@ Intel figures for the atmosphere views come from runs in the driver's normal sta
 | 14 | **FXAA** (existing; Forward+ only) | +0 to +6% | +1 to +16% | A benefit: smoother lines, at a slight blur. | Keep. |
 | 15 | **TAA** (existing; Forward+ only, experimental) | +10 to +27% | +4 to +39% | Ghosts orbit lines, which are positioned in the vertex shader. | Remove, or keep it hidden. |
 | 16 | **Physical light** (existing) | Off: -5 to +26% | Off: +0 to +35% | Changes the whole look. Off keeps the unmetered exposure, so every star draws at full size, which is why it costs. | Not a performance setting. Move it to another section. |
-| 17 | **HUD layers and body PSF quads**: orbits, labels, symbols, asteroid points | 0 to -5% | 0 to -5%; asteroid points -16% at the belt | Content, not quality. | No option needed; already user-controlled. |
+| 17 | **HUD layers and body PSF quads**: orbits, labels, symbols, asteroid points | 0 to -5%; asteroid points -3 to -5% at the belt | 0 to -5%; asteroid points -6 to -10% at the belt | Content, not quality. | No option needed; already user-controlled. Nor does the asteroid count earn one (see *Addendum: the asteroid points*). |
 
 
 ## Atmospheres
@@ -1166,3 +1166,45 @@ visit at Min compiles somewhat less, not a great deal less.
 **Why a restart.** A program switched in mid-flight compiles at its first draw, which through
 ANGLE is tens of seconds of a frozen view; chosen at startup, the shader warm-up covers it.
 Normal and Reduced still switch live between themselves.
+
+
+## Addendum: the asteroid points
+
+Measured on 2026-09-29 to answer whether the number of asteroids loaded earns a catalogue option
+like Star Catalog. It does not. Each asteroid costs more than a star, since the points shader
+solves Kepler's equation for every one of them in every frame, but at 1/32 of the star count
+the whole set costs a sixth or less of what the star field does, even in the view built to
+show it.
+
+The view is `VIEW_ASTEROIDS`, all ten groups as plain points, at 1920x1080, display scale 1,
+100 % render scale, MSAA 2x, the sim paused. All 80,569 asteroids are loaded (the shipped
+`mag_cutoff` of H 15, 16 for Mars-crossers and 17 for near-Earth objects). The star field and
+the points were each toggled in the running app, the points measured with the star field off,
+so that neither hides the other. Milliseconds: GPU time, except through ANGLE, which has no
+timestamps and so gives the frame interval:
+
+| | GTX, Forward+ | GTX, GL | Intel, GL | Intel, ANGLE |
+|---|---:|---:|---:|---:|
+| Whole frame | 5.2 | 3.2-3.5 | 31 | 61 |
+| Star field, 2.55 million stars | 2.5 | 1.8-2.2 | 18 | 44 |
+| Asteroid points at 3 px, 80,569 | 0.3-0.5 | 0.3 | 1.2-1.6 | 1.8-2.4 |
+| Asteroid points at 8 px | 0.5 | 0.3 | 3.8 | 3.6 |
+| Per asteroid, per star (ns) | 5, 1.0 | 4, 0.8 | 17, 7 | 26, 17 |
+
+- **All the asteroids together are 3-5 % of the Intel frame and 6-10 % of the GTX frame.** A
+  cut to the brightest 15 % (H 13, 11,912 asteroids) left about 0.3 ms on Intel's GL, so the
+  cost scales with the count, and no cut could return more than that 3-5 %. The high-relief
+  options above return 17-95 %.
+- **With the star field drawn, showing the points costs nothing on Intel.** The frame came out
+  0.1-1.3 ms faster with them, because they cover star sprites that Intel is fragment-bound on.
+- **The cost is the vertex stage, not the pixels.** Points of 1 and 3 px cost about the same.
+  At 8 px, about the 3 px default on a display scaled 250 %, Intel pays another 1.5-2.5 ms in
+  fragments.
+- **It is paid wherever the camera looks.** A group's points are never frustum-culled, since
+  under farwarp their bounds hold every place the camera can go, so the vertex work runs whenever
+  the group is shown. Only the Asteroids view shows them by default.
+- **Load and download are small too.** The loaded binaries are 4.1 MB, against 20.5 MB for the
+  star catalogue. A cut to H 14 would take them to 1.5 MB and H 13 to 0.6 MB.
+
+What a project loads stays its own choice, through the table's `mag_cutoff` column and
+`IVCoreSettings.sbg_mag_cutoff_override`.
