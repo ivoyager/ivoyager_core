@@ -46,6 +46,9 @@ extends PopupPanel
 ## option's name turns the warning's color with an asterisk. Its tooltip should say
 ## that it needs a restart.[br][br]
 ##
+## The popup grows with its content up to [member max_screen_proportion] of the
+## view, and the options scroll beyond that.[br][br]
+##
 ## [signal IVGlobal.options_requested] opens this popup, or closes it as Cancel
 ## does if it's open. See [member modal] for the two ways it can work.
 
@@ -60,6 +63,9 @@ extends PopupPanel
 	set = set_modal
 ## Column width multiplied by [member IVCoreSettings.gui_size_multipliers] (minimum).
 @export var column_base_width := 320
+## Largest size of this popup as a proportion of the view it opens in, which sets
+## [member Window.max_size]. Content beyond it scrolls.
+@export var max_screen_proportion := Vector2(0.7, 0.7)
 
 ## If true (default), automatically remove cache settings that are not
 ## applicable due to [IVCoreSettings]. (Currently:
@@ -224,6 +230,8 @@ var _option_names: Dictionary[StringName, HBoxContainer] = {} # built rows' name
 var _suppress_close := true
 
 
+@onready var _vbox: VBoxContainer = $VBox
+@onready var _scroll: ScrollContainer = %ScrollContainer
 @onready var _content_container: HBoxContainer = %ContentContainer
 @onready var _restore_defaults: Button = %RestoreDefaultsButton
 @onready var _confirm_changes: Button = %ConfirmChangesButton
@@ -235,6 +243,8 @@ var _suppress_close := true
 func _ready() -> void:
 	hide() # Godot 4.5 editor keeps setting visibility == true !!!
 	IVStateManager.core_initialized.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
+	get_parent().get_viewport().size_changed.connect(_update_max_size)
+	_update_max_size()
 
 
 func _shortcut_input(event: InputEvent) -> void:
@@ -377,6 +387,33 @@ func _build_content() -> void:
 		var mod_resizable := IVControlModResizable.create(Vector2(column_base_width, 0))
 		column_vbox.add_child(mod_resizable)
 	_on_content_built()
+	_fit_scroll_area()
+
+
+func _update_max_size() -> void:
+	var view_size := get_parent().get_viewport().get_visible_rect().size
+	max_size = Vector2i(view_size * max_screen_proportion)
+	if !visible:
+		return
+	_fit_scroll_area()
+	size = Vector2i.ZERO
+	move_to_center()
+
+
+# A Window's max_size doesn't reach its Controls, which overflow it and are clipped.
+func _fit_scroll_area() -> void:
+	var limit := Vector2(max_size) / content_scale_factor
+	var vbox_minimum := _vbox.get_combined_minimum_size()
+	limit -= get_contents_minimum_size() - vbox_minimum # the panel's margins
+	limit.y -= vbox_minimum.y - _scroll.get_combined_minimum_size().y # the other rows
+	var fit := _content_container.get_combined_minimum_size() + _scroll.get_minimum_size()
+	if fit.y > limit.y:
+		fit.x += (_scroll.get_v_scroll_bar().get_combined_minimum_size().x
+				+ _scroll.get_theme_constant(&"scrollbar_h_separation"))
+	if fit.x > limit.x:
+		fit.y += (_scroll.get_h_scroll_bar().get_combined_minimum_size().y
+				+ _scroll.get_theme_constant(&"scrollbar_v_separation"))
+	_scroll.custom_minimum_size = fit.min(limit).maxf(0.0)
 
 
 func _clear_content() -> void:
@@ -524,6 +561,7 @@ func _update_restart_warning() -> void:
 	if _restart_warning.visible == is_restart_pending:
 		return
 	_restart_warning.visible = is_restart_pending
+	_fit_scroll_area()
 	if !is_restart_pending:
 		size.y = 0 # a popup grows to fit its content, but never shrinks back on its own
 
@@ -596,5 +634,6 @@ func _settings_listener(setting: StringName, _value: Variant) -> void:
 		@warning_ignore_start("integer_division")
 		var center := position + size / 2
 		await get_tree().process_frame
+		_fit_scroll_area()
 		size = Vector2i.ZERO
 		position = center - size / 2

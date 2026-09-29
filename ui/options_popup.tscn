@@ -35,7 +35,11 @@ layout_mode = 2
 size_flags_horizontal = 4
 text = "LABEL_OPTIONS"
 
-[node name="ContentContainer" type="HBoxContainer" parent="VBox"]
+[node name="ScrollContainer" type="ScrollContainer" parent="VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ContentContainer" type="HBoxContainer" parent="VBox/ScrollContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 
