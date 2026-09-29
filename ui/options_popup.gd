@@ -133,11 +133,11 @@ extends PopupPanel
 		[&"LABEL_SMALL_BODIES_POINT_SIZE", &"small_bodies_point_size"],
 		[&"LABEL_HIDE_HUDS_WHEN_CLOSE", &"hide_hud_when_close"],
 	],
-	LABEL_GRAPHICS_PERFORMANCE = [ # ordered as "All options, ranked" in GRAPHICS_PROFILING.md
-		[&"LABEL_ATMOSPHERE_QUALITY", &"atmosphere_quality"],
-		[&"LABEL_RENDER_SCALE", &"render_scale"],
+	LABEL_GRAPHICS_PERFORMANCE = [ # see GRAPHICS_PROFILING.md
 		[&"LABEL_RENDERER", &"renderer"],
+		[&"LABEL_RENDER_SCALE", &"render_scale"],
 		[&"LABEL_STAR_CATALOG", &"star_catalog"],
+		[&"LABEL_ATMOSPHERE_QUALITY", &"atmosphere_quality"],
 		[&"LABEL_SHADOW_RESOLUTION", &"shadow_resolution"],
 		[&"LABEL_MSAA", &"msaa_3d"],
 		[&"LABEL_FRAME_RATE_CAP", &"frame_rate_cap"],

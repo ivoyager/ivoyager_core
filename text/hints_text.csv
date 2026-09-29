@@ -26,7 +26,7 @@ HINT_DECREASE_FOCAL_LENGTH,Decrease camera focal length
 HINT_EXPOSURE_ADJUSTMENT,Adjust exposure in 1/3 stops
 HINT_EXPOSURE_AUTO,Meter camera exposure automatically
 HINT_EXPOSURE_MANUAL,Set camera exposure in 1/3 stops
-HINT_FADE_GUI_WHEN_IDLE,"Fade the GUI out after a few seconds without input while\nthe pointer is over the view. Any input brings it back"
+HINT_FADE_GUI_WHEN_IDLE,Fade the GUI out after a few seconds without input while\nthe pointer is over the view. Any input brings it back
 HINT_FADE_GUI_WHILE_DRAGGING,Dim the GUI while you drag the view
 HINT_FRAME_RATE_CAP,"Maximum number of frames drawn per second. A cap saves\npower, heat and battery life whenever the GPU could draw\nfaster, at some cost to smooth motion. It changes nothing\nwhere frames are already slower. None draws as often as\nthe display refreshes.\n\nGPU cost: HIGH at None on a display faster than 60 Hz"
 HINT_FXAA,"Fast approximate antialiasing: a screen filter that smooths\njagged edges but softens the whole image, most noticeably\nat lower screen resolutions.\n\nGPU cost: LOW"
@@ -51,7 +51,7 @@ HINT_PAUSE,Pause
 HINT_PAUSE_ON_LOAD,Start paused after loading a save
 HINT_PHYSICAL_LIGHT,"Physically accurate light: sunlight falls off with distance\nas it really does, and the camera adjusts its exposure,\nso stars and the Milky Way fade out when a sunlit body\nis in view. Off: hand-tuned lighting with a fixed exposure"
 HINT_POINTS_CKBX_COLOR,Show/hide points and set their color
-HINT_RENDERER,"How the 3D view is drawn. Forward+ adds mouse-over\nidentification of orbit lines and asteroids, and the\nFXAA and TAA options.\n\nGPU cost: HIGH for Forward+ on integrated graphics,\nwhere Compatibility runs several times faster\n\nREQUIRES RESTART"
+HINT_RENDERER,"Graphics renderer. Use Forward+ for a desktop with a\nmodern GPU. Compatibility may be required for older\nor integrated graphics.\n\nForward+ is required for mouse-over identification of\norbit lines and asteroids (and some other graphic\noptions).\n\nGPU cost: HIGH for Forward+ on integrated graphics,\nwhere Compatibility runs several times faster\n\nREQUIRES RESTART"
 HINT_RENDER_SCALE,"Resolution of the 3D view as a share of the window's,\nscaled up to fill it. Menus and panels are not affected.\nLower is faster but softer: orbit lines and names blur,\nand faint stars thin out.\n\nGPU cost: HIGH at 100% on a high-resolution screen.\n50% renders a quarter of the pixels"
 HINT_RESTORE_FORWARD_TIME,Restore forward time
 HINT_RESTORE_DEFAULT_HOTKEY,Restore default hotkey

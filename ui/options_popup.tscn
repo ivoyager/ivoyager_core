@@ -1,4 +1,4 @@
-[gd_scene load_steps=4 format=3 uid="uid://do6i0el4c00jr"]
+[gd_scene format=3 uid="uid://do6i0el4c00jr"]
 
 [ext_resource type="Script" uid="uid://busiu2jjkqnmv" path="res://addons/ivoyager_core/ui/options_popup.gd" id="1_yhrw4"]
 [ext_resource type="PackedScene" uid="uid://cimxq7ent5esq" path="res://addons/ivoyager_core/ui_components/control_mod_spacing.tscn" id="2_spcng"]
@@ -6,7 +6,7 @@
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_utqd8"]
 bg_color = Color(0, 0, 0, 1)
 
-[node name="OptionsPopup" type="PopupPanel"]
+[node name="OptionsPopup" type="PopupPanel" unique_id=315827767]
 process_mode = 3
 oversampling_override = 1.0
 initial_position = 1
@@ -17,7 +17,7 @@ exclusive = true
 theme_override_styles/panel = SubResource("StyleBoxFlat_utqd8")
 script = ExtResource("1_yhrw4")
 
-[node name="VBox" type="VBoxContainer" parent="."]
+[node name="VBox" type="VBoxContainer" parent="." unique_id=705685542]
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
@@ -30,52 +30,52 @@ offset_bottom = 50.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="OptionsLabel" type="Label" parent="VBox"]
+[node name="OptionsLabel" type="Label" parent="VBox" unique_id=496847848]
 layout_mode = 2
 size_flags_horizontal = 4
 text = "LABEL_OPTIONS"
 
-[node name="ScrollContainer" type="ScrollContainer" parent="VBox"]
+[node name="ScrollContainer" type="ScrollContainer" parent="VBox" unique_id=974092240]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="ContentContainer" type="HBoxContainer" parent="VBox/ScrollContainer"]
+[node name="ContentContainer" type="HBoxContainer" parent="VBox/ScrollContainer" unique_id=694257649]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="ButtonsBox" type="HBoxContainer" parent="VBox"]
+[node name="ButtonsBox" type="HBoxContainer" parent="VBox" unique_id=2036941415]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_constants/separation = 40
 alignment = 1
 
-[node name="RestoreDefaultsButton" type="Button" parent="VBox/ButtonsBox"]
+[node name="RestoreDefaultsButton" type="Button" parent="VBox/ButtonsBox" unique_id=206303888]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 8
 text = "Restore Defaults"
 
-[node name="ConfirmChangesButton" type="Button" parent="VBox/ButtonsBox"]
+[node name="ConfirmChangesButton" type="Button" parent="VBox/ButtonsBox" unique_id=706765033]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 8
 text = "Confirm Changes"
 
-[node name="CancelButton" type="Button" parent="VBox/ButtonsBox"]
+[node name="CancelButton" type="Button" parent="VBox/ButtonsBox" unique_id=598902988]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 8
 text = "Cancel"
 
-[node name="RestartWarningLabel" type="Label" parent="VBox"]
+[node name="ControlModSpacing" parent="VBox/ButtonsBox" unique_id=1750510193 instance=ExtResource("2_spcng")]
+
+[node name="RestartWarningLabel" type="Label" parent="VBox" unique_id=1176877319]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
 size_flags_horizontal = 4
 theme_override_colors/font_color = Color(1, 0, 0, 1)
 text = "LABEL_GRAPHICS_RESTART_REQUIRED"
-
-[node name="ControlModSpacing" parent="VBox/ButtonsBox" instance=ExtResource("2_spcng")]
