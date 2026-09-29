@@ -498,8 +498,8 @@ from its own. Only a genuinely novel source misses both -- which is exactly what
 
 The web export is GLES3, and a first-time visitor arrives with neither cache; on the web there
 is only the browser's. Chrome keeps a GPU shader disk cache, so a repeat visitor on the same
-browser profile compiles nothing until the site's shaders change -- the "first run after an
-update" the boot screen speaks of. Firefox may not; measure before promising.
+browser profile compiles nothing until the site's shaders change. Firefox may not; measure before
+promising.
 
 Chrome's GPU process has a watchdog that kills the process, and with it every WebGL context, when
 its main thread spends too long in one task: 30 s on Windows, 25 s on macOS and 15 s elsewhere
