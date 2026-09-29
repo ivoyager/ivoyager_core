@@ -892,7 +892,7 @@ Three kinds of pixel meet on the screen, and every size in the Core is stated in
 
 - **Logical pixels** are the GUI's: the root viewport's 2D space, which `get_visible_rect()`,
   `unproject_position()` and every mouse position are in. HUD sizes are stated here too — a
-  body's name and symbol, an asteroid point, the click radius, the hover probe — because they
+  body's name and symbol, an asteroid's symbol, the click radius, the hover probe — because they
   are sizes on the screen, and like the GUI's text they must not shrink when a screen's pixels
   do.
 - **Window pixels** are the display's own. `display/window/dpi/allow_hidpi` is on by default:
@@ -900,7 +900,8 @@ Three kinds of pixel meet on the screen, and every size in the Core is stated in
   devicePixelRatio, so both builds draw into physical pixels. A screenshot is in these.
 - **Render pixels** are the 3D buffer's: window pixels times the 3D render scale, what a
   shader reads as `VIEWPORT_SIZE` and `IVGraphicsManager.get_render_size()` returns. Every
-  decision about what the render can resolve is made in them (*Settings summary*).
+  decision about what the render can resolve is made in them (*Settings summary*), and the
+  finest marks the HUD draws are stated in them: an orbit line and a plain asteroid point.
 
 **The display scale maps logical pixels onto window pixels.** `IVGraphicsManager` reads it from
 the screen and sets it as the root window's `content_scale_factor`
@@ -916,15 +917,19 @@ window pixels. A window still at the project's size at startup is enlarged by th
 fitted to the screen, since that size is the room the GUI was laid out for; a size from the
 command line is left alone. The GUI Size option multiplies on top.
 
-**The 3D pass draws the HUD, so the HUD is converted.** A body's name and symbol are
-billboards sized against the logical viewport height, which puts them in logical pixels, and
-the name's glyphs and outline are rasterized at the display scale so they are not magnified to
-a blur. An asteroid point is a `POINT_SIZE` in render pixels, so `IVSBGPositionsVisual`
-multiplies it by the scale, and `IVFragmentIdentifier` widens its probe by it so the hover
-tolerance is the same distance on any screen. A change of scale always arrives as a root
-`size_changed` — it moves either the logical size or the window's — so each of these re-reads
-it on `IVGlobal.viewport_size_changed`. What cannot follow is a line: an orbit line is one
-render pixel wide on any screen.
+**The 3D pass draws the HUD, so the HUD is converted.** Every name and symbol in the 3D view
+is in logical pixels. A body's name and symbol are billboards sized against the logical
+viewport height, which puts them in logical pixels at any 3D render scale, and the name's
+glyphs and outline are rasterized at the display scale so they are not magnified to a blur. An
+asteroid's shaped symbol is a `POINT_SIZE` in render pixels, so `IVSBGPositionsVisual`
+multiplies it by the display scale and the 3D render scale, and `IVFragmentIdentifier` widens
+its probe by the display scale so the hover tolerance is the same distance on any screen. A
+display scale change always arrives as a root `size_changed` — it moves either the logical
+size or the window's — and a viewport raises no signal for a render scale change, so
+`IVGraphicsManager` emits `IVGlobal.viewport_size_changed` itself; each of these re-reads its
+scale there. What does not follow is a line or a plain point: an orbit line is one render pixel wide on any screen, and the Small Bodies Point
+Size option (`small_bodies_point_size`) counts render pixels, which are the screen's own at a
+3D render scale of 100%.
 
 **`get_visible_rect()` is not the render size.** Under a display scale it is the window's size
 divided by that scale. Code that mirrors a shader's `VIEWPORT_SIZE`, or maps a mouse position
@@ -1147,7 +1152,7 @@ this is the spatial one.
 | | `vertecies_per_orbit` / `vertecies_per_trajectory_segment` | State-path knots (500): smoothness base for the rebased line; the pin owns trueness. |
 | | `vertecies_per_conic_mesh` / `vertecies_per_orbit_low_res` | Shared unit conic (4096) for coarse body orbits; low-res loop (100) for SBG orbit lines. |
 | | `stroboscope_frames_per_second` (+ blur settings) | Artificial stable stroboscope for fast rotators at high time speed (0 = off). |
-| user options | `render_scale` | The 3D render buffer as a share of the window (100, 85, 70 or 50 %), set by `IVGraphicsManager`. Every decision about what the buffer can resolve is made in its pixels: the sphere LOD rung, the star-bin cull, the disc, ring and point-source handoffs, and picking. HUD sizes stay in logical pixels, being sizes on the screen, and glow halos keep their share of the frame (*Glow: the bloom pass* in the sibling document). |
+| user options | `render_scale` | The 3D render buffer as a share of the window (100, 85, 70 or 50 %), set by `IVGraphicsManager`. Every decision about what the buffer can resolve is made in its pixels: the sphere LOD rung, the star-bin cull, the disc, ring and point-source handoffs, and picking. HUD sizes stay in logical pixels, being sizes on the screen, except a line's width and a plain asteroid point's, which are render pixels and so coarsen with the buffer; glow halos keep their share of the frame (*Glow: the bloom pass* in the sibling document). |
 | `IVDynamicLight` | `SHADOW_ENABLE_REACH_RATIO` / `SHADOW_DISABLE_REACH_RATIO` / `SHADOW_DISABLE_DELAY_FRAMES` (constants, 1.25 / 2.0 / 120) | Flip suppression for the empty-pass skip. Asymmetric on purpose: on is immediate, off waits. |
 | | `shadow_maps_enabled` (static) | False clears every shadow map, whatever the skip decides. `IVGraphicsManager` sets it from the user's Shadow Resolution option (Off). |
 | `dynamic_lights.tsv` | per-row masks, shadow distances, `apply_sun_occlusion` | The light stack: domains, shadow reach, which rows dim by the camera-point sun fraction. |

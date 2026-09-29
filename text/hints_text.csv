@@ -73,7 +73,7 @@ HINT_SHOW_GUI,Show the GUI again
 HINT_SHOW_NAME,Show Name
 HINT_SHOW_ORBIT,Show Orbit
 HINT_SHOW_SYMBOL,Show Symbol
-HINT_SMALL_BODIES_POINT_SIZE,Size in pixels of small bodies (asteroids) drawn as plain points
+HINT_SMALL_BODIES_POINT_SIZE,Size in screen pixels of small bodies (asteroids) drawn as plain points
 HINT_SMALL_BODIES_SYMBOL_SIZE_PERCENT,"Size of small bodies (asteroids) drawn as shaped symbols,\nrelative to GUI Size"
 HINT_STAR_CATALOG,"Number of catalog stars loaded, brightest first. Fewer stars\nload faster and use less memory. A starry sky loses only a\nfaint glow at 940,000 (to magnitude 11), and looks visibly\nsparser at 220,000 (to 9.5), more so at long focal lengths.\n\nGPU cost: HIGH at 2.6 million, in a sky full of stars\n\nREQUIRES RESTART"
 HINT_SYMBOL_PICKER,Symbol Picker

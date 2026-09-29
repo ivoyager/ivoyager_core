@@ -65,8 +65,9 @@ extends Node
 ## Render scale sets the main viewport's [member Viewport.scaling_3d_scale],
 ## upscaling with FSR 1 on Forward+ and bilinear elsewhere; the 2D GUI keeps the
 ## window's resolution. Where [method can_scale_render] is false it holds the scale
-## at 100%, whatever is cached. Which pixel decisions must follow the scaled buffer
-## is in the settings summary of [code]VISUAL_MODEL.md[/code].[br][br]
+## at 100%, whatever is cached. A change emits [signal IVGlobal.viewport_size_changed].
+## Which pixel decisions must follow the scaled buffer is in the settings summary of
+## [code]VISUAL_MODEL.md[/code].[br][br]
 ##
 ## With [member IVCoreSettings.apply_display_scale], the screen's own scale becomes
 ## the main window's [member Window.content_scale_factor], so the 2D GUI and every
@@ -376,7 +377,11 @@ func _apply_render_scale() -> void:
 	var is_forward_plus := RenderingServer.get_current_rendering_method() == "forward_plus"
 	_window.scaling_3d_mode = (Viewport.SCALING_3D_MODE_FSR if is_forward_plus
 			else Viewport.SCALING_3D_MODE_BILINEAR)
+	if is_equal_approx(_window.scaling_3d_scale, render_scale):
+		return
 	_window.scaling_3d_scale = render_scale
+	# The viewport raises no signal for this, and HUD sizes in render pixels must follow it.
+	IVGlobal.viewport_size_changed.emit(_window.get_visible_rect().size)
 
 
 func _apply_msaa() -> void:
