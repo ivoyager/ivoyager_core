@@ -299,7 +299,10 @@ float photosphere_spots(vec3 dir, float fluting, float warp_coarse, float warp_f
 						hash(cell + vec3(spot_seed, -7.9, 57.1))) - 0.5;
 				vec3 center = normalize(cell_center + jitter / spot_cell_scale);
 				float lat_deg = degrees(asin(clamp(center.y, -1.0, 1.0)));
-				float belt = exp(-pow((abs(lat_deg) - spot_belt_center_deg) / spot_belt_width_deg, 2.0));
+				// Squared by multiplication: the offset is negative equatorward of the belt,
+				// and GLSL leaves pow() undefined for a negative base.
+				float belt_offset = (abs(lat_deg) - spot_belt_center_deg) / spot_belt_width_deg;
+				float belt = exp(-belt_offset * belt_offset);
 				if (spawn > spot_activity * belt) {
 					continue;
 				}
