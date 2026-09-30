@@ -638,12 +638,15 @@ same run again:
   bodies with a packed model after a cold boot drew no frame over 90 ms through ANGLE or 15 ms
   through NVIDIA's GL, and compiled no program the warm-up had not (2026-09-30).
 - **The packed models' materials are 20 s of the warm-up through ANGLE at Low, and 1.5 s through
-  NVIDIA's GL** (2026-09-30), which the table's warm-up column predates. They compile per material
-  key, not per model: Godot generates one shader per `BaseMaterial3D` key (`_compute_key()` in
-  `material.h`) and shares it between materials, and the twelve bodies -- seven spacecraft,
-  Hyperion, Eros, Bennu, Itokawa and Arrokoth -- share seven keys, about 3 s each through ANGLE.
-  Left to a first visit (`warm_packed_models = false`), Juno's four stall a first sight of it 11 s
-  through ANGLE and 1.5 s through NVIDIA's GL. One key is a mistake in the models (TODO).
+  NVIDIA's GL** (2026-09-30, over seven keys where there are six now), which the table's warm-up
+  column predates. They compile per material key, not per model: Godot generates one shader per
+  `BaseMaterial3D` key (`_compute_key()` in `material.h`) and shares it between materials, and the
+  twelve bodies -- seven spacecraft, Hyperion, Eros, Bennu, Itokawa and Arrokoth -- share six
+  keys, about 3 s each through ANGLE. The seventh, 3.3 s through ANGLE, emitted nothing: Godot's
+  glTF importer turns emission on for any `emissiveFactor`, `[0, 0, 0]` included, and Hubble's two
+  panels, the ISS's base metal, Hyperion, Bennu and Arrokoth carried one until it was dropped from
+  the assets. Left to a first visit (`warm_packed_models = false`), Juno's four stall a first
+  sight of it 11 s through ANGLE and 1.5 s through NVIDIA's GL.
 - **A warm start compiles nothing.** Godot's cache answers, and the driver's under it; the warm-up
   then takes a frame per shader, 0.3-1.5 s.
 
@@ -934,7 +937,7 @@ view before the warm-up runs anyway. `extra_shader_names` takes it, and a projec
 **A packed model's materials are not shaders in `IVGlobal.resources`**, so they are read off an
 instance of the scene `IVAssetPreloader` loaded, which shares them with the model a first visit
 builds. Each distinct model is a step, named for the first body that uses it; in the Planetarium
-that is 11 models for 12 bodies, the Voyagers sharing one. Five of those steps compile nothing,
+that is 11 models for 12 bodies, the Voyagers sharing one. Six of those steps compile nothing,
 the models sharing their material keys (*What a first run costs*). `warm_packed_models = false`
 turns them off.
 
@@ -1135,10 +1138,6 @@ scripts, not yet in the tools submodule.
 
 ## TODO
 
-- **One key is a mistake in the models.** Godot's glTF importer enables emission for any
-  `emissiveFactor`, `[0, 0, 0]` included, and Hubble's two panels, Hyperion, Bennu and Arrokoth
-  carry one, so their materials compile a seventh material key (*What a first run costs*) that
-  emits nothing, 3.3 s of a first run through ANGLE. Drop the zero factors at the asset source.
 - **Glow under Forward+ costs 20-50 % of an airless frame and changes no pixel in most lit views**,
   and Full and Reduced keep it (*Glow*). A skip while nothing in view exceeds the glow threshold
   would be a saving with no option, as the exposure skips are; it needs the frame's brightest

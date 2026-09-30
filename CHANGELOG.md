@@ -119,6 +119,7 @@ Requires ivoyager_assets v0.2.1.dev.20260909. The Core plugin editor will offer 
 * Mouse-over identification of orbit lines and asteroids (IVFragmentIdentifier) looked in the wrong place, or found nothing, whenever the 3D render scale was below 100%, and missed any line or point seen through a transparent draw, such as an atmosphere limb or a ring, or through Environment fog. See *Mouse picking* in [VISUAL_MODEL.md](VISUAL_MODEL.md).
 * Headless runs before Godot 4.8 corrupted the dummy renderer's mesh and material RIDs, printing `Attempting to initialize the wrong RID` errors and RIDs leaked at exit, more of them the more games a run built. IVBodyFinisher now finishes bodies on the main thread there, since that renderer can't create RIDs on two threads at once ([godotengine/godot#121949](https://github.com/godotengine/godot/issues/121949)).
 * IVSaveManager permitted a gamesave load before `IVStateManager.ok_to_start`, as early as during asset preloading; it now waits for it.
+* [ivoyager_assets] Five packed models — Hubble, the ISS, Hyperion, Bennu and Arrokoth — compiled a shader that drew nothing: each carried a glTF `emissiveFactor` of `[0, 0, 0]`, which Godot's importer takes as emission on, giving their materials a key of their own and a Compatibility first run 3.3 s more to compile through ANGLE. The zero factors are dropped from the models, which takes effect with the next asset release. See *What a first run costs* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md).
 
 ## [v0.2] - 2026-08-01
 
