@@ -22,7 +22,7 @@ Three design documents describe the simulation at the level of logic and invaria
 
 [IVBody_REDESIGN_v0.3.md](https://github.com/ivoyager/ivoyager_core/blob/master/IVBody_REDESIGN_v0.3.md) is the living plan for the v0.3 IVBody rework: positioner / rotator / geometry composition, surface anchors, the proximity service, and a body that answers its own surface geometry. It goes away when the rework lands.
 
-[SHADER_COMPILE_PROFILING.md](https://github.com/ivoyager/ivoyager_core/blob/master/SHADER_COMPILE_PROFILING.md) is a measurement rather than a model: what each shader costs the GPU driver to compile, why that dominates a first run on the Compatibility renderer and so in a web export, what IVShaderWarmup does about it, and what an edit to a given `.gdshaderinc` costs.
+[GRAPHICS_PROFILING.md](https://github.com/ivoyager/ivoyager_core/blob/master/GRAPHICS_PROFILING.md) is a measurement rather than a model: what the graphics cost a weak machine per frame and what each option and automatic saving buys back, what the fitted defaults deliver, and what shaders cost to compile at first draw -- why that dominates a first run on the Compatibility renderer and so in a web export, what IVShaderWarmup does about it, and what an edit to a given `.gdshaderinc` costs.
 
 ### Requirements
 

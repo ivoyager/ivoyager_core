@@ -2,7 +2,7 @@ id,en
 HINT_ADD_HOTKEY,Add hotkey
 HINT_ALL_ASTEROIDS,Show all asteroids
 HINT_APPEND_DATE_TO_SAVE,Add the simulated date to new save file names
-HINT_ATMOSPHERE_QUALITY,"Detail of the scattering calculation that renders air on Earth,\nVenus, Mars and Titan. Reduced integrates each view ray at\nfewer points: no visible change beyond a slight shift in the\nthin band at the limb. Minimum estimates each ray in closed form:\nsurfaces are unchanged, but the limb and twilight shift,\nmost of all around a crescent. Off draws no air beyond a\nbody's edge and a simpler haze over its surface.\n\nGPU cost: MODERATE at Normal, close to a body with air\n\nGoing into or out of Minimum or Off REQUIRES RESTART"
+HINT_ATMOSPHERE_QUALITY,"Detail of the scattering calculation that renders air on Earth,\nVenus, Mars and Titan. Reduced integrates each view ray at\nfewer points: no visible change beyond a slight shift in the\nthin band at the limb. Minimum estimates each ray in closed form:\nsurfaces are unchanged, but the limb and twilight shift,\nmost of all around a crescent. Off draws no air beyond a\nbody's edge and a simpler haze over its surface.\n\nGPU cost: HIGH at Normal, close to a body with air. Reduced\nsaves little on integrated graphics; Minimum saves up to half\nand Off up to five sixths\n\nGoing into or out of Minimum or Off REQUIRES RESTART"
 HINT_AUTOSAVE_TIME_MIN,"Minutes between autosaves, not counting time paused.\nSet to 0 to turn autosave off"
 HINT_BODY_SYMBOL_SIZE_PERCENT,"Size of body symbols in the 3D view, relative to GUI Size"
 HINT_CAMERA_KEY_IN_OUT_RATE,Speed of the keys that move the camera toward or away from its target
@@ -18,7 +18,7 @@ HINT_CAMERA_MOUSE_ROLL_RATE,"Speed of rolling the camera with the mouse:\nAlt dr
 HINT_CAMERA_TRANSFER_TIME,Seconds the camera takes to fly to a new target or view
 HINT_CENTAURS,Show Centaurs
 HINT_COLOR_PICKER,Color Picker
-HINT_COMPATIBILITY_ATMOSPHERE_QUALITY,"Detail of the scattering calculation that renders air on Earth,\nVenus, Mars and Titan. Reduced integrates each view ray at\nfewer points: no visible change beyond a slight shift in the\nthin band at the limb. Minimum estimates each ray in closed form:\nsurfaces are unchanged, but the limb and twilight shift,\nmost of all around a crescent. Off draws no air beyond a\nbody's edge and a simpler haze over its surface.\n\nGPU cost: HIGH at Normal, close to a body with air\n\nGoing into or out of Minimum or Off REQUIRES RESTART"
+HINT_COMPATIBILITY_ATMOSPHERE_QUALITY,"Detail of the scattering calculation that renders air on Earth,\nVenus, Mars and Titan. Reduced integrates each view ray at\nfewer points: no visible change beyond a slight shift in the\nthin band at the limb. Minimum estimates each ray in closed form:\nsurfaces are unchanged, but the limb and twilight shift,\nmost of all around a crescent. Off draws no air beyond a\nbody's edge and a simpler haze over its surface.\n\nGPU cost: HIGH at Normal, close to a body with air. Reduced\nsaves up to a third, Minimum up to half and Off up to\nfive sixths\n\nGoing into or out of Minimum or Off REQUIRES RESTART"
 HINT_COMPATIBILITY_MSAA_3D,"Multisample antialiasing: smooths jagged edges on orbit\nlines, ring edges and spacecraft.\n\nGPU cost: MODERATE at 2x or 4x; HIGH at 8x"
 HINT_COMPATIBILITY_RENDER_SCALE,"Resolution of the 3D view as a share of the window's,\nscaled up to fill it. Menus and panels are not affected.\nLower is faster but softer: orbit lines and names blur,\nand faint stars thin out.\n\nGPU cost: HIGH at 100% on a high-resolution screen.\n50% renders a quarter of the pixels"
 HINT_COMPATIBILITY_SHADOW_RESOLUTION,"Resolution of shadows cast by spacecraft and other objects\nnear the camera, or Off for none. Higher is sharper, but\nuses more video memory (8192: 256 MB). Eclipse and ring\nshadows are not affected.\n\nGPU cost: LOW"
@@ -51,7 +51,7 @@ HINT_PAUSE,Pause
 HINT_PAUSE_ON_LOAD,Start paused after loading a save
 HINT_PHYSICAL_LIGHT,"Physically accurate light: sunlight falls off with distance\nas it really does, and the camera adjusts its exposure,\nso stars and the Milky Way fade out when a sunlit body\nis in view. Off: hand-tuned lighting with a fixed exposure"
 HINT_POINTS_CKBX_COLOR,Show/hide points and set their color
-HINT_RENDERER,"Graphics renderer. Use Forward+ for a desktop with a\nmodern GPU. Compatibility may be required for older\nor integrated graphics.\n\nForward+ is required for mouse-over identification of\norbit lines and asteroids (and some other graphic\noptions).\n\nGPU cost: HIGH for Forward+ on integrated graphics,\nwhere Compatibility runs several times faster\n\nREQUIRES RESTART"
+HINT_RENDERER,"Graphics renderer. Use Forward+ for a desktop with a\nmodern GPU. Compatibility may be required for older\nor integrated graphics.\n\nForward+ is required for mouse-over identification of\norbit lines and asteroids (and some other graphic\noptions).\n\nGPU cost: HIGH for Forward+ on integrated graphics close\nto a body with air, where Compatibility runs up to several\ntimes faster unless Atmosphere Quality is Off\n\nREQUIRES RESTART"
 HINT_RENDER_SCALE,"Resolution of the 3D view as a share of the window's,\nscaled up to fill it. Menus and panels are not affected.\nLower is faster but softer: orbit lines and names blur,\nand faint stars thin out.\n\nGPU cost: HIGH at 100% on a high-resolution screen.\n50% renders a quarter of the pixels"
 HINT_RESTORE_FORWARD_TIME,Restore forward time
 HINT_RESTORE_DEFAULT_HOTKEY,Restore default hotkey
@@ -68,14 +68,14 @@ HINT_SELECTION_BACK,Select last
 HINT_SELECTION_FORWARD,Select next
 HINT_SELECTION_UP,Select parent object
 HINT_SET_AND_CLOSE,Set and close
-HINT_SHADOW_RESOLUTION,"Resolution of shadows cast by spacecraft and other objects\nnear the camera, or Off for none. Higher is sharper, but\nuses more video memory (8192: 256 MB). Eclipse and ring\nshadows are not affected.\n\nGPU cost: LOW for modern GPU; HIGH for older\nor integrated GPU at 8192"
+HINT_SHADOW_RESOLUTION,"Resolution of shadows cast by spacecraft and other objects\nnear the camera, or Off for none. Higher is sharper, but\nuses more video memory (8192: 256 MB). Eclipse and ring\nshadows are not affected.\n\nGPU cost: LOW for a modern GPU; MODERATE for integrated\ngraphics, and HIGH there at 8192"
 HINT_SHOW_GUI,Show the GUI again
 HINT_SHOW_NAME,Show Name
 HINT_SHOW_ORBIT,Show Orbit
 HINT_SHOW_SYMBOL,Show Symbol
 HINT_SMALL_BODIES_POINT_SIZE,Size in screen pixels of small bodies (asteroids) drawn as plain points
 HINT_SMALL_BODIES_SYMBOL_SIZE_PERCENT,"Size of small bodies (asteroids) drawn as shaped symbols,\nrelative to GUI Size"
-HINT_STAR_CATALOG,"Number of catalog stars loaded, brightest first. Fewer stars\nload faster and use less memory. A starry sky loses only a\nfaint glow at 940,000 (to magnitude 11), and looks visibly\nsparser at 220,000 (to 9.5), more so at long focal lengths.\n\nGPU cost: HIGH at 2.6 million, in a sky full of stars\n\nREQUIRES RESTART"
+HINT_STAR_CATALOG,"Number of catalog stars loaded, brightest first. Fewer stars\nload faster and use less memory. A starry sky loses only a\nfaint glow at 940,000 (to magnitude 11), and looks visibly\nsparser at 220,000 (to 9.5), more so at long focal lengths.\n\nGPU cost: HIGH at 2.6 million in a sky full of stars, most of\nall in a web browser on Windows\n\nREQUIRES RESTART"
 HINT_SYMBOL_PICKER,Symbol Picker
 HINT_SYMBOLS,Show symbols
 HINT_TERRESTRIAL_TIME_CLOCK,"Show the clock and date in Terrestrial Time (TT), the uniform\ntime scale of astronomical ephemerides, instead of Universal\nTime (UT), which follows Earth's rotation. TT currently runs\nabout 69 seconds ahead of UT"
@@ -90,7 +90,7 @@ HINT_TROJANS,Show Jupiter Trojans
 HINT_UNPAUSE,Unpause
 HINT_UPDATE_W_CHANGES,Update with changes
 HINT_UP_LOCK,"Locks camera orientation with respect to reference frame: Ecliptic, Orbit or Ground"
-HINT_USE_TAA,Temporal antialiasing: reduces jagged edges and shimmer\nby blending recent frames. Experimental: orbit lines\ncan leave ghost trails.\n\nGPU cost: MODERATE
+HINT_USE_TAA,Temporal antialiasing: reduces jagged edges and shimmer\nby blending recent frames. Experimental: orbit lines\ncan leave ghost trails.\n\nGPU cost: HIGH
 HINT_VIEW_45,View from 45\u00B0 above
 HINT_VIEW_OUTWARD,Look outward from current selection
 HINT_VIEW_TOP,View from top

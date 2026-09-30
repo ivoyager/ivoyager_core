@@ -242,10 +242,11 @@ static func get_graphics_tier() -> GraphicsTier:
 ## holds only what differs from Core's defaults. [constant GraphicsTier.REDUCED] takes atmosphere
 ## quality to Reduced, shadow resolution to 2048 and render scale within [constant
 ## REDUCED_TIER_RENDER_PIXELS]; [constant GraphicsTier.LOW] also takes MSAA off and the star
-## catalog to V 11, fits render scale within [constant LOW_TIER_RENDER_PIXELS], and has
-## atmospheres at Min where [method is_angle_d3d11]. Forward+ stays the default renderer wherever
-## it runs, but where the engine fell back from it, or the command line chose another, the
-## running renderer is the default.
+## catalog to V 11 and fits render scale within [constant LOW_TIER_RENDER_PIXELS], and it takes
+## atmospheres Off on an integrated GPU, or where the GPU's type is unknown, as in a browser, to
+## Min where [method is_angle_d3d11] and Reduced elsewhere. Forward+ stays the default renderer
+## wherever it runs, but where the engine fell back from it, or the command line chose another,
+## the running renderer is the default.
 static func get_fitted_defaults() -> Dictionary[StringName, Variant]:
 	var fitted_defaults: Dictionary[StringName, Variant] = {}
 	match get_graphics_tier():
@@ -256,7 +257,12 @@ static func get_fitted_defaults() -> Dictionary[StringName, Variant]:
 				fitted_defaults[&"render_scale"] = _get_fitted_render_scale(
 						REDUCED_TIER_RENDER_PIXELS)
 		GraphicsTier.LOW:
-			fitted_defaults[&"atmosphere_quality"] = 2 if is_angle_d3d11() else 1 # min, reduced
+			# An unknown GPU, as in every browser, may be a fast one, so only a known integrated
+			# GPU gives up the limb.
+			var atmosphere_quality := 2 if is_angle_d3d11() else 1 # min, reduced
+			if IVGlobal.video_adapter_type == RenderingDevice.DEVICE_TYPE_INTEGRATED_GPU:
+				atmosphere_quality = 3 # off
+			fitted_defaults[&"atmosphere_quality"] = atmosphere_quality
 			fitted_defaults[&"shadow_resolution"] = 1 # 2048
 			fitted_defaults[&"msaa_3d"] = 0 # disabled
 			fitted_defaults[&"star_catalog"] = 1 # to V 11

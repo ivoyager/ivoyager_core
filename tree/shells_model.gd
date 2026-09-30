@@ -356,8 +356,8 @@ func set_farwarp_box(on: bool) -> void:
 # fixed in world units; what a view changes is how many pixels that buys. Each rung holds the
 # same sub-pixel silhouette error over a 4x range of on-screen size, so a body keeps a smooth
 # limb while a distant one stops drawing tens of thousands of triangles into a few pixels. The
-# measured basis, and the close-range views that set the finest rung, are in *Sphere mesh detail*
-# in GRAPHICS_PROFILING.md.
+# measured basis, and the close-range views that set the finest rung, are in *Level of detail,
+# and shells nobody can see* in GRAPHICS_PROFILING.md.
 #
 # SUN-MODE (shell 0 with is_sun) adds what only a star needs on this side: the disc holds a
 # constant surface brightness, derived from the star's own luminosity under physical light,

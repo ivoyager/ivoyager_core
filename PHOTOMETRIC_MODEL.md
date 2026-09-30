@@ -862,7 +862,7 @@ How it lands in the renderer:
   column above that shell's own altitude along the sun ray. This is what turns a cloud deck at
   the limb the colour of sunset. A body with no such row carries none of it: its shells bind
   the airless variant of each shader (`IVAssetPreloader.airless_shader_variants`), which
-  renders it identically and runs faster (*Addendum: the atmosphere's structure, at runtime* in
+  renders it identically and runs faster (*Airless shaders* in
   [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)).
 - **That factor is the TOTAL illumination, direct plus diffuse, and not `exp(-column)`**
   (2026-08-28). Absorbed light is gone and takes the exponential; scattered light is not, and
@@ -986,8 +986,9 @@ tiny float passes `> 0.0` yet comes out of the GPU's `log()` as −∞.
 
 #### Atmosphere quality, and what Reduced, Min and Off give up
 
-The limb shell is 75–95 % of an integrated-GPU frame in any view with air
-([GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)), which is why the user setting
+The atmosphere is half to three quarters of an integrated-GPU frame in any view with air
+through ANGLE, and more under Forward+ (*Atmosphere quality* in
+[GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)), which is why the user setting
 `atmosphere_quality` exists. Its first two tiers are the same shader:
 
 - **Normal** — the six-node along-ray quadrature and up to eight ring taps described above.
@@ -1009,7 +1010,7 @@ sunset-reddened beam shift with it — that is where Earth's 2 codes are.
 `iv_atm_gl_nodes` and `iv_atm_ring_max_taps`. **Only their values differ between tiers, not
 the shader source**, so no program is recompiled and the change lands on the next frame —
 which is what lets this be a live setting on a renderer where a compile costs seconds
-([SHADER_COMPILE_PROFILING.md](SHADER_COMPILE_PROFILING.md)). A project whose
+(*What each shader costs* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)). A project whose
 `IVGraphicsManager` never writes them renders at Normal, those being the defaults the Core
 editor plugin puts in `project.godot`.
 
@@ -1056,7 +1057,7 @@ percentile on all four bodies, against Reduced's 5.0 % on Earth's limb.
 Being its own program, Min is chosen when bodies are built: `IVAssetPreloader` binds the `.min`
 shaders (`min_shader_variants`) for every body with air, the shader warm-up compiles those
 instead of the full ones, and a change into or out of Min waits for a restart, which the Options
-popup says. What it costs and saves is *Addendum: the Min tier, built* in
+popup says. What it costs and saves is *Atmosphere quality* and *What each shader costs* in
 [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md).
 
 ##### The Off tier
@@ -1110,7 +1111,8 @@ binds `off_shader_variants` for every body with air — the `.off` twins, and no
 and keeps the body's atmosphere apart from its shells (`get_body_atmosphere()`) so that
 `IVShellsModel` still feeds it to the discs. `IVExposureManager` drops the limb's exposure ceiling,
 there being no limb to hold it for, and a change into or out of Off waits for a restart. What it
-costs and saves is *Addendum: the Off tier, built* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md).
+costs and saves is *Atmosphere quality* and *What each shader costs* in
+[GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md).
 
 ## The Sun
 
@@ -1204,8 +1206,8 @@ magnitudes, so at any steady exposure some five half-magnitude bins sit inside t
 drawn if the camera arrived from a darker view, skipped if it arrived from a brighter one.
 Measured 2026-09-29 at the Moon at 3 radii, one settled exposure either way: bins 8.5 to 10.5
 peak at 0.89 down to 0.53 of a code, and the path decides whether their 537,000 stars are
-submitted, which is about 6 ms of an integrated-GPU frame through ANGLE (*Addendum: what a view
-costs depends on the view before it* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)). The
+submitted, which is about 6 ms of an integrated-GPU frame through ANGLE (*A view's cost depends
+on the view before it* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)). The
 bound below holds either way; what the width costs is that neither the frame time nor, to
 about a code in the faint stars, the image is a function of the pose alone.
 
@@ -2278,9 +2280,10 @@ lever a capped pass cannot offer is one the shader does not need.
   shader error. The same build through ANGLE on that GPU, and the GTX through its own GL and
   through ANGLE, agree to within a code, so the fault is the ring material on this one compiler.
   Bisect `rings.gdshader` there, starting with a flat `EMISSION` and `ALPHA` at the top of
-  `fragment()` to learn whether any fragment reaches it. Moving these parts to ANGLE (*Open
-  questions* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)) would sidestep it; until then a
-  project running Compatibility on such a part shows Saturn without rings.
+  `fragment()` to learn whether any fragment reaches it. Running these parts through ANGLE, as
+  the Planetarium does (*Renderer* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)), sidesteps
+  it; a project that leaves Godot's defaults and runs Compatibility on such a part shows Saturn
+  without rings.
 - **Report the glow threshold mismatch upstream** (*Render height*, above): the pass computes
   levels above 0.01, the tonemapper samples levels above 0.0001. A 4.6 regression from
   godotengine/godot#110077; 4.5 computed every level above 0. Once Godot makes them agree,

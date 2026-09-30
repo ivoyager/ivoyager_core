@@ -33,7 +33,7 @@
 // THE STRUCTURE (the including file's header) is relaxed here, and measured: atm_min_point() is
 // reached from one call site per segment kind, which in the limb shader is two, and a Min program
 // still compiles faster than its full counterpart through FXC (*The atmosphere's structure* in
-// SHADER_COMPILE_PROFILING.md).
+// GRAPHICS_PROFILING.md).
 
 // Trip counts, uniforms for the reason atm_ray_segments is; nothing sets them.
 uniform int atm_min_disc_points = 5;

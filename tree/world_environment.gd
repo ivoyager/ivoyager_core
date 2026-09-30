@@ -226,7 +226,7 @@ func _update_glow_levels() -> void:
 # every scene shader's specialization for the rest of the session. The start sequence draws
 # it before IVShaderWarmup runs, so the warm-up compiles with it. A skip that engaged before
 # the sky's first draw would move a recompile of everything in view into flight. See
-# Specializations in SHADER_COMPILE_PROFILING.md.
+# Specializations in GRAPHICS_PROFILING.md.
 func _update_starmap_skip() -> void:
 	var skip := false
 	if skip_invisible_starmap and IVExposureManager.physical_active:

@@ -54,8 +54,8 @@ extends Node
 ## draw that may stall, so the text a handler sets is the text that stays on
 ## screen through the stall.[br][br]
 ##
-## See [code]SHADER_COMPILE_PROFILING.md[/code] for what a compile costs, what drives
-## it, and what a cold start measures.
+## See [i]Compiling shaders[/i] in [code]GRAPHICS_PROFILING.md[/code] for what a
+## compile costs, what drives it, and what a cold start measures.
 
 ## Emitted one frame before shader [param index] (0-based, of [param count]) is
 ## first drawn; [param shader_name] is its key in [member IVGlobal.resources].

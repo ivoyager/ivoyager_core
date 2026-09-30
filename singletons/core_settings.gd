@@ -215,20 +215,21 @@ var apply_analytic_shadows := true
 ## shadows (godotengine/godot#90259). Set false to restore the single-light
 ## fallback if those resurface (notably on some web export targets), or for the
 ## compile time: false takes a lit shader from four GL programs to one, a large
-## part of a Compatibility cold start (see [code]SHADER_COMPILE_PROFILING.md[/code]).
+## part of a Compatibility cold start (see [i]The light configuration[/i] in
+## [code]GRAPHICS_PROFILING.md[/code]).
 ## The analytic astronomical shadows ([member apply_analytic_shadows]) are
 ## independent of this and work either way.
 var apply_gl_compatibility_shadows := true
 ## Lets each shadow-mapped [IVDynamicLight] switch its directional shadow map off while
 ## nothing local would draw into it or read it. True stops an atlas that renders nothing
-## from being set up and cleared every frame - about 20-25 ms on a weak integrated GPU
+## from being set up and cleared every frame - 7-22 % of a weak integrated GPU's frame
 ## under Forward+ (see [code]GRAPHICS_PROFILING.md[/code]), which is every view with no
 ## spacecraft or local scene near the camera. False keeps the maps configured at all
 ## times, and that is the only configuration a shader warm-up can cover completely: the
 ## number of shadowed directional lights in a frame is a shader specialization input for
 ## every lit instance, so each distinct number a session reaches compiles its own
 ## programs for every lit shader - synchronously, and on the main thread, under the
-## Compatibility renderer (see [code]SHADER_COMPILE_PROFILING.md[/code]). The relief is
+## Compatibility renderer (see [code]GRAPHICS_PROFILING.md[/code]). The relief is
 ## a Forward+ effect and the risk is a Compatibility one, which is why this is opt-in.
 ## A body joins the decision by holding [constant IVGlobal.LOCAL_SHADOW_CASTER]; geometry
 ## that is not an [IVBody] - a project's own level scene - must declare itself through

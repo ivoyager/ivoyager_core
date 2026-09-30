@@ -67,7 +67,7 @@ static var star_light_energies: Dictionary[StringName, float] = {}
 ## the atlas along with it; setting it directly leaves an allocated atlas in place. Under the
 ## Compatibility renderer a change can stall on shader compiles, as that skip's flips can: the
 ## frame's shadowed-light count is a specialization input for every lit shader (see
-## [code]SHADER_COMPILE_PROFILING.md[/code]).
+## [code]GRAPHICS_PROFILING.md[/code]).
 static var shadow_maps_enabled := true
 
 ## Reach multiple within which local geometry switches an idle shadow map back on.
@@ -279,7 +279,7 @@ func _clear_procedural() -> void:
 # On is immediate and off is delayed: a missing shadow is a visible defect where an idle
 # pass is only a cost. Every flip also changes the frame's shadowed-directional-light count,
 # which is a shader specialization input for every lit instance in the scene (see
-# SHADER_COMPILE_PROFILING.md), so flips must be rare rather than merely correct.
+# GRAPHICS_PROFILING.md), so flips must be rare rather than merely correct.
 func _get_shadow_enabled(shadow_max_dist: float) -> bool:
 	var reach_ratio := SHADOW_DISABLE_REACH_RATIO if shadow_enabled else SHADOW_ENABLE_REACH_RATIO
 	if _has_local_shadow_work(shadow_max_dist * reach_ratio):

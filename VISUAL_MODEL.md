@@ -370,8 +370,8 @@ Three obligations fall on every farwarp consumer:
   change-gated, beside the local shadow grant (`IVBodyVisual.set_farwarp_box()`); a shell
   built later adopts its visual's current state. Rings keep the box always, their shader
   tilting and widening the plane past any bounds its mesh has, and their handoff gate retires
-  them instead (*Culling, visibility and lifecycle*). Measured in *Addendum: what a view costs
-  depends on the view before it* ([GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)).
+  them instead (*Culling, visibility and lifecycle*). Measured in *Level of detail, and shells
+  nobody can see* ([GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)).
 - **Opt out of AABB-centre sorting.** Godot takes an instance's sort depth from the centre
   of its *transformed* AABB, which for the box above is not where the object is: at
   `max_camera_distance` a f32 coordinate quantizes at ~6.7e7 m, and the model scale a
@@ -421,7 +421,7 @@ that the `IVBodyPSF` handoff has already taken over at 1-2.5 px.
 What it optimizes are visible "spheroid" bodies that aren't extremely close to the camera: before
 the ladder a body drew 65,536 triangles down to a 2.5-pixel radius, which might be many moon bodies
 in a gas giant system. What it protects is the near end — a view of Earth's rim from the ISS
-(See *Sphere mesh detail* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md).
+(*Level of detail, and shells nobody can see* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)).
 
 Two obligations fall on it, both discharged rather than assumed:
 
@@ -597,8 +597,8 @@ nothing would be drawn into the map — or nothing sits in a size domain its
 `light_cull_mask` selects, so nothing would read it. Both halves are needed: at an Earth
 close-up the planet holds the caster bit, and only the receiver half retires the middle
 light. Eight atlas splits are otherwise set up and cleared every frame regardless; removing
-them is worth 27–30 ms of an integrated-GPU Forward+ frame
-([GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md), *Addendum: the empty shadow passes*).
+them is worth 7–22 % of an integrated-GPU Forward+ frame
+([GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md), *Empty shadow passes*).
 Four properties make it safe:
 
 - **What can take part is registered, not searched for.** An `IVBodyVisual` declares itself
@@ -614,7 +614,7 @@ Four properties make it safe:
 - **On is immediate, off waits** `IVDynamicLight.SHADOW_DISABLE_DELAY_FRAMES`: a missing
   shadow is a defect where an idle pass is only a cost, and every flip changes the frame's
   shadowed-light count, which is a shader specialization input for every lit instance
-  ([SHADER_COMPILE_PROFILING.md](SHADER_COMPILE_PROFILING.md), *The light configuration*) —
+  ([GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md), *The light configuration*) —
   the reason this is opt-in rather than automatic. The transition itself is free, because
   Godot's `directional_shadow_fade_start` (0.8) has already faded to nothing whatever is
   crossing the boundary.
@@ -626,7 +626,7 @@ Four properties make it safe:
 `shadow_enabled` on every shadowed light whatever the skip would decide. `IVGraphicsManager` sets
 it from the Shadow Resolution option's Off and shrinks the atlas with it, since Godot frees an
 allocated atlas only on a size change (*`directional_shadow_count` stops being a constant* in
-[SHADER_COMPILE_PROFILING.md](SHADER_COMPILE_PROFILING.md)). The lights go on lighting their
+[GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)). The lights go on lighting their
 domains, and the analytic shadows are untouched. A change moves the shadowed-light count exactly
 as a flip does, but only when the user makes one.
 
@@ -640,7 +640,7 @@ astronomical shadows are independent of all of this and work either way.
 The fallback is also much the cheaper configuration to compile, taking a lit shader from four
 GL programs to one — a large part of a Compatibility cold start, and the only configuration
 the shader warm-up covers completely at its default radii
-([SHADER_COMPILE_PROFILING.md](SHADER_COMPILE_PROFILING.md), *The light configuration*). The
+([GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md), *The light configuration*). The
 [Planetarium](https://github.com/ivoyager/planetarium) ships with it off, trading spacecraft
 self-shadowing for that.
 
@@ -1103,8 +1103,7 @@ history rather than of the clock, which cost three things:
   first. Measured at 1.6 radii, 1920x1080: 61.8 s of elapsed sim time (0.019 deg of deck)
   moves mean 1.08 codes, 16.6 % of pixels past 2, maximum 79; 240 s (0.072 deg) moves 4.19,
   40.2 % and 127. Within a run it reproduced exactly, because a paused deck stops — which is
-  what made it read as a property of the process instead of a bug (*Addendum: the quality
-  tiers, built* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)).
+  what made it read as a property of the process instead of a bug.
 - **A clock that moved took the deck nowhere.** `IVTimekeeper.set_time` jumped the date and
   left the deck at the phase its frames had built; an excursion out and back returned
   everything except the deck.
@@ -1179,7 +1178,7 @@ this is the spatial one.
 | | `farwarp_start_ratio` | T as a multiple of camera-to-parent distance (1e4). Must stay well under `FAR_MULTIPLIER`; 1e4 leaves 100× headroom while the compressed universe spans < ~29× T. |
 | | `apply_body_psf` | Enables the per-body PSF quad ([IVBodyPSF]). Off, those bodies take the fixed distance cull like any other and their discs do not fade. |
 | | `apply_analytic_shadows` | Enables the analytic shadow terms and the camera-fraction light dimming. Off, astronomical shadows are absent entirely (maps don't serve them); the ambient feed continues regardless. |
-| | `apply_gl_compatibility_shadows` | Shadowed multi-light stack on the Compatibility renderer (vs. one unshadowed light). Off, a lit shader compiles one GL program instead of four; see [SHADER_COMPILE_PROFILING.md](SHADER_COMPILE_PROFILING.md). |
+| | `apply_gl_compatibility_shadows` | Shadowed multi-light stack on the Compatibility renderer (vs. one unshadowed light). Off, a lit shader compiles one GL program instead of four; see *The light configuration* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md). |
 | | `apply_size_layers` / `size_layers` | Layer bits by body radius — the lighting size domains ([100 km, 0.1 km] → three domains). |
 | | `local_shadow_caster_ceiling` | Dynamic `LOCAL_SHADOW_CASTER` grant range (1e5 km; must cover the largest shadowed `shadow_max_ceiling` in `dynamic_lights.tsv`). |
 | | `apply_empty_shadow_pass_skip` | Opt-in: a shadowed light clears `shadow_enabled` while nothing in reach would draw into its map or read it (*Local shadow maps*). |
@@ -1351,7 +1350,7 @@ this is the spatial one.
     the top `MAX_STARS` (6) above a floor — most bodies get one or two, which keeps
     per-fragment cost linear in the *fed* count rather than the cap — as arrays of direction,
     angular radius, energy, colour and `MAX_STARS × MAX_OCCLUDERS` occluders with a count per
-    star. Loop bounds must be uniforms ([SHADER_COMPILE_PROFILING.md](SHADER_COMPILE_PROFILING.md)): a
+    star. Loop bounds must be uniforms (*What drives the cost* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)): a
     constant six-way loop around the atmosphere quadrature is exactly the unrolling that cost
     24 s. Candidate lists stay star-independent but the sunward filter and ranking run per
     star, so CPU cost goes as stars × receivers × candidates; stars must be admitted as

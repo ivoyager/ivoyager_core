@@ -47,7 +47,7 @@
 // new iteration, not a new call. The one exception is Forward+'s and Mobile's alone: the
 // common case of an exponential column, written out in atm_exp_columns(). THE MIN VARIANT
 // relaxes the rule too, and says where. See *The atmosphere's structure* in
-// SHADER_COMPILE_PROFILING.md.
+// GRAPHICS_PROFILING.md.
 //
 // THE CONTRACT. scripts/limb_model.py in the assets build tree is the reference
 // transcription of this file, verified against a numeric single-scatter integral for
@@ -98,8 +98,8 @@
 // (airless_shader_variants) -- gets those entry points as the no-ops such a body gets from the
 // full ones anyway, and none of the rest of this file, which some GPU compilers make an airless
 // body pay for without running it. The uniforms stay, so the two bind alike. Never give it a body
-// with an atmosphere: that body would draw airless. See *Addendum: the atmosphere's structure, at
-// runtime* in GRAPHICS_PROFILING.md.
+// with an atmosphere: that body would draw airless. See *Airless shaders* in
+// GRAPHICS_PROFILING.md.
 //
 // THE MIN VARIANT. A shader that defines ATM_MIN before including this file -- each atmosphere
 // shader's .min twin, which IVAssetPreloader binds for a body with an atmosphere when the session
@@ -667,7 +667,7 @@ void atm_exp_columns(AtmLayers L, float R, float z, float mu, bool with_gas, out
 	// A haze without a top is one term like the gas. Through Vulkan (NVIDIA's, measured) the
 	// term loop's generic setup costs a third more than the two terms written out; under
 	// Compatibility the two extra calls would instead slow Intel's GL compiler's whole shader, on
-	// every body. See *The atmosphere's structure* in SHADER_COMPILE_PROFILING.md.
+	// every body. See *The atmosphere's structure* in GRAPHICS_PROFILING.md.
 	if (!has_top) {
 		gas = with_gas ? atm_gas_tau * (exp(-z / L.H_g) * atm_chapman(R, z, L.H_g, mu)) : vec3(0.0);
 		haze = atm_haze_tau * (exp(-z / L.H_h) * atm_chapman(R, z, L.H_h, mu));
