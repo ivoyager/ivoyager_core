@@ -19,6 +19,7 @@ HINT_CAMERA_TRANSFER_TIME,Seconds the camera takes to fly to a new target or vie
 HINT_CENTAURS,Show Centaurs
 HINT_COLOR_PICKER,Color Picker
 HINT_COMPATIBILITY_ATMOSPHERE_QUALITY,"Detail of the scattering calculation that renders air on Earth,\nVenus, Mars and Titan. Reduced integrates each view ray at\nfewer points: no visible change beyond a slight shift in the\nthin band at the limb. Minimum estimates each ray in closed form:\nsurfaces are unchanged, but the limb and twilight shift,\nmost of all around a crescent. Off draws no air beyond a\nbody's edge and a simpler haze over its surface.\n\nGPU cost: HIGH at Normal, close to a body with air. Reduced\nsaves up to a third, Minimum up to half and Off up to\nfive sixths\n\nGoing into or out of Minimum or Off REQUIRES RESTART"
+HINT_COMPATIBILITY_GLOW,"Halo of light around whatever is too bright for the camera's\nexposure: a sunlit spacecraft, a small moon, the bright edge\nof a crescent. Stars and the Sun draw their own halos and\nare not affected. In this renderer glow also darkens the\nfaintest shades of a dark sky, which Off restores.\n\nGPU cost: MODERATE in views without air, and HIGH there\non a discrete GPU\n\nREQUIRES RESTART"
 HINT_COMPATIBILITY_MSAA_3D,"Multisample antialiasing: smooths jagged edges on orbit\nlines, ring edges and spacecraft.\n\nGPU cost: MODERATE at 2x or 4x; HIGH at 8x"
 HINT_COMPATIBILITY_RENDER_SCALE,"Resolution of the 3D view as a share of the window's,\nscaled up to fill it. Menus and panels are not affected.\nLower is faster but softer: orbit lines and names blur,\nand faint stars thin out.\n\nGPU cost: HIGH at 100% on a high-resolution screen.\n50% renders a quarter of the pixels"
 HINT_COMPATIBILITY_SHADOW_RESOLUTION,"Resolution of shadows cast by spacecraft and other objects\nnear the camera, or Off for none. Higher is sharper, but\nuses more video memory (8192: 256 MB). Eclipse and ring\nshadows are not affected.\n\nGPU cost: LOW"
@@ -30,6 +31,7 @@ HINT_FADE_GUI_WHEN_IDLE,Fade the GUI out after a few seconds without input while
 HINT_FADE_GUI_WHILE_DRAGGING,Dim the GUI while you drag the view
 HINT_FRAME_RATE_CAP,"Maximum number of frames drawn per second. A cap saves\npower, heat and battery life whenever the GPU could draw\nfaster, at some cost to smooth motion. It changes nothing\nwhere frames are already slower. None draws as often as\nthe display refreshes.\n\nGPU cost: HIGH at None on a display faster than 60 Hz"
 HINT_FXAA,"Fast approximate antialiasing: a screen filter that smooths\njagged edges but softens the whole image, most noticeably\nat lower screen resolutions.\n\nGPU cost: LOW"
+HINT_GLOW,"Halo of light around whatever is too bright for the camera's\nexposure: a sunlit spacecraft, a small moon, the bright edge\nof a crescent. Stars and the Sun draw their own halos and\nare not affected, and most views look the same without it.\n\nGPU cost: HIGH in views without air, up to half a frame"
 HINT_GUI_SIZE,Size of text and controls in GUI panels;\nalso scales names and symbols in the 3D view
 HINT_HIDE_GUI,Hide all GUI
 HINT_HIDE_HUD_WHEN_CLOSE,"Hide a body's name, symbol and orbit when the camera is close to it"

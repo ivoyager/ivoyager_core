@@ -104,8 +104,8 @@ var graphics_target := GraphicsTarget.NONE
 ## Settings that decide what the GPU draws each frame: the ones [method
 ## restore_graphics_defaults] restores, as does a start after a failed one. A project that adds
 ## such a setting with [method set_default] should append it here.
-var graphics_settings: Array[StringName] = [&"atmosphere_quality", &"render_scale", &"msaa_3d",
-		&"fxaa", &"use_taa", &"shadow_resolution", &"star_catalog", &"renderer"]
+var graphics_settings: Array[StringName] = [&"atmosphere_quality", &"glow", &"render_scale",
+		&"msaa_3d", &"fxaa", &"use_taa", &"shadow_resolution", &"star_catalog", &"renderer"]
 ## Why this start restored [member graphics_settings] to their defaults, if it did. Valid after
 ## [signal initialized].
 var graphics_reset := GraphicsReset.NONE
@@ -149,6 +149,7 @@ var _defaults: Dictionary[StringName, Variant] = {
 	
 	# graphics/performance
 	&"atmosphere_quality" : 0, # 0,1,2,3 = normal,reduced,min,off; see IVGraphicsManager
+	&"glow" : true, # Compatibility at restart; see IVGraphicsManager
 	&"render_scale" : 0, # 0,1,2,3 = 100,85,70,50%; see IVGraphicsManager
 	&"msaa_3d" : 1, # 0,1,2,3 = disabled,2x,4x,8x (== Viewport.MSAA_*)
 	&"fxaa" : false, # not available in Compatibility renderer (incl. web)

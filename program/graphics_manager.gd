@@ -21,14 +21,14 @@ class_name IVGraphicsManager
 extends Node
 
 ## Applies user graphics settings (antialiasing, shadow resolution, atmosphere
-## quality, 3D render scale and frame rate cap) and the screen's display scale to
-## the engine, the rendering server, the main window viewport and the local shadow
-## maps, records the renderer for the next start, and publishes the renderer's
-## colour-space convention to shaders.
+## quality, glow, 3D render scale and frame rate cap) and the screen's display scale
+## to the engine, the rendering server, the main window viewport, the world's
+## Environment and the local shadow maps, records the renderer for the next start,
+## and publishes the renderer's colour-space convention to shaders.
 ##
 ## Added by [IVCoreInitializer]. Settings [code]atmosphere_quality[/code],
-## [code]render_scale[/code], [code]msaa_3d[/code], [code]fxaa[/code],
-## [code]use_taa[/code], [code]shadow_resolution[/code] and
+## [code]glow[/code], [code]render_scale[/code], [code]msaa_3d[/code],
+## [code]fxaa[/code], [code]use_taa[/code], [code]shadow_resolution[/code] and
 ## [code]frame_rate_cap[/code] are defined in [IVSettingsManager] and exposed in
 ## [IVOptionsPopup]; this node applies them at startup and re-applies them live on
 ## change. [member atmosphere_quality_settings], [member render_scale_settings],
@@ -59,13 +59,19 @@ extends Node
 ## IVSettingsManager.graphics_target]. See [i]Fitted defaults[/i] in
 ## [code]GRAPHICS_PROFILING.md[/code] for why each tier gives up what it does.[br][br]
 ##
-## Renderer support differs: MSAA, atmosphere quality and frame rate cap work in
+## Renderer support differs: MSAA, atmosphere quality, glow and frame rate cap work in
 ## all renderers; render scale works everywhere but on ANGLE's Direct3D 11 path,
 ## where a reduced scale costs frame time (see [method can_scale_render]); FXAA is
 ## unavailable in the Compatibility renderer (including web exports); TAA is
 ## Forward+ only; and directional shadows on Compatibility depend on [member
 ## IVCoreSettings.apply_gl_compatibility_shadows] (see [IVDynamicLight]).
 ## Unsupported settings are skipped here and hidden by [IVOptionsPopup].[br][br]
+##
+## Glow sets [member Environment.glow_enabled] on the Environment of the main
+## viewport's world, live under Forward+. Under Compatibility it decides whether every
+## scene shader tonemaps in its own fragments, so a change there would recompile
+## everything in view, and it waits for a restart instead. See [i]Glow: the bloom
+## pass[/i] in [code]PHOTOMETRIC_MODEL.md[/code] for what it draws.[br][br]
 ##
 ## Frame rate cap sets [member Engine.max_fps]. None leaves in place the cap the
 ## engine started with, from ProjectSettings [code]application/run/max_fps[/code] or
@@ -241,8 +247,8 @@ static func get_graphics_tier() -> GraphicsTier:
 ## [IVSettingsManager] applies when a project sets [member IVSettingsManager.graphics_target]. It
 ## holds only what differs from Core's defaults. [constant GraphicsTier.REDUCED] takes atmosphere
 ## quality to Reduced, shadow resolution to 2048 and render scale within [constant
-## REDUCED_TIER_RENDER_PIXELS]; [constant GraphicsTier.LOW] also takes MSAA off and the star
-## catalog to V 11 and fits render scale within [constant LOW_TIER_RENDER_PIXELS], and it takes
+## REDUCED_TIER_RENDER_PIXELS]; [constant GraphicsTier.LOW] also takes MSAA and glow off and the
+## star catalog to V 11 and fits render scale within [constant LOW_TIER_RENDER_PIXELS], and it takes
 ## atmospheres Off on an integrated GPU and in every browser, and where a desktop GPU's type is
 ## unknown, to Min where [method is_angle_d3d11] and Reduced elsewhere. Forward+ stays the default
 ## renderer wherever it runs, but where the engine fell back from it, or the command line chose
@@ -267,6 +273,7 @@ static func get_fitted_defaults() -> Dictionary[StringName, Variant]:
 			fitted_defaults[&"atmosphere_quality"] = atmosphere_quality
 			fitted_defaults[&"shadow_resolution"] = 1 # 2048
 			fitted_defaults[&"msaa_3d"] = 0 # disabled
+			fitted_defaults[&"glow"] = false
 			fitted_defaults[&"star_catalog"] = 1 # to V 11
 			if can_scale_render():
 				fitted_defaults[&"render_scale"] = _get_fitted_render_scale(LOW_TIER_RENDER_PIXELS)
@@ -372,6 +379,9 @@ func _ready() -> void:
 	is_atmosphere_min_session = _is_tier(atmosphere_quality, &"ATMOSPHERE_MIN")
 	is_atmosphere_off_session = _is_tier(atmosphere_quality, &"ATMOSPHERE_OFF")
 	_apply_atmosphere_quality()
+	_apply_glow()
+	if IVGlobal.is_gl_compatibility:
+		IVSettingsManager.set_running_value(&"glow", IVSettingsManager.get_setting(&"glow"))
 	_apply_render_scale()
 	_apply_msaa()
 	_apply_fxaa()
@@ -473,6 +483,14 @@ func _apply_atmosphere_quality() -> void:
 
 func _is_tier(atmosphere_quality: int, tier: StringName) -> bool:
 	return atmosphere_quality == atmosphere_quality_settings.get(tier, -1)
+
+
+func _apply_glow() -> void:
+	var environment := _window.find_world_3d().environment
+	if !environment:
+		return
+	var enable_glow: bool = IVSettingsManager.get_setting(&"glow")
+	environment.glow_enabled = enable_glow
 
 
 func _apply_render_scale() -> void:
@@ -587,6 +605,9 @@ func _settings_listener(setting: StringName, _value: Variant) -> void:
 	match setting:
 		&"atmosphere_quality":
 			_apply_atmosphere_quality()
+		&"glow":
+			if !IVGlobal.is_gl_compatibility: # else at restart; see class doc
+				_apply_glow()
 		&"render_scale":
 			_apply_render_scale()
 		&"msaa_3d":

@@ -155,7 +155,7 @@ func _ready() -> void:
 		# EXTENDED sources: spacecraft parts, small moons and asteroids sit outside the
 		# IVBodyPSF quad system, which draws its own wings (psf_glare_* in
 		# _point_spread_function.gdshaderinc) for every source that has one, and the pass is the only
-		# glow those others get. A project that wants it off can author its own Environment.
+		# glow those others get. The user's Glow option turns it off (IVGraphicsManager).
 	else:
 		# The adjustment stage, which [IVScreenshotManager] tweens for its capture dim. Kept
 		# out of the Environment resource and off under Compatibility, where it is anything

@@ -138,6 +138,7 @@ extends PopupPanel
 		[&"LABEL_RENDER_SCALE", &"render_scale"],
 		[&"LABEL_STAR_CATALOG", &"star_catalog"],
 		[&"LABEL_ATMOSPHERE_QUALITY", &"atmosphere_quality"],
+		[&"LABEL_GLOW", &"glow"],
 		[&"LABEL_SHADOW_RESOLUTION", &"shadow_resolution"],
 		[&"LABEL_MSAA", &"msaa_3d"],
 		[&"LABEL_FRAME_RATE_CAP", &"frame_rate_cap"],
@@ -206,6 +207,7 @@ extends PopupPanel
 	small_bodies_point_size = &"HINT_SMALL_BODIES_POINT_SIZE",
 	hide_hud_when_close = &"HINT_HIDE_HUD_WHEN_CLOSE",
 	atmosphere_quality = &"HINT_ATMOSPHERE_QUALITY",
+	glow = &"HINT_GLOW",
 	render_scale = &"HINT_RENDER_SCALE",
 	shadow_resolution = &"HINT_SHADOW_RESOLUTION",
 	msaa_3d = &"HINT_MSAA_3D",
@@ -220,6 +222,7 @@ extends PopupPanel
 ## renderer runs, keyed the same way.
 @export var option_compatibility_tooltips: Dictionary[StringName, StringName] = {
 	atmosphere_quality = &"HINT_COMPATIBILITY_ATMOSPHERE_QUALITY",
+	glow = &"HINT_COMPATIBILITY_GLOW",
 	render_scale = &"HINT_COMPATIBILITY_RENDER_SCALE",
 	shadow_resolution = &"HINT_COMPATIBILITY_SHADOW_RESOLUTION",
 	msaa_3d = &"HINT_COMPATIBILITY_MSAA_3D",

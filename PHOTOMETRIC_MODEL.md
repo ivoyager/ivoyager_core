@@ -1969,6 +1969,12 @@ the bloom pass the sun's disc/point co-calibration and the f16 caps were built f
 in the CPU photometry changes — what changes is which rendered values spill light into their
 neighbors. Judged in-app on Forward+ at the defaults: good.
 
+It is also the user's Glow option (setting `glow`, which `IVGraphicsManager` writes to the
+Environment), and the Low graphics tier fits it Off. What switching it off gives up is the
+bloom of what the camera has not exposed for, which no PSF quad draws; on Compatibility it
+also gives back the dim end (below). What it costs a frame is *Glow* in
+[GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md).
+
 ### Which glow settings a project may change
 
 Godot exposes a dozen glow properties and they are not peers: two carry the contract this
@@ -2203,8 +2209,9 @@ already implements. The 2D icon rig runs its own `World3D` on the default enviro
 glow in icons**, which keeps transparent readbacks clean and costs the exact in-sim look of
 overexposed content. Accepted.
 
-**Compatibility gets a different pass, and it is ON there — a deliberate trade, not a free
-win.** It was gated off on 2026-08-31 and back on with the PSF quad system, and the
+**Compatibility gets a different pass, on by default there too — a deliberate trade, not a
+free win, and one the Low graphics tier declines**, so every browser and every integrated
+GPU runs without it. It was gated off on 2026-08-31 and back on with the PSF quad system, and the
 measurements that argued for the gate all still stand: the pass adds no halo to a point source
 (above), and enabling it moves tonemapping into a post pass that re-runs the transfer bracket
 `display_write()` pre-inverts exactly once, so background content measures **0.041x at 6-8
@@ -2213,8 +2220,7 @@ measures 1.000x at every level. That is the Milky Way and the faint stars, and w
 off the two renderers agree on the same frame to 0.8 %. What buys it back is **extended
 sources**: spacecraft parts, small moons and asteroids sit outside the `IVBodyPSF` quad
 system, which now draws its own wings for every source that has one, and the pass is the only
-glow those others get anywhere. The rest of this paragraph is the mechanism. A project that
-wants it off can author its own Environment.
+glow those others get anywhere. The rest of this paragraph is the mechanism.
 
 **What the pass actually does on that renderer.**
 Verified in the 4.7.2 GLES3 source (`drivers/gles3/rasterizer_scene_gles3.cpp`,
@@ -2235,8 +2241,10 @@ extra pass and the shader repermute the web build was spared. The threshold also
 Forward+'s even where it works. (In a transparent render target the format is RGBA8, the
 headroom trick is off, and glow is inert while the post pass still runs.) All of which is why
 the pass earns its keep here only for the extended sources the quad system does not reach; the
-*Renderer parity* numbers are measured with it off, and are that much better than the shipped
-configuration on dim content. Recovering most of the crush would take a third display mode
+*Renderer parity* numbers are measured with it off, as the Low tier runs, and are that much
+better than glow on for dim content. Because the pass decides whether every scene shader
+tonemaps in its own fragments, switching it recompiles all of them, so the Glow option takes
+effect here only at the next start. Recovering most of the crush would take a third display mode
 that pre-inverts the bracket twice — not the bottom few codes, each pass's encode having a
 hard zero floor — or extending the quad system to every body with a computable magnitude,
 which would shrink the pass's remaining role to spacecraft parts.
@@ -2263,6 +2271,7 @@ lever a capped pass cannot offer is one the shader does not need.
 | `IVCoreSettings` | `enable_physical_light` | Instantiates the system (default false; zero cost off). Requires `dynamic_lights`. |
 | user options | `physical_light` | Runtime toggle (cached setting; Options row appears when enabled). |
 | | `atmosphere_quality` | Normal, Reduced, Min or Off. Normal and Reduced are applied live by `IVGraphicsManager` as the `iv_atm_*` globals, Reduced running a 4-node along-ray quadrature and 2 ring taps; Min and Off are each their own shaders, Off with no limb, bound at startup, so each takes a restart. See *Atmospheres*. |
+| | `glow` | The bloom pass on or off, applied by `IVGraphicsManager` live on Forward+ and at the next start on Compatibility; Off in the Low graphics tier. See *Glow: the bloom pass*. |
 | `IVExposureManager` | `background_peak_magnitude_per_arcsec2` | The absolute anchor (mag/arcsec² of a full-white panorama texel). |
 | | `metering_key` | Rendered value a fully metered surface lands at (mid-exposure target). |
 | | `meter_fraction_start` / `meter_fraction_full` | Screen-fraction ramp: when a body begins to influence metering / fully drives it. |

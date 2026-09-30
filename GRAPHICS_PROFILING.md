@@ -35,9 +35,9 @@ frozen exposure.
    - **Render scale**, on a native driver: 50 % saves 33-75 %. Through ANGLE it costs instead, and
      is held at 100 %.
    - **MSAA off** saves 5-24 % everywhere.
-3. **At its fitted defaults the Intel runs every view at 21-27 fps under Forward+**, Earth close up
-   aside at 12, with atmospheres Off. A browser cannot tell its GPU's type and takes Off too, giving
-   up the limb on a fast GPU. The GTX, fitted, runs every view at 70 fps or better.
+3. **At its fitted defaults the Intel runs every view at 25-33 fps under Forward+**, Earth close up
+   aside at 15, with atmospheres and glow Off. A browser cannot tell its GPU's type and takes Off
+   too, giving up the limb on a fast GPU. The GTX, fitted, runs every view at 70 fps or better.
 4. **A first run through ANGLE compiles for about a minute and a half** at Min or Normal, against
    36 s through NVIDIA's GL and 7-9 s under Vulkan, nearly all of it under the boot screen; Off, a
    first web visit's tier, compiles a third less. One stall is left after it: the first spacecraft,
@@ -46,7 +46,8 @@ frozen exposure.
    15-53 % off a lit frame through ANGLE; the airless shader twins 14-23 % there and 76-83 % under
    Intel's Vulkan; the empty-shadow-pass skip 7-22 % of an Intel Forward+ frame.
 6. **Glow under Forward+ costs a fifth to a half of an airless frame on both GPUs** and changes no
-   pixel in most lit views (TODO).
+   pixel in most lit views, only the bloom around crescents and small bright bodies. Low takes it
+   off; a skip while nothing in view blooms would take its cost from Full and Reduced too (TODO).
 
 
 ## The reference machine
@@ -81,8 +82,8 @@ Planetarium on a machine like it lands on one of them:
 ## Where the frame goes
 
 GPU milliseconds per frame (the frame interval through ANGLE) at Core's defaults -- Normal
-atmospheres, 100 % render scale, MSAA 2x, 4096 shadows, the whole star catalog -- in a 1920x1080
-window. The budgets are 16.7 ms for 60 fps and 33.3 ms for 30.
+atmospheres, 100 % render scale, MSAA 2x, glow on, 4096 shadows, the whole star catalog -- in a
+1920x1080 window. The budgets are 16.7 ms for 60 fps and 33.3 ms for 30.
 
 | View | Intel, ANGLE | Intel, Vulkan | GTX, Vulkan | GTX, GL |
 |---|---:|---:|---:|---:|
@@ -122,31 +123,33 @@ identical on every path: 12, 11, 8, 14, 22, 18, 24, 20, 0, 18, 24 and 24 of 24.
 What a user of this laptop gets at a plain launch: the fitted defaults (*Fitted defaults*), in the
 window the Planetarium opens -- its 1152x648 at the screen's 250 % display scale, 2880x1620 -- with
 the render scale fitted to the whole 3840x2400 screen. Milliseconds per frame as the frame
-interval, which is what a user sees; on the GTX that is the CPU's time, the GPU's being shorter. A
-browser on this laptop takes the Intel's ANGLE path at that column's settings:
+interval, which is what a user sees; on the GTX that is the CPU's time, the GPU's being shorter. The
+Intel columns are 2026-09-30's, with Low's glow off (*Glow* for what that bought). A browser on this
+laptop takes the Intel's ANGLE path at that column's settings:
 
 | View | Intel, ANGLE | Intel, Vulkan | GTX, Vulkan | GTX, GL |
 |---|---:|---:|---:|---:|
-| Tier; settings | Low: Off, 100 %, MSAA off, V 11 | Low: Off, 50 %, MSAA off, V 11 | Reduced: Reduced, 70 %, 2048 | Reduced: Reduced, 70 % |
-| Earth at 1.6 radii | 157 | 80 | 11.8 | 12.3 |
-| Earth at 3 radii | 73 | 48 | 8.2 | 7.7 |
-| Venus at 3 radii | 49 | 41 | 7.6 | 7.3 |
-| Mars at 3 radii | 45 | 39 | 10.8 | 9.0 |
-| Titan at 3 radii | 40 | 41 | 13.9 | 10.7 |
-| The Moon at 3 radii | 40 | 37 | 6.6 | 6.6 |
-| Jupiter's night side, dark sky | 48 | 43 | 8.4 | 9.2 |
-| Saturn at 3 radii | 61 | 48 | 10.2 | 10.1 |
-| The Sun at 3 radii | 57 | 43 | 6.1 | 6.1 |
-| Juno close up | 31 | 40 | 8.6 | 8.9 |
-| Whole system, dark sky | 42 | 37 | 7.3 | 6.0 |
-| Asteroid belt | 43 | 38 | 7.8 | 6.1 |
+| Tier; settings | Low: Off, 100 %, MSAA off, no glow, V 11 | Low: Off, 50 %, MSAA off, no glow, V 11 | Reduced: Reduced, 70 %, 2048 | Reduced: Reduced, 70 % |
+| Earth at 1.6 radii | 145 | 66 | 11.8 | 12.3 |
+| Earth at 3 radii | 64 | 40 | 8.2 | 7.7 |
+| Venus at 3 radii | 39 | 33 | 7.6 | 7.3 |
+| Mars at 3 radii | 35 | 33 | 10.8 | 9.0 |
+| Titan at 3 radii | 30 | 34 | 13.9 | 10.7 |
+| The Moon at 3 radii | 30 | 30 | 6.6 | 6.6 |
+| Jupiter's night side, dark sky | 39 | 35 | 8.4 | 9.2 |
+| Saturn at 3 radii | 49 | 40 | 10.2 | 10.1 |
+| The Sun at 3 radii | 46 | 35 | 6.1 | 6.1 |
+| Juno close up | 20 | 32 | 8.6 | 8.9 |
+| Whole system, dark sky | 31 | 30 | 7.3 | 6.0 |
+| Asteroid belt | 33 | 31 | 7.8 | 6.1 |
 
 - **The GTX runs everything at 70 fps or better** at its fitted tier.
-- **The Intel runs every view at 21-27 fps under Forward+**, the desktop default, but Earth close up
-  at 12. Its frames there are the CPU's as much as the GPU's: the GPU takes 23-34 ms of them.
-- **Through ANGLE it is slower in every view but Titan and Juno**, the window drawn at full size:
-  14-25 fps with air and 16-32 without, Earth close up at 6. So the Intel is better off in Forward+
-  at its fitted defaults, which is what it runs unless its user chooses otherwise (*Renderer*).
+- **The Intel runs every view at 25-33 fps under Forward+**, the desktop default, but Earth close up
+  at 15. Its frames there are the CPU's as much as the GPU's: the GPU takes 18-28 ms of them.
+- **Through ANGLE it is slower in most views, and faster at Titan and Juno**, the window drawn at
+  full size: 16-33 fps with air and 20-49 without, Earth close up at 7. So the Intel is better off
+  in Forward+ at its fitted defaults, which is what it runs unless its user chooses otherwise
+  (*Renderer*).
 - **A browser's window is its own size**; this one's is 2.25 times the pixels of the 1080p frames
   above, and render scale is held at 100 % there. At Min the same path takes the atmosphere views
   to 75-257 ms, which is why a browser, whose GPU's type is unknown, is fitted Off (*Fitted
@@ -166,6 +169,7 @@ compared across sessions.
 | **3D render scale** 70 % / 50 % | held at 100 % | -12 to -47 % / -33 to -75 % | Vulkan -12 to -42 % / -33 to -70 %; GL 50 %: -27 to -68 % | Softer lines and labels; at 50 % the star field coarsens |
 | **Renderer**: Compatibility against Forward+ | 1.4-3.7x faster in air views, 1.5-1.7x slower in star-heavy ones | -- | GL 1.1-1.4x slower in air views, 1.5-2.2x faster in airless ones | Compatibility loses hover identification of orbits and asteroids, FXAA, TAA and local shadow maps |
 | **Star catalog** V 11 / V 9.5 (star-heavy views) | -16 to -45 % / -33 to -67 % | -13 to -28 % / -22 to -41 % | Vulkan -15 to -34 % / -25 to -53 %; GL -13 to -34 % / -26 to -50 % | None in lit views; a dimmer diffuse glow at V 11 and a sparser sky at V 9.5 in dark ones |
+| **Glow** off (airless views) | -7 to -19 % | -19 to -37 % | Vulkan -33 to -51 %; GL -17 to -44 % | The bloom around a crescent or a small bright body; under Compatibility also a brighter dim end |
 | **Shadow resolution** (near a craft; Forward+) | -- | Off -25 %, 2048 -15 %, 8192 +96 % | Vulkan: Off -8 %, 2048 -1 %, 8192 +3 % | Spacecraft self-shadowing only |
 | **MSAA** off / 4x / 8x | -8 to -20 % / +4 to +13 % / +17 to +34 % | -5 to -24 % / +3 to +20 % / +19 to +42 % | Vulkan -5 to -28 % / +6 to +10 % / +21 to +46 %; GL -7 to -17 % / +3 to +12 % | Off: stair-stepped lines and craft edges |
 | **FXAA** (Forward+) | -- | 0 to +7 % | +5 to +12 % | Smoother lines, slightly softer |
@@ -293,6 +297,41 @@ whole catalog's:
   vertex data whole, 19 MB to V 11 and 4 MB to V 9.5, built by single-threaded GDScript in
   0.7-1.1 s, 0.26-0.40 s and 0.07-0.10 s on this CPU.
 
+### Glow
+
+`glow`: the engine's bloom pass, on by default; live on Forward+, and at the next start on
+Compatibility, where it decides whether the scene shaders tonemap (*Specializations*). What it
+draws is the bloom of what the camera has not exposed for -- a spacecraft, a small moon, a
+crescent's rim -- which no PSF quad covers (*Glow: the bloom pass* in
+[PHOTOMETRIC_MODEL.md](PHOTOMETRIC_MODEL.md)). Each view's frame with it off, against on:
+
+| View | Intel, ANGLE | Intel, Vulkan | GTX, Vulkan | GTX, GL |
+|---|---:|---:|---:|---:|
+| Earth at 1.6 radii | 0 % | +5 % | -24 % | -7 % |
+| Venus at 3 radii | -5 % | -6 % | -25 % | -10 % |
+| The Moon at 3 radii | -16 % | -37 % | -51 % | -36 % |
+| Jupiter's night side, dark sky | -7 % | -28 % | -33 % | -18 % |
+| Saturn at 3 radii | -8 % | -19 % | -33 % | -19 % |
+| The Sun at 3 radii | -8 % | -24 % | -40 % | -20 % |
+| Juno close up | -19 % | -34 % | -45 % | -44 % |
+| Whole system, dark sky | -7 % | -27 % | -37 % | -17 % |
+
+- **It weighs most where the rest of the frame is light**: a fifth to a half of an airless frame
+  under Forward+, little in an atmosphere view on the Intel. Through ANGLE, whose frames are heavy
+  everywhere, it is 7-19 %.
+- **Under Forward+ what it draws is the crescents and the small bright bodies.** Switching it off
+  moved no pixel by more than 2 codes at Earth at 3 radii, Venus, Mars, Titan, Saturn or the Sun;
+  0.3-1.7 % of the pixels at Earth close up, Juno and the whole system; and 6.6 % of the Moon's
+  crescent view and 7.9 % of Jupiter's, by up to the full range.
+- **Under Compatibility switching it off also gives back the dim end**, which the pass crushes
+  there: the dark-sky views move over three quarters of their pixels, by 4-5 codes on average,
+  and Saturn 31 % of its, by 2.
+- **Low takes it off** (*Fitted defaults*), where it buys back more than at Core's defaults, the
+  rest of a Low frame being lighter: against glow on in the same session, 9-15 % of every Intel
+  frame under Forward+ at 50 % scale, about 5 ms of GPU time, and 13-30 % through ANGLE at full
+  size, Earth close up aside at 5 % (2026-09-30). Full and Reduced keep it, the GTX's fitted frames
+  having room for it (*What the fitted defaults deliver*).
+
 ### Shadow resolution
 
 `shadow_resolution`: Off, 2048, 4096 or 8192, acting on Forward+ only in the Planetarium, where
@@ -348,6 +387,7 @@ physical pixel count of the screen (`IVGraphicsManager.get_graphics_tier()`):
 | Atmosphere quality | Normal | Reduced | Off on an integrated GPU and in a browser; on a desktop GPU of unknown type, Min through ANGLE's D3D11, else Reduced |
 | 3D render scale | 100% | Largest within 4.7 MP | Largest within 2.7 MP |
 | MSAA | 2x | 2x | Off |
+| Glow | On | On | Off |
 | Shadow resolution | 4096 | 2048 | 2048 |
 | Star catalog | All | All | To V 11 |
 
@@ -375,12 +415,14 @@ physical pixel count of the screen (`IVGraphicsManager.get_graphics_tier()`):
   each shader costs*). **A desktop GPU of unknown type keeps the limb**, since it may be a fast one:
   Min through ANGLE, where it is the fast tier, and Reduced elsewhere, Min having run slower than
   Normal at Earth through Intel's own GL (2026-09-28).
-- **MSAA off and V 11 are Low's alone**, since each changes what a user sees -- stair-stepped orbit
-  lines, and a dimmer diffuse star glow in dark-sky views.
+- **MSAA off, glow off and V 11 are Low's alone**, since each changes what a user sees --
+  stair-stepped orbit lines, no bloom around a crescent or a small bright body, and a dimmer diffuse
+  star glow in dark-sky views. Under Compatibility glow off also returns the dim end the pass
+  crushes there, so a browser gives up less by it than a Forward+ desktop does (*Glow*).
 
 On this laptop that makes the GTX **Reduced** (70 %, Reduced air, 2048 shadows) and the Intel
-**Low** with atmospheres Off, at 50 % under Forward+ and 100 % through ANGLE; a browser here is Low
-at Off and 100 %. *What the fitted defaults deliver* measures each.
+**Low** with atmospheres and glow Off, at 50 % under Forward+ and 100 % through ANGLE; a browser
+here is Low at Off and 100 %. *What the fitted defaults deliver* measures each.
 
 ## A setting the machine can't carry
 
@@ -527,15 +569,6 @@ any change of tessellation moves.
 
 Each of these was measured and left out of the option set, for the reason given.
 
-- **Glow.** Switching the engine's glow off saves little in an atmosphere view but a large share of
-  an airless one: 7-19 % through ANGLE, 17-44 % through the GTX's GL, 19-37 % under Forward+ on the
-  Intel and 33-51 % on the GTX. Under Forward+ that changed no pixel at Earth, Mars, Titan, Saturn
-  or the Sun, and 7-8 % of a crescent view's; under Compatibility, whose RGB10A2 feed crushes the
-  dimmest codes, it lifts those over three quarters of a dark sky, by 4-5 codes on average. It is
-  part of the photometric model rather than a quality setting: what it draws is the bloom of what
-  the camera has not exposed for -- a blown limb, a spacecraft, a small moon -- which no PSF quad
-  covers (*Glow: the bloom pass* in [PHOTOMETRIC_MODEL.md](PHOTOMETRIC_MODEL.md)). What it costs
-  where it draws nothing is a TODO.
 - **Cloud decks.** Taking Earth's and Neptune's decks off saved 6-7 % of an Intel frame at Earth and
   22-26 % of a GTX one (2026-09-10), and changes a fifth of an Earth view's pixels. A lowest tier's
   lever at most.
@@ -583,16 +616,18 @@ same run again:
 
 | Path, tier | Cold | Warm | Compiling | of which the opening view | the warm-up |
 |---|---:|---:|---:|---:|---:|
+| Intel, ANGLE, Low (Off, no glow) | 64 s | 9 s | 55 s | 25 s | 27 s |
 | Intel, ANGLE, Min | 97 s | 10 s | 88 s | 48 s | 35 s |
 | Intel, ANGLE, Normal | 107 s | 10 s | 97 s | 54 s | 39 s |
 | GTX, GL, Reduced | 48 s | 12 s | 36 s | 21 s | 13 s |
 | GTX, Vulkan, Reduced | 23 s | 16 s | 7 s | 7 s | 0.3 s |
 | Intel, Vulkan, Reduced | 21 s | 13 s | 9 s | 7 s | 0.4 s |
 
-- **Through ANGLE a first run is a minute and a half of compiling**, nearly all of it FXC on the
-  CPU, so a slower CPU scales it whatever the GPU. The web's first visit on this laptop takes that
-  path at Off, whose programs compile in 57 s against Min's 82 s (*What each shader costs*), and
-  the browser's own ANGLE build may differ (*The web export*).
+- **Through ANGLE a first run is a minute and a half of compiling at Min or Normal**, nearly all of
+  it FXC on the CPU, so a slower CPU scales it whatever the GPU. The web's first visit on this
+  laptop takes that path at Low's settings, whose 55 s match the 57 s their programs sum to (*What
+  each shader costs*) and came out the same with glow on (2026-09-30); the browser's own ANGLE
+  build may differ (*The web export*).
 - **The opening view is one frame.** Its first draw compiles every shader in view -- 51 s through
   ANGLE, 26 s through NVIDIA's GL -- which is why the boot screen has to stay up until the warm-up
   finishes rather than until the simulator starts.
@@ -789,6 +824,11 @@ A shader's figure is never one program. Read from `drivers/gles3/shader_gles3.cp
   sky off while exposure has metered it black: a skip engaging before the sky's first draw would
   have the warm-up compile every shader without the bit, and the first view dark enough to show the
   Milky Way would compile everything on screen again, in flight.
+- **Glow decides where Compatibility tonemaps.** With the pass on, the scene and sky passes leave
+  tonemapping to a post pass and every scene and sky shader drops `APPLY_TONEMAPPING`, so each
+  program differs with glow on and off; the Glow option waits for a restart there for that reason.
+  `time_shader_compiles.py` draws with no Environment, so it times the glow-off programs; a cold
+  start compiles the same time with either (*What a first run costs*).
 - **Compiling is synchronous.** `glLinkProgram` is followed at once by the `GL_LINK_STATUS` query;
   there is no use of `KHR_parallel_shader_compile`, and the queue-and-use-defaults branch is an
   `if (false)` TODO. Nothing short of an engine patch changes that.
@@ -1083,10 +1123,10 @@ scripts, not yet in the tools submodule.
 - **Warm the spacecraft's materials.** The first sight of Juno after a cold boot stalls 11 s through
   ANGLE and 1.5 s through NVIDIA's GL: its model's `StandardMaterial3D`s are not in
   `IVGlobal.resources`, so `IVShaderWarmup` never draws them.
-- **Glow under Forward+ costs 20-50 % of an airless frame on both GPUs and changes no pixel in most
-  lit views.** A skip while nothing in view exceeds the glow threshold would be a saving with no
-  option, as the exposure skips are; it needs the frame's brightest source, which the exposure
-  metering may already know.
+- **Glow under Forward+ costs 20-50 % of an airless frame and changes no pixel in most lit views**,
+  and Full and Reduced keep it (*Glow*). A skip while nothing in view exceeds the glow threshold
+  would be a saving with no option, as the exposure skips are; it needs the frame's brightest
+  source, which the exposure metering may already know.
 - **Sunspot level of detail by disc size** (*Levers not offered*).
 - **85 % render scale** bought nothing measurable in the airless views on either native path;
   measure it at an atmosphere view before keeping the step.

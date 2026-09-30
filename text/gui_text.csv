@@ -182,6 +182,7 @@ LABEL_FRAME_RATE_CAP,Frame Rate Cap
 LABEL_FULLSCREEN,Full Screen
 LABEL_FXAA,Fast Approx. AA (FXAA)
 LABEL_GALACTIC_PERIOD,Galactic Period
+LABEL_GLOW,Glow
 LABEL_GRAPHICS_PERFORMANCE,Graphics
 LABEL_GRAPHICS_RESTART_REQUIRED,*One or more Graphics settings require restart to take effect.
 LABEL_GRAPHICS_SETTINGS,Graphics Settings
