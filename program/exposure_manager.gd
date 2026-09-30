@@ -62,7 +62,9 @@ extends Node
 ##   (0.0 while active, 1.0 otherwise), the gate on the atmosphere shells' by-eye
 ##   taste multipliers: the physical parameters alone render under physical light.[br]
 ## - Drives the Environment ambient energy per frame (starlight level x
-##   [member exposure]): engine ambient then compensates StandardMaterial3D
+##   [member exposure]), on the [WorldEnvironment] that
+##   [member IVCoreInitializer.tree_program_nodes] indexes as
+##   [code]WorldEnvironment[/code]: engine ambient then compensates StandardMaterial3D
 ##   craft models, and [IVSunOcclusionManager]'s ambient_light feed hands the
 ##   same value to the custom body shaders, which rebuild it with no further
 ##   exposure factor.[br]
@@ -314,7 +316,7 @@ var ambient_starlight_illuminance := 2e-4 * IVUnits.CANDELA / IVUnits.METER ** 2
 
 var _camera: Camera3D
 var _star: IVBody
-var _world_environment: WorldEnvironment # persistent scene node; found lazily
+var _world_environment: WorldEnvironment
 var _starmap_material: ShaderMaterial # exists only after assets_preloaded
 var _transition_dirty := true # settings are cached before _ready; apply on first frame
 var _snap_next := false
@@ -336,6 +338,7 @@ var _shell_meter_data_built := false
 
 func _ready() -> void:
 	process_priority = -1 # before camera/lights/visuals (0); see class doc
+	_world_environment = IVGlobal.program.get(&"WorldEnvironment")
 	IVGlobal.current_camera_changed.connect(_on_current_camera_changed)
 	IVGlobal.camera_tree_changed.connect(_on_camera_tree_changed)
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
@@ -422,7 +425,6 @@ func _recompute_photometry() -> bool:
 
 
 func _capture_and_apply_scene_values() -> void:
-	_find_world_environment()
 	if _world_environment and _world_environment.environment:
 		var environment := _world_environment.environment
 		if is_nan(_captured_ambient_energy):
@@ -558,17 +560,7 @@ func _build_shell_meter_data() -> void:
 				_wide_candidate_bodies[body_name] = true
 
 
-func _find_world_environment() -> void:
-	if is_instance_valid(_world_environment):
-		return
-	_world_environment = null
-	for node in get_tree().root.find_children("*", "WorldEnvironment", true, false):
-		_world_environment = node as WorldEnvironment
-		break
-
-
 func _find_starmap_material() -> void:
-	_find_world_environment()
 	if !_world_environment or !_world_environment.environment:
 		return
 	var sky := _world_environment.environment.sky

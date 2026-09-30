@@ -210,6 +210,7 @@ var ordered_program_nodes: Array[StringName] = [&"CameraHandler", &"SpeedManager
 var tree_program_nodes: Array[StringName] = [
 	&"TopUI",
 	&"WorldController",
+	&"WorldEnvironment",
 ]
 
 

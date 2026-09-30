@@ -43,8 +43,9 @@ extends Node
 ##
 ## Receivers disable engine ambient and rebuild it from the manager-fed
 ## [code]ambient_light[/code] uniform, so shadows can never darken starlight
-## (see the shaderinc header). The value comes from the [WorldEnvironment]
-## ([code]AMBIENT_SOURCE_COLOR[/code] only; other sources feed zero). This feed
+## (see the shaderinc header). The value comes from the [WorldEnvironment] that
+## [member IVCoreInitializer.tree_program_nodes] indexes as [code]WorldEnvironment[/code]
+## ([code]AMBIENT_SOURCE_COLOR[/code] only; other sources, or none, feed zero). This feed
 ## continues when [member IVCoreSettings.apply_analytic_shadows] is false -
 ## that setting disables only the shadow terms and the light dimming.
 
@@ -63,7 +64,7 @@ var _analytic_enabled: bool = IVCoreSettings.apply_analytic_shadows
 
 var _camera: Camera3D
 var _camera_star_orbiter: IVBody
-var _world_environment: WorldEnvironment # persistent scene node; found lazily
+var _world_environment: WorldEnvironment
 var _ambient_light := Vector3.ZERO # scene ambient color x energy, for the shadow uniforms
 
 # Receiver material caches, keyed by body name; rebuilt when the cached
@@ -239,6 +240,7 @@ func _ready() -> void:
 	_occluder_data_a.resize(MAX_OCCLUDERS)
 	_occluder_data_b.resize(MAX_OCCLUDERS)
 	_occluder_data_c.resize(MAX_OCCLUDERS)
+	_world_environment = IVGlobal.program.get(&"WorldEnvironment")
 	IVGlobal.current_camera_changed.connect(_on_current_camera_changed)
 	IVGlobal.camera_tree_changed.connect(_on_camera_tree_changed)
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
@@ -268,11 +270,6 @@ func _process(_delta: float) -> void:
 # uniforms carry the scene ambient. Only AMBIENT_SOURCE_COLOR is readable as a
 # value; other sources feed zero and shadows there go to black.
 func _update_ambient_light() -> void:
-	if not is_instance_valid(_world_environment):
-		_world_environment = null
-		for node in get_tree().root.find_children("*", "WorldEnvironment", true, false):
-			_world_environment = node as WorldEnvironment
-			break
 	_ambient_light = Vector3.ZERO
 	if not _world_environment:
 		return
