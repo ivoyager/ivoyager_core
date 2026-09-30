@@ -786,7 +786,8 @@ wings are not the engine glow pass's job — is in the sibling document.
 the core takes the disc handoff, so a body shrinking past its disc becomes a photometric
 point instead of disappearing. Resolved, the **wing persists** — glare belongs to the
 camera, not to the subject, so it takes no crossfade — and that persisting wing is
-crescent glow.
+crescent glow. With physical light off a sunlit body's wing retires as its disc resolves and
+the rim below is not drawn; the sibling document's *Glow: the bloom pass* says why.
 
 **The rim's sky side is drawn here too, because nothing else can.** A body's surface images
 each rim pixel through the camera's PSF (`limb_mean_incidence()`, and *Imaging a pixel* in

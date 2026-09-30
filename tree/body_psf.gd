@@ -37,6 +37,10 @@ extends MeshInstance3D
 ## image its rim through the camera's PSF but has no fragment to put the outward half
 ## on. One mechanism, four jobs.[br][br]
 ##
+## With physical light off a sunlit body keeps only the point: its disc is lit by the
+## by-eye curve, off this quad's scale, so its wing retires as the disc resolves and
+## its rim is not drawn. A star's glare is its own light and stays.[br][br]
+##
 ## A direct child of its [IVBody] rather than of [IVBodyVisual], and that is
 ## load-bearing: a lazy body has no visual until the camera visits it, so a quad
 ## hosted inside the model could not draw the far regime — which is the whole
@@ -362,7 +366,8 @@ func _refresh_color(body_illuminance: float, ring_illuminance: float) -> void:
 # The sun's screen direction falls to zero length as the sun goes directly behind or in front
 # of the body, which is exactly where a lit side stops having a screen direction at all -- so
 # both consumers collapse on their own there. A star gets a zero limb radius: it has no phase
-# and no reflected rim, and its glare is its own.
+# and no reflected rim, and its glare is its own. With physical light off a sunlit body gets no
+# rim either, and its wing retires as the disc resolves (see the class doc).
 #
 # The apparent limb comes from the body's figure the way the analytic shadows take it
 # (IVSunOcclusionManager, which treats the same bodies as oblate spheroids): the outline of a
@@ -385,6 +390,8 @@ func _set_rim_parameters(camera: Camera3D) -> void:
 			sun_direction = to_camera_frame(star_vector.normalized(), camera_basis)
 	var radius_scale := 1.0 / _equatorial_radius if _equatorial_radius > 0.0 else 0.0
 	var conic := get_limb_conic(to_body, pole, _equatorial_radius, _polar_radius, camera_basis)
+	var is_lit_by_eye := !_is_sun and !IVExposureManager.physical_active
+	_material.set_shader_parameter(&"glare_retires", is_lit_by_eye)
 	_material.set_shader_parameter(&"sun_direction", sun_direction)
 	_material.set_shader_parameter(&"limb_camera_offset",
 			to_camera_frame(-to_body, camera_basis) * radius_scale)
@@ -392,7 +399,7 @@ func _set_rim_parameters(camera: Camera3D) -> void:
 			get_limb_ellipsoid(pole, _equatorial_radius, _polar_radius, camera_basis))
 	_material.set_shader_parameter(&"limb_conic", conic)
 	_material.set_shader_parameter(&"limb_semi_axes",
-			get_conic_semi_axes(conic) if _draws_rim else Vector2.ZERO)
+			get_conic_semi_axes(conic) if _draws_rim and !is_lit_by_eye else Vector2.ZERO)
 	_material.set_shader_parameter(&"limb_centre_offset", get_conic_centre(conic).length())
 
 

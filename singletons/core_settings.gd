@@ -196,7 +196,8 @@ var farwarp_start_ratio := 1e4
 ## Enables the per-body point-spread quad ([IVBodyPSF]): an in-scene star and every
 ## planetary-mass object with a geometric albedo draw the camera's PSF response to
 ## their flux, so a body shrinking past its disc becomes a photometric point instead
-## of vanishing, and a resolved body keeps the glare wing that renders crescent glow.
+## of vanishing, and under physical light a resolved body keeps the glare wing that
+## renders crescent glow.
 ## Off, those bodies take the fixed distance cull below like any other and their discs
 ## do not fade. See [member IVBody.psf_handoff] and [method IVBodyPSF.is_applicable].
 var apply_body_psf := true

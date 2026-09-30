@@ -2096,6 +2096,25 @@ already documents, and it vanishes over truly black sky. The shader header that 
 "bloom in proportion to true brightness" (`stars.gdshader`) was describing this; it gets
 corrected with the eventual tuning change.
 
+**With physical light off, a sunlit body's glare retires as its disc resolves.** `iv_exposure`
+then holds the dark-adapted rest while the disc is lit by the by-eye curve, which lands it near
+where the meter would have: so everything the quad draws beside a resolved disc is imaged some
+12 EV (Neptune) to 22 EV (Earth) hotter than the disc itself, by the metering key against each
+body's lit luminance. The rim's sky side, whose whole job is to continue the surface's own rim
+at the surface's level, drew as a saturated band along the lit limb that the Forward+ pass
+bloomed at its cap, and the wing ran several times the radius the metered view gives. So
+`IVBodyPSF` withholds the rim and sets `glare_retires`, and the wing fades from full at the
+solved handoff to nothing at `GLARE_RETIRE_RATIO` (4) times it (`body_psf.gdshader`). It cannot
+take the disc weight, because a lit disc's trade is a step and the wing is wider than the disc
+there, so it stays full through the handoff. That trade is itself mismatched in this mode — a
+by-eye disc well under white for a core that is saturated by construction — and the wing does
+not bridge it on a crescent, whose wing is faint: measured on Jupiter at high phase, the body
+all but vanishes just past its 2.3 px handoff, and is still barely visible at 8 px, but returns
+as a bright point below it. The rim's saturated band was what had hidden that gap. A point
+keeps its glare and so still sits among the field stars on their terms, and a star's glare is
+its own light and stays in both modes. The cost, with physical light off only: crescent glow,
+the rim's antialiasing on a thin crescent's limb, and that gap.
+
 **The other defaults are right, or near enough.** `glow_bloom` must stay 0.0 — it blooms
 below-threshold content, i.e. correctly exposed surfaces. The threshold at 1.0 means "what
 clips, spills," which is the right meaning under a linear tonemap. Levels and intensity are

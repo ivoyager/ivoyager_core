@@ -32,7 +32,8 @@ render_mode unshaded, cull_disabled, skip_vertex_transform, blend_add, depth_dra
 // (angular_radius -> pixel radius -> the crossfade the surface shader fades out on), so a
 // body that shrinks past its disc becomes a photometric point rather than vanishing at a
 // distance cull. Resolved, the WING persists -- glare belongs to the camera and not to the
-// subject, so it takes no crossfade -- and that persisting wing is the crescent glow.
+// subject, so it takes no crossfade -- and that persisting wing is the crescent glow. Not with
+// physical light off, for a reflecting body: see glare_retires.
 //
 // THE RIM'S SKY SIDE, and why it can only be drawn here. A body's surface shader images each
 // rim pixel through the camera's PSF, but it can only put that light on fragments the body
@@ -122,15 +123,20 @@ uniform float handoff_high = 2.5;         // px at/above which the disc fully re
 // radius could not do it -- perspective draws the tangent cone, 8 % wider than r/d at 2.6 radii
 // out, and an oblate body's outline is an ellipse -- and both errors are tens of pixels where
 // the spread being drawn is a few. Two cases both mean "no rim to draw here": sun_direction is
-// zero for an emissive body, which has no lit side, and limb_semi_axes is zero for a star and
-// for a body whose FIGURE IS NOT THIS ELLIPSE -- one drawn with its own mesh, whose real outline
-// stands wherever its terrain does (see RIM_SEAM_PX).
+// zero for an emissive body, which has no lit side, and limb_semi_axes is zero for a star, for
+// a body whose FIGURE IS NOT THIS ELLIPSE -- one drawn with its own mesh, whose real outline
+// stands wherever its terrain does (see RIM_SEAM_PX) -- and for one whose glare_retires.
 uniform vec3 sun_direction = vec3(0.0);  // unit, camera frame; zero for a star
 uniform vec3 limb_camera_offset = vec3(0.0, 0.0, -1.0); // the camera from the body's centre
 uniform mat3 limb_ellipsoid;      // the body's figure, x^T E x = 1, same frame and units
 uniform mat3 limb_conic;          // the silhouette, in tangent coordinates (+Y up)
 uniform vec2 limb_semi_axes = vec2(0.0); // its (major, minor) semi-axes, same units
 uniform float limb_centre_offset = 0.0; // and how far its centre sits from the body's
+
+// Set by IVBodyPSF for a reflecting body while physical light is off, when its disc is lit by
+// the by-eye curve and not on this quad's scale: the wing then retires as the disc resolves,
+// and the rim is not drawn (PHOTOMETRIC_MODEL.md, *Glow: the bloom pass*).
+uniform bool glare_retires = false;
 
 // How far inside the analytic limb the sky-side spread still draws, in px. The ellipse above is
 // the body's figure while the silhouette on screen is a tessellated sphere just inside it, so
@@ -142,6 +148,10 @@ uniform float limb_centre_offset = 0.0; // and how far its centre sits from the 
 // the rim drew as an arc of open sky, detached from the terrain it belonged to. Such a body
 // gets limb_semi_axes zero from IVBodyPSF and no rim at all.
 const float RIM_SEAM_PX = 1.0;
+
+// Where a retiring wing is gone, as a multiple of handoff_high: full at the handoff, so it
+// does not step with a lit disc's trade, and zero once the disc is this big. By eye.
+const float GLARE_RETIRE_RATIO = 4.0;
 
 varying flat float v_intensity; // core intensity, crossfade already folded in
 varying flat float v_glare;     // wing amplitude at 1 px
@@ -213,7 +223,8 @@ void vertex() {
 	// just a fainter source -- size and peak stay welded by the size law at every fade level,
 	// and no special case or size floor is needed. The WING takes the full intensity: it does
 	// not fade, because the crossfade decides whether the camera RESOLVES the body and glare
-	// is the imaging system's, not the subject's. A resolved body glares harder, not less.
+	// is the imaging system's, not the subject's. A resolved body glares harder, not less --
+	// unless its glare_retires.
 	float pixel_radius = body_pixel_radius(angular_radius, PROJECTION_MATRIX[1][1],
 			VIEWPORT_SIZE.y);
 	v_intensity = intensity * (1.0 - body_disc_weight(pixel_radius, handoff_low,
@@ -259,6 +270,10 @@ void vertex() {
 	// The wing is the one term that stands outside the silhouette, glaring for the whole body.
 	v_glare = psf_glare_amplitude(intensity * visible_flux_ratio, glare_scale, glare_gamma,
 			glare_max_px * resolution_scale);
+	if (glare_retires) {
+		v_glare *= 1.0 - smoothstep(handoff_high, GLARE_RETIRE_RATIO * handoff_high,
+				pixel_radius);
+	}
 	// A CRESCENT'S LIGHT IS NOT CENTRED ON THE BODY, and while the wing was, the glare sat
 	// symmetrically around a disc whose lit part was a sliver off to one side. Offsetting it by
 	// a phase-dependent fraction of the SILHOUETTE'S radius in that direction puts that spill
