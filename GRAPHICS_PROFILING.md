@@ -40,8 +40,9 @@ frozen exposure.
    too, giving up the limb on a fast GPU. The GTX, fitted, runs every view at 70 fps or better.
 4. **A first run through ANGLE compiles for about a minute and a half** at Min or Normal, against
    36 s through NVIDIA's GL and 7-9 s under Vulkan, nearly all of it under the boot screen; Off, a
-   first web visit's tier, compiles a third less. One stall is left after it: the first spacecraft,
-   11 s through ANGLE (TODO). No single program comes near Chrome's 30-second watchdog.
+   first web visit's tier, compiles a third less. The packed models' materials add 20 s through
+   ANGLE, and after the warm-up no visit stalls. No single program comes near Chrome's 30-second
+   watchdog.
 5. **The savings that need no option are worth as much as the options.** The exposure skips take
    15-53 % off a lit frame through ANGLE; the airless shader twins 14-23 % there and 76-83 % under
    Intel's Vulkan; the empty-shadow-pass skip 7-22 % of an Intel Forward+ frame.
@@ -631,12 +632,18 @@ same run again:
 - **The opening view is one frame.** Its first draw compiles every shader in view -- 51 s through
   ANGLE, 26 s through NVIDIA's GL -- which is why the boot screen has to stay up until the warm-up
   finishes rather than until the simulator starts.
-- **Afterwards, one stall is left: the spacecraft.** A tour of every kind of body after a cold boot
-  -- Earth, Venus, Titan, Mars, the Moon, Phobos, Jupiter, Saturn, Neptune, the Sun, Juno and both
-  wide views -- drew no frame over 0.3 s except the first sight of Juno: 11 s through ANGLE and
-  1.5 s through NVIDIA's GL. A spacecraft model's `StandardMaterial3D`s are not in
-  `IVGlobal.resources`, so the warm-up does not draw them (TODO). Under Vulkan the tour stalled
-  nowhere.
+- **Afterwards nothing stalls.** A tour of every kind of body after a cold boot -- Earth, Venus,
+  Titan, Mars, the Moon, Phobos, Jupiter, Saturn, Neptune, the Sun, Juno and both wide views --
+  drew no frame over 0.3 s, and under Vulkan it stalled nowhere. A visit to each of the twelve
+  bodies with a packed model after a cold boot drew no frame over 90 ms through ANGLE or 15 ms
+  through NVIDIA's GL, and compiled no program the warm-up had not (2026-09-30).
+- **The packed models' materials are 20 s of the warm-up through ANGLE at Low, and 1.5 s through
+  NVIDIA's GL** (2026-09-30), which the table's warm-up column predates. They compile per material
+  key, not per model: Godot generates one shader per `BaseMaterial3D` key (`_compute_key()` in
+  `material.h`) and shares it between materials, and the twelve bodies -- seven spacecraft,
+  Hyperion, Eros, Bennu, Itokawa and Arrokoth -- share seven keys, about 3 s each through ANGLE.
+  Left to a first visit (`warm_packed_models = false`), Juno's four stall a first sight of it 11 s
+  through ANGLE and 1.5 s through NVIDIA's GL. One key is a mistake in the models (TODO).
 - **A warm start compiles nothing.** Godot's cache answers, and the driver's under it; the warm-up
   then takes a frame per shader, 0.3-1.5 s.
 
@@ -892,11 +899,12 @@ light drawn at size 0 has no atlas framebuffer, and the Compatibility renderer d
 ### The warm-up
 
 `IVShaderWarmup` (`program/shader_warmup.gd`) draws spatial shaders on a small quad in front of the
-camera, one shader per frame, once at a planet-scale layer and once at a craft-scale layer carrying
-the shadow-caster bit; between them those reach the base, additive and shadow specializations bodies
-use. It is opt-in, added to `IVCoreInitializer.program_nodes` from a preinitializer. Its
-`progress_changed` is emitted one frame before the draw that stalls, so the text a handler sets is
-the text on screen through the stall. It runs once per session.
+camera, one shader per frame, then each packed model's materials, one model per frame, once at a
+planet-scale layer and once at a craft-scale layer carrying the shadow-caster bit; between them
+those reach the base, additive and shadow specializations bodies use. It is opt-in, added to
+`IVCoreInitializer.program_nodes` from a preinitializer. Its `progress_changed` is emitted one frame
+before the draw that stalls, so the text a handler sets is the text on screen through the stall. It
+runs once per session.
 
 **It draws what the project will bind, and nothing else.** A body's shell shaders come from the
 specs `IVAssetPreloader` resolved at load -- the cubemap, airless, Min and Off swaps included, so a
@@ -921,8 +929,14 @@ A shader no such condition can decide is deliberately not warmed, since a needle
 seconds of boot screen. `stars_shader` is the one Core shader in that position -- `IVStarsVisual` is
 a scene node, so nothing in the tables says a project kept it -- and it has compiled in the opening
 view before the warm-up runs anyway. `extra_shader_names` takes it, and a project's own shaders;
-`warm_core_shaders = false` turns the automatic selection off. A spacecraft model's own materials
-are not shaders in `IVGlobal.resources` at all, which is the stall *What a first run costs* found.
+`warm_core_shaders = false` turns the automatic selection off.
+
+**A packed model's materials are not shaders in `IVGlobal.resources`**, so they are read off an
+instance of the scene `IVAssetPreloader` loaded, which shares them with the model a first visit
+builds. Each distinct model is a step, named for the first body that uses it; in the Planetarium
+that is 11 models for 12 bodies, the Voyagers sharing one. Five of those steps compile nothing,
+the models sharing their material keys (*What a first run costs*). `warm_packed_models = false`
+turns them off.
 
 **Its trigger picks the moment.** `SIMULATOR_STARTED`, the default and the Planetarium's, draws in
 the real scene, so the quads reach the specializations bodies actually use; it cannot usefully run
@@ -1089,12 +1103,13 @@ longer runs alone. Two compiles of the same code still differ by up to about 13 
 **A cold start in the app** needs novel source for every shader -- a uniquely named uniform
 appended to each Core `.gdshader` -- with Godot's `shader_cache` (and so `EGL`) and its `vulkan`
 pipeline cache set aside, and both restored afterwards. Engine shaders and the
-`StandardMaterial3D` shaders of spacecraft models still hit the driver's own cache that way, which
-is a fraction of a second. **To prove the warm-up's coverage**, parse the `.cache` files Godot
+`StandardMaterial3D` shaders of packed models still hit the driver's own cache that way, which is
+a fraction of a second. **To prove the warm-up's coverage**, parse the `.cache` files Godot
 rewrites for every new specialization: `GLSC`, u32 version 3, u32 variant count, then per variant
 a count and per program a u64 specialization key, whose bit order is the `#[specializations]` list
 in `drivers/gles3/shaders/scene.glsl`. Snapshot them after the warm-up and after a flight, and diff
-the keys. Godot's `--print-fps` finds a stall but hides one under a second and cannot attribute it.
+the keys; a `StandardMaterial3D` version is one whose file names `metallic_texture_channel`.
+Godot's `--print-fps` finds a stall but hides one under a second and cannot attribute it.
 
 The frame and screenshot suites, the cold-start driver and the atmosphere's entry-point probe (which
 writes the include's outputs as raw floats over a grid of geometries, and times them) are session
@@ -1120,9 +1135,10 @@ scripts, not yet in the tools submodule.
 
 ## TODO
 
-- **Warm the spacecraft's materials.** The first sight of Juno after a cold boot stalls 11 s through
-  ANGLE and 1.5 s through NVIDIA's GL: its model's `StandardMaterial3D`s are not in
-  `IVGlobal.resources`, so `IVShaderWarmup` never draws them.
+- **One key is a mistake in the models.** Godot's glTF importer enables emission for any
+  `emissiveFactor`, `[0, 0, 0]` included, and Hubble's two panels, Hyperion, Bennu and Arrokoth
+  carry one, so their materials compile a seventh material key (*What a first run costs*) that
+  emits nothing, 3.3 s of a first run through ANGLE. Drop the zero factors at the asset source.
 - **Glow under Forward+ costs 20-50 % of an airless frame and changes no pixel in most lit views**,
   and Full and Reduced keep it (*Glow*). A skip while nothing in view exceeds the glow threshold
   would be a saving with no option, as the exposure skips are; it needs the frame's brightest
