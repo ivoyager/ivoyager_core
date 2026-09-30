@@ -327,7 +327,7 @@ func _apply_ambient() -> void:
 
 # IVSunOcclusionManager feeds sun_direction to the LIVE bodies' materials every frame and
 # never sees a staged copy, so without this the whole photometric chain -- lunar_lambert,
-# minnaert_k, atm_sun_transmittance, the atmosphere limb's entire ray geometry -- runs
+# minnaert_k, the atmosphere's sun transmittance, the limb's entire ray geometry -- runs
 # against the shader default while the DirectionalLight3D lights the body from somewhere
 # else. sun_angular_radius stays 0: a directional light casts a geometrically sharp
 # terminator, and a softened twilight would not be the one the lit surface beside it has.

@@ -225,6 +225,10 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"_hill_sphere",
 ]
 
+# How far a body's shells may reach, in mean radii: past any shell scale, triaxial figure or body
+# mesh. Only a visual that lies wholly inside IVFarwarpManager.true_bounds_distance drops the box.
+const _SHELLS_REACH_RADII := 2.0
+
 
 ## Set this script to generate a subclass in place of IVBody in create methods.
 ## Set [code]IVBody.replacement_subclass = MyBody[/code] for project-wide
@@ -1848,7 +1852,8 @@ func _resolve_triaxial_size() -> Vector3:
 ## computed before the origin shift is one frame of camera world-motion behind,
 ## which reads as violent shake on fast nearby orbiters. With [param farwarp_start]
 ## <= 0.0 (no camera), gives the true position. Also grants/clears this body's
-## LOCAL_SHADOW_CASTER state (see [method IVBodyVisual.set_local_shadow_caster]).
+## LOCAL_SHADOW_CASTER state (see [method IVBodyVisual.set_local_shadow_caster]) and
+## gives/takes its shells' farwarp box (see [method IVBodyVisual.set_farwarp_box]).
 func update_farwarp(camera_global_position: Vector3, farwarp_start: float) -> void:
 	# Only the HUD position symbol ([IVBodyPositionVisual]) consumes farwarp_position now; the
 	# body model is farwarp-remapped per-vertex in its shaders (see [IVFarwarpManager]).
@@ -1870,6 +1875,10 @@ func update_farwarp(camera_global_position: Vector3, farwarp_start: float) -> vo
 		if farwarp_start > 0.0:
 			local_limit = minf(local_limit, farwarp_start)
 		body_visual_typed.set_local_shadow_caster(farwarp_dist < local_limit)
+		# The box only while the visual may reach past the camera's far plane, where its true
+		# bounds fail the frustum test that its remapped drawing passes.
+		body_visual_typed.set_farwarp_box(farwarp_dist + mean_radius * _SHELLS_REACH_RADII
+				> IVFarwarpManager.true_bounds_distance)
 
 
 ## Current sleeping state. See [IVSleepManager].

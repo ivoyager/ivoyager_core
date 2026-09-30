@@ -18,7 +18,7 @@
 // limitations under the License.
 // *****************************************************************************
 shader_type spatial;
-render_mode unshaded, cull_disabled, skip_vertex_transform;
+render_mode unshaded, cull_disabled, skip_vertex_transform, fog_disabled;
 
 // Pure fragment-id overlay for a MultiMesh of lines (e.g. IVSBGOrbitsVisual). Attach as
 // material_overlay over the visible material; it stamps the per-instance encoded id at the

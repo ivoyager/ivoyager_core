@@ -35,7 +35,19 @@ extends RefCounted
 ## "MediumFixedFont", and "LargeFixedFont". The main theme's default_font_size
 ## is also dynamically managed. Font sizes are determined by this class's
 ## properties and (for dynamic) the global "gui_size" setting (a value of
-## [member IVCoreSettings.gui_size_settings]).[br][br]
+## [member IVCoreSettings.gui_size_settings]). Every size here is in logical
+## pixels, which the display scale maps to the screen (see [IVGraphicsManager]),
+## so "gui_size" is relative to the screen's own scale.[br][br]
+##
+## With [member scale_icons_and_spacing], the icons, stylebox content margins and
+## [member pixel_constants] the main theme uses, its own and Godot's default
+## theme's, follow "gui_size" too, so a check box, a button's padding or a
+## container's separation keeps its proportion to the text. Their authored sizes
+## are the GUI_LARGE size, as the base font sizes are. An icon that is not a
+## [DPITexture] keeps its size. Change these items through [member
+## main_theme_mods]: one set on the main theme after init is replaced at the next
+## "gui_size" change. A Control's own constant overrides follow "gui_size" under
+## an [IVControlModSpacing].[br][br]
 
 
 ## Emitted when the body-name Label3D font size changes: the main theme's
@@ -58,9 +70,31 @@ static var override_theme_path := ""
 static var fallback_theme_path := "res://addons/ivoyager_core/resources/ivoyager_theme.tres"
 static var override_font_path := ""
 static var fallback_font_path := "res://addons/ivoyager_assets/fonts/Roboto-NotoSansSymbols-merged.ttf"
+## Names of the theme constants that are lengths in pixels, which follow "gui_size"
+## (see class description). These are the constants Godot scales when it builds its
+## default theme at a [code]gui/theme/default_theme_scale[/code], plus
+## MarginContainer's margins and [code]outline_size[/code], which it builds at zero.
+static var pixel_constants: Array[StringName] = [
+	&"arrow_margin", &"button_margin", &"buttons_separation", &"check_h_separation",
+	&"close_h_offset", &"close_v_offset", &"h_separation", &"h_width", &"icon_h_separation",
+	&"icon_margin", &"icon_separation", &"indent", &"item_end_padding", &"item_margin",
+	&"item_start_padding", &"label_width", &"line_separation", &"line_spacing", &"margin",
+	&"margin_bottom", &"margin_left", &"margin_right", &"margin_top",
+	&"minimum_grab_thickness", &"outline_size", &"port_hotzone_inner_extent",
+	&"port_hotzone_outer_extent", &"resize_margin", &"scroll_border",
+	&"scrollbar_h_separation", &"scrollbar_v_separation", &"search_bar_separation",
+	&"separation", &"shadow_offset_x", &"shadow_offset_y", &"shadow_outline_size",
+	&"side_margin", &"sv_height", &"sv_width", &"table_h_separation", &"table_v_separation",
+	&"text_highlight_h_padding", &"text_highlight_v_padding", &"title_height",
+	&"underline_spacing", &"v_separation",
+]
 
 ## If true, the loaded font is assigned to the main theme's default font.
 var set_default_font := true
+## If true, the main theme's icons, stylebox content margins and [member
+## pixel_constants] follow the "gui_size" setting like the dynamic fonts (see class
+## description).
+var scale_icons_and_spacing := true
 ## Callables applied (in order) to the main Theme during init. Append your own
 ## to add custom theme modifications.
 var main_theme_mods: Array[Callable] = [
@@ -93,6 +127,7 @@ var _default_font_sizes: Array[int] = []
 var _medium_font_sizes: Array[int] = []
 var _large_font_sizes: Array[int] = []
 var _default_symbol_sizes: Array[float] = []
+var _gui_size_themes: Array[Theme] = [] # merged into the main theme at a "gui_size" change
 
 
 ## Returns a [Theme] specified by [member override_theme_path],
@@ -151,8 +186,9 @@ func _init() -> void:
 		_main_theme.default_font = _main_font
 	for mod in main_theme_mods:
 		mod.call(_main_theme)
+	_build_gui_size_themes()
 	var gui_size: int = IVSettingsManager.get_setting(&"gui_size")
-	_set_gui_font_sizes(gui_size)
+	_apply_gui_size(gui_size)
 
 
 
@@ -183,27 +219,86 @@ func get_label3d_names_font_size() -> int:
 	return roundi(default_font_size * names_percent / 100.0)
 
 
-## Returns the current body symbol screen size (px), derived from the active GUI
-## size and the "body_symbol_size_percent" user setting.
+## Returns the current body symbol screen size (logical px), derived from the active
+## GUI size and the "body_symbol_size_percent" user setting.
 func get_body_symbol_size() -> float:
 	var gui_size: int = IVSettingsManager.get_setting(&"gui_size")
 	var percent: int = IVSettingsManager.get_setting(&"body_symbol_size_percent")
 	return _default_symbol_sizes[gui_size] * percent / 100.0
 
 
-## Returns the current small-bodies symbol point size (px), derived from the
-## active GUI size and the "small_bodies_symbol_size_percent" user setting.
+## Returns the current small-bodies symbol point size (logical px), derived from
+## the active GUI size and the "small_bodies_symbol_size_percent" user setting.
 func get_small_bodies_symbol_size() -> float:
 	var gui_size: int = IVSettingsManager.get_setting(&"gui_size")
 	var percent: int = IVSettingsManager.get_setting(&"small_bodies_symbol_size_percent")
 	return _default_symbol_sizes[gui_size] * percent / 100.0
 
 
-func _set_gui_font_sizes(gui_size: int) -> void:
-	_main_theme.default_font_size = _default_font_sizes[gui_size]
-	_main_theme.set_font_size(&"font_size", &"MediumFont", _medium_font_sizes[gui_size])
-	_main_theme.set_font_size(&"font_size", &"LargeFont", _large_font_sizes[gui_size])
+func _apply_gui_size(gui_size: int) -> void:
+	_main_theme.merge_with(_gui_size_themes[gui_size])
 	_set_label3d_sizes()
+
+
+# Call once, before the first merge: it reads the main theme's items as authored.
+func _build_gui_size_themes() -> void:
+	# Each theme change is a synchronous pass over every Control, so everything that follows
+	# the GUI size must arrive as one merge of a prebuilt theme.
+	var source_themes: Array[Theme] = [ThemeDB.get_default_theme(), _main_theme] # main wins
+	var multipliers := IVCoreSettings.gui_size_multipliers
+	for i in multipliers.size():
+		var gui_size_theme := Theme.new()
+		gui_size_theme.default_font_size = _default_font_sizes[i]
+		gui_size_theme.set_font_size(&"font_size", &"MediumFont", _medium_font_sizes[i])
+		gui_size_theme.set_font_size(&"font_size", &"LargeFont", _large_font_sizes[i])
+		if scale_icons_and_spacing:
+			_add_scaled_items(gui_size_theme, source_themes, multipliers[i])
+		_gui_size_themes.append(gui_size_theme)
+
+
+func _add_scaled_items(gui_size_theme: Theme, source_themes: Array[Theme], multiplier: float
+		) -> void:
+	var scaled_icons: Dictionary[Texture2D, Texture2D] = {} # keeps a shared item shared
+	var scaled_styleboxes: Dictionary[StyleBox, StyleBox] = {}
+	for source_theme in source_themes:
+		for theme_type in source_theme.get_icon_type_list():
+			for icon_name in source_theme.get_icon_list(theme_type):
+				var icon := source_theme.get_icon(icon_name, theme_type)
+				if !scaled_icons.has(icon):
+					scaled_icons[icon] = _get_scaled_icon(icon, multiplier)
+				gui_size_theme.set_icon(icon_name, theme_type, scaled_icons[icon])
+		for theme_type in source_theme.get_stylebox_type_list():
+			for stylebox_name in source_theme.get_stylebox_list(theme_type):
+				var stylebox := source_theme.get_stylebox(stylebox_name, theme_type)
+				if !scaled_styleboxes.has(stylebox):
+					scaled_styleboxes[stylebox] = _get_scaled_stylebox(stylebox, multiplier)
+				gui_size_theme.set_stylebox(stylebox_name, theme_type, scaled_styleboxes[stylebox])
+		for theme_type in source_theme.get_constant_type_list():
+			for constant_name in source_theme.get_constant_list(theme_type):
+				if pixel_constants.has(StringName(constant_name)):
+					var constant := source_theme.get_constant(constant_name, theme_type)
+					gui_size_theme.set_constant(constant_name, theme_type,
+							roundi(constant * multiplier))
+
+
+func _get_scaled_icon(icon: Texture2D, multiplier: float) -> Texture2D:
+	var dpi_texture := icon as DPITexture
+	if !dpi_texture:
+		return icon
+	var scaled_texture := dpi_texture.duplicate() as DPITexture
+	scaled_texture.base_scale = dpi_texture.base_scale * multiplier
+	return scaled_texture
+
+
+func _get_scaled_stylebox(stylebox: StyleBox, multiplier: float) -> StyleBox:
+	var scaled_stylebox := stylebox.duplicate() as StyleBox
+	for side: Side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
+		# A negative content margin means "use the style's own", which has no size to scale.
+		var margin := stylebox.get_content_margin(side)
+		if margin > 0.0:
+			# Rounded, as Godot rounds when it scales its default theme.
+			scaled_stylebox.set_content_margin(side, roundf(margin * multiplier))
+	return scaled_stylebox
 
 
 func _set_label3d_sizes() -> void:
@@ -223,7 +318,7 @@ func _settings_listener(setting: StringName, value: Variant) -> void:
 	match setting:
 		&"gui_size":
 			var gui_size: int = value
-			_set_gui_font_sizes(gui_size)
+			_apply_gui_size(gui_size)
 			_set_symbol_sizes()
 		&"label3d_names_size_percent":
 			_set_label3d_sizes()

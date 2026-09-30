@@ -30,7 +30,9 @@ extends Sprite3D
 ## body. Symbol shape and color are per group, shared with the body's orbit.[br][br]
 ##
 ## Symbol screen size and name font size both follow [IVThemeManager] (the
-## "body_symbol_size_percent" and "label3d_names_size_percent" settings).
+## "body_symbol_size_percent" and "label3d_names_size_percent" settings), in logical
+## pixels: a display scale enlarges both on screen, and the name is rasterized at that
+## scale so it stays sharp (see [IVGraphicsManager]).
 
 
 ## Render priority for the symbol, the name and the name's outline. Transparent surfaces
@@ -38,6 +40,8 @@ extends Sprite3D
 ## shell above it — a moon's name vanishing into its planet's cloud deck. This must stay
 ## clear of the highest [IVShellsModel] shell priority, which is the body's shell count - 1.
 const HUD_RENDER_PRIORITY := 20
+
+const _NAME_OUTLINE_SIZE := 12 # Label3D's default, at display scale 1
 
 
 ## Name-label offset from the centered symbol when both are shown, as a fraction
@@ -63,6 +67,7 @@ var _name_font_size: int
 var _symbol_size: float
 var _camera_fov: float
 var _viewport_size: Vector2
+var _display_scale: float
 
 
 func _init(body: IVBody) -> void:
@@ -108,6 +113,7 @@ func _ready() -> void:
 	var viewport := get_viewport()
 	_camera_fov = viewport.get_camera_3d().fov
 	_viewport_size = viewport.get_visible_rect().size
+	_display_scale = IVGlobal.get_window().content_scale_factor
 
 	_set_global_visibilities()
 	# World-space (top_level) placement per frame: the compressed farwarp_position is tiny
@@ -142,29 +148,37 @@ func _set_visual_state() -> void:
 	_name_label.visible = show_name
 	if show_name:
 		_name_label.text = _body.get_hud_name()
-		_name_label.font_size = _name_font_size
+		_set_name_raster_sizes()
 	_update_name_offset(show_symbol)
 	_update_pixel_sizes()
 
 
+# Label3D rasterizes glyphs at its font_size, so the display scale has to enlarge the
+# raster rather than the quad, or a name would be magnified to a blur.
+func _set_name_raster_sizes() -> void:
+	_name_label.font_size = roundi(_name_font_size * _display_scale)
+	_name_label.outline_size = roundi(_NAME_OUTLINE_SIZE * _display_scale)
+
+
 # Name centered on the body, or offset per [member name_offset_ratio] (times the
-# symbol screen size) when the symbol also shows. Label3D offset is in screen px
-# because the name pixel_size makes 1 unit ~= 1 px.
+# symbol screen size) when the symbol also shows. Label3D offset is in window px
+# because the name pixel_size makes 1 unit ~= 1 window px.
 func _update_name_offset(show_symbol: bool) -> void:
 	if show_symbol:
 		_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		_name_label.offset = name_offset_ratio * _symbol_size
+		_name_label.offset = name_offset_ratio * _symbol_size * _display_scale
 	else:
 		_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_name_label.offset = Vector2.ZERO
 
 
-# Screen-fixed sizing: the name label renders font_size ~= screen px; the symbol
-# sprite renders its atlas cell at _symbol_size screen px.
+# Screen-fixed sizing: the symbol sprite renders its atlas cell at _symbol_size
+# logical px; the name label's units are window px, so font_size ~= logical px
+# after _set_name_raster_sizes().
 func _update_pixel_sizes() -> void:
 	# Godot errors if fov set > 179, so tan() won't go to INF here...
 	var factor := 2.0 * tan(deg_to_rad(_camera_fov) * 0.5) / _viewport_size.y
-	_name_label.pixel_size = factor
+	_name_label.pixel_size = factor / _display_scale
 	if texture:
 		pixel_size = factor * _symbol_size / float(texture.get_height())
 
@@ -198,7 +212,7 @@ func _on_name_font_size_changed(name_size: int) -> void:
 		return
 	_name_font_size = name_size
 	if _name_label.visible:
-		_name_label.font_size = _name_font_size
+		_set_name_raster_sizes()
 
 
 func _on_camera_fov_changed(fov: float) -> void:
@@ -209,10 +223,17 @@ func _on_camera_fov_changed(fov: float) -> void:
 
 
 func _on_viewport_size_changed(size: Vector2) -> void:
-	if _viewport_size == size:
+	# A display scale change also arrives here, possibly with the logical size unchanged.
+	# IVGlobal's window, because a body can be briefly out of the tree (reparent, remove).
+	var display_scale := IVGlobal.get_window().content_scale_factor
+	if _viewport_size == size and _display_scale == display_scale:
 		return
 	_viewport_size = size
-	_update_pixel_sizes()
+	if _display_scale == display_scale:
+		_update_pixel_sizes()
+		return
+	_display_scale = display_scale
+	_set_visual_state() # the name's raster and offset follow the display scale too
 
 
 func _on_body_symbol_size_changed(symbol_size: float) -> void:

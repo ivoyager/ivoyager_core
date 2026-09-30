@@ -25,7 +25,9 @@ extends ConfirmationDialog
 ## Call using [signal IVGlobal.confirmation_required]. Calling with
 ## [param stop_sim] == true (default) means that the sim will stop while the
 ## dialog is open. This can be suppressed by setting
-## [member IVCoreSettings.popops_can_stop_sim] to false.
+## [member IVCoreSettings.popops_can_stop_sim] to false. An empty
+## [param cancel_txt] makes a notice: no Cancel button, and [param action] may
+## be an empty Callable.
 
 var _stop_sim: bool
 var _action: Callable
@@ -48,6 +50,8 @@ func _on_confirmation_requested(text: StringName, action: Callable, stop_sim := 
 		title_txt := &"LABEL_PLEASE_CONFIRM", ok_txt := &"BUTTON_OK", cancel_txt := &"BUTTON_CANCEL"
 		) -> void:
 	if visible:
+		if action == _action:
+			return # already asking this, e.g., after a second click on the button that asked
 		push_warning("Confirmation requested when already open")
 		# Discard/overwrite existing dialog. Avoid edge case permanent stop.
 		if _stop_sim and !stop_sim:
@@ -58,8 +62,10 @@ func _on_confirmation_requested(text: StringName, action: Callable, stop_sim := 
 	title = title_txt
 	ok_button_text = ok_txt
 	cancel_button_text = cancel_txt
+	get_cancel_button().visible = !cancel_txt.is_empty()
 	if _stop_sim:
 		IVStateManager.require_stop(self)
+	size = Vector2i.ZERO # a popup grows to fit its content, but never shrinks back on its own
 	popup_centered()
 	_retake_focus()
 
@@ -67,7 +73,8 @@ func _on_confirmation_requested(text: StringName, action: Callable, stop_sim := 
 func _on_confirmed() -> void:
 	if _stop_sim:
 		IVStateManager.allow_run(self)
-	_action.call()
+	if _action.is_valid():
+		_action.call()
 
 
 func _on_canceled() -> void:

@@ -33,10 +33,10 @@ extends Object
 ## assert(IVDebug.register_objects_recursive_on_nodes_added())
 ## [/codeblock]
 ##
-## A debug log is opened only in debug builds. It is flushed on
-## [signal IVStateManager.run_state_changed], which happens whenever the sim stops
-## for a popup (e.g., on [param esc] for the main menu) and closed when project
-## autoloads exit the tree. To prevent log file opening, set
+## A debug log is opened by the first [method dlog] call, in debug builds only,
+## so a run that never logs leaves the file alone (several instances of a
+## project can run at once without emptying each other's log). It is closed when
+## project autoloads exit the tree. To prevent log file opening, set
 ## [member dlog_name] = ""[br][br]
 ##
 ## Methods with a large singular output usually create a separate log file
@@ -45,11 +45,13 @@ extends Object
 
 ## Directory used for log files written by this class.
 static var log_directory := "user://logs"
-## File name for the default debug log opened in [method _static_init]. Set to
-## [code]""[/code] before any [method dlog] call to disable log file creation.
+## File name for the default debug log opened by the first [method dlog] call.
+## Set to [code]""[/code] before any [method dlog] call to disable log file
+## creation.
 static var dlog_name := "debug.log"
 
 static var _dlog: FileAccess
+static var _dlog_closed := false
 
 
 # Standard file order is violated below to keep related code together...
@@ -58,21 +60,22 @@ static var _dlog: FileAccess
 # log init, flush and destruction
 
 static func _static_init() -> void:
-	if !dlog_name or !OS.is_debug_build():
+	if !OS.is_debug_build():
 		return
-	_dlog = FileAccess.open(log_directory.path_join(dlog_name), FileAccess.WRITE)
-	assert(_dlog, "Failed to open %s" % log_directory.path_join(dlog_name))
 	#IVStateManager.run_state_changed.connect(_dlog_flush) # e.g., main menu opened/closed
 	IVGlobal.tree_exited.connect(_dlog_destroy)
 
 
 static func _dlog_flush(_dummy := false) -> void:
-	_dlog.flush()
+	if _dlog:
+		_dlog.flush()
 
 
 static func _dlog_destroy() -> void:
-	_dlog.close()
-	_dlog = null
+	_dlog_closed = true # a late dlog() at quit must not reopen and empty the file
+	if _dlog:
+		_dlog.close()
+		_dlog = null
 
 
 # *****************************************************************************
@@ -86,9 +89,13 @@ static func dprint(arg: Variant, arg2: Variant = "", arg3: Variant = "", arg4: V
 	return true
 
 
-## Writes [param arg] to the debug log if one is open. Always returns true so
-## it can be wrapped in [method @GDScript.assert].
+## Writes [param arg] to the debug log, opening it on the first call (debug
+## builds only; see [member dlog_name]). Call from one thread at a time. Always
+## returns true so it can be wrapped in [method @GDScript.assert].
 static func dlog(arg: Variant) -> bool:
+	if !_dlog and !_dlog_closed and dlog_name and OS.is_debug_build():
+		_dlog = FileAccess.open(log_directory.path_join(dlog_name), FileAccess.WRITE)
+		assert(_dlog, "Failed to open %s" % log_directory.path_join(dlog_name))
 	if _dlog:
 		_dlog.store_line(str(arg))
 	return true

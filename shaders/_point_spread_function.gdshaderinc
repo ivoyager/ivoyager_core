@@ -38,6 +38,13 @@
 // The two sides of that split share their LOD ramp here. A disc's fade-out and its quad's
 // core fade-in are opposite ends of one crossfade, so they must come from one expression
 // against one pixel radius or they would not sum to a constant through the handoff.
+//
+// FOUR OF THESE ARE MIRRORED IN GDSCRIPT and must be edited in both places:
+// flux_from_magnitude, psf_visible_size, psf_glare_amplitude and psf_glare_draw_size are
+// reimplemented in IVPSFSettings (program/psf_settings.gd, "CPU mirror of the shader's
+// PSF"), where IVStarsVisual needs to know what a magnitude bin WOULD render before
+// deciding whether to draw it at all. Nothing detects a divergence; a bin would simply go
+// missing while still visible, or stop being culled.
 
 // B-V -> linear sRGB: the blackbody color of the temperature B-V implies, sampled at
 // eight knots and interpolated (within 0.02 of the source curve everywhere). Derived

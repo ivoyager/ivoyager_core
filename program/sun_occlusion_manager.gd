@@ -22,7 +22,7 @@ extends Node
 
 ## Drives the analytic sun-occlusion system (see
 ## [code]shaders/_sun_occlusion.gdshaderinc[/code]): feeds per-frame occluder
-## and ring-shadow uniforms to every receiving material, and publishes a
+## and ring-shadow uniforms to every receiving material that draws, and publishes a
 ## camera-point sun-visible fraction for local light dimming.
 ##
 ## Receivers are [IVBody] instances whose visuals carry a [ShaderMaterial]
@@ -43,8 +43,9 @@ extends Node
 ##
 ## Receivers disable engine ambient and rebuild it from the manager-fed
 ## [code]ambient_light[/code] uniform, so shadows can never darken starlight
-## (see the shaderinc header). The value comes from the [WorldEnvironment]
-## ([code]AMBIENT_SOURCE_COLOR[/code] only; other sources feed zero). This feed
+## (see the shaderinc header). The value comes from the [WorldEnvironment] that
+## [member IVCoreInitializer.tree_program_nodes] indexes as [code]WorldEnvironment[/code]
+## ([code]AMBIENT_SOURCE_COLOR[/code] only; other sources, or none, feed zero). This feed
 ## continues when [member IVCoreSettings.apply_analytic_shadows] is false -
 ## that setting disables only the shadow terms and the light dimming.
 
@@ -63,7 +64,7 @@ var _analytic_enabled: bool = IVCoreSettings.apply_analytic_shadows
 
 var _camera: Camera3D
 var _camera_star_orbiter: IVBody
-var _world_environment: WorldEnvironment # persistent scene node; found lazily
+var _world_environment: WorldEnvironment
 var _ambient_light := Vector3.ZERO # scene ambient color x energy, for the shadow uniforms
 
 # Receiver material caches, keyed by body name; rebuilt when the cached
@@ -71,6 +72,7 @@ var _ambient_light := Vector3.ZERO # scene ambient color x energy, for the shado
 # uniforms (checked once per Shader).
 var _registered_visuals: Dictionary[StringName, Node3D] = {}
 var _registered_materials: Dictionary[StringName, Array] = {} # Array[ShaderMaterial]
+var _registered_meshes: Dictionary[StringName, Array] = {} # Array[MeshInstance3D], the same order
 var _shader_opt_ins: Dictionary[Shader, bool] = {}
 var _candidate_lists: Dictionary[StringName, Array] = {} # Array[IVBody]
 
@@ -238,6 +240,7 @@ func _ready() -> void:
 	_occluder_data_a.resize(MAX_OCCLUDERS)
 	_occluder_data_b.resize(MAX_OCCLUDERS)
 	_occluder_data_c.resize(MAX_OCCLUDERS)
+	_world_environment = IVGlobal.program.get(&"WorldEnvironment")
 	IVGlobal.current_camera_changed.connect(_on_current_camera_changed)
 	IVGlobal.camera_tree_changed.connect(_on_camera_tree_changed)
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
@@ -259,7 +262,7 @@ func _process(_delta: float) -> void:
 		var materials: Array = _registered_materials[body_name]
 		if materials.is_empty():
 			continue
-		_feed_body(body, materials)
+		_feed_body(body, materials, _registered_meshes[body_name])
 
 
 # Shadowed regions must keep receiving ambient (the shaders restore the exact
@@ -267,11 +270,6 @@ func _process(_delta: float) -> void:
 # uniforms carry the scene ambient. Only AMBIENT_SOURCE_COLOR is readable as a
 # value; other sources feed zero and shadows there go to black.
 func _update_ambient_light() -> void:
-	if not is_instance_valid(_world_environment):
-		_world_environment = null
-		for node in get_tree().root.find_children("*", "WorldEnvironment", true, false):
-			_world_environment = node as WorldEnvironment
-			break
 	_ambient_light = Vector3.ZERO
 	if not _world_environment:
 		return
@@ -295,6 +293,7 @@ func _clear_procedural() -> void:
 	_camera_star_orbiter = null
 	_registered_visuals.clear()
 	_registered_materials.clear()
+	_registered_meshes.clear()
 	_ring_materials.clear()
 	_candidate_lists.clear()
 	_rings_nodes.clear()
@@ -310,13 +309,15 @@ func _clear_procedural() -> void:
 func _discover_visual(body_name: StringName, body_visual: Node3D) -> void:
 	_ring_materials.erase(body_name)
 	var materials: Array[ShaderMaterial] = []
-	_discover_recursive(body_visual, body_name, materials)
+	var meshes: Array[MeshInstance3D] = []
+	_discover_recursive(body_visual, body_name, materials, meshes)
 	_registered_visuals[body_name] = body_visual
 	_registered_materials[body_name] = materials
+	_registered_meshes[body_name] = meshes
 
 
-func _discover_recursive(node: Node, body_name: StringName, materials: Array[ShaderMaterial]
-		) -> void:
+func _discover_recursive(node: Node, body_name: StringName, materials: Array[ShaderMaterial],
+		meshes: Array[MeshInstance3D]) -> void:
 	var rings := node as IVRings
 	if rings:
 		_register_rings(body_name, rings)
@@ -333,8 +334,9 @@ func _discover_recursive(node: Node, body_name: StringName, materials: Array[Sha
 			if IVGlobal.is_gl_compatibility:
 				material.set_shader_parameter(&"compat_albedo_shadow", true)
 			materials.append(material)
+			meshes.append(mesh_instance)
 	for child in node.get_children():
-		_discover_recursive(child, body_name, materials)
+		_discover_recursive(child, body_name, materials, meshes)
 
 
 func _shader_opts_in(shader: Shader) -> bool:
@@ -365,7 +367,7 @@ func _register_rings(system_name: StringName, rings: IVRings) -> void:
 			rings.name)
 
 
-func _feed_body(body: IVBody, materials: Array) -> void:
+func _feed_body(body: IVBody, materials: Array, meshes: Array) -> void:
 	var star := body.star
 	if not star or star == body:
 		return
@@ -379,6 +381,18 @@ func _feed_body(body: IVBody, materials: Array) -> void:
 	# One frame behind, as the occluder fractions here are; an exposure ramp moves in EV per
 	# second, so a frame of it stays far under a display code.
 	var sun_light_energy: float = IVDynamicLight.star_light_energies.get(star.name, 1.0)
+
+	# This body's own rings, if any: the body is the occluder of its rings.
+	var ring_material: ShaderMaterial = _ring_materials.get(body.name)
+	if ring_material:
+		_feed_ring_material(body, ring_material, sun_direction, sun_angular_radius,
+				sun_light_energy)
+
+	# A body handed off to its point hides every shell, and nothing reads a hidden shell's
+	# uniforms. The shells' gate runs at priority 0, before this, so a shell shown this frame
+	# is fed before it draws.
+	if !_is_any_visible(meshes):
+		return
 	var occluder_count := 0
 	var occluder_data_a := PackedVector4Array()
 	var occluder_data_b := PackedVector4Array()
@@ -408,19 +422,23 @@ func _feed_body(body: IVBody, materials: Array) -> void:
 			material.set_shader_parameter(&"occluder_data_b", occluder_data_b)
 			material.set_shader_parameter(&"occluder_data_c", occluder_data_c)
 		if rings:
-			material.set_shader_parameter(&"ring_alpha_r8", _ring_profile_textures[system_name])
-			material.set_shader_parameter(&"ring_alpha_width",
-					float(_ring_profile_textures[system_name].get_width()))
+			# Writing a texture rebuilds the material's uniform set, unchanged texture or not.
+			var ring_profile_texture := _ring_profile_textures[system_name]
+			if material.get_shader_parameter(&"ring_alpha_r8") != ring_profile_texture:
+				material.set_shader_parameter(&"ring_alpha_r8", ring_profile_texture)
+				material.set_shader_parameter(&"ring_alpha_width",
+						float(ring_profile_texture.get_width()))
 			material.set_shader_parameter(&"ring_center", rings.global_position)
 			material.set_shader_parameter(&"ring_normal", rings.global_basis.y.normalized())
 			material.set_shader_parameter(&"ring_texture_inner", rings.texture_inner_radius)
 			material.set_shader_parameter(&"ring_texture_outer", rings.texture_outer_radius)
 
-	# This body's own rings, if any: the body is the occluder of its rings.
-	var ring_material: ShaderMaterial = _ring_materials.get(body.name)
-	if ring_material:
-		_feed_ring_material(body, ring_material, sun_direction, sun_angular_radius,
-				sun_light_energy)
+
+func _is_any_visible(meshes: Array) -> bool:
+	for mesh_instance: MeshInstance3D in meshes:
+		if mesh_instance.is_visible_in_tree():
+			return true
+	return false
 
 
 # Feeds the ringed body's own rings material: the body itself is the dominant

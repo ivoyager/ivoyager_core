@@ -110,7 +110,7 @@ func _configure_after_core_inited() -> void:
 	var control_block := HBoxContainer.new()
 	control_block.size_flags_horizontal = SIZE_EXPAND_FILL
 	control_block.alignment = ALIGNMENT_END
-	control_block.custom_minimum_size = Vector2(155, 0)
+	control_block.add_child(IVControlModResizable.create(Vector2(155, 0)))
 	if body_flags:
 		_add_checkbox(control_block, IVHUDsCheckBox.HUDsType.NAMES, "HINT_SHOW_NAME")
 	_add_checkbox(control_block, IVHUDsCheckBox.HUDsType.SYMBOLS, "HINT_SHOW_SYMBOL")

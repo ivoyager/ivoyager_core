@@ -25,12 +25,19 @@
 // `render_mode unshaded` outputs ALBEDO directly and skips the EMISSION add.
 //
 // Globals are set by IVFragmentIdentifier each frame:
-//   iv_mouse_fragcoord  - mouse position + (0.5, 0.5) in internal-buffer pixels
+//   iv_mouse_fragcoord  - center of the internal-buffer pixel under the mouse
 //   iv_fragment_id_range - sparse-grid half-extent; <= 0 disables broadcasting
 //
 // Fragment id components arrive in [1, 1024] per channel (offset-by-1 sentinel
 // applied by IVFragmentIdentifier.encode_vec3) and reach ALBEDO through
 // id_broadcast(), never raw.
+//
+// An id shader must stay in the opaque pass. Writing ALPHA, a blend mode,
+// depth_draw_never or depth_test_disabled each moves it to the transparent pass,
+// which the probe reads before, so its id would never be seen (VISUAL_MODEL.md,
+// "Mouse picking"). It must also render fog_disabled: the engine blends
+// Environment fog into the fragment after fragment() returns, moving the stamp
+// off its exact encoding.
 
 global uniform vec2 iv_mouse_fragcoord;
 global uniform float iv_fragment_id_range;

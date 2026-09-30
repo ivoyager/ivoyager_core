@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://bd8gmabf8f6ub"]
+[gd_scene load_steps=3 format=3 uid="uid://bd8gmabf8f6ub"]
 
 [ext_resource type="Script" uid="uid://cjk4cicu4imsc" path="res://addons/ivoyager_core/ui_widgets/hotkey_dialog.gd" id="1"]
+[ext_resource type="PackedScene" uid="uid://cimxq7ent5esq" path="res://addons/ivoyager_core/ui_components/control_mod_spacing.tscn" id="1_spcng"]
 
 [node name="HotkeyDialog" type="ConfirmationDialog"]
 process_mode = 3
@@ -35,3 +36,5 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 4
 text = "x"
+
+[node name="ControlModSpacing" parent="VBoxContainer/HBox" instance=ExtResource("1_spcng")]

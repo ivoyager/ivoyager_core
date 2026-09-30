@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://bmi5c7g8rwf3h"]
+[gd_scene load_steps=3 format=3 uid="uid://bmi5c7g8rwf3h"]
 
 [ext_resource type="Script" uid="uid://dw4kmnra12xw3" path="res://addons/ivoyager_core/ui_widgets/view_edit.gd" id="1_85xfe"]
+[ext_resource type="PackedScene" uid="uid://bkcj6agxxgfw" path="res://addons/ivoyager_core/ui_components/control_mod_resizable.tscn" id="2_rszbl"]
 
 [node name="ViewEdit" type="VBoxContainer"]
 offset_left = 5.0
@@ -15,7 +16,6 @@ layout_mode = 2
 text = "New..."
 
 [node name="Spacer" type="Control" parent="."]
-custom_minimum_size = Vector2(0, 10)
 layout_mode = 2
 
 [node name="LineEdit" type="LineEdit" parent="."]
@@ -30,7 +30,6 @@ caret_blink = true
 caret_blink_interval = 0.5
 
 [node name="Spacer2" type="Control" parent="."]
-custom_minimum_size = Vector2(0, 10)
 layout_mode = 2
 
 [node name="SelectionCkbx" type="CheckBox" parent="."]
@@ -69,7 +68,6 @@ layout_mode = 2
 text = "CKBX_LOCK_PRESENT"
 
 [node name="Spacer3" type="Control" parent="."]
-custom_minimum_size = Vector2(0, 10)
 layout_mode = 2
 
 [node name="SaveCurrentButton" type="Button" parent="."]
@@ -86,3 +84,12 @@ text = "BUTTON_RESTORE_DEFAULT"
 unique_name_in_owner = true
 layout_mode = 2
 text = "BUTTON_DELETE"
+
+[node name="ControlModResizable" parent="Spacer" instance=ExtResource("2_rszbl")]
+base_size = Vector2(0, 10)
+
+[node name="ControlModResizable" parent="Spacer2" instance=ExtResource("2_rszbl")]
+base_size = Vector2(0, 10)
+
+[node name="ControlModResizable" parent="Spacer3" instance=ExtResource("2_rszbl")]
+base_size = Vector2(0, 10)

@@ -22,8 +22,13 @@ extends Button
 
 ## Button widget that opens user options.
 ##
-## Emits [signal IVGlobal.options_requested], which opens [IVOptionsPopup].
+## Emits [signal IVGlobal.options_requested], which opens [IVOptionsPopup] or
+## closes it if it's open. A tooltip names the hotkey.
 
 
 func _pressed() -> void:
 	IVGlobal.options_requested.emit()
+
+
+func _get_tooltip(_at_position: Vector2) -> String:
+	return IVInputMapManager.append_action_key(tr(tooltip_text), &"toggle_options")

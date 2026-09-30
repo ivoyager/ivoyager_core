@@ -23,24 +23,29 @@ extends CompositorEffect
 ## Compute-shader probe attached to the active [Camera3D]'s [Compositor] by
 ## [IVFragmentIdentifier].
 ##
-## Runs at [code]EFFECT_CALLBACK_TYPE_POST_TRANSPARENT[/code] each frame:[br]
-## 1. Iterates a sparse 3-pixel grid around [member _world_mouse], bounded by
-##    the fragment range passed in to [method _init].[br]
+## Runs at [code]EFFECT_CALLBACK_TYPE_PRE_TRANSPARENT[/code] each frame:[br]
+## 1. Iterates a sparse 3-pixel grid around the pixel set by [method
+##    set_probe_pixel], bounded by the fragment range passed in to [method _init]
+##    or [method set_fragment_range].[br]
 ## 2. Each grid pixel is lifted out of the broadcast band (see
 ##    [code]id_broadcast()[/code] in [code]_fragment_id.gdshaderinc[/code]) and
 ##    rounded; channel values in [code][1, 1024][/code] are valid id-encoded
-##    pixels (offset-by-1 sentinel). Without MSAA this reads the resolved HDR
-##    color buffer; with MSAA it reads the unresolved multisampled buffer and
+##    pixels (offset-by-1 sentinel). Without MSAA this reads the HDR color
+##    buffer; with MSAA it reads the unresolved multisampled buffer and
 ##    scans samples, since a resolve would average the exact encoding away.[br]
 ## 3. Tracks the closest-to-center valid sample and writes it to a small SSBO.[br]
 ## 4. Issues an asynchronous readback. The callback decodes the id and emits
 ##    [signal fragment_decoded] on the main thread via [code]call_deferred[/code].[br][br]
 ##
+## The probe sees the opaque pass and nothing drawn over it, so an id shader
+## must draw in the opaque pass, and transparent geometry does not hide an id;
+## see "Mouse picking" in VISUAL_MODEL.md.[br][br]
+##
 ## WARNING: All [RenderingDevice] work happens on the render thread.
 ## [signal fragment_decoded] is hopped to the main thread before emit.[br][br]
 ##
-## WARNING: CompositorEffect is currently marked @experimental. It's possilbe
-## that API might change, although the capability are unlikely to go away.[br][br]
+## WARNING: CompositorEffect is currently marked @experimental. It's possible
+## that API might change, although the capabilities are unlikely to go away.[br][br]
 ##
 ## TODO: When Godot proposal [url]https://github.com/godotengine/godot-proposals/issues/7916[/url]
 ## is fully implemented, we won't need this class or the probe compute shader.
@@ -57,13 +62,13 @@ const _SSBO_BYTE_SIZE := 16 # ivec3 best_channels + int best_dist_sq
 ## [code]-1[/code] when the probe found no valid id.
 signal fragment_decoded(id: int)
 
-# Sparse-grid half-extent in pixels (multiple of 3). Owned by IVFragmentIdentifier
-# and passed to _init(); not changeable after construction.
+# Sparse-grid half-extent in pixels (multiple of 3). Read on render thread; written from
+# main thread. A stale read is at most one frame's probe on the previous range.
 var _fragment_range: int
 
-# Read on render thread; written from main thread. A torn read on Vector2 is
-# at most one stale frame's mouse position — acceptable.
-var _world_mouse := Vector2.ZERO
+# Read on render thread; written from main thread. A torn read on Vector2i is
+# at most one stale frame's probe pixel — acceptable.
+var _probe_pixel := Vector2i.ZERO
 
 # Render-thread state.
 var _rd: RenderingDevice
@@ -77,8 +82,8 @@ var _sampler_rid := RID()
 
 func _init(fragment_range: int) -> void:
 	_fragment_range = fragment_range
-	effect_callback_type = EFFECT_CALLBACK_TYPE_POST_TRANSPARENT
-	access_resolved_color = true
+	effect_callback_type = EFFECT_CALLBACK_TYPE_PRE_TRANSPARENT
+	access_resolved_color = false # true would add an unread MSAA resolve every frame
 	enabled = true
 	RenderingServer.call_on_render_thread(_init_render_resources)
 
@@ -104,10 +109,19 @@ func _notification(what: int) -> void:
 		_rd.free_rid(_sampler_rid)
 
 
-## Main-thread setter for the window-space mouse position used as the probe
-## center. Read on the render thread.
-func set_world_mouse(pos: Vector2) -> void:
-	_world_mouse = pos
+## Main-thread setter for the probe center: the 3D render buffer's pixel under
+## the mouse, which [IVFragmentIdentifier] also broadcasts to the id shaders.
+## Read on the render thread.
+func set_probe_pixel(pixel: Vector2i) -> void:
+	_probe_pixel = pixel
+
+
+## Main-thread setter for the sparse grid's half-extent, in 3D render buffer pixels. It
+## must be a multiple of 3 and match the [code]iv_fragment_id_range[/code] global the id
+## shaders stamp to, which [IVFragmentIdentifier] sets with it. Read on the render thread.
+func set_fragment_range(fragment_range: int) -> void:
+	assert(fragment_range >= 0 and fragment_range % 3 == 0)
+	_fragment_range = fragment_range
 
 
 # *****************************************************************************
@@ -147,7 +161,7 @@ func _init_render_resources() -> void:
 
 
 func _render_callback(callback_type: int, render_data: RenderData) -> void:
-	if !enabled or callback_type != EFFECT_CALLBACK_TYPE_POST_TRANSPARENT:
+	if !enabled or callback_type != effect_callback_type:
 		return
 	if _rd == null or !_pipeline_rid.is_valid():
 		return
@@ -192,7 +206,7 @@ func _render_callback(callback_type: int, render_data: RenderData) -> void:
 	ssbo_uniform.add_id(_ssbo_rid)
 	var ssbo_uniform_set := UniformSetCacheRD.get_cache(shader_rid, 1, [ssbo_uniform])
 
-	var probe_pixel := Vector2i(_world_mouse)
+	var probe_pixel := _probe_pixel
 
 	var push_size := _PUSH_CONSTANT_MSAA_SIZE if use_msaa else _PUSH_CONSTANT_SIZE
 	var push_constant := PackedByteArray()

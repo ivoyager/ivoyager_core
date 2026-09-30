@@ -33,7 +33,8 @@ extends RefCounted
 ## All work here is the same whether this is a new game built from data tables
 ## or a loaded game built from file. Most of the work is done on threads if
 ## [member IVCoreSettings.use_threads] == true and [member disable_threads]
-## == false.[br][br]
+## == false, except on the dummy renderer of a headless run before Godot 4.8,
+## which can't create meshes and materials on two threads at once.[br][br]
 
 
 ## Overrides [member IVCoreSettings.use_threads] for this object.
@@ -56,7 +57,14 @@ func _init() -> void:
 
 
 func _on_core_inited() -> void:
-	_use_threads = IVCoreSettings.use_threads and !disable_threads
+	# Before Godot 4.8 the dummy renderer of a headless run can't allocate mesh
+	# and material RIDs on two threads at once (godotengine/godot#121949), as
+	# these tasks and the main thread's tree build do.
+	var is_dummy_renderer := (DisplayServer.get_name() == "headless"
+			or RenderingServer.get_current_rendering_driver_name() == "dummy")
+	var engine_version: int = Engine.get_version_info()["hex"]
+	var is_unsafe_renderer := is_dummy_renderer and engine_version < 0x040800
+	_use_threads = IVCoreSettings.use_threads and !disable_threads and !is_unsafe_renderer
 
 
 func _on_node_added(node: Node) -> void:

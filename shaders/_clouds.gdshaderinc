@@ -34,6 +34,11 @@ uniform samplerCube clouds_shadow_map : source_color;
 uniform float clouds_shadow_scale = 0.0; // the deck's radius / this shell's; <= 1 disables
 uniform vec3 clouds_shadow_range_lo = vec3(0.0);
 uniform vec3 clouds_shadow_range_hi = vec3(1.0);
+// Where the deck is DRAWN, as (cos, sin) of its spin about +Y. A deck that drifts over the
+// surface is a map this shell samples in a frame the deck has turned out of, so the lookup
+// below turns back into the deck's own before it reads -- without this the shadow is cast by
+// the deck's UNSPUN map and walks away from the cloud it belongs to. Identity for a fixed deck.
+uniform vec2 clouds_shadow_spin = vec2(1.0, 0.0);
 
 
 // The share of the direct beam reaching [param local_direction] on this shell that gets past
@@ -47,7 +52,7 @@ uniform vec3 clouds_shadow_range_hi = vec3(1.0);
 // displacement is 5.9 km at a 30 deg solar zenith, 17.6 at 60, 56 at 80 and 201 at 88.
 //
 // This is a REDISTRIBUTION and not a new term. The deck's own alpha carries only its view leg
-// (see cloud_shell.gdshader), so the sunlight removed here is the sunlight that used to be
+// (see _cloud_shell.gdshaderinc), so the sunlight removed here is the sunlight that used to be
 // removed directly under the cloud; the body's total reflected flux does not move and only
 // where the darkening lands does.
 //
@@ -71,7 +76,13 @@ float clouds_sun_transmittance(vec3 local_direction, vec3 local_sun, float mu0) 
 	}
 	float k = clouds_shadow_scale;
 	float t = -mu0 + sqrt(max(k * k - 1.0 + mu0 * mu0, 0.0));
-	vec4 deck = texture(clouds_shadow_map, normalize(local_direction + local_sun * t));
+	// The crossing is solved in THIS shell's frame, where local_sun lives; only the texel
+	// lookup belongs to the deck's.
+	vec3 crossing = normalize(local_direction + local_sun * t);
+	crossing = vec3(clouds_shadow_spin.x * crossing.x - clouds_shadow_spin.y * crossing.z,
+			crossing.y,
+			clouds_shadow_spin.y * crossing.x + clouds_shadow_spin.x * crossing.z);
+	vec4 deck = texture(clouds_shadow_map, crossing);
 	vec3 reflectance = clouds_shadow_range_lo
 			+ (clouds_shadow_range_hi - clouds_shadow_range_lo) * display_decode(deck.rgb);
 	float albedo = clamp(atm_luma(reflectance), 0.0, 1.0);

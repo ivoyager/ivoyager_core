@@ -1,0 +1,9 @@
+[gd_scene format=3 uid="uid://cmv48khp6j56u"]
+
+[ext_resource type="Script" uid="uid://da3a23hajttgx" path="res://addons/ivoyager_core/ui_widgets/show_gui_button.gd" id="1_show"]
+
+[node name="ShowGUIButton" type="Button"]
+visible = false
+tooltip_text = "HINT_SHOW_GUI"
+text = "BUTTON_SHOW_GUI"
+script = ExtResource("1_show")

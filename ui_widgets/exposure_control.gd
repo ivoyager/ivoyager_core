@@ -26,8 +26,8 @@ extends HBoxContainer
 ## Displays the auto exposure that [IVExposureManager] meters each frame, in EV
 ## relative to the authored sky look. Unchecking "Auto" replaces the readout
 ## with a SpinBox seeded from the current auto value, snapped to the nearest
-## 1/3 stop; a second SpinBox adjusts in 1/3 stops on top of whichever of the
-## two is in force.[br][br]
+## [member ev_step]; a second SpinBox adjusts in steps of [member ev_step] on top
+## of whichever of the two is in force.[br][br]
 ##
 ## Requires [IVExposureManager], which exists only where
 ## [member IVCoreSettings.enable_physical_light] is true. The controls are
@@ -40,10 +40,11 @@ extends HBoxContainer
 const MANUAL_MIN_EV := -48.0
 ## Lowest settable exposure adjustment.
 const ADJUSTMENT_MIN_EV := -6.0
-## Range anchors its step snapping on min_value, and 1/3 is not representable, so
-## every usable min lands zero at -1e-14 - which SpinBox renders as "-0.0". Past
-## Range's rescale threshold (step * 1e14) it snaps around zero instead, which is
-## exact; _clamp_to_min() then applies the floor the min_value would have.
+## Range anchors its step snapping on min_value, and a fractional step is not exactly
+## representable, so every usable min lands zero at -1e-14 - which SpinBox renders
+## as "-0.0". Past Range's rescale threshold (step * 1e14) it snaps around zero
+## instead, which is exact; _clamp_to_min() then applies the floor the min_value
+## would have.
 const UNANCHORED_MIN := -1e15
 
 ## If true (default), hide the widget entirely while physical light is
@@ -119,7 +120,7 @@ func _on_auto_toggled(toggled_on: bool) -> void:
 	if !toggled_on:
 		# Hand manual control the exposure the camera is already at, so that
 		# unchecking Auto does not itself change the view. The SpinBox's own
-		# EV_STEP snapping is what rounds it to the nearest 1/3 stop.
+		# ev_step snapping is what rounds it.
 		_manual_spinbox.set_value_no_signal(IVExposureManager.auto_exposure_ev)
 		_exposure_manager.manual_exposure_ev = _manual_spinbox.value
 	_exposure_manager.auto = toggled_on

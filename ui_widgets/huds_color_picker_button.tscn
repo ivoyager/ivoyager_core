@@ -1,9 +1,9 @@
-[gd_scene load_steps=2 format=3 uid="uid://bnigfmkf3wwuw"]
+[gd_scene load_steps=3 format=3 uid="uid://bnigfmkf3wwuw"]
 
 [ext_resource type="Script" uid="uid://wm18o2k8kf1m" path="res://addons/ivoyager_core/ui_widgets/huds_color_picker_button.gd" id="1_5fjmn"]
+[ext_resource type="PackedScene" uid="uid://bkcj6agxxgfw" path="res://addons/ivoyager_core/ui_components/control_mod_resizable.tscn" id="2_3bdtk"]
 
 [node name="HUDsColorPickerButton" type="ColorPickerButton"]
-custom_minimum_size = Vector2(22, 22)
 offset_right = 22.0
 offset_bottom = 22.0
 size_flags_horizontal = 4
@@ -11,3 +11,6 @@ size_flags_vertical = 4
 action_mode = 0
 edit_alpha = false
 script = ExtResource("1_5fjmn")
+
+[node name="ControlModResizable" parent="." instance=ExtResource("2_3bdtk")]
+base_size = Vector2(22, 22)

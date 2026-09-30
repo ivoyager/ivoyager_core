@@ -92,6 +92,10 @@ render_mode unshaded, skip_vertex_transform, depth_draw_always;
 // Note the model's own "visible" is still culled against the main viewport by sun-mode: it is
 // a node property and cannot resolve per viewport. See the sun-mode section of
 // shells_model.gd for what that costs.
+//
+// scripts/sun_preview.py in the assets build tree transcribes the photosphere's functions and
+// constants, to measure the field and preview the disc offline. IMPORTANT: Flag changes here
+// so they can be mirrored in the asset build pipeline (a separate private repository).
 
 #include "_detail.gdshaderinc"          // hash, value_noise (the photosphere's noise)
 #include "_display.gdshaderinc"
@@ -295,7 +299,10 @@ float photosphere_spots(vec3 dir, float fluting, float warp_coarse, float warp_f
 						hash(cell + vec3(spot_seed, -7.9, 57.1))) - 0.5;
 				vec3 center = normalize(cell_center + jitter / spot_cell_scale);
 				float lat_deg = degrees(asin(clamp(center.y, -1.0, 1.0)));
-				float belt = exp(-pow((abs(lat_deg) - spot_belt_center_deg) / spot_belt_width_deg, 2.0));
+				// Squared by multiplication: the offset is negative equatorward of the belt,
+				// and GLSL leaves pow() undefined for a negative base.
+				float belt_offset = (abs(lat_deg) - spot_belt_center_deg) / spot_belt_width_deg;
+				float belt = exp(-belt_offset * belt_offset);
 				if (spawn > spot_activity * belt) {
 					continue;
 				}

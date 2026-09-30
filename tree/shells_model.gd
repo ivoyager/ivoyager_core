@@ -40,7 +40,9 @@ extends MeshInstance3D
 ## ([code]<file_prefix>.<file_tag>.<channel>[/code]); blank for a textureless shell and
 ## for the surface, whose textures use [code]file_prefix[/code] alone.[br]
 ## - [code]shader[/code] ([StringName]): give the shell a [ShaderMaterial] using the
-## named [Shader] in [member IVGlobal.resources], instead of a [StandardMaterial3D].[br]
+## named [Shader] in [member IVGlobal.resources], instead of a [StandardMaterial3D]. An
+## overlay whose shader is keyed in [member shader_meshes] draws that mesh in place of the
+## shared sphere.[br]
 ## - [code]process[/code] ([StringName]): name a [member process_methods] entry called on the
 ## shell each frame as [code]method(delta, ...process_args)[/code] (e.g. [method _rotate]).[br]
 ## - [code]process_args[/code] ([code]ARRAY[VARIANT][/code]): extra arguments bound after
@@ -65,9 +67,12 @@ extends MeshInstance3D
 ## and cloud shaders redden their direct light through the same atmosphere the limb draws.
 ## Author them on the limb row only.[br][br]
 ##
-## Developer note: Process methods must gate themselves on [member IVStateManager.paused_tree]
-## as needed. This is because some methods need to run in a project setup where
-## the camera is able to move during pause.
+## Developer note: a shell processes while the tree is paused (a project may let the camera
+## move there), so a process method decides for itself what pause means to it. Prefer posing
+## the shell ABSOLUTELY against [member IVGlobal.times], as [method _rotate] does, and gate
+## nothing: a method that instead integrates [code]delta[/code] renders a shell whose state is
+## the session's frame history rather than the clock, and a pause gate on one that poses
+## absolutely would strand the shell whenever the clock is set while paused.
 
 
 ## Texture channel → the [enum BaseMaterial3D.Feature] enabled when that channel is
@@ -109,17 +114,55 @@ const PROPERTY_FEATURES := {
 
 const _SUN_DISC_BRIGHTNESS := 3.0 # nonphysical disc level; physical light derives it instead
 
+# The silhouette error the sphere ladder holds: at its rung's largest on-screen size, a facet's
+# chord sags this far inside the true sphere. 0.15 px is what the shipped finest rung gives a
+# screen-filling disc, where it measured indistinguishable.
+const _SPHERE_LOD_SAGITTA_PX := 0.15
+# How far inside a coarser rung's range a body must fall before that rung is taken. Rung ceilings
+# are 4x apart, so this is slack against jitter rather than a tuned crossover.
+const _SPHERE_LOD_HYSTERESIS := 0.8
+# Float32 slack between this side's pixel radius and the shaders' own, taken toward drawing.
+const _HANDOFF_GATE_SLACK := 0.99
+
 
 ## Registry of 'process' methods, keyed by the name used in a shells.tsv
 ## 'process' field. Each [Callable] runs on the shell every frame as
-## [code]method(shells_model, delta, ...process_args)[/code]. Register entries in
+## [code]method(shells_model, delta, ...process_args)[/code], and once as the shell is built
+## with a [code]delta[/code] of 0.0 so nothing reads an unposed shell. Register entries in
 ## [method _static_init] or from project code to add a process method without subclassing.
 static var process_methods: Dictionary[StringName, Callable] = {}
+## Meshes that overlay shells draw in place of the shared sphere, keyed by the shells.tsv
+## [code]shader[/code] that needs one, as keys into [member IVGlobal.resources]. A shader
+## listed here places its own vertices, so the two travel together: a copy of it under a new
+## key needs its own entry, and its shells must not cast shadows (a shadow pass would place
+## the mesh for the light). It must place them within the shell's unit sphere, which is what
+## such a shell culls on when it has no farwarp box (see [method set_farwarp_box]). Register
+## entries in [method _static_init] or from project code.
+static var shader_meshes: Dictionary[StringName, StringName] = {}
+
+## Render height an off-screen capture is about to use, or 0.0 for none. The shared sphere's LOD
+## ladder sizes a body in pixels, and one [MeshInstance3D] has one mesh for every viewport it
+## draws into, so a capture taller than the window would otherwise take the window's rung and
+## render a coarser silhouette than it has pixels for: [IVScreenshotManager] registers its render
+## height here, waits a frame, captures and clears it. The ladder takes the greater of this and
+## the live viewport, so a stale value can only hold a rung finer than needed, never coarser.
+## [IVStarsVisual] keeps the counterpart of this for its magnitude-bin cull.
+static var capture_render_height := 0.0
+## Stops drawing every shell of a body that has handed off to its [IVBodyPSF] point in every
+## viewport, where its disc would discard every fragment anyway, so that the vertex work goes
+## too. Set false to render (and measure) those shells regardless. See [i]Culling, visibility
+## and lifecycle[/i] in VISUAL_MODEL.md.
+static var cull_handed_off := true
 
 # Debug-only caches for the per-shell override asserts in _build_material; built
 # lazily and kept for the session. Unused unless OS.is_debug_build().
 static var _material_property_names: Dictionary[StringName, bool] = {}
 static var _shader_uniform_names: Dictionary = {} # Shader -> Dictionary[StringName, bool]
+
+# The shared sphere ladder, resolved once on the first shell that draws one. Not in
+# _static_init(): a preinitializer may still be editing IVCoreSettings when this class loads.
+static var _sphere_lod_meshes: Array[Mesh] = []
+static var _sphere_lod_ceilings: PackedFloat64Array = [] # max pixel radius each rung may serve
 
 var _shell: int # 0 is the surface and orchestrator; 1..N are child shells
 var _body_name: StringName
@@ -127,15 +170,19 @@ var _mean_radius: float
 var _process_callable: Callable
 var _body: IVBody # owning body, for its true (un-farwarped) position and its published handoff
 var _applies_psf: bool # this body draws an IVBodyPSF, so this shell fades at the handoff
+var _sphere_lod_rung := -1 # index into the shared sphere ladder; -1 if this shell draws its own
 var _disc_material: ShaderMaterial # the shell's own material, LOD-driven each frame
 var _is_sun: bool # sun-mode (shell 0 with is_sun); see the disc LOD section
 var _sun_bv := 0.63 # sun-mode: cached B-V (disc color); fallback if the characteristic is missing
 var _sun_abs_mag := 4.83 # sun-mode: cached V absolute magnitude (for the disc's surface brightness)
 var _psf_settings: IVPSFSettings # sun-mode: the shared PSF camera (color ramp only, here)
 var _applied_sun_disc_brightness := NAN # sun-mode: change gate; NAN forces the first-frame write
-
-var _times := IVGlobal.times
-
+var _applied_handoff := Vector2(NAN, NAN) # change gate on the published handoff; ditto
+var _rest_basis: Basis # the basis as built, which a 'process' method poses the shell from
+var _clouds_shadow_spin_rate := 0.0 # deg/s of the deck shell 0 takes its cloud shadow from
+var _clouds_shadow_material: ShaderMaterial # shell 0's own, for the per-frame spin write
+var _own_aabb := AABB() # culling bounds without the farwarp box; AABB() takes the mesh's own
+var _handed_off := false # stopped drawing by the handoff gate (cull_handed_off)
 
 
 
@@ -149,16 +196,33 @@ var _times := IVGlobal.times
 
 static func _static_init() -> void:
 	process_methods[&"_rotate"] = _rotate
+	shader_meshes[&"atmosphere_limb_shader"] = &"limb_annulus_mesh"
+	shader_meshes[&"atmosphere_limb_min_shader"] = &"limb_annulus_mesh"
 
 
-## Named by a shells.tsv 'process' field. Rotates [param shells_model]
-## at [param deg_per_sec] degrees per second.
-static func _rotate(shells_model: IVShellsModel, delta: float, deg_per_sec: float) -> void:
+## The rotation the simulator clock alone gives a shell spinning at [param deg_per_sec]
+## degrees per simulator second about its own +Y, measured from the epoch and wrapped to
+## [constant TAU]. The one formula for a shell's spin: a cloud deck's own drawing and the
+## surface shader's shadow lookup into that deck both resolve the phase through here, and a
+## phase they each derived would be a phase they could come to disagree on.
+static func get_spin(deg_per_sec: float) -> float:
 	const CONVERSION := PI / (180.0 * IVUnits.SECOND)
-	if IVStateManager.paused_tree:
-		return
-	delta *= shells_model._times[1] / Engine.time_scale
-	shells_model.rotate_y(delta * deg_per_sec * CONVERSION) # y up in model self reference
+	return fposmod(IVGlobal.times[0] * deg_per_sec * CONVERSION, TAU)
+
+
+## Named by a shells.tsv 'process' field. Spins [param shells_model] about its own +Y at
+## [param deg_per_sec] degrees per simulator second.[br][br]
+##
+## Poses the shell ABSOLUTELY, from [method get_spin]. An accumulated spin would be a function
+## of the session's frame history instead of the clock, which costs three things this one
+## keeps: the same date renders the same shell in any session, a clock that is set or reversed
+## carries the shell with it, and the phase stays available in closed form to the surface
+## shader that has to find the deck where it is drawn. See *The cloud deck's phase* in
+## VISUAL_MODEL.md.
+static func _rotate(shells_model: IVShellsModel, _delta: float, deg_per_sec: float) -> void:
+	# No pause gate: the clock can be set while paused, and the shell must follow it there too.
+	shells_model.transform.basis = (Basis(Vector3.UP, get_spin(deg_per_sec))
+			* shells_model._rest_basis) # y up in model self reference
 
 
 func _init(body_name: StringName, mean_radius: float, model_basis: Basis,
@@ -168,8 +232,15 @@ func _init(body_name: StringName, mean_radius: float, model_basis: Basis,
 	_shell = shell
 	name = &"ShellsModel" if shell == 0 else StringName("Shell_%d" % shell)
 	transform.basis = model_basis
-	# shell 0 may replace the shared sphere with the body's own mesh, or its surface class's
-	mesh = mesh_override if mesh_override else IVGlobal.resources[&"sphere_mesh"] as Mesh
+	# shell 0 may replace the shared sphere with the body's own mesh, or its surface class's;
+	# an overlay, with the mesh its shader places itself (shader_meshes)
+	if mesh_override:
+		mesh = mesh_override
+		return
+	_build_sphere_lod_ladder()
+	# The finest rung until a frame has measured the body; a still preview never gets one.
+	_sphere_lod_rung = 0
+	mesh = _sphere_lod_meshes[0]
 
 
 func _ready() -> void:
@@ -188,6 +259,14 @@ func _ready() -> void:
 		var surface_scale: float = spec[&"scale"]
 		if surface_scale != 1.0:
 			transform.basis = transform.basis.scaled(Vector3.ONE * surface_scale)
+	# Before _set_visibility_and_layers(), which culls on it. The mesh a shader places draws
+	# within the shell's unit sphere, wherever its own vertices say (shader_meshes).
+	if _shell > 0 and shader_meshes.has(spec[&"shader"]):
+		_own_aabb = AABB(-Vector3.ONE, 2.0 * Vector3.ONE)
+	if _sphere_lod_rung < 0:
+		# A body's own mesh takes the engine's LODs once it has no farwarp box. Hold them to the
+		# ladder's silhouette budget rather than the viewport's pixel threshold, which is coarser.
+		lod_bias = get_viewport().mesh_lod_threshold / _SPHERE_LOD_SAGITTA_PX
 	var process_method: StringName = spec[&"process"]
 	var process_args: Array = spec[&"process_args"]
 	var render_priority := _compute_render_priority(shell_specs)
@@ -197,26 +276,46 @@ func _ready() -> void:
 	_set_visibility_and_layers()
 	_resolve_process(process_method, process_args)
 	_enter_disc_lod()
+	if _sphere_lod_rung >= 0:
+		set_process(true)
 	if _is_sun:
 		_enter_sun_mode()
 	if _shell == 0:
 		_build_child_shells(shell_specs)
-		_propagate_atmosphere_overrides(shell_specs)
+		_propagate_atmosphere_overrides(asset_preloader)
 		_propagate_cloud_shadow(shell_specs, asset_preloader)
 
 
 func _process(delta: float) -> void:
 	if _process_callable.is_valid():
 		_process_callable.call(self, delta)
-	if _applies_psf:
-		_process_disc_lod()
+	if _clouds_shadow_spin_rate:
+		_update_clouds_shadow_spin()
+	if _applies_psf or _sphere_lod_rung >= 0:
+		_process_size_lod()
 	if _is_sun:
 		_process_sun_physical_light()
 
 
+## Culls this shell on the farwarp box, which every frustum test passes, or on its own bounds,
+## where the engine also culls it off screen and picks its mesh LOD. The box is what keeps a
+## shell drawn while its true geometry lies past the camera's far plane; [IVBodyVisual] decides
+## per frame for all of a body's shells ([method IVBodyVisual.set_farwarp_box]). No-op when
+## [member IVCoreSettings.apply_farwarp] is false. See [i]Farwarp[/i] in VISUAL_MODEL.md.
+func set_farwarp_box(on: bool) -> void:
+	if !IVCoreSettings.apply_farwarp:
+		return
+	if !on:
+		custom_aabb = _own_aabb
+		return
+	var extent := IVCoreSettings.max_camera_distance
+	custom_aabb = AABB(-Vector3.ONE * extent, 2.0 * Vector3.ONE * extent)
+
+
 
 # *****************************************************************************
-# disc LOD (a body that draws an IVBodyPSF), and sun-mode within it
+# size LOD -- the disc/point crossfade (a body that draws an IVBodyPSF), the shared sphere's
+# mesh ladder, and sun-mode within the first
 
 # A body spans many decades of viewing distance: near, it is a resolved sphere (this model's
 # disc); far, it shrinks below a pixel and must become a point on the same photometric
@@ -239,10 +338,27 @@ func _process(delta: float) -> void:
 # fade, and does.
 #
 # Either way it happens in the shaders, which resolve the threshold against their own
-# VIEWPORT_SIZE; only what distance alone determines is set here (angular size). Nothing
-# viewport-dependent is on this side on purpose -- a CPU answer could only ever suit the
-# viewport this node lives in, and would leak that into an off-screen capture rendered at
-# another size.
+# VIEWPORT_SIZE; only what distance alone determines is set here (angular size). A per-fragment
+# threshold the shader can resolve exactly is never restated on this side, because a CPU copy
+# could only suit the viewport this node lives in, and an off-screen capture rendered at another
+# size would then get the wrong answer -- IVScreenshotManager draws these same nodes at a size of
+# its own.
+#
+# THE MESH LADDER and THE HANDOFF GATE are the two size decisions that cannot be a shader's,
+# since no shader swaps a mesh or skips its own vertex stage. Both discharge that hazard the way
+# IVStarsVisual's bin cull already does, that being the same problem: they take the GREATER of the
+# live viewport's render height and the height a capture has registered (capture_render_height),
+# and both answers are monotone in that height. So a rung can be too fine but never too coarse,
+# and the gate stops a shell only once no viewport's shader could draw a fragment of it -- it
+# never decides the fade, only that the fade has finished everywhere. Both are decided per
+# frame, so nothing here outlives the viewport it was decided for.
+#
+# WHAT THE LADDER TRADES. A sphere's facet chord sags inside the true sphere by its sagitta,
+# fixed in world units; what a view changes is how many pixels that buys. Each rung holds the
+# same sub-pixel silhouette error over a 4x range of on-screen size, so a body keeps a smooth
+# limb while a distant one stops drawing tens of thousands of triangles into a few pixels. The
+# measured basis, and the close-range views that set the finest rung, are in *Level of detail,
+# and shells nobody can see* in GRAPHICS_PROFILING.md.
 #
 # SUN-MODE (shell 0 with is_sun) adds what only a star needs on this side: the disc holds a
 # constant surface brightness, derived from the star's own luminosity under physical light,
@@ -288,8 +404,8 @@ func _enter_sun_mode() -> void:
 	set_process(true)
 
 
-func _process_disc_lod() -> void:
-	if !_disc_material:
+func _process_size_lod() -> void:
+	if !_body:
 		return
 	var viewport := get_viewport()
 	if !viewport:
@@ -304,10 +420,81 @@ func _process_disc_lod() -> void:
 		return
 	# The body's mean radius, not this shell's scaled one: the whole body fades as one thing,
 	# and a deck 0.16 % out would otherwise cross the ramp at a slightly different distance.
-	_disc_material.set_shader_parameter(&"angular_radius", _mean_radius / camera_distance)
+	var angular_radius := _mean_radius / camera_distance
+	# 3D render scale included: at 50 % a body covers half the pixels. The greater of the live
+	# and the capture height, so that no viewport drawing this node can see a larger body.
+	var render_height := maxf(IVGraphicsManager.get_render_size(viewport).y,
+			capture_render_height)
+	# The projection's own scale rather than a fov, so a KEEP_WIDTH camera needs no special case;
+	# this is the CPU side of the shaders' body_pixel_radius().
+	var pixel_radius := angular_radius * 0.5 * render_height * camera.get_camera_projection().y.y
+	if _applies_psf:
+		_apply_disc_lod(angular_radius, pixel_radius)
+	if _sphere_lod_rung >= 0:
+		_apply_sphere_lod(pixel_radius)
+
+
+func _apply_disc_lod(angular_radius: float, pixel_radius: float) -> void:
+	if !_disc_material:
+		return
+	_disc_material.set_shader_parameter(&"angular_radius", angular_radius)
 	var handoff := _body.psf_handoff
-	_disc_material.set_shader_parameter(&"handoff_low", handoff.x)
-	_disc_material.set_shader_parameter(&"handoff_high", handoff.y)
+	if handoff != _applied_handoff: # re-solved only as exposure or phase moves it
+		_applied_handoff = handoff
+		_disc_material.set_shader_parameter(&"handoff_low", handoff.x)
+		_disc_material.set_shader_parameter(&"handoff_high", handoff.y)
+	_apply_handoff_gate(pixel_radius, handoff.x)
+
+
+# At or under the handoff's low edge the disc weight is zero and every fragment this shell draws
+# discards, in any viewport, since pixel_radius is taken at the greatest render height in use. A
+# local shadow caster keeps drawing all the same: its shadow pass resolves the weight against
+# the shadow map, not a viewport. Each shell gates itself, on the same numbers as its siblings.
+func _apply_handoff_gate(pixel_radius: float, handoff_low: float) -> void:
+	var handed_off := (cull_handed_off and pixel_radius < handoff_low * _HANDOFF_GATE_SLACK
+			and (layers & IVGlobal.LOCAL_SHADOW_CASTER) == 0)
+	if handed_off == _handed_off:
+		return
+	_handed_off = handed_off
+	visible = !handed_off
+
+
+func _apply_sphere_lod(pixel_radius: float) -> void:
+	var rung := _select_sphere_lod_rung(pixel_radius)
+	if rung == _sphere_lod_rung:
+		return
+	_sphere_lod_rung = rung
+	# Verified to carry the farwarp obligations and the material across: an instance keeps its
+	# custom_aabb, its sorting_use_aabb_center and its surface override, and every rung shares one
+	# vertex format, so Forward+ reuses the warm-up's pipeline and no rung compiles anything.
+	mesh = _sphere_lod_meshes[rung]
+
+
+# The coarsest rung whose silhouette error still meets the budget at this on-screen size. Taking
+# a rung coarser than the one in force demands extra margin, so a body sitting on a boundary
+# keeps the mesh it has; going finer is the safe direction and is never held back.
+func _select_sphere_lod_rung(pixel_radius: float) -> int:
+	var rung := _sphere_lod_ceilings.size() - 1
+	while rung > 0:
+		var ceiling := _sphere_lod_ceilings[rung]
+		if rung > _sphere_lod_rung:
+			ceiling *= _SPHERE_LOD_HYSTERESIS
+		if pixel_radius <= ceiling:
+			return rung
+		rung -= 1
+	return 0
+
+
+# A rung serves every body whose on-screen radius keeps its facet sagitta within the budget:
+# sagitta = radius * (1 - cos(PI / resolution)), so the ceiling is that inverted.
+static func _build_sphere_lod_ladder() -> void:
+	if !_sphere_lod_meshes.is_empty():
+		return
+	for resolution in IVResourceInitializer.get_sphere_lod_resolutions():
+		var lod_mesh: Mesh = IVGlobal.resources[IVResourceInitializer.get_sphere_mesh_key(
+				resolution)]
+		_sphere_lod_meshes.append(lod_mesh)
+		_sphere_lod_ceilings.append(_SPHERE_LOD_SAGITTA_PX / (1.0 - cos(PI / resolution)))
 
 
 # Keeps a star disc's brightness in step with IVExposureManager. Change-gated
@@ -366,8 +553,10 @@ func _build_shader_material(shader_name: StringName, channels: Dictionary,
 	# uniforms, and each shells.tsv override column feeds the uniform of the same name
 	# (so e.g. a "clouds_relief" column tunes the shader per body); a column
 	# that isn't a uniform is ignored. The shader owns its own blending.
-	# The spec names the cubemap variant already where the channels are cubemaps; the
-	# asset format decides that and IVAssetPreloader resolves it (cube_shader_variants).
+	# The spec names the variant already -- the cubemap one where the channels are cubemaps,
+	# the airless one where the body has no atmosphere, the Min or Off one under that tier --
+	# as IVAssetPreloader resolves them (cube_shader_variants, airless_shader_variants,
+	# min_shader_variants, off_shader_variants).
 	var resource: Resource = IVGlobal.resources.get(shader_name)
 	var shader := resource as Shader
 	if not shader:
@@ -501,30 +690,42 @@ func _set_visibility_and_layers() -> void:
 		node_layers |= IVGlobal.LOCAL_SHADOW_CASTER
 	layers = node_layers
 	if IVCoreSettings.apply_farwarp:
-		# Frustum culling tests the true-scale AABB against the far plane, but the farwarp vertex
-		# remap keeps the surface on-screen even when that test fails; make it always pass.
-		var extent := IVCoreSettings.max_camera_distance
-		custom_aabb = AABB(-Vector3.ONE * extent, 2.0 * Vector3.ONE * extent)
-		sorting_use_aabb_center = false # f32 collapses that AABB's centre; sort by the node origin
+		set_farwarp_box(_has_farwarp_box())
+		sorting_use_aabb_center = false # f32 collapses the box's centre; sort by the node origin
 
 
-# A shell that readies after a dynamic grant would miss the caster bit until
-# the next state change (the ancestor's recursion is change-gated), so adopt
-# the ancestor IVBodyVisual's current state; static rule when there is none
-# (e.g., a replacement body visual class).
+# A shell that readies after a dynamic change would miss it until the next one (the
+# ancestor's recursions are change-gated), so the two below adopt the ancestor
+# IVBodyVisual's current state; a static rule when there is none (e.g., a replacement
+# body visual class).
 func _is_local_shadow_caster() -> bool:
+	var body_visual := _get_ancestor_body_visual()
+	if body_visual:
+		return body_visual.is_local_shadow_caster()
+	return IVCoreSettings.get_static_local_shadow_caster(_mean_radius)
+
+
+func _has_farwarp_box() -> bool:
+	var body_visual := _get_ancestor_body_visual()
+	if body_visual:
+		return body_visual.has_farwarp_box()
+	return true
+
+
+func _get_ancestor_body_visual() -> IVBodyVisual:
 	var node := get_parent()
 	while node:
 		var ancestor_body_visual := node as IVBodyVisual
 		if ancestor_body_visual:
-			return ancestor_body_visual.is_local_shadow_caster()
+			return ancestor_body_visual
 		node = node.get_parent()
-	return IVCoreSettings.get_static_local_shadow_caster(_mean_radius)
+	return null
 
 
 func _build_child_shells(shell_specs: Array) -> void:
-	# Each extra shell is a translucent child reusing the shared sphere mesh at a
-	# larger (or smaller) radius, inheriting the body's oblateness, orientation and spin.
+	# Each extra shell is a translucent child reusing the shared sphere mesh, or the mesh its
+	# shader places itself (shader_meshes), at a larger (or smaller) radius, inheriting the
+	# body's oblateness, orientation and spin.
 	# Every table scale is measured against the body, but a child's transform composes with
 	# this one's — so divide out the surface's own scale to keep the two frames the same.
 	var surface_scale: float = shell_specs[0][&"scale"]
@@ -539,9 +740,18 @@ func _build_child_shells(shell_specs: Array) -> void:
 			push_warning("Body %s shell %d has no texture, material override or shader; skipping"
 					% [_body_name, shell_index])
 			continue
+		var mesh_override: Mesh = null
+		var mesh_key: StringName = shader_meshes.get(shader, &"")
+		if mesh_key:
+			mesh_override = IVGlobal.resources.get(mesh_key)
+			if !mesh_override:
+				push_warning("Body %s shell %d: no mesh '%s' for shader '%s'; skipping"
+						% [_body_name, shell_index, mesh_key, shader])
+				continue
 		var shell_scale: float = spec[&"scale"]
 		var child_basis := Basis().scaled(Vector3.ONE * shell_scale / surface_scale)
-		add_child(IVShellsModel.new(_body_name, _mean_radius, child_basis, shell_index))
+		add_child(IVShellsModel.new(_body_name, _mean_radius, child_basis, shell_index,
+				mesh_override))
 
 
 func _apply_shell_geometry_uniforms(spec: Dictionary, shell_specs: Array) -> void:
@@ -557,17 +767,13 @@ func _apply_shell_geometry_uniforms(spec: Dictionary, shell_specs: Array) -> voi
 	material.set_shader_parameter(&"surface_scale", surface_scale)
 
 
-func _propagate_atmosphere_overrides(shell_specs: Array) -> void:
+func _propagate_atmosphere_overrides(asset_preloader: IVAssetPreloader) -> void:
 	# The atmosphere is authored once, on the limb row, and every shader shell of the body
 	# needs it: the limb draws it, and the surface and cloud shaders redden their direct light
-	# through it. Push each overlay row's atm_* columns to shell 0 and to every child (blind
-	# sets, as above). Runs after the children exist, which add_child guarantees.
-	var atmosphere: Dictionary[StringName, Variant] = {}
-	for shell_index in range(1, shell_specs.size()):
-		var overrides: Dictionary = shell_specs[shell_index][&"overrides"]
-		for field: StringName in overrides:
-			if field.begins_with("atm_"):
-				atmosphere[field] = overrides[field]
+	# through it. Push the body's atm_* columns to shell 0 and to every child (blind sets, as
+	# above), the limb row's even where the Off tier drew no limb. Runs after the children
+	# exist, which add_child guarantees.
+	var atmosphere := asset_preloader.get_body_atmosphere(_body_name)
 	if atmosphere.is_empty():
 		return
 	var materials: Array[ShaderMaterial] = []
@@ -601,6 +807,7 @@ func _propagate_cloud_shadow(shell_specs: Array, asset_preloader: IVAssetPreload
 	var deck_texture: Texture = null
 	var deck_range_lo := Vector3.ZERO
 	var deck_range_hi := Vector3.ONE
+	var deck_spin_rate := 0.0
 	for shell_index in range(1, shell_specs.size()):
 		var spec: Dictionary = shell_specs[shell_index]
 		var overrides: Dictionary = spec[&"overrides"]
@@ -630,6 +837,14 @@ func _propagate_cloud_shadow(shell_specs: Array, asset_preloader: IVAssetPreload
 				var pair: Array = channel_ranges[param]
 				deck_range_lo = pair[0]
 				deck_range_hi = pair[1]
+		# A spinning deck is drawn at a phase the lookup has to match, and the phase is the
+		# deck's own row: taken here as a RATE and resolved per frame through the same
+		# get_spin() the deck poses itself with, because reading the deck NODE's basis instead
+		# would read it one frame stale -- a whole revolution of error at the top time speeds.
+		if spec[&"process"] == &"_rotate":
+			var process_args: Array = spec[&"process_args"]
+			if process_args:
+				deck_spin_rate = process_args[0]
 		break
 	if not deck_texture:
 		return
@@ -644,6 +859,20 @@ func _propagate_cloud_shadow(shell_specs: Array, asset_preloader: IVAssetPreload
 	material.set_shader_parameter(&"clouds_shadow_scale", deck_scale / surface_scale)
 	material.set_shader_parameter(&"clouds_shadow_range_lo", deck_range_lo)
 	material.set_shader_parameter(&"clouds_shadow_range_hi", deck_range_hi)
+	if not deck_spin_rate:
+		return
+	_clouds_shadow_spin_rate = deck_spin_rate
+	_clouds_shadow_material = material
+	_update_clouds_shadow_spin()
+	set_process(true)
+
+
+# Where the deck is DRAWN this frame, for the shadow lookup that has to sample it there. As
+# (cos, sin) so no fragment pays for the angle.
+func _update_clouds_shadow_spin() -> void:
+	var spin := get_spin(_clouds_shadow_spin_rate)
+	_clouds_shadow_material.set_shader_parameter(&"clouds_shadow_spin",
+			Vector2(cos(spin), sin(spin)))
 
 
 # Render priority = this shell's rank by scale (ascending; shell index breaks ties),
@@ -674,6 +903,9 @@ func _resolve_process(method: StringName, process_args: Array) -> void:
 	# Defining _process() enables idle processing by default, so disable it on a shell with no
 	# (or an unregistered) process method.
 	set_process(false)
+	# Shell 0's own scale is already applied and a child arrives pre-scaled, so this is the
+	# shell's built pose -- what _rotate poses from, and never itself a result of posing.
+	_rest_basis = transform.basis
 	if not method:
 		return
 	var callable: Callable = process_methods.get(method, Callable())
@@ -682,6 +914,11 @@ func _resolve_process(method: StringName, process_args: Array) -> void:
 				% [_body_name, _shell, method])
 		return
 	_process_callable = callable.bindv(process_args)
+	# Posed once here, so the shell is where the clock puts it from frame zero rather than from
+	# frame one. What reads that pose cannot wait: shell 0 writes the deck's phase to its own
+	# shadow lookup while building, and a still preview stops processing before a frame runs at
+	# all. A zero delta is a no-op to a process method that integrates one.
+	_process_callable.call(self, 0.0)
 	set_process(true)
 
 
@@ -715,8 +952,10 @@ func set_preview_camera_distance(camera_distance: float) -> void:
 ## [method set_preview_camera_distance], which this applies once.
 func set_static_preview(camera_distance: float) -> void:
 	# Idle processing is the only thing here that reaches outside this node: _rotate would
-	# animate the shell against sim time, and _process_disc_lod would read the REAL body's
-	# position and size the disc against a camera in a different World3D.
+	# animate the shell against sim time, and _process_size_lod would read the REAL body's
+	# position and size the disc -- and pick the sphere's mesh rung -- against a camera in a
+	# different World3D. Stopped before the first frame, a preview keeps the finest rung its
+	# _init() took, which is what a still wants at any distance.
 	set_process(false)
 	if _is_sun and _psf_settings:
 		# IVPSFSettings is shared with the live scene, so any edit to it would re-apply the
@@ -726,7 +965,7 @@ func set_static_preview(camera_distance: float) -> void:
 	if not _applies_psf or not _disc_material:
 		return
 	# The disc's alpha is a crossfade against its own on-screen pixel radius, and only
-	# _process_disc_lod knows how to measure that; with it off, angular_radius keeps the
+	# _process_size_lod knows how to measure that; with it off, angular_radius keeps the
 	# shader default and every fragment discards. Negative edges saturate the crossfade
 	# instead, so the disc always renders whatever the preview camera's distance.
 	_disc_material.set_shader_parameter(&"handoff_low", -2.0)

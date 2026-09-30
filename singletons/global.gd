@@ -67,19 +67,22 @@ signal camera_fov_changed(fov: float)
 ## IVBody.end] lifespan (see [signal IVBody.within_lifespan_changed]). [IVSelectionManager]
 ## listens and, if [param name] is the current selection, bumps selection up to its parent.
 signal selection_invalidated(name: StringName)
-## This signal is emitted by [IVGlobal] code connected to the root viewport.
-## Signals when the viewport size changes and also on [signal ui_dirty].
+## This signal is emitted by [IVGlobal] code connected to the root viewport, and
+## by [IVGraphicsManager]. Signals when the viewport size, the display scale or the
+## 3D render scale changes, and also on [signal ui_dirty]. [param size] is the
+## visible size in logical pixels, the 2D GUI's; for the 3D render's, see [method
+## IVGraphicsManager.get_render_size].
 signal viewport_size_changed(size: Vector2)
-## Emit from anywhere for [IVConfirmationDialog].
+## Emit from anywhere for [IVConfirmationDialog]. An empty [param cancel_txt] makes a notice.
 signal confirmation_required(text: StringName, action: Callable, stop_sim: bool,
 		title_txt: StringName, ok_txt: StringName, cancel_txt: StringName)
 ## Emit from anywhere for [IVMainMenuBasePopup].
 signal main_menu_requested()
 ## Emit from anywhere to close [IVMainMenuBasePopup].
 signal close_main_menu_requested()
-## Emit from anywhere for [IVOptionsPopup].
+## Emit from anywhere to open [IVOptionsPopup], or to close it if it's open.
 signal options_requested()
-## Emit from anywhere for [IVHotkeysPopup].
+## Emit from anywhere to open [IVHotkeysPopup], or to close it if it's open.
 signal hotkeys_requested()
 ## Emit from anywhere to require closing of all "admin" popups (main menu, options, etc.).
 signal close_admin_popups_required()
@@ -123,6 +126,11 @@ const PERSIST_PROCEDURAL := PersistMode.PERSIST_PROCEDURAL
 ## of the shadow maps. Astronomical-scale shadows don't use shadow maps at all;
 ## see [IVSunOcclusionManager].
 const LOCAL_SHADOW_CASTER := 0b1_0000_0000
+
+## Project setting in which a Forward+ run records [member video_adapter_type] for
+## a later Compatibility run, in the project's settings override file (written by
+## [IVGraphicsManager]).
+const VIDEO_ADAPTER_TYPE_SETTING := "ivoyager/video_adapter_type"
 
 
 
@@ -176,7 +184,21 @@ var ivoyager_config: ConfigFile = IVPluginUtils.get_config_with_override(
 		"res://ivoyager_override2.cfg")
 ## Indicates project running with Compatibility renderer. Read only!
 var is_gl_compatibility := RenderingServer.get_current_rendering_method() == "gl_compatibility"
+## The GPU's type, e.g. for choosing defaults on integrated graphics. The
+## Compatibility renderer reports [constant RenderingDevice.DEVICE_TYPE_OTHER]
+## whatever the GPU, so there this is the type the last Forward+ run recorded (see
+## [constant VIDEO_ADAPTER_TYPE_SETTING]), or DEVICE_TYPE_OTHER if none has, as
+## on the web. Read only!
+var video_adapter_type := _get_video_adapter_type()
 
+
+
+static func _get_video_adapter_type() -> RenderingDevice.DeviceType:
+	if RenderingServer.get_current_rendering_method() != "gl_compatibility":
+		return RenderingServer.get_video_adapter_type()
+	var recorded: int = ProjectSettings.get_setting(VIDEO_ADAPTER_TYPE_SETTING,
+			RenderingDevice.DEVICE_TYPE_OTHER)
+	return recorded as RenderingDevice.DeviceType
 
 
 func _enter_tree() -> void:

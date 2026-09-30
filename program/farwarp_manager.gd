@@ -64,6 +64,17 @@ static var farwarp_start := 0.0
 ## Post-origin-shift camera global position paired with [member farwarp_start].
 ## Read-only.
 static var camera_global_position := Vector3.ZERO
+## Distance from the camera inside which a body's [IVShellsModel] shells cull and pick their mesh
+## LOD on their own bounds rather than on the farwarp box ([method IVBody.update_farwarp]):
+## [member true_bounds_far_fraction] of the current camera's far plane, 0.0 when disabled or no
+## camera. Read-only.
+static var true_bounds_distance := 0.0
+
+## Share of the camera's far plane inside which a body's shells may drop the farwarp box; see
+## [member true_bounds_distance]. The engine extracts the far plane in float32 and can misplace
+## it at [IVCamera]'s near:far ratio, so keep this well under 1.0. 0.0 keeps the box everywhere,
+## which is the un-culled render an A/B measures against. See [i]Farwarp[/i] in VISUAL_MODEL.md.
+var true_bounds_far_fraction := 0.25
 
 var _start_ratio: float = IVCoreSettings.farwarp_start_ratio
 var _camera: Camera3D
@@ -104,9 +115,11 @@ func _process(_delta: float) -> void:
 		var dist := _camera.position.length()
 		farwarp_start = dist * _start_ratio
 		camera_global_position = _camera.global_position
+		true_bounds_distance = _camera.far * true_bounds_far_fraction
 	else:
 		farwarp_start = 0.0
 		camera_global_position = Vector3.ZERO
+		true_bounds_distance = 0.0
 	RenderingServer.global_shader_parameter_set(&"iv_farwarp_start", farwarp_start)
 	# With farwarp_start <= 0.0 the update places visuals at true positions.
 	for body_name: StringName in IVBody.bodies:
@@ -123,4 +136,5 @@ func _clear_procedural() -> void:
 	_camera = null
 	farwarp_start = 0.0
 	camera_global_position = Vector3.ZERO
+	true_bounds_distance = 0.0
 	RenderingServer.global_shader_parameter_set(&"iv_farwarp_start", 0.0)

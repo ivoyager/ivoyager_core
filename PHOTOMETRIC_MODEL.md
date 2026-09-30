@@ -57,6 +57,8 @@ body's disc, sometimes a few percent of a frame that is otherwise empty sky. Our
 acts more like an astrophotographer: it has knowledge of subject and understands (based on
 custom settings) when to compensate and when to let objects blowout.
 
+The same three answer a project that wants to bring them; see *A project's own lighting*.
+
 ## The calibration chain: one anchor
 
 Astronomers measure the brightness of extended objects in **magnitudes per square
@@ -192,7 +194,62 @@ shapes the zoom-out experience: how gradually a body overexposes versus how quic
 stars then arrive.
 
 Unshaded HUD content (orbit lines, labels, small-body points) reads none of this and is
-identical at every exposure.
+identical at every exposure. Nor does anything outside the candidate set above meter at all:
+the set is bodies and the two asserted shell ceilings, so a project's own local scene is
+invisible to the meter however much of the frame it fills (*A project's own lighting*).
+
+What metering decides is also what need not be drawn at all: see *Skipping what the camera
+has metered away*.
+
+## A project's own lighting
+
+A project that hangs a scene of its own inside the simulation
+([VISUAL_MODEL.md](VISUAL_MODEL.md) *The render frame anchor and local scenes*) brings its own
+lights, its own materials and possibly its own ideas about exposure. There are three ways that
+can go, and only the middle one needs anything from this document.
+
+**1. Nonphysical, and the default.** With `enable_physical_light` false every global here is
+neutral — 1.0 where one multiplies an authored value, 0.0 where one gates a channel — and every
+shader renders the authored look at the fixed exposure `iv_exposure` names. The project lights
+its scene however it likes and hand-tunes our items to taste (the `nonphysical_*` settings, the
+shell `energy_multiplier` columns). Integration cost is zero, and for a game whose subject is
+the local scene this is usually the right answer.
+
+**2. Our physical light, with the project joining the scale.** Everything the project adds must
+then speak the same units, and every join already exists:
+
+- *Which light reaches it.* `IVCoreSettings.size_layers` sorts content into the far / middle /
+  near domains by radius, and a project's local scene is near-domain content — lit by the near
+  light, which carries shadow maps and scales its energy by `camera_sun_visible_fraction`, so a
+  base goes dark in an eclipse with nothing written for it
+  ([VISUAL_MODEL.md](VISUAL_MODEL.md) *Local shadow maps*).
+- *The project's own lights.* Convert as `IVDynamicLight` does:
+  `light_energy = illuminance × IVExposureManager.gain / π × exposure`, with `IVPhotometry`
+  holding the conversions and `gain` a public static. A lamp stated in lux then sits on the same
+  scale as sunlight at Saturn and stays right as the camera adapts.
+- *Emission.* Anything authored in cd/m² multiplies `iv_emission_luminance_scale`; the by-eye
+  channel is `iv_emission_energy_scale`, and the two are never both nonzero.
+- *Custom shaders.* `_display.gdshaderinc`, without exception. A project shader that does colour
+  arithmetic on a sampled value and writes the result raw is correct under Forward+ and wrong
+  under Compatibility by the whole transfer curve (*Renderer parity*).
+
+The gap is **metering.** Candidates are bodies and shell ceilings, so a project's scene
+contributes none and a lit interior filling the frame meters at the dark-adapted rest and blows
+out. Two existing outs: hold the metered value (`auto = false`, `manual_exposure_ev`) or offset
+it (`exposure_adjustment_ev`). One designed extension — a local-scene ceiling candidate on the
+`exposure_ceiling` pattern — is TODO.
+
+**3. Godot's own physical light and auto exposure: one exposure authority, and it cannot be
+both.** *Overview* gives three reasons we do not use `CameraAttributesPhysical`, and none of
+them changes when it is the project asking. Ours folds exposure into `light_energy` and the
+emission globals, all of it before tonemapping; the engine's applies after, to the finished
+image, and takes the HUD and every overlay with it. Run both and the scene is exposed twice. Two
+smaller couplings follow from the same place: `Light3D.light_intensity_lumens` / `_lux` take
+effect only while a `CameraAttributesPhysical` is present, so photometric units for a project's
+own lamps are not separable from that camera — convert through `gain` instead, which is the same
+physics against our anchor rather than the engine's; and `CameraAttributesPhysical` sets FOV
+from focal length, which the star field's own FOV and resolution compensation assumes it owns.
+So the choice is tier 2 or tier 1, made once per project rather than per scene.
 
 ## Body surfaces and albedo
 
@@ -677,7 +734,7 @@ reddened as it is at the tangent and no further; the lit-height ramp dominates t
 
 **The deck's shadow lands where it falls, not underneath the cloud (2026-09-08).** The sun ray
 from a surface point crosses the deck at a horizontally displaced place, so the shadow belongs
-there — `atm_cloud_shadow()` in `_atmosphere.gdshaderinc`, fed the deck's own map by
+there — `clouds_sun_transmittance()` in `_clouds.gdshaderinc`, fed the deck's own map by
 `IVShellsModel._propagate_cloud_shadow` and folded into the surface's sun leg, while the deck's
 alpha keeps only its view leg so nothing is counted twice. It is a REDISTRIBUTION and the
 render says so: over a lit disc the mean moves 0.998–1.001× while 10–19 % of the frame changes,
@@ -704,7 +761,9 @@ coherent under magnification. So a deck that looks coarse magnified wants a fine
 this is where to reach for one. Two consequences, both wanted: a deck and its shadow now read
 ONE map and line up by construction, where a procedural field the shadow lookup did not share
 could never be shadowed correctly; and the deck's coverage stops spreading, so real gaps open
-and the ground shows through them. The `.gdshader` files are the interface here — a body
+and the ground shows through them. One map is necessary and was not sufficient: a deck that
+drifts is also read at a PHASE, and the lookup got the deck's only from 2026-09-19 (*The cloud
+deck's phase* in [VISUAL_MODEL.md](VISUAL_MODEL.md)). The `.gdshader` files are the interface here — a body
 overriding a retired uniform through a `shells.tsv` column of the same name is silently
 ignored, as any unknown column is.
 
@@ -760,13 +819,34 @@ How it lands in the renderer:
   with `blend_premul_alpha` — the path radiance added, what lies behind kept by one minus
   the luma of the transmittance — which is sound there because behind a beyond-limb ray
   stand only the sky and the stars.
+- **Nor does it rasterize the rest of its shell, only a camera-facing annulus of it.** Every
+  ray meeting the disc farther inside its silhouette than the handoff band and the ring
+  filter's half-width, `b < min(R(1 − ATM_RIM_HANDOFF), R − 1.25 px)`, returns nothing and
+  discards — and on an integrated GPU a discarded fragment costs most of a drawn one: a limb
+  shader discarding at its first statement measured 249 ms at Earth-fill on an Intel UHD
+  under Compatibility, against 116 ms with the limb hidden. So `IVShellsModel.shader_meshes`
+  gives the limb row the shared `limb_annulus_mesh` in place of the sphere, a ring of
+  triangles whose vertices carry an azimuth and a row, and `limb_annulus_vertex()` places each
+  where the camera ray it names enters the shell, from two pixels inside that bound out to the
+  shell's own silhouette. On the shell rather than on a flat billboard, each fragment keeps the
+  depth the sphere gave it — a flat annulus through the silhouette stands behind the disc
+  across the handoff band, where the depth test would drop the fragments it exists to draw —
+  and reads the same ray, which is all the fragment stage uses. The rows
+  (`IVCoreSettings.limb_annulus_rows`) are spaced by arc on the shell for farwarp's sake (see
+  *Farwarp* in [VISUAL_MODEL.md](VISUAL_MODEL.md)). Against the whole sphere only single
+  pixels on the silhouette's rim move, and no more of them than rotating the sphere itself
+  about its pole moves, which changes nothing but where its facets fall: the rim is sensitive
+  to the last bits of the interpolated ray, whatever mesh supplies it. Measured on that Intel
+  UHD under Compatibility, Earth-fill fell from 481 to 304 ms (−37 %), Venus close by 54 % and
+  Titan and Mars close by 19–20 %, where the annulus's own fragments are most of what the limb
+  still costs; on a GTX 1650 Ti, 3–16 %.
 - **The air in front of the disc is composited by the disc's own shaders** (2026-08-30,
   `atm_disc_air()`): each surface, band and cloud fragment evaluates the veil, the
   twilight glow and the far half of an optical-limb ray for its own ray, adds the path
   over everything it renders and multiplies the luma of the disc's view transmittance
   into all of it — lit albedo, emission, and the specular lobe as its square root — with
-  `atm_view_tint` still carrying the chromatic complement, which is exact and lets a
-  cloud deck 10 km up escape the air beneath it. In linear light this is algebraically
+  the tint from `atm_receiver_light()` still carrying the chromatic complement, which is exact
+  and lets a cloud deck 10 km up escape the air beneath it. In linear light this is algebraically
   identical to the limb shell's old disc branch (the path distributes through the deck's
   alpha mix with weight `α + (1 − α) = 1`); what it buys is that the composite no longer
   passes through the hardware blend at all, which is the one boundary the Compatibility
@@ -778,12 +858,16 @@ How it lands in the renderer:
   covers that sliver — a hard partition measured as a dotted arc of ~270 dark pixels.
 - **Every shell of the body takes its sunlight through the same atmosphere.** `IVShellsModel`
   propagates the limb row's `atm_*` columns to the surface and cloud shells, whose photometry
-  slot multiplies its sunlight by `atm_sun_transmittance` — the column above that shell's own
-  altitude along the sun ray. This is what turns a cloud deck at the limb the colour of sunset.
+  slot multiplies its sunlight by the sun transmittance `atm_receiver_light()` returns — the
+  column above that shell's own altitude along the sun ray. This is what turns a cloud deck at
+  the limb the colour of sunset. A body with no such row carries none of it: its shells bind
+  the airless variant of each shader (`IVAssetPreloader.airless_shader_variants`), which
+  renders it identically and runs faster (*Airless shaders* in
+  [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)).
 - **That factor is the TOTAL illumination, direct plus diffuse, and not `exp(-column)`**
   (2026-08-28). Absorbed light is gone and takes the exponential; scattered light is not, and
   the sun leg is the one place nothing else accounts for it — a view ray's scattered light IS
-  the path radiance, which the model adds separately, so `atm_view_tint` and the limb's alpha
+  the path radiance, which the model adds separately, so the view tint and the limb's alpha
   keep `exp()` and must. The split needs no new parameter, because the delta-scaling's own
   depth already contains it: `1 − ωg = (1 − ω) + ω(1 − g)`, absorption plus delta-scaled
   scattering. The scattered half then takes the conservative two-stream `1 / (1 + ¾τ)`, exact
@@ -810,7 +894,8 @@ How it lands in the renderer:
   `atm_veil_extent` mixed the disc term against a rim-and-twilight window, for a body whose
   map already carried its own atmosphere. With every body converted it was identically 1, so
   it was retired along with `atm_veil_window()` and the `mix` in `atm_sun_transmittance` and
-  `atm_view_tint` (both of which lost an argument). Removing it re-rendered all four bodies
+  `atm_view_tint` (both of which lost an argument, and are now `atm_receiver_light()`'s
+  outputs). Removing it re-rendered all four bodies
   bit-identically but for a single pixel of Mars at 1 DN, a last-ULP difference where the old
   `mix` compiled to a fused multiply-add. It bought no performance either way: `atm_limb()`
   called `atm_disc()` unconditionally and applied the window afterward, so an extent-0 body
@@ -830,9 +915,10 @@ How it lands in the renderer:
   0.437 → 0.700, Earth 0.632 → 0.741, Venus 0.886 → 0.939, Titan 0.912 → 0.966 (green). This
   is what lets a dusty disc take a full veil at all — undscaled, Mars' would have darkened to
   0.52 of its brightness at μ = 0.5 and kept 6 % of its terrain contrast at μ = 0.2.
-- **The shell must outrun the profile.** The shader draws on the limb shell's front faces, so
-  a ray whose tangent altitude clears the shell gets no fragment: the atmosphere is cut off
-  there, and if it is still rendering at that altitude the cut is a hard edge against the sky.
+- **The shell must outrun the profile.** The shader draws only within the limb shell's own
+  silhouette, so a ray whose tangent altitude clears the shell gets no fragment: the atmosphere
+  is cut off there, and if it is still rendering at that altitude the cut is a hard edge
+  against the sky.
   The roll-off is about one e-fold of the scale height per step and spans ~8 of them from
   clipped white to invisible — 60 km on Earth, 500 km on Titan — and overexposure slides the
   whole band outward without narrowing it, so the shell has to clear the fade-out altitude at
@@ -850,12 +936,12 @@ How it lands in the renderer:
   at tangent optical depth 1.0, so discarding the far half threw away 0.60 of the ray at the
   rim — a 1.60× step sunlit — and at high phase threw away *all* of it, since the lit part of a
   backlit ray is entirely the far half. That was a 255 → 0 cliff in one pixel, and it cut off
-  the whole warm inner band of the backlit ring. `atm_ray_half()` now runs for the far half too,
-  at the ray's own tangent altitude *below* the disc and floored at the disc, which makes its
-  view extinction `tangent column − own column above z` exactly as for the ring — (down to the
-  far surface) + (the sub-disc chord) + (the near half) — with no new term. Rendered, the rim
-  is continuous at every phase, and Earth and Mars are **bit-identical** while Venus gains at
-  most 3 DN over 204 pixels of its rim.
+  the whole warm inner band of the backlit ring. The far half is now integrated too, as a
+  segment of `atm_ray_path()`, at the ray's own tangent altitude *below* the disc and floored at
+  the disc, which makes its view extinction `tangent column − own column above z` exactly as for
+  the ring — (down to the far surface) + (the sub-disc chord) + (the near half) — with no new
+  term. Rendered, the rim is continuous at every phase, and Earth and Mars are
+  **bit-identical** while Venus gains at most 3 DN over 204 pixels of its rim.
 - **What ends the far half is that chord, so its gate is set on the chord's own EXTINCTION and
   not on a count of scale heights.** The two coincide only for a body whose disc tangent
   optical depth is already of order the threshold. A fixed `h_v > −2 H_ref` cut Titan where the
@@ -897,6 +983,136 @@ How it lands in the renderer:
 Two float32 traps the include documents, both found as a black curve across Venus' night
 side: a literal below about 1e-14 compiles to zero in the shader language, and a valid but
 tiny float passes `> 0.0` yet comes out of the GPU's `log()` as −∞.
+
+#### Atmosphere quality, and what Reduced, Min and Off give up
+
+The atmosphere is half to three quarters of an integrated-GPU frame in any view with air
+through ANGLE, and more under Forward+ (*Atmosphere quality* in
+[GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)), which is why the user setting
+`atmosphere_quality` exists. Its first two tiers are the same shader:
+
+- **Normal** — the six-node along-ray quadrature and up to eight ring taps described above.
+  This is the rule `limb_model.py` transcribes and verifies (THE REFERENCE in the include).
+- **Reduced** — a four-node rule and two ring taps. The quadrature is a valid
+  Gauss–Legendre rule of its own, packed into the same table, so it is a coarser evaluation
+  of the same model rather than a different one.
+- **Min** — the same model integrated in closed form, in shaders of its own (*The Min tier*,
+  below).
+- **Off** — no limb, and the air in front of each disc in a much cheaper closed form, in
+  shaders of its own (*The Off tier*, below).
+
+What moves on screen is small and confined to the limb: at most 2 display codes on Earth and
+up to 15 on 0.4 % of Titan's pixels, 1.2–1.8 % of pixels past 2 codes. The surface and cloud
+shaders take the air in front of themselves through the same quadrature, so twilight and the
+sunset-reddened beam shift with it — that is where Earth's 2 codes are.
+
+`IVGraphicsManager` writes the tier as three shader globals, `iv_atm_gl_first`,
+`iv_atm_gl_nodes` and `iv_atm_ring_max_taps`. **Only their values differ between tiers, not
+the shader source**, so no program is recompiled and the change lands on the next frame —
+which is what lets this be a live setting on a renderer where a compile costs seconds
+(*What each shader costs* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)). A project whose
+`IVGraphicsManager` never writes them renders at Normal, those being the defaults the Core
+editor plugin puts in `project.godot`.
+
+##### The Min tier
+
+Min is a different program rather than a coarser rule: each atmosphere shader's `.min` twin,
+compiled with `ATM_MIN` so that `_atmosphere.min.gdshaderinc` stands in for the quadrature.
+Everything else is shared — the layers and their columns, `atm_receiver_light()`, the twilight,
+the entry points — so **a surface's own colour is Normal's exactly** (the entry-point probe reads
+0.000 % on the receiver light, the sky excess and the luma), and what is approximated is the air
+in front of it and beyond the limb.
+
+Each segment of a view ray is integrated in closed form from its columns at a few points,
+instead of at quadrature nodes:
+
+- **The lit part in front of a disc.** Its radiance is the source per unit optical depth times
+  the integral of e^−(T + S) over the view column T, S the sun's column. Taking the layers'
+  mixture as uniform in optical depth along the segment, and S as proportional to T — the
+  plane-parallel identity, carried to the sphere by the Chapman slants — makes the exponent
+  linear in T and the integral exact. Where the sun is low along the segment, or the segment is
+  capped or starts above the disc, S does not fall with T; a second point one upper scale height
+  along measures how it runs, and the exponent is taken piecewise linear through the points.
+- **Two exponential layers are not a mixture.** Earth's gas (8.4 km) over its haze (1.5 km) is
+  two stacked slabs, and the uniform-mixture form fails on it by 14–20 % at the 99th percentile.
+  The integral is blended between that MIXED form and a STACKED one — each layer's own run, the
+  lower layer's light crossing the whole upper — with weight (r − 1)/(r + 1), r the ratio of the
+  two scale heights: the thin limit of the exact two-layer integral, within ~2 % along Earth's
+  and Venus' real curves.
+- **A tangent half-ray** holds half its ray's column, spread from the tangent point as
+  erf(√(Δz / H)), so its lit part lies between two fractions of it; the sun's column is held at
+  the point that halves what the camera sees of that part, and the same blend stacks the layers.
+  The thin layer — Mars' water-ice haze, Titan's detached layer — takes the mixed form, its
+  columns from the shared Abel tables, so Titan's blue shell is drawn.
+
+What moves on screen, in the app on the GTX at the 18 atmosphere poses against Normal: day sides
+and the limb band hold to 3 display codes at the 99th percentile (Earth close up 5), Titan's
+shell included, and the error gathers at high phase. **Earth's crescent cusps turn yellow**, by
+up to 180 codes, 0.2 % of the frame past 8: one sun point per tangent half cannot follow a sun
+column that grows toward the camera. **Mars' twilight is too bright**, by up to 14 codes at the 99th percentile over
+3 % of a crescent frame, half of it the thin layer's mixed treatment. Reduced moves 31 codes at
+most. The probe puts Min's limb and disc air within 3.4 % of the image maximum at the 99th
+percentile on all four bodies, against Reduced's 5.0 % on Earth's limb.
+
+Being its own program, Min is chosen when bodies are built: `IVAssetPreloader` binds the `.min`
+shaders (`min_shader_variants`) for every body with air, the shader warm-up compiles those
+instead of the full ones, and a change into or out of Min waits for a restart, which the Options
+popup says. What it costs and saves is *Atmosphere quality* and *What each shader costs* in
+[GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md).
+
+##### The Off tier
+
+Off draws no limb shell and keeps each disc's air in each disc shader's `.off` twin, whose
+entry points `_atmosphere.off.gdshaderinc` supplies, so a first visit at Off compiles no
+quadrature and no limb shader at all. The twins are separate programs, not the airless ones the
+closed form could equally have lived in, because every first visit compiles the airless programs
+and the closed form would have added about 4.5 s to each through ANGLE.
+
+Off is not "no air": Venus', Titan's and Mars' maps are surface reflectance with the air meant
+to be added on top (*Every disc is fully covered*, above), so a disc drawn with none would be the
+wrong colour. What Off drops is the integration, not the model: the same `atm_*` layers,
+`atm_layers()`, the delta-scaled view transmittance, the two-stream sun leg
+(`atm_sun_transmittance_of()`) and the twilight excess, over a plane-parallel slab.
+
+- **A column is the vertical column times an airmass**, one per layer: the path through a
+  homogeneous shell 4H/π tall at the layer's radius, which is exact toward the zenith and meets
+  Chapman's √(πx/2) along the horizon, x = r / H. A haze with a top keeps both exponentials in
+  its vertical column; the thin layer is a shell at its centre radius.
+- **The veil is single scattering**: each layer's source per unit optical depth along the
+  view, times the mean of e^−t over a view-plus-sun column — one column for the layers MIXED in
+  depth, or each exponential its own with the lower one's light crossing the whole upper one,
+  STACKED. The two are blended by the ratio of the scale heights, exactly as *The Min tier*
+  blends them (`atm_stacking()`); the mixed form alone left Earth's disc 5 codes dark, its gas
+  standing over its haze rather than through it.
+- **Only the part of the ray the sun lights scatters**, found by the full tier's own shadow test
+  (`atm_lit_interval()`), and each column is taken at that part's two ends. Past the terminator
+  the shadow starts it above the ground, so the veil fades into the night side instead of
+  stopping at the terminator; toward a camera on the night side the ray climbs back into the
+  shadow and ends it short of the top. A plane-parallel slab lit throughout had read a crescent's
+  terminator band up to 30 codes bright. A sun ray below the local horizon descends to its
+  tangent altitude and climbs out, as `atm_exp_columns()` takes it.
+
+What it gives up is everything the limb shell drew and the sphere gave: the band beyond the
+limb, a backlit crescent's forward-scattered ring and cusps, Titan's haze ring and blue detached
+shell, the far half of an optical limb's ray, and the rim handoff, since with no limb shell the
+disc keeps its air out to its own silhouette.
+
+What moves on screen, in the app on the GTX under Compatibility at the 18 atmosphere poses
+against Normal, over each lit disc from 12 px inside its edge: **day sides hold to about a
+display code** at the mean and 6 at the 99th percentile, Earth's full disc included. Past
+quarter phase Titan holds to 1.4–2.3 codes at the mean and Mars to 2.8–4.2, where a band along
+the terminator stays a few codes bright. Everything else that moves is the limb: its band, the
+ring, and the bloom a blown ring spreads over a thin crescent, which leaves Earth's and Venus'
+crescents 11–16 codes darker 12 px in. Forward+ holds the day sides the same, and loses more
+of that bloom, its glow halo being the wider. Airless bodies render bit-identically either way.
+
+Being a choice of programs, Off is made when bodies are built, as Min is: `IVAssetPreloader`
+binds `off_shader_variants` for every body with air — the `.off` twins, and no limb shell —
+and keeps the body's atmosphere apart from its shells (`get_body_atmosphere()`) so that
+`IVShellsModel` still feeds it to the discs. `IVExposureManager` drops the limb's exposure ceiling,
+there being no limb to hold it for, and a change into or out of Off waits for a restart. What it
+costs and saves is *Atmosphere quality* and *What each shader costs* in
+[GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md).
 
 ## The Sun
 
@@ -940,6 +1156,140 @@ the panorama had been ~6× too bright relative to the stars it sits behind.
 erased), so the correction holds with physical light OFF as well and the two modes
 differ by exposure alone — toggling the setting moves the sky and the stars together.
 At rest exposure the whole sky rides `exposure_max_ev` above the authored look.
+
+## Skipping what the camera has metered away
+
+Metering's output is also a visibility decision. Once the camera has stopped down for a
+sunlit body, most of what this document calibrates renders below the darkest code a display
+can show, and the GPU is still drawing every bit of it — in a lit-body view the background
+panorama is 10–17 % of an integrated-GPU frame and the star field 13–28 %, for nothing. Two
+consumers act on that: `IVWorldEnvironment` stops drawing the panorama
+(`skip_invisible_starmap`), and `IVStarsVisual` stops submitting each magnitude bin the
+exposure has taken under (`cull_invisible_bins`). Both poll the `IVExposureManager` statics
+from their own `_process`, as `IVDynamicLight` and `IVBodyPSF` do, and the manager gains
+nothing: a per-frame visibility decision is not a value it supersedes, and a consumer that
+owns its own decision restores itself on deactivation through the same branch a project
+running without physical light takes anyway.
+
+### One display code, and why it is not 1/255
+
+`IVPhotometry.ONE_DISPLAY_CODE_LINEAR` is the linear radiance that encodes to 1/255 on the
+sRGB toe — `(1/255) / 12.92`, about 3.04e-4. Nothing sits between a shader's linear value
+and that transfer: `tonemap_mode` is LINEAR, and `tonemap_exposure` is pinned to 1.0 under
+Compatibility while physical light is active.
+
+**`psf_visible_size()` cuts at a LINEAR 1/255, which is a different threshold for a
+different job.** That value is about 13 display codes, some 1800x brighter. It is the right
+cut for a sprite's outer edge, where the question is where a Gaussian stops being worth
+rasterizing; it is the wrong one for asking whether a source renders at all.
+
+**The glare wing binds at the faint end, not the core.** A star at intensity 1/255 has a
+core size law that already returns zero, while its wing still peaks at
+`glare_scale * (1/255)^glare_gamma`, about 2.6e-3 linear — eight or nine codes. With the
+shipped PSF the wing puts the one-code cut near intensity 2.2e-6, about 8.1 magnitudes
+fainter than the core criterion would. A predicate built on the size law alone would delete
+stars that are plainly visible, so the test is the peak of core plus wing
+(`IVPSFSettings.get_peak_light()`).
+
+### Half a code, and the bound that buys
+
+A drawn layer is dropped below **half** a code and is not restored until it reaches a whole
+one. The lower figure is the 8-bit rounding boundary — below it the layer alone cannot round
+to anything — and the gap between the two is hysteresis, without which a layer sitting on
+the line would flip every frame.
+
+**How wide that gap is depends on the layer.** For the panorama, whose radiance is linear in
+exposure, it is one EV of exposure glide. A star bin is judged by its brightest star's peak,
+and near the cut that peak is the glare wing (*One display code*, above), which grows only as
+`intensity^glare_gamma`: at the shipped 0.286 a factor of two in peak is about 3.5 EV, or 2.6
+magnitudes, so at any steady exposure some five half-magnitude bins sit inside the gap —
+drawn if the camera arrived from a darker view, skipped if it arrived from a brighter one.
+Measured 2026-09-29 at the Moon at 3 radii, one settled exposure either way: bins 8.5 to 10.5
+peak at 0.89 down to 0.53 of a code, and the path decides whether their 537,000 stars are
+submitted, which is about 6 ms of an integrated-GPU frame through ANGLE (*A view's cost depends
+on the view before it* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)). The
+bound below holds either way; what the width costs is that neither the frame time nor, to
+about a code in the faint stars, the image is a function of the pose alone.
+
+Half a code is also what makes the guarantee provable rather than measured. In the toe the
+encode is linear at 12.92, so removing a contribution under half a code moves an encoded
+value by under half a code and the rounded result **by at most one**, at any pose, over any
+content. Bit-identity is not available at any positive threshold: what is removed is added
+light, and added light can carry a pixel across a rounding boundary however small it is.
+Measured at a frozen exposure with HUDs hidden, Earth at 3 radii (13 bins hidden, sky
+skipped) and Saturn at 45 degrees (4 bins, sky skipped) came back bit-identical, while
+Jupiter's moon system — where the sky sat at 0.099 of a code, just under the threshold —
+moved 337 pixels of 2.07 M by exactly one code, faint star pixels the removed sky had been
+tipping over a boundary.
+
+### The panorama
+
+Its rendered radiance is bounded by `energy_multiplier * iv_exposure`: a decoded 8-bit texel
+cannot exceed 1.0, and 1.0 is precisely what `background_peak_magnitude_per_arcsec2` asserts
+the brightest texel to be. Nothing else is view-dependent — an extended source sampled per
+pixel holds its surface brightness across fov and resolution — so this is the one skip with
+no capture hazard and no geometry in it. With the shipped anchor the sky goes at exposure
+1.75e-3, 10.2 EV below the dark-adapted rest, which an EV sweep confirms to the stop.
+
+Skipping is `background_mode = BG_COLOR`, so `environment.sky` survives for
+`IVExposureManager._find_starmap_material()` and for the return. Ambient is unaffected
+(`ambient_light_source` is COLOR, and the manager drives its energy). Reflections come from
+the background, and a sky certified under half a code reflects under half a code — reflected
+radiance cannot exceed incident.
+
+### The star bins, and the two tests neither of which is sufficient
+
+A star's rendered value falls with magnitude, so what the camera can show is always a prefix
+of the bins and what it drops is always a suffix. Walking that suffix inward from the faint
+end, a bin is dropped only if **both** hold:
+
+- **Its brightest star is invisible on its own.** The bound is exact and free: the bins
+  partition by magnitude, and `_build_bin_mesh()` records the brightest magnitude it actually
+  decoded rather than trusting the file's tag.
+- **The glow of every bin dropped so far is invisible together.** `blend_add` is a sum, and
+  the faint bins are where the stars are — 1.1 M in `11.5` and `12.0` alone. Cutting to V 11
+  was measured to dim a dark sky by about 7 codes over a third of it, which is entirely stars
+  that are individually under one code. A per-bin test would drop four such bins and find
+  each one innocent.
+
+The summed term is a bin's mean added radiance per pixel: its sky density, times the screen
+solid angle over the pixel count, times the light one sprite lays down. Two simplifications
+are deliberate and both err toward drawing. The screen solid angle is the small-angle
+`4 tan^2(fov/2)` form — the one `fov_compensation` is itself built on, so the fov terms
+cancel as the star shader's header says they do, and it over-states a wide screen's share of
+the sky. And every star in a bin is charged at its brightest member's peak, which over-states
+by the bin's own half-magnitude width: a factor 1.14 in wing amplitude.
+
+**Density is measured where the field is densest, not on average.** The catalog is a galaxy
+seen from inside it: `11.5` and `12.0` run about 3x the mean density in the Milky Way band,
+so a mean-density estimate would clear a bin for culling while its band was still glowing.
+`_get_peak_sky_density()` takes the maximum over 96 equal-solid-angle cells — bands of equal
+`sin(latitude)` by equal longitude — from a subsample of the decode loop.
+
+The model reproduces the measured cut without being fitted to it: at Saturn's metered
+exposure of 2.8e-5 it puts the boundary between the `11.5` bin (wing peak 1.58e-4, above the
+half-code line) and the `12.0` bin (1.39e-4, below), which is where the running app puts it,
+and which is the V 11 cut that [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md) certified as
+changing zero pixels in lit-body views.
+
+### Resolution, and the one place it is a correctness question
+
+The per-star peak carries `resolution_scale^2` while the summed term is near
+resolution-invariant, the two halves of the same law the star shader's header sets out. The
+asymmetry has a consequence: an off-screen capture taller than the window renders every star
+brighter, so a bin correctly hidden for the window would be *missing* from a 4K screenshot.
+`IVScreenshotManager` therefore registers its render height in
+`IVStarsVisual.capture_render_height` and waits a frame before building its viewport; a
+hidden bin returns undamped, which is what makes one frame enough. Measured at a fixed
+exposure, a 2x capture height restores three bins and a 4x height six.
+
+### Renderer parity
+
+One threshold serves both renderers, and it is conservative on the web one. `display_write()`
+pre-inverts the Compatibility bracket so a linear radiance lands at the same code either way,
+and with glow enabled Compatibility crushes the dim end further still (0.041x on 6-8 code
+content, measured under *Renderer parity*). Nothing below 1.0 linear reaches the glow pass in
+any case: `glow_hdr_threshold` is 1.0 and `glow_bloom` is 0.
 
 ## Rings
 
@@ -1291,7 +1641,13 @@ centres. Above the ramp a ring is a shape a viewer can see and must not become a
 it, a plane that cannot be rasterized must not be what carries the light. Measured in the
 app, the engine's sum reproduces the offline full-resolution integral to 0.9988-1.0001 on
 both faces from 5 to 98 degrees of phase, and a render at the ramp's top is bit-identical to
-one with none of this in it.
+one with none of this in it. The ramp is in render-buffer pixels, and a hi-res capture draws
+these same nodes into a buffer of its own while one material and one published flux serve
+both -- so `IVRings` decides for the greater of the window's render height and the one
+`IVScreenshotManager` registers in `IVRings.capture_render_height`, the handshake it runs for
+the star cull, the sphere LOD and glow. Its error is then only ever toward the plane: a capture
+shorter than the window keeps the window's decision, and the window shows a taller capture's
+for the few frames of the shot.
 
 A ring's colour has to cross that handoff with its light. The quad draws a body in the tint
 of its catalog `color_b_v`, and a ring system's is not its planet's -- Saturn's rings are
@@ -1613,6 +1969,12 @@ the bloom pass the sun's disc/point co-calibration and the f16 caps were built f
 in the CPU photometry changes — what changes is which rendered values spill light into their
 neighbors. Judged in-app on Forward+ at the defaults: good.
 
+It is also the user's Glow option (setting `glow`, which `IVGraphicsManager` writes to the
+Environment), and the Low graphics tier fits it Off. What switching it off gives up is the
+bloom of what the camera has not exposed for, which no PSF quad draws; on Compatibility it
+also gives back the dim end (below). What it costs a frame is *Glow* in
+[GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md).
+
 ### Which glow settings a project may change
 
 Godot exposes a dozen glow properties and they are not peers: two carry the contract this
@@ -1630,7 +1992,8 @@ true.
 | `glow_hdr_threshold` | 1.0 | **No, not downward.** 1.0 is the whole contract: "what clips, spills." Lowering it blooms metered content; raising it mutes the faint end for no gain, since the cap already flattens the bright end. |
 | `glow_hdr_luminance_cap` | 12.0 | **Yes, knowingly.** The one photometric lever here — where bloom stops being proportional to flux (see below). Raising it buys honest wing energy on the brightest sources and costs bright-end size hierarchy and firefly damping. Inert under Compatibility, which clamps lower on its own. |
 | `glow_blend_mode` | Screen | **Yes, except Soft Light.** Screen and Additive both composite pre-tonemap in linear and agree over dark sky. Soft Light is the odd one out: the engine applies it *after* tonemapping, on display-referred values, which is the one mode that is wrong here on principle rather than to taste. |
-| `glow_levels`, `glow_intensity`, `glow_strength`, `glow_mix`, `glow_map*` | 2/3/4 at 0.8/0.4/0.1, 0.3, 1.0, 0.05, none | **Yes, freely.** Halo width, weight and shape. None of them touch which pixels qualify, only how their light is spread. |
+| `glow_levels` | 2/3/4 at 0.8/0.4/0.1 | **Yes, as authored for the 1080 reference height.** Halo width and shape, not which pixels qualify. `IVWorldEnvironment` shifts them to the render height (*Render height*, below), so change them at runtime through its `set_glow_levels()`: a write to the Environment is overwritten at the next height change. |
+| `glow_intensity`, `glow_strength`, `glow_mix`, `glow_map*` | 0.3, 1.0, 0.05, none | **Yes, freely.** Halo weight and shape. None of them touch which pixels qualify, only how their light is spread. |
 | `glow_normalized` | off | **Yes, but it does nothing here.** It renormalizes the level weights on the CPU (free), and at fixed levels that is a uniform 1/1.3 rescale — indistinguishable from turning `glow_intensity` down. Tested; no visible change. |
 
 One setting outside the glow group belongs in the same list: **the tonemapper**. Glow
@@ -1647,7 +2010,8 @@ veiling-glare add.
   and contribution is full by 3.0 — and **capped at `glow_hdr_luminance_cap` = 12.0** per
   channel. A Reinhard weighting on the first downsample suppresses single-pixel fireflies,
   which also suppresses the sub-pixel star shimmer a bloom could otherwise amplify.
-- The blurred levels (defaults 2/3/4 at 0.8/0.4/0.1 — quarter- to sixteenth-resolution)
+- The blurred levels (defaults 2/3/4 at 0.8/0.4/0.1 — quarter- to sixteenth-resolution of
+  the render buffer, shifted with its height: *Render height*, below)
   times `glow_intensity` 0.3 composite **before tonemapping, in linear light**, for every
   blend mode but Soft Light. The default Screen blend at `white` 1.0 is
   `color + glow − color·glow`: over dark sky — where every halo lives — that is an additive
@@ -1738,6 +2102,25 @@ already documents, and it vanishes over truly black sky. The shader header that 
 "bloom in proportion to true brightness" (`stars.gdshader`) was describing this; it gets
 corrected with the eventual tuning change.
 
+**With physical light off, a sunlit body's glare retires as its disc resolves.** `iv_exposure`
+then holds the dark-adapted rest while the disc is lit by the by-eye curve, which lands it near
+where the meter would have: so everything the quad draws beside a resolved disc is imaged some
+12 EV (Neptune) to 22 EV (Earth) hotter than the disc itself, by the metering key against each
+body's lit luminance. The rim's sky side, whose whole job is to continue the surface's own rim
+at the surface's level, drew as a saturated band along the lit limb that the Forward+ pass
+bloomed at its cap, and the wing ran several times the radius the metered view gives. So
+`IVBodyPSF` withholds the rim and sets `glare_retires`, and the wing fades from full at the
+solved handoff to nothing at `GLARE_RETIRE_RATIO` (4) times it (`body_psf.gdshader`). It cannot
+take the disc weight, because a lit disc's trade is a step and the wing is wider than the disc
+there, so it stays full through the handoff. That trade is itself mismatched in this mode — a
+by-eye disc well under white for a core that is saturated by construction — and the wing does
+not bridge it on a crescent, whose wing is faint: measured on Jupiter at high phase, the body
+all but vanishes just past its 2.3 px handoff, and is still barely visible at 8 px, but returns
+as a bright point below it. The rim's saturated band was what had hidden that gap. A point
+keeps its glare and so still sits among the field stars on their terms, and a star's glare is
+its own light and stays in both modes. The cost, with physical light off only: crescent glow,
+the rim's antialiasing on a thin crescent's limb, and that gap.
+
 **The other defaults are right, or near enough.** `glow_bloom` must stay 0.0 — it blooms
 below-threshold content, i.e. correctly exposed surfaces. The threshold at 1.0 means "what
 clips, spills," which is the right meaning under a linear tonemap. Levels and intensity are
@@ -1778,19 +2161,57 @@ from "every channel above 0.5" to "every channel inside one octave", so content 
 than an id — a star, a lit limb — can no longer be mistaken for one; false positives went
 down, not up. `glow_bloom` must stay 0.0 for this to hold, which it must anyway.
 
-The probe itself reads at `POST_TRANSPARENT`, pre-tonemap and therefore pre-glow, so picking
-was never at risk from glow — only the picture was.
+The probe itself reads at `PRE_TRANSPARENT`, well before glow, so picking was never at risk
+from glow — only the picture was.
 
-**Captures.** Hi-res screenshots share the environment and get glow; halo radii are
-resolution-relative (blur levels) where the PSF is absolute pixels, so a halo holds its share
-of the frame while stars stay pin-sharp, and a taller render pushes fainter stars over the
-threshold — both consistent with the fixed-f-number camera the star field already implements.
-The 2D icon rig runs its own `World3D` on the default environment: **no glow in icons**,
-which keeps transparent readbacks clean and costs the exact in-sim look of overexposed
-content. Accepted.
+**Render height: a halo keeps its share of the frame.** Every glow level is a blur of the
+render buffer in that buffer's own texels, so left alone a halo is fixed in render pixels: a
+taller window or a hi-res capture narrows it against the frame, and a 3D render scale below 1
+widens it. Measured around the sun on Forward+, its light ran ×1.46 at 70 % render scale and
+×1.98 at 50 %, and its reach nearly as much. `IVWorldEnvironment` therefore holds the
+Environment's levels as authored for the 1080 reference height (`iv_reference_viewport_height`,
+the height the PSF law is normalized to) and shifts them `log2(1080 / render height)` octaves,
+finer below the reference and coarser above it. A weight that lands between two levels is
+split to keep the halo's variance, level widths doubling per level: at 85 % and 70 % that held
+the light to 1.02 and 1.03 of 100 %, where a split linear in octaves ran 1.09 and 1.17.
+Verified in frame-height units against a 1080-tall render at 100 %: 85, 70 and 50 % render
+scale, a 1440-tall window and 720- and 1440-tall screenshots all land within 0.94–1.03 of its
+light and 2 px (1080-equivalent) of its reach. A capture gets its own height through
+`IVWorldEnvironment.capture_render_height`, the handshake `IVScreenshotManager` already runs
+for the star cull, the sphere LOD and the ring crossfade, so the live view shows the capture's
+levels for the few frames of a shot. **Compatibility cannot do this**: its glow has no
+levels, so a halo there stays fixed in render pixels (×1.60 of its light at 70 %, ×2.23 at
+50 %).
 
-**Compatibility gets a different pass, and it is ON there — a deliberate trade, not a free
-win.** It was gated off on 2026-08-31 and back on with the PSF quad system, and the
+**A tail too faint for the engine to compute draws garbage instead.** In 4.7.2 the glow pass
+computes mips only through the last level weighted above 0.01 (`max_glow_index` in
+`renderer_scene_render_rd.cpp`), but the tonemapper samples every level above 0.0001
+(`gather_glow()` in `tonemap.glsl`). A trailing level weighted between the two is read from
+a mip nothing wrote: uninitialized GPU memory, drawn as saturated red, green, blue and
+magenta blobs and hard-edged black blocks, fixed on screen until the render buffers are next
+reallocated. A split's coarse share runs down to zero, so the shift made such tails as a
+matter of course. On a 3840×2400 screen, fullscreen put 0.0078 on level 6 and the scaled
+startup window 0.0048, with level 5 the last level computed in both. Whether garbage
+showed depended on what a released buffer had left in that memory, so it came and went
+with fullscreen toggles. The built-in screenshot renders into its own buffers, so it never
+showed the live view's garbage. `IVWorldEnvironment` therefore piles any trailing weight at
+or below 0.011 (the engine's 0.01, with margin for its float32 copy) onto the last level the
+pass computes, as the shift already does with weight past the end of the chain. Verified
+2026-09-24 on the GTX 1650 Ti, reading back the root viewport over four fullscreen round
+trips: in each windowed return that showed garbage, zeroing the tail removed all of it and
+restoring it brought back the same image bit for bit; with the tail piled, every return
+rendered bit-identical to the first frame.
+
+**Captures.** Hi-res screenshots share the environment, so they get glow at their own height
+(above), while stars stay pin-sharp — the PSF is absolute pixels — and a taller render pushes
+fainter stars over the threshold, consistent with the fixed-f-number camera the star field
+already implements. The 2D icon rig runs its own `World3D` on the default environment: **no
+glow in icons**, which keeps transparent readbacks clean and costs the exact in-sim look of
+overexposed content. Accepted.
+
+**Compatibility gets a different pass, on by default there too — a deliberate trade, not a
+free win, and one the Low graphics tier declines**, so every browser and every integrated
+GPU runs without it. It was gated off on 2026-08-31 and back on with the PSF quad system, and the
 measurements that argued for the gate all still stand: the pass adds no halo to a point source
 (above), and enabling it moves tonemapping into a post pass that re-runs the transfer bracket
 `display_write()` pre-inverts exactly once, so background content measures **0.041x at 6-8
@@ -1799,8 +2220,7 @@ measures 1.000x at every level. That is the Milky Way and the faint stars, and w
 off the two renderers agree on the same frame to 0.8 %. What buys it back is **extended
 sources**: spacecraft parts, small moons and asteroids sit outside the `IVBodyPSF` quad
 system, which now draws its own wings for every source that has one, and the pass is the only
-glow those others get anywhere. The rest of this paragraph is the mechanism. A project that
-wants it off can author its own Environment.
+glow those others get anywhere. The rest of this paragraph is the mechanism.
 
 **What the pass actually does on that renderer.**
 Verified in the 4.7.2 GLES3 source (`drivers/gles3/rasterizer_scene_gles3.cpp`,
@@ -1821,8 +2241,10 @@ extra pass and the shader repermute the web build was spared. The threshold also
 Forward+'s even where it works. (In a transparent render target the format is RGBA8, the
 headroom trick is off, and glow is inert while the post pass still runs.) All of which is why
 the pass earns its keep here only for the extended sources the quad system does not reach; the
-*Renderer parity* numbers are measured with it off, and are that much better than the shipped
-configuration on dim content. Recovering most of the crush would take a third display mode
+*Renderer parity* numbers are measured with it off, as the Low tier runs, and are that much
+better than glow on for dim content. Because the pass decides whether every scene shader
+tonemaps in its own fragments, switching it recompiles all of them, so the Glow option takes
+effect here only at the next start. Recovering most of the crush would take a third display mode
 that pre-inverts the bracket twice — not the bottom few codes, each pass's encode having a
 hard zero floor — or extending the quad system to every body with a computable magnitude,
 which would shrink the pass's remaining role to spacecraft parts.
@@ -1848,6 +2270,8 @@ lever a capped pass cannot offer is one the shader does not need.
 |---|---|---|
 | `IVCoreSettings` | `enable_physical_light` | Instantiates the system (default false; zero cost off). Requires `dynamic_lights`. |
 | user options | `physical_light` | Runtime toggle (cached setting; Options row appears when enabled). |
+| | `atmosphere_quality` | Normal, Reduced, Min or Off. Normal and Reduced are applied live by `IVGraphicsManager` as the `iv_atm_*` globals, Reduced running a 4-node along-ray quadrature and 2 ring taps; Min and Off are each their own shaders, Off with no limb, bound at startup, so each takes a restart. See *Atmospheres*. |
+| | `glow` | The bloom pass on or off, applied by `IVGraphicsManager` live on Forward+ and at the next start on Compatibility; Off in the Low graphics tier. See *Glow: the bloom pass*. |
 | `IVExposureManager` | `background_peak_magnitude_per_arcsec2` | The absolute anchor (mag/arcsec² of a full-white panorama texel). |
 | | `metering_key` | Rendered value a fully metered surface lands at (mid-exposure target). |
 | | `meter_fraction_start` / `meter_fraction_full` | Screen-fraction ramp: when a body begins to influence metering / fully drives it. |
@@ -1863,15 +2287,35 @@ lever a capped pass cannot offer is one the shader does not need.
 | | `nightside_twilight_angle` | Horizon fade width on the last crescent sliver (close range). |
 | | `adapt_darken_ev_per_second` / `adapt_brighten_ev_per_second`, `snap_ev_threshold` | Adaptation rates and the instant-jump threshold. The rates are in WALL-CLOCK seconds (they describe the viewer's eye), which is why they carry no `IVUnits` factor where `nightside_twilight_angle` and `ambient_starlight_illuminance` do. |
 | | `default_albedo` | Metering albedo for bodies without a table value. |
+| | `auto`, `manual_exposure_ev`, `exposure_adjustment_ev` | Runtime overrides for a GUI: hold the metered result, replace it with a stated EV, or offset either. The defaults (auto, no adjustment) apply the metered result itself. |
+| | `auto_exposure_ev` (read-only) | The metered and adapted result, in EV relative to the authored sky look. Live every frame whether or not `auto` is set, so a control can display it and hand it to manual without a jump. |
 | body tables | `albedo` | V-band geometric albedo: the asset-level target (a map's sphere mean) and, unless overridden, the metering albedo. |
 | | `meter_albedo` | Metering albedo where what the camera sees is not the map alone — a body whose shells add light over it. Earth only. |
 | | `emission_luminance_scale` | Luminance of a full-white emission texel at multiplier 1.0. |
 | | `ambient_starlight_illuminance` | Integrated starlight: ambient level and the metering floor. |
-| | `auto`, `manual_exposure_ev`, `exposure_adjustment_ev` | Runtime overrides for a GUI: hold the metered result, replace it with a stated EV, or offset either. The defaults (auto, no adjustment) apply the metered result itself. |
-| | `auto_exposure_ev` (read-only) | The metered and adapted result, in EV relative to the authored sky look. Live every frame whether or not `auto` is set, so a control can display it and hand it to manual without a jump. |
+| `IVWorldEnvironment` | `skip_invisible_starmap` | Stops drawing the background panorama once exposure has taken it under half a display code. False renders the sky always, which is the A/B an exposure-skip measurement diffs against. See *Skipping what the camera has metered away*. |
+| | `set_glow_levels()` / `get_glow_levels()` | The glow level weights as authored for the 1080 reference height, which the node shifts to the render height; the runtime way to change them. See *Glow: the bloom pass*. |
+| | `capture_render_height` (static) | Render height an off-screen capture is about to use, so its glow levels are shifted for it; `IVScreenshotManager` sets and clears it. Not a tunable. |
+| `IVStarsVisual` | `cull_invisible_bins` | The same for each magnitude bin of the star field. False submits the whole catalog. |
+| | `capture_render_height` (static) | Render height an off-screen capture is about to use; `IVScreenshotManager` sets and clears it. Not a tunable. |
+| `IVRings` | `capture_render_height` (static) | Render height an off-screen capture is about to use, so the plane/point crossfade is decided for it; `IVScreenshotManager` sets and clears it. Not a tunable. |
 
 ## TODO
 
+- **Saturn's rings do not draw through Intel's GL driver** (2026-09-28). On the profiling
+  laptop's UHD (driver 31.0.101.2137) under Compatibility the ring plane renders nothing --
+  either face, near or far, at 85 or 100 % render scale, with or without MSAA -- and logs no
+  shader error. The same build through ANGLE on that GPU, and the GTX through its own GL and
+  through ANGLE, agree to within a code, so the fault is the ring material on this one compiler.
+  Bisect `rings.gdshader` there, starting with a flat `EMISSION` and `ALPHA` at the top of
+  `fragment()` to learn whether any fragment reaches it. Running these parts through ANGLE, as
+  the Planetarium does (*Renderer* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)), sidesteps
+  it; a project that leaves Godot's defaults and runs Compatibility on such a part shows Saturn
+  without rings.
+- **Report the glow threshold mismatch upstream** (*Render height*, above): the pass computes
+  levels above 0.01, the tonemapper samples levels above 0.0001. A 4.6 regression from
+  godotengine/godot#110077; 4.5 computed every level above 0. Once Godot makes them agree,
+  `IVWorldEnvironment._pile_uncomputed_tail()` can go.
 - **Disc photometry: `L(α)`, and the parameter's axis.** `L` ships as a constant, which is
   right where it was anchored (full phase) and progressively too generous as a body swings
   away — the reason `ROCKY_WORLD` had to be hand-tuned down to 0.6 rather than sitting at
@@ -1945,7 +2389,7 @@ lever a capped pass cannot offer is one the shader does not need.
     tag would still buy nothing: the deck spans half the scale and a tag is for a map that
     does not.
   - **Fixed: the shells were lit plane-parallel, so nothing was lit past the terminator.**
-    Every shell took `albedo x max(mu0, 0) x atm_sun_transmittance`: flux entering the column
+    Every shell took `albedo x max(mu0, 0) x sun transmittance`: flux entering the column
     goes as mu0, so illumination was pinned to zero at the geometric terminator WITH A CORNER,
     and surface and deck stopped at the same line while the glow ran on to mu0 -0.13. On a
     sphere the air above a point at mu0 = 0 is still fully lit and shines down; nothing put
@@ -2038,6 +2482,24 @@ lever a capped pass cannot offer is one the shader does not need.
   planets, and the correct Milky Way sheen on deep-space craft is likewise missing when
   the bake happened dark. Fix: retrigger the bake when exposure has moved more than
   ~half an EV since the last one.
+- **Size the star bins' hysteresis in exposure, not in peak** (*Half a code*, above). The gap
+  was meant as one EV of glide and is about 3.5 for a star bin, which leaves five bins' draw
+  to the camera's path (measured 2026-09-29). Testing a hidden bin's return at its peak under
+  half the current exposure, rather than against a whole code, would make it one EV for every
+  layer, whatever the PSF's law: the path would then decide about one and a half bins rather
+  than five, and a first visit would draw the bins peaking between about 0.6 and 1 code, which
+  it omits now — so a first visit costs more frame time and draws the faint stars the eye
+  would expect. Whether that trade is wanted is open.
+- **A project's local scene does not meter** (*A project's own lighting*, tier 2). The
+  candidate set is bodies plus the two asserted shell ceilings, so a lit interior filling the
+  frame leaves the camera at its dark-adapted rest and blows out; a project's only recourse
+  today is to take exposure manually (`auto = false`) or offset it
+  (`exposure_adjustment_ev`). The shape of the fix is already in the model: a ceiling
+  candidate the scene asserts, weighted by its screen area on a ramp of its own, exactly as
+  `exposure_ceiling` works for a shell — what a project's own room *should* cost the rest of
+  the frame is a taste question, not a photometric one, which is the same reason that cell is
+  asserted rather than derived. Wants an owner for the assertion (the frame anchor is the
+  obvious place) and a decision on whether a project may register more than one.
 - **Earthshine / planetshine.** There is no light in the renderer from a planet onto
   its satellites or spacecraft — Godot has no runtime global illumination, and emission
   maps illuminate nothing but themselves. A craft's planet-facing side in orbital night
@@ -2107,8 +2569,8 @@ lever a capped pass cannot offer is one the shader does not need.
     map, so white-balance to the home star and let an M dwarf read red *relative* to it. The
     photosphere's limb darkening and Planck anchors are solar (5777 K) and stand as an
     approximation for other types.
-  - **Per-star terms in the shell shaders.** The disc laws, `limb_mean_incidence()`,
-    `atm_sun_transmittance`, the twilight excess and the atmosphere's shadow cylinder each
+  - **Per-star terms in the shell shaders.** The disc laws, `limb_mean_incidence()`, the sun
+    transmittance, the twilight excess and the atmosphere's shadow cylinder each
     take one sun; the `atm_sky_*` curve is a function of µ₀ scaling linearly with
     illuminance, so it reuses per star with no refit. `IVBodyPSF` should sum reflected flux
     over stars, each through its own phase law, while its geometry — phase, wing offset, limb

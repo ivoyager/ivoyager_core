@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" uid="uid://bcl70ysl6yces" path="res://addons/ivoyager_core/ui_widgets/view_button.tscn" id="2_yw4wt"]
 [ext_resource type="PackedScene" uid="uid://c6q32qcmwro7b" path="res://addons/ivoyager_core/ui_widgets/huds_foldable.tscn" id="3_q41io"]
 [ext_resource type="PackedScene" uid="uid://do2jvg01jte0i" path="res://addons/ivoyager_core/ui_widgets/view_save_button.tscn" id="3_yw4wt"]
+[ext_resource type="PackedScene" uid="uid://cimxq7ent5esq" path="res://addons/ivoyager_core/ui_components/control_mod_spacing.tscn" id="4_spcng"]
 
 [node name="HUDsBox" type="VBoxContainer" unique_id=488701194]
 offset_right = 535.0
@@ -241,3 +242,5 @@ external_button_containers = Array[NodePath]([NodePath("../DefaultViews")])
 
 [node name="ViewSaveButton" parent="ViewCollection" unique_id=1050618078 instance=ExtResource("3_yw4wt")]
 layout_mode = 2
+
+[node name="ControlModSpacing" parent="." instance=ExtResource("4_spcng")]

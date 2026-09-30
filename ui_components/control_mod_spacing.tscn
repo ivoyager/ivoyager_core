@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://cimxq7ent5esq"]
+
+[ext_resource type="Script" uid="uid://v3g2pi0hrkem" path="res://addons/ivoyager_core/ui_components/control_mod_spacing.gd" id="1_spcng"]
+
+[node name="ControlModSpacing" type="Node"]
+script = ExtResource("1_spcng")

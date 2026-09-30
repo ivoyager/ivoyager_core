@@ -37,6 +37,10 @@ extends MeshInstance3D
 ## image its rim through the camera's PSF but has no fragment to put the outward half
 ## on. One mechanism, four jobs.[br][br]
 ##
+## With physical light off a sunlit body keeps only the point: its disc is lit by the
+## by-eye curve, off this quad's scale, so its wing retires as the disc resolves and
+## its rim is not drawn. A star's glare is its own light and stays.[br][br]
+##
 ## A direct child of its [IVBody] rather than of [IVBodyVisual], and that is
 ## load-bearing: a lazy body has no visual until the camera visits it, so a quad
 ## hosted inside the model could not draw the far regime — which is the whole
@@ -76,6 +80,8 @@ const FIVE_OVER_LN10 := 2.1714724095162594 # 5 / ln(10), for m = M + 5*log10(d)
 const TWO_HALF_OVER_LN10 := 1.0857362047581294 # 2.5 / ln(10), for a combined colour index
 
 
+static var _reference_viewport_height := 0.0 # read once; see get_reference_viewport_height()
+
 var _body: IVBody
 var _star: IVBody
 var _is_sun: bool
@@ -93,12 +99,14 @@ var _psf_settings: IVPSFSettings
 var _applied_exposure := NAN # change gate; NAN forces the first-frame solve
 var _applied_unit_magnitude := NAN # ditto (phase and heliocentric distance move it)
 var _applied_color_bv := NAN # ditto; moves only on a ringed body, as its rings take over
+var _applied_glare_retires := false
 
 
 
 ## Returns whether [param body] gets a quad: an in-scene star, or a planetary-mass
 ## object with a positive geometric albedo. This is also the gate on the fixed
-## distance cull ([IVBodyVisual], [IVShellsModel]) and on a disc's handoff fade — a
+## distance cull ([IVBodyVisual], [IVShellsModel]) and on a disc's handoff fade and the
+## gate that stops a handed-off disc drawing ([member IVShellsModel.cull_handed_off]) — a
 ## body drawn as a point must not also be culled as a disc, and one that is culled
 ## must not fade.[br][br]
 ##
@@ -206,22 +214,27 @@ static func solve_handoff(magnitude_at_unit_distance: float, mean_radius: float,
 
 ## Returns the height the shaders' resolution law is normalized to, read from the
 ## setting the editor plugin writes from [code]ivoyager_core.cfg[/code] — the same
-## one the shaders take as a global, so the two cannot disagree.
+## one the shaders take as a global, so the two cannot disagree. Read once: nothing
+## writes that global at runtime, and per-frame callers use this.
 ## [method RenderingServer.global_shader_parameter_get] would be the obvious reader
 ## and is a trap: it is editor-only, and in a running project it warns and hands back
 ## null rather than the value.
 static func get_reference_viewport_height() -> float:
 	const FALLBACK := 1080.0
+	if _reference_viewport_height > 0.0:
+		return _reference_viewport_height
+	_reference_viewport_height = FALLBACK
 	var setting: Variant = ProjectSettings.get_setting(
 			"shader_globals/iv_reference_viewport_height")
 	if setting is Dictionary:
 		var setting_dict: Dictionary = setting
 		var value: Variant = setting_dict.get("value")
 		if value is float:
-			return value
+			_reference_viewport_height = value
+			return _reference_viewport_height
 	push_warning("IVBodyPSF: no iv_reference_viewport_height shader global; using %s"
 			% FALLBACK)
-	return FALLBACK
+	return _reference_viewport_height
 
 
 func _init(body: IVBody) -> void:
@@ -281,9 +294,16 @@ func _ready() -> void:
 	_psf_settings = IVGlobal.program[&"PSFSettings"]
 	_psf_settings.changed.connect(_on_psf_settings_changed)
 	_psf_settings.apply_to(_material)
+	_body.visibility_changed.connect(_on_body_visibility_changed)
 
 
 func _process(_delta: float) -> void:
+	_update(_body.is_visible_in_tree())
+
+
+# With the body hidden (asleep, most often) nothing draws this quad, so only the handoff
+# the body's shells read is kept current; the rest waits for the body to show again.
+func _update(is_drawn: bool) -> void:
 	var viewport := get_viewport()
 	if !viewport:
 		return
@@ -307,6 +327,8 @@ func _process(_delta: float) -> void:
 		return
 	visible = true
 	_refresh_handoff(apparent_magnitude, camera_distance)
+	if !is_drawn:
+		return
 	_material.set_shader_parameter(&"apparent_magnitude", apparent_magnitude)
 	_material.set_shader_parameter(&"angular_radius", _mean_radius / camera_distance)
 	_set_rim_parameters(camera)
@@ -361,7 +383,8 @@ func _refresh_color(body_illuminance: float, ring_illuminance: float) -> void:
 # The sun's screen direction falls to zero length as the sun goes directly behind or in front
 # of the body, which is exactly where a lit side stops having a screen direction at all -- so
 # both consumers collapse on their own there. A star gets a zero limb radius: it has no phase
-# and no reflected rim, and its glare is its own.
+# and no reflected rim, and its glare is its own. With physical light off a sunlit body gets no
+# rim either, and its wing retires as the disc resolves (see the class doc).
 #
 # The apparent limb comes from the body's figure the way the analytic shadows take it
 # (IVSunOcclusionManager, which treats the same bodies as oblate spheroids): the outline of a
@@ -384,6 +407,10 @@ func _set_rim_parameters(camera: Camera3D) -> void:
 			sun_direction = to_camera_frame(star_vector.normalized(), camera_basis)
 	var radius_scale := 1.0 / _equatorial_radius if _equatorial_radius > 0.0 else 0.0
 	var conic := get_limb_conic(to_body, pole, _equatorial_radius, _polar_radius, camera_basis)
+	var is_lit_by_eye := !_is_sun and !IVExposureManager.physical_active
+	if is_lit_by_eye != _applied_glare_retires:
+		_applied_glare_retires = is_lit_by_eye
+		_material.set_shader_parameter(&"glare_retires", is_lit_by_eye)
 	_material.set_shader_parameter(&"sun_direction", sun_direction)
 	_material.set_shader_parameter(&"limb_camera_offset",
 			to_camera_frame(-to_body, camera_basis) * radius_scale)
@@ -391,7 +418,7 @@ func _set_rim_parameters(camera: Camera3D) -> void:
 			get_limb_ellipsoid(pole, _equatorial_radius, _polar_radius, camera_basis))
 	_material.set_shader_parameter(&"limb_conic", conic)
 	_material.set_shader_parameter(&"limb_semi_axes",
-			get_conic_semi_axes(conic) if _draws_rim else Vector2.ZERO)
+			get_conic_semi_axes(conic) if _draws_rim and !is_lit_by_eye else Vector2.ZERO)
 	_material.set_shader_parameter(&"limb_centre_offset", get_conic_centre(conic).length())
 
 
@@ -588,3 +615,11 @@ func _get_phase_blend() -> float:
 func _on_psf_settings_changed() -> void:
 	_psf_settings.apply_to(_material)
 	_applied_exposure = NAN # the handoff moves with psf_sigma and the intensity chain
+
+
+# The body shows mid-frame -- a moon woken by the camera entering its system, from the
+# camera's own _process -- where this node may already have had its turn, and the frame
+# would draw uniforms from before the body slept.
+func _on_body_visibility_changed() -> void:
+	if _body.is_visible_in_tree():
+		_update(true)

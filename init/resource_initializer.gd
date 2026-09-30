@@ -27,6 +27,12 @@ extends RefCounted
 ## presence of ivoyager_assets (see [IVAssetPreloader] for that).
 
 
+## The coarsest rung of the shared sphere's LOD ladder. One rung below the coarsest an
+## [IVBodyPSF] handoff can expose (2.5 px), so it is set by the ladder's sagitta budget rather
+## than by project taste — see [method get_sphere_lod_resolutions].
+const SPHERE_LOD_FLOOR_RESOLUTION := 16
+
+
 ## Resources to preload and add to [member IVGlobal.resources]. Modify before
 ## construction (e.g., from a preinitializer script) to add or replace shaders
 ## and other resources.
@@ -49,6 +55,37 @@ var preloads: Dictionary[StringName, Resource] = {
 	surface_cube_shader = preload("res://addons/ivoyager_core/shaders/surface.cube.gdshader"),
 	# Textureless procedural surface; no cube variant, because it samples no texture.
 	band_pattern_shader = preload("res://addons/ivoyager_core/shaders/band_pattern.gdshader"),
+	# The above for a body with no atmosphere (IVAssetPreloader.airless_shader_variants).
+	cloud_shell_airless_shader = preload(
+			"res://addons/ivoyager_core/shaders/cloud_shell.airless.gdshader"),
+	cloud_shell_cube_airless_shader = preload(
+			"res://addons/ivoyager_core/shaders/cloud_shell.cube.airless.gdshader"),
+	surface_airless_shader = preload("res://addons/ivoyager_core/shaders/surface.airless.gdshader"),
+	surface_cube_airless_shader = preload(
+			"res://addons/ivoyager_core/shaders/surface.cube.airless.gdshader"),
+	band_pattern_airless_shader = preload(
+			"res://addons/ivoyager_core/shaders/band_pattern.airless.gdshader"),
+	# The above and the limb for a body with an atmosphere under Atmosphere Quality Min
+	# (IVAssetPreloader.min_shader_variants).
+	cloud_shell_min_shader = preload("res://addons/ivoyager_core/shaders/cloud_shell.min.gdshader"),
+	cloud_shell_cube_min_shader = preload(
+			"res://addons/ivoyager_core/shaders/cloud_shell.cube.min.gdshader"),
+	atmosphere_limb_min_shader = preload(
+			"res://addons/ivoyager_core/shaders/atmosphere_limb.min.gdshader"),
+	surface_min_shader = preload("res://addons/ivoyager_core/shaders/surface.min.gdshader"),
+	surface_cube_min_shader = preload(
+			"res://addons/ivoyager_core/shaders/surface.cube.min.gdshader"),
+	band_pattern_min_shader = preload(
+			"res://addons/ivoyager_core/shaders/band_pattern.min.gdshader"),
+	# The same disc shaders under Atmosphere Quality Off (IVAssetPreloader.off_shader_variants).
+	cloud_shell_off_shader = preload("res://addons/ivoyager_core/shaders/cloud_shell.off.gdshader"),
+	cloud_shell_cube_off_shader = preload(
+			"res://addons/ivoyager_core/shaders/cloud_shell.cube.off.gdshader"),
+	surface_off_shader = preload("res://addons/ivoyager_core/shaders/surface.off.gdshader"),
+	surface_cube_off_shader = preload(
+			"res://addons/ivoyager_core/shaders/surface.cube.off.gdshader"),
+	band_pattern_off_shader = preload(
+			"res://addons/ivoyager_core/shaders/band_pattern.off.gdshader"),
 	stars_shader = preload("res://addons/ivoyager_core/shaders/stars.gdshader"),
 	# Textureless procedural photosphere; no cube variant, because it samples no texture.
 	photosphere_shader = preload("res://addons/ivoyager_core/shaders/photosphere.gdshader"),
@@ -61,8 +98,8 @@ var preloads: Dictionary[StringName, Resource] = {
 ## Each Callable is invoked with no arguments and its return value is stored
 ## under the matching key in [member IVGlobal.resources].
 var constructors: Dictionary[StringName, Callable]= {
-	&"sphere_mesh" : _make_sphere_mesh.bind(IVCoreSettings.sphere_radial_segments,
-			IVCoreSettings.sphere_rings),
+	&"limb_annulus_mesh" : _make_limb_annulus_mesh.bind(IVCoreSettings.max_sphere_resolution,
+			IVCoreSettings.limb_annulus_rows),
 	&"plane_mesh" : _make_plane_mesh.bind(IVCoreSettings.plane_mesh_subdivisions),
 	&"circle_mesh" : _make_circle_mesh.bind(IVCoreSettings.vertecies_per_conic_mesh),
 	&"circle_mesh_low_res" : _make_circle_mesh.bind(IVCoreSettings.vertecies_per_orbit_low_res),
@@ -77,14 +114,45 @@ var _resources: Dictionary = IVGlobal.resources
 
 
 func _init() -> void:
+	_add_sphere_lod_constructors()
 	_add_preloads()
 	_make_shared_resources()
+	# Not a rung of its own but the same object as the finest, for a caller that wants the shared
+	# sphere without choosing one.
+	_resources[&"sphere_mesh"] = _resources[get_sphere_mesh_key(
+			IVCoreSettings.max_sphere_resolution)]
 	IVStateManager.core_init_program_objects_instantiated.connect(_remove_self)
+
+
+
+## Returns the [member IVGlobal.resources] key of the shared sphere built at [param resolution].
+## [IVShellsModel] calls this to select a rung, so the two sides cannot name a mesh differently.
+static func get_sphere_mesh_key(resolution: int) -> StringName:
+	return StringName("sphere_mesh_%d" % resolution)
+
+
+## Returns the shared sphere's LOD ladder, finest first: [member
+## IVCoreSettings.max_sphere_resolution] halved down to [constant SPHERE_LOD_FLOOR_RESOLUTION].
+## Each rung holds the same sub-pixel silhouette error over a 4x range of on-screen body size,
+## which is what lets [IVShellsModel] pick one by that size alone.
+static func get_sphere_lod_resolutions() -> Array[int]:
+	var resolutions: Array[int] = []
+	var resolution := IVCoreSettings.max_sphere_resolution
+	while resolution >= SPHERE_LOD_FLOOR_RESOLUTION:
+		resolutions.append(resolution)
+		@warning_ignore("integer_division")
+		resolution = resolution / 2
+	return resolutions
 
 
 
 func _remove_self() -> void:
 	IVGlobal.program.erase(&"ResourceInitializer")
+
+
+func _add_sphere_lod_constructors() -> void:
+	for resolution in get_sphere_lod_resolutions():
+		constructors[get_sphere_mesh_key(resolution)] = _make_sphere_mesh.bind(resolution)
 
 
 func _add_preloads() -> void:
@@ -100,17 +168,70 @@ func _make_shared_resources() -> void:
 
 # constructor callables
 
-# Shared [SphereMesh] for stars, planets and moons. Instantiated here as a
-# unit sphere (radius = 1.0; height = 2.0) at specified resolution. Scaled for
-# indivudual [IVBody] oblateness by [IVBodyVisual].
-func _make_sphere_mesh(radial_segments := 64, rings := 32) -> SphereMesh:
-	# Signature has Godot defaults; IVProjectSettings likely specifies higher value.
+# One rung of the shared sphere LOD ladder for stars, planets and moons, keyed by
+# get_sphere_mesh_key(). A unit sphere (radius = 1.0; height = 2.0), scaled for individual
+# [IVBody] oblateness by [IVBodyVisual]. Rings are half the radial segments: that is what makes
+# the facets square, so one number sizes the mesh.
+func _make_sphere_mesh(resolution := 64) -> SphereMesh:
 	var sphere_mesh := SphereMesh.new()
-	sphere_mesh.radial_segments = radial_segments
-	sphere_mesh.rings = rings
+	sphere_mesh.radial_segments = resolution
+	@warning_ignore("integer_division")
+	sphere_mesh.rings = resolution / 2
 	sphere_mesh.radius = 1.0
 	sphere_mesh.height = 2.0
 	return sphere_mesh
+
+
+# Shared annulus for an atmosphere limb shell (see [member IVShellsModel.shader_meshes]). Its
+# vertices hold (azimuth, row) parameters rather than positions -- atmosphere_limb.gdshader
+# places them each frame -- encoded so its computed AABB is the finest sphere rung's to float
+# rounding, since [IVBody2DCapturer] frames a staged body by that AABB.
+func _make_limb_annulus_mesh(segments := 64, rows := 8) -> ArrayMesh:
+	# The sphere's widest ring rather than 1: SphereMesh spaces sphere_rings + 1 bands pole to
+	# pole, so an even ring count leaves no ring on the equator. The finest rung's rings, since
+	# that is the sphere this mesh must match; a body drawing a coarser rung differs by under
+	# 0.03 % of the radius, far inside the framing tolerance.
+	@warning_ignore("integer_division")
+	var sphere_rings := segments / 2
+	var extent := sin(PI * floori((sphere_rings + 1) / 2.0) / (sphere_rings + 1))
+	var columns := rows + 1
+	var vertices := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	for segment in segments:
+		var azimuth := TAU * segment / segments
+		for row in columns:
+			vertices.append(Vector3(extent * sin(azimuth), 2.0 * row / rows - 1.0,
+					extent * cos(azimuth)))
+			uvs.append(Vector2(float(segment) / segments, float(row) / rows))
+	# Clockwise on screen, Godot's front face: the shader turns azimuth counterclockwise as the
+	# camera sees it, and rows run outward.
+	var indices := PackedInt32Array()
+	for segment in segments:
+		var inner := segment * columns
+		var next_inner := (segment + 1) % segments * columns
+		for row in rows:
+			indices.append_array(PackedInt32Array([inner + row, next_inner + row, inner + row + 1,
+					next_inner + row, next_inner + row + 1, inner + row + 1]))
+	# Unused by the shader, but a Forward+ pipeline is keyed by vertex format: carrying the
+	# sphere's attributes lets the shader warm-up's quad compile this surface's pipeline.
+	var normals := PackedVector3Array()
+	normals.resize(vertices.size())
+	normals.fill(Vector3.UP)
+	var tangents := PackedFloat32Array()
+	tangents.resize(vertices.size() * 4)
+	for vertex_index in vertices.size():
+		tangents[vertex_index * 4] = 1.0
+		tangents[vertex_index * 4 + 3] = 1.0
+	var mesh_arrays := []
+	mesh_arrays.resize(ArrayMesh.ARRAY_MAX)
+	mesh_arrays[ArrayMesh.ARRAY_VERTEX] = vertices
+	mesh_arrays[ArrayMesh.ARRAY_NORMAL] = normals
+	mesh_arrays[ArrayMesh.ARRAY_TANGENT] = tangents
+	mesh_arrays[ArrayMesh.ARRAY_TEX_UV] = uvs
+	mesh_arrays[ArrayMesh.ARRAY_INDEX] = indices
+	var annulus_mesh := ArrayMesh.new()
+	annulus_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, mesh_arrays)
+	return annulus_mesh
 
 
 # Shared subdivided [PlaneMesh] for [IVRings]. Kept at the default 2x2

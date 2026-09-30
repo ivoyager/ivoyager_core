@@ -53,7 +53,7 @@ static func create(body_flags: int, sbg_aliases: Array[StringName] = []) -> IVSy
 
 
 func _ready() -> void:
-	custom_minimum_size = Vector2(22, 22)
+	add_child(IVControlModResizable.create(Vector2(22, 22)))
 	toggle_mode = true
 	action_mode = ACTION_MODE_BUTTON_PRESS # needed for the popup reclick close
 	expand_icon = true

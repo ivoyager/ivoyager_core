@@ -33,14 +33,39 @@ extends PopupPanel
 ## Depending on value type, an option item can be a [CheckBox], [OptionButton],
 ## [SpinBox], [LineEdit] or [ColorPickerButton]. Individual option Controls
 ## can be modified by [member option_enumerations] and [member
-## option_control_properties].
+## option_control_properties], and given a tooltip by [member option_tooltips].[br][br]
+##
+## A graphics option's tooltip states its GPU cost, which differs by renderer,
+## so tooltips come in two sets: [member option_tooltips], and [member
+## option_compatibility_tooltips], whose entries replace the first set's whenever
+## [member IVGlobal.is_gl_compatibility] is true.[br][br]
+##
+## A section with no options to show is hidden. While any setting registered with
+## [method IVSettingsManager.set_running_value] differs from the value the running
+## session uses, a warning at the bottom says that a restart is needed, and that
+## option's name turns the warning's color with an asterisk. Its tooltip should say
+## that it needs a restart.[br][br]
+##
+## The popup grows with its content up to [member max_screen_proportion] of the
+## view, and the options scroll beyond that.[br][br]
+##
+## [signal IVGlobal.options_requested] opens this popup, or closes it as Cancel
+## does if it's open. See [member modal] for the two ways it can work.
 
 
 ## Stop the simulator while this popup is open. This setting will be overridden
 ## if [member IVCoreSettings.popops_can_stop_sim] == false.
 @export var stop_sim := true
+## If true (default), the rest of the GUI and the view don't respond until this
+## popup closes. Set false for a popup that stays open while the user works
+## elsewhere, which its button or hotkey then closes.
+@export var modal := true:
+	set = set_modal
 ## Column width multiplied by [member IVCoreSettings.gui_size_multipliers] (minimum).
 @export var column_base_width := 320
+## Largest size of this popup as a proportion of the view it opens in, which sets
+## [member Window.max_size]. Content beyond it scrolls.
+@export var max_screen_proportion := Vector2(0.7, 0.7)
 
 ## If true (default), automatically remove cache settings that are not
 ## applicable due to [IVCoreSettings]. (Currently:
@@ -82,6 +107,7 @@ extends PopupPanel
 		[&"LABEL_AUTOSAVE_TIME_MIN", &"autosave_time_min"],
 	],
 	LABEL_CAMERA = [
+		[&"LABEL_PHYSICAL_LIGHT", &"physical_light"],
 		[&"LABEL_TRANSFER_TIME", &"camera_transfer_time"],
 		[&"LABEL_MOUSE_INVERT_IN_OUT", &"camera_mouse_in_out_inverse"],
 		[&"LABEL_MOUSE_RATE_IN_OUT", &"camera_mouse_in_out_rate"],
@@ -107,10 +133,15 @@ extends PopupPanel
 		[&"LABEL_SMALL_BODIES_POINT_SIZE", &"small_bodies_point_size"],
 		[&"LABEL_HIDE_HUDS_WHEN_CLOSE", &"hide_hud_when_close"],
 	],
-	LABEL_GRAPHICS_PERFORMANCE = [
-		[&"LABEL_PHYSICAL_LIGHT", &"physical_light"],
-		[&"LABEL_SHADOW_RESOLUTION", &"directional_shadow_size"],
+	LABEL_GRAPHICS_PERFORMANCE = [ # see GRAPHICS_PROFILING.md
+		[&"LABEL_RENDERER", &"renderer"],
+		[&"LABEL_RENDER_SCALE", &"render_scale"],
+		[&"LABEL_STAR_CATALOG", &"star_catalog"],
+		[&"LABEL_ATMOSPHERE_QUALITY", &"atmosphere_quality"],
+		[&"LABEL_GLOW", &"glow"],
+		[&"LABEL_SHADOW_RESOLUTION", &"shadow_resolution"],
 		[&"LABEL_MSAA", &"msaa_3d"],
+		[&"LABEL_FRAME_RATE_CAP", &"frame_rate_cap"],
 		[&"LABEL_FXAA", &"fxaa"],
 		[&"LABEL_TAA", &"use_taa"],
 	],
@@ -124,8 +155,13 @@ extends PopupPanel
 @export var option_enumerations: Dictionary[StringName, Array] = {
 	language = [&"LanguageManager", &"language_settings"],
 	gui_size = [&"CoreSettings", &"gui_size_settings"],
+	atmosphere_quality = [&"GraphicsManager", &"atmosphere_quality_settings"],
+	render_scale = [&"GraphicsManager", &"render_scale_settings"],
 	msaa_3d = [&"GraphicsManager", &"msaa_settings"],
-	directional_shadow_size = [&"GraphicsManager", &"shadow_size_settings"],
+	shadow_resolution = [&"GraphicsManager", &"shadow_resolution_settings"],
+	frame_rate_cap = [&"GraphicsManager", &"frame_rate_cap_settings"],
+	renderer = [&"GraphicsManager", &"renderer_settings"],
+	star_catalog = [&"GraphicsManager", &"star_catalog_settings"],
 	screenshot_aspect = [&"ScreenshotManager", &"aspects"],
 }
 
@@ -142,20 +178,76 @@ extends PopupPanel
 	screenshot_width = {min_value = 300, max_value = 8192, step = 2, suffix = "px"},
 }
 
+## Option tooltips, keyed by setting. Values are translation keys (Core's are in
+## [code]text/hints_text.csv[/code]); an option with no entry has no tooltip.
+@export var option_tooltips: Dictionary[StringName, StringName] = {
+	save_base_name = &"HINT_SAVE_BASE_NAME",
+	append_date_to_save = &"HINT_APPEND_DATE_TO_SAVE",
+	pause_on_load = &"HINT_PAUSE_ON_LOAD",
+	autosave_time_min = &"HINT_AUTOSAVE_TIME_MIN",
+	physical_light = &"HINT_PHYSICAL_LIGHT",
+	camera_transfer_time = &"HINT_CAMERA_TRANSFER_TIME",
+	camera_mouse_in_out_inverse = &"HINT_CAMERA_MOUSE_IN_OUT_INVERSE",
+	camera_mouse_in_out_rate = &"HINT_CAMERA_MOUSE_IN_OUT_RATE",
+	camera_mouse_move_rate = &"HINT_CAMERA_MOUSE_MOVE_RATE",
+	camera_mouse_pitch_yaw_rate = &"HINT_CAMERA_MOUSE_PITCH_YAW_RATE",
+	camera_mouse_roll_rate = &"HINT_CAMERA_MOUSE_ROLL_RATE",
+	camera_key_in_out_rate = &"HINT_CAMERA_KEY_IN_OUT_RATE",
+	camera_key_move_rate = &"HINT_CAMERA_KEY_MOVE_RATE",
+	camera_key_pitch_yaw_rate = &"HINT_CAMERA_KEY_PITCH_YAW_RATE",
+	camera_key_roll_rate = &"HINT_CAMERA_KEY_ROLL_RATE",
+	screenshot_width = &"HINT_SCREENSHOT_WIDTH",
+	screenshot_aspect = &"HINT_SCREENSHOT_ASPECT",
+	screenshot_file_dialog = &"HINT_SCREENSHOT_FILE_DIALOG",
+	language = &"HINT_LANGUAGE",
+	gui_size = &"HINT_GUI_SIZE",
+	label3d_names_size_percent = &"HINT_LABEL3D_NAMES_SIZE_PERCENT",
+	body_symbol_size_percent = &"HINT_BODY_SYMBOL_SIZE_PERCENT",
+	small_bodies_symbol_size_percent = &"HINT_SMALL_BODIES_SYMBOL_SIZE_PERCENT",
+	small_bodies_point_size = &"HINT_SMALL_BODIES_POINT_SIZE",
+	hide_hud_when_close = &"HINT_HIDE_HUD_WHEN_CLOSE",
+	atmosphere_quality = &"HINT_ATMOSPHERE_QUALITY",
+	glow = &"HINT_GLOW",
+	render_scale = &"HINT_RENDER_SCALE",
+	shadow_resolution = &"HINT_SHADOW_RESOLUTION",
+	msaa_3d = &"HINT_MSAA_3D",
+	frame_rate_cap = &"HINT_FRAME_RATE_CAP",
+	fxaa = &"HINT_FXAA",
+	use_taa = &"HINT_USE_TAA",
+	renderer = &"HINT_RENDERER",
+	star_catalog = &"HINT_STAR_CATALOG",
+}
+
+## Tooltips that replace [member option_tooltips] entries while the Compatibility
+## renderer runs, keyed the same way.
+@export var option_compatibility_tooltips: Dictionary[StringName, StringName] = {
+	atmosphere_quality = &"HINT_COMPATIBILITY_ATMOSPHERE_QUALITY",
+	glow = &"HINT_COMPATIBILITY_GLOW",
+	render_scale = &"HINT_COMPATIBILITY_RENDER_SCALE",
+	shadow_resolution = &"HINT_COMPATIBILITY_SHADOW_RESOLUTION",
+	msaa_3d = &"HINT_COMPATIBILITY_MSAA_3D",
+}
+
 var _enumerations: Dictionary[StringName, Dictionary] = {}
+var _option_names: Dictionary[StringName, HBoxContainer] = {} # built rows' name and restart mark
 var _suppress_close := true
 
 
+@onready var _vbox: VBoxContainer = $VBox
+@onready var _scroll: ScrollContainer = %ScrollContainer
 @onready var _content_container: HBoxContainer = %ContentContainer
 @onready var _restore_defaults: Button = %RestoreDefaultsButton
 @onready var _confirm_changes: Button = %ConfirmChangesButton
 @onready var _cancel: Button = %CancelButton
+@onready var _restart_warning: Label = %RestartWarningLabel
 
 
 
 func _ready() -> void:
 	hide() # Godot 4.5 editor keeps setting visibility == true !!!
 	IVStateManager.core_initialized.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
+	get_parent().get_viewport().size_changed.connect(_update_max_size)
+	_update_max_size()
 
 
 func _shortcut_input(event: InputEvent) -> void:
@@ -173,6 +265,20 @@ func open() -> void:
 	_build_content()
 	size = Vector2i.ZERO
 	popup_centered()
+
+
+## Opens this popup, or closes it as its Cancel button does if it's open.
+func toggle() -> void:
+	if visible:
+		_on_cancel()
+	else:
+		open()
+
+
+func set_modal(value: bool) -> void:
+	modal = value
+	exclusive = value
+	popup_window = value
 
 
 ## Add an options section at specified position. (This might be easier than
@@ -209,7 +315,7 @@ func add_option(section_name: StringName, option_name: StringName, setting: Stri
 
 
 func _configure_after_core_inited() -> void:
-	IVGlobal.options_requested.connect(open)
+	IVGlobal.options_requested.connect(toggle)
 	IVSettingsManager.changed.connect(_settings_listener)
 	IVGlobal.close_admin_popups_required.connect(hide)
 	close_requested.connect(_on_close_requested)
@@ -232,37 +338,38 @@ func _configure_after_core_inited() -> void:
 	if autoremove_for_na_settings and !IVCoreSettings.enable_physical_light:
 		# The physical_light setting only acts through IVExposureManager, which exists
 		# only when the core setting enables the system.
-		var enabled_graphics_options: Array = []
-		for option_array: Array in section_content[&"LABEL_GRAPHICS_PERFORMANCE"]:
-			var setting: StringName = option_array[1]
-			if setting == &"physical_light":
-				continue
-			enabled_graphics_options.append(option_array)
-		section_content[&"LABEL_GRAPHICS_PERFORMANCE"] = enabled_graphics_options
+		_remove_option(&"physical_light")
 	if IVGlobal.is_gl_compatibility:
 		# FXAA and TAA are unsupported in the Compatibility renderer (incl. web);
-		# the shadow-size option applies only when Compatibility shadows are on
+		# the shadow resolution option applies only when Compatibility shadows are on
 		# (see IVCoreSettings.apply_gl_compatibility_shadows).
-		var graphics_section: Array = section_content[&"LABEL_GRAPHICS_PERFORMANCE"]
-		var supported_options: Array = []
-		for option_array: Array in graphics_section:
-			var setting: StringName = option_array[1]
-			if setting == &"fxaa" or setting == &"use_taa":
-				continue
-			if setting == &"directional_shadow_size" and not IVCoreSettings.apply_gl_compatibility_shadows:
-				continue
-			supported_options.append(option_array)
-		section_content[&"LABEL_GRAPHICS_PERFORMANCE"] = supported_options
+		_remove_option(&"fxaa")
+		_remove_option(&"use_taa")
+		if not IVCoreSettings.apply_gl_compatibility_shadows:
+			_remove_option(&"shadow_resolution")
+	if !IVGraphicsManager.can_set_renderer():
+		_remove_option(&"renderer")
+	if !IVGraphicsManager.can_scale_render():
+		_remove_option(&"render_scale")
+
+
+func _remove_option(setting: StringName) -> void:
+	for section: Array in section_content.values():
+		for i in range(section.size() - 1, -1, -1):
+			var option_array: Array = section[i]
+			if option_array[1] == setting:
+				section.remove_at(i)
 
 
 func _build_content() -> void:
-	for child in _content_container.get_children():
-		_content_container.remove_child(child)
-		child.queue_free()
+	_clear_content()
 	for column_array in layout:
+		var headers := column_array.filter(_has_existing_option)
+		if headers.is_empty():
+			continue
 		var column_vbox := VBoxContainer.new()
 		_content_container.add_child(column_vbox)
-		for header: StringName in column_array:
+		for header: StringName in headers:
 			var subpanel_container := PanelContainer.new()
 			column_vbox.add_child(subpanel_container)
 			var subpanel_vbox := VBoxContainer.new()
@@ -283,14 +390,73 @@ func _build_content() -> void:
 		var mod_resizable := IVControlModResizable.create(Vector2(column_base_width, 0))
 		column_vbox.add_child(mod_resizable)
 	_on_content_built()
+	_fit_scroll_area()
+
+
+func _update_max_size() -> void:
+	var view_size := get_parent().get_viewport().get_visible_rect().size
+	max_size = Vector2i(view_size * max_screen_proportion)
+	if !visible:
+		return
+	_fit_scroll_area()
+	size = Vector2i.ZERO
+	move_to_center()
+
+
+# A Window's max_size doesn't reach its Controls, which overflow it and are clipped.
+func _fit_scroll_area() -> void:
+	var limit := Vector2(max_size) / content_scale_factor
+	var vbox_minimum := _vbox.get_combined_minimum_size()
+	limit -= get_contents_minimum_size() - vbox_minimum # the panel's margins
+	limit.y -= vbox_minimum.y - _scroll.get_combined_minimum_size().y # the other rows
+	var fit := _content_container.get_combined_minimum_size() + _scroll.get_minimum_size()
+	if fit.y > limit.y:
+		fit.x += (_scroll.get_v_scroll_bar().get_combined_minimum_size().x
+				+ _scroll.get_theme_constant(&"scrollbar_h_separation"))
+	if fit.x > limit.x:
+		fit.y += (_scroll.get_h_scroll_bar().get_combined_minimum_size().y
+				+ _scroll.get_theme_constant(&"scrollbar_v_separation"))
+	_scroll.custom_minimum_size = fit.min(limit).maxf(0.0)
+
+
+func _clear_content() -> void:
+	_option_names.clear()
+	for child in _content_container.get_children():
+		_content_container.remove_child(child)
+		child.queue_free()
+
+
+func _has_existing_option(header: StringName) -> bool:
+	for option_array: Array in section_content[header]:
+		var setting: StringName = option_array[1]
+		if IVSettingsManager.has_setting(setting):
+			return true
+	return false
 
 
 func _build_item(option_text: StringName, setting: StringName) -> HBoxContainer:
+	# Labels ignore the mouse and value Controls stop the tooltip search at themselves,
+	# so both the row and its value Control need the tooltip.
+	var tooltip: StringName = option_tooltips.get(setting, &"")
+	if IVGlobal.is_gl_compatibility:
+		tooltip = option_compatibility_tooltips.get(setting, tooltip)
 	var setting_hbox := HBoxContainer.new()
+	setting_hbox.tooltip_text = tooltip
+	# The restart mark is its own Label so that the name keeps translating itself.
+	var name_hbox := HBoxContainer.new()
+	setting_hbox.add_child(name_hbox)
+	name_hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_hbox.add_theme_constant_override(&"separation", 0)
 	var label := Label.new()
-	setting_hbox.add_child(label)
-	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_hbox.add_child(label)
 	label.text = option_text
+	var restart_mark := Label.new()
+	name_hbox.add_child(restart_mark)
+	restart_mark.text = "*"
+	restart_mark.add_theme_color_override(&"font_color",
+			_restart_warning.get_theme_color(&"font_color"))
+	restart_mark.hide()
+	_option_names[setting] = name_hbox
 	var default_button := Button.new()
 	default_button.text = default_button_text
 	default_button.icon = default_button_icon
@@ -306,6 +472,7 @@ func _build_item(option_text: StringName, setting: StringName) -> HBoxContainer:
 			var checkbox := CheckBox.new()
 			setting_hbox.add_child(checkbox)
 			checkbox.size_flags_horizontal = Control.SIZE_SHRINK_END
+			checkbox.tooltip_text = tooltip
 			_set_overrides(checkbox, setting)
 			checkbox.button_pressed = value
 			checkbox.toggled.connect(_on_change.bind(setting, default_button))
@@ -319,8 +486,11 @@ func _build_item(option_text: StringName, setting: StringName) -> HBoxContainer:
 				setting_hbox.add_child(option_button)
 				for key: String in keys:
 					option_button.add_item(key)
+				option_button.tooltip_text = tooltip
 				_set_overrides(option_button, setting)
-				option_button.selected = value
+				# A value cached before its enumeration lost entries shows as the last entry.
+				var index: int = value
+				option_button.selected = mini(index, keys.size() - 1)
 				option_button.item_selected.connect(_on_change.bind(setting, default_button))
 			else: # non-option int or float
 				# SpinBox
@@ -331,6 +501,7 @@ func _build_item(option_text: StringName, setting: StringName) -> HBoxContainer:
 				spin_box.rounded = is_int
 				spin_box.min_value = 0.0
 				spin_box.max_value = 100.0
+				spin_box.tooltip_text = tooltip
 				_set_overrides(spin_box, setting)
 				spin_box.value = value
 				spin_box.value_changed.connect(_on_change.bind(setting, default_button, is_int))
@@ -344,6 +515,7 @@ func _build_item(option_text: StringName, setting: StringName) -> HBoxContainer:
 			line_edit.alignment = HORIZONTAL_ALIGNMENT_RIGHT
 			line_edit.size_flags_horizontal = Control.SIZE_SHRINK_END
 			line_edit.custom_minimum_size.x = 100.0
+			line_edit.tooltip_text = tooltip
 			_set_overrides(line_edit, setting)
 			line_edit.text = value
 			line_edit.text_changed.connect(_on_change.bind(setting, default_button))
@@ -353,6 +525,7 @@ func _build_item(option_text: StringName, setting: StringName) -> HBoxContainer:
 			setting_hbox.add_child(color_picker_button)
 			color_picker_button.custom_minimum_size.x = 60.0
 			color_picker_button.edit_alpha = false
+			color_picker_button.tooltip_text = tooltip
 			_set_overrides(color_picker_button, setting)
 			color_picker_button.color = value
 			color_picker_button.color_changed.connect(_on_change.bind(setting, default_button))
@@ -372,6 +545,28 @@ func _set_overrides(control: Control, setting: StringName) -> void:
 func _on_content_built() -> void:
 	_restore_defaults.disabled = IVSettingsManager.is_defaults()
 	_confirm_changes.disabled = IVSettingsManager.is_cache_current()
+	_update_restart_warning()
+
+
+func _update_restart_warning() -> void:
+	var warning_color := _restart_warning.get_theme_color(&"font_color")
+	for setting in _option_names:
+		var name_hbox := _option_names[setting]
+		var label: Label = name_hbox.get_child(0)
+		var restart_mark: Label = name_hbox.get_child(1)
+		var is_setting_pending := IVSettingsManager.is_restart_pending_for(setting)
+		restart_mark.visible = is_setting_pending
+		if is_setting_pending:
+			label.add_theme_color_override(&"font_color", warning_color)
+		else:
+			label.remove_theme_color_override(&"font_color")
+	var is_restart_pending := IVSettingsManager.is_restart_pending()
+	if _restart_warning.visible == is_restart_pending:
+		return
+	_restart_warning.visible = is_restart_pending
+	_fit_scroll_area()
+	if !is_restart_pending:
+		size.y = 0 # a popup grows to fit its content, but never shrinks back on its own
 
 
 func _restore_default(setting: StringName) -> void:
@@ -395,6 +590,7 @@ func _on_change(value: Variant, setting: StringName, default_button: Button,
 	default_button.disabled = IVSettingsManager.is_default(setting)
 	_restore_defaults.disabled = IVSettingsManager.is_defaults()
 	_confirm_changes.disabled = IVSettingsManager.is_cache_current()
+	_update_restart_warning()
 
 
 func _on_restore_defaults() -> void:
@@ -430,9 +626,7 @@ func _on_popup_hide() -> void:
 		show.call_deferred()
 		return
 	_suppress_close = true
-	for child in _content_container.get_children():
-		_content_container.remove_child(child)
-		child.queue_free()
+	_clear_content()
 	if stop_sim:
 		IVStateManager.allow_run(self)
 
@@ -443,5 +637,6 @@ func _settings_listener(setting: StringName, _value: Variant) -> void:
 		@warning_ignore_start("integer_division")
 		var center := position + size / 2
 		await get_tree().process_frame
+		_fit_scroll_area()
 		size = Vector2i.ZERO
 		position = center - size / 2

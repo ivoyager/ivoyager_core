@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://b5whhojlnov8p"]
+
+[ext_resource type="Script" uid="uid://d2no1yqnxs01k" path="res://addons/ivoyager_core/ui_widgets/panel_button.gd" id="1_panel"]
+
+[node name="PanelButton" type="Button"]
+toggle_mode = true
+script = ExtResource("1_panel")

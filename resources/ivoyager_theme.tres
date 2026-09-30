@@ -9,6 +9,17 @@
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_v5oir"]
 content_margin_bottom = 4.0
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_4tlpq"]
+content_margin_left = 8.0
+content_margin_top = 2.0
+content_margin_right = 8.0
+content_margin_bottom = 2.0
+bg_color = Color(0, 0, 0, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
 [resource]
 CheckBox/colors/checkbox_unchecked_color = Color(5.5, 5.5, 5.5, 0.5)
 ClearFoldable/base_type = &"FoldableContainer"
@@ -16,3 +27,4 @@ ClearFoldable/styles/panel = SubResource("StyleBoxEmpty_87s7r")
 ClearFoldable/styles/title_collapsed_hover_panel = SubResource("StyleBoxEmpty_axr0f")
 ClearFoldable/styles/title_collapsed_panel = SubResource("StyleBoxEmpty_qtflj")
 ClearFoldable/styles/title_panel = SubResource("StyleBoxEmpty_v5oir")
+TooltipPanel/styles/panel = SubResource("StyleBoxFlat_4tlpq")

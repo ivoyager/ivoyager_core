@@ -30,8 +30,9 @@ extends Control
 ## start, exit and quit.[br][br]
 ##
 ## It also toggles visibility on [signal IVGlobal.show_hide_gui_requested]
-## (this signal isn't emitted by the Core plugin, but is available for project
-## use) and on direct call to [method show_hide_gui].[br][br]
+## (emitted by [IVHideGUIButton], and available for project use) and on direct
+## call to [method show_hide_gui]. [IVShowGUIButton] brings hidden GUI back, and
+## an [IVControlModFade] child fades it while the user drags or idles.[br][br]
 ##
 ## It also (optionally) toggles visibility on user key action. See [member
 ## user_toggle_action].[br][br]

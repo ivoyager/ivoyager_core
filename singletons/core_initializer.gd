@@ -189,6 +189,7 @@ var program_nodes: Dictionary[StringName, Variant] = {
 	ViewManager = IVViewManager,
 	FragmentIdentifier = IVFragmentIdentifier, # self-removes on Compatibility renderer
 	GraphicsManager = IVGraphicsManager, # applies antialiasing user settings
+	GraphicsRescue = IVGraphicsRescue, # removed unless enable_graphics_rescue
 	FarwarpManager = IVFarwarpManager, # keeps distant objects renderable
 	SunOcclusionManager = IVSunOcclusionManager, # analytic eclipse & ring shadows
 	ExposureManager = IVExposureManager, # physical light; removed unless enable_physical_light
@@ -209,6 +210,7 @@ var ordered_program_nodes: Array[StringName] = [&"CameraHandler", &"SpeedManager
 var tree_program_nodes: Array[StringName] = [
 	&"TopUI",
 	&"WorldController",
+	&"WorldEnvironment",
 ]
 
 
@@ -256,6 +258,8 @@ func _do_conditional_modifications() -> void:
 		# Zero cost when disabled: IVExposureManager statics stay at their inert
 		# defaults (physical_active false, exposure 1.0).
 		program_nodes.erase(&"ExposureManager")
+	if not IVCoreSettings.enable_graphics_rescue:
+		program_nodes.erase(&"GraphicsRescue")
 
 
 func _set_simulator_universe() -> void:

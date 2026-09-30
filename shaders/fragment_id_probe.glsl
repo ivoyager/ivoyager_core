@@ -19,11 +19,12 @@
 // *****************************************************************************
 
 // Compute shader paired with IVFragmentIDCompositorEffect.
-// Iterates a sparse 3-pixel grid around probe_pixel in the resolved scene HDR
-// color buffer (RGBA16F linear, pre-tonemap). Each sample is lifted out of the
-// broadcast band and rounded to ivec3; channels in [1, 1024] are valid encoded
-// ids (offset-by-1 sentinel), and anything outside rejects the sample. Writes
-// the closest valid sample to the SSBO; (0, 0, 0) means no valid id was found.
+// Iterates a sparse 3-pixel grid around probe_pixel in the scene HDR color
+// buffer (RGBA16F linear, before the transparent pass). Each sample is lifted
+// out of the broadcast band and rounded to ivec3; channels in [1, 1024] are
+// valid encoded ids (offset-by-1 sentinel), and anything outside rejects the
+// sample. Writes the closest valid sample to the SSBO; (0, 0, 0) means no
+// valid id was found.
 //
 // The band constants invert id_broadcast() in _fragment_id.gdshaderinc, which
 // documents why an id is carried in [0.5, 1.0] rather than as a raw magnitude.

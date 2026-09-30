@@ -30,7 +30,9 @@ extends MeshInstance3D
 ## symbol atlas in the fragment shader) or, for [member IVSBGHUDsState.symbol_types] value
 ## -1, as a plain point. A shaped symbol's point size follows [IVThemeManager] (the
 ## "small_bodies_symbol_size_percent" setting); a plain point uses the smaller
-## "small_bodies_point_size" setting.[br][br]
+## "small_bodies_point_size" setting. A symbol is in logical pixels at any display or 3D
+## render scale (see [IVGraphicsManager]); a plain point is in the 3D render's pixels,
+## which are the screen's own at a 3D render scale of 100%.[br][br]
 ##
 ## The id broadcast is enabled (via the shaders' [code]broadcast_id[/code] uniform) only when
 ## an [IVFragmentIdentifier] is present; without it (e.g. on the Compatibility renderer) the
@@ -63,6 +65,7 @@ var _color: Color
 var _symbol_type := -1 # set from _sbg_huds_state in _init (after _sbg_alias)
 var _point_size: int = IVSettingsManager.get_setting(&"small_bodies_point_size")
 var _symbol_size: float # set from IVThemeManager in _init()
+var _render_pixels_per_logical_pixel := _get_render_pixels_per_logical_pixel()
 var _vec3ids := PackedVector3Array() # point ids for FragmentIdentifier
 
 # Lagrange point
@@ -91,6 +94,7 @@ func _init(sbg: IVSmallBodiesGroup) -> void:
 	_sbg_huds_state.color_changed.connect(_set_color)
 	_sbg_huds_state.symbol_changed.connect(_set_symbol)
 	IVSettingsManager.changed.connect(_settings_listener)
+	IVGlobal.viewport_size_changed.connect(_on_viewport_size_changed)
 
 	var theme_manager: IVThemeManager = IVGlobal.program[&"ThemeManager"]
 	_symbol_size = theme_manager.get_small_bodies_symbol_size()
@@ -179,11 +183,17 @@ func _process(_delta: float) -> void:
 
 
 # Point-sprite pixel size: the larger "symbol" size for a shaped symbol, or the
-# smaller "point" size for a plain point (symbol_type -1).
+# smaller "point" size for a plain point (symbol_type -1). POINT_SIZE counts render
+# px. A symbol is logical px; a plain point is already render px.
 func _get_point_size() -> float:
-	if _symbol_type != -1:
-		return _symbol_size
-	return float(_point_size)
+	if _symbol_type == -1:
+		return float(_point_size)
+	return _symbol_size * _render_pixels_per_logical_pixel
+
+
+func _get_render_pixels_per_logical_pixel() -> float:
+	var window := IVGlobal.get_window()
+	return window.content_scale_factor * window.scaling_3d_scale
 
 
 func _set_visibility() -> void:
@@ -221,5 +231,15 @@ func _on_small_bodies_symbol_size_changed(symbol_size: float) -> void:
 	if _symbol_size == symbol_size:
 		return
 	_symbol_size = symbol_size
+	var shader_material: ShaderMaterial = material_override
+	shader_material.set_shader_parameter(&"point_size", _get_point_size())
+
+
+func _on_viewport_size_changed(_size: Vector2) -> void:
+	# Display and 3D render scale changes both arrive here.
+	var render_pixels_per_logical_pixel := _get_render_pixels_per_logical_pixel()
+	if _render_pixels_per_logical_pixel == render_pixels_per_logical_pixel:
+		return
+	_render_pixels_per_logical_pixel = render_pixels_per_logical_pixel
 	var shader_material: ShaderMaterial = material_override
 	shader_material.set_shader_parameter(&"point_size", _get_point_size())

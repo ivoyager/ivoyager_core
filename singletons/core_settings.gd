@@ -88,10 +88,23 @@ var gui_size_settings: Dictionary[StringName, int] = {
 	GUI_LARGE = 2,
 	GUI_EXTRA_LARGE = 3,
 }
-## Size multipliers for each of [member gui_size_settings]. Before adjusting,
-## consider effects on font sizing in [IVThemeManager] (font sizes are rounded
-## to the nearest integer after multiplication). See also [IVControlModResizable].
-var gui_size_multipliers: Array[float] = [0.75, 1.0, 1.25, 1.5]
+## Size multipliers for each of [member gui_size_settings]. The default setting,
+## GUI_MEDIUM, is not 1.0: the base sizes these multiply (in [IVThemeManager], and
+## in every [IVControlModResizable] and [IVControlModSpacing]) are the GUI_LARGE
+## setting. Before adjusting, consider the rounding: font sizes, margins and
+## spacing are rounded to whole pixels after multiplication.
+var gui_size_multipliers: Array[float] = [0.625, 0.75, 1.0, 1.25]
+## Scales the 2D GUI and the HUD by the screen's own scale (Windows display scaling, or
+## the browser's devicePixelRatio), so they keep their size on a hi-DPI screen: see
+## [IVGraphicsManager]. False leaves 1 GUI pixel to 1 screen pixel. Assumes the project's
+## stretch mode is disabled.
+var apply_display_scale := true
+## Keeps a user from being stranded by a graphics setting the machine can't carry: a start that
+## crashes or freezes has the next one restore the graphics settings to their defaults (see
+## [member IVSettingsManager.graphics_settings]), and [IVGraphicsRescue] offers them when
+## frames crawl. False by default in editor builds, where a run stopped from the editor would
+## count as a failed start. False costs nothing (the rescue node is never instantiated).
+var enable_graphics_rescue := !OS.has_feature("editor")
 
 ## Start time as an array of [year, month, day, hour, minute, second]. Used by
 ## [IVTimekeeper].
@@ -121,13 +134,17 @@ var limit_stops_in_multiplayer := true # overrides most stops
 ## Set true to enable fullscreen toggling. See also [IVFullScreenManager], which
 ## is not present in default Core initialization.
 var allow_fullscreen_toggle := false
-## Sets resolution of the common sphere mesh used by bodies with no other mesh. See
-## [IVResourceInitializer] for mesh construction. See also [member sphere_rings].
-var sphere_radial_segments := 256
-## Sets resolution of the common sphere mesh used by bodies with no other mesh. See
-## [IVResourceInitializer] for mesh construction. See also [member
-## sphere_radial_segments].
-var sphere_rings := 128
+## Sets the radial segments of the FINEST shared sphere mesh used by bodies with no other mesh —
+## the top of the distance LOD ladder [IVShellsModel] selects from — and the azimuth steps of the
+## atmosphere limb's annulus mesh, which is built at this resolution alone. Rings are always half
+## this, at every rung, which is what makes the facets square. See [IVResourceInitializer] for
+## mesh construction and for the ladder's floor.
+var max_sphere_resolution := 256
+## Sets the rows of the atmosphere limb's annulus mesh, between its inner edge inside the
+## disc and the shell's silhouette. More rows follow farwarp's compression more closely when
+## the camera is at a craft beside the planet; fewer than 6 let a chord dip under the disc.
+## See [IVResourceInitializer] for mesh construction.
+var limb_annulus_rows := 8
 ## Sets subdivision of the shared [PlaneMesh] used by [IVRings] (see
 ## [IVResourceInitializer]). Enough subdivision lets the per-vertex farwarp remap approximate the
 ## compression curve across the ring span.
@@ -179,7 +196,8 @@ var farwarp_start_ratio := 1e4
 ## Enables the per-body point-spread quad ([IVBodyPSF]): an in-scene star and every
 ## planetary-mass object with a geometric albedo draw the camera's PSF response to
 ## their flux, so a body shrinking past its disc becomes a photometric point instead
-## of vanishing, and a resolved body keeps the glare wing that renders crescent glow.
+## of vanishing, and under physical light a resolved body keeps the glare wing that
+## renders crescent glow.
 ## Off, those bodies take the fixed distance cull below like any other and their discs
 ## do not fade. See [member IVBody.psf_handoff] and [method IVBodyPSF.is_applicable].
 var apply_body_psf := true
@@ -198,10 +216,27 @@ var apply_analytic_shadows := true
 ## shadows (godotengine/godot#90259). Set false to restore the single-light
 ## fallback if those resurface (notably on some web export targets), or for the
 ## compile time: false takes a lit shader from four GL programs to one, a large
-## part of a Compatibility cold start (see [code]SHADER_COMPILE_COST.md[/code]).
+## part of a Compatibility cold start (see [i]The light configuration[/i] in
+## [code]GRAPHICS_PROFILING.md[/code]).
 ## The analytic astronomical shadows ([member apply_analytic_shadows]) are
 ## independent of this and work either way.
 var apply_gl_compatibility_shadows := true
+## Lets each shadow-mapped [IVDynamicLight] switch its directional shadow map off while
+## nothing local would draw into it or read it. True stops an atlas that renders nothing
+## from being set up and cleared every frame - 7-22 % of a weak integrated GPU's frame
+## under Forward+ (see [code]GRAPHICS_PROFILING.md[/code]), which is every view with no
+## spacecraft or local scene near the camera. False keeps the maps configured at all
+## times, and that is the only configuration a shader warm-up can cover completely: the
+## number of shadowed directional lights in a frame is a shader specialization input for
+## every lit instance, so each distinct number a session reaches compiles its own
+## programs for every lit shader - synchronously, and on the main thread, under the
+## Compatibility renderer (see [code]GRAPHICS_PROFILING.md[/code]). The relief is
+## a Forward+ effect and the risk is a Compatibility one, which is why this is opt-in.
+## A body joins the decision by holding [constant IVGlobal.LOCAL_SHADOW_CASTER]; geometry
+## that is not an [IVBody] - a project's own level scene - must declare itself through
+## [method IVDynamicLight.add_local_shadow_geometry]. Inert where the light stack carries
+## no shadow maps (see [member apply_gl_compatibility_shadows]).
+var apply_empty_shadow_pass_skip := false
 ## Directory used (created if needed) for cache files. See [IVCacheHandler].
 var cache_dir := "user://cache"
 ## Enables float precisions in [IVTableData]. This is used by Planetarium to
@@ -291,6 +326,15 @@ func assert_valid_settings() -> void:
 	assert(stroboscope_frames_per_second >= 0.0)
 	assert(farwarp_start_ratio > 0.0)
 	assert(symbol_atlas_columns > 0 and symbol_atlas_rows > 0)
+
+
+## Number of size domains [member size_layers] defines; 1 when
+## [member apply_size_layers] == false. Domain [code]i[/code] is layer bit
+## [code]1 << i[/code]. See [method get_visualinstance3d_layer_for_size].
+func get_size_domain_count() -> int:
+	if not apply_size_layers:
+		return 1
+	return size_layers.size() + 1
 
 
 ## Return is the appropriate layer mask for [param mean_radius] specified

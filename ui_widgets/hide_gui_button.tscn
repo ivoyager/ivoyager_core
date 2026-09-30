@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://m20c3x067uu"]
+
+[ext_resource type="Script" uid="uid://duaidrx5h6a3o" path="res://addons/ivoyager_core/ui_widgets/hide_gui_button.gd" id="1_hide"]
+
+[node name="HideGUIButton" type="Button"]
+tooltip_text = "HINT_HIDE_GUI"
+text = "BUTTON_HIDE_GUI"
+script = ExtResource("1_hide")

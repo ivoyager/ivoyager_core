@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://derpnr26i3ifi"]
+
+[ext_resource type="Script" uid="uid://nc3n2mt4i8qt" path="res://addons/ivoyager_core/ui_components/control_mod_fade.gd" id="1_fade"]
+
+[node name="ControlModFade" type="Node"]
+script = ExtResource("1_fade")

@@ -27,9 +27,13 @@ extends Node
 ## at a sparse 3-pixel grid pattern around the mouse, bounded by
 ## [member fragment_range]. An [IVFragmentIDCompositorEffect] attached to the
 ## active [Camera3D]'s [Compositor] dispatches a tiny compute shader at
-## [code]POST_TRANSPARENT[/code], reads the resolved HDR color buffer
-## ([code]RGBA16F[/code], pre-tonemap), finds the broadcast pixel closest to
-## the mouse, and asynchronously returns the id to GDScript.[br][br]
+## [code]PRE_TRANSPARENT[/code], reads the HDR color buffer
+## ([code]RGBA16F[/code]) as the opaque pass left it, finds the broadcast pixel
+## closest to the mouse, and asynchronously returns the id to GDScript. An id
+## shader must therefore draw in the opaque pass (see
+## [code]_fragment_id.gdshaderinc[/code]). An opaque body hides an id behind it,
+## by depth; transparent geometry does not. See "Mouse picking" in
+## VISUAL_MODEL.md.[br][br]
 ##
 ## The system requires a [RenderingDevice] (Forward+ or Mobile renderer). On
 ## Compatibility renderer, this object removes itself from
@@ -66,9 +70,12 @@ const _ID_MAX := (1 << _ID_BIT_WIDTH) - 1
 var drop_id_frames := 40
 ## Tunes the loss of current id by mouse movement. OK to change at runtime.
 var drop_id_mouse_movement := 20.0
-## Sets probe size around mouse. Side length sampled is
-## [code](fragment_range / 3 + 1)^2[/code] (49 pixels at default 9). Must be a
-## non-negative multiple of 3. Don't change at runtime.
+## Sets probe size around mouse, in pixels of the 3D render buffer, which a 3D
+## render scale below 1 makes coarser than the window's. The probe is this times
+## the display scale (see [IVGraphicsManager]), to the nearest multiple of 3, so
+## it spans the same distance on any screen. Pixels sampled is
+## [code](2 * fragment_range / 3 + 1)^2[/code] (49 at default 9 and no display
+## scale). Must be a non-negative multiple of 3. Don't change at runtime.
 var fragment_range := 9
 
 # Read-only.
@@ -124,9 +131,10 @@ func _ready() -> void:
 		queue_free()
 		return
 	assert(fragment_range >= 0 and fragment_range % 3 == 0)
-	RenderingServer.global_shader_parameter_set(&"iv_fragment_id_range", float(fragment_range))
 	_effect = IVFragmentIDCompositorEffect.new(fragment_range)
 	_effect.fragment_decoded.connect(_on_fragment_decoded)
+	_apply_fragment_range()
+	IVGlobal.viewport_size_changed.connect(_on_viewport_size_changed)
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
 	IVStateManager.core_initialized.connect(_configure_for_core_inited)
 	IVStateManager.run_state_changed.connect(_on_run_state_changed)
@@ -134,12 +142,23 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	# Setting the global before draw submission so this frame's id-shaders
-	# broadcast at the same pixel the compositor effect will sample. Window
-	# pixels are assumed equal to internal-buffer pixels (no FSR scaling).
-	var mouse_pos := _world_controller.mouse_position
+	# broadcast at the same pixel the compositor effect will sample. Both work in
+	# the 3D render buffer, whose pixels are not the mouse's: the mouse moves in
+	# logical pixels, which a display scale makes coarser than the window's, and 3D
+	# render scale makes the buffer's coarser again. They share one whole buffer
+	# pixel because their sparse grids must coincide exactly, which a fractional
+	# center would break.
+	var window := get_window()
+	var window_pixels := Vector2(window.size)
+	if window_pixels.x <= 0.0 or window_pixels.y <= 0.0:
+		return
+	var buffer_size := IVGraphicsManager.get_render_size(window)
+	var mouse_window_pixel := _world_controller.mouse_position * window.content_scale_factor
+	var mouse_pixel := Vector2i(((mouse_window_pixel + Vector2(0.5, 0.5))
+			* buffer_size / window_pixels).floor())
 	RenderingServer.global_shader_parameter_set(&"iv_mouse_fragcoord",
-			mouse_pos + Vector2(0.5, 0.5))
-	_effect.set_world_mouse(mouse_pos)
+			Vector2(mouse_pixel) + Vector2(0.5, 0.5))
+	_effect.set_probe_pixel(mouse_pixel)
 
 
 # *****************************************************************************
@@ -177,6 +196,17 @@ func _configure_for_core_inited() -> void:
 	var current_camera := get_viewport().get_camera_3d()
 	if current_camera:
 		_on_current_camera_changed(current_camera)
+
+
+func _on_viewport_size_changed(_size: Vector2) -> void:
+	_apply_fragment_range() # any display scale change arrives as a size change
+
+
+func _apply_fragment_range() -> void:
+	var display_scale := IVGlobal.get_window().content_scale_factor
+	var scaled_range := 3 * roundi(fragment_range * display_scale / 3.0)
+	RenderingServer.global_shader_parameter_set(&"iv_fragment_id_range", float(scaled_range))
+	_effect.set_fragment_range(scaled_range)
 
 
 func _on_run_state_changed(running: bool) -> void:

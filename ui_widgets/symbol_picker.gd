@@ -54,7 +54,7 @@ func build(include_point: bool) -> void:
 		var button := Button.new()
 		button.toggle_mode = true
 		button.button_group = _button_group
-		button.custom_minimum_size = Vector2(BUTTON_SIZE, BUTTON_SIZE)
+		button.add_child(IVControlModResizable.create(Vector2(BUTTON_SIZE, BUTTON_SIZE)))
 		button.expand_icon = true
 		button.icon = asset_preloader.get_symbol_texture(i)
 		button.pressed.connect(_on_symbol_pressed.bind(i))

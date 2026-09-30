@@ -1,7 +1,9 @@
-[gd_scene load_steps=3 format=3 uid="uid://bh7hd3sdaohjd"]
+[gd_scene load_steps=5 format=3 uid="uid://bh7hd3sdaohjd"]
 
 [ext_resource type="Script" uid="uid://crm4ul2spji43" path="res://addons/ivoyager_core/ui_widgets/time_setter.gd" id="1"]
 [ext_resource type="PackedScene" uid="uid://dqwafuo72wscj" path="res://addons/ivoyager_core/ui_widgets/link_label.tscn" id="2_0bhrt"]
+[ext_resource type="PackedScene" uid="uid://cimxq7ent5esq" path="res://addons/ivoyager_core/ui_components/control_mod_spacing.tscn" id="3_spcng"]
+[ext_resource type="PackedScene" uid="uid://bkcj6agxxgfw" path="res://addons/ivoyager_core/ui_components/control_mod_resizable.tscn" id="4_rszbl"]
 
 [node name="TimeSetter" type="VBoxContainer"]
 offset_right = 40.0
@@ -45,7 +47,6 @@ value = 14.0
 alignment = 1
 
 [node name="Spacer" type="Control" parent="SetterHBox"]
-custom_minimum_size = Vector2(20, 0)
 layout_mode = 2
 mouse_filter = 2
 
@@ -83,3 +84,8 @@ layout_mode = 2
 text = "TXT_VALID_3000BC_3000AD"
 horizontal_alignment = 1
 open_external_url = true
+
+[node name="ControlModSpacing" parent="." instance=ExtResource("3_spcng")]
+
+[node name="ControlModResizable" parent="SetterHBox/Spacer" instance=ExtResource("4_rszbl")]
+base_size = Vector2(20, 0)

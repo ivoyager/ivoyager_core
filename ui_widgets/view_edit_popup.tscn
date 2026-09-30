@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3 uid="uid://baa6bqyc32tfr"]
+[gd_scene load_steps=4 format=3 uid="uid://baa6bqyc32tfr"]
 
 [ext_resource type="Script" uid="uid://bsa8jnq5ekj62" path="res://addons/ivoyager_core/ui_widgets/view_edit_popup.gd" id="1_n6asg"]
 [ext_resource type="PackedScene" uid="uid://bmi5c7g8rwf3h" path="res://addons/ivoyager_core/ui_widgets/view_edit.tscn" id="2_n6asg"]
+[ext_resource type="PackedScene" uid="uid://cimxq7ent5esq" path="res://addons/ivoyager_core/ui_components/control_mod_spacing.tscn" id="3_spcng"]
 
 [node name="ViewEditPopup" type="PopupPanel"]
 oversampling_override = 1.0
@@ -23,3 +24,5 @@ theme_override_constants/margin_bottom = 5
 [node name="ViewEdit" parent="MarginContainer" instance=ExtResource("2_n6asg")]
 unique_name_in_owner = true
 layout_mode = 2
+
+[node name="ControlModSpacing" parent="MarginContainer" instance=ExtResource("3_spcng")]

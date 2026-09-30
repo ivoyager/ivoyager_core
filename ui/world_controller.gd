@@ -34,7 +34,7 @@ signal mouse_target_changed(target: Object)
 ## [param key_modifier_mask] reflect the input state when clicked.
 signal mouse_target_clicked(target: Object, button_mask: int, key_modifier_mask: int)
 ## Emitted while the mouse is being dragged in the 3D viewport.
-## [param drag_vector] is the per-frame motion in screen pixels.
+## [param drag_vector] is the per-frame motion in logical pixels (see [IVGraphicsManager]).
 signal mouse_dragged(drag_vector: Vector2, button_mask: int, key_modifier_mask: int)
 ## Emitted on mouse-wheel input, once per turn. [param is_up] is true for wheel-up,
 ## false for wheel-down. [param factor] is the turn amount, but its unit is a platform
@@ -46,7 +46,7 @@ signal mouse_wheel_turned(is_up: bool, factor: float)
 
 
 # project settings
-## Minimum mouse-click radius in screen pixels. Effective radius for a target
+## Minimum mouse-click radius in logical pixels. Effective radius for a target
 ## may be larger based on its on-screen size.
 var min_click_radius := 20.0
 

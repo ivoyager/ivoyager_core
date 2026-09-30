@@ -25,34 +25,37 @@ of the two-body problem is written in exactly these variables, so between the ev
 change a body's state the simulator evaluates where an integrator would step — no step
 size, no accumulated error, and no constraint on the order in which bodies are updated.
 Orientation is the same bargain in a single variable, an angle linear in time (the
-spacecraft attitude laws being the standing exception; *Rotation*). Two consequences run
-through the whole document:
+spacecraft attitude laws being the standing exception; *Rotation*). Three consequences run
+through the whole document; the fuller case for the representation itself is *Why
+elements*, under *Orbits*.
 
-- **Any time is as cheap as now.** Every state query on `IVBody` takes an optional
-  `time`, and every `IVOrbit` getter named `_at_time` (and every static) is valid without
-  an `update()` call. That is what makes projected positions, orbit-line sampling, the
-  trajectory joins, OS-time synchronization and time reversal ordinary calls rather than
-  features — and it is why a body whose per-frame processing is switched off loses
+- **Any time can be queried, not just now.** Every state query on `IVBody` takes an
+  optional `time`, and every `IVOrbit` getter named `_at_time` (and every static) is valid
+  without an `update()` call. That is what makes projected positions, orbit-line sampling,
+  the trajectory joins, OS-time synchronization and time reversal ordinary calls rather
+  than features — and it is why a body whose per-frame processing is switched off loses
   nothing.
-- **Nothing accumulates, so nothing drifts.** Two machines holding the same elements and
-  the same time compute the same position, to the rounding of identical operations. The
-  multiplayer consequences are drawn out under *Persistence, determinism and sync*.
+- **The physical state rarely has to change.** A body under no perturbation has nothing to
+  write between the events that change its elements. A perturbation small enough to absorb
+  at intervals rather than continuously — nearly every third-body effect — is an occasional
+  write. Perturbations that can be expressed as a rate on an element, which covers orbital
+  precessions (and allows, for example, a Sun-synchronous orbit), is written once and then
+  carried exactly by the same evaluation at no further cost.
+- **There is no error to accumulate.** Two machines holding the same elements and element
+  rates compute the same *exact* position and velocity at any given time. Only element
+  changes (e.g., thrust) need to be synced. The multiplayer consequences are drawn out under
+  *Persistence, determinism and sync*.
 
-**Elements are live state, not a recorded path.** Nothing here is a keyframed trajectory
-or a time-indexed lookup of pre-computed positions: change an orbit's elements and the
-body goes somewhere else from that moment on. An impulse is already three lines — read
-the state at *t*, add Δv, solve the new orbit — and a rocket under continuous thrust is
-that same call repeated as often as the accuracy wants, which is how a project can fly one
-today; `IVManeuveringOrbit` is on the roadmap to make impulse and constant thrust a
-first-class orbit rather than each project's own loop. What the model does *not* do is
-derive such changes for you. There is no N-body force integration, so a third body
-perturbs nothing unless something writes the perturbation into the elements — which is why
-the slow perturbations of the real solar system arrive as published rates on elements
-(*Orbits*), and why the routes to a body that perturbs its neighbors are sketched rather
-than built (*Two kinds of project*, TODO). The line worth keeping is between the machinery
-and the data: the Planetarium's solar system unfolds the same way in every session because
-its tables transcribe a known past, which is a property of that data and not a limit of
-what the machinery can be given.
+**Elements are live state.** Nothing here fixes a spacecraft's or any other body's
+trajectory: change the elements and the body goes somewhere else from that moment on. An
+impulse is three logical steps — read the state at *t*, add Δv, solve the new orbit — and
+a rocket under continuous thrust is that repeated, every frame if its accuracy needs it.
+External perturbations are supported today; `IVManeuveringOrbit` is on the roadmap to
+spare a project the three steps. Our Planetarium's solar system unfolds the same way in
+every session because its tables encode a known past and future. That's a property of the
+data and the Planetarium, not a limit imposed by our physical model. What we don't provide
+is an N-body force integration. A project that needs that can build it (see *Three kinds
+of project needs*).
 
 ## Physical state versus visual state
 
@@ -67,6 +70,11 @@ itself. The visual state is *subjective* by construction — origin shifting, fa
 every other mechanism in the sibling document condition the frame for exactly one camera —
 and that is precisely why it is not a constraint on multiplayer: only the physical state
 need be shared, and each client derives its own view from it.
+
+**The split is about astronomical scale, not about Godot.** A body's `position` is derived and
+disposable because at 1e11 m an f32 coordinate quantizes at kilometres and an integrator would
+accumulate; at 1e2 m neither holds, and inside a project's own local scene `position` is the
+truth and Godot's physics is the motion model, unchanged (*A game whose action is local*).
 
 The `PERSIST_` constants very nearly draw that same line. The `PERSIST_PROPERTIES` lists in
 `IVBody`, `IVOrbit`, `IVRealPlanetOrbit`, `IVTrajectory`, `IVSmallBodiesGroup`,
@@ -103,8 +111,11 @@ An `IVBody` is a named, persistent, selectable `Node3D` in the physical tree who
 scene-tree parent is its gravitational primary. `Node.name` is the table row name
 (`PLANET_EARTH`, `MOON_EUROPA`), which is also the key in the static registry
 `IVBody.bodies`. Parenting *is* the orbital hierarchy: a body is a child of the body it
-orbits, and nothing else about the tree's shape is arbitrary (this is also what lets
-float32 imprecision cancel in the render — sibling document).
+orbits, and nothing else about the tree's shape is arbitrary. In v0.2 the tree also composes
+the render transform, and the float32 imprecision of that composition cancels between nodes
+sharing a chain — which the sibling document leans on and the v0.3 redesign removes the need
+for, by placing every body from f64 against a frame anchor instead
+([VISUAL_MODEL.md](VISUAL_MODEL.md) *The render frame anchor and local scenes*).
 
 **The frame stays ecliptic all the way down.** Depth in the tree changes what a body's
 translation is measured *from*, never what it is measured *in*: no `IVBody` node is ever
@@ -130,7 +141,7 @@ ancestors: `parent`, `star` (itself if a star, else the star above) and `star_or
 `ordered_satellites`, the latter sorted by semi-parameter — defined for every conic where
 semi-major axis is not — which is the GUI's traversal order. `top_bodies` holds every
 root, and the indexing code allows a star to be a star-orbiter, so a hierarchical
-multi-star system is expressible in the tables, though untested (*Two kinds of project*).
+multi-star system is expressible in the tables, though untested (*Three kinds of project needs*).
 
 **A top body has no motion.** A root has no orbit, and today no translation or velocity
 either: it sits at the Universe origin and the body never writes its own position.
@@ -548,10 +559,10 @@ because the fitted orbits were saved. The persisted set is also what a save must
 through a table change: elements, not row references (only `IVTrajectory.create_from_table`
 and a `characteristics.trajectory` name touch a table after build, and only at new game).
 
-## Two kinds of project
+## Three kinds of project needs
 
-The model, and the code around it, serve two families of project that the Core does not
-distinguish; a project can be both.
+The model, and the code around it, serve three families of project need that are not
+exclusive.
 
 ### Approaching the real solar system
 
@@ -630,11 +641,56 @@ by periodically re-osculating from a numerically integrated state through
 changes what an orbit *is*. Lagrange-point station-keeping is the same story with a
 resonant subclass.
 
-**Collisions** are explicitly not a Core feature. A project can build them: positions and
-velocities are available in doubles at any time, radii and figures are table data, and
-the v0.3 geometry component answers surface radius at a coordinate. The tree gives the
-natural broad phase (siblings under one primary), and a merger or fragmentation is a body
-added or removed plus new orbits from state — again the same conversion.
+**Collisions at astronomical scale** are explicitly not a Core feature. A project can build
+them: positions and velocities are available in doubles at any time, radii and figures are
+table data, and the v0.3 geometry component answers surface radius at a coordinate. The tree
+gives the natural broad phase (siblings under one primary), and a merger or fragmentation is a
+body added or removed plus new orbits from state — again the same conversion. Collisions
+*within* a project's own local scene are a different subject entirely and need nothing from us:
+they are Godot's, unchanged (*A game whose action is local*).
+
+### A game whose action is local
+
+The third family is the one that most needs saying, because its shape is the opposite of the
+other two: a first-person game set in a base on the Moon, a lander sim, a colony builder, a ship
+whose interior you walk around. Here the simulator is not the subject. It supplies the sky, the
+ephemeris, the sun angle and the frame; the project supplies a conventional Godot scene, with
+its own camera, its own collision shapes and Godot's own physics, and expects all of it to work
+unchanged.
+
+**It does, and the reason is that this document's physical/visual split is about *astronomical*
+scale and about nothing else.** *Physical state versus visual state* makes a body's rendered
+`position` derived and disposable because at 1e11 m an f32 coordinate quantizes at kilometres
+and an integrator would accumulate error no re-evaluation could undo. Neither is true at 1e2 m.
+Inside a local scene `position` **is** the truth, exactly as in any other Godot project: a
+`CharacterBody3D` moves by it, collision resolves against it, the project's own surface gravity
+integrates it, and f32 at metre magnitudes rounds below a micron. Nothing here forbids that or
+ever meant to. Two regimes coexist, and it is scale that separates them:
+
+| | astronomical (this document) | local (the project's) |
+|---|---|---|
+| truth | elements + time, f64 | `Node3D.position`, f32 |
+| motion | evaluated, never integrated | Godot physics, integrated |
+| magnitudes | 1e3 – 1e15 m | 1e-3 – 1e5 m |
+| collisions | none | Godot's own, unchanged |
+
+**The seam is one node.** The project hands us the root of its scene; we place that node from
+the f64 model and touch nothing below it. Its placement is an `IVBody` like any other — an
+`IVSurfaceAnchor` for a base or a pad, an orbit or a trajectory for a station or a craft in
+flight — carrying no figure, no visual and no GM, so it is selectable and camera-targetable and
+its primary indexes it among the satellites, and so a **launch is a component swap** (the
+redesign's capability matrix) that the local scene never learns about. Orientation comes from a
+child carrying the body's ground basis, since an `IVBody` is never rotated — the same
+relationship a body already has with its visual, with the project's scene standing where the
+visual would be.
+
+That node is also what the render frame is built around, which is the part that makes the whole
+thing work and the part that does not exist in v0.2: see
+[VISUAL_MODEL.md](VISUAL_MODEL.md) *The render frame anchor and local scenes* for the frame, and
+[PHOTOMETRIC_MODEL.md](PHOTOMETRIC_MODEL.md) *A project's own lighting* for what the project's
+own lights and exposure may do alongside ours. On this side of the split the requirements are
+only the ordinary ones: the project reads body state through the f64 queries rather than through
+`Node3D` transforms, and does not run physics on `IVBody` nodes or at astronomical magnitudes.
 
 ## Data tables: where the model is authored
 
@@ -720,7 +776,7 @@ Roadmap items consolidated from the class headers (`IVBody`, `IVOrbit`,
   identity: a spacecraft becoming a star-orbiter, an asteroid captured as a moon or
   promoted out of a group.
 - **Perturbation of existing bodies by a new one** (the rogue-planet scenario). No
-  mechanism yet drives one orbit's elements from another body; *Two kinds of project*
+  mechanism yet drives one orbit's elements from another body; *Three kinds of project*
   names the two routes the existing conversions allow.
 - **Network sync.** Hooks exist (`changed(is_intrinsic)`, `serialize()`, `NetworkState`,
   client gating of time and speed); the RPC layer, `parent_name` in the serialized form,
@@ -734,7 +790,10 @@ Roadmap items consolidated from the class headers (`IVBody`, `IVOrbit`,
 - **The v0.3 `IVBody` redesign** itself: positioner / rotator / geometry composition,
   surface anchors (pads, rovers), fixed positioners, the proximity service replacing
   camera-parented sleep and lazy triggers, and the body answering its own surface
-  geometry — the prerequisite for project-built collisions.
+  geometry — the prerequisite for project-built collisions. It also carries the frame anchor
+  (§§2.4–2.5), without which *A game whose action is local* is not buildable at all, and whose
+  remaining seams — announcing a foreign camera, owning the active anchor, sharing mouse
+  input — are in [VISUAL_MODEL.md](VISUAL_MODEL.md)'s TODO.
   [IVBody_REDESIGN_v0.3.md](IVBody_REDESIGN_v0.3.md).
 - **Editor constructability** of bodies and orbits alongside table generation (ongoing).
 - **Long spans.** A movable epoch (`IVAstronomy`) for applications past ~10,000 years,

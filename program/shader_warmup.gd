@@ -43,24 +43,30 @@ extends Node
 ## [code]stars_shader[/code] is the one Core shader in that position: [IVStarsVisual] is a
 ## scene node, so nothing in the tables says whether the project kept it. Under the default
 ## trigger the star field is in the opening view and has compiled before this node runs
-## anyway.[br][br]
+## anyway. After the shaders it draws the materials of each body's packed model, such as a
+## spacecraft's, one model per frame ([member warm_packed_models]).[br][br]
 ##
 ## Opt in by adding this class to [member IVCoreInitializer.program_nodes], and
 ## set [member trigger] for the project's boot sequence (from
 ## [signal IVStateManager.core_init_program_objects_instantiated], before this
-## node is added to the tree). The screen that covers the warm-up should stay up
-## until [signal finished] rather than [signal IVStateManager.simulator_started],
-## and can display [signal progress_changed]: it is emitted one frame before the
-## draw that may stall, so the text a handler sets is the text that stays on
-## screen through the stall.[br][br]
+## node is added to the tree). Under either automatic trigger the warm-up holds
+## [IVStateManager]'s startup state until [signal finished], so a splash or boot
+## screen that follows [member IVStateManager.show_splash_screen] and
+## [member IVStateManager.ok_to_start] covers it with no wiring of its own. It
+## runs once per session; a later new or loaded game finds its shaders compiled.
+## The screen can display [signal progress_changed]: it is emitted one frame
+## before the draw that may stall, so the text a handler sets is the text that
+## stays on screen through the stall.[br][br]
 ##
-## See [code]SHADER_COMPILE_COST.md[/code] for what a compile costs, what drives
-## it, and what a cold start measures.
+## See [i]Compiling shaders[/i] in [code]GRAPHICS_PROFILING.md[/code] for what a
+## compile costs, what drives it, and what a cold start measures.
 
-## Emitted one frame before shader [param index] (0-based, of [param count]) is
-## first drawn; [param shader_name] is its key in [member IVGlobal.resources].
-signal progress_changed(index: int, count: int, shader_name: StringName)
-## Emitted when every shader has been drawn, or at once if the warm-up is skipped.
+## Emitted one frame before step [param index] (0-based, of [param count]) is first
+## drawn. [param step_name] is a shader's key in [member IVGlobal.resources], or for a
+## packed model's materials the first body that uses the model.
+signal progress_changed(index: int, count: int, step_name: StringName)
+## Emitted when every shader has been drawn, or at once if the warm-up is skipped,
+## after the warm-up has released its hold on [IVStateManager].
 signal finished()
 
 
@@ -68,8 +74,10 @@ signal finished()
 enum Trigger {
 	## On [signal IVStateManager.simulator_started]. The system tree exists and
 	## [IVCamera] has processed, so the quads draw in the real scene and compile
-	## the base, additive and shadow specializations bodies use. For a project
-	## that boots straight into the simulator behind a loading screen.
+	## the base, additive and shadow specializations bodies use.
+	## [member IVStateManager.show_splash_screen] stays true until [signal finished],
+	## so the screen that covered the system build, whether a boot screen or a
+	## splash screen after its start button, stays up for the warm-up too.
 	SIMULATOR_STARTED,
 	## On [signal IVStateManager.assets_preloaded], which is where a splash-screen
 	## project ([member IVCoreSettings.wait_for_start] == true) waits for the user
@@ -78,16 +86,19 @@ enum Trigger {
 	## four variants at the default specialization mask, over half of what a first
 	## draw costs. The specializations the scene itself selects still compile when
 	## a body is first drawn, so this trades a smaller residual stall for a warm-up
-	## the user can watch. Gate the splash screen's start button on
-	## [signal finished] to keep even that off the user's flight.
+	## the user can watch. [member IVStateManager.ok_to_start] stays false until
+	## [signal finished], so neither [IVStartButton] nor a gamesave load can
+	## build a system tree over it.
 	ASSETS_PRELOADED,
-	## Never on its own; the project calls [method warm_up].
+	## Never on its own; the project calls [method warm_up] and covers it itself,
+	## e.g. with [method IVStateManager.hold_start] or
+	## [method IVStateManager.hold_splash_screen].
 	MANUAL,
 }
 
 const QUAD_DISTANCE_MULTIPLIER := 4.0 ## quad distance, as a multiple of the camera's near
 const QUAD_SIZE_FRACTION := 0.02 ## quad width, as a fraction of its distance
-const SETTLE_FRAMES := 2 ## frames a quad is left to draw before the next shader
+const SETTLE_FRAMES := 2 ## frames a step's quads are left to draw before the next step
 
 ## When the warm-up runs. Set before this node enters the tree.
 var trigger := Trigger.SIMULATOR_STARTED
@@ -101,6 +112,9 @@ var warm_core_shaders := true
 ## spatial shaders, and any Core shader the automatic selection leaves out. A key naming
 ## no [Shader], or naming a non-spatial one, warns and is skipped.
 var extra_shader_names: Array[StringName] = []
+## Whether the materials of each body's packed model
+## ([method IVAssetPreloader.get_body_packed_model]) are drawn, one model per step.
+var warm_packed_models := true
 ## Body mean radii whose size layers the quads take (see
 ## [member IVCoreSettings.size_layers]); the last also carries
 ## [constant IVGlobal.LOCAL_SHADOW_CASTER]. Each distinct layer value is one
@@ -110,13 +124,18 @@ var warm_radii: Array[float] = [1e4 * IVUnits.KM, 0.01 * IVUnits.KM]
 var _running := false
 var _quads: Array[MeshInstance3D] = []
 var _temporary_rig: Node3D
+var _shadow_geometry_camera: Camera3D
 
 
 func _ready() -> void:
+	# IVStateManager sets the state a hold keeps immediately before it emits the
+	# trigger, so the hold is taken now.
 	match trigger:
 		Trigger.SIMULATOR_STARTED:
+			IVStateManager.hold_splash_screen(self)
 			IVStateManager.simulator_started.connect(warm_up)
 		Trigger.ASSETS_PRELOADED:
+			IVStateManager.hold_start(self)
 			IVStateManager.assets_preloaded.connect(warm_up)
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
 
@@ -128,7 +147,7 @@ func warm_up() -> void:
 	if _running:
 		return
 	if gl_compatibility_only and !IVGlobal.is_gl_compatibility:
-		finished.emit()
+		_finish()
 		return
 	_running = true
 	_run()
@@ -140,38 +159,74 @@ func _run() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	var start_msec := Time.get_ticks_msec()
-	var shader_names := _get_shader_names()
+	var step_names: Array[StringName] = []
+	var step_materials: Array[Array] = [] # an Array[Material] per step
+	_add_shader_steps(step_names, step_materials)
+	var shader_count := step_names.size()
+	if warm_packed_models:
+		_add_packed_model_steps(step_names, step_materials)
 	var camera := get_viewport().get_camera_3d()
 	if !camera:
 		camera = _add_temporary_rig()
-	if !shader_names.is_empty():
+	# The quads are the only geometry a warm-up frame has, and they are not bodies, so the
+	# sweep behind IVCoreSettings.apply_empty_shadow_pass_skip cannot see them: a light
+	# whose domain they leave empty would switch its map off and the remaining shaders would
+	# compile a shadowed-light count the app never runs. Declaring them keeps the whole
+	# stack live. Distance is the quads' own, since _add_quad parents them to the camera.
+	_shadow_geometry_camera = camera
+	var all_size_domains := (1 << IVCoreSettings.get_size_domain_count()) - 1
+	IVDynamicLight.add_local_shadow_geometry(camera,
+			all_size_domains | IVGlobal.LOCAL_SHADOW_CASTER)
+	if !step_names.is_empty():
 		var layers := _get_layers()
-		var count := shader_names.size()
+		var count := step_names.size()
 		for index in count:
 			if !_running: # cancelled by _clear_procedural()
 				break
-			var shader_name := shader_names[index]
-			var shader: Shader = IVGlobal.resources[shader_name]
-			progress_changed.emit(index, count, shader_name)
+			progress_changed.emit(index, count, step_names[index])
 			await get_tree().process_frame # the frame that shows the message
 			if !_running or !is_instance_valid(camera):
 				break
-			for layer in layers:
-				_add_quad(camera, shader, layer)
+			for material: Material in step_materials[index]:
+				for layer in layers:
+					_add_quad(camera, material, layer)
 			for _frame in SETTLE_FRAMES:
 				await get_tree().process_frame
 	_free_added_nodes()
 	if !_running:
 		return
-	print("Shader warm-up: %d shaders in %.1f s" % [shader_names.size(),
-			(Time.get_ticks_msec() - start_msec) / 1000.0])
+	print("Shader warm-up: %d shaders and %d models in %.1f s" % [shader_count,
+			step_names.size() - shader_count, (Time.get_ticks_msec() - start_msec) / 1000.0])
 	_running = false
+	_finish()
+
+
+func _finish() -> void:
+	# Every new or loaded game emits simulator_started again, and a repeat would
+	# hold the splash screen over shaders this session has already compiled.
+	if IVStateManager.simulator_started.is_connected(warm_up):
+		IVStateManager.simulator_started.disconnect(warm_up)
+	IVStateManager.release_start(self)
+	IVStateManager.release_splash_screen(self)
 	finished.emit()
 
 
 func _clear_procedural() -> void:
 	_free_added_nodes()
 	_running = false
+	# assets_preloaded never comes again to retry a cancelled warm-up, so it must
+	# not go on holding the start. A splash-screen hold stays for the retry at the
+	# next simulator_started.
+	IVStateManager.release_start(self)
+
+
+func _add_shader_steps(step_names: Array[StringName], step_materials: Array[Array]) -> void:
+	for shader_name in _get_shader_names():
+		var shader: Shader = IVGlobal.resources[shader_name]
+		var material := ShaderMaterial.new()
+		material.shader = shader
+		step_names.append(shader_name)
+		step_materials.append([material])
 
 
 func _get_shader_names() -> Array[StringName]:
@@ -240,6 +295,42 @@ func _add_small_bodies_shaders(shader_names: Array[StringName]) -> void:
 		_add_shader_name(shader_names, &"orbiting_positions_id_shader", false)
 	if has_lagrange_group:
 		_add_shader_name(shader_names, &"orbiting_positions_lp_id_shader", false)
+
+
+func _add_packed_model_steps(step_names: Array[StringName], step_materials: Array[Array]
+		) -> void:
+	# A body's model is built lazily, on the camera's first visit, so its materials are read
+	# off an instance of the scene IVAssetPreloader loaded. The instance shares them with the
+	# one IVBodyVisual will build, so drawing them compiles exactly what that model binds.
+	var asset_preloader: IVAssetPreloader = IVGlobal.program.get(&"AssetPreloader")
+	if !asset_preloader:
+		return
+	var packed_models: Array[PackedScene] = []
+	for table in IVCoreSettings.body_tables:
+		for row in IVTableData.get_n_rows(table):
+			var body_name := IVTableData.get_db_entity_name(table, row)
+			var packed_model := asset_preloader.get_body_packed_model(body_name)
+			if !packed_model or packed_models.has(packed_model): # bodies can share a model
+				continue
+			packed_models.append(packed_model)
+			var model := packed_model.instantiate()
+			var materials: Array[Material] = []
+			_collect_materials(model, materials)
+			model.free()
+			if materials:
+				step_names.append(body_name)
+				step_materials.append(materials)
+
+
+func _collect_materials(node: Node, materials: Array[Material]) -> void:
+	var mesh_instance := node as MeshInstance3D
+	if mesh_instance and mesh_instance.mesh:
+		for surface in mesh_instance.mesh.get_surface_count():
+			var material := mesh_instance.get_active_material(surface)
+			if material and !materials.has(material):
+				materials.append(material)
+	for child in node.get_children():
+		_collect_materials(child, materials)
 
 
 func _any_body_has_rings() -> bool:
@@ -314,9 +405,7 @@ func _add_temporary_rig() -> Camera3D:
 	return camera
 
 
-func _add_quad(camera: Camera3D, shader: Shader, layers: int) -> void:
-	var material := ShaderMaterial.new()
-	material.shader = shader
+func _add_quad(camera: Camera3D, material: Material, layers: int) -> void:
 	var mesh := QuadMesh.new()
 	var distance := camera.near * QUAD_DISTANCE_MULTIPLIER
 	mesh.size = Vector2.ONE * distance * QUAD_SIZE_FRACTION
@@ -334,6 +423,9 @@ func _free_added_nodes() -> void:
 		if is_instance_valid(quad):
 			quad.queue_free()
 	_quads.clear()
+	if is_instance_valid(_shadow_geometry_camera):
+		IVDynamicLight.remove_local_shadow_geometry(_shadow_geometry_camera)
+	_shadow_geometry_camera = null
 	if is_instance_valid(_temporary_rig):
 		_temporary_rig.queue_free()
 	_temporary_rig = null

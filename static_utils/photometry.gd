@@ -39,6 +39,15 @@ const MAG0_ILLUMINANCE := 2.518e-6 * IVUnits.CANDELA / IVUnits.METER ** 2
 ## Luminance of surface brightness 0 mag/arcsec^2, in internal units
 ## (cd/m^2 at sim scale); L = SB0_LUMINANCE * 10^(-0.4 * S).
 const SB0_LUMINANCE := 1.08e5 * IVUnits.CANDELA / IVUnits.METER ** 2
+## Linear radiance that encodes to one 8-bit display code: the level at or below which a
+## self-luminous source renders black. This is the inverse of the sRGB toe at 1/255 (the
+## exact transfer, [code]display_encode_curve()[/code] in
+## [code]_display.gdshaderinc[/code]) and NOT 1/255 itself -- that is a LINEAR value the
+## transfer lifts to about 13 codes, and it is the cut
+## [code]psf_visible_size()[/code] uses for a sprite's outer edge. Conservative on the
+## Compatibility renderer, which crushes the dim end further still. See
+## [i]Skipping what the camera has metered away[/i] in PHOTOMETRIC_MODEL.md.
+const ONE_DISPLAY_CODE_LINEAR := 1.0 / 255.0 / 12.92
 
 
 ## Returns apparent V magnitude for [param absolute_magnitude] at

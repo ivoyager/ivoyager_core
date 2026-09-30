@@ -634,7 +634,7 @@ func _process_motion(delta: float) -> void:
 		_transform = Transform3D(basis_, origin)
 		# back-calculate view_rotations
 		var unrotated_transform := Transform3D(IDENTITY_BASIS, origin).looking_at(
-			-origin, _reference_basis.z)
+			-origin, _get_view_up(origin, view_position.x, _reference_basis))
 		var unrotated_basis := unrotated_transform.basis
 		var rotations_basis := unrotated_basis.inverse() * basis_
 		view_rotations = rotations_basis.get_euler()
@@ -688,7 +688,8 @@ func _process_rotation(delta: float) -> void:
 		view_basis = view_basis.rotated(view_basis.x, rotate_now.x) # pitch
 		view_basis = view_basis.rotated(view_basis.z, rotate_now.z) # roll
 		view_rotations = view_basis.get_euler()
-	_transform = _transform.looking_at(-_transform.origin, _reference_basis.z)
+	_transform = _transform.looking_at(-_transform.origin,
+			_get_view_up(_transform.origin, view_position.x, _reference_basis))
 	_transform.basis *= view_basis
 
 
@@ -712,10 +713,22 @@ func _get_view_transform(view_position_: Vector3, view_rotations_: Vector3,
 		translation_multiplier = 1.0 / view_translation.length()
 		view_translation *= translation_multiplier
 	var view_transform := Transform3D(IDENTITY_BASIS, view_translation).looking_at(
-			-view_translation, reference_basis.z)
+			-view_translation, _get_view_up(view_translation, view_position_.x, reference_basis))
 	view_transform.basis *= Basis.from_euler(view_rotations_)
 	view_transform.origin /= translation_multiplier
 	return view_transform
+
+
+# The reference north, or near a pole, where north nears the view direction, the
+# horizontal pointing back along the camera's meridian, which rolls it identically.
+static func _get_view_up(view_translation: Vector3, longitude: float, reference_basis: Basis
+		) -> Vector3:
+	var north := reference_basis.z
+	var along_north := view_translation.normalized().dot(north)
+	if absf(along_north) < 0.99:
+		return north
+	var meridian := reference_basis.x * cos(longitude) + reference_basis.y * sin(longitude)
+	return meridian * -signf(along_north)
 
 
 func _get_perspective_dist(dist: float, radius: float) -> float:

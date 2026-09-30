@@ -22,8 +22,13 @@ extends Button
 
 ## Button widget that opens user hotkeys.
 ##
-## Emits [signal IVGlobal.hotkeys_requested], which opens [IVHotkeysPopup].
+## Emits [signal IVGlobal.hotkeys_requested], which opens [IVHotkeysPopup] or
+## closes it if it's open. A tooltip names the hotkey.
 
 
 func _pressed() -> void:
 	IVGlobal.hotkeys_requested.emit()
+
+
+func _get_tooltip(_at_position: Vector2) -> String:
+	return IVInputMapManager.append_action_key(tr(tooltip_text), &"toggle_hotkeys")

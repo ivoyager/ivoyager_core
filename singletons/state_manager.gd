@@ -275,8 +275,8 @@ var has_assets := false
 ## [member ok_to_start]).
 var prestart := false
 ## Indicates whether it is safe to build a new system tree: [member prestart]
-## and [member has_assets] are both true. If true, it's also safe to load a
-## gamesave file.
+## and [member has_assets] are both true and no [method hold_start] is held. If
+## true, it's also safe to load a gamesave file.
 var ok_to_start := false
 ## Indicates whether a system tree is currently being built. This may be a new
 ## system or loaded system from a gamesave file. This property stays true until
@@ -317,13 +317,16 @@ var threads_state := ThreadsState.STOPPED
 ## Current multiplayer network role; see [enum NetworkState].
 var network_state := NetworkState.NO_NETWORK
 ## Use this property to set splash screen visibility on [signal state_changed].
-## True until simulator started. True again on exit.
+## True until simulator started, or past it until every [method hold_splash_screen]
+## is released. True again on exit.
 var show_splash_screen := true
 ## [IVStateAuxiliary] component for class-specific state API.
 var state_auxiliary := IVStateAuxiliary.new()
 
 var _blocking_threads: Array[Thread] = [] # prevent gamesave, exit, etc., until cleared
 var _objects_requiring_stop: Array[Object] = [] # require and hold stopped state
+var _objects_holding_start: Array[Object] = [] # hold ok_to_start false
+var _objects_holding_splash_screen: Array[Object] = [] # hold show_splash_screen true
 var _stop_threads_when_finished := false
 var _tree_build_counter := 0
 
@@ -478,6 +481,55 @@ func allow_run(who: Object) -> void:
 	_run_simulator()
 
 
+## Holds [member ok_to_start] false, and so defers both a new or loaded game and
+## the automatic start of a project without [member IVCoreSettings.wait_for_start],
+## until [param who] calls [method release_start]. For boot work a system tree must
+## not be built over, such as an [IVShaderWarmup] at
+## [constant IVShaderWarmup.Trigger.ASSETS_PRELOADED].
+func hold_start(who: Object) -> void:
+	if _objects_holding_start.has(who):
+		return
+	_objects_holding_start.append(who)
+	if !ok_to_start:
+		return
+	ok_to_start = false
+	state_changed.emit()
+
+
+## Removes [param who]'s [method hold_start]. [member ok_to_start] returns once
+## every holder has released.
+func release_start(who: Object) -> void:
+	if !_objects_holding_start.has(who):
+		return
+	_objects_holding_start.erase(who)
+	if _objects_holding_start or !prestart or !has_assets or quitting:
+		return
+	ok_to_start = true
+	state_changed.emit()
+
+
+## Holds [member show_splash_screen] true past [signal simulator_started] until
+## [param who] calls [method release_splash_screen]. For work the splash or boot
+## screen must keep covering after the simulator starts, such as an
+## [IVShaderWarmup] at [constant IVShaderWarmup.Trigger.SIMULATOR_STARTED]. Call
+## before the simulator starts: a hold cannot bring back a hidden splash screen.
+func hold_splash_screen(who: Object) -> void:
+	if !_objects_holding_splash_screen.has(who):
+		_objects_holding_splash_screen.append(who)
+
+
+## Removes [param who]'s [method hold_splash_screen]. [member show_splash_screen]
+## goes false once every holder has released, if the simulator has started.
+func release_splash_screen(who: Object) -> void:
+	if !_objects_holding_splash_screen.has(who):
+		return
+	_objects_holding_splash_screen.erase(who)
+	if _objects_holding_splash_screen or !started or !show_splash_screen:
+		return
+	show_splash_screen = false
+	state_changed.emit()
+
+
 
 ## Build the system tree for a new game.
 func start() -> void:
@@ -530,7 +582,7 @@ func exit(force_exit := false, following_server := false) -> void:
 	IVGlobal.close_admin_popups_required.emit()
 	await _tree.process_frame
 	prestart = true
-	ok_to_start = true
+	ok_to_start = _objects_holding_start.is_empty()
 	paused_by_user = false
 	state_changed.emit()
 	simulator_exited.emit()
@@ -587,11 +639,16 @@ func _on_core_initializer_finished() -> void:
 
 func _on_aux_asset_preloader_finished() -> void:
 	has_assets = true
-	ok_to_start = true
+	ok_to_start = _objects_holding_start.is_empty()
 	state_changed.emit()
 	assets_preloaded.emit()
-	if not IVCoreSettings.wait_for_start:
-		start()
+	if IVCoreSettings.wait_for_start:
+		return
+	# Resuming on the state_changed from release_start() would build the tree
+	# inside the holder's own release code, ahead of whatever it does next.
+	while !ok_to_start:
+		await _tree.process_frame
+	start()
 
 
 func _on_aux_about_to_free_procedural_nodes_for_load() -> void:
@@ -662,7 +719,8 @@ func _set_system_tree_ready(is_new_game: bool) -> void:
 	IVGlobal.ui_dirty.emit()
 	await _tree.process_frame
 	started = true
-	show_splash_screen = false
+	if !_objects_holding_splash_screen:
+		show_splash_screen = false
 	state_changed.emit()
 	simulator_started.emit()
 

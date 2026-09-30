@@ -141,7 +141,7 @@ var glare_gamma := 0.286:
 			return
 		glare_gamma = value
 		changed.emit()
-## Largest glare radius in px at [member IVGlobal.reference_viewport_height], scaled with
+## Largest glare radius in px at [code]iv_reference_viewport_height[/code], scaled with
 ## the render's own height. It bounds the AMPLITUDE, not the radius, so the wing still
 ## ends where it falls below one 8-bit step and the bound simply stops the glare growing;
 ## capping the radius instead would cut the wing mid-white and leave a ring. Only the last
@@ -180,3 +180,63 @@ func apply_to(shader_material: ShaderMaterial) -> void:
 	shader_material.set_shader_parameter(&"glare_scale", glare_scale)
 	shader_material.set_shader_parameter(&"glare_gamma", glare_gamma)
 	shader_material.set_shader_parameter(&"glare_max_px", glare_max_px)
+
+
+# *****************************************************************************
+# CPU mirror of the shader's PSF
+#
+# What a source of a given magnitude writes, evaluated on the CPU: the one caller is the
+# exposure cull in IVStarsVisual, which has to know what a magnitude bin would render
+# BEFORE deciding whether to draw it. THESE ARE A SECOND COPY OF
+# _point_spread_function.gdshaderinc's arithmetic, and the copy nobody sees go wrong --
+# an edit to psf_visible_size(), psf_glare_amplitude(), psf_glare_draw_size() or
+# flux_from_magnitude() there must land here too, and that include says so at each of them.
+
+
+## The shader's [code]PSF_GLARE_TAPER[/code]: how far past its one-step radius the glare
+## wing is drawn while fading out.
+const PSF_GLARE_TAPER := 2.0
+
+
+## Returns the point-source fov brightness factor for a camera of [param camera_fov]
+## (degrees, as [member Camera3D.fov]) -- the shader's
+## [code]point_fov_compensation()[/code], which every unresolved source takes.
+func get_fov_compensation_factor(camera_fov: float) -> float:
+	var fov_ratio := tan(deg_to_rad(fov_reference_deg) / 2.0) / tan(deg_to_rad(camera_fov) / 2.0)
+	return (fov_ratio * fov_ratio) ** fov_compensation
+
+
+## Returns the linear intensity a point source of [param magnitude] (V) forms, given
+## [method get_fov_compensation_factor], [param resolution_scale] (the render's height over
+## [code]iv_reference_viewport_height[/code]) and [param exposure]
+## ([member IVExposureManager.exposure]).
+func get_point_intensity(magnitude: float, fov_compensation_factor: float,
+		resolution_scale: float, exposure: float) -> float:
+	var flux := 10.0 ** (-0.4 * (magnitude - intensity_faint_mag))
+	return (intensity_scale * flux ** intensity_gamma * fov_compensation_factor
+			* resolution_scale * resolution_scale * exposure)
+
+
+## Returns the brightest linear value a source of [param intensity] writes anywhere in its
+## image: the Gaussian's own peak plus the glare wing, which the shader holds at its 1 px
+## value inside that radius. Compare it against
+## [constant IVPhotometry.ONE_DISPLAY_CODE_LINEAR] to ask whether the source renders at
+## all -- and note that the WING is what binds at the faint end, the core's size law having
+## already returned zero several magnitudes earlier.
+func get_peak_light(intensity: float, resolution_scale: float) -> float:
+	return intensity + _get_glare_amplitude(intensity, resolution_scale)
+
+
+## Returns the radius in px that a source of [param intensity] draws over: half the
+## [code]POINT_SIZE[/code] the star shader sets, so core or wing, whichever reaches further.
+func get_draw_radius(intensity: float, resolution_scale: float) -> float:
+	var core_size := 2.0 * psf_sigma * sqrt(2.0 * maxf(log(255.0 * intensity), 0.0))
+	var glare_draw_size := PSF_GLARE_TAPER * sqrt(
+			255.0 * _get_glare_amplitude(intensity, resolution_scale))
+	return 0.5 * maxf(core_size, 2.0 * glare_draw_size)
+
+
+func _get_glare_amplitude(intensity: float, resolution_scale: float) -> float:
+	var half_max_px := glare_max_px * resolution_scale / PSF_GLARE_TAPER
+	return minf(glare_scale * maxf(intensity, 0.0) ** glare_gamma,
+			half_max_px * half_max_px / 255.0)

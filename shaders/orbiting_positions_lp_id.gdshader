@@ -18,7 +18,7 @@
 // limitations under the License.
 // *****************************************************************************
 shader_type spatial;
-render_mode unshaded, cull_disabled, skip_vertex_transform;
+render_mode unshaded, cull_disabled, skip_vertex_transform, fog_disabled;
 
 // A vertex shader that calculates its own Lagrange point position from orbit
 // elements and Lagrange point information encoded in a mesh array. Supports

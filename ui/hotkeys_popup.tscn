@@ -1,7 +1,8 @@
-[gd_scene load_steps=4 format=3 uid="uid://b2fdgq3tjd8wq"]
+[gd_scene load_steps=5 format=3 uid="uid://b2fdgq3tjd8wq"]
 
 [ext_resource type="Script" uid="uid://m0d52s170evn" path="res://addons/ivoyager_core/ui/hotkeys_popup.gd" id="1_f835g"]
 [ext_resource type="PackedScene" uid="uid://bd8gmabf8f6ub" path="res://addons/ivoyager_core/ui_widgets/hotkey_dialog.tscn" id="2_fgwpm"]
+[ext_resource type="PackedScene" uid="uid://cimxq7ent5esq" path="res://addons/ivoyager_core/ui_components/control_mod_spacing.tscn" id="3_spcng"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fgwpm"]
 bg_color = Color(0, 0, 0, 1)
@@ -29,7 +30,11 @@ layout_mode = 2
 size_flags_horizontal = 4
 text = "LABEL_HOTKEYS"
 
-[node name="ContentContainer" type="HBoxContainer" parent="VBox"]
+[node name="ScrollContainer" type="ScrollContainer" parent="VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ContentContainer" type="HBoxContainer" parent="VBox/ScrollContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 
@@ -59,3 +64,5 @@ layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 8
 text = "Cancel"
+
+[node name="ControlModSpacing" parent="VBox/ButtonsBox" instance=ExtResource("3_spcng")]
