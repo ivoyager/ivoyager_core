@@ -177,6 +177,7 @@ var _sun_bv := 0.63 # sun-mode: cached B-V (disc color); fallback if the charact
 var _sun_abs_mag := 4.83 # sun-mode: cached V absolute magnitude (for the disc's surface brightness)
 var _psf_settings: IVPSFSettings # sun-mode: the shared PSF camera (color ramp only, here)
 var _applied_sun_disc_brightness := NAN # sun-mode: change gate; NAN forces the first-frame write
+var _applied_handoff := Vector2(NAN, NAN) # change gate on the published handoff; ditto
 var _rest_basis: Basis # the basis as built, which a 'process' method poses the shell from
 var _clouds_shadow_spin_rate := 0.0 # deg/s of the deck shell 0 takes its cloud shadow from
 var _clouds_shadow_material: ShaderMaterial # shell 0's own, for the per-frame spin write
@@ -438,8 +439,10 @@ func _apply_disc_lod(angular_radius: float, pixel_radius: float) -> void:
 		return
 	_disc_material.set_shader_parameter(&"angular_radius", angular_radius)
 	var handoff := _body.psf_handoff
-	_disc_material.set_shader_parameter(&"handoff_low", handoff.x)
-	_disc_material.set_shader_parameter(&"handoff_high", handoff.y)
+	if handoff != _applied_handoff: # re-solved only as exposure or phase moves it
+		_applied_handoff = handoff
+		_disc_material.set_shader_parameter(&"handoff_low", handoff.x)
+		_disc_material.set_shader_parameter(&"handoff_high", handoff.y)
 	_apply_handoff_gate(pixel_radius, handoff.x)
 
 

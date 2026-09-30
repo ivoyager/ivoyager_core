@@ -98,7 +98,7 @@ uniform float intensity_scale = 0.5; // linear intensity at intensity_faint_mag
 uniform float color_saturation = 1.0; // 0 = white field; 1 = the physical B-V color (see below)
 // The glare wing every star carries outside its core; see psf_glare_* in
 // _point_spread_function.gdshaderinc for the law and why it is drawn here rather than left to the
-// engine's glow pass. Shared value for value with body_psf.gdshader, through IVStarSettings.
+// engine's glow pass. Shared value for value with body_psf.gdshader, through IVPSFSettings.
 uniform float glare_scale = 0.0126;
 uniform float glare_gamma = 0.286;
 uniform float glare_max_px = 384.0;

@@ -347,12 +347,7 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
-	if physical_active:
-		_restore_scene_values()
-		physical_active = false
-	exposure = INACTIVE_EXPOSURE
-	auto_exposure_ev = 0.0
-	_neutralize_shader_globals()
+	_deactivate()
 
 
 func _process(delta: float) -> void:
@@ -396,11 +391,16 @@ func _apply_transition() -> void:
 		_snap_next = true
 		physical_active = true
 	else:
+		_deactivate()
+
+
+func _deactivate() -> void:
+	if physical_active:
 		_restore_scene_values()
 		physical_active = false
-		exposure = INACTIVE_EXPOSURE
-		auto_exposure_ev = 0.0
-		_neutralize_shader_globals()
+	exposure = INACTIVE_EXPOSURE
+	auto_exposure_ev = 0.0
+	_neutralize_shader_globals()
 
 
 ## Returns false (with warning) if prerequisites are missing.
@@ -455,12 +455,12 @@ func _apply_ambient() -> void:
 	# occlusion manager re-reads it each frame and feeds the ambient_light
 	# uniform to the custom body shaders, and engine ambient delivers the same
 	# value to StandardMaterial3D craft models. The energy therefore carries
-	# exposure itself (rewritten each frame in _update_exposure) - the fed
+	# exposure itself (rewritten each frame in _apply_exposure) - the fed
 	# uniform is applied by receivers with NO further exposure factor. Color is
 	# left as authored (a chromaticity choice, not a level).
 	_ambient_energy_base = ambient_starlight_illuminance / PI * gain
-	var environment := _world_environment.environment
-	environment.ambient_light_energy = _ambient_energy_base * exposure
+	if _world_environment and _world_environment.environment:
+		_world_environment.environment.ambient_light_energy = _ambient_energy_base * exposure
 
 
 ## Lazy: the starmap sky exists only after assets_preloaded, and only if the
@@ -599,7 +599,7 @@ static func compute_sky_energy(
 	if !psf_settings:
 		return 0.0
 	var arcsec_per_pixel := (psf_settings.fov_reference_deg * 3600.0
-			/ _get_reference_viewport_height())
+			/ IVBodyPSF.get_reference_viewport_height())
 	var omega_ref := arcsec_per_pixel * arcsec_per_pixel
 	var psf_area := TAU * psf_settings.psf_sigma * psf_settings.psf_sigma
 	return (psf_settings.intensity_scale * psf_area * omega_ref
@@ -611,20 +611,6 @@ static func _get_psf_settings() -> IVPSFSettings:
 	if psf_settings_var is IVPSFSettings:
 		return psf_settings_var
 	return null
-
-
-static func _get_reference_viewport_height() -> float:
-	# ProjectSettings, not RenderingServer.global_shader_parameter_get(): the
-	# latter is editor-only and returns null in a running project.
-	var setting_var: Variant = ProjectSettings.get_setting(
-			"shader_globals/iv_reference_viewport_height")
-	if typeof(setting_var) == TYPE_DICTIONARY:
-		var setting_dict: Dictionary = setting_var
-		var value_var: Variant = setting_dict.get("value")
-		if typeof(value_var) == TYPE_FLOAT:
-			var value: float = value_var
-			return value
-	return 1080.0
 
 
 # *****************************************************************************
@@ -665,6 +651,31 @@ func _get_metering_target() -> float:
 			continue
 		var angular_radius := minf(body.mean_radius / camera_distance, 1.0)
 		var screen_fraction := fraction_per_theta_sq * angular_radius * angular_radius
+		if body.flags & IVBody.BodyFlags.BODYFLAGS_STAR:
+			if body != _star:
+				continue
+			# A star hidden behind a body must not meter (on a night side the
+			# sun is occluded by the planet itself); an area term (one-frame
+			# lag, same convention as IVDynamicLight).
+			var star_weight := _get_ramp_weight(
+					screen_fraction * IVSunOcclusionManager.camera_sun_visible_fraction,
+					star_meter_fraction_start, star_meter_fraction_full)
+			if star_weight > 0.0: # the screen-edge gate (below), paid only where it can matter
+				star_weight *= _get_view_factor(body.global_position, angular_radius,
+						view_size, tan_half_fov, aspect)
+			if star_weight <= 0.0:
+				continue
+			var disc_luminance := IVPhotometry.get_star_disc_luminance(
+					star_absolute_magnitude, body.mean_radius)
+			min_exposure = minf(min_exposure, _get_candidate_exposure(disc_luminance,
+					star_weight, log_rest, rest_exposure))
+			continue
+		# Both disc candidates ramp on a share of this fraction, so a disc under the ramp's
+		# start meters nothing, and needs neither the projection below nor any photometry -
+		# which is most bodies in any view.
+		var is_wide_candidate := _wide_candidate_bodies.has(body_name)
+		if screen_fraction <= meter_fraction_start and !is_wide_candidate:
+			continue
 		# Screen-edge gate (a weight factor on every candidate): metering
 		# responds only to what is in the frame. A body behind the camera or
 		# beyond a frame edge - the sun above and behind, most of all - must
@@ -678,23 +689,7 @@ func _get_metering_target() -> float:
 		# atmosphere shell stands above it, and skipping here on the disc alone is what
 		# kept Saturn's rings from metering with the rings filling the frame and the globe
 		# panned off the side.
-		if view_factor <= 0.0 and !_wide_candidate_bodies.has(body_name):
-			continue
-		if body.flags & IVBody.BodyFlags.BODYFLAGS_STAR:
-			if body != _star:
-				continue
-			# A star hidden behind a body must not meter (on a night side the
-			# sun is occluded by the planet itself); an area term (one-frame
-			# lag, same convention as IVDynamicLight).
-			screen_fraction *= IVSunOcclusionManager.camera_sun_visible_fraction
-			var star_weight := view_factor * _get_ramp_weight(screen_fraction,
-					star_meter_fraction_start, star_meter_fraction_full)
-			if star_weight <= 0.0:
-				continue
-			var disc_luminance := IVPhotometry.get_star_disc_luminance(
-					star_absolute_magnitude, body.mean_radius)
-			min_exposure = minf(min_exposure, _get_candidate_exposure(disc_luminance,
-					star_weight, log_rest, rest_exposure))
+		if view_factor <= 0.0 and !is_wide_candidate:
 			continue
 		var star_vector := star_position - body.global_position
 		var star_distance := star_vector.length()
@@ -1255,9 +1250,14 @@ func _clear_procedural() -> void:
 	_camera = null
 	_star = null
 	_snap_next = true
-	exposure = INACTIVE_EXPOSURE
-	auto_exposure_ev = 0.0
-	_neutralize_shader_globals()
+	if !physical_active:
+		return
+	# Physical light is a user setting and outlives the tree (an exit to the splash screen, a
+	# game load), so its atmosphere and emission gates stay shut; only the view goes. Rested
+	# here rather than by the next metering, which a paused tree may not run before the next
+	# session starts.
+	auto_exposure_ev = exposure_max_ev
+	_apply_exposure()
 
 
 func _neutralize_shader_globals() -> void:

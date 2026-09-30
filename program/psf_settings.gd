@@ -141,7 +141,7 @@ var glare_gamma := 0.286:
 			return
 		glare_gamma = value
 		changed.emit()
-## Largest glare radius in px at [member IVGlobal.reference_viewport_height], scaled with
+## Largest glare radius in px at [code]iv_reference_viewport_height[/code], scaled with
 ## the render's own height. It bounds the AMPLITUDE, not the radius, so the wing still
 ## ends where it falls below one 8-bit step and the bound simply stops the glare growing;
 ## capping the radius instead would cut the wing mid-white and leave a ring. Only the last

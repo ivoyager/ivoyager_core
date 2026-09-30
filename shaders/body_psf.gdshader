@@ -86,7 +86,7 @@ render_mode unshaded, cull_disabled, skip_vertex_transform, blend_add, depth_dra
 #include "_photometry.gdshaderinc"
 #include "_point_spread_function.gdshaderinc"
 
-// The field's photometry, shared value for value with stars.gdshader through IVStarSettings,
+// The field's photometry, shared value for value with stars.gdshader through IVPSFSettings,
 // which owns the uniform names. These defaults must track that shader's; nothing enforces it,
 // and any drift shows up as an in-scene source disagreeing with the stars around it.
 uniform float psf_sigma = 0.5;

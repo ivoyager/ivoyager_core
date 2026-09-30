@@ -666,7 +666,9 @@ vertex work — a body's own mesh, Ceres's 65,000 triangles, in every view in th
 gate measures the on-screen radius at the greater of the live and the capture render height,
 the handshake the sphere ladder takes, so no viewport drawing the node could have drawn a
 fragment of it. A local shadow caster is exempt: its shadow pass resolves the handoff against
-the shadow map rather than a viewport. **Rings stop drawing at their own handoff**
+the shadow map rather than a viewport. `IVSunOcclusionManager` stops feeding a body whose shells
+are all hidden, and because it runs after the gate a shell shown is fed before it draws.
+**Rings stop drawing at their own handoff**
 (`IVRings.cull_handed_off`), once the body's point has all of their light: `IVRings` decides
 that fraction at the same greatest render height and hands it to the shader, which discards
 every fragment at zero. Their gate hides the instance through the rendering server, the node's
@@ -889,7 +891,7 @@ Each shader resolves the pixel radius against its **own** `VIEWPORT_SIZE`, so an
 off-screen capture fades at its own buffer's scale rather than the main window's — the
 same reason nothing viewport-dependent is allowed on the CPU side here.
 
-Four approximations worth carrying:
+Three approximations worth carrying:
 
 - **The wing is offset toward the lit limb by a phase-dependent fraction of the
   silhouette's own radius in that direction** (direction the sun's on screen, magnitude
@@ -923,8 +925,6 @@ Four approximations worth carrying:
   resolved-regime wing stacks on that pass's bloom there and the two renderers are close
   rather than identical. Its amplitude in that regime is an in-app anchor to judge,
   possibly renderer-weighted.
-- **A ringed planet's quad carries the globe's flux only**; its rings keep their own
-  distance cull, at 2.4× the globe's. The regime where that shows is narrow.
 
 ## Pixel spaces
 

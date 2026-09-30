@@ -153,6 +153,7 @@ var _psf_back := PackedFloat64Array()
 var _psf_forward := PackedFloat64Array()
 var _psf_unlit := PackedFloat64Array()
 var _handed_off := false # the plane's instance hidden by the handoff gate (cull_handed_off)
+var _applied_plane_light_fraction := NAN # change gate; NAN forces the first write
 
 
 func _init(body: IVBody) -> void:
@@ -263,7 +264,10 @@ func _update_psf_handoff() -> void:
 	var outer_pixels := outer_radius / (camera_distance * pixel_angle)
 	var psf_fraction := 1.0 - smoothstep(PSF_HANDOFF_LOW_PX, PSF_HANDOFF_HIGH_PX,
 			outer_pixels)
-	_rings_material.set_shader_parameter(&"plane_light_fraction", 1.0 - psf_fraction)
+	var plane_light_fraction := 1.0 - psf_fraction
+	if plane_light_fraction != _applied_plane_light_fraction: # 1.0 or 0.0 outside the ramp
+		_applied_plane_light_fraction = plane_light_fraction
+		_rings_material.set_shader_parameter(&"plane_light_fraction", plane_light_fraction)
 	_set_handed_off(cull_handed_off and psf_fraction >= 1.0)
 	if psf_fraction <= 0.0:
 		_body.rings_psf_flux_factor = 0.0
