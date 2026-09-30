@@ -22,6 +22,11 @@
 // point toward the limb and the terminator. Shared by the surface shaders so the law
 // cannot drift between the equirect and cubemap paths; see PHOTOMETRIC_MODEL.md.
 //
+// scripts/limb_model.py in the assets build tree transcribes both laws and their isotropic
+// responses, which the atmosphere's twilight fit depends on, and other build scripts fit their
+// parameters. IMPORTANT: Flag changes to the laws so they can be mirrored in the asset build
+// pipeline (a separate private repository).
+//
 // The problem it solves: the engine's diffuse gives radiance proportional to mu0
 // (cos incidence), and an airless regolith body does NOT do that. At full phase such a
 // body is nearly FLAT across its disc - the full Moon reads as a disc, not as a lit

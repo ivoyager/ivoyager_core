@@ -18,12 +18,15 @@
 // limitations under the License.
 // *****************************************************************************
 
-// Shared helpers for "detail" surface shaders (e.g., cloud_shell,
-// surface): model-space value-noise FBM plus a C2-continuous bicubic
-// texture lookup. A fixed-resolution map at close (orbital) range has
-// texels kilometers wide; bicubic resampling removes the texel squares and FBM
-// supplies the sub-texel structure the base map lacks. Pure functions only —
-// the including shader owns its uniforms, varyings and blending.
+// Shared helpers: model-space value noise and FBM, for the procedural surfaces (the band
+// pattern, the photosphere), and a C2-continuous bicubic texture lookup, for the shaders that
+// sample a map. A fixed-resolution map at close (orbital) range has texels kilometers wide,
+// and bicubic resampling removes the texel squares. Pure functions only — the including
+// shader owns its uniforms, varyings and blending.
+//
+// scripts/band_pattern_model.py and scripts/sun_preview.py in the assets build tree transcribe
+// the hash, the value noise and the FBM. IMPORTANT: Flag changes to those so they can be
+// mirrored in the asset build pipeline (a separate private repository).
 
 
 // Dave Hoskins' hash13 ("Hash without Sine"). A hash symmetric in p.x/p.y/p.z (as an

@@ -31,7 +31,12 @@ render_mode skip_vertex_transform, ambient_light_disabled;
 // set reproduces. Where a body has features that are not zonal, put them in an overlay
 // shell instead; Neptune does this for its Great Dark Spot and clouds.
 //
-// ALBEDO = albedo_color * (1 + band_contrast * pattern), in linear light.
+// ALBEDO = albedo_scale * albedo_color * (1 + band_contrast * pattern), in linear light,
+// scaled under albedo_ceiling.
+//
+// scripts/band_pattern_model.py in the assets build tree transcribes the pattern and that
+// level, to fit and preview a body's parameters. IMPORTANT: Flag changes to either so they can
+// be mirrored in the asset build pipeline (a separate private repository).
 //
 // THREE THINGS TO GET RIGHT:
 //   - Band amplitudes must be zero-mean over the sphere (cos-weighted), or band_contrast
@@ -51,8 +56,8 @@ render_mode skip_vertex_transform, ambient_light_disabled;
 // ----- color and level -----
 // The body's true color at its MEAN level: the mu = mu0 = 1 value, since the engine
 // applies its own N.L. Its brightest channel sets the contrast headroom — the
-// band_contrast at which that channel reaches albedo 1 and the bands stop gaining
-// contrast. Venus 1.40, Neptune 2.67, Titan 4.43, Uranus 22.2.
+// band_contrast at which that channel, times albedo_scale, reaches albedo_ceiling and the
+// bands stop gaining contrast.
 uniform vec4 albedo_color : source_color = vec4(1.0);
 
 // A second color the pattern's DARK end leans toward, for a body whose belts or polar hood

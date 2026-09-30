@@ -92,6 +92,10 @@ render_mode unshaded, skip_vertex_transform, depth_draw_always;
 // Note the model's own "visible" is still culled against the main viewport by sun-mode: it is
 // a node property and cannot resolve per viewport. See the sun-mode section of
 // shells_model.gd for what that costs.
+//
+// scripts/sun_preview.py in the assets build tree transcribes the photosphere's functions and
+// constants, to measure the field and preview the disc offline. IMPORTANT: Flag changes here
+// so they can be mirrored in the asset build pipeline (a separate private repository).
 
 #include "_detail.gdshaderinc"          // hash, value_noise (the photosphere's noise)
 #include "_display.gdshaderinc"

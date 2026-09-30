@@ -52,7 +52,7 @@ uniform vec2 clouds_shadow_spin = vec2(1.0, 0.0);
 // displacement is 5.9 km at a 30 deg solar zenith, 17.6 at 60, 56 at 80 and 201 at 88.
 //
 // This is a REDISTRIBUTION and not a new term. The deck's own alpha carries only its view leg
-// (see cloud_shell.gdshader), so the sunlight removed here is the sunlight that used to be
+// (see _cloud_shell.gdshaderinc), so the sunlight removed here is the sunlight that used to be
 // removed directly under the cloud; the body's total reflected flux does not move and only
 // where the darkening lands does.
 //

@@ -49,13 +49,15 @@
 // relaxes the rule too, and says where. See *The atmosphere's structure* in
 // GRAPHICS_PROFILING.md.
 //
-// THE CONTRACT. scripts/limb_model.py in the assets build tree is the reference
-// transcription of this file, verified against a numeric single-scatter integral for
-// Earth, Venus, Mars and Titan at every phase (within 11 % worst case, usually under 3 %).
-// Change nothing here without changing it there and re-running --verify: keep the two
-// identical, constant for constant. The arithmetic is what must match; the structure above is
-// this file's own. What it binds is the NORMAL quality tier; Reduced and Min are declared
-// approximations of that rule, not second models, and carry no transcription.
+// THE REFERENCE. scripts/limb_model.py in the assets build tree transcribes this file's
+// arithmetic, constant for constant, and verifies it against a numeric single-scatter integral
+// for Earth, Venus, Mars and Titan at every phase (within 11 % worst case, usually under 3 %);
+// it also fits the atm_sky_* cells. IMPORTANT: Flag changes here so they can be mirrored in the
+// asset build pipeline (a separate private repository). What it mirrors is the NORMAL quality
+// tier's model -- the columns, the quadrature rules, the sun leg, the twilight -- and not the
+// structure above, which is this file's own, nor atm_ring_pixel()'s screen filter. Reduced, Min
+// and Off are declared approximations of the Normal rule, not second models, and carry no
+// transcription.
 //
 // TWO FLOAT32 TRAPS, both found as a black curve across Venus' night side. A float literal
 // below about 1e-14 compiles to ZERO in the shader language (1.0e-20 reads as 0.0; 1e-12 is

@@ -992,7 +992,7 @@ through ANGLE, and more under Forward+ (*Atmosphere quality* in
 `atmosphere_quality` exists. Its first two tiers are the same shader:
 
 - **Normal** — the six-node along-ray quadrature and up to eight ring taps described above.
-  This is the rule `limb_model.py` verifies, and the contract in the include binds it.
+  This is the rule `limb_model.py` transcribes and verifies (THE REFERENCE in the include).
 - **Reduced** — a four-node rule and two ring taps. The quadrature is a valid
   Gauss–Legendre rule of its own, packed into the same table, so it is a coarser evaluation
   of the same model rather than a different one.

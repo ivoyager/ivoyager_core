@@ -60,7 +60,9 @@ uniform float clouds_opacity = 1.0; // overall coverage multiplier
 // grazes. Earth's deck is built this way from MODIS cloud fraction and cloud optical
 // thickness (build_earth_clouds.py in the assets build tree); Neptune's, whose source is one
 // channel, is not. Off, the map's channels are already composited and go straight through,
-// which is what every deck built before 2026-09-08 holds.
+// which is what every deck built before 2026-09-08 holds. IMPORTANT: Flag changes to how this
+// pair is decoded, or to the reference cosine 1/2 that R is stored and inverted at, so they
+// can be mirrored in the asset build pipeline (a separate private repository).
 uniform bool clouds_two_stream_map = false;
 // The deck's lit cross-section per unit horizontal ground as the sun goes down. A
 // plane-parallel layer says mu0 and a real cloud field says more: at grazing incidence what
