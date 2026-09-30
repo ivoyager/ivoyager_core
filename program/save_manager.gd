@@ -165,7 +165,7 @@ func _save_permit() -> bool:
 
 func _load_permit() -> bool:
 	const IS_CLIENT = IVStateManager.NetworkState.IS_CLIENT
-	if not (IVStateManager.prestart or IVStateManager.built_system):
+	if not (IVStateManager.ok_to_start or IVStateManager.built_system):
 		return false
 	if IVStateManager.network_state == IS_CLIENT:
 		return false

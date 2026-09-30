@@ -850,8 +850,7 @@ camera, one shader per frame, once at a planet-scale layer and once at a craft-s
 the shadow-caster bit; between them those reach the base, additive and shadow specializations bodies
 use. It is opt-in, added to `IVCoreInitializer.program_nodes` from a preinitializer. Its
 `progress_changed` is emitted one frame before the draw that stalls, so the text a handler sets is
-the text on screen through the stall, and the screen covering it waits for `finished` rather than
-`simulator_started`.
+the text on screen through the stall. It runs once per session.
 
 **It draws what the project will bind, and nothing else.** A body's shell shaders come from the
 specs `IVAssetPreloader` resolved at load -- the cubemap, airless, Min and Off swaps included, so a
@@ -885,9 +884,11 @@ earlier, since `IVCamera` does not process before the simulator starts and a qua
 of it rounds to nothing at a heliocentric float32 position. `ASSETS_PRELOADED`, for a project with a
 splash screen and `wait_for_start = true`, adds its own camera and one unshadowed light, which
 reaches the scene-independent part of each shader -- the four variants at the default mask, over
-half of a first draw -- and leaves the scene's own specializations to a body's first draw; gate the
-splash screen's start button on `finished` and even that stays off the user's flight. `MANUAL` and
-`warm_up()` are for a project that wants the moment itself.
+half of a first draw -- and leaves the scene's own specializations to a body's first draw. Either
+way the warm-up holds `IVStateManager` until `finished` -- `show_splash_screen` true under
+`SIMULATOR_STARTED`, `ok_to_start` false under `ASSETS_PRELOADED` -- so a boot or splash screen that
+follows them covers it with no wiring of its own. `MANUAL` and `warm_up()` are for a project that
+wants the moment itself.
 
 **What the two radii buy.** `warm_radii` resolve to layers `0b0001` and `0b0100`, the second
 carrying the shadow-caster bit. Under a shadowed light stack the second earns its place through
