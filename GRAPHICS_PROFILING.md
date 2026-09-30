@@ -409,7 +409,8 @@ freezes the app is gone at the next start. Three things get past that:
   differs from its default. 250 ms marks a machine near the limit of use, and the setting a choice
   beyond the fit -- a condition the frame time alone cannot carry, since a browser at its fitted Min
   takes 257 ms at Earth close up on this laptop's Intel (*What the fitted defaults deliver*). Frames
-  drawn while a popup is open or Options holds an unconfirmed change don't count.
+  drawn while a popup is open, Options holds an unconfirmed change or the boot or splash screen is
+  up don't count, the last so that the warm-up's compile stalls are not taken for a crawl.
 - **A reset on request.** User argument `--reset-graphics` restores them on any start. The
   Planetarium's web page passes it for a URL ending `#reset-graphics`, and on a lost WebGL context,
   where Godot's own page says only to reload and the same settings would likely lose it again,

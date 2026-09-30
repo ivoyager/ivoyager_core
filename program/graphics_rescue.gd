@@ -25,7 +25,8 @@ extends Node
 ##
 ## Added by [IVCoreInitializer] if [member IVCoreSettings.enable_graphics_rescue]. It speaks
 ## through [signal IVGlobal.confirmation_required], so a project needs an [IVConfirmationDialog]
-## for it to be heard, and it waits while any popup is open.[br][br]
+## for it to be heard, and it waits while any popup is open or the splash or boot screen is up
+## ([member IVStateManager.show_splash_screen]).[br][br]
 ##
 ## When more than half the frames drawn over [member slow_span] s take longer than [member
 ## slow_frame_time], and any of [member IVSettingsManager.graphics_settings] differs from its
@@ -58,6 +59,9 @@ func _process(_delta: float) -> void:
 	var usec := Time.get_ticks_usec()
 	var frame_time := (usec - _frame_usec) / 1e6
 	_frame_usec = usec
+	# The screen covers a system build and IVShaderWarmup's compile stalls, neither a crawl.
+	if IVStateManager.show_splash_screen:
+		return
 	if !get_viewport().get_embedded_subwindows().is_empty():
 		return
 	if _is_notice_pending:
