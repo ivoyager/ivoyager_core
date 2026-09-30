@@ -36,13 +36,12 @@ frozen exposure.
      is held at 100 %.
    - **MSAA off** saves 5-24 % everywhere.
 3. **At its fitted defaults the Intel runs every view at 21-27 fps under Forward+**, Earth close up
-   aside at 12, with atmospheres Off. A browser cannot tell its GPU is integrated and keeps Min,
-   which takes 257 ms at Earth close up here (TODO). The GTX, fitted, runs every view at 70 fps or
-   better.
-4. **A first run through ANGLE compiles for about a minute and a half** -- a first web visit on this
-   laptop -- against 36 s through NVIDIA's GL and 7-9 s under Vulkan, nearly all of it under the
-   boot screen. One stall is left after it: the first spacecraft, 11 s through ANGLE (TODO). No
-   single program comes near Chrome's 30-second watchdog.
+   aside at 12, with atmospheres Off. A browser cannot tell its GPU's type and takes Off too, giving
+   up the limb on a fast GPU. The GTX, fitted, runs every view at 70 fps or better.
+4. **A first run through ANGLE compiles for about a minute and a half** at Min or Normal, against
+   36 s through NVIDIA's GL and 7-9 s under Vulkan, nearly all of it under the boot screen; Off, a
+   first web visit's tier, compiles a third less. One stall is left after it: the first spacecraft,
+   11 s through ANGLE (TODO). No single program comes near Chrome's 30-second watchdog.
 5. **The savings that need no option are worth as much as the options.** The exposure skips take
    15-53 % off a lit frame through ANGLE; the airless shader twins 14-23 % there and 76-83 % under
    Intel's Vulkan; the empty-shadow-pass skip 7-22 % of an Intel Forward+ frame.
@@ -123,24 +122,24 @@ identical on every path: 12, 11, 8, 14, 22, 18, 24, 20, 0, 18, 24 and 24 of 24.
 What a user of this laptop gets at a plain launch: the fitted defaults (*Fitted defaults*), in the
 window the Planetarium opens -- its 1152x648 at the screen's 250 % display scale, 2880x1620 -- with
 the render scale fitted to the whole 3840x2400 screen. Milliseconds per frame as the frame
-interval, which is what a user sees; on the GTX that is the CPU's time, the GPU's being shorter. The
-browser column is the Intel's ANGLE path with the GPU's type unknown, as a browser's always is:
+interval, which is what a user sees; on the GTX that is the CPU's time, the GPU's being shorter. A
+browser on this laptop takes the Intel's ANGLE path at that column's settings:
 
-| View | Intel, ANGLE | Browser, Intel | Intel, Vulkan | GTX, Vulkan | GTX, GL |
-|---|---:|---:|---:|---:|---:|
-| Tier; settings | Low: Off, 100 %, MSAA off, V 11 | Low: Min, 100 %, MSAA off, V 11 | Low: Off, 50 %, MSAA off, V 11 | Reduced: Reduced, 70 %, 2048 | Reduced: Reduced, 70 % |
-| Earth at 1.6 radii | 157 | 257 | 80 | 11.8 | 12.3 |
-| Earth at 3 radii | 73 | 136 | 48 | 8.2 | 7.7 |
-| Venus at 3 radii | 49 | 75 | 41 | 7.6 | 7.3 |
-| Mars at 3 radii | 45 | 91 | 39 | 10.8 | 9.0 |
-| Titan at 3 radii | 40 | 89 | 41 | 13.9 | 10.7 |
-| The Moon at 3 radii | 40 | 39 | 37 | 6.6 | 6.6 |
-| Jupiter's night side, dark sky | 48 | 48 | 43 | 8.4 | 9.2 |
-| Saturn at 3 radii | 61 | 59 | 48 | 10.2 | 10.1 |
-| The Sun at 3 radii | 57 | 52 | 43 | 6.1 | 6.1 |
-| Juno close up | 31 | 30 | 40 | 8.6 | 8.9 |
-| Whole system, dark sky | 42 | 40 | 37 | 7.3 | 6.0 |
-| Asteroid belt | 43 | 42 | 38 | 7.8 | 6.1 |
+| View | Intel, ANGLE | Intel, Vulkan | GTX, Vulkan | GTX, GL |
+|---|---:|---:|---:|---:|
+| Tier; settings | Low: Off, 100 %, MSAA off, V 11 | Low: Off, 50 %, MSAA off, V 11 | Reduced: Reduced, 70 %, 2048 | Reduced: Reduced, 70 % |
+| Earth at 1.6 radii | 157 | 80 | 11.8 | 12.3 |
+| Earth at 3 radii | 73 | 48 | 8.2 | 7.7 |
+| Venus at 3 radii | 49 | 41 | 7.6 | 7.3 |
+| Mars at 3 radii | 45 | 39 | 10.8 | 9.0 |
+| Titan at 3 radii | 40 | 41 | 13.9 | 10.7 |
+| The Moon at 3 radii | 40 | 37 | 6.6 | 6.6 |
+| Jupiter's night side, dark sky | 48 | 43 | 8.4 | 9.2 |
+| Saturn at 3 radii | 61 | 48 | 10.2 | 10.1 |
+| The Sun at 3 radii | 57 | 43 | 6.1 | 6.1 |
+| Juno close up | 31 | 40 | 8.6 | 8.9 |
+| Whole system, dark sky | 42 | 37 | 7.3 | 6.0 |
+| Asteroid belt | 43 | 38 | 7.8 | 6.1 |
 
 - **The GTX runs everything at 70 fps or better** at its fitted tier.
 - **The Intel runs every view at 21-27 fps under Forward+**, the desktop default, but Earth close up
@@ -148,9 +147,10 @@ browser column is the Intel's ANGLE path with the GPU's type unknown, as a brows
 - **Through ANGLE it is slower in every view but Titan and Juno**, the window drawn at full size:
   14-25 fps with air and 16-32 without, Earth close up at 6. So the Intel is better off in Forward+
   at its fitted defaults, which is what it runs unless its user chooses otherwise (*Renderer*).
-- **A browser keeps Min** because it cannot tell an integrated GPU from a fast one, and on this
-  Intel that takes the atmosphere views to 75-257 ms (TODO). Its window is its own size; this one's
-  is 2.25 times the pixels of the 1080p frames above, and render scale is held at 100 % there.
+- **A browser's window is its own size**; this one's is 2.25 times the pixels of the 1080p frames
+  above, and render scale is held at 100 % there. At Min the same path takes the atmosphere views
+  to 75-257 ms, which is why a browser, whose GPU's type is unknown, is fitted Off (*Fitted
+  defaults*).
 
 
 ## The options
@@ -193,7 +193,7 @@ Earth are inside that path's noise (*How this was measured*), which is why Reduc
 above 1.0 there.
 
 - **Through ANGLE, Off takes every atmosphere view on the Intel to 24-85 ms**, and it is the fitted
-  default on a known integrated GPU; Min is a browser's, whose GPU is unknown.
+  default on a known integrated GPU and in every browser.
 - **Under Forward+ on the Intel, Reduced buys almost nothing** -- that compiler's cost is set by a
   shader's structure rather than its node count -- but Min takes a quarter to a half off, and Off
   more than four fifths, taking every atmosphere view from 2-7 fps to 11-34.
@@ -201,7 +201,7 @@ above 1.0 there.
   frame, at every pose measured. Min's and Off's are larger and specific -- Earth's crescent cusps
   and Mars' twilight at Min, everything beyond the limb at Off -- and are measured in
   [PHOTOMETRIC_MODEL.md](PHOTOMETRIC_MODEL.md).
-- **Min and Off each compile programs of their own**, which is what lets a first web visit at Off
+- **Min and Off each compile programs of their own**, which is what lets a first web visit, at Off,
   compile no quadrature at all (*What each shader costs*).
 
 ### 3D render scale
@@ -345,7 +345,7 @@ physical pixel count of the screen (`IVGraphicsManager.get_graphics_tier()`):
 | | Full | Reduced | Low |
 |---|---|---|---|
 | Machine | Discrete GPU, screen up to 6 MP | Discrete GPU, screen past 6 MP | Any other GPU, or one of unknown type, as in every browser |
-| Atmosphere quality | Normal | Reduced | Off on an integrated GPU; of unknown type, Min through ANGLE's D3D11, else Reduced |
+| Atmosphere quality | Normal | Reduced | Off on an integrated GPU and in a browser; on a desktop GPU of unknown type, Min through ANGLE's D3D11, else Reduced |
 | 3D render scale | 100% | Largest within 4.7 MP | Largest within 2.7 MP |
 | MSAA | 2x | 2x | Off |
 | Shadow resolution | 4096 | 2048 | 2048 |
@@ -368,16 +368,19 @@ physical pixel count of the screen (`IVGraphicsManager.get_graphics_tier()`):
   takes them too.
 - **Off is Low's tier on a known integrated GPU**, the only one that makes an atmosphere close-up
   usable there: under Forward+ on this Intel, Reduced buys almost nothing and Min still takes 480 ms
-  at Earth close up at 1080p (*Atmosphere quality*). **A GPU of unknown type keeps the limb**, since
-  it may be a fast one, and every browser's is unknown: Min through ANGLE, where it is the fast
-  tier, and Reduced elsewhere, Min having run slower than Normal at Earth through Intel's own GL
-  (2026-09-28).
+  at Earth close up at 1080p (*Atmosphere quality*). **A browser takes Off too**, though its GPU's
+  type is always unknown: a fast GPU loses only the limb, which its user can restore in Options,
+  where Min through this Intel's ANGLE takes the atmosphere views to 75-257 ms (*What the fitted
+  defaults deliver*), and a first visit at Off compiles 57 s of programs against Min's 82 s (*What
+  each shader costs*). **A desktop GPU of unknown type keeps the limb**, since it may be a fast one:
+  Min through ANGLE, where it is the fast tier, and Reduced elsewhere, Min having run slower than
+  Normal at Earth through Intel's own GL (2026-09-28).
 - **MSAA off and V 11 are Low's alone**, since each changes what a user sees -- stair-stepped orbit
   lines, and a dimmer diffuse star glow in dark-sky views.
 
 On this laptop that makes the GTX **Reduced** (70 %, Reduced air, 2048 shadows) and the Intel
 **Low** with atmospheres Off, at 50 % under Forward+ and 100 % through ANGLE; a browser here is Low
-at Min. *What the fitted defaults deliver* measures each.
+at Off and 100 %. *What the fitted defaults deliver* measures each.
 
 ## A setting the machine can't carry
 
@@ -407,8 +410,9 @@ freezes the app is gone at the next start. Three things get past that:
 - **A crawl gets an offer.** IVGraphicsRescue asks once a session whether to restore the fitted
   defaults when more than half the frames over 10 s take longer than 250 ms and a graphics setting
   differs from its default. 250 ms marks a machine near the limit of use, and the setting a choice
-  beyond the fit -- a condition the frame time alone cannot carry, since a browser at its fitted Min
-  takes 257 ms at Earth close up on this laptop's Intel (*What the fitted defaults deliver*). Frames
+  beyond the fit -- a condition the frame time alone cannot carry, since this laptop's Intel already
+  takes 157 ms at Earth close up at its fitted defaults through ANGLE (*What the fitted defaults
+  deliver*), and a weaker GPU takes longer. Frames
   drawn while a popup is open, Options holds an unconfirmed change or the boot or splash screen is
   up don't count, the last so that the warm-up's compile stalls are not taken for a crawl.
 - **A reset on request.** User argument `--reset-graphics` restores them on any start. The
@@ -579,15 +583,16 @@ same run again:
 
 | Path, tier | Cold | Warm | Compiling | of which the opening view | the warm-up |
 |---|---:|---:|---:|---:|---:|
-| Intel, ANGLE, Min (a browser's default) | 97 s | 10 s | 88 s | 48 s | 35 s |
+| Intel, ANGLE, Min | 97 s | 10 s | 88 s | 48 s | 35 s |
 | Intel, ANGLE, Normal | 107 s | 10 s | 97 s | 54 s | 39 s |
 | GTX, GL, Reduced | 48 s | 12 s | 36 s | 21 s | 13 s |
 | GTX, Vulkan, Reduced | 23 s | 16 s | 7 s | 7 s | 0.3 s |
 | Intel, Vulkan, Reduced | 21 s | 13 s | 9 s | 7 s | 0.4 s |
 
 - **Through ANGLE a first run is a minute and a half of compiling**, nearly all of it FXC on the
-  CPU, so a slower CPU scales it whatever the GPU. That is the web's first visit on this laptop,
-  where the browser's own ANGLE build may differ (*The web export*).
+  CPU, so a slower CPU scales it whatever the GPU. The web's first visit on this laptop takes that
+  path at Off, whose programs compile in 57 s against Min's 82 s (*What each shader costs*), and
+  the browser's own ANGLE build may differ (*The web export*).
 - **The opening view is one frame.** Its first draw compiles every shader in view -- 51 s through
   ANGLE, 26 s through NVIDIA's GL -- which is why the boot screen has to stay up until the warm-up
   finishes rather than until the simulator starts.
@@ -903,8 +908,9 @@ a frame rather than a compile.
 The web export is the Compatibility renderer through the browser's WebGL 2, which on Windows is
 ANGLE's D3D11 backend and FXC, and a first-time visitor arrives with no cache Godot can use
 (*Where the caches are*). So a first visit on a machine like this one compiles what *What a first
-run costs* measures through ANGLE -- about a minute and a half at the fitted Min, all of it under
-the boot screen -- and a repeat visit on the same Chrome profile compiles nothing.
+run costs* measures through ANGLE, at the fitted Off -- 57 s of programs (*What each shader
+costs*), all of it under the boot screen -- and a repeat visit on the same Chrome profile compiles
+nothing.
 
 **Chrome's GPU watchdog** kills the GPU process, and every WebGL context with it, when its main
 thread spends too long in one task: 30 s on Windows, 25 s on macOS and 15 s elsewhere
@@ -1074,11 +1080,6 @@ scripts, not yet in the tools submodule.
 
 ## TODO
 
-- **A browser's atmosphere tier.** A browser cannot tell its GPU's type, so its Low tier keeps Min,
-  which on this laptop's Intel takes 75-257 ms in the atmosphere views, where a desktop run that
-  knows the GPU is integrated takes Off and 40-157 ms through the same ANGLE path. Off would also
-  cut a first visit's compiling by a third (57 s of programs against 82 s). Decide whether the web
-  defaults to Off, giving up the limb on a fast GPU a browser cannot identify.
 - **Warm the spacecraft's materials.** The first sight of Juno after a cold boot stalls 11 s through
   ANGLE and 1.5 s through NVIDIA's GL: its model's `StandardMaterial3D`s are not in
   `IVGlobal.resources`, so `IVShaderWarmup` never draws them.
