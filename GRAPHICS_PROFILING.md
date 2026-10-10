@@ -666,7 +666,7 @@ specialization costs about a sixth of a first draw through ANGLE and an eighth t
 | `atmosphere_limb` (full / Min) | 10.4 / 9.0 | 5.0 / 4.6 |
 | `rings` | 4.5 | 1.4 |
 | `photosphere` | 2.6 | 1.1 |
-| `body_psf` | 1.0 | 0.7 |
+| `body_psf` | 1.3 | 0.8 |
 | `stars`, `path`, `farwarp_vertex` and the id shaders | 0.3-0.5 | 0.3-0.4 |
 
 What the Planetarium compiles, summed over the shaders a session draws:

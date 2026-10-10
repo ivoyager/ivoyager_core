@@ -785,11 +785,12 @@ cull, and crescent glow. The photometric half — the glare law, its anchoring, 
 wings are not the engine glow pass's job — is in the sibling document.
 
 **Two regimes, and only one of them is a crossfade.** Unresolved, the quad *is* the body:
-the core takes the disc handoff, so a body shrinking past its disc becomes a photometric
-point instead of disappearing. Resolved, the **wing persists** — glare belongs to the
-camera, not to the subject, so it takes no crossfade — and that persisting wing is
-crescent glow. With physical light off a sunlit body's wing retires as its disc resolves and
-the rim below is not drawn; the sibling document's *Glow: the bloom pass* says why.
+the core takes the disc handoff, so a body shrinking past its disc becomes the camera's
+image of it, narrowing to a photometric point, instead of disappearing. Resolved, the
+**wing persists** — glare belongs to the camera, not to the subject, so it takes no
+crossfade — and that persisting wing is crescent glow. With physical light off a sunlit
+body's wing retires as its disc resolves and the rim below is not drawn; the sibling
+document's *Glow: the bloom pass* says why.
 
 **The rim's sky side is drawn here too, because nothing else can.** A body's surface images
 each rim pixel through the camera's PSF (`limb_mean_incidence()`, and *Imaging a pixel* in
@@ -867,13 +868,39 @@ buy catalog accuracy at the price of a step through the handoff, and a Hapke tre
 would fix both halves at once.
 
 **The handoff is solved once and published.** `IVBodyPSF.solve_handoff()` finds the
-on-screen pixel radius where the quad's saturated core matches the disc's diameter — where
-the two can trade places without stepping in size, which is what the eye actually has to
-go on, both being orders of magnitude above saturation throughout. The answer goes on
-`IVBody.psf_handoff`, and every shell of the body reads it to leave at exactly the radius
-the quad's core arrives at (`IVShellsModel`'s disc LOD; the surface, cloud and limb shaders
-all carry it). One producer, one answer: solving it on both sides is how the two would come
-to disagree.
+on-screen pixel radius where a point source of the body's flux saturates a core as wide as
+the disc: below it the disc is smaller than its own point image. A bare disc — one with no
+rim drawn beyond it — is a saturated disc of that size there, so it and the point trade
+places without stepping in size, which is what the eye actually has to go on, both being
+orders of magnitude above saturation throughout. The answer goes on `IVBody.psf_handoff`,
+and every shell of the body reads it to leave at exactly the radius the quad's core arrives
+at (`IVShellsModel`'s disc LOD; the surface, cloud and limb shaders all carry it). One
+producer, one answer: solving it on both sides is how the two would come to disagree.
+
+**Where the disc images its rim, the core is that disc's image, not a point.** The rim's sky
+side above puts the PSF's spread beyond the silhouette, so the resolved body is drawn as the
+disc convolved with the camera — at the handoff about two pixels of saturated spread around a
+three-pixel radius. A point sized to the bare disc dropped all of that in one frame, and the
+glow pass fed from it with it: Earth stepped down in size and brightness at 4–5 million km on
+a laptop's full screen, and closer in, by more, in a smaller window, where metering has brought
+the disc toward white. So for such a body the core is the image of its **lit lune** — the part
+of the disc between the limb and the terminator, carrying the core's flux at a uniform surface
+brightness — through the same Gaussian (`lune_light()` in `body_psf.gdshader`). Each chord
+parallel to the sun's screen direction integrates in closed form along it, and the chords are
+summed under the Gaussian across them; against a brute-force 2D convolution its edges hold to a
+hundredth of a pixel from full to 149° of phase. That is what the disc and its rim draw
+together, so the trade steps in neither size nor brightness at any phase or exposure, and the
+crescent's shape crosses with it. As the disc shrinks under the PSF's width the lune's image
+narrows onto the field's Gaussian, and below `LUNE_MIN_RADIUS` it is that Gaussian. A body
+whose resolved side draws no rim — a star, Ceres and Charon, and every sunlit body with
+physical light off — keeps the point, which is what its bare disc matches.
+
+Measured across the trade on Earth at a 70 % render scale, the point's figures in brackets:
+with glow off at a fixed exposure, the saturated area went 151 → 144 px [40] and the light
+around the body 90k → 89k [70k]; in a 960 × 540 window with glow and metering on, the halo's
+area above 32 codes went 1828 → 1905 px [494] and its light 172k → 180k [76k], that rise
+being the exposure's as the camera backed away. A crescent, quarter phase, Saturn with its
+rings and the Compatibility renderer crossed without a visible step.
 
 **How a shell leaves depends on which pass it is already in, and that is not cosmetic.** A
 lit surface is opaque and must stay so: writing `ALPHA` moves a Godot spatial material to
@@ -891,7 +918,7 @@ Each shader resolves the pixel radius against its **own** `VIEWPORT_SIZE`, so an
 off-screen capture fades at its own buffer's scale rather than the main window's — the
 same reason nothing viewport-dependent is allowed on the CPU side here.
 
-Three approximations worth carrying:
+Four approximations worth carrying:
 
 - **The wing is offset toward the lit limb by a phase-dependent fraction of the
   silhouette's own radius in that direction** (direction the sun's on screen, magnitude
@@ -902,8 +929,9 @@ Three approximations worth carrying:
   because that is what holds the `1/r²` singularity on the disc, which draws over it: a mean
   lies *between* an oblate body's polar and equatorial extents, and past Saturn's pole the
   centre stood ten pixels out in open sky, where an unoccluded peak is a dot with a glow
-  around it. The core keeps the body's own centre, and the silhouette radius retires the
-  offset on its own as the disc shrinks toward the unresolved regime. The fraction is by
+  around it. The core is drawn about the body's own centre, its lune lying where the lit part
+  does, and the silhouette radius retires the offset on its own as the disc shrinks toward the
+  unresolved regime. The fraction is by
   eye: a Lambert sphere's lit centroid is at 4/(3π) of the radius at quarter phase
   against this curve's 0.5, and closing that gap would mean carrying the disc integral of
   whichever BRDF the body renders with.
@@ -916,8 +944,8 @@ Three approximations worth carrying:
   at `sin(phase + ρ)` for the silhouette's own angular radius ρ, so a distant observer with
   that much more phase has this camera's geometry; the substitution is exact where the
   crescent dies and where the body is far (ρ → 0), and within a third of a magnitude between,
-  which on a glare halo is nothing. Only the wing takes it. The core is a point source only
-  where the body is unresolved, and the two fluxes agree exactly there; the rim divides the
+  which on a glare halo is nothing. Only the wing takes it. The core draws only where the
+  body is unresolved, and the two fluxes agree exactly there; the rim divides the
   same flux by the same disc integral, so the correction cancels out of it — which is right,
   a crescent's surface brightness being its albedo and its illuminance however little of it
   is left.
@@ -925,6 +953,13 @@ Three approximations worth carrying:
   resolved-regime wing stacks on that pass's bloom there and the two renderers are close
   rather than identical. Its amplitude in that regime is an in-app anchor to judge,
   possibly renderer-weighted.
+- **The lune is lit evenly, from the centre's phase.** The core spreads the body's flux
+  uniformly over its lit lune: no limb darkening, no map, and the terminator where the body's
+  centre puts it. At the two or three pixels the lune is drawn at, the eye reads its saturated
+  footprint, which the lit area and the PSF set; a Lambert disc's darker limb would move it by
+  about a tenth of a pixel at full phase. The mean radius stands for an oblate figure, and a
+  ringed body's lune carries its rings' share of the point's flux on the globe's outline, the
+  rings being under 8 px across while they hand off.
 
 ## Pixel spaces
 
