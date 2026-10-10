@@ -29,6 +29,13 @@ extends WorldEnvironment
 ## Compatibility brightness offset ([member gl_compatibility_exposure]) there, and the
 ## adjustment stage that [IVScreenshotManager] dims with everywhere else.[br][br]
 ##
+## While FSR 1 upscales the 3D view, this node sets an identity
+## [member Environment.adjustment_color_correction], which clamps the frame to the display
+## range before FSR sharpens it, and clears it when FSR stops. An Environment authored with
+## a colour correction of its own keeps it untouched, since that clamps too; one assigned at
+## runtime instead is overwritten at the next change of 3D render scale. See [i]FSR 1
+## sharpens what it is handed[/i] in PHOTOMETRIC_MODEL.md.[br][br]
+##
 ## If [member add_starmap] is true (default), this node adds a low-resolution
 ## background panorama (the diffuse Milky Way / nebula sky) from the assets
 ## directory to the Environment's sky at startup, discovered by file prefix (see
@@ -96,6 +103,11 @@ var starmaps_search: Array[String] = ["res://addons/ivoyager_assets/starmaps"]
 ## [constant IVStarsVisual.HIDE_THRESHOLD_FRACTION], the same decision for the stars.
 const HIDE_THRESHOLD_FRACTION := 0.5
 
+## Texels in the identity colour correction that clamps what FSR 1 sharpens. Interpolating it
+## misses the identity by at most half a texel's step: 0.03 of a display code at this width,
+## below the half-float precision FSR itself runs at.
+const UPSCALER_CLAMP_WIDTH := 4096
+
 ## Render height an off-screen capture is about to use, or 0.0 for none. Set and cleared by
 ## [IVScreenshotManager], so the capture's glow is shifted for its own frame. Not a tunable.
 static var capture_render_height := 0.0
@@ -104,6 +116,8 @@ var _starmap_material: ShaderMaterial # null until _add_starmap_sky() finds a pa
 var _starmap_skipped := false
 var _glow_levels: Array[float] = [] # as authored for the reference height; empty = no shift
 var _glow_render_height := 0.0 # the height the Environment's levels are shifted for
+var _upscaler_clamp: GradientTexture1D # null under Compatibility or if the Environment has one
+var _is_clamping_upscaler := false
 
 
 # Moves each weight octaves_finer levels finer (coarser if negative). A weight landing between
@@ -168,13 +182,21 @@ func _ready() -> void:
 		environment.adjustment_enabled = true
 		for level in RenderingServer.MAX_GLOW_LEVELS:
 			_glow_levels.append(environment.get_glow_level(level))
-	set_process(!_glow_levels.is_empty())
+		# Any colour correction clamps, so one the project authored already does this job.
+		if !environment.adjustment_color_correction:
+			_upscaler_clamp = GradientTexture1D.new()
+			_upscaler_clamp.gradient = Gradient.new() # black to white: the identity
+			_upscaler_clamp.width = UPSCALER_CLAMP_WIDTH
+			_upscaler_clamp.use_hdr = true # 8 bits would requantize every pixel before the dither
+	set_process(!_glow_levels.is_empty() or _upscaler_clamp != null)
 	IVStateManager.assets_preloaded.connect(_on_asset_preloader_finished)
 
 
 func _process(_delta: float) -> void:
 	if !_glow_levels.is_empty():
 		_update_glow_levels()
+	if _upscaler_clamp:
+		_update_upscaler_clamp()
 	if _starmap_material:
 		_update_starmap_skip()
 
@@ -212,6 +234,20 @@ func _update_glow_levels() -> void:
 	_pile_uncomputed_tail(levels)
 	for level in levels.size():
 		environment.set_glow_level(level, levels[level])
+
+
+# Since 4.6 the tonemap pass hands FSR 1 the frame unclamped, and its sharpening, which assumes
+# the display range, drives a dip among over-white pixels toward black. Colour correction is the
+# one Environment stage that clamps before it. See *FSR 1 sharpens what it is handed* in
+# PHOTOMETRIC_MODEL.md.
+func _update_upscaler_clamp() -> void:
+	var viewport := get_viewport()
+	var is_upscaling := (viewport.scaling_3d_mode == Viewport.SCALING_3D_MODE_FSR
+			and viewport.scaling_3d_scale < 1.0)
+	if is_upscaling == _is_clamping_upscaler:
+		return
+	_is_clamping_upscaler = is_upscaling
+	environment.adjustment_color_correction = _upscaler_clamp if is_upscaling else null
 
 
 # What the sky pass costs is fixed -- a full-screen bicubic resample of the panorama --
@@ -253,7 +289,7 @@ func _on_asset_preloader_finished() -> void:
 	# Only this node's own BG_SKY may be switched away and back: a project whose panorama
 	# did not resolve keeps whatever background its Environment authored.
 	_starmap_material = _get_starmap_material()
-	set_process(!_glow_levels.is_empty() or _starmap_material != null)
+	set_process(!_glow_levels.is_empty() or _upscaler_clamp != null or _starmap_material != null)
 	# The sky's level is IVPSFSettings photometry (see _get_starmap_energy), so this node
 	# is a consumer of those values and re-applies on the signal like the rest of them.
 	var psf_settings: IVPSFSettings = IVGlobal.program.get(&"PSFSettings")
