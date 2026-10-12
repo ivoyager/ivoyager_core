@@ -47,7 +47,10 @@ extends Container
 ## [ScrollContainer] with vertical scroll mode
 ## [constant ScrollContainer.SCROLL_MODE_MAXIMIZE_FIRST]: it then fits its
 ## content until space runs out and scrolls after that, where a child that
-## can't shrink would spill past its bounds.[br][br]
+## can't shrink would spill past its bounds. Capped below its own frame, its
+## stylebox and margins, even a scrolling child spills, because Godot then gives
+## its content no cap at all: make any child that can be squeezed that far
+## cullable.[br][br]
 ##
 ## Hazard: this container sets the height of [member Control.custom_maximum_size]
 ## on every child held to its top or bottom edge, replacing any set there.[br][br]
@@ -65,6 +68,10 @@ enum {
 const SIZE_FLAG_OPTIONS: PackedInt32Array = [SIZE_FILL, SIZE_SHRINK_BEGIN, SIZE_SHRINK_CENTER,
 		SIZE_SHRINK_END]
 
+# Ways a child is crowded, as bit flags.
+const _MOVED_OFF_EDGE := 1
+const _TOO_SHORT := 2
+
 
 ## Space between the children and this container's edges at GUI size Large (see
 ## [member IVCoreSettings.gui_size_multipliers]).
@@ -73,11 +80,18 @@ const SIZE_FLAG_OPTIONS: PackedInt32Array = [SIZE_FILL, SIZE_SHRINK_BEGIN, SIZE_
 ## Space kept between children at GUI size Large.
 @export var base_separation := 8.0:
 	set = set_base_separation
+## Least height, at GUI size Large, that a child held to its top or bottom edge
+## can use: a cullable child given less is crowded (see
+## [member cullable_children]). Keep it above each cullable child's own frame and
+## below its natural height.
+@export var base_usable_height := 60.0:
+	set = set_base_usable_height
 ## Children that close to make room for one another, as panels a user opens and
-## closes. When one of them is moved off its edge, the one shown last stays
-## open, and each one shown before it stays only if it still fits beside those
-## shown after it; one moved off its edge by any other child closes nothing.
-## Read at ready.
+## closes. When one of them is moved off its edge or left less than
+## [member base_usable_height], the one shown last stays open, and each one shown
+## before it stays only if it still fits beside those shown after it. Crowding
+## by a child that isn't listed here closes nothing, unless it leaves one too
+## short even when shown alone: that one closes. Read at ready.
 @export var cullable_children: Array[Control] = []
 
 
@@ -123,6 +137,11 @@ func set_base_separation(value: float) -> void:
 	queue_sort()
 
 
+func set_base_usable_height(value: float) -> void:
+	base_usable_height = value
+	queue_sort()
+
+
 func _configure_after_core_inited() -> void:
 	IVSettingsManager.changed.connect(_settings_listener)
 	_update_multiplier()
@@ -135,26 +154,29 @@ func _update_multiplier() -> void:
 
 
 func _sort_children() -> void:
-	var displaced_children := _place_children(true)
+	var crowded_children := _place_children(true)
 	if _is_cull_queued:
 		return
 	for cullable in _shown_cullables:
-		if displaced_children.has(cullable):
+		if crowded_children.has(cullable):
 			_is_cull_queued = true
 			_cull_children.call_deferred()
 			return
 
 
 # Places the visible children, or, if not applied, works out only where they would go were
-# the given cullable children the only ones shown. Returns the children moved off their edge.
-func _place_children(is_applied: bool, shown_cullables: Array[Control] = []) -> Array[Control]:
+# the given cullable children the only ones shown. Returns the crowded children, each with
+# its crowding flags.
+func _place_children(is_applied: bool, shown_cullables: Array[Control] = []
+		) -> Dictionary[Control, int]:
 	var margin := roundf(base_margin * _multiplier)
 	var separation := roundf(base_separation * _multiplier)
+	var usable_height := roundf(base_usable_height * _multiplier)
 	var inner := Rect2(Vector2(margin, margin), (size - 2.0 * Vector2(margin, margin)).maxf(0.0))
 	# The editor has no gui_size, and a maximum set there would be saved into the scene.
 	var set_maximums := is_applied and !Engine.is_editor_hint()
 	var placed: Array[Rect2] = []
-	var displaced_children: Array[Control] = []
+	var crowded_children: Dictionary[Control, int] = {}
 	for child in get_children():
 		var control := child as Control
 		if !control or control.top_level:
@@ -179,10 +201,13 @@ func _place_children(is_applied: bool, shown_cullables: Array[Control] = []) -> 
 		rect.position.y = _get_aligned_position(inner.position.y, inner.size.y, rect.size.y, v_align)
 		var aligned_y := rect.position.y
 		rect = _get_clear_rect(rect, h_align, v_align, placed, inner, separation)
+		var crowding := 0
 		if rect.position.y != aligned_y:
-			displaced_children.append(control)
+			crowding |= _MOVED_OFF_EDGE
 		if v_align != ALIGN_CENTER:
 			var height_limit := _get_height_limit(rect, v_align, placed, inner, separation)
+			if height_limit < usable_height:
+				crowding |= _TOO_SHORT
 			if set_maximums:
 				_set_maximum_height(control, height_limit)
 			var height := height_limit
@@ -200,12 +225,15 @@ func _place_children(is_applied: bool, shown_cullables: Array[Control] = []) -> 
 			control.size = rect.size
 		elif is_applied:
 			fit_child_in_rect(control, rect)
+		if crowding:
+			crowded_children[control] = crowding
 		placed.append(rect)
-	return displaced_children
+	return crowded_children
 
 
-# Keeps the cullable children shown last, and each earlier one only where it neither is
-# moved off its edge by those kept nor moves one of them off theirs.
+# Keeps the cullable children shown last, and each earlier one only where it is crowded by
+# those kept no more than it is alone and crowds none of them more than they are without it.
+# One too short even alone is not kept.
 func _cull_children() -> void:
 	_is_cull_queued = false
 	var kept: Array[Control] = []
@@ -213,13 +241,19 @@ func _cull_children() -> void:
 		var candidate := _shown_cullables[i]
 		var with_candidate: Array[Control] = kept.duplicate()
 		with_candidate.append(candidate)
-		var displaced_with := _place_children(false, with_candidate)
-		var is_crowding := (displaced_with.has(candidate)
-				and !_place_children(false, [candidate]).has(candidate))
+		var crowded_with := _place_children(false, with_candidate)
+		var is_crowding := false
+		if crowded_with.has(candidate):
+			var crowding := crowded_with[candidate]
+			var crowding_alone: int = _place_children(false, [candidate]).get(candidate, 0)
+			is_crowding = ((crowding & ~crowding_alone) != 0
+					or (crowding_alone & _TOO_SHORT) != 0)
 		if !is_crowding:
-			var displaced_without := _place_children(false, kept)
+			var crowded_without := _place_children(false, kept)
 			for keeper in kept:
-				if displaced_with.has(keeper) and !displaced_without.has(keeper):
+				var keeper_crowding: int = crowded_with.get(keeper, 0)
+				var keeper_crowding_without: int = crowded_without.get(keeper, 0)
+				if (keeper_crowding & ~keeper_crowding_without) != 0:
 					is_crowding = true
 					break
 		if !is_crowding:
