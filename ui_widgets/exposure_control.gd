@@ -46,6 +46,9 @@ const ADJUSTMENT_MIN_EV := -6.0
 ## instead, which is exact; _clamp_to_min() then applies the floor the min_value
 ## would have.
 const UNANCHORED_MIN := -1e15
+## The auto readout is held at this text's width, the widest value it shows, so
+## that a changing value doesn't move the controls beside it.
+const WIDEST_READOUT := "-00.0"
 
 ## If true (default), hide the widget entirely while physical light is
 ## inactive, rather than showing it with its controls disabled.
@@ -69,6 +72,8 @@ func _ready() -> void:
 	_adjustment_spinbox.step = ev_step
 	_manual_spinbox.min_value = UNANCHORED_MIN
 	_adjustment_spinbox.min_value = UNANCHORED_MIN
+	_auto_label.theme_changed.connect(_fit_auto_label_to_widest_readout)
+	_fit_auto_label_to_widest_readout()
 	if IVStateManager.initialized_core:
 		_configure_after_core_inited()
 	else:
@@ -134,6 +139,15 @@ func _on_manual_value_changed(value: float) -> void:
 func _on_adjustment_value_changed(value: float) -> void:
 	_exposure_manager.exposure_adjustment_ev = _clamp_to_min(_adjustment_spinbox, value,
 			ADJUSTMENT_MIN_EV)
+
+
+func _fit_auto_label_to_widest_readout() -> void:
+	var font := _auto_label.get_theme_font(&"font")
+	var font_size := _auto_label.get_theme_font_size(&"font_size")
+	var text_width := font.get_string_size(WIDEST_READOUT, HORIZONTAL_ALIGNMENT_LEFT, -1,
+			font_size).x
+	var margins := _auto_label.get_theme_stylebox(&"normal").get_minimum_size().x
+	_auto_label.custom_minimum_size.x = ceilf(text_width + margins)
 
 
 func _clamp_to_min(spinbox: SpinBox, value: float, minimum: float) -> float:

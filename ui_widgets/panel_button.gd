@@ -25,8 +25,10 @@ extends Button
 ## The button is pressed while [member panel] is visible, whichever of them
 ## changes. Buttons that share a [ButtonGroup] with [member
 ## ButtonGroup.allow_unpress] set open their panels one at a time, and any of
-## them can close its own. [member input_action] toggles the button from the
-## keyboard, and the tooltip names its key.
+## them can close its own; panels in an [IVEdgeContainer] can instead close one
+## another only when they don't fit (see [member
+## IVEdgeContainer.cullable_children]). [member input_action] toggles the button
+## from the keyboard, and the tooltip names its key.
 
 ## The Control this button shows and hides.
 @export var panel: Control

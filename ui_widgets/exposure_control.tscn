@@ -20,7 +20,6 @@ tooltip_text = "HINT_EXPOSURE_AUTO"
 button_pressed = true
 
 [node name="AutoLabel" type="Label" parent="." unique_id=1415608623]
-custom_minimum_size = Vector2(70, 0)
 layout_mode = 2
 horizontal_alignment = 2
 vertical_alignment = 1
