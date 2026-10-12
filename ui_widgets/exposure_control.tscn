@@ -7,7 +7,7 @@ offset_right = 41.0
 offset_bottom = 24.0
 size_flags_horizontal = 4
 size_flags_vertical = 4
-mouse_filter = 2
+tooltip_text = "HINT_EXPOSURE"
 script = ExtResource("1_expos")
 
 [node name="Label" type="Label" parent="." unique_id=76496271]
@@ -26,15 +26,11 @@ vertical_alignment = 1
 
 [node name="ManualSpinBox" type="SpinBox" parent="." unique_id=1414028314]
 visible = false
-custom_minimum_size = Vector2(70, 0)
 layout_mode = 2
-tooltip_text = "HINT_EXPOSURE_MANUAL"
 max_value = 12.0
 alignment = 2
 
 [node name="AdjustmentSpinBox" type="SpinBox" parent="." unique_id=776305347]
-custom_minimum_size = Vector2(70, 0)
 layout_mode = 2
-tooltip_text = "HINT_EXPOSURE_ADJUSTMENT"
 max_value = 6.0
 alignment = 2

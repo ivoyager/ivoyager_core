@@ -57,6 +57,27 @@ static func position_popup_at_corner(popup: Popup, at_control: Control, corner: 
 	popup.position = position
 
 
+## Holds [param spinbox]'s text field at the width [param widest_text] takes in
+## its font, in place of the theme's [code]minimum_character_width[/code], so the
+## field neither wastes room nor scrolls its widest value. Call it again on each
+## [signal Control.theme_changed] ("gui_size" changes the font), connected with
+## [constant Object.CONNECT_DEFERRED]: the signal comes before the controls it
+## reaches have their new theme items.
+static func fit_spinbox_to_text(spinbox: SpinBox, widest_text: String) -> void:
+	var line_edit := spinbox.get_line_edit()
+	if !line_edit.has_theme_constant_override(&"minimum_character_width"):
+		line_edit.add_theme_constant_override(&"minimum_character_width", 0)
+	var font := line_edit.get_theme_font(&"font")
+	var font_size := line_edit.get_theme_font_size(&"font_size")
+	var text_width := font.get_string_size(widest_text, HORIZONTAL_ALIGNMENT_LEFT, -1,
+			font_size).x
+	var caret_width := line_edit.get_theme_constant(&"caret_width")
+	var margins := maxf(line_edit.get_theme_stylebox(&"normal").get_minimum_size().x,
+			line_edit.get_theme_stylebox(&"read_only").get_minimum_size().x)
+	line_edit.custom_minimum_size.x = ceilf(text_width + caret_width + margins)
+	spinbox.update_minimum_size()
+
+
 ## Call once when [param widget] is in the scene tree, e.g., in _ready() method.[br][br]
 ##
 ## Expects each widget to have an ancestor Control with property [param

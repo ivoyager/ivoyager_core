@@ -29,6 +29,10 @@ extends HBoxContainer
 ## [member ev_step]; a second SpinBox adjusts in steps of [member ev_step] on top
 ## of whichever of the two is in force.[br][br]
 ##
+## The widget's own [member Control.tooltip_text] shows over the whole widget
+## wherever a control has no tooltip of its own. Set it before the widget is
+## ready.[br][br]
+##
 ## Requires [IVExposureManager], which exists only where
 ## [member IVCoreSettings.enable_physical_light] is true. The controls are
 ## disabled - and by default the whole widget is hidden - whenever physical
@@ -46,9 +50,10 @@ const ADJUSTMENT_MIN_EV := -6.0
 ## instead, which is exact; _clamp_to_min() then applies the floor the min_value
 ## would have.
 const UNANCHORED_MIN := -1e15
-## The auto readout is held at this text's width, the widest value it shows, so
-## that a changing value doesn't move the controls beside it.
-const WIDEST_READOUT := "-00.0"
+## The auto readout is held at this text's width, the widest value it shows ("+"
+## being wider than "-"), so that a changing value doesn't move the controls
+## beside it.
+const WIDEST_READOUT := "+00.0"
 
 ## If true (default), hide the widget entirely while physical light is
 ## inactive, rather than showing it with its controls disabled.
@@ -72,8 +77,16 @@ func _ready() -> void:
 	_adjustment_spinbox.step = ev_step
 	_manual_spinbox.min_value = UNANCHORED_MIN
 	_adjustment_spinbox.min_value = UNANCHORED_MIN
-	_auto_label.theme_changed.connect(_fit_auto_label_to_widest_readout)
-	_fit_auto_label_to_widest_readout()
+	for spinbox: SpinBox in [_manual_spinbox, _adjustment_spinbox]:
+		if !spinbox.tooltip_text: # a SpinBox ends the tooltip search at itself
+			spinbox.tooltip_text = tooltip_text
+		# SpinBox rewrites its text when it draws a new value and, deferred, when
+		# editing ends.
+		spinbox.draw.connect(_sign_positive_value.bind(spinbox))
+		spinbox.get_line_edit().editing_toggled.connect(
+				_sign_positive_value.bind(spinbox).unbind(1), CONNECT_DEFERRED)
+	theme_changed.connect(_fit_to_widest_values, CONNECT_DEFERRED)
+	_fit_to_widest_values()
 	if IVStateManager.initialized_core:
 		_configure_after_core_inited()
 	else:
@@ -89,7 +102,8 @@ func _process(_delta: float) -> void:
 		_physical_active = !_physical_active
 		_update_physical_active()
 	if _physical_active and _exposure_manager.auto:
-		_auto_label.text = "%.1f" % IVExposureManager.auto_exposure_ev
+		var ev := snappedf(IVExposureManager.auto_exposure_ev, 0.1)
+		_auto_label.text = "%+.1f" % ev if ev != 0.0 else "0.0" # never "+0.0" or "-0.0"
 
 
 func _configure_after_core_inited() -> void:
@@ -141,13 +155,40 @@ func _on_adjustment_value_changed(value: float) -> void:
 			ADJUSTMENT_MIN_EV)
 
 
-func _fit_auto_label_to_widest_readout() -> void:
+# TODO Godot 4.8: SpinBox gets a format property (String % rules). Check whether
+# it can replace this and its two hooks in _ready(); "%+.1f" shows zero as "+0.0".
+func _sign_positive_value(spinbox: SpinBox) -> void:
+	# SpinBox has no number format, and its prefix is followed by a space and
+	# can't depend on the value.
+	var line_edit := spinbox.get_line_edit()
+	if line_edit.is_editing() or line_edit.text.begins_with("+"):
+		return
+	if spinbox.value < spinbox.step / 2.0: # zero, or negative
+		return
+	line_edit.text = "+" + line_edit.text
+
+
+func _fit_to_widest_values() -> void:
 	var font := _auto_label.get_theme_font(&"font")
 	var font_size := _auto_label.get_theme_font_size(&"font_size")
 	var text_width := font.get_string_size(WIDEST_READOUT, HORIZONTAL_ALIGNMENT_LEFT, -1,
 			font_size).x
 	var margins := _auto_label.get_theme_stylebox(&"normal").get_minimum_size().x
 	_auto_label.custom_minimum_size.x = ceilf(text_width + margins)
+	IVWidgets.fit_spinbox_to_text(_manual_spinbox,
+			_get_widest_value(_manual_spinbox, MANUAL_MIN_EV))
+	IVWidgets.fit_spinbox_to_text(_adjustment_spinbox,
+			_get_widest_value(_adjustment_spinbox, ADJUSTMENT_MIN_EV))
+
+
+func _get_widest_value(spinbox: SpinBox, minimum: float) -> String:
+	# Zeros stand in for the digits, and "+" is wider than "-".
+	var integer_digits := str(roundi(maxf(-minimum, spinbox.max_value))).length()
+	var widest := "+" + "0".repeat(integer_digits)
+	var decimals := step_decimals(ev_step)
+	if decimals:
+		widest += "." + "0".repeat(decimals)
+	return widest
 
 
 func _clamp_to_min(spinbox: SpinBox, value: float, minimum: float) -> float:

@@ -26,6 +26,10 @@ extends HBoxContainer
 ## Plus/minus buttons jump to focal lengths set in [member big_steps].
 ## The first and last array values determine min and max settable.[br][br]
 ##
+## The widget's own [member Control.tooltip_text] shows over the whole widget
+## wherever a control has no tooltip of its own. Set it before the widget is
+## ready.[br][br]
+##
 ## Requires [IVCamera].
 
 
@@ -33,6 +37,12 @@ extends HBoxContainer
 ## buttons jump between. The first and last entries define the min and max
 ## settable values. Defaults corespond to FOVs ~125.6, 75.8, 51.9, 36.9, 26.3.
 @export var big_steps: Array[float] = [6.0, 15.0, 24.0, 35.0, 50.0]
+## Text of a [Label] ahead of the controls, usually a translation key such as
+## [code]&"LABEL_FL"[/code]. If empty (default), no label.
+@export var label_text := &""
+## If true, the [code]−[/code]/[code]+[/code] buttons come before the SpinBox
+## rather than after it.
+@export var buttons_first := false
 
 var _camera: IVCamera
 
@@ -49,6 +59,18 @@ func _ready() -> void:
 	_plus.pressed.connect(_do_big_step.bind(true))
 	_spinbox.min_value = big_steps[0]
 	_spinbox.max_value = big_steps[-1]
+	if !_spinbox.tooltip_text: # a SpinBox ends the tooltip search at itself
+		_spinbox.tooltip_text = tooltip_text
+	if buttons_first:
+		move_child(_spinbox, -1)
+	if label_text:
+		var label := Label.new()
+		label.text = label_text
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		add_child(label)
+		move_child(label, 0)
+	theme_changed.connect(_fit_spinbox_to_widest_value, CONNECT_DEFERRED)
+	_fit_spinbox_to_widest_value()
 	IVWidgets.connect_ivcamera(self, &"_on_camera_changed")
 
 
@@ -80,3 +102,13 @@ func _do_big_step(is_increase: bool) -> void:
 		step += 1
 	step = clampi(step, 0, big_steps.size() - 1)
 	_camera.set_focal_length(big_steps[step])
+
+
+func _fit_spinbox_to_widest_value() -> void:
+	# TODO Godot 4.8: SpinBox deprecates suffix for a format property (String %
+	# rules). Move the .tscn's "mm" suffix to a format such as "%d mm", and
+	# measure the widest value through that format here.
+	var widest := "0".repeat(str(roundi(big_steps[-1])).length()) # zeros for its digits
+	if _spinbox.suffix:
+		widest += " " + _spinbox.suffix
+	IVWidgets.fit_spinbox_to_text(_spinbox, widest)
