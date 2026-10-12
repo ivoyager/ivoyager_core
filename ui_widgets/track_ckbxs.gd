@@ -20,22 +20,21 @@
 class_name IVTrackCkbxs
 extends HBoxContainer
 
-## HBoxContainer widget that has "ground", "orbit" and "ecliptic" checkboxes
+## HBoxContainer widget that has "ecliptic", "orbit" and "ground" checkboxes
 ## for camera tracking selection.
 ##
 ## Requires [IVCamera].
 
 var _camera: IVCamera
 
-@onready var _ground_checkbox: CheckBox = $Ground
-@onready var _orbit_checkbox: CheckBox = $Orbit
 @onready var _ecliptic_checkbox: CheckBox = $Ecliptic
+@onready var _orbit_checkbox: CheckBox = $Orbit
+@onready var _ground_checkbox: CheckBox = $Ground
 
 
 func _ready() -> void:
-	
-	# FIXME: ButtonGroup is redundant with our update logic, but it also
-	# changes styling. Can we do the styling without the group?
+	# The group draws radio buttons and keeps a selected one pressed when it is
+	# clicked again.
 	var button_group := ButtonGroup.new()
 	button_group.pressed.connect(_on_pressed)
 	_ecliptic_checkbox.button_group = button_group
@@ -55,16 +54,23 @@ func _on_pressed(button: CheckBox) -> void:
 	if !_camera:
 		return
 	match button.name:
-		&"Ground":
-			_camera.move_to(null, CameraFlags.CAMERAFLAGS_TRACK_GROUND)
-		&"Orbit":
-			_camera.move_to(null, CameraFlags.CAMERAFLAGS_TRACK_ORBIT)
 		&"Ecliptic":
 			_camera.move_to(null, CameraFlags.CAMERAFLAGS_TRACK_ECLIPTIC)
+		&"Orbit":
+			_camera.move_to(null, CameraFlags.CAMERAFLAGS_TRACK_ORBIT)
+		&"Ground":
+			_camera.move_to(null, CameraFlags.CAMERAFLAGS_TRACK_GROUND)
 
 
-func _update_buttons(flags: int, _disable_flags: int) -> void:
+func _update_buttons(flags: int, disabled_flags: int) -> void:
 	const CameraFlags := IVCamera.CameraFlags
-	_ground_checkbox.set_pressed_no_signal(flags & CameraFlags.CAMERAFLAGS_TRACK_GROUND)
-	_orbit_checkbox.set_pressed_no_signal(flags & CameraFlags.CAMERAFLAGS_TRACK_ORBIT)
-	_ecliptic_checkbox.set_pressed_no_signal(flags & CameraFlags.CAMERAFLAGS_TRACK_ECLIPTIC)
+	const CameraDisabledFlags := IVCamera.CameraDisabledFlags
+	_ecliptic_checkbox.set_pressed_no_signal(bool(flags & CameraFlags.CAMERAFLAGS_TRACK_ECLIPTIC))
+	_orbit_checkbox.set_pressed_no_signal(bool(flags & CameraFlags.CAMERAFLAGS_TRACK_ORBIT))
+	_ground_checkbox.set_pressed_no_signal(bool(flags & CameraFlags.CAMERAFLAGS_TRACK_GROUND))
+	_ecliptic_checkbox.disabled = bool(
+			disabled_flags & CameraDisabledFlags.CAMERADISABLEDFLAGS_TRACK_ECLIPTIC)
+	_orbit_checkbox.disabled = bool(
+			disabled_flags & CameraDisabledFlags.CAMERADISABLEDFLAGS_TRACK_ORBIT)
+	_ground_checkbox.disabled = bool(
+			disabled_flags & CameraDisabledFlags.CAMERADISABLEDFLAGS_TRACK_GROUND)
