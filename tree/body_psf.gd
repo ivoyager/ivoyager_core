@@ -30,7 +30,9 @@ extends MeshInstance3D
 ##
 ## Unresolved, this quad IS the body — the core takes the disc handoff below, so a
 ## body that shrinks past its disc becomes a photometric point on the catalog star
-## field's own footing instead of vanishing at a distance cull. Resolved, the WING
+## field's own footing instead of vanishing at a distance cull. Where the disc images
+## its rim, the core draws the disc's lit lune through the same PSF until that narrows
+## to the point, so the handoff trades like for like. Resolved, the WING
 ## persists (glare belongs to the camera, not to the subject) and is what renders
 ## crescent glow, and the RIM's spread beyond the silhouette is drawn here because
 ## this is the one item that covers the sky beside a body's limb — the surface can
@@ -166,14 +168,17 @@ static func get_geometric_albedo(body: IVBody) -> float:
 ## writing depth, so its trade collapses to a step (see [constant HANDOFF_STEP_RATIO]).
 ## [br][br]
 ##
-## [code]high[/code] is where the quad's saturated core matches the disc's diameter,
-## i.e. where the two can trade places without stepping in size. Both are orders of
-## magnitude above saturation throughout the handoff, so brightness is not what the
-## eye has to go on — size is, and a crossfade that steps it reads as the abrupt
-## shrink this ramp exists to prevent. Solving it also retires a hand-tuned constant
-## that only ever suited one star at one [member IVPSFSettings.psf_sigma]: the
-## answer moves with that roughly linearly (0.5 -> 3.8 px, 1.0 -> 7.8), so a literal
-## would go stale the first time that shared slider moved.[br][br]
+## [code]high[/code] is where a point source of this flux saturates a core as wide as
+## the disc. A bare disc and that point trade places there without stepping in size.
+## Both are orders of magnitude above saturation throughout the handoff, so brightness
+## is not what the eye has to go on — size is, and a crossfade that steps it reads as
+## the abrupt shrink this ramp exists to prevent. A disc whose rim the quad draws is
+## traded for its lit lune's image instead, which matches it at any radius, so for that
+## body this sets only where the trade happens (see [i]Point sources[/i] in
+## VISUAL_MODEL.md). Solving it also retires a hand-tuned constant that only ever suited
+## one star at one [member IVPSFSettings.psf_sigma]: the answer moves with that roughly
+## linearly (0.5 -> 3.8 px, 1.0 -> 7.8), so a literal would go stale the first time that
+## shared slider moved.[br][br]
 ##
 ## Viewport-independence is what lets this live on the CPU at all, and it is not
 ## luck: hold the pixel radius fixed and a taller render puts the source

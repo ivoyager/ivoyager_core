@@ -25,13 +25,20 @@ extends Button
 ## The button is pressed while [member panel] is visible, whichever of them
 ## changes. Buttons that share a [ButtonGroup] with [member
 ## ButtonGroup.allow_unpress] set open their panels one at a time, and any of
-## them can close its own. [member input_action] toggles the button from the
-## keyboard, and the tooltip names its key.
+## them can close its own; panels in an [IVEdgeContainer] can instead close one
+## another only when they don't fit (see [member
+## IVEdgeContainer.cullable_children]). [member input_action] toggles the button
+## from the keyboard, and the tooltip names its key.
 
 ## The Control this button shows and hides.
 @export var panel: Control
 ## Action in [IVInputMapManager] that toggles this button; &"" for none.
 @export var input_action := &""
+## Closes [member panel] when this button is hidden and the panel is not, as when
+## the button sits in another panel that closes; the panel would otherwise stay
+## open with no button to close it. Hiding a parent of both, as
+## [IVHideGUIButton] does, leaves the panel as it was.
+@export var close_panel_when_hidden := false
 
 
 
@@ -46,6 +53,14 @@ func _ready() -> void:
 		IVStateManager.run_state_changed.connect(set_process_shortcut_input) # only when running
 
 
+func _notification(what: int) -> void:
+	if what != NOTIFICATION_VISIBILITY_CHANGED or !close_panel_when_hidden:
+		return
+	if !is_visible_in_tree():
+		# A parent hiding both may reach this button before the panel learns it is hidden.
+		_close_panel_if_shown.call_deferred()
+
+
 func _shortcut_input(event: InputEvent) -> void:
 	if !is_visible_in_tree():
 		return
@@ -56,6 +71,11 @@ func _shortcut_input(event: InputEvent) -> void:
 
 func _get_tooltip(_at_position: Vector2) -> String:
 	return IVInputMapManager.append_action_key(tr(tooltip_text), input_action)
+
+
+func _close_panel_if_shown() -> void:
+	if !is_visible_in_tree() and panel.is_visible_in_tree():
+		panel.hide()
 
 
 func _on_toggled(toggled_on: bool) -> void:

@@ -54,8 +54,8 @@ signal camera_lock_changed(is_camera_lock_: bool)
 ## Emitted when up-lock state changes; carries the up-lock bits of
 ## [member flags] and current [member disabled_flags].
 signal up_lock_changed(flags: int, disabled_flags: int)
-## Emitted when tracking state changes; carries the tracking bits of
-## [member flags] and current [member disabled_flags].
+## Emitted when tracking state or [member disabled_flags] changes; carries the
+## tracking bits of [member flags] and current [member disabled_flags].
 signal tracking_changed(flags: int, disabled_flags: int)
 
 enum CameraFlags {
@@ -75,9 +75,9 @@ enum CameraFlags {
 	CAMERAFLAGS_ANY_TRACKING = 1 << 2 | 1 << 3 | 1 << 4 | 1 << 5 | 1 << 6,
 }
 
+## Tracking modes ruled out at the camera's current range. See
+## [member force_ecliptic_range].
 enum CameraDisabledFlags {
-	# Not fully implemented yet. The purpose is to disable specific tracking
-	# buttons when not applicable (e.g., "ground" when we are at au distances).
 	CAMERADISABLEDFLAGS_TRACK_GROUND = 1 << 0,
 	CAMERADISABLEDFLAGS_TRACK_ORBIT = 1 << 1,
 	CAMERADISABLEDFLAGS_TRACK_ECLIPTIC = 1 << 2,
@@ -93,6 +93,7 @@ const NULL_VECTOR3 := Vector3(-INF, -INF, -INF)
 
 const METER := IVUnits.METER
 const KM := IVUnits.KM
+const AU := IVUnits.AU
 
 const DPRINT := false
 const NEAR_MULTIPLIER := 0.1
@@ -161,12 +162,17 @@ var perspective_close_radii := 500.0 # full perspective adjustment inside this
 var perspective_far_dist := 1e9 * KM # no perspective adjustment outside this
 var max_perspective_radii_meters := 1e9 * METER # really target radii; see 'perspective distance'
 var min_perspective_radii_meters := 2.0 * METER # really target radii; see 'perspective distance'
+## Beyond this distance from [member target] the camera tracks the ecliptic, with
+## ground and orbit tracking disabled (see [member disabled_flags]); back within
+## it, the camera returns to the tracking last selected. INF or <= 0.0 turns this
+## off.
+var force_ecliptic_range := 0.3 * AU
 
 # public read-only
 ## The Node3D the camera is currently a child of. Read-only.
 var parent: Node3D # actual Node3D parent at this time
-## True while a body-to-body move transition is in progress. Read-only.
-var is_moving := false # body to body move in progress
+## True while a [method move_to] transition is in progress. Read-only.
+var is_moving := false
 ## Bitwise OR of [enum CameraDisabledFlags] indicating which tracking modes
 ## are not available at the current target/distance. Read-only.
 var disabled_flags := 0 # CameraDisabledFlags
@@ -178,6 +184,7 @@ var _transform := Transform3D(Basis(), Vector3(0, 0, KM)) # working value
 # private
 var _universe: Node3D = IVGlobal.program.Universe
 var _max_dist: float = IVCoreSettings.max_camera_distance
+var _selected_track_flags := flags & CameraFlags.CAMERAFLAGS_ANY_TRACKING # unless disabled
 
 # motions / rotations
 var _motion_accumulator := Vector3.ZERO
@@ -186,7 +193,6 @@ var _rotation_accumulator := Vector3.ZERO
 # move
 var _move_time: float
 var _is_interupted_move := false
-var _interupted_transform: Transform3D
 var _reference_basis: Basis
 var _to_node3d: Node3D # redundant with new "target"
 var _pivot_node3d: Node3D
@@ -229,11 +235,13 @@ func _process(delta: float) -> void:
 	
 	# We process our working '_transform', then update here.
 	_reference_basis = _get_reference_basis(target, flags)
-	
+	if _motion_accumulator or _rotation_accumulator:
+		_process_input(delta)
 	if is_moving:
 		_process_move_to(delta)
 	else:
-		_process_motions_and_rotations(delta)
+		_transform = _get_view_transform(view_position, view_rotations, _reference_basis,
+				perspective_radius)
 	if origin_shifting:
 		# Camera will be at global translation (0,0,0) after this step.
 		# The -= operator works because current Universe position is part
@@ -241,6 +249,12 @@ func _process(delta: float) -> void:
 		# same time we add our new shift.
 		_universe.position -= global_position
 	transform = _transform
+	
+	# Zooming across force_ecliptic_range. A move interrupted here departs from
+	# this frame's pose, so the pose must be final.
+	if _get_disabled_flags(view_position.z, perspective_radius) != disabled_flags:
+		move_to(null)
+	
 	_signal_range_latitude_longitude()
 	
 	# We set our visual range based on current parent range. The near:far ratio
@@ -269,11 +283,16 @@ func add_rotation(rotation_amount: Vector3) -> void:
 ## For this purpose, individual -INF elements in Vector3 args are treated as
 ## null. For example, to change camera pitch only use args:
 ## [code]null, Vector3(-INF, -INF, -INF), Vector3(pitch_amount, -INF, -INF)[/code].
-## Note: some flags may override elements of position or rotation.
+## Note: some flags may override elements of position or rotation.[br][br]
+##
+## A tracking change moves only the reference frame. Elements left null keep the
+## camera where it is, and keep its orientation too while up is unlocked; while
+## up is locked, the camera levels to the new frame. Elements given with a
+## tracking flag are in that tracking's frame, even where
+## [member force_ecliptic_range] has the camera track the ecliptic instead.
 func move_to(to_node3d: Node3D, to_flags := 0, to_view_position := NULL_VECTOR3,
 		to_view_rotations := NULL_VECTOR3, is_instant_move := false) -> void:
 	
-	const math := preload("uid://csb570a3u1x1k")
 	const CAMERAFLAGS_UP_LOCKED_OR_UNLOCKED := CameraFlags.CAMERAFLAGS_UP_LOCKED_OR_UNLOCKED
 	const CAMERAFLAGS_ANY_TRACKING := CameraFlags.CAMERAFLAGS_ANY_TRACKING
 	assert(!DPRINT or IVDebug.dprint("move_to", [to_node3d, to_flags, to_view_position,
@@ -293,54 +312,89 @@ func move_to(to_node3d: Node3D, to_flags := 0, to_view_position := NULL_VECTOR3,
 	assert(to_up_flags & (to_up_flags - 1) == 0, "only 1 or 0 bits allowed")
 	assert(to_track_flags & (to_track_flags - 1) == 0, "only 1 or 0 bits allowed")
 
+	if to_track_flags:
+		_selected_track_flags = to_track_flags
+	
+	# tracking at the destination's range
+	var to_perspective_radius := perspective_radius
+	if to_node3d:
+		to_perspective_radius = _get_node3d_camera_radius(to_node3d)
+	var to_perspective_dist := view_position.z
+	if to_view_position.z != -INF:
+		to_perspective_dist = clampf(to_view_position.z, MIN_DIST_RADII_METERS, _max_dist)
+	var to_disabled_flags := _get_disabled_flags(to_perspective_dist, to_perspective_radius)
+	var to_tracking := _selected_track_flags
+	if _is_tracking_disabled(to_tracking, to_disabled_flags):
+		to_tracking = CameraFlags.CAMERAFLAGS_TRACK_ECLIPTIC
+	var from_tracking := flags & CAMERAFLAGS_ANY_TRACKING
+	var is_track_change := to_tracking != from_tracking
+	var is_disabled_change := to_disabled_flags != disabled_flags
+	
 	# don't move if *nothing* has changed and is_instant_move == false
 	if (
 			!is_instant_move
 			and (!to_node3d or to_node3d == target)
 			and (!to_up_flags or to_up_flags == flags & CAMERAFLAGS_UP_LOCKED_OR_UNLOCKED)
-			and (!to_track_flags or to_track_flags == flags & CAMERAFLAGS_ANY_TRACKING)
+			and !is_track_change
 			and (to_view_position == NULL_VECTOR3 or to_view_position == view_position)
 			and (to_view_rotations == NULL_VECTOR3 or to_view_rotations == view_rotations)
 	):
+		if is_disabled_change:
+			disabled_flags = to_disabled_flags
+			tracking_changed.emit(flags, disabled_flags)
 		return
 	
-	# data needed during the move
-	_from_flags = flags
-	_from_perspective_radius = perspective_radius
-	_from_view_position = view_position
-	_from_view_rotations = view_rotations
+	# the view we move from
 	_from_node3d = parent # TODO: get_parent(). Too much optimization
+	_from_flags = flags
+	if is_moving:
+		# A move in progress has the camera between views, at an orientation
+		# only an unlocked up can hold.
+		_from_flags &= ~CAMERAFLAGS_UP_LOCKED_OR_UNLOCKED
+		_from_flags |= CameraFlags.CAMERAFLAGS_UP_UNLOCKED
+		_from_perspective_radius = _get_node3d_camera_radius(parent)
+		var from_reference_basis := _get_reference_basis(parent, _from_flags)
+		_from_view_position = _get_view_position(transform.origin, from_reference_basis,
+				_from_perspective_radius)
+		_from_view_rotations = _get_view_rotations(transform.basis, transform.origin,
+				_from_view_position.x, from_reference_basis)
+	else:
+		_from_perspective_radius = perspective_radius
+		_from_view_position = view_position
+		_from_view_rotations = view_rotations
 	
 	# change booleans
 	var is_up_change: bool = (
 			(to_up_flags and to_up_flags != flags & CAMERAFLAGS_UP_LOCKED_OR_UNLOCKED)
 			or (to_view_rotations != NULL_VECTOR3 and to_view_rotations.z != -INF
 			and to_view_rotations.z and flags & CameraFlags.CAMERAFLAGS_UP_LOCKED))
-	var is_track_change := to_track_flags and to_track_flags != flags & CAMERAFLAGS_ANY_TRACKING
 	
 	# set selection and flags
 	if to_node3d:
 		_to_node3d = to_node3d
 		target = to_node3d
-		perspective_radius = _get_node3d_camera_radius(to_node3d)
+		perspective_radius = to_perspective_radius
 	if is_up_change:
 		flags &= ~CAMERAFLAGS_UP_LOCKED_OR_UNLOCKED
 		flags |= to_up_flags
-	if is_track_change:
-		flags &= ~CAMERAFLAGS_ANY_TRACKING
-		flags |= to_track_flags
 	if to_view_rotations != NULL_VECTOR3:
 		if to_view_rotations.z != -INF and to_view_rotations.z:
 			flags &= ~CameraFlags.CAMERAFLAGS_UP_LOCKED
 			flags |= CameraFlags.CAMERAFLAGS_UP_UNLOCKED
+	if is_track_change:
+		flags &= ~CAMERAFLAGS_ANY_TRACKING
+		flags |= to_tracking
+	disabled_flags = to_disabled_flags
 	
 	_pivot_node3d = IVTree.get_common_node3d(_from_node3d, _to_node3d)
 	
-	# if track change w/out specified longitude, go to current longitude in new reference frame
-	if is_track_change and to_view_position.x == -INF:
-		var current_basis := _get_reference_basis(target, flags)
-		var current_view_position := math.get_rotated_spherical3(position, current_basis)
-		to_view_position.x = current_view_position.x
+	# The caller's elements are in its own tracking's frame, which may be one
+	# that the destination's range disables.
+	var given_tracking := to_tracking
+	if to_track_flags:
+		given_tracking = to_track_flags
+	if given_tracking != from_tracking:
+		_reframe_view(from_tracking, given_tracking)
 	
 	# set position & rotaion
 	if to_view_position != NULL_VECTOR3:
@@ -357,6 +411,8 @@ func move_to(to_node3d: Node3D, to_flags := 0, to_view_position := NULL_VECTOR3,
 			view_rotations.y = to_view_rotations.y
 		if to_view_rotations.z != -INF:
 			view_rotations.z = to_view_rotations.z
+	if given_tracking != to_tracking:
+		_reframe_view(given_tracking, to_tracking)
 	if flags & CameraFlags.CAMERAFLAGS_UP_LOCKED:
 		view_rotations.z = 0.0 # up lock overrides roll
 	view_position.z = clamp(view_position.z, MIN_DIST_RADII_METERS, _max_dist)
@@ -368,18 +424,13 @@ func move_to(to_node3d: Node3D, to_flags := 0, to_view_position := NULL_VECTOR3,
 		_move_time = 0.0 # starts move on next frame
 	else:
 		_is_interupted_move = true
-		_interupted_transform = transform
 		_move_time = 0.0
 	is_moving = true
-	
-	# TODO?: Allow accumulators during move?
-	_motion_accumulator = Vector3.ZERO
-	_rotation_accumulator = Vector3.ZERO
 	
 	# signals
 	if is_up_change:
 		up_lock_changed.emit(flags, disabled_flags)
-	if is_track_change:
+	if is_track_change or is_disabled_change:
 		tracking_changed.emit(flags, disabled_flags)
 	move_started.emit(_to_node3d, is_camera_lock)
 
@@ -404,6 +455,15 @@ static func _get_ground_basis(node3d: Node3D) -> Basis:
 	if node3d.has_method(&"get_camera_ground_basis"):
 		return node3d.call(&"get_camera_ground_basis")
 	return Basis.IDENTITY
+
+
+static func _is_tracking_disabled(track_flags: int, disabled_flags_: int) -> bool:
+	match track_flags:
+		CameraFlags.CAMERAFLAGS_TRACK_GROUND:
+			return bool(disabled_flags_ & CameraDisabledFlags.CAMERADISABLEDFLAGS_TRACK_GROUND)
+		CameraFlags.CAMERAFLAGS_TRACK_ORBIT:
+			return bool(disabled_flags_ & CameraDisabledFlags.CAMERADISABLEDFLAGS_TRACK_ORBIT)
+	return false
 
 
 func set_up_lock(is_locked: bool) -> void:
@@ -447,7 +507,9 @@ func _on_system_tree_ready(_is_new_game: bool) -> void:
 		perspective_radius = _get_node3d_camera_radius(target)
 	_from_node3d = target
 	_from_perspective_radius = perspective_radius
+	_selected_track_flags = flags & CameraFlags.CAMERAFLAGS_ANY_TRACKING # as loaded
 	_signal_tree_changed()
+	move_to(null) # applies force_ecliptic_range
 
 
 func _on_simulator_started() -> void:
@@ -474,7 +536,8 @@ func _process_move_to(delta: float) -> void:
 		_is_interupted_move = false
 		if parent != _to_node3d:
 			_do_handoff() # we get here in an instantanious move
-		_process_motions_and_rotations(delta)
+		_transform = _get_view_transform(view_position, view_rotations, _reference_basis,
+				perspective_radius)
 		return
 	
 	# Handoff at halfway point avoids imprecision shakes at either end.
@@ -484,14 +547,10 @@ func _process_move_to(delta: float) -> void:
 	
 	# Interpolate from where we would be if we hadn't moved to where
 	# we are going. We continue to calculate were we would be so there isn't
-	# an abrupt velocity change (although that happens in an interupted move).
-	var from_transform: Transform3D
-	if _is_interupted_move:
-		from_transform = _interupted_transform
-	else:
-		var from_reference_basis := _get_reference_basis(_from_node3d, _from_flags)
-		from_transform = _get_view_transform(_from_view_position, _from_view_rotations,
-				from_reference_basis, _from_perspective_radius)
+	# an abrupt velocity change.
+	var from_reference_basis := _get_reference_basis(_from_node3d, _from_flags)
+	var from_transform := _get_view_transform(_from_view_position, _from_view_rotations,
+			from_reference_basis, _from_perspective_radius)
 	var to_transform := _get_view_transform(view_position, view_rotations, _reference_basis,
 			perspective_radius)
 	_interpolate_path(from_transform, to_transform, progress)
@@ -561,136 +620,101 @@ func _interpolate_path(from_transform: Transform3D, to_transform: Transform3D, p
 	_transform = Transform3D(basis_, translation_)
 
 
-func _process_motions_and_rotations(delta: float) -> void:
-	# maintain present position based on tracking
-	_transform = _get_view_transform(view_position, view_rotations, _reference_basis,
-			perspective_radius)
-	# process accumulated user inputs
-	if _motion_accumulator:
-		_process_motion(delta)
-	if _rotation_accumulator:
-		_process_rotation(delta)
-
-
-func _process_motion(delta: float) -> void:
-	const math := preload("uid://csb570a3u1x1k")
-	# take motion from accumulator
-	var action_proportion := action_immediacy * delta
-	if action_proportion > 1.0:
-		action_proportion = 1.0
-	var move_now := _motion_accumulator
-	if abs(move_now.x) > min_action:
-		move_now.x *= action_proportion
-		_motion_accumulator.x -= move_now.x
-	else:
-		_motion_accumulator.x = 0.0
-	if abs(move_now.y) > min_action:
-		move_now.y *= action_proportion
-		_motion_accumulator.y -= move_now.y
-	else:
-		_motion_accumulator.y = 0.0
-	if abs(move_now.z) > min_action:
-		move_now.z *= action_proportion
-		_motion_accumulator.z -= move_now.z
-	else:
-		_motion_accumulator.z = 0.0
+func _process_input(delta: float) -> void:
+	var is_up_locked := bool(flags & CameraFlags.CAMERAFLAGS_UP_LOCKED)
+	if is_up_locked:
+		_rotation_accumulator.z = 0.0 # discard roll
+	var move_now := _get_input_share(_motion_accumulator, delta)
+	var rotate_now := _get_input_share(_rotation_accumulator, delta)
+	_motion_accumulator -= move_now
+	_rotation_accumulator -= rotate_now
 	
-	# Apply x,y as rotation and z as scaler to our origin. Basis is treated
-	# differently for the 'up locked' and 'unlocked' cases.
-	var origin := _transform.origin
-	var basis_ := _transform.basis
-
-	if bool(flags & CameraFlags.CAMERAFLAGS_UP_LOCKED):
-		# A pole limiter prevents pole traversal. A spin dampener suppresses
-		# high longitudinal rate when near pole. There is NO change in
-		# view_rotations.
-		var spin_dampener := cos(view_position.y)
-		move_now.x *= spin_dampener
-		var latitude := view_position.y + move_now.y
-		if latitude > POLE_LIMITER:
-			move_now.y = POLE_LIMITER - view_position.y
-		elif latitude < -POLE_LIMITER:
-			move_now.y = -POLE_LIMITER -view_position.y
-		origin = origin.rotated(basis_.y, move_now.x)
-		origin = origin.rotated(basis_.x, -move_now.y)
-		origin *= exp(move_now.z) # linear scaling flips origin through target if z <= -1.0
-		view_position = math.get_rotated_spherical3(origin, _reference_basis)
-		view_position.z = clamp(_get_perspective_dist(view_position.z, perspective_radius),
-				MIN_DIST_RADII_METERS, _max_dist)
-		_transform = _get_view_transform(view_position, view_rotations, _reference_basis,
-				perspective_radius)
-		
-	else:
-		# 'Free' rotation of origin and basis around target. Allows pole
-		# traversal and camera roll. We need to back-calculate view_rotations.
-		origin = origin.rotated(basis_.y, move_now.x)
-		basis_ = basis_.rotated(basis_.y, move_now.x)
-		origin = origin.rotated(basis_.x, -move_now.y)
-		basis_ = basis_.rotated(basis_.x, -move_now.y)
-		origin *= exp(move_now.z) # linear scaling flips origin through target if z <= -1.0
-		view_position = math.get_rotated_spherical3(origin, _reference_basis)
-		view_position.z = clamp(_get_perspective_dist(view_position.z, perspective_radius),
-				MIN_DIST_RADII_METERS, _max_dist)
-		_transform = Transform3D(basis_, origin)
-		# back-calculate view_rotations
-		var unrotated_transform := Transform3D(IDENTITY_BASIS, origin).looking_at(
-			-origin, _get_view_up(origin, view_position.x, _reference_basis))
-		var unrotated_basis := unrotated_transform.basis
-		var rotations_basis := unrotated_basis.inverse() * basis_
-		view_rotations = rotations_basis.get_euler()
+	var view_with_input := _get_view_with_input(view_position, view_rotations, _reference_basis,
+			perspective_radius, is_up_locked, move_now, rotate_now)
+	view_position = view_with_input[0]
+	view_rotations = view_with_input[1]
+	
+	# Input to the view we move to alone would show only as the move
+	# progressed, so the view we move from takes it too.
+	if is_moving:
+		var from_reference_basis := _get_reference_basis(_from_node3d, _from_flags)
+		var is_from_up_locked := bool(_from_flags & CameraFlags.CAMERAFLAGS_UP_LOCKED)
+		view_with_input = _get_view_with_input(_from_view_position, _from_view_rotations,
+				from_reference_basis, _from_perspective_radius, is_from_up_locked, move_now,
+				rotate_now)
+		_from_view_position = view_with_input[0]
+		_from_view_rotations = view_with_input[1]
 
 
-func _process_rotation(delta: float) -> void:
+func _get_input_share(accumulated: Vector3, delta: float) -> Vector3:
+	var share := accumulated * minf(action_immediacy * delta, 1.0)
+	for i in 3:
+		if absf(accumulated[i]) <= min_action:
+			share[i] = accumulated[i]
+	return share
+
+
+# Returns [view_position_, view_rotations_] moved by move_now (x, y orbit the
+# target; z, in or out) and rotated in place by rotate_now (x, pitch; y, yaw;
+# z, roll).
+func _get_view_with_input(view_position_: Vector3, view_rotations_: Vector3,
+		reference_basis: Basis, perspective_radius_: float, is_up_locked: bool, move_now: Vector3,
+		rotate_now: Vector3) -> Array[Vector3]:
 	# Note: Although we follow z-up astronomy convention elsewhere, the camera
 	# uses y-up, z-forward, x-lateral.
-	var is_up_locked := bool(flags & CameraFlags.CAMERAFLAGS_UP_LOCKED)
-	
-	# take rotation from accumulator
-	var action_proportion := action_immediacy * delta
-	if action_proportion > 1.0:
-		action_proportion = 1.0
-	var rotate_now := _rotation_accumulator
-	if abs(rotate_now.x) > min_action:
-		rotate_now.x *= action_proportion
-		_rotation_accumulator.x -= rotate_now.x
-	else:
-		_rotation_accumulator.x = 0.0
-	if abs(rotate_now.y) > min_action:
-		rotate_now.y *= action_proportion
-		_rotation_accumulator.y -= rotate_now.y
-	else:
-		_rotation_accumulator.y = 0.0
-	if is_up_locked:
-		_rotation_accumulator.z = 0.0 # discard
-	else:
-		if abs(rotate_now.z) > min_action:
-			rotate_now.z *= action_proportion
-			_rotation_accumulator.z -= rotate_now.z
+	if move_now:
+		# Apply x,y as rotation and z as scaler to our origin. Basis is treated
+		# differently for the 'up locked' and 'unlocked' cases.
+		var view_transform := _get_view_transform(view_position_, view_rotations_,
+				reference_basis, perspective_radius_)
+		var origin := view_transform.origin
+		var basis_ := view_transform.basis
+		if is_up_locked:
+			# A pole limiter prevents pole traversal. A spin dampener suppresses
+			# high longitudinal rate when near pole. There is NO change in
+			# view_rotations.
+			var spin_dampener := cos(view_position_.y)
+			move_now.x *= spin_dampener
+			var latitude := view_position_.y + move_now.y
+			if latitude > POLE_LIMITER:
+				move_now.y = POLE_LIMITER - view_position_.y
+			elif latitude < -POLE_LIMITER:
+				move_now.y = -POLE_LIMITER - view_position_.y
+			origin = origin.rotated(basis_.y, move_now.x)
+			origin = origin.rotated(basis_.x, -move_now.y)
+			origin *= exp(move_now.z) # linear scaling flips origin through target if z <= -1.0
+			view_position_ = _get_view_position(origin, reference_basis, perspective_radius_)
 		else:
-			_rotation_accumulator.z = 0.0
+			# 'Free' rotation of origin and basis around target. Allows pole
+			# traversal and camera roll. We need to back-calculate view_rotations.
+			origin = origin.rotated(basis_.y, move_now.x)
+			basis_ = basis_.rotated(basis_.y, move_now.x)
+			origin = origin.rotated(basis_.x, -move_now.y)
+			basis_ = basis_.rotated(basis_.x, -move_now.y)
+			origin *= exp(move_now.z) # linear scaling flips origin through target if z <= -1.0
+			view_position_ = _get_view_position(origin, reference_basis, perspective_radius_)
+			view_rotations_ = _get_view_rotations(basis_, origin, view_position_.x,
+					reference_basis)
 	
-	# apply rotation to a view basis, then to _transform
-	var view_basis := Basis.from_euler(view_rotations) # TEST34: default order ok?
-	if is_up_locked: # use a pole limiter for pitch, don't roll
-		var pitch := view_rotations.x + rotate_now.x
-		if pitch > POLE_LIMITER:
-			rotate_now.x = POLE_LIMITER - view_rotations.x
-		elif pitch < -POLE_LIMITER:
-			rotate_now.x = -POLE_LIMITER - view_rotations.x
-		view_basis = view_basis.rotated(view_basis.y, rotate_now.y) # yaw
-		view_basis = view_basis.rotated(view_basis.x, rotate_now.x) # pitch
-		view_rotations = view_basis.get_euler()
-		# remove small residual z rotation (precision error?)
-		view_basis = view_basis.rotated(view_basis.z, -view_rotations.z)
-		view_rotations.z = 0.0
-	else:
-		view_basis = view_basis.rotated(view_basis.y, rotate_now.y) # yaw
-		view_basis = view_basis.rotated(view_basis.x, rotate_now.x) # pitch
-		view_basis = view_basis.rotated(view_basis.z, rotate_now.z) # roll
-		view_rotations = view_basis.get_euler()
-	_transform = _transform.looking_at(-_transform.origin,
-			_get_view_up(_transform.origin, view_position.x, _reference_basis))
-	_transform.basis *= view_basis
+	if rotate_now:
+		var view_basis := Basis.from_euler(view_rotations_) # TEST34: default order ok?
+		if is_up_locked: # use a pole limiter for pitch, don't roll
+			var pitch := view_rotations_.x + rotate_now.x
+			if pitch > POLE_LIMITER:
+				rotate_now.x = POLE_LIMITER - view_rotations_.x
+			elif pitch < -POLE_LIMITER:
+				rotate_now.x = -POLE_LIMITER - view_rotations_.x
+			view_basis = view_basis.rotated(view_basis.y, rotate_now.y) # yaw
+			view_basis = view_basis.rotated(view_basis.x, rotate_now.x) # pitch
+			view_rotations_ = view_basis.get_euler()
+			view_rotations_.z = 0.0 # remove small residual z rotation (precision error?)
+		else:
+			view_basis = view_basis.rotated(view_basis.y, rotate_now.y) # yaw
+			view_basis = view_basis.rotated(view_basis.x, rotate_now.x) # pitch
+			view_basis = view_basis.rotated(view_basis.z, rotate_now.z) # roll
+			view_rotations_ = view_basis.get_euler()
+	
+	return [view_position_, view_rotations_]
 
 
 func _get_view_transform(view_position_: Vector3, view_rotations_: Vector3,
@@ -719,6 +743,24 @@ func _get_view_transform(view_position_: Vector3, view_rotations_: Vector3,
 	return view_transform
 
 
+# Inverse of the translation in _get_view_transform().
+func _get_view_position(view_translation: Vector3, reference_basis: Basis,
+		perspective_radius_: float) -> Vector3:
+	const math := preload("uid://csb570a3u1x1k")
+	var view_position_ := math.get_rotated_spherical3(view_translation, reference_basis)
+	view_position_.z = clampf(_get_perspective_dist(view_position_.z, perspective_radius_),
+			MIN_DIST_RADII_METERS, _max_dist)
+	return view_position_
+
+
+# Inverse of the rotations in _get_view_transform().
+static func _get_view_rotations(view_basis: Basis, view_translation: Vector3, longitude: float,
+		reference_basis: Basis) -> Vector3:
+	var unrotated_basis := Basis.looking_at(-view_translation.normalized(),
+			_get_view_up(view_translation, longitude, reference_basis))
+	return (unrotated_basis.inverse() * view_basis).get_euler()
+
+
 # The reference north, or near a pole, where north nears the view direction, the
 # horizontal pointing back along the camera's meridian, which rolls it identically.
 static func _get_view_up(view_translation: Vector3, longitude: float, reference_basis: Basis
@@ -729,6 +771,27 @@ static func _get_view_up(view_translation: Vector3, longitude: float, reference_
 		return north
 	var meridian := reference_basis.x * cos(longitude) + reference_basis.y * sin(longitude)
 	return meridian * -signf(along_north)
+
+
+# Re-expresses view_position's angles, and view_rotations while up is unlocked,
+# in another tracking's frame. Set target and the up flags first: it reads both.
+func _reframe_view(from_track_flags: int, to_track_flags: int) -> void:
+	const math := preload("uid://csb570a3u1x1k")
+	var from_basis := _get_reference_basis(target, from_track_flags)
+	var to_basis := _get_reference_basis(target, to_track_flags)
+	var direction := math.convert_rotated_spherical3(
+			Vector3(view_position.x, view_position.y, 1.0), from_basis)
+	var to_spherical := math.get_rotated_spherical3(direction, to_basis)
+	if flags & CameraFlags.CAMERAFLAGS_UP_UNLOCKED:
+		var from_unrotated_basis := Basis.looking_at(-direction,
+				_get_view_up(direction, view_position.x, from_basis))
+		var to_unrotated_basis := Basis.looking_at(-direction,
+				_get_view_up(direction, to_spherical.x, to_basis))
+		var rotations_basis := (to_unrotated_basis.inverse() * from_unrotated_basis
+				* Basis.from_euler(view_rotations))
+		view_rotations = rotations_basis.get_euler()
+	view_position.x = to_spherical.x
+	view_position.y = to_spherical.y
 
 
 func _get_perspective_dist(dist: float, radius: float) -> float:
@@ -768,6 +831,15 @@ func _convert_perspective_dist(persp_dist: float, radius: float) -> float:
 			* (perspective_far_dist - cr) # [d]
 			/ (perspective_far_dist - METER * perspective_close_radii) # [d]
 			+ cr) # [d]
+
+
+func _get_disabled_flags(persp_dist: float, radius: float) -> int:
+	if force_ecliptic_range <= 0.0:
+		return 0
+	if _convert_perspective_dist(persp_dist, radius) <= force_ecliptic_range:
+		return 0
+	return (CameraDisabledFlags.CAMERADISABLEDFLAGS_TRACK_GROUND
+			| CameraDisabledFlags.CAMERADISABLEDFLAGS_TRACK_ORBIT)
 
 
 func _signal_range_latitude_longitude(is_refresh := false) -> void:

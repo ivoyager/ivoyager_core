@@ -8,18 +8,17 @@ offset_right = 41.0
 offset_bottom = 38.0
 size_flags_horizontal = 4
 size_flags_vertical = 4
-mouse_filter = 2
+tooltip_text = "HINT_FOCAL_LENGTH"
 script = ExtResource("1_bs6ux")
 
 [node name="SpinBox" type="SpinBox" parent="." unique_id=652978314]
-custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 min_value = 1.0
 max_value = 200.0
 value = 24.0
 rounded = true
 alignment = 2
-suffix = " mm"
+suffix = "mm"
 
 [node name="Minus" type="Button" parent="." unique_id=1642067092]
 layout_mode = 2

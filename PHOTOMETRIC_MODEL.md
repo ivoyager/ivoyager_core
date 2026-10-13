@@ -1991,7 +1991,7 @@ true.
 | `glow_bloom` | 0.0 | **No.** It is a floor under the threshold test, so any value above 0 blooms correctly exposed surfaces — the one thing the model forbids. It is also what keeps the fragment-id broadcast dark (below). |
 | `glow_hdr_threshold` | 1.0 | **No, not downward.** 1.0 is the whole contract: "what clips, spills." Lowering it blooms metered content; raising it mutes the faint end for no gain, since the cap already flattens the bright end. |
 | `glow_hdr_luminance_cap` | 12.0 | **Yes, knowingly.** The one photometric lever here — where bloom stops being proportional to flux (see below). Raising it buys honest wing energy on the brightest sources and costs bright-end size hierarchy and firefly damping. Inert under Compatibility, which clamps lower on its own. |
-| `glow_blend_mode` | Screen | **Yes, except Soft Light.** Screen and Additive both composite pre-tonemap in linear and agree over dark sky. Soft Light is the odd one out: the engine applies it *after* tonemapping, on display-referred values, which is the one mode that is wrong here on principle rather than to taste. |
+| `glow_blend_mode` | Screen | **Yes, except Soft Light.** Screen and Additive both composite pre-tonemap in linear and agree over dark sky; over white they part, which only an upscaler sees (*FSR 1 sharpens what it is handed*, below). Soft Light is the odd one out: the engine applies it *after* tonemapping, on display-referred values, which is the one mode that is wrong here on principle rather than to taste. |
 | `glow_levels` | 2/3/4 at 0.8/0.4/0.1 | **Yes, as authored for the 1080 reference height.** Halo width and shape, not which pixels qualify. `IVWorldEnvironment` shifts them to the render height (*Render height*, below), so change them at runtime through its `set_glow_levels()`: a write to the Environment is overwritten at the next height change. |
 | `glow_intensity`, `glow_strength`, `glow_mix`, `glow_map*` | 0.3, 1.0, 0.05, none | **Yes, freely.** Halo weight and shape. None of them touch which pixels qualify, only how their light is spread. |
 | `glow_normalized` | off | **Yes, but it does nothing here.** It renormalizes the level weights on the CPU (free), and at fixed levels that is a uniform 1/1.3 rescale — indistinguishable from turning `glow_intensity` down. Tested; no visible change. |
@@ -2015,8 +2015,12 @@ veiling-glare add.
   times `glow_intensity` 0.3 composite **before tonemapping, in linear light**, for every
   blend mode but Soft Light. The default Screen blend at `white` 1.0 is
   `color + glow − color·glow`: over dark sky — where every halo lives — that is an additive
-  light sum to first order, rolling off only as the base nears white. Under our linear
-  tonemap this is a true veiling-glare add, not a display-space paint-over. (The old
+  light sum to first order, rolling off as the base nears white. Under our linear
+  tonemap this is a true veiling-glare add, not a display-space paint-over. **Above white
+  it runs backward**: `color·(1 − glow) + glow` pulls an over-white base *down* as glow
+  grows, to exactly 1.0 in any channel whose glow saturates. The display clips both to
+  white, so nothing shows — except to an upscaler handed the frame before that clip
+  (*FSR 1 sharpens what it is handed*, below). (The old
   Soft Light default is the display-referred one; it is gone from the defaults and nothing
   here should want it back.)
 
@@ -2202,6 +2206,32 @@ trips: in each windowed return that showed garbage, zeroing the tail removed all
 restoring it brought back the same image bit for bit; with the tail piled, every return
 rendered bit-identical to the first frame.
 
+**FSR 1 sharpens what it is handed.** Since Godot 4.6 the tonemap pass no longer clamps an
+SDR frame to the display range (`0c7f013c551` took the clamp out of `linear_to_srgb()` in
+`tonemap.glsl`), so under the linear tonemapper the frame it hands a spatial upscaler keeps
+every over-white value the scene had. FSR 1's sharpening (RCAS) bounds its lobe for a [0, 1]
+signal, and on this one it drives a pixel that is the low point of its cross toward black
+whenever its neighbours stand far over white. Screen glow builds exactly that at a coloured
+point at its cap: the strongest channel's glow saturates first, over a render pixel or two
+at the peak, where Screen's backward run (above) sets that channel to 1.0 among neighbours
+far over white. It drew as the colour's complement, a cyan centre of (156–185, 255, 255) —
+on Earth at 1.07–1.3 million km in a 960×540 window at 70 % before its lune image (*Point
+sources* in [VISUAL_MODEL.md](VISUAL_MODEL.md)), and on Ceres at 120–155 thousand km after
+it — in only the band of glow strength where one channel saturates alone
+(`glow_intensity` 0.3 at the 12 cap; not at 0.2 or 0.6), never at 100 % and never under
+bilinear scaling. Additive glow steps no channel down but leaves the frame further over
+white, and RCAS then speckles a blown disc's interior: 8 dark pixels on Earth's 3.5 px disc.
+With glow off, a 6 px limb took an orange fringe.
+
+So while FSR runs, `IVWorldEnvironment` has the pass clamp after all: any
+`adjustment_color_correction` is applied after a clamp to [0, 1], and an identity 1D texture
+changes nothing else. That removed every case above. It also stops FSR inflating an
+over-white sample into its neighbours, which moved a star field's light at 70 % 0.4 % toward
+the 100 % render's, and it costs nothing measurable (GTX, 960×540 at 70 %: block medians
+2.14–2.22 ms with it, 2.16–2.24 ms without). It is set only while FSR runs, because its
+interpolation misses the identity by up to 0.03 of a code, which moved 3 % of a 100 % frame's
+pixels by one code; at 100 % the frame is unchanged, within the process-to-process floor.
+
 **Captures.** Hi-res screenshots share the environment, so they get glow at their own height
 (above), while stars stay pin-sharp — the PSF is absolute pixels — and a taller render pushes
 fainter stars over the threshold, consistent with the fixed-f-number camera the star field
@@ -2316,6 +2346,11 @@ lever a capped pass cannot offer is one the shader does not need.
   levels above 0.01, the tonemapper samples levels above 0.0001. A 4.6 regression from
   godotengine/godot#110077; 4.5 computed every level above 0. Once Godot makes them agree,
   `IVWorldEnvironment._pile_uncomputed_tail()` can go.
+- **Report the unclamped upscaler input upstream** (*FSR 1 sharpens what it is handed*,
+  above): since 4.6 an SDR frame reaches FSR 1 with values over 1.0, where through 4.5
+  `linear_to_srgb()` clamped them. Screen glow's backward run over white is worth naming in
+  the same report, being what makes the dip. Once Godot clamps again,
+  `IVWorldEnvironment._update_upscaler_clamp()` can go.
 - **Disc photometry: `L(α)`, and the parameter's axis.** `L` ships as a constant, which is
   right where it was anchored (full phase) and progressively too generous as a body swings
   away — the reason `ROCKY_WORLD` had to be hand-tuned down to 0.6 rather than sitting at

@@ -1,9 +1,13 @@
 [gd_scene format=3 uid="uid://cmv48khp6j56u"]
 
 [ext_resource type="Script" uid="uid://da3a23hajttgx" path="res://addons/ivoyager_core/ui_widgets/show_gui_button.gd" id="1_show"]
+[ext_resource type="PackedScene" uid="uid://derpnr26i3ifi" path="res://addons/ivoyager_core/ui_components/control_mod_fade.tscn" id="2_fade"]
 
-[node name="ShowGUIButton" type="Button"]
+[node name="ShowGUIButton" type="Button" unique_id=1609752091]
 visible = false
 tooltip_text = "HINT_SHOW_GUI"
 text = "BUTTON_SHOW_GUI"
 script = ExtResource("1_show")
+
+[node name="ControlModFade" parent="." unique_id=1752841037 instance=ExtResource("2_fade")]
+always_fade_when_idle = true

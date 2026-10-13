@@ -35,6 +35,13 @@ render_mode unshaded, cull_disabled, skip_vertex_transform, blend_add, depth_dra
 // subject, so it takes no crossfade -- and that persisting wing is the crescent glow. Not with
 // physical light off, for a reflecting body: see glare_retires.
 //
+// THE CORE IS THE BODY'S IMAGE, NOT A POINT, wherever the disc it replaces images its own rim
+// (limb_semi_axes nonzero): the lit lune of a disc pixel_radius across, at the core's flux,
+// through the same Gaussian -- which is what that disc and the rim's sky side draw together, so
+// the trade steps in neither size nor brightness. It narrows onto the field's Gaussian as the
+// disc shrinks, and below LUNE_MIN_RADIUS it is that Gaussian. VISUAL_MODEL.md, *Point
+// sources: one PSF quad per bright body*, says why a point sized to the disc was not enough.
+//
 // THE RIM'S SKY SIDE, and why it can only be drawn here. A body's surface shader images each
 // rim pixel through the camera's PSF, but it can only put that light on fragments the body
 // has: its rim ends at the rasterized silhouette, and the outward half of a rim pixel's point
@@ -153,7 +160,23 @@ const float RIM_SEAM_PX = 1.0;
 // does not step with a lit disc's trade, and zero once the disc is this big. By eye.
 const float GLARE_RETIRE_RATIO = 4.0;
 
+// The disc radius, in units of psf_sigma, below which the core is the field's own Gaussian
+// rather than the lune's image: the lune's light sits within that radius of the body's
+// centre, so the two images stand under a twentieth of the PSF's width apart there.
+const float LUNE_MIN_RADIUS = 0.05;
+const float LUNE_SQRT_2 = 1.4142136;
+
+// THE TRIP COUNT IS A UNIFORM, AND NEVER SET -- for the reason limb_kernel_cells is
+// (_photometry.gdshaderinc). Twelve steps hold the lune's image within 6 % of a converged
+// integral wherever it is above one 8-bit step, and its edges within a hundredth of a pixel.
+uniform int lune_cells = 12;
+
 varying flat float v_intensity; // core intensity, crossfade already folded in
+varying flat float v_lune_radius; // the lit disc's px radius; 0.0 where the core is a point
+varying flat float v_lune_surface; // the lune's light per px, so that it carries the core's flux
+varying flat vec2 v_lune_axis;  // unit, toward the lit limb, in the frame of the quad's corners
+varying flat float v_lune_phase_cos; // where the terminator crosses each chord
+varying flat float v_lune_reach; // how far past the lune its image is drawn, px
 varying flat float v_glare;     // wing amplitude at 1 px
 varying flat float v_radius;    // the quad's half-width in px
 varying flat vec2 v_wing_centre; // the wing's centre, px from the quad's centre
@@ -201,6 +224,56 @@ vec2 limb_sun_angles(vec2 direction_up, float limb_tangent) {
 	float touch = -dot(limb_camera_offset, figure_ray) / dot(limb_ray, figure_ray);
 	vec3 normal = normalize(limb_ellipsoid * (limb_camera_offset + touch * limb_ray));
 	return vec2(-dot(normalize(limb_ray), sun_direction), dot(normal, sun_direction));
+}
+
+// erfc in Numerical Recipes' Chebyshev form, as rings.gdshader's ring_erfc: its error is
+// FRACTIONAL, below 1.2e-7, which is what an image read out to one 8-bit step of a source
+// millions of steps above saturation needs. The exp(-z*z) factor carries that.
+float lune_erfc(float x) {
+	float z = abs(x);
+	float t = 2.0 / (2.0 + z);
+	float poly = -1.26551223 + t * (1.00002368 + t * (0.37409196 + t * (0.09678418
+			+ t * (-0.18628806 + t * (0.27886807 + t * (-1.13520398 + t * (1.48851587
+			+ t * (-0.82215223 + t * 0.17087277))))))));
+	float value = t * exp(-z * z + poly);
+	return x >= 0.0 ? value : 2.0 - value;
+}
+
+// The core's light at offset_px from the body's projected centre, where the core is the lune's
+// image. The lit part of each chord parallel to the sun's screen direction runs from the
+// terminator, at -phase_cos of the chord's half-length, to the lit limb; the Gaussian along the
+// chord integrates in closed form, and the chords are summed under the Gaussian across them in
+// equal steps of the angle whose sine places them, which keeps each step's half-length smooth
+// out to the disc's edge.
+float lune_light(vec2 offset_px) {
+	float along = dot(offset_px, v_lune_axis);
+	float across = offset_px.x * v_lune_axis.y - offset_px.y * v_lune_axis.x;
+	float sine_low = max((across - v_lune_reach) / v_lune_radius, -1.0);
+	float sine_high = min((across + v_lune_reach) / v_lune_radius, 1.0);
+	if (sine_high <= sine_low) {
+		return 0.0;
+	}
+	float angle_low = asin(sine_low);
+	float step = (asin(sine_high) - angle_low) / float(lune_cells);
+	float erfc_scale = 1.0 / (psf_sigma * LUNE_SQRT_2);
+	float light = 0.0;
+	for (int i = 0; i < lune_cells; i++) {
+		float angle = angle_low + (float(i) + 0.5) * step;
+		float half_length = v_lune_radius * cos(angle);
+		float offset_across = across - v_lune_radius * sin(angle);
+		// Both ends from the fragment, and taken from the fragment's side of the chord's middle:
+		// past either end the two tails are then small numbers, where from the other side they
+		// would be 2 - tiny, which float32 cancels to nothing.
+		float terminator = -v_lune_phase_cos * half_length - along;
+		float limb = half_length - along;
+		float side = terminator + limb > 0.0 ? 1.0 : -1.0;
+		float across_weight = exp(-offset_across * offset_across
+				/ (2.0 * psf_sigma * psf_sigma));
+		light += half_length * across_weight * side * (lune_erfc(side * terminator * erfc_scale)
+				- lune_erfc(side * limb * erfc_scale));
+	}
+	return min(v_lune_surface * light * 0.5 * step / (psf_sigma * LIMB_SQRT_TWO_PI),
+			PSF_LIGHT_MAX);
 }
 
 void vertex() {
@@ -281,12 +354,30 @@ void vertex() {
 	// it. A fraction of the mean radius does not: a mean lies BETWEEN an oblate body's polar and
 	// equatorial extents, so past Saturn's pole the centre stood 10 px out in open sky, where an
 	// exposed r^-2 peak is a dot with a glow around it. The core does NOT take the offset:
-	// unresolved, the quad IS the body, and the body is where it is. The silhouette radius
+	// unresolved, the quad IS the body, and its lune is where it is. The silhouette radius
 	// retires the offset as the disc shrinks toward that regime, as a pixel radius did. The
 	// FRACTION is by eye -- a Lambert sphere's lit centroid is at 4/(3*PI) of the radius at
 	// quarter phase against this curve's 0.5, and closing that gap would mean carrying the disc
 	// integral of whichever BRDF the body renders with.
 	v_wing_centre = sun_clip * ((1.0 - phase_cos) * 0.5) * limb_sun_px;
+	// THE CORE'S LUNE (see the header): the core's flux, intensity * 2*PI*sigma^2, as a uniform
+	// light over the lit share of the disc, (1 + cos phase)/2 of its area. Past the lune its image
+	// is bounded by the core's own peak and by half the lune's light, the Gaussian's share past a
+	// straight edge, so its reach is the size law on the tighter of the two.
+	float lit_share = 0.5 * (1.0 + phase_cos);
+	v_lune_axis = sun_screen_length > 0.0 ? sun_clip : vec2(1.0, 0.0);
+	v_lune_phase_cos = phase_cos;
+	v_lune_radius = 0.0;
+	v_lune_surface = 0.0;
+	float core_peak = v_intensity;
+	if (limb_semi_axes.x > 0.0 && lit_share > 0.0
+			&& pixel_radius > LUNE_MIN_RADIUS * psf_sigma) {
+		v_lune_radius = pixel_radius;
+		v_lune_surface = 2.0 * psf_sigma * psf_sigma * v_intensity
+				/ (pixel_radius * pixel_radius * lit_share);
+		core_peak = min(v_intensity, 0.5 * v_lune_surface);
+	}
+	v_lune_reach = 0.5 * psf_visible_size(core_peak, psf_sigma);
 	// THE RIM'S SKY SIDE (see the header). Amplitude first: the body's whole flux is
 	// intensity * 2*PI*sigma^2 -- what its Gaussian core integrates to -- and a Lambert sphere
 	// spreads that over its projected disc as flux/(area * J) per unit mu0, with J the disc
@@ -321,12 +412,12 @@ void vertex() {
 	// it has a rim, whatever direction it lies in. The disc's interior is most of a resolved
 	// body's quad, and this is what keeps the conic solve off it.
 	v_rim_band = vec2(limb_minor_px - RIM_SEAM_PX, limb_major_px + v_rim_reach);
-	// The quad must span whichever component reaches further. psf_visible_size returns a
-	// DIAMETER and psf_glare_draw_size a RADIUS, so the core halves and the wing does not.
-	// The wing's reach is measured from its own offset centre, so that distance is added --
-	// without it the quad would clip the wing on the lit side, which is the side it moved to.
-	// The rim's is measured from the limb, so the silhouette's own radius is added to it.
-	v_radius = max(0.5 * psf_visible_size(v_intensity, psf_sigma),
+	// The quad must span whichever component reaches further. The core's reach is measured from
+	// the lune's edge, so its radius is added (zero for a point). The wing's is measured from
+	// its own offset centre, so that distance is added -- without it the quad would clip the
+	// wing on the lit side, which is the side it moved to. The rim's is measured from the limb,
+	// so the silhouette's own radius is added to it.
+	v_radius = max(v_lune_radius + v_lune_reach,
 			max(psf_glare_draw_size(v_glare) + length(v_wing_centre),
 			limb_major_px + v_rim_reach));
 	// One NDC unit is half the viewport, and the corner offset is in clip units, so it
@@ -354,7 +445,7 @@ void fragment() {
 	// header). Both multiply here rather than via ALPHA so they see full precision before the
 	// f16 buffer write; see psf_core_light_sprite. Nothing sampled this radiance, so no renderer
 	// decode cancels against it: it crosses over here (see _display.gdshaderinc).
-	// The core is measured from the body, the wing from where the lit light actually is.
+	// The core, and its lune, are placed about the body; the wing about where the lit light is.
 	vec2 offset_px = v_offset * v_radius;
 	float wing_px = length(offset_px - v_wing_centre);
 	// The rim's sky-side spread, on the band just beyond the silhouette. The disc's own
@@ -372,8 +463,13 @@ void fragment() {
 					max(distance_px, 0.0), limb_px, psf_sigma), PSF_LIGHT_MAX);
 		}
 	}
-	float light = psf_core_light(v_intensity, radius_px, psf_sigma)
-			+ psf_glare_light(v_glare, wing_px) + rim;
+	float core = 0.0;
+	if (v_lune_radius <= 0.0) {
+		core = psf_core_light(v_intensity, radius_px, psf_sigma);
+	} else if (radius_px < v_lune_radius + v_lune_reach) {
+		core = lune_light(offset_px);
+	}
+	float light = core + psf_glare_light(v_glare, wing_px) + rim;
 	ALBEDO = display_write(color_from_b_v(color_bv, color_saturation) * light);
 	ALPHA = 1.0; // blend_add: the add is ALBEDO * ALPHA, already folded above
 }

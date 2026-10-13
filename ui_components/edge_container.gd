@@ -35,11 +35,22 @@ extends Container
 ## the top or bottom edge then gets a maximum height that ends where the next
 ## child beyond it begins.[br][br]
 ##
+## A horizontal [FlowContainer] that doesn't fill its width takes one row where
+## the clear space at its edge allows, and otherwise wraps to fit that space; a
+## centered one is offered the widest gap between the children placed before
+## it.[br][br]
+##
+## Panels that a user opens and closes can close one another when there isn't
+## room for them together: see [member cullable_children].[br][br]
+##
 ## Order children by precedence, and give any child that may be squeezed a
 ## [ScrollContainer] with vertical scroll mode
 ## [constant ScrollContainer.SCROLL_MODE_MAXIMIZE_FIRST]: it then fits its
 ## content until space runs out and scrolls after that, where a child that
-## can't shrink would spill past its bounds.[br][br]
+## can't shrink would spill past its bounds. Capped below its own frame, its
+## stylebox and margins, even a scrolling child spills, because Godot then gives
+## its content no cap at all: make any child that can be squeezed that far
+## cullable.[br][br]
 ##
 ## Hazard: this container sets the height of [member Control.custom_maximum_size]
 ## on every child held to its top or bottom edge, replacing any set there.[br][br]
@@ -57,6 +68,10 @@ enum {
 const SIZE_FLAG_OPTIONS: PackedInt32Array = [SIZE_FILL, SIZE_SHRINK_BEGIN, SIZE_SHRINK_CENTER,
 		SIZE_SHRINK_END]
 
+# Ways a child is crowded, as bit flags.
+const _MOVED_OFF_EDGE := 1
+const _TOO_SHORT := 2
+
 
 ## Space between the children and this container's edges at GUI size Large (see
 ## [member IVCoreSettings.gui_size_multipliers]).
@@ -65,15 +80,34 @@ const SIZE_FLAG_OPTIONS: PackedInt32Array = [SIZE_FILL, SIZE_SHRINK_BEGIN, SIZE_
 ## Space kept between children at GUI size Large.
 @export var base_separation := 8.0:
 	set = set_base_separation
+## Least height, at GUI size Large, that a child held to its top or bottom edge
+## can use: a cullable child given less is crowded (see
+## [member cullable_children]). Keep it above each cullable child's own frame and
+## below its natural height.
+@export var base_usable_height := 60.0:
+	set = set_base_usable_height
+## Children that close to make room for one another, as panels a user opens and
+## closes. When one of them is moved off its edge or left less than
+## [member base_usable_height], the one shown last stays open, and each one shown
+## before it stays only if it still fits beside those shown after it. Crowding
+## by a child that isn't listed here closes nothing, unless it leaves one too
+## short even when shown alone: that one closes. Read at ready.
+@export var cullable_children: Array[Control] = []
 
 
 var _multiplier := 1.0
+var _shown_cullables: Array[Control] = [] # shown longest ago first
+var _is_cull_queued := false
 
 
 
 func _ready() -> void:
 	if Engine.is_editor_hint():
 		return
+	for cullable in cullable_children:
+		cullable.visibility_changed.connect(_on_cullable_visibility_changed.bind(cullable))
+		if cullable.visible:
+			_shown_cullables.append(cullable)
 	if IVStateManager.initialized_core:
 		_configure_after_core_inited()
 	else:
@@ -103,6 +137,11 @@ func set_base_separation(value: float) -> void:
 	queue_sort()
 
 
+func set_base_usable_height(value: float) -> void:
+	base_usable_height = value
+	queue_sort()
+
+
 func _configure_after_core_inited() -> void:
 	IVSettingsManager.changed.connect(_settings_listener)
 	_update_multiplier()
@@ -115,37 +154,113 @@ func _update_multiplier() -> void:
 
 
 func _sort_children() -> void:
+	var crowded_children := _place_children(true)
+	if _is_cull_queued:
+		return
+	for cullable in _shown_cullables:
+		if crowded_children.has(cullable):
+			_is_cull_queued = true
+			_cull_children.call_deferred()
+			return
+
+
+# Places the visible children, or, if not applied, works out only where they would go were
+# the given cullable children the only ones shown. Returns the crowded children, each with
+# its crowding flags.
+func _place_children(is_applied: bool, shown_cullables: Array[Control] = []
+		) -> Dictionary[Control, int]:
 	var margin := roundf(base_margin * _multiplier)
 	var separation := roundf(base_separation * _multiplier)
+	var usable_height := roundf(base_usable_height * _multiplier)
 	var inner := Rect2(Vector2(margin, margin), (size - 2.0 * Vector2(margin, margin)).maxf(0.0))
 	# The editor has no gui_size, and a maximum set there would be saved into the scene.
-	var set_maximums := !Engine.is_editor_hint()
+	var set_maximums := is_applied and !Engine.is_editor_hint()
 	var placed: Array[Rect2] = []
+	var crowded_children: Dictionary[Control, int] = {}
 	for child in get_children():
 		var control := child as Control
-		if !control or !control.visible or control.top_level:
+		if !control or control.top_level:
+			continue
+		var is_shown := control.visible
+		if !is_applied and cullable_children.has(control):
+			is_shown = shown_cullables.has(control)
+		if !is_shown:
 			continue
 		var h_align := _get_alignment(control.size_flags_horizontal)
 		var v_align := _get_alignment(control.size_flags_vertical)
 		var minimum := control.get_combined_minimum_size()
+		# A FlowContainer's minimum width is its widest child, which would make it a column.
+		var flow := control as FlowContainer
+		var is_wrapping_flow := flow and !flow.vertical and h_align != ALIGN_FILL
+		if is_wrapping_flow:
+			minimum = _get_flow_size(flow, h_align, v_align, placed, inner, separation)
 		var rect := Rect2()
 		rect.size.x = inner.size.x if h_align == ALIGN_FILL else minf(minimum.x, inner.size.x)
 		rect.size.y = inner.size.y if v_align == ALIGN_FILL else minf(minimum.y, inner.size.y)
 		rect.position.x = _get_aligned_position(inner.position.x, inner.size.x, rect.size.x, h_align)
 		rect.position.y = _get_aligned_position(inner.position.y, inner.size.y, rect.size.y, v_align)
+		var aligned_y := rect.position.y
 		rect = _get_clear_rect(rect, h_align, v_align, placed, inner, separation)
+		var crowding := 0
+		if rect.position.y != aligned_y:
+			crowding |= _MOVED_OFF_EDGE
 		if v_align != ALIGN_CENTER:
 			var height_limit := _get_height_limit(rect, v_align, placed, inner, separation)
+			if height_limit < usable_height:
+				crowding |= _TOO_SHORT
 			if set_maximums:
 				_set_maximum_height(control, height_limit)
 			var height := height_limit
 			if v_align != ALIGN_FILL:
-				height = minf(control.get_bound_minimum_size().y, height_limit)
+				# A flow's own minimum height is for the width it had at its last sort.
+				var minimum_height := (minimum.y if is_wrapping_flow
+						else control.get_bound_minimum_size().y)
+				height = minf(minimum_height, height_limit)
 			if v_align == ALIGN_END:
 				rect.position.y = rect.end.y - height
 			rect.size.y = height
-		fit_child_in_rect(control, rect)
+		if is_applied and is_wrapping_flow:
+			# fit_child_in_rect() would shrink it back to its own minimum width.
+			control.position = rect.position
+			control.size = rect.size
+		elif is_applied:
+			fit_child_in_rect(control, rect)
+		if crowding:
+			crowded_children[control] = crowding
 		placed.append(rect)
+	return crowded_children
+
+
+# Keeps the cullable children shown last, and each earlier one only where it is crowded by
+# those kept no more than it is alone and crowds none of them more than they are without it.
+# One too short even alone is not kept.
+func _cull_children() -> void:
+	_is_cull_queued = false
+	var kept: Array[Control] = []
+	for i in range(_shown_cullables.size() - 1, -1, -1):
+		var candidate := _shown_cullables[i]
+		var with_candidate: Array[Control] = kept.duplicate()
+		with_candidate.append(candidate)
+		var crowded_with := _place_children(false, with_candidate)
+		var is_crowding := false
+		if crowded_with.has(candidate):
+			var crowding := crowded_with[candidate]
+			var crowding_alone: int = _place_children(false, [candidate]).get(candidate, 0)
+			is_crowding = ((crowding & ~crowding_alone) != 0
+					or (crowding_alone & _TOO_SHORT) != 0)
+		if !is_crowding:
+			var crowded_without := _place_children(false, kept)
+			for keeper in kept:
+				var keeper_crowding: int = crowded_with.get(keeper, 0)
+				var keeper_crowding_without: int = crowded_without.get(keeper, 0)
+				if (keeper_crowding & ~keeper_crowding_without) != 0:
+					is_crowding = true
+					break
+		if !is_crowding:
+			kept.append(candidate)
+	for cullable in cullable_children:
+		if cullable.visible and !kept.has(cullable):
+			cullable.hide()
 
 
 func _get_alignment(size_flags: int) -> int:
@@ -165,6 +280,89 @@ func _get_aligned_position(begin: float, span: float, length: float, alignment: 
 		ALIGN_END:
 			return begin + span - length
 	return begin
+
+
+# One row where the clear span at the flow's edge allows, else wrapped to that span's width.
+# Where not even its widest child fits there, one row again: it will be moved off its edge.
+func _get_flow_size(flow: FlowContainer, h_align: int, v_align: int, placed: Array[Rect2],
+		inner: Rect2, separation: float) -> Vector2:
+	var child_sizes: Array[Vector2i] = []
+	for child in flow.get_children():
+		var control := child as Control
+		if control and control.visible and !control.top_level:
+			child_sizes.append(Vector2i(control.get_bound_minimum_size()))
+	if child_sizes.is_empty():
+		return flow.get_combined_minimum_size()
+	var h_separation := flow.get_theme_constant(&"h_separation")
+	var v_separation := flow.get_theme_constant(&"v_separation")
+	var row_width := -h_separation
+	var widest := 0
+	for child_size in child_sizes:
+		row_width += child_size.x + h_separation
+		widest = maxi(widest, child_size.x)
+	var unwrapped_width := minf(row_width, inner.size.x)
+	var width := unwrapped_width
+	for _i in child_sizes.size():
+		var height := _get_flow_height(child_sizes, h_separation, v_separation, width)
+		var top := _get_aligned_position(inner.position.y, inner.size.y, height, v_align)
+		var bottom := inner.end.y if v_align == ALIGN_FILL else top + height
+		var span := _get_clear_span_width(top, bottom, h_align, placed, inner, separation)
+		if span >= width:
+			break
+		if span < widest:
+			width = unwrapped_width
+			break
+		width = floorf(span)
+	return Vector2(width, _get_flow_height(child_sizes, h_separation, v_separation, width))
+
+
+# Height of the lines a horizontal FlowContainer breaks its children into at this width,
+# breaking them as the engine does.
+func _get_flow_height(child_sizes: Array[Vector2i], h_separation: int, v_separation: int,
+		width: float) -> float:
+	var lines_height := 0
+	var line_x := 0
+	var line_height := 0
+	var line_count := 0
+	for child_size in child_sizes:
+		if line_count > 0:
+			line_x += h_separation
+		if line_x + child_size.x > width:
+			lines_height += line_height + v_separation
+			line_x = 0
+			line_height = 0
+			line_count = 0
+		line_height = maxi(line_height, child_size.y)
+		line_x += child_size.x
+		line_count += 1
+	return lines_height + line_height
+
+
+# Width of the clear span between two heights that a rect may take: the widest one for a
+# horizontally centered rect, else the one at its held side.
+func _get_clear_span_width(top: float, bottom: float, h_align: int, placed: Array[Rect2],
+		inner: Rect2, separation: float) -> float:
+	var blocks: Array[Vector2] = [] # x begin and end, separation included
+	for other in placed:
+		if _overlaps(top, bottom, other.position.y, other.end.y, separation):
+			blocks.append(Vector2(other.position.x - separation, other.end.x + separation))
+	blocks.sort()
+	var widest := 0.0
+	var span_begin := inner.position.x
+	for block in blocks:
+		if block.x > span_begin:
+			var span := minf(block.x, inner.end.x) - span_begin
+			if h_align == ALIGN_BEGIN:
+				return span if span_begin == inner.position.x else 0.0
+			widest = maxf(widest, span)
+		span_begin = maxf(span_begin, block.y)
+	var last_span := maxf(inner.end.x - span_begin, 0.0)
+	match h_align:
+		ALIGN_BEGIN:
+			return last_span if span_begin == inner.position.x else 0.0
+		ALIGN_END:
+			return last_span
+	return maxf(widest, last_span)
 
 
 # Slides a horizontally centered rect along its edge to the nearest clear place. Failing
@@ -251,6 +449,12 @@ func _get_first_hit(rect: Rect2, placed: Array[Rect2], separation: float) -> Rec
 func _overlaps(begin_a: float, end_a: float, begin_b: float, end_b: float, separation: float
 		) -> bool:
 	return begin_a < end_b + separation - 0.5 and begin_b < end_a + separation - 0.5
+
+
+func _on_cullable_visibility_changed(cullable: Control) -> void:
+	_shown_cullables.erase(cullable)
+	if cullable.visible:
+		_shown_cullables.append(cullable)
 
 
 func _settings_listener(setting: StringName, _value: Variant) -> void:

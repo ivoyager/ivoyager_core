@@ -41,6 +41,9 @@ extends Node
 @export var idle_alpha := 0.0
 ## Seconds without input before the GUI fades as idle.
 @export var idle_seconds := 4.0
+## Fade when idle even with "gui_fade_when_idle" off, as for a Control that
+## must not linger over the view, like [IVShowGUIButton].
+@export var always_fade_when_idle := false
 ## Duration of a fade out.
 @export var fade_out_seconds := 0.6
 ## Duration of a fade back in.
@@ -91,7 +94,8 @@ func _configure_after_core_inited() -> void:
 	assert(_control, "IVControlModFade requires a Control as parent")
 	IVSettingsManager.changed.connect(_settings_listener)
 	_fade_while_dragging = IVSettingsManager.get_setting(&"gui_fade_while_dragging")
-	_fade_when_idle = IVSettingsManager.get_setting(&"gui_fade_when_idle")
+	_fade_when_idle = (always_fade_when_idle
+			or IVSettingsManager.get_setting(&"gui_fade_when_idle"))
 
 
 func _on_run_state_changed(is_running: bool) -> void:
@@ -126,7 +130,7 @@ func _get_target_alpha() -> float:
 	if !_fade_when_idle or Time.get_ticks_msec() - _last_input_msec < idle_seconds * 1000.0:
 		return 1.0
 	var hovered := _control.get_viewport().gui_get_hovered_control()
-	if hovered and _control.is_ancestor_of(hovered):
+	if hovered and (hovered == _control or _control.is_ancestor_of(hovered)):
 		return 1.0
 	return idle_alpha
 
@@ -149,5 +153,5 @@ func _settings_listener(setting: StringName, value: Variant) -> void:
 			_fade_while_dragging = value
 			_fade_to_target()
 		&"gui_fade_when_idle":
-			_fade_when_idle = value
+			_fade_when_idle = always_fade_when_idle or value
 			_fade_to_target()

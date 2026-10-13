@@ -32,8 +32,9 @@
 // Pure functions only -- no uniforms, varyings, or entry points -- so each shader keeps its
 // own uniforms. Sizing splits on whether the source is resolved, not on which shader draws
 // it: the field and the quad both size from intensity through one camera PSF, and only a
-// resolved disc is geometric (an angular radius the camera actually resolves). farwarp is
-// provided separately by _farwarp.gdshaderinc.
+// resolved disc is geometric (an angular radius the camera actually resolves). The one
+// crossing is the quad's lune, the image of a disc just below its handoff, which takes both
+// (body_psf.gdshader). farwarp is provided separately by _farwarp.gdshaderinc.
 //
 // The two sides of that split share their LOD ramp here. A disc's fade-out and its quad's
 // core fade-in are opposite ends of one crossfade, so they must come from one expression

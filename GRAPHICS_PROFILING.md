@@ -229,6 +229,9 @@ asteroid points, glow:
 - **What it costs on screen is resolution.** Orbit lines, names and body edges soften, and the star
   field changes because each star is a render-pixel PSF magnified back up: at 50 % on the GTX, 78 %
   of a dark sky's pixels move by more than 2 codes, and 11 % of an Earth or Mars view's.
+- **FSR is handed a clamped frame**, which Godot 4.7.2 no longer does for it, at no measurable cost:
+  sharpening the unclamped one drew dark specks and coloured centres in saturated light (*FSR 1
+  sharpens what it is handed* in [PHOTOMETRIC_MODEL.md](PHOTOMETRIC_MODEL.md)).
 - **Both builds render at physical pixels** (`display/window/dpi/allow_hidpi`): a laptop at 2x
   renders four times the pixels of the window its layout describes, so on such a screen 50 % is the
   1x cost rather than a sacrifice. That is what the fitted defaults use it for.
@@ -666,7 +669,7 @@ specialization costs about a sixth of a first draw through ANGLE and an eighth t
 | `atmosphere_limb` (full / Min) | 10.4 / 9.0 | 5.0 / 4.6 |
 | `rings` | 4.5 | 1.4 |
 | `photosphere` | 2.6 | 1.1 |
-| `body_psf` | 1.0 | 0.7 |
+| `body_psf` | 1.3 | 0.8 |
 | `stars`, `path`, `farwarp_vertex` and the id shaders | 0.3-0.5 | 0.3-0.4 |
 
 What the Planetarium compiles, summed over the shaders a session draws:
