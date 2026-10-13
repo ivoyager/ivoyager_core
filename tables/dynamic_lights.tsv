@@ -1,13 +1,16 @@
-	gl_compatibility	bodies	energy_multiplier	shadow_max_floor	shadow_max_ceiling	shadow_max_target_plus	shadow_max_star_orbiter_plus	directional_shadow_blend_splits	directional_shadow_split_1	directional_shadow_split_2	directional_shadow_split_3	shadow_enabled	light_cull_mask	shadow_caster_mask	light_bake_mode	sky_mode	shadow_bias	shadow_blur	apply_sun_occlusion
-Type	BOOL	ARRAY[STRING_NAME]	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	BOOL	FLOAT	FLOAT	FLOAT	BOOL	INT	INT	Light3D	DirectionalLight3D	FLOAT	FLOAT	BOOL
-Unit				km	km	km	km												
-Default	FALSE		1	1	1e7			FALSE	0.1	0.2	0.5	FALSE	0xFFFFFFFF	0xFFFFFFFF	BAKE_DISABLED	SKY_MODE_LIGHT_ONLY	0.1	1.0	FALSE
-Prefix/DYNAMIC_LIGHT_																			
-SUN_NO_SHADOWS	TRUE	STAR_SUN																	TRUE
-SUN_FAR		STAR_SUN											0b0001						
-SUN_MIDDLE_SHADOWS		STAR_SUN		1e3	1e5	1e3		TRUE	0.25	0.4	0.7	TRUE	0b0010	0b100000000					TRUE
-SUN_NEAR_SHADOWS		STAR_SUN		0.1	100	0.25		TRUE	0.2	0.3	0.7	TRUE	0b0100	0b100000000					TRUE
-# Astronomical-scale shadows (rings, eclipses, transits) are analytic; see IVSunOcclusionManager.																			
-# The far light has no shadow map. Near/middle maps serve the local scene only: casters carry the																			
-# LOCAL_SHADOW_CASTER layer bit (see IVGlobal), and apply_sun_occlusion dims these lights by the																			
-# camera-point sun-visible fraction (eclipse/ring shadowing of craft-scale objects).																			
+	bodies	energy_multiplier	shadow_max_floor	shadow_max_ceiling	shadow_max_target_plus	shadow_max_star_orbiter_plus	directional_shadow_blend_splits	directional_shadow_split_1	directional_shadow_split_2	directional_shadow_split_3	shadow_enabled	light_cull_mask	shadow_caster_mask	light_bake_mode	sky_mode	shadow_bias	shadow_blur	apply_sun_occlusion
+Type	ARRAY[STRING_NAME]	FLOAT	FLOAT	FLOAT	FLOAT	FLOAT	BOOL	FLOAT	FLOAT	FLOAT	BOOL	INT	INT	Light3D	DirectionalLight3D	FLOAT	FLOAT	BOOL
+Unit			km	km	km	km												
+Default		1	1	1e7			FALSE	0.1	0.2	0.5	FALSE	0xFFFFFFFF	0xFFFFFFFF	BAKE_DISABLED	SKY_MODE_LIGHT_ONLY	0.1	1.0	FALSE
+Prefix/DYNAMIC_LIGHT_																		
+SUN_FAR	STAR_SUN											0b0001						
+SUN_MIDDLE_SHADOWS	STAR_SUN		1e3	1e5	1e3		TRUE	0.25	0.4	0.7	TRUE	0b0010	0b100000000					TRUE
+SUN_NEAR_SHADOWS	STAR_SUN		0.1	100	0.25		TRUE	0.2	0.3	0.7	TRUE	0b0100	0b100000000					TRUE
+# Astronomical-scale shadows (rings, eclipses, transits) are analytic; see IVSunOcclusionManager.																		
+# The far light has no shadow map. Near/middle maps serve the local scene only: casters carry the																		
+# LOCAL_SHADOW_CASTER layer bit (see IVGlobal), and apply_sun_occlusion dims these lights by the																		
+# camera-point sun-visible fraction (eclipse/ring shadowing of craft-scale objects).																		
+# The first row naming a star is its top light, whose energy the rings and atmospheres also read																		
+# (IVDynamicLight.star_light_energies); it must not take apply_sun_occlusion. Under the																		
+# Compatibility renderer the shadowed rows drop their maps unless																		
+# IVCoreSettings.apply_gl_compatibility_shadows keeps them; each row still lights its own domain.																		

@@ -541,7 +541,7 @@ func _apply_taa() -> void:
 
 func _apply_shadow_resolution() -> void:
 	if IVGlobal.is_gl_compatibility and not IVCoreSettings.apply_gl_compatibility_shadows:
-		return # single unshadowed light on Compatibility; no shadow map to size
+		return # no shadow maps on Compatibility; no atlas to size
 	var setting: int = IVSettingsManager.get_setting(&"shadow_resolution")
 	IVDynamicLight.shadow_maps_enabled = setting != 0
 	var size := 8192 # also the size for a stale cached index past the end

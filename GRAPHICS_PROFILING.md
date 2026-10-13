@@ -10,8 +10,10 @@ section here names the one it depends on.
 **Every figure was measured in the [Planetarium](https://github.com/ivoyager/planetarium) on one
 laptop** (*The reference machine*), on 2026-09-29, against Godot 4.7.2 and ivoyager_core
 v0.2.1.dev (8001cf3), unless a figure gives its own date. The Planetarium's configuration is part of
-what the figures describe -- its scale, its poses, and above all its light stack: one unshadowed
-light under Compatibility (`apply_gl_compatibility_shadows` off) and the empty-shadow-pass skip on.
+what the figures describe -- its scale, its poses, and above all its light stack: no shadow maps
+under Compatibility (`apply_gl_compatibility_shadows` off) and the empty-shadow-pass skip on. That
+stack was then one light; its replacement on 2026-10-13 by the three size-domain lights unshadowed
+compiles the same programs and measured no frame-time change (GTX, native GL, 3 poses).
 Treat the ratios and orderings as the finding and the milliseconds as this laptop's; a project
 configured otherwise should measure again before it trusts a row (*How this was measured*).
 
@@ -860,15 +862,16 @@ With shadows on, `dynamic_lights.tsv` gives Compatibility the far sun light (uns
 `0b0001`) and the shadowed middle (`0b0010`) and near (`0b0100`) lights, so
 `directional_shadow_count` is 2 and every lit instance is drawn twice; across the two larger size
 domains the additive clearing above yields three color programs, and anything close enough to
-count as terrain adds the depth pass. With shadows off there is one unshadowed light,
+count as terrain adds the depth pass. With shadows off the same three lights carry no maps, so
 `directional_shadow_count` is 0 and `uses_additive_lighting` false: one pass, no additive, PSSM or
-PCF bits and no shadow pass, so **every lit body in every size domain binds the same program**, and
-a first visit cannot reach a specialization the warm-up missed.
+PCF bits and no shadow pass. The base pass takes its unshadowed light count as a uniform and tests
+each light's cull mask per fragment, so **every lit body in every size domain binds the same
+program**, and a first visit cannot reach a specialization the warm-up missed.
 
 It has two side effects, neither about compiling. `update_directional_shadow_atlas()` runs only
 under `if (r_directional_shadow_count)`, so with no shadowed light the depth atlas is never
 allocated; and `IVGraphicsManager` skips `directional_shadow_atlas_set_size()` on that path, which
-is safe because the allocation is lazy. What the single light gives up is local shadow maps --
+is safe because the allocation is lazy. What dropping the maps gives up is local shadow maps --
 spacecraft self-shadowing, crater walls on a lander. The analytic astronomical shadows (rings,
 eclipses, transits, and the camera-fraction dimming that carries them onto craft) work either way.
 
@@ -880,7 +883,7 @@ shadowed stack the count takes 2, 1 or 0. It is a fact about the frame, so each 
 program set for **every lit shader**, compiled synchronously on the first frame that reaches it, and
 a warm-up covers only the value it runs at. **That, not frame time, is why the skip is opt-in**: it
 moves compiling from "all under the boot screen" to "some in flight" under Compatibility, where its
-frame-time relief is small, to buy a Forward+ saving. Under the single-light fallback it is inert,
+frame-time relief is small, to buy a Forward+ saving. Without Compatibility shadow maps it is inert,
 which is why the Planetarium can turn it on.
 
 Four things hold the risk down where it applies. The setting is off by default. Flips are made rare
@@ -960,7 +963,7 @@ wants the moment itself.
 carrying the shadow-caster bit. Under a shadowed light stack the second earns its place through
 that bit, the only way to reach the `RENDER_SHADOWS` depth program; neither lands in the middle
 domain (`0b0010`, 0.1-100 km), whose additive specialization a first visit to a small moon then
-pays. Under the single-light fallback both radii select the same program, and the second quad costs
+pays. Without shadow maps both radii select the same program, and the second quad costs
 a frame rather than a compile.
 
 ### The web export
