@@ -91,9 +91,8 @@ const START_CHECK_TIME := 10.0
 var file_name := "settings.ivbinary"
 ## Name of the file, beside the settings cache, that records whether the last start finished.
 var start_marker_file_name := "start_marker.ivbinary"
-## A new value obsoletes existing cache files. Update only when old cache files
-## might be problematic.
-var file_version := "0.0.23"
+## A new value obsoletes existing cache files. Update when old cache files might be problematic.
+var file_version := "0.2.1"
 ## Set in a preinitializer. Any target but [constant GraphicsTarget.NONE] replaces
 ## graphics defaults at cache init with those [method
 ## IVGraphicsManager.get_fitted_defaults] gives for this machine, so a weaker GPU or a
