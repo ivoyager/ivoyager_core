@@ -609,7 +609,8 @@ Each of these was measured and left out of the option set, for the reason given.
 
 The Compatibility renderer compiles a shader program **at its first draw, synchronously, on the
 main thread** (*Specializations*), so what a first run compiles is paid as frames: under the boot
-screen for whatever the opening view and the warm-up draw, and in flight for anything they missed.
+screen for whatever the warm-up and then the opening view draw, and in flight for anything they
+missed.
 Forward+ compiles its pipelines in the background and draws an ubershader meanwhile, so it pays a
 fraction of that and pays it as slower frames rather than stalls. The web export compiles on every
 first visit, having no program-binary cache (*Where the caches are*).
@@ -634,9 +635,10 @@ same run again:
   laptop takes that path at Low's settings, whose 55 s match the 57 s their programs sum to (*What
   each shader costs*) and came out the same with glow on (2026-09-30); the browser's own ANGLE
   build may differ (*The web export*).
-- **The opening view is one frame.** Its first draw compiles every shader in view -- 51 s through
-  ANGLE, 26 s through NVIDIA's GL -- which is why the boot screen has to stay up until the warm-up
-  finishes rather than until the simulator starts.
+- **The opening view was one frame.** Its first draw compiled every shader in view -- 51 s through
+  ANGLE, 26 s through NVIDIA's GL -- in a frame no boot screen could count. The warm-up now holds it
+  back until its own steps have drawn (*The warm-up*), so the table's two right-hand columns, which
+  predate that, are now paid together as warm-up steps.
 - **Afterwards nothing stalls.** A tour of every kind of body after a cold boot -- Earth, Venus,
   Titan, Mars, the Moon, Phobos, Jupiter, Saturn, Neptune, the Sun, Juno and both wide views --
   drew no frame over 0.3 s, and under Vulkan it stalled nowhere. A visit to each of the twelve
@@ -936,9 +938,10 @@ Forward+:
 
 A shader no such condition can decide is deliberately not warmed, since a needless compile is
 seconds of boot screen. `stars_shader` is the one Core shader in that position -- `IVStarsVisual` is
-a scene node, so nothing in the tables says a project kept it -- and it has compiled in the opening
-view before the warm-up runs anyway. `extra_shader_names` takes it, and a project's own shaders;
-`warm_core_shaders = false` turns the automatic selection off.
+a scene node, so nothing in the tables says a project kept it. `extra_shader_names` takes it (the
+Planetarium names it), and a project's own shaders; a shader left out compiles at the opening view's
+first draw, still under the screen but not counted. `warm_core_shaders = false` turns the automatic
+selection off.
 
 **A packed model's materials are not shaders in `IVGlobal.resources`**, so they are read off an
 instance of the scene `IVAssetPreloader` loaded, which shares them with the model a first visit
@@ -958,6 +961,21 @@ way the warm-up holds `IVStateManager` until `finished` -- `show_splash_screen` 
 `SIMULATOR_STARTED`, `ok_to_start` false under `ASSETS_PRELOADED` -- so a boot or splash screen that
 follows them covers it with no wiring of its own. `MANUAL` and `warm_up()` are for a project that
 wants the moment itself.
+
+**It holds the opening view back.** The camera's first draw is a single frame that compiles every
+shader in view, and a frame cannot report its own progress, so under `SIMULATOR_STARTED`
+(`hold_opening_view`) the camera draws only `hold_layer` from `system_tree_built` -- the frame that
+adds it -- until the steps are done. The quads carry that bit, and so does every `Light3D` for the
+duration, because the camera's cull mask culls a light by the light's own layers
+(`renderer_scene_cull.cpp`) and the quads must be lit as bodies are; shadow casters are filtered by
+the same mask. The warm-up then releases the view and leaves the opening view `SETTLE_FRAMES` to
+draw before it releases the screen, so anything the steps missed compiles covered. A game load or an
+exit that cancels the warm-up leaves the hold on, since the outgoing camera still draws before it is
+freed, and the next `system_tree_built` moves it to the new camera for the retry. Cold, on the GTX
+through ANGLE at Reduced (2026-10-14), the frames before the first step compiled 63 s and now
+compile 0.6 s; the warm-up's own time rose from 60 s to 126 s, and the opening view's draw after it
+took 31 ms. The cold start as a whole took the same time within run-to-run noise (135 s against
+132-140 s).
 
 **What the two radii buy.** `warm_radii` resolve to layers `0b0001` and `0b0100`, the second
 carrying the shadow-caster bit. Under a shadowed light stack the second earns its place through
