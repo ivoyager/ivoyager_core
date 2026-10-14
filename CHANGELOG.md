@@ -17,6 +17,12 @@ Requires ivoyager_assets v0.2.1.dev.20260909. The Core plugin editor will offer 
 1. Physical light is opt-in: set `IVCoreSettings.enable_physical_light = true` to instantiate the system and surface its "Physical Light" user Option (user can toggle it on/off at runtime). It requires `dynamic_lights`.
 2. The shader warm-up is opt-in; see IVShaderWarmup addition below. This forces shader compilation under the boot or splash screen rather than mid-flight when visiting a body for the first time at runtime. These times can be significant, especially for Compatibility renderer; see *Compiling shaders* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md).
 3. Hardware-fitted graphics defaults are opt-in: set `IVSettingsManager.graphics_target` so that integrated graphics, browsers and dense screens start with lighter settings.
+4. See new repository docs!
+   * [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)
+   * [PHYSICAL_MODEL.md](PHYSICAL_MODEL.md)
+   * [VISUAL_MODEL.md](VISUAL_MODEL.md)
+   * [PHOTOMETRIC_MODEL.md](PHOTOMETRIC_MODEL.md)
+   * [IVBody_REDESIGN_v0.3.md](IVBody_REDESIGN_v0.3.md)
 
 
 ### Added
