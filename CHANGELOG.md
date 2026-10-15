@@ -7,9 +7,9 @@ File format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 See cloning and downloading instructions [here](https://www.ivoyager.dev/developers/).
 
 
-## [v0.2.1] - UNRELEASED
+## [v0.2.1] - 2026-10-15
 
-Under development using Godot 4.7.2.
+Released using Godot 4.7.2.
 
 Requires ivoyager_assets v0.2.1. The Core plugin editor will offer to download this for you.
 
@@ -17,7 +17,7 @@ Requires ivoyager_assets v0.2.1. The Core plugin editor will offer to download t
 1. Physical light is opt-in: set `IVCoreSettings.enable_physical_light = true` to instantiate the system and surface its "Physical Light" user Option (user can toggle it on/off at runtime). It requires `dynamic_lights`.
 2. The shader warm-up is opt-in; see IVShaderWarmup addition below. This forces shader compilation under the boot or splash screen rather than mid-flight when visiting a body for the first time at runtime. These times can be significant, especially for Compatibility renderer; see *Compiling shaders* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md).
 3. Hardware-fitted graphics defaults are opt-in: set `IVSettingsManager.graphics_target` so that integrated graphics, browsers and dense screens start with lighter settings.
-4. The GUI now follows the screen's display scale (see Hi-DPI support below), so on a high-resolution screen — most screens today — every named GUI Size comes out 150% to 250% larger than it did. GUI Size "Extra Large", essentially a patch for that, is removed.
+4. Every named GUI Size now scales up for the screen's display scale, which is typically 150 to 250% for today's high-resolution screens (see Hi-DPI support below). "Extra Large" was essentially a patch for not having that adjustment, so has been removed.
 5. See new repository docs!
    * [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)
    * [PHYSICAL_MODEL.md](PHYSICAL_MODEL.md)
@@ -458,7 +458,7 @@ Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_tab
 ##
 I, Voyager projects v0.0.16 and earlier used a different core submodule [ivoyager](https://github.com/ivoyager/ivoyager) (now depreciated); see previous changelog [here](https://github.com/ivoyager/ivoyager/blob/master/CHANGELOG.md).
 
-[v0.2.1]: https://github.com/ivoyager/ivoyager_core/compare/v0.2...HEAD
+[v0.2.1]: https://github.com/ivoyager/ivoyager_core/compare/v0.2...v0.2.1
 [v0.2]: https://github.com/ivoyager/ivoyager_core/compare/v0.1.2...v0.2
 [v0.1.2]: https://github.com/ivoyager/ivoyager_core/compare/v0.1.1...v0.1.2
 [v0.1.1]: https://github.com/ivoyager/ivoyager_core/compare/v0.1...v0.1.1
