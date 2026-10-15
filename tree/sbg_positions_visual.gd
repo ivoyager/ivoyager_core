@@ -59,6 +59,7 @@ const L4L5_ARRAY_FLAGS = (
 
 var _fragment_identifier: IVFragmentIdentifier = IVGlobal.program.get(&"FragmentIdentifier") # optional
 var _sbg_huds_state: IVSBGHUDsState = IVGlobal.program[&"SBGHUDsState"]
+var _body_huds_state: IVBodyHUDsState = IVGlobal.program[&"BodyHUDsState"]
 
 var _sbg_alias: StringName
 var _color: Color
@@ -91,6 +92,7 @@ func _init(sbg: IVSmallBodiesGroup) -> void:
 		_longitude_offset = -PI / 3
 	cast_shadow = SHADOW_CASTING_SETTING_OFF
 	_sbg_huds_state.symbols_visibility_changed.connect(_set_visibility)
+	_body_huds_state.huds_hidden_changed.connect(_set_visibility.unbind(1))
 	_sbg_huds_state.color_changed.connect(_set_color)
 	_sbg_huds_state.symbol_changed.connect(_set_symbol)
 	IVSettingsManager.changed.connect(_settings_listener)
@@ -197,7 +199,7 @@ func _get_render_pixels_per_logical_pixel() -> float:
 
 
 func _set_visibility() -> void:
-	visible = _sbg_huds_state.is_symbols_visible(_sbg_alias)
+	visible = !_body_huds_state.huds_hidden and _sbg_huds_state.is_symbols_visible(_sbg_alias)
 
 
 func _set_color() -> void:

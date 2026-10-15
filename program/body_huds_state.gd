@@ -27,6 +27,8 @@ extends Node
 ## exclusive bit flags in [enum IVBody.BodyFlags].[br][br]
 ##
 ## Symbol and name visibility are independent (either, both or neither may show).
+## [member huds_hidden] hides every HUD, including [IVSBGHUDsState]'s, without
+## touching any of the persisted visibility state.
 ## A group's single [member colors] entry is shared by its symbol, name and orbit.
 ## The symbol shape is a per-group symbol-atlas index in [member symbol_types].[br][br]
 ##
@@ -37,8 +39,11 @@ extends Node
 
 
 ## Emitted whenever any of [member name_visible_flags],
-## [member symbol_visible_flags], or [member orbit_visible_flags] changes.
+## [member symbol_visible_flags], [member orbit_visible_flags] or
+## [member huds_hidden] changes.
 signal visibility_changed()
+## Emitted when [member huds_hidden] changes.
+signal huds_hidden_changed(is_hidden: bool)
 ## Emitted whenever any entry of [member colors] changes.
 signal color_changed()
 ## Emitted whenever any entry of [member symbol_types] changes.
@@ -83,6 +88,14 @@ var colors: Dictionary[int, Color] = {} # must have full key set from all_flags 
 ## [member all_flags] bits.
 var symbol_types: Dictionary[int, int] = {} # must have full key set from all_flags bits!
 
+# not persisted - read-only!
+## If true, all HUDs are hidden, here and in [IVSBGHUDsState], while the
+## visibility state they will return to is left as it was (so HUDs checkboxes
+## and saved views don't change). Not persisted, so false at every start. Any
+## visibility setter call, here or in [IVSBGHUDsState], sets it false. Modify
+## via [method set_huds_hidden].
+var huds_hidden := false
+
 # project vars - set at project init
 ## Color returned by [method get_default_color] when no single-flag match
 ## is found.
@@ -115,24 +128,29 @@ func _init() -> void:
 
 
 func _shortcut_input(event: InputEvent) -> void:
-	# Only Body HUDs, for now...
 	if not event.is_pressed():
 		return
-	if IVInputMapManager.is_action_pressed(event, &"toggle_orbits"):
-		set_all_orbits_visibility(bool(orbit_visible_flags != all_flags))
-	elif IVInputMapManager.is_action_pressed(event, &"toggle_symbols"):
-		set_all_symbols_visibility(bool(symbol_visible_flags != all_flags))
-	elif IVInputMapManager.is_action_pressed(event, &"toggle_names"):
-		set_all_names_visibility(bool(name_visible_flags != all_flags))
-	else:
-		return # input NOT handled!
+	if not IVInputMapManager.is_action_pressed(event, &"toggle_all_huds"):
+		return
+	set_huds_hidden(!huds_hidden)
 	get_viewport().set_input_as_handled()
 
 
 # *****************************************************************************
 # visibility
 
+## Hides or restores all HUDs without changing their visibility state. See
+## [member huds_hidden].
+func set_huds_hidden(is_hidden: bool) -> void:
+	if huds_hidden == is_hidden:
+		return
+	huds_hidden = is_hidden
+	visibility_changed.emit()
+	huds_hidden_changed.emit(is_hidden)
+
+
 func hide_all() -> void:
+	set_huds_hidden(false)
 	if !orbit_visible_flags and !name_visible_flags and !symbol_visible_flags:
 		return
 	orbit_visible_flags = 0
@@ -142,6 +160,7 @@ func hide_all() -> void:
 
 
 func set_default_visibilities() -> void:
+	set_huds_hidden(false)
 	if (name_visible_flags == default_name_visible_flags
 			and symbol_visible_flags == default_symbol_visible_flags
 			and orbit_visible_flags == default_orbit_visible_flags):
@@ -186,6 +205,7 @@ func is_all_orbits_visible() -> bool:
 
 
 func set_name_visibility(body_flags: int, is_show: bool) -> void:
+	set_huds_hidden(false)
 	body_flags &= all_flags
 	if is_show:
 		if name_visible_flags & body_flags == body_flags:
@@ -200,6 +220,7 @@ func set_name_visibility(body_flags: int, is_show: bool) -> void:
 
 
 func set_symbol_visibility(body_flags: int, is_show: bool) -> void:
+	set_huds_hidden(false)
 	body_flags &= all_flags
 	if is_show:
 		if symbol_visible_flags & body_flags == body_flags:
@@ -214,6 +235,7 @@ func set_symbol_visibility(body_flags: int, is_show: bool) -> void:
 
 
 func set_orbit_visibility(body_flags: int, is_show: bool) -> void:
+	set_huds_hidden(false)
 	body_flags &= all_flags
 	if is_show:
 		if orbit_visible_flags & body_flags == body_flags:
@@ -228,6 +250,7 @@ func set_orbit_visibility(body_flags: int, is_show: bool) -> void:
 
 
 func set_all_names_visibility(is_show: bool) -> void:
+	set_huds_hidden(false)
 	if is_show:
 		if name_visible_flags == all_flags:
 			return
@@ -240,6 +263,7 @@ func set_all_names_visibility(is_show: bool) -> void:
 
 
 func set_all_symbols_visibility(is_show: bool) -> void:
+	set_huds_hidden(false)
 	if is_show:
 		if symbol_visible_flags == all_flags:
 			return
@@ -252,6 +276,7 @@ func set_all_symbols_visibility(is_show: bool) -> void:
 
 
 func set_all_orbits_visibility(is_show: bool) -> void:
+	set_huds_hidden(false)
 	if is_show:
 		if orbit_visible_flags == all_flags:
 			return
@@ -264,6 +289,7 @@ func set_all_orbits_visibility(is_show: bool) -> void:
 
 
 func set_name_visible_flags(name_visible_flags_: int) -> void:
+	set_huds_hidden(false)
 	if name_visible_flags == name_visible_flags_:
 		return
 	name_visible_flags = name_visible_flags_
@@ -271,6 +297,7 @@ func set_name_visible_flags(name_visible_flags_: int) -> void:
 
 
 func set_symbol_visible_flags(symbol_visible_flags_: int) -> void:
+	set_huds_hidden(false)
 	if symbol_visible_flags == symbol_visible_flags_:
 		return
 	symbol_visible_flags = symbol_visible_flags_
@@ -278,6 +305,7 @@ func set_symbol_visible_flags(symbol_visible_flags_: int) -> void:
 
 
 func set_orbit_visible_flags(orbit_visible_flags_: int) -> void:
+	set_huds_hidden(false)
 	if orbit_visible_flags == orbit_visible_flags_:
 		return
 	orbit_visible_flags = orbit_visible_flags_

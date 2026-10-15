@@ -132,8 +132,9 @@ func _process(_delta: float) -> void:
 
 
 func _set_global_visibilities() -> void:
-	_names_visible = _body_huds_state.is_name_visible(_body.flags)
-	_symbols_visible = _body_huds_state.is_symbol_visible(_body.flags)
+	var huds_shown := !_body_huds_state.huds_hidden
+	_names_visible = huds_shown and _body_huds_state.is_name_visible(_body.flags)
+	_symbols_visible = huds_shown and _body_huds_state.is_symbol_visible(_body.flags)
 	_set_visual_state()
 
 

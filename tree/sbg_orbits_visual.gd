@@ -35,6 +35,7 @@ const FRAGMENT_SBG_ORBIT := IVFragmentIdentifier.FRAGMENT_SBG_ORBIT
 
 var _fragment_identifier: IVFragmentIdentifier = IVGlobal.program.get(&"FragmentIdentifier") # optional
 var _sbg_huds_state: IVSBGHUDsState = IVGlobal.program.SBGHUDsState
+var _body_huds_state: IVBodyHUDsState = IVGlobal.program[&"BodyHUDsState"]
 
 var _sbg_alias: StringName
 var _color: Color
@@ -54,6 +55,7 @@ func _init(sbg: IVSmallBodiesGroup) -> void:
 	_sbg_alias = sbg.sbg_alias
 	cast_shadow = SHADOW_CASTING_SETTING_OFF
 	_sbg_huds_state.orbits_visibility_changed.connect(_set_visibility)
+	_body_huds_state.huds_hidden_changed.connect(_set_visibility.unbind(1))
 	_sbg_huds_state.color_changed.connect(_set_color)
 	
 	var number := sbg.get_number()
@@ -76,8 +78,11 @@ func _init(sbg: IVSmallBodiesGroup) -> void:
 	
 	# base (visible) material
 	var shader_material := ShaderMaterial.new()
-	shader_material.shader = (_shader_override if _shader_override
-			else IVGlobal.resources[&"farwarp_vertex_shader"])
+	if _shader_override:
+		shader_material.shader = _shader_override
+	else:
+		shader_material.shader = IVGlobal.resources[&"farwarp_vertex_shader"]
+		shader_material.set_shader_parameter(&"use_colors", _multimesh_use_colors)
 	material_override = shader_material
 	if IVCoreSettings.apply_farwarp:
 		# Frustum culling tests the true-scale AABB against the far plane, but
@@ -118,7 +123,7 @@ func _ready() -> void:
 
 
 func _set_visibility() -> void:
-	visible = _sbg_huds_state.is_orbits_visible(_sbg_alias)
+	visible = !_body_huds_state.huds_hidden and _sbg_huds_state.is_orbits_visible(_sbg_alias)
 
 
 func _set_color() -> void:

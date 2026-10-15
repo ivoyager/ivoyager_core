@@ -1,0 +1,9 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" uid="uid://cnf50yeyt7hkj" path="res://addons/ivoyager_core/ui_widgets/hide_huds_button.gd" id="1_hide"]
+
+[node name="HideHUDsButton" type="Button"]
+tooltip_text = "HINT_HIDE_HUDS"
+toggle_mode = true
+text = "BUTTON_HIDE_ALL_HUDS"
+script = ExtResource("1_hide")

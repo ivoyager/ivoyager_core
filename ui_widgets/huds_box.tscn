@@ -212,11 +212,6 @@ sbg_aliases = Array[StringName]([&"TN"])
 layout_mode = 2
 mouse_filter = 2
 
-[node name="HideAll" parent="DefaultViews" unique_id=533814271 instance=ExtResource("2_yw4wt")]
-layout_mode = 2
-text = "VIEW_HIDE_ALL"
-default_view = &"VIEW_HIDE_ALL"
-
 [node name="Planets1" parent="DefaultViews" unique_id=13160920 instance=ExtResource("2_yw4wt")]
 layout_mode = 2
 text = "VIEW_PLANETS1"

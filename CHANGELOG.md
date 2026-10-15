@@ -7,6 +7,27 @@ File format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 See cloning and downloading instructions [here](https://www.ivoyager.dev/developers/).
 
 
+## [v0.2.2] - 2026-10-15
+
+Released using Godot 4.7.2.
+
+Requires ivoyager_assets v0.2.1.
+
+Project Note: This is a mainly quick patch on v0.2.1 to bring asteroid orbit line color back for Compatibility renderer. See v0.2.1 for the big recent changes.
+
+### Added
+* Hide all HUDs: new `IVBodyHUDsState.huds_hidden` hides every body and small-body HUD without changing the visibility state that HUDs checkboxes and views show, and is not persisted. New IVHideHUDsButton toggles it, as does new action `toggle_all_huds` (H); any change to HUD visibility releases it.
+* IVControlModScrollShare keeps a `SCROLL_MODE_MAXIMIZE_FIRST` ScrollContainer from crowding its siblings out of a height-capped VBoxContainer.
+
+### Changed
+* [Project breaking] IVHUDsBox loses its Hide All view button, and IVHUDsPopup gains an IVHideHUDsButton below a new `VBox` parent of its HUDsBox.
+* Next and Previous Asteroid hotkeys move from H and Shift+H to A and Shift+A.
+* [API breaking] Removed actions `toggle_orbits` (O), `toggle_names` (L) and `toggle_symbols` (I) and their hotkeys.
+
+### Fixed
+* Asteroid orbit lines drew black on the Compatibility renderer. `farwarp_vertex.gdshader` has a new `use_colors` uniform, which IVSBGOrbitsVisual sets false when its MultiMesh has no colors.
+
+
 ## [v0.2.1] - 2026-10-15
 
 Released using Godot 4.7.2.
@@ -458,6 +479,7 @@ Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_tab
 ##
 I, Voyager projects v0.0.16 and earlier used a different core submodule [ivoyager](https://github.com/ivoyager/ivoyager) (now depreciated); see previous changelog [here](https://github.com/ivoyager/ivoyager/blob/master/CHANGELOG.md).
 
+[v0.2.2]: https://github.com/ivoyager/ivoyager_core/compare/v0.2.1...v0.2.2
 [v0.2.1]: https://github.com/ivoyager/ivoyager_core/compare/v0.2...v0.2.1
 [v0.2]: https://github.com/ivoyager/ivoyager_core/compare/v0.1.2...v0.2
 [v0.1.2]: https://github.com/ivoyager/ivoyager_core/compare/v0.1.1...v0.1.2
