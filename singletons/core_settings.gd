@@ -86,14 +86,13 @@ var gui_size_settings: Dictionary[StringName, int] = {
 	GUI_SMALL = 0,
 	GUI_MEDIUM = 1,
 	GUI_LARGE = 2,
-	GUI_EXTRA_LARGE = 3,
 }
 ## Size multipliers for each of [member gui_size_settings]. The default setting,
 ## GUI_MEDIUM, is not 1.0: the base sizes these multiply (in [IVThemeManager], and
 ## in every [IVControlModResizable] and [IVControlModSpacing]) are the GUI_LARGE
 ## setting. Before adjusting, consider the rounding: font sizes, margins and
 ## spacing are rounded to whole pixels after multiplication.
-var gui_size_multipliers: Array[float] = [0.625, 0.75, 1.0, 1.25]
+var gui_size_multipliers: Array[float] = [0.625, 0.75, 1.0]
 ## Scales the 2D GUI and the HUD by the screen's own scale (Windows display scaling, or
 ## the browser's devicePixelRatio), so they keep their size on a hi-DPI screen: see
 ## [IVGraphicsManager]. False leaves 1 GUI pixel to 1 screen pixel. Assumes the project's
@@ -207,16 +206,16 @@ var apply_body_psf := true
 ## don't serve them), but [IVSunOcclusionManager] keeps running for its
 ## ambient_light feed, which receiving shaders rebuild their ambient from.
 var apply_analytic_shadows := true
-## Uses the shadowed multi-light setup (Godot directional shadow maps for the
+## Keeps the [IVDynamicLight] shadow maps (Godot directional shadow maps for the
 ## local true-position scene, e.g. spacecraft self-shadowing) under the
-## Compatibility renderer too, instead of the single unshadowed light it
-## otherwise falls back to. Historically disabled for Compatibility-renderer
-## defects - light_cull_mask / shadow_caster_mask not respected, wrong energy
-## with multiple lights, and color handling shifting once any light casts
-## shadows (godotengine/godot#90259). Set false to restore the single-light
-## fallback if those resurface (notably on some web export targets), or for the
-## compile time: false takes a lit shader from four GL programs to one, a large
-## part of a Compatibility cold start (see [i]The light configuration[/i] in
+## Compatibility renderer too. False drops them there, and the lights go on
+## lighting their size domains unshadowed. Historically disabled for
+## Compatibility-renderer defects - light_cull_mask / shadow_caster_mask not
+## respected, lit surfaces overbright with shadowed lights, and color handling
+## shifting once any light casts shadows (godotengine/godot#90259). Set false if
+## those resurface (notably on some web export targets), or for the compile
+## time: false takes a lit shader from four GL programs to one, a large part of
+## a Compatibility cold start (see [i]The light configuration[/i] in
 ## [code]GRAPHICS_PROFILING.md[/code]).
 ## The analytic astronomical shadows ([member apply_analytic_shadows]) are
 ## independent of this and work either way.
@@ -268,9 +267,9 @@ var apply_size_layers := true
 ## won't be modified and [IVDynamicLight] won't be used ([OmniLight3D] will be
 ## used instead).[br][br]
 ## 
-## Note: under the Compatibility renderer (e.g. HTML5 export) the shadowed
-## multi-light setup is used only if [member apply_gl_compatibility_shadows] is
-## true; otherwise a single unshadowed [IVDynamicLight] lights the scene.
+## Note: under the Compatibility renderer (e.g. HTML5 export) the smaller-scale
+## lights keep their shadow maps only if [member apply_gl_compatibility_shadows]
+## is true.
 var size_layers: Array[float] = [
 	# larger mean_radius gets mask 0b0001
 	100.0 * IVUnits.KM, # smaller mean_radius gets mask 0b0010

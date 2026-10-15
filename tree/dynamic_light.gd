@@ -39,14 +39,16 @@ extends DirectionalLight3D
 ## [member IVExposureManager.physical_active] (which is how lit surfaces
 ## carry the compensating camera without any shader term).[br][br]
 ##
-## Under the Compatibility renderer this falls back to a single unshadowed light
-## unless [member IVCoreSettings.apply_gl_compatibility_shadows] re-enables the
-## shadowed multi-light path. That renderer has historically had defects that
-## broke the multi-light setup:[br]
+## Under the Compatibility renderer the lights carry no shadow maps unless
+## [member IVCoreSettings.apply_gl_compatibility_shadows] keeps them; each still
+## lights its own size domain. That renderer has historically had defects with
+## this multi-light setup:[br]
 ##  1. light_cull_mask and/or shadow_caster_mask not respected.[br]
-##  2. Wrong lighting energy with multiple lights (godotengine/godot#90259).[br]
+##  2. Lit surfaces overbright, more so with each shadowed light
+##     (godotengine/godot#90259).[br]
 ##  3. Color handling shifts once any light casts shadows (same issue).[br]
-## Re-test these on a given target before relying on Compatibility shadows.[br][br]
+## Re-test these on a given target before relying on Compatibility shadows. The
+## unshadowed stack depends only on light_cull_mask, which holds in Godot 4.7.2.[br][br]
 ##
 ## With [member IVCoreSettings.apply_empty_shadow_pass_skip], a shadowed light switches its
 ## map off while nothing within its reach would draw into it or read it - both halves, since
@@ -152,21 +154,21 @@ func _init(body_name: StringName, top_light := true, row := -1,
 		shared: Array[float] = [0.0, 0.0, 0.0]) -> void:
 	_body_name = body_name
 	_top_light = top_light
-	# The Compatibility renderer falls back to a single unshadowed light (the
-	# gl_compatibility table row) unless apply_gl_compatibility_shadows re-enables
-	# the shadowed multi-light path used by Forward+.
-	var single_compat_light := (IVGlobal.is_gl_compatibility
-			and not IVCoreSettings.apply_gl_compatibility_shadows)
 	if top_light:
-		row = _get_top_light(single_compat_light)
+		row = _get_top_light()
 	_row = row
 	_shared = shared
 	IVTableData.db_build_object(self, &"dynamic_lights", row)
+	var shadow_maps_allowed := (not IVGlobal.is_gl_compatibility
+			or IVCoreSettings.apply_gl_compatibility_shadows)
 	# The table's intent, captured before _process starts writing shadow_enabled per frame.
 	# Nothing else can recover it: db_build_object skips a false BOOL, so only the shadowed
 	# rows ever set the property at all.
-	_shadow_capable = shadow_enabled
-	_process_shadow_distances = not single_compat_light
+	_shadow_capable = shadow_enabled and shadow_maps_allowed
+	# Not left to the first _process: a single frame drawn with a shadowed light compiles that
+	# light count's programs for every lit shader.
+	shadow_enabled = _shadow_capable
+	_process_shadow_distances = shadow_maps_allowed
 	_skip_empty_shadow_passes = _shadow_capable and IVCoreSettings.apply_empty_shadow_pass_skip
 	# The skip reads the caster grant to decide whether anything is in reach, so a reach
 	# past where IVBody.update_farwarp() stops granting would retire a live map.
@@ -184,10 +186,7 @@ func _ready() -> void:
 	# Only top light connects to camera or has children!
 	IVGlobal.camera_tree_changed.connect(_on_camera_tree_changed)
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural)
-	# The near/middle children carry the shadow maps; the single-light
-	# Compatibility fallback (no shadow distances processed) adds none.
-	if _process_shadow_distances:
-		_add_child_lights()
+	_add_child_lights()
 
 
 func _process(_delta: float) -> void:
@@ -344,10 +343,8 @@ func _on_camera_tree_changed(camera: Camera3D, _parent: Node3D, star_orbiter: No
 	_camera_star_orbiter = star_orbiter # really star orbiter
 
 
-func _get_top_light(gl_compatibility: bool) -> int:
+func _get_top_light() -> int:
 	for row in IVTableData.get_n_rows(&"dynamic_lights"):
-		if gl_compatibility != IVTableData.get_db_bool(&"dynamic_lights", &"gl_compatibility", row):
-			continue
 		var bodies: Array[StringName] = IVTableData.get_db_array(&"dynamic_lights", &"bodies", row)
 		if bodies.has(_body_name):
 			return row
@@ -358,8 +355,6 @@ func _get_top_light(gl_compatibility: bool) -> int:
 func _add_child_lights() -> void:
 	for row in IVTableData.get_n_rows(&"dynamic_lights"):
 		if row == _row:
-			continue
-		if IVTableData.get_db_bool(&"dynamic_lights", &"gl_compatibility", row):
 			continue
 		var bodies: Array[StringName] = IVTableData.get_db_array(&"dynamic_lights", &"bodies", row)
 		if bodies.has(_body_name):

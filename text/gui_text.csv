@@ -112,7 +112,6 @@ ASPECT_4_3,4:3 (crop)
 ASPECT_5_4,5:4 (crop)
 ASPECT_9_16,9:16 (crop)
 ASPECT_PRESERVE,Preserve
-GUI_EXTRA_LARGE,Extra Large
 GUI_LARGE,Large
 GUI_MEDIUM,Medium
 GUI_SMALL,Small

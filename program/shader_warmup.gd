@@ -28,9 +28,8 @@ extends Node
 ## and shadow-pass specialization. A stall of seconds in flight is a defect; the
 ## same stall under a loading screen is a progress message. This node draws each
 ## shader on a small quad in front of the camera, one shader per frame, at a
-## planet-scale layer and at a craft-scale, shadow-casting layer. A program the
-## opening view has already drawn costs nothing here, and a repeat run answers
-## from the driver's cache in a frame per shader.[br][br]
+## planet-scale layer and at a craft-scale, shadow-casting layer. A repeat run
+## answers from the driver's cache in a frame per shader.[br][br]
 ##
 ## What it draws comes from two places. Core's own shaders are selected from the tables
 ## and the loaded assets ([member warm_core_shaders]): a body's shell shaders from the
@@ -41,10 +40,11 @@ extends Node
 ## a needless compile is seconds of loading screen — name it in
 ## [member extra_shader_names], which is also where a project's own shaders go.
 ## [code]stars_shader[/code] is the one Core shader in that position: [IVStarsVisual] is a
-## scene node, so nothing in the tables says whether the project kept it. Under the default
-## trigger the star field is in the opening view and has compiled before this node runs
-## anyway. After the shaders it draws the materials of each body's packed model, such as a
-## spacecraft's, one model per frame ([member warm_packed_models]).[br][br]
+## scene node, so nothing in the tables says whether the project kept it. A shader left out
+## compiles at its first draw, which under the default trigger is the opening view's, after
+## the warm-up ([member hold_opening_view]). After the shaders it draws the materials of
+## each body's packed model, such as a spacecraft's, one model per frame
+## ([member warm_packed_models]).[br][br]
 ##
 ## Opt in by adding this class to [member IVCoreInitializer.program_nodes], and
 ## set [member trigger] for the project's boot sequence (from
@@ -77,7 +77,8 @@ enum Trigger {
 	## the base, additive and shadow specializations bodies use.
 	## [member IVStateManager.show_splash_screen] stays true until [signal finished],
 	## so the screen that covered the system build, whether a boot screen or a
-	## splash screen after its start button, stays up for the warm-up too.
+	## splash screen after its start button, stays up for the warm-up too. The
+	## camera draws nothing of the scene until then ([member hold_opening_view]).
 	SIMULATOR_STARTED,
 	## On [signal IVStateManager.assets_preloaded], which is where a splash-screen
 	## project ([member IVCoreSettings.wait_for_start] == true) waits for the user
@@ -120,11 +121,25 @@ var warm_packed_models := true
 ## [constant IVGlobal.LOCAL_SHADOW_CASTER]. Each distinct layer value is one
 ## more draw of every shader.
 var warm_radii: Array[float] = [1e4 * IVUnits.KM, 0.01 * IVUnits.KM]
+## Under [constant Trigger.SIMULATOR_STARTED], whether the camera is kept from drawing the
+## scene from [signal IVStateManager.system_tree_built] until the warm-up has drawn, so that
+## what the opening view would compile in one frame no screen can count is compiled here a
+## step at a time. See [i]The warm-up[/i] in [code]GRAPHICS_PROFILING.md[/code]. Set before
+## this node enters the tree.
+var hold_opening_view := true
+## The render layer bit [member hold_opening_view] reserves. Geometry carrying it still draws
+## during the hold, which changes the camera's [member Camera3D.cull_mask] and adds this bit
+## to every [Light3D]'s [member VisualInstance3D.layers] until it ends.
+var hold_layer := 1 << 19
 
 var _running := false
 var _quads: Array[MeshInstance3D] = []
 var _temporary_rig: Node3D
 var _shadow_geometry_camera: Camera3D
+var _holding := false
+var _hold_camera: Camera3D
+var _hold_cull_mask := 0
+var _held_lights: Array[Light3D] = [] # the lights given hold_layer
 
 
 func _ready() -> void:
@@ -134,6 +149,8 @@ func _ready() -> void:
 		Trigger.SIMULATOR_STARTED:
 			IVStateManager.hold_splash_screen(self)
 			IVStateManager.simulator_started.connect(warm_up)
+			if hold_opening_view:
+				IVStateManager.system_tree_built.connect(_hold_view)
 		Trigger.ASSETS_PRELOADED:
 			IVStateManager.hold_start(self)
 			IVStateManager.assets_preloaded.connect(warm_up)
@@ -195,6 +212,14 @@ func _run() -> void:
 	_free_added_nodes()
 	if !_running:
 		return
+	if _holding:
+		# Anything the steps missed compiles at the opening view's own first draw, which
+		# the screen must still be covering.
+		_release_view()
+		for _frame in SETTLE_FRAMES:
+			await get_tree().process_frame
+		if !_running:
+			return
 	print("Shader warm-up: %d shaders and %d models in %.1f s" % [shader_count,
 			step_names.size() - shader_count, (Time.get_ticks_msec() - start_msec) / 1000.0])
 	_running = false
@@ -206,18 +231,66 @@ func _finish() -> void:
 	# hold the splash screen over shaders this session has already compiled.
 	if IVStateManager.simulator_started.is_connected(warm_up):
 		IVStateManager.simulator_started.disconnect(warm_up)
+	if IVStateManager.system_tree_built.is_connected(_hold_view):
+		IVStateManager.system_tree_built.disconnect(_hold_view)
+	_release_view()
 	IVStateManager.release_start(self)
 	IVStateManager.release_splash_screen(self)
 	finished.emit()
 
 
 func _clear_procedural() -> void:
+	# A hold stays through the rebuild, for the retry: the outgoing camera still draws
+	# before it is freed, and a project's own camera may outlive the rebuild.
 	_free_added_nodes()
 	_running = false
 	# assets_preloaded never comes again to retry a cancelled warm-up, so it must
 	# not go on holding the start. A splash-screen hold stays for the retry at the
 	# next simulator_started.
 	IVStateManager.release_start(self)
+
+
+func _hold_view(_is_new_game: bool) -> void:
+	# Bound to the frame that adds the camera, since its first draw is the one that stalls.
+	if gl_compatibility_only and !IVGlobal.is_gl_compatibility:
+		return
+	var camera := get_viewport().get_camera_3d()
+	if !camera or (is_instance_valid(_hold_camera) and camera == _hold_camera):
+		return
+	if !_holding:
+		_holding = true
+		# The camera's cull mask culls lights by their own layers too, and the quads must be
+		# lit as bodies are. Lights the finishers add later arrive through node_added.
+		for node in get_tree().root.find_children("*", "Light3D", true, false):
+			_add_hold_layer(node)
+		get_tree().node_added.connect(_add_hold_layer)
+	elif is_instance_valid(_hold_camera): # held through a cancelled warm-up's rebuild
+		_hold_camera.cull_mask = _hold_cull_mask
+	_hold_camera = camera
+	_hold_cull_mask = camera.cull_mask
+	camera.cull_mask = hold_layer
+
+
+func _release_view() -> void:
+	if !_holding:
+		return
+	_holding = false
+	get_tree().node_added.disconnect(_add_hold_layer)
+	if is_instance_valid(_hold_camera):
+		_hold_camera.cull_mask = _hold_cull_mask
+	_hold_camera = null
+	for light in _held_lights:
+		if is_instance_valid(light):
+			light.layers &= ~hold_layer
+	_held_lights.clear()
+
+
+func _add_hold_layer(node: Node) -> void:
+	var light := node as Light3D
+	if !light or light.layers & hold_layer:
+		return
+	light.layers |= hold_layer
+	_held_lights.append(light)
 
 
 func _add_shader_steps(step_names: Array[StringName], step_materials: Array[Array]) -> void:
@@ -412,7 +485,7 @@ func _add_quad(camera: Camera3D, material: Material, layers: int) -> void:
 	var quad := MeshInstance3D.new()
 	quad.mesh = mesh
 	quad.material_override = material
-	quad.layers = layers
+	quad.layers = layers | hold_layer if _holding else layers
 	quad.position = Vector3(0.0, 0.0, -distance)
 	camera.add_child(quad)
 	_quads.append(quad)

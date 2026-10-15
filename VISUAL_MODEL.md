@@ -630,16 +630,28 @@ allocated atlas only on a size change (*`directional_shadow_count` stops being a
 domains, and the analytic shadows are untouched. A change moves the shadowed-light count exactly
 as a flip does, but only when the user makes one.
 
-Under the Compatibility renderer the stack degrades to a single unshadowed light unless
-`IVCoreSettings.apply_gl_compatibility_shadows` (default true) re-enables the multi-light
-path; the historical defects that once forced the fallback — cull masks not respected,
-wrong energy with multiple lights, color shifts once any light casts (godotengine/godot
-#90259) — should be re-tested on a given target before relying on it. The analytic
-astronomical shadows are independent of all of this and work either way.
+Under the Compatibility renderer the stack drops its shadow maps unless
+`IVCoreSettings.apply_gl_compatibility_shadows` (default true) keeps them; the historical
+defects that once forced that — cull masks not respected, lit surfaces overbright with
+shadowed lights, color shifts once any light casts (godotengine/godot #90259) — should be
+re-tested on a given target before relying on it. The analytic astronomical shadows are
+independent of all of this and work either way.
 
-The fallback is also much the cheaper configuration to compile, taking a lit shader from four
-GL programs to one — a large part of a Compatibility cold start, and the only configuration
-the shader warm-up covers completely at its default radii
+**Without maps the stack still keeps one light per size domain**, because the camera-point
+dimming must never reach the far domain. An earlier fallback lit every domain with one
+light that carried it, so wherever the camera was eclipsed everything went dark with it:
+from inside Saturn's shadow, or behind its B ring, the sunlit rings faded by the camera's
+own transmission, and an atmosphere's limb went out the moment the sun set *at the camera*
+— the rings and limb take their sunlight from the top light's energy
+(`IVDynamicLight.star_light_energies`), so they followed it too. Nothing is paid for the
+extra lights: an unshadowed directional light rides the base pass with its cull mask tested
+per light, and the light count is no specialization input. The masks hold on Godot 4.7.2
+(2026-10-13: sunlit frames match the one-light build's to 1 display code on native GL, and
+ANGLE's match native GL's level), as the camera-point dimming requires.
+
+Dropping the maps is also much the cheaper configuration to compile, taking a lit shader from
+four GL programs to one — a large part of a Compatibility cold start, and the only
+configuration the shader warm-up covers completely at its default radii
 ([GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md), *The light configuration*). The
 [Planetarium](https://github.com/ivoyager/planetarium) ships with it off, trading spacecraft
 self-shadowing for that.
@@ -1198,7 +1210,7 @@ this is the spatial one.
 |---|---|---|
 | Origin shift, farwarp, depth range | identical | identical |
 | Analytic occlusion | `AO` + `AO_LIGHT_AFFECT` on the engine's PBR path | `compat_albedo_shadow`: albedo multiply, √ into SPECULAR |
-| Local shadow maps | multi-light stack | same, iff `apply_gl_compatibility_shadows` (default true; re-test the historical defects on a new target) — else one unshadowed light |
+| Local shadow maps | multi-light stack | same, iff `apply_gl_compatibility_shadows` (default true; re-test the historical defects on a new target) — else the same stack unshadowed |
 | Empty-pass skip | renderer-neutral: it keys on whether a light has a map, not on the renderer | same — but here the flip recompiles, which is why it is opt-in (*Local shadow maps*) |
 | Body mouse targeting | CPU, identical | identical |
 | Line/point picking | compute probe at `PRE_TRANSPARENT` | **absent** (no RenderingDevice); producers fall back to plain materials |
@@ -1214,7 +1226,7 @@ this is the spatial one.
 | | `farwarp_start_ratio` | T as a multiple of camera-to-parent distance (1e4). Must stay well under `FAR_MULTIPLIER`; 1e4 leaves 100× headroom while the compressed universe spans < ~29× T. |
 | | `apply_body_psf` | Enables the per-body PSF quad ([IVBodyPSF]). Off, those bodies take the fixed distance cull like any other and their discs do not fade. |
 | | `apply_analytic_shadows` | Enables the analytic shadow terms and the camera-fraction light dimming. Off, astronomical shadows are absent entirely (maps don't serve them); the ambient feed continues regardless. |
-| | `apply_gl_compatibility_shadows` | Shadowed multi-light stack on the Compatibility renderer (vs. one unshadowed light). Off, a lit shader compiles one GL program instead of four; see *The light configuration* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md). |
+| | `apply_gl_compatibility_shadows` | Shadow maps for the light stack on the Compatibility renderer (vs. the same stack unshadowed). Off, a lit shader compiles one GL program instead of four; see *The light configuration* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md). |
 | | `apply_size_layers` / `size_layers` | Layer bits by body radius — the lighting size domains ([100 km, 0.1 km] → three domains). |
 | | `local_shadow_caster_ceiling` | Dynamic `LOCAL_SHADOW_CASTER` grant range (1e5 km; must cover the largest shadowed `shadow_max_ceiling` in `dynamic_lights.tsv`). |
 | | `apply_empty_shadow_pass_skip` | Opt-in: a shadowed light clears `shadow_enabled` while nothing in reach would draw into its map or read it (*Local shadow maps*). |
