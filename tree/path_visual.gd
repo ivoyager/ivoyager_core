@@ -623,7 +623,8 @@ func _find_body_ancestor(node: Node) -> IVBody:
 # Visibility and color
 
 func _on_global_huds_changed() -> void:
-	_is_orbit_group_visible = _body_huds_state.is_orbit_visible(_body.flags)
+	_is_orbit_group_visible = (!_body_huds_state.huds_hidden
+			and _body_huds_state.is_orbit_visible(_body.flags))
 	_set_visibility_state()
 
 

@@ -20,23 +20,25 @@
 class_name IVHUDsPopup
 extends PopupPanel
 
-## A Popup widget that contains an [IVHUDsBox]. Opened by [IVHUDsPopupButton].
+## A Popup widget with an [IVHUDsBox] and an [IVHideHUDsButton].
+##
+## Opened by [IVHUDsPopupButton].
 
 
-@export var focus_path := ^"HUDsBox/ViewCollection/ViewSaveButton"
+@export var focus_path := ^"VBox/HUDsBox/ViewCollection/ViewSaveButton"
 
 
-@onready var _huds_box: Control = $HUDsBox
+@onready var _content: Control = $VBox
 @onready var _focus_control: Control = get_node_or_null(focus_path)
 
 
 func _ready() -> void:
-	_huds_box.minimum_size_changed.connect(_reset_size)
-	_huds_box.visibility_changed.connect(_on_visibility_changed)
+	_content.minimum_size_changed.connect(_reset_size)
+	_content.visibility_changed.connect(_on_visibility_changed)
 
 
 func _on_visibility_changed() -> void:
-	if _focus_control and _huds_box.is_visible_in_tree():
+	if _focus_control and _content.is_visible_in_tree():
 		_focus_control.grab_focus.call_deferred()
 
 

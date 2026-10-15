@@ -34,6 +34,7 @@ HINT_FXAA,"Fast approximate antialiasing: a screen filter that smooths\njagged e
 HINT_GLOW,"Halo of light around whatever is too bright for the camera's\nexposure: a sunlit spacecraft, a small moon, the bright edge\nof a crescent. Stars and the Sun draw their own halos and\nare not affected, and most views look the same without it.\n\nGPU cost: HIGH in views without air, up to half a frame."
 HINT_GUI_SIZE,Size of text and controls in GUI panels;\nalso scales names and symbols in the 3D view
 HINT_HIDE_GUI,Hide all GUI
+HINT_HIDE_HUDS,Hide all HUDs
 HINT_HIDE_HUD_WHEN_CLOSE,"Hide a body's name, symbol and orbit when the camera is close to it"
 HINT_INCREASE_FOCAL_LENGTH,Increase camera focal length
 HINT_L4_TROJANS,Show Jupiter L4 (Greek Camp) Trojans

@@ -25,7 +25,10 @@ extends Node
 ## HUD Nodes must connect and set state on changed signals. A group's single
 ## [member colors] entry is shared by its symbol points and its orbits. The
 ## symbol shape is a per-group symbol-atlas index in
-## [member symbol_types], or -1 for a plain point (the default).
+## [member symbol_types], or -1 for a plain point (the default).[br][br]
+##
+## [member IVBodyHUDsState.huds_hidden] hides these HUDs too, and any
+## visibility setter call here releases it.
 
 ## Emitted whenever any entry of [member symbols_visibilities] changes.
 signal symbols_visibility_changed()
@@ -85,6 +88,8 @@ var default_colors: Dictionary[StringName, Color] = {}
 ## [code]small_bodies_groups.tsv[/code] (read-only).
 var default_symbol_types: Dictionary[StringName, int] = {}
 
+var _body_huds_state: IVBodyHUDsState
+
 
 
 func _init() -> void:
@@ -95,6 +100,7 @@ func _init() -> void:
 
 
 func _on_program_objects_instantiated() -> void:
+	_body_huds_state = IVGlobal.program[&"BodyHUDsState"]
 	for row in IVTableData.get_n_rows(&"small_bodies_groups"):
 		if IVTableData.get_db_bool(&"small_bodies_groups", &"skip", row):
 			continue
@@ -109,6 +115,7 @@ func _on_program_objects_instantiated() -> void:
 # visibility
 
 func hide_all() -> void:
+	_body_huds_state.set_huds_hidden(false)
 	for key: StringName in symbols_visibilities:
 		symbols_visibilities[key] = false
 	for key: StringName in orbits_visibilities:
@@ -118,6 +125,7 @@ func hide_all() -> void:
 
 
 func set_default_visibilities() -> void:
+	_body_huds_state.set_huds_hidden(false)
 	if symbols_visibilities != default_symbols_visibilities:
 		symbols_visibilities.clear()
 		symbols_visibilities.merge(default_symbols_visibilities)
@@ -133,6 +141,7 @@ func is_symbols_visible(group: StringName) -> bool:
 
 
 func change_symbols_visibility(group: StringName, is_show: bool) -> void:
+	_body_huds_state.set_huds_hidden(false)
 	symbols_visibilities[group] = is_show
 	symbols_visibility_changed.emit()
 
@@ -142,6 +151,7 @@ func is_orbits_visible(group: StringName) -> bool:
 
 
 func change_orbits_visibility(group: StringName, is_show: bool) -> void:
+	_body_huds_state.set_huds_hidden(false)
 	orbits_visibilities[group] = is_show
 	orbits_visibility_changed.emit()
 
@@ -188,6 +198,7 @@ func is_visible_orbits_groups(groups: Array[StringName], all := true) -> bool:
 
 func set_visible_symbols_groups(groups: Array[StringName], is_show := true, hide_others := false
 		) -> void:
+	_body_huds_state.set_huds_hidden(false)
 	if hide_others:
 		symbols_visibilities.clear()
 	for key in groups:
@@ -197,6 +208,7 @@ func set_visible_symbols_groups(groups: Array[StringName], is_show := true, hide
 
 func set_visible_orbits_groups(groups: Array[StringName], is_show := true, hide_others := false
 		) -> void:
+	_body_huds_state.set_huds_hidden(false)
 	if hide_others:
 		orbits_visibilities.clear()
 	for key in groups:

@@ -160,10 +160,10 @@ static var defaults: Dictionary[StringName, Variant] = {
 		{&"event_class" : &"InputEventKey", &"keycode" : KEY_N, &"shift_pressed" : true}
 	],
 	&"next_asteroid" : [
-		{&"event_class" : &"InputEventKey", &"keycode" : KEY_H}
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_A}
 	],
 	&"previous_asteroid" : [
-		{&"event_class" : &"InputEventKey", &"keycode" : KEY_H, &"shift_pressed" : true}
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_A, &"shift_pressed" : true}
 	],
 	&"next_asteroid_group" : [
 		{&"event_class" : &"InputEventKey", &"keycode" : KEY_G}
@@ -194,6 +194,9 @@ static var defaults: Dictionary[StringName, Variant] = {
 	],
 	&"toggle_all_gui" : [
 		{&"event_class" : &"InputEventKey", &"keycode" : KEY_G, &"ctrl_pressed" : true}
+	],
+	&"toggle_all_huds" : [
+		{&"event_class" : &"InputEventKey", &"keycode" : KEY_H}
 	],
 	&"toggle_fullscreen" : [
 		{&"event_class" : &"InputEventKey", &"keycode" : KEY_F, &"ctrl_pressed" : true}
@@ -267,6 +270,7 @@ static var action_texts: Dictionary[StringName, StringName] = {
 	&"take_screenshot" : &"LABEL_TAKE_SCREENSHOT",
 
 	&"toggle_all_gui" : &"LABEL_SHOW_HIDE_ALL_GUI",
+	&"toggle_all_huds" : &"LABEL_SHOW_HIDE_ALL_HUDS",
 	&"toggle_orbits" : &"LABEL_SHOW_HIDE_ORBITS",
 	&"toggle_names" : &"LABEL_SHOW_HIDE_NAMES",
 	&"toggle_symbols" : &"LABEL_SHOW_HIDE_SYMBOLS",

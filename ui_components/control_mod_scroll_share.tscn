@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" uid="uid://ydvt26anfqtb" path="res://addons/ivoyager_core/ui_components/control_mod_scroll_share.gd" id="1_share"]
+
+[node name="ControlModScrollShare" type="Node"]
+script = ExtResource("1_share")
