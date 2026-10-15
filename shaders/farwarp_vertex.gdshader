@@ -23,13 +23,15 @@ render_mode unshaded, cull_disabled, skip_vertex_transform;
 // Farwarp-only base pass for simple unshaded, vertex-colored line geometry
 // (IVSBGOrbitsVisual). The per-vertex farwarp remap replaces a StandardMaterial3D
 // (which can't remap, so distant line vertices would be culled by the camera far
-// plane). COLOR is white unless the mesh/multimesh supplies vertex or instance
-// colors, so 'color' alone tints the simple case. Lit shaders that also need
-// farwarp (e.g. spheroid meshes) don't reuse this file — they #include
-// "_farwarp.gdshaderinc" in their own vertex(). The IVPathVisual line
-// (path.gdshader) is this shader plus the render-frame path pin.
+// plane). 'color' tints the line; set 'use_colors' false for a MultiMesh that
+// has custom data but no colors, where the Compatibility renderer supplies a
+// black COLOR (Godot 4.7). Lit shaders that also need farwarp (e.g. spheroid
+// meshes) don't reuse this file — they #include "_farwarp.gdshaderinc" in their
+// own vertex(). The IVPathVisual line (path.gdshader) is this shader plus the
+// render-frame path pin.
 
 uniform vec4 color : source_color = vec4(1.0);
+uniform bool use_colors = true; // multiply by vertex and instance colors
 
 #include "_farwarp.gdshaderinc"
 
@@ -40,5 +42,5 @@ void vertex() {
 
 
 void fragment() {
-	ALBEDO = color.rgb * COLOR.rgb;
+	ALBEDO = use_colors ? color.rgb * COLOR.rgb : color.rgb;
 }
