@@ -22,6 +22,7 @@ Project Note: This is a mainly quick patch on v0.2.1 to bring asteroid orbit lin
 ### Changed
 * [Project breaking] IVHUDsBox loses its Hide All view button, and IVHUDsPopup gains an IVHideHUDsButton below a new `VBox` parent of its HUDsBox.
 * Next and Previous Asteroid hotkeys move from H and Shift+H to A and Shift+A.
+* [API breaking] Removed actions `toggle_orbits` (O), `toggle_names` (L) and `toggle_symbols` (I) and their hotkeys.
 
 ### Fixed
 * Asteroid orbit lines drew black on the Compatibility renderer. `farwarp_vertex.gdshader` has a new `use_colors` uniform, which IVSBGOrbitsVisual sets false when its MultiMesh has no colors.

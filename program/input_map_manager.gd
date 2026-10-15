@@ -183,15 +183,6 @@ static var defaults: Dictionary[StringName, Variant] = {
 	&"previous_spacecraft" : [
 		{&"event_class" : &"InputEventKey", &"keycode" : KEY_K, &"shift_pressed" : true}
 	],
-	&"toggle_orbits" : [
-		{&"event_class" : &"InputEventKey", &"keycode" : KEY_O}
-	],
-	&"toggle_symbols" : [
-		{&"event_class" : &"InputEventKey", &"keycode" : KEY_I}
-	],
-	&"toggle_names" : [
-		{&"event_class" : &"InputEventKey", &"keycode" : KEY_L}
-	],
 	&"toggle_all_gui" : [
 		{&"event_class" : &"InputEventKey", &"keycode" : KEY_G, &"ctrl_pressed" : true}
 	],
@@ -271,9 +262,6 @@ static var action_texts: Dictionary[StringName, StringName] = {
 
 	&"toggle_all_gui" : &"LABEL_SHOW_HIDE_ALL_GUI",
 	&"toggle_all_huds" : &"LABEL_SHOW_HIDE_ALL_HUDS",
-	&"toggle_orbits" : &"LABEL_SHOW_HIDE_ORBITS",
-	&"toggle_names" : &"LABEL_SHOW_HIDE_NAMES",
-	&"toggle_symbols" : &"LABEL_SHOW_HIDE_SYMBOLS",
 
 	&"incr_speed" : &"LABEL_SPEED_UP",
 	&"decr_speed" : &"LABEL_SLOW_DOWN",

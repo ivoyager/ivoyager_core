@@ -114,9 +114,6 @@ extends PopupPanel
 	LABEL_GUI = [
 		&"toggle_all_gui",
 		&"toggle_all_huds",
-		&"toggle_orbits",
-		&"toggle_names",
-		&"toggle_symbols",
 	],
 	LABEL_TIME = [
 		&"incr_speed",
