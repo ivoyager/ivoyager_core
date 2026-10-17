@@ -683,7 +683,9 @@ gate measures the on-screen radius at the greater of the live and the capture re
 the handshake the sphere ladder takes, so no viewport drawing the node could have drawn a
 fragment of it. A local shadow caster is exempt: its shadow pass resolves the handoff against
 the shadow map rather than a viewport. `IVSunOcclusionManager` stops feeding a body whose shells
-are all hidden, and because it runs after the gate a shell shown is fed before it draws.
+are all hidden, and because it runs after the gate a shell shown is fed before it draws. A shell past
+its distance cull is not hidden, so an awake body there is still fed, which is most of what proximity
+sleep saves (*Proximity sleep* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md), and its TODO).
 **Rings stop drawing at their own handoff**
 (`IVRings.cull_handed_off`), once the body's point has all of their light: `IVRings` decides
 that fraction at the same greatest render height and hands it to the shader, which discards

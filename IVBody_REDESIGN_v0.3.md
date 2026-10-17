@@ -1223,12 +1223,12 @@ mid-flight: a pass through Jupiter's system initializes dozens of models. When
 comes first and proximity, at the shell reach plus a margin, is the backstop that the
 monitor's distance cache serves.
 
-**Measure before tuning the margins.** Nobody has timed what sleep saves. Time all-awake
-against v0.2 on the desktop and on the Intel/ANGLE path standing in for the web — bodies'
-`_process`, the farwarp, occlusion and exposure loops, and the draw cost of the HUDs §9.2's
-cutoff admits — and record it with the other automatic savings in
-[GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md). If all-awake is cheap, the margins can be
-generous.
+**The margins wait on the occlusion feed.** Measured on 2026-10-17 (*Proximity sleep* in
+[GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)): every moon awake costs 1.7-3.6 ms of CPU a
+frame and nothing on the GPU, and most of that is `IVSunOcclusionManager` feeding moons whose
+shells the renderer has culled by distance. Fed only where fact 1 holds, all-awake would cost
+0.3-1.3 ms, and the margins could then be generous. The HUDs §9.2 admits cost more than the
+monitor does: about 8 % of an Intel frame through ANGLE at Earth, Jupiter and Saturn.
 
 ### 9.5 Orbit-line fragments and display facade
 
