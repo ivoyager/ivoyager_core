@@ -23,9 +23,19 @@ extends Control
 ## Interface between the user mouse and the 3D world.
 ##
 ## Receives mouse events in the 3D world area, sets cursor shape and interprets
-## mouse drags, clicks and wheel turn. Potential mouse target Node3Ds must
-## call [method update_world_target] each frame to be available for mouse-over
-## identification and selection.
+## mouse drags, clicks and wheel turn. A potential mouse target is reported each
+## frame it can be hovered, through [method update_world_target] for the disc or
+## point it draws and [method update_world_target_rect] for a HUD element that marks
+## it; one not reported in a frame is not a target in that frame.[br][br]
+##
+## Of the targets under the cursor, the disc whose surface is nearest the camera is
+## what the cursor is on, so a body in front of another can be hovered. A HUD element
+## wins over that disc where it is drawn, which is wherever no other body's disc lies in
+## front of its body (HUDs are depth-tested; a point of light hides nothing); among such
+## HUD elements, which overlap as flat overlays, the one whose body is nearest the cursor
+## on screen wins. A body's own disc does not hide its own HUD, so the body keeps the
+## pixels at its centre. The frame's target is settled at process priority +200, after
+## every reporter has run.
 
 ## Emitted when the Node3D under the mouse changes; [param target] is null
 ## when nothing is under the cursor.
@@ -46,9 +56,9 @@ signal mouse_wheel_turned(is_up: bool, factor: float)
 
 
 # project settings
-## Minimum mouse-click radius in logical pixels. Effective radius for a target
-## may be larger based on its on-screen size.
-var min_click_radius := 20.0
+## Minimum hover radius of a disc target, in logical pixels. At 0.0 a target is
+## exactly as easy to hit as it is large on screen.
+var min_click_radius := 0.0
 
 # read-only!
 ## The active 3D camera. Read-only.
@@ -68,7 +78,13 @@ var is_mouse_in_world := false
 # private
 const _DRAG_BUTTONS := MOUSE_BUTTON_MASK_LEFT | MOUSE_BUTTON_MASK_RIGHT # left or right button drags
 var _drag_start := Vector2.ZERO
-var _current_target_dist := INF
+# this frame's candidates under the cursor, settled in _process()
+var _disc_hits: Array[Node3D] = []
+var _disc_hit_depths := PackedFloat64Array() # camera distance of what the cursor is on
+var _disc_hit_cover_depths := PackedFloat64Array() # ditto, but INF unless on the disc itself
+var _hud_hits: Array[Node3D] = []
+var _hud_hit_dists := PackedFloat64Array() # camera distance of each hit's body
+var _hud_hit_screen_dists := PackedFloat64Array() # screen distance, cursor to body
 
 
 
@@ -78,6 +94,7 @@ func _init() -> void:
 
 
 func _ready() -> void:
+	process_priority = 200 # after every target has reported; see class doc
 	mouse_filter = MOUSE_FILTER_STOP
 	set_anchors_and_offsets_preset(PRESET_FULL_RECT)
 	mouse_entered.connect(_on_mouse_entered)
@@ -86,6 +103,23 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
+	var target: Node3D
+	var target_depth := INF
+	for i in _disc_hits.size():
+		if _disc_hit_depths[i] < target_depth:
+			target = _disc_hits[i]
+			target_depth = _disc_hit_depths[i]
+	var target_screen_dist := INF
+	for i in _hud_hits.size():
+		if _hud_hit_screen_dists[i] < target_screen_dist and !_is_hud_hit_hidden(i):
+			target = _hud_hits[i]
+			target_screen_dist = _hud_hit_screen_dists[i]
+	if !is_mouse_in_world:
+		target = null
+	_clear_candidates()
+	if current_target != target:
+		current_target = target
+		mouse_target_changed.emit(target)
 	if _drag_start:
 		cursor_shape = CURSOR_MOVE
 	elif current_target:
@@ -149,46 +183,71 @@ func get_camera_distance_signed(node3d: Node3D) -> float:
 	return -camera_dist if camera.is_position_behind(node3d_global_position) else camera_dist
 
 
-## Potential mouse targets must call this every frame to be available for
-## mouse-over identification and selection.
-func update_world_target(node3d: Node3D, camera_dist: float, radius: float) -> void:
+## Reports [param node3d] as hoverable this frame by the disc it draws: [param radius]
+## in world units at [param camera_dist], or [param min_screen_radius] logical pixels
+## if that is larger (a point of light outdrawing its disc).
+func update_world_target(node3d: Node3D, camera_dist: float, radius: float,
+		min_screen_radius := 0.0) -> void:
 	if !camera:
 		return
-	var is_in_mouse_click_radius := false
-	var pos2d := camera.unproject_position(node3d.global_position)
-	var mouse_dist := pos2d.distance_to(mouse_position)
-	var click_radius := min_click_radius
+	var disc_radius := 0.0
 	var divisor := camera.fov * camera_dist
 	if divisor > 0.0:
-		var screen_radius := 55.0 * radius * veiwport_height / divisor
-		if click_radius < screen_radius:
-			click_radius = screen_radius
-	if mouse_dist < click_radius:
-		is_in_mouse_click_radius = true
-	if is_in_mouse_click_radius:
-		if node3d == current_target:
-			_current_target_dist = camera_dist
-		elif camera_dist < _current_target_dist: # set node3d as mouse target
-			current_target = node3d
-			_current_target_dist = camera_dist
-			mouse_target_changed.emit(node3d)
-	elif node3d == current_target: # remove node3d as mouse target
-		current_target = null
-		_current_target_dist = INF
-		mouse_target_changed.emit(null)
+		disc_radius = 55.0 * radius * veiwport_height / divisor
+	var click_radius := maxf(disc_radius, maxf(min_click_radius, min_screen_radius))
+	var mouse_dist := camera.unproject_position(node3d.global_position).distance_to(mouse_position)
+	if mouse_dist >= click_radius:
+		return
+	# The sphere's near surface under the cursor; a hit only by point or minimum radius
+	# is taken at the body's centre, and hides nothing.
+	var depth := camera_dist
+	var cover_depth := INF
+	if mouse_dist < disc_radius:
+		var fraction := mouse_dist / disc_radius
+		depth -= radius * sqrt(1.0 - fraction * fraction)
+		cover_depth = depth
+	_disc_hits.append(node3d)
+	_disc_hit_depths.append(depth)
+	_disc_hit_cover_depths.append(cover_depth)
 
 
+## Reports [param node3d] as hoverable this frame by a HUD element that marks it:
+## [param rect] in logical pixels, relative to [param node3d]'s screen position, drawn at
+## [param camera_dist]. The caller must not report a [param node3d] behind the camera.
+func update_world_target_rect(node3d: Node3D, camera_dist: float, rect: Rect2) -> void:
+	if !camera:
+		return
+	var offset := mouse_position - camera.unproject_position(node3d.global_position)
+	if !rect.has_point(offset):
+		return
+	_hud_hits.append(node3d)
+	_hud_hit_dists.append(camera_dist)
+	_hud_hit_screen_dists.append(offset.length())
+
+
+## Drops [param node3d] as a target at once, rather than at the end of the frame.
 func remove_world_target(node3d: Node3D) -> void:
+	var disc_index := _disc_hits.find(node3d)
+	while disc_index != -1:
+		_disc_hits.remove_at(disc_index)
+		_disc_hit_depths.remove_at(disc_index)
+		_disc_hit_cover_depths.remove_at(disc_index)
+		disc_index = _disc_hits.find(node3d)
+	var index := _hud_hits.find(node3d)
+	while index != -1:
+		_hud_hits.remove_at(index)
+		_hud_hit_dists.remove_at(index)
+		_hud_hit_screen_dists.remove_at(index)
+		index = _hud_hits.find(node3d)
 	if node3d == current_target:
 		current_target = null
-		_current_target_dist = INF
 		mouse_target_changed.emit(null)
 
 
 func _restore_init_state() -> void:
 	camera = null
 	current_target = null
-	_current_target_dist = INF
+	_clear_candidates()
 	_drag_start = Vector2.ZERO
 	is_mouse_in_world = false
 
@@ -204,8 +263,25 @@ func _on_mouse_exited() -> void:
 	is_mouse_in_world = false
 	if current_target:
 		current_target = null
-		_current_target_dist = INF
 		mouse_target_changed.emit(null)
+
+
+func _is_hud_hit_hidden(hud_index: int) -> bool:
+	var hud_body := _hud_hits[hud_index]
+	var hud_dist := _hud_hit_dists[hud_index]
+	for i in _disc_hits.size():
+		if _disc_hit_cover_depths[i] < hud_dist and _disc_hits[i] != hud_body:
+			return true
+	return false
+
+
+func _clear_candidates() -> void:
+	_disc_hits.clear()
+	_disc_hit_depths.clear()
+	_disc_hit_cover_depths.clear()
+	_hud_hits.clear()
+	_hud_hit_dists.clear()
+	_hud_hit_screen_dists.clear()
 
 
 func _set_camera(camera_: Camera3D) -> void:

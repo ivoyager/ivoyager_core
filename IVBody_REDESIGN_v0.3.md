@@ -521,7 +521,7 @@ Current `body.gd` is 2,134 lines. Disposition of each responsibility:
 | 16 | Lifespan: `begin`, `end`, `within_lifespan`, selection invalidation | **stays** (core) |
 | 17 | HUD visibility policy: `huds_visible`, `huds_visibility_changed`, `_min_hud_dist`, `hide_hud_when_close` listener, static HUD-dist multipliers | **removed from body** → HUD side (§9.2) |
 | 18 | `farwarp_position`, `update_farwarp()`, LOCAL_SHADOW_CASTER grant | **removed from body** → `IVBodyPositionVisual` / `IVBodyVisual` self-compute (§9.3) |
-| 19 | Mouse-target push (`_world_controller.update_world_target` each frame, visual-separation test) | **removed from body** → camera-distance service (§9.4) |
+| 19 | Mouse-target push (`_world_controller.update_world_target` each frame, visual-separation test) | **removed from body** → camera-distance service (§9.4); done in v0.2 |
 | 20 | `get_fragment_data` / `get_fragment_text` (orbit-visual mouse-over) | **`IVPathVisual`** owns its own fragment identity (§9.5) |
 | 21 | Camera duck protocol: `get_camera_radius/ground_basis/orbit_basis/lat_lon_type` | **stays** as thin delegates (contract, §11.2) |
 | 22 | Selection duck protocol: 14 `get_selection_*` | **stays** as thin delegates (contract, §11.1) |
@@ -1028,7 +1028,9 @@ What moves, and where:
 `huds_visible` + `huds_visibility_changed` + `_min_hud_dist` + `hide_hud_when_close`
 settings listener + `min_hud_dist_*` statics; `farwarp_position` + `update_farwarp()`;
 `min_visual_separation_multiplier` + world-target push; `get_fragment_data/text`;
-`get_orbit_display()` returning display meshes. All of it leaves.
+`get_orbit_display()` returning display meshes. All of it leaves. The HUD-visibility decision,
+`_min_hud_dist` with its settings listener, and the world-target push already left in v0.2,
+for §9.4's monitor; `huds_visible` and its signal stay on the body until v0.3.
 
 ### 9.2 HUD visibility policy
 
@@ -1062,28 +1064,31 @@ farwarp position reduces to scaling the camera-to-body difference of two such ve
 `g(d)/d` — the "never derive this by offsetting true-scale positions" hazard becomes
 unrepresentable rather than merely documented.
 
-### 9.4 The proximity monitor: sleep, mouse targets and camera distance
+### 9.4 The proximity monitor: sleep, HUD visibility and mouse targets
 
-Someone must still feed `IVWorldController.update_world_target()` per body per frame. Rather
-than each body pushing (v0.2), a single per-frame service iterates live bodies and computes
-camera distance, visual separation, mouse-target registration — and this is the same loop
+Someone must feed `IVWorldController.update_world_target()` per body per frame. Rather than
+each body pushing, a single per-frame service iterates live bodies and computes camera
+distance, visual separation and mouse-target registration — and this is the same loop
 proximity sleep needs. One program node, `IVBodyProximityMonitor`, owns the camera↔body
 distance sweep and serves:
 
 1. sleep decisions, replacing `IVSleepManager`'s camera-parenting trigger,
-2. the mouse-target push to `IVWorldController`,
-3. a cached per-body camera distance for HUD policy (§9.2) and lazy visuals (§8.2).
+2. each body's HUD visibility (§9.2),
+3. the mouse-target push to `IVWorldController`,
+4. later, lazy-visual triggering (§8.2).
 
-**The three are one service, not three (Q4).** Speed is the lesser reason. Sleep is safe only
-if it cannot be seen (below), and it cannot be seen only if it reads the same distance and the
+**They are one service, not several (Q4).** Speed is the lesser reason. Sleep is safe only if
+it cannot be seen (below), and it cannot be seen only if it reads the same distance and the
 same multipliers as the HUD policy that decides what could show. Two loops computing them apart
 would drift, and the drift would be a moon popping in.
 
-**Its sleep half is built, ahead of this redesign.** The sleep consumer landed in v0.2 as the
-replacement for `IVSleepManager`; mouse targets and the distance cache move in with v0.3, when
-they leave `IVBody._process` (§5.3). The body-side interface is v0.2's and does not change:
-`BODYFLAGS_CAN_SLEEP`, `set_sleeping()`, `is_sleeping()`, `sleep_changed`, and position
-queries valid while sleeping (already guaranteed by positioner semantics).
+**Built ahead of this redesign, in v0.2.** Sleep, HUD visibility and mouse targets all left
+`IVBody._process` for the monitor; only the lazy-visual trigger is still to come. In v0.2 the
+body still holds `huds_visible` and its signal, set through `set_huds_visible()`, because the
+HUD visuals listen there; v0.3 moves that state to the HUD side (§9.2). The rest of the
+body-side interface is v0.2's and does not change: `BODYFLAGS_CAN_SLEEP`, `set_sleeping()`,
+`is_sleeping()`, `sleep_changed`, and position queries valid while sleeping (already guaranteed
+by positioner semantics).
 
 #### Why the camera-parenting trigger goes
 
@@ -1106,6 +1111,23 @@ reading the code; the old trigger was not run:
 - **Sleep has been doing a HUD job.** It is the only thing keeping other systems' moon HUDs off
   screen. Once sleep cannot be seen, those HUDs show wherever visual separation says (§9.2).
 
+#### Three facts per body
+
+The monitor keeps apart, for every body each frame:
+
+1. **Is it physically visible?** It draws a disc (inside its shells' distance cull) or a PSF
+   point, which can show from any distance.
+2. **Is it visually separable from its parent?** `min_visual_separation_multiplier`, per §9.2.
+3. **Do its HUDs show?** Separable and not too close (§9.2), and a name, symbol or orbit
+   switched on for its group, with Hide All off.
+
+Fact 3 is false whenever 2 is. Each consumer reads a different combination: **sleep** when
+neither 1 nor 3 holds; a **mouse target** by the body's own disc or point when 1 and 2 both
+hold, and by its name or symbol wherever they are drawn, which is 3 by construction (*Mouse
+targets*, below). The owner set this division on 2026-10-17, after asking whether a separable
+moon whose symbol is hidden and which is otherwise invisible still stays awake. It did, and
+it also stole hover from its planet within the old 20 px minimum.
+
 #### The rule: sleep cannot be seen
 
 A body sleeps only when nothing it carries could show. That is
@@ -1117,7 +1139,7 @@ construction.
 **Wake distance.** Per body, the larger of:
 
 - its **HUD reach**, the farthest its HUDs can show under §9.2: apoapsis ×
-  `min_visual_separation_multiplier`;
+  `min_visual_separation_multiplier`, or zero while its group shows no name, symbol or orbit;
 - its **shell reach**, mean radius × `radius_multiplier_visibility_range_end`
   ([VISUAL_MODEL.md](VISUAL_MODEL.md) *Culling, visibility and lifecycle*). Among the tables'
   moons only Charon's exceeds its HUD reach.
@@ -1145,8 +1167,9 @@ through the tree in v0.2, through §5.3's f64 sum in v0.3. Wake distances propag
   primaries from afar, so the `sleep` column stays the eligibility knob and takes no per-moon
   edits. `IVSunOcclusionManager` skips sleeping candidates rather than read their stale
   positions; a moon that may sleep is one past its own sub-pixel cull.
-- *The user's HUD group toggles.* Ignored, so a toggle never wakes or sleeps a crowd and sleep
-  stays a function of geometry.
+- *Not the user's HUD switches, after all.* An earlier draft ignored them so a switch would
+  never wake a crowd. They count, because an awake body nobody can see is pure cost; turning
+  moon names on from the inner planets wakes ~110 moons in one frame, which the owner accepts.
 
 #### Where it runs, and what holds a body awake
 
@@ -1171,6 +1194,25 @@ What sleep does to the body stays v0.2's: processing off, hidden, mouse target a
 dropped. In v0.3 most of that work leaves the body for visual and HUD nodes that process
 themselves (§5.3, §8.2), and they connect to `sleep_changed` to stop with it — otherwise sleep
 would save only the placement.
+
+#### Mouse targets
+
+- **A body's disc or point is hoverable at exactly its drawn size.**
+  `IVWorldController.min_click_radius` is 0, so a tiny visible body is harder to hit in
+  proportion to its smallness, never impossible. A point takes its handoff radius
+  (`IVBody.psf_handoff`), the script's nearest answer to a size the shader decides.
+- **A name or symbol is hoverable wherever it is drawn**, however small its body.
+  `IVBodyPositionVisual` reports its own screen rects, since it alone knows its layout.
+- **The controller settles one target per frame**, after every report. The disc whose near
+  surface under the cursor is nearest the camera wins, so a body in front of another can be
+  hovered. A name or symbol beats it unless another body's disc lies in front of its body:
+  HUDs are depth-tested, so a moon behind its planet has no visible label there. A body's own
+  disc never hides its own HUD; otherwise a moon label in front would take a small planet's
+  centre from it. Among overlapping HUD hits, the body nearest the cursor on screen wins, since
+  flat overlays have no useful depth order.
+- **Rejected: a direct hit on a drawn disc always beating a padded one.** That fixes a planet
+  losing to its inner moons, but makes a body in front of another unselectable (owner,
+  2026-10-17).
 
 #### Lazy visuals and measurement
 
@@ -1310,15 +1352,15 @@ static func create(
 | `IVOrbit` | `extends IVPositioner`; content unchanged; already satisfies the interface |
 | `IVTrajectory` | `extends IVPositioner`; absorbs body's segment multiplexing; emits transitions (§6.3) |
 | `IVBodyVisual` | in scope: self-driving rotation + stroboscope; constructor takes (name, geometry, rotator); shadow-caster self-management |
-| `IVBodyPositionVisual` | computes own farwarp position + HUD visibility (was `_body.farwarp_position`, `huds_visible`, signal); already `top_level` — §2.4 makes it the ordinary case rather than the exception |
+| `IVBodyPositionVisual` | computes own farwarp position + HUD visibility (was `_body.farwarp_position`, `huds_visible`, signal); already `top_level` — §2.4 makes it the ordinary case rather than the exception; reports its own name and symbol as mouse targets (v0.2, §9.4) |
 | `IVPathVisual` | reads `body.positioner` (typed) for frames/paths; owns fragment identity; picks display meshes itself; own HUD visibility. §2.4 retires its rebased tier's reason for existing (separate effort; Hermite tier and pin stay) |
 | `IVBodyFinisher` | same role; appends to `display_nodes`; `has_orbit()` → positioner check |
 | `IVSelectionManager` | unchanged (its duck protocol is the contract; body keeps the entry points) |
 | `IVCamera` | probes unchanged; `origin_shifting` and its `-=` line are deleted by §2.4; it serves as the Planetarium's frame anchor, publishing its own per-frame f64 absolute translation (§2.5: a project supplies one instead) |
-| `IVSleepManager` | replaced by `IVBodyProximityMonitor` in v0.2, ahead of this redesign (§9.4); the monitor gains mouse targets and the distance cache here |
+| `IVSleepManager` | replaced by `IVBodyProximityMonitor` in v0.2, ahead of this redesign (§9.4), which also took over HUD visibility and mouse targets; here it gains the lazy-visual trigger |
 | `IVLazyModelInitializer` | unchanged short-term; when revisited, intent first with a proximity backstop (§9.4) |
 | `IVFarwarpManager` | stops per-body pushes; keeps globals/shader params + factor statics; §2.4 drops the +100/+101 ordering it exists to anchor |
-| `IVWorldController` | unchanged; fed by the proximity monitor instead of by bodies |
+| `IVWorldController` | fed by the proximity monitor and by HUD elements' own reports, and settles one target per frame (v0.2, §9.4) |
 | `IVTableBodyBuilder` | becomes component assembler (§12); precision-path tables updated |
 | `IVTableOrbitBuilder` | `parent.get_positive_axis()` → `parent.rotator`; `get_gravitational_parameter()` unchanged |
 | `IVTableSystemBuilder` | unchanged in shape |
@@ -1351,7 +1393,7 @@ v0.3 per the ground rules.
 - **Q3 — Flags pruning.** Retire `BODYFLAGS_TIDALLY_LOCKED`/`AXIS_LOCKED`/tumbler bits in
   favor of rotator typing (proposed), or keep them as cheap informational mirrors?
 - **Q4 — Proximity monitor scope.** *Settled 2026-10-17:* one combined camera-distance service
-  (sleep + mouse targets + HUD-distance cache), because sleep is safe only while it reads the
+  (sleep + HUD visibility + mouse targets), because sleep is safe only while it reads the
   same distance as the HUD policy (§9.4).
 - **Q5 — Barycenter orbit linkage.** True binary support needs phase-linked partner orbits
   (same period, opposite longitude, amplitude by mass ratio). Mechanism (an `IVOrbit`
@@ -1520,3 +1562,12 @@ Compiled from exhaustive sweep of `ui_widgets/`, `ui_components/`, `ui/`,
   camera hangs from rather than tracking `move_started`. The owner then ruled the HUD cutoff
   out: a moon's HUDs follow visual separation alone, so a wide-orbit moon shows from other
   systems and stays awake there, and sleep is cut by what that leaves unseen (§9.2).
+- 2026-10-17 — **The monitor keeps three facts per body (§9.4).** These are physical
+  visibility, visual separability and HUD visibility. On the owner's ruling, sleep needs the
+  first and third both false, so the user's HUD switches now count. A body's disc or point is
+  a mouse target only while it is visible and separable, at exactly its drawn size (the 20 px
+  minimum dropped to 0). Its name and symbol are targets wherever drawn. HUD visibility and
+  the mouse-target push left `IVBody._process` for the monitor in v0.2. The owner rejected
+  giving a direct disc hit priority over a padded one, because a body in front of another must
+  stay selectable. `IVWorldController` settles one target per frame by surface depth, with
+  depth-tested HUD hits over discs (§9.4).

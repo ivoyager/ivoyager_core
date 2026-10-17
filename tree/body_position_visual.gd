@@ -32,7 +32,11 @@ extends Sprite3D
 ## Symbol screen size and name font size both follow [IVThemeManager] (the
 ## "body_symbol_size_percent" and "label3d_names_size_percent" settings), in logical
 ## pixels: a display scale enlarges both on screen, and the name is rasterized at that
-## scale so it stays sharp (see [IVGraphicsManager]).
+## scale so it stays sharp (see [IVGraphicsManager]).[br][br]
+##
+## While drawn, the symbol and the name each report their screen area to
+## [IVWorldController] every frame, so hovering either targets the body however small
+## the body itself is on screen.
 
 
 ## Render priority for the symbol, the name and the name's outline. Transparent surfaces
@@ -55,7 +59,10 @@ static var name_offset_ratio := Vector2(0.7, 0.3)
 var _body: IVBody
 var _body_huds_state: IVBodyHUDsState = IVGlobal.program[&"BodyHUDsState"]
 var _asset_preloader: IVAssetPreloader = IVGlobal.program[&"AssetPreloader"]
+var _world_controller: IVWorldController = IVGlobal.program[&"WorldController"]
 var _name_label: Label3D
+var _name_rect := Rect2() # logical px, relative to the body's screen position
+var _symbol_rect := Rect2() # ditto
 
 # set on _ready() and changed signals
 var _names_visible: bool
@@ -120,15 +127,24 @@ func _ready() -> void:
 	# relative to the true distance, so assembling it at true scale through the ancestor chain
 	# would lose it to float32 rounding. See [IVFarwarpManager] and IVBody.farwarp_position.
 	top_level = IVCoreSettings.apply_farwarp
-	set_process(IVCoreSettings.apply_farwarp)
 	process_priority = 101 # after IVFarwarpManager (+100) sets this frame's farwarp_position
 
 
 func _process(_delta: float) -> void:
-	# Track the body's farwarp position so far-culled bodies keep their symbol
-	# and name (position only, never scale: node scale would corrupt the
-	# screen-fixed sizing in _update_pixel_sizes).
-	position = _body.farwarp_position
+	if top_level:
+		# Track the body's farwarp position so far-culled bodies keep their symbol
+		# and name (position only, never scale: node scale would corrupt the
+		# screen-fixed sizing in _update_pixel_sizes).
+		position = _body.farwarp_position
+	if !is_visible_in_tree():
+		return
+	var camera_dist := _world_controller.get_camera_distance_signed(_body)
+	if camera_dist <= 0.0:
+		return # behind the camera, where a billboard draws nothing
+	if _name_label.visible:
+		_world_controller.update_world_target_rect(_body, camera_dist, _name_rect)
+	if texture:
+		_world_controller.update_world_target_rect(_body, camera_dist, _symbol_rect)
 
 
 func _set_global_visibilities() -> void:
@@ -152,6 +168,7 @@ func _set_visual_state() -> void:
 		_set_name_raster_sizes()
 	_update_name_offset(show_symbol)
 	_update_pixel_sizes()
+	_update_hit_rects(show_symbol, show_name)
 
 
 # Label3D rasterizes glyphs at its font_size, so the display scale has to enlarge the
@@ -171,6 +188,24 @@ func _update_name_offset(show_symbol: bool) -> void:
 	else:
 		_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_name_label.offset = Vector2.ZERO
+
+
+# The name's rect follows its alignment in _update_name_offset(): left-aligned at the
+# offset beside a symbol, else centered on the body. Screen y runs down, Label3D y up.
+func _update_hit_rects(show_symbol: bool, show_name: bool) -> void:
+	_symbol_rect = Rect2()
+	_name_rect = Rect2()
+	if show_symbol:
+		_symbol_rect = Rect2(Vector2(-0.5, -0.5) * _symbol_size, Vector2(_symbol_size, _symbol_size))
+	if !show_name:
+		return
+	var name_size := _name_label.font.get_string_size(_name_label.text,
+			HORIZONTAL_ALIGNMENT_LEFT, -1.0, _name_font_size)
+	if show_symbol:
+		var name_offset := name_offset_ratio * _symbol_size
+		_name_rect = Rect2(Vector2(name_offset.x, -name_offset.y - name_size.y * 0.5), name_size)
+	else:
+		_name_rect = Rect2(-name_size * 0.5, name_size)
 
 
 # Screen-fixed sizing: the symbol sprite renders its atlas cell at _symbol_size
@@ -214,6 +249,7 @@ func _on_name_font_size_changed(name_size: int) -> void:
 	_name_font_size = name_size
 	if _name_label.visible:
 		_set_name_raster_sizes()
+		_update_hit_rects(texture != null, true)
 
 
 func _on_camera_fov_changed(fov: float) -> void:

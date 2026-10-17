@@ -12,8 +12,9 @@ See cloning and downloading instructions [here](https://www.ivoyager.dev/develop
 Under development using Godot 4.7.2.
 
 ### Changed
-* [API breaking] New IVBodyProximityMonitor replaces IVSleepManager and its `hide_on_sleep`: a `can_sleep` body now sleeps by its distance from the camera, and only while nothing it carries could show; a project driving its own camera holds its target awake with `pin_awake()`. A project that edited `SleepManager` in `IVCoreInitializer.program_refcounteds` edits `BodyProximityMonitor` in `program_nodes` instead.
+* [API breaking] New IVBodyProximityMonitor replaces IVSleepManager and its `hide_on_sleep`, and takes over HUD visibility and mouse targets from `IVBody._process`. A `can_sleep` body now sleeps only while it neither draws anything nor shows a HUD the user has switched on; a project driving its own camera holds its target awake with `pin_awake()`. A project that edited `SleepManager` in `IVCoreInitializer.program_refcounteds` edits `BodyProximityMonitor` in `program_nodes` instead, and must keep it, since without it no HUD shows and nothing can be hovered.
 * Moon HUDs now show wherever their orbits are visually separate, including from other planets' systems, where sleep used to hide them.
+* Body mouse-over: a body's disc or point is hoverable at exactly its drawn size (`IVWorldController.min_click_radius` now 0), its name and symbol wherever they are drawn, and IVWorldController settles one target per frame so a body in front of another can be hovered and a hidden label cannot.
 
 ### Fixed
 * Core's `views.tsv` named its time-direction column `is_reversed` where IVTableViewBuilder reads `reversed_time`, so a default view could not set reversed time.
