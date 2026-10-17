@@ -11,8 +11,13 @@ See cloning and downloading instructions [here](https://www.ivoyager.dev/develop
 
 Under development using Godot 4.7.2.
 
+### Changed
+* [API breaking] New IVBodyProximityMonitor replaces IVSleepManager and its `hide_on_sleep`: a `can_sleep` body now sleeps by its distance from the camera, and only while nothing it carries could show; a project driving its own camera holds its target awake with `pin_awake()`. A project that edited `SleepManager` in `IVCoreInitializer.program_refcounteds` edits `BodyProximityMonitor` in `program_nodes` instead.
+* Moon HUDs now show wherever their orbits are visually separate, including from other planets' systems, where sleep used to hide them.
+
 ### Fixed
 * Core's `views.tsv` named its time-direction column `is_reversed` where IVTableViewBuilder reads `reversed_time`, so a default view could not set reversed time.
+* Sleeping moons shadowed their planets from frozen positions, the planetary-mass moons drew no point of light from outside their planet's system, and a followed spacecraft entering a planet's system (New Horizons at Pluto) left that system's moons asleep.
 
 
 ## [v0.2.2] - 2026-10-15

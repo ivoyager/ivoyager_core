@@ -66,11 +66,10 @@ extends Node3D
 ## the gas giants (but not for inner moons because these can be seen from
 ## nearby).[br][br]
 ##
-## Some bodies (particularly moons and spacecrafts) have
-## [member BodyFlags].BODYFLAGS_CAN_SLEEP set from data table field
-## [param can_sleep]. If [IVSleepManager] is present, these bodies will
-## only [code]_process()[/code] when the camera is at or under the same planet
-## or other star-orbiter.
+## Some bodies (moons, by default) have [member BodyFlags].BODYFLAGS_CAN_SLEEP set
+## from data table field [param sleep]. If [IVBodyProximityMonitor] is present, such a
+## body stops processing and hides while the camera is too far away for anything it
+## carries to show.
 ## Note that [IVBody] API methods such as [method get_position_vector] and
 ## [method get_state_vectors] will provide correct values even if the body is
 ## not currently processing, but [member Node3D.postion] will not. These methods also
@@ -149,7 +148,7 @@ signal rotation_chaged(is_intrinsic: bool)
 ## Emitted when this body's HUD visibility (label, orbit visual, etc.) toggles.
 signal huds_visibility_changed(is_visible: bool)
 ## Emitted when this body's sleep state changes. This is managed by
-## [IVSleepManager], if present.
+## [IVBodyProximityMonitor], if present.
 signal sleep_changed(is_sleeping: bool)
 ## Emitted when [member within_lifespan] toggles as simulator time crosses this
 ## body's [member begin] or [member end]. Never emitted for a body with no
@@ -1881,13 +1880,13 @@ func update_farwarp(camera_global_position: Vector3, farwarp_start: float) -> vo
 				> IVFarwarpManager.true_bounds_distance)
 
 
-## Current sleeping state. See [IVSleepManager].
+## Current sleeping state. See [IVBodyProximityMonitor].
 func is_sleeping() -> bool:
 	return _sleeping
 
 
-## Set sleep state. Only [IVSleepManager] or appropriate replacement class or
-## code should call this.
+## Set sleep state. Only [IVBodyProximityMonitor] or appropriate replacement class or
+## code should call this. A body woken here updates at once, in the calling frame.
 func set_sleeping(sleep: bool, show_hide := true) -> void:
 	const CAN_SLEEP := BodyFlags.BODYFLAGS_CAN_SLEEP
 	if _sleeping == sleep or !(flags & CAN_SLEEP):
@@ -1895,12 +1894,16 @@ func set_sleeping(sleep: bool, show_hide := true) -> void:
 	_sleeping = sleep
 	set_process(not sleep)
 	if show_hide:
-		visible = not sleep
+		visible = not sleep and within_lifespan
 	if sleep:
 		_world_controller.remove_world_target(self)
 		if huds_visible:
 			huds_visible = false
 			huds_visibility_changed.emit(false)
+	else:
+		# The monitor wakes bodies after this frame's process pass; one left to the next
+		# pass would draw a frame from its stale position.
+		_process(0.0)
 	sleep_changed.emit(sleep)
 
 

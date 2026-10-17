@@ -157,7 +157,6 @@ var program_refcounteds: Dictionary[StringName, Variant] = {
 	# managers, etc.
 	InputMapManager = IVInputMapManager,
 	ThemeManager = IVThemeManager,
-	SleepManager = IVSleepManager,
 	LanguageManager = IVLanguageManager,
 	LazyModelInitializer = IVLazyModelInitializer,
 	PSFSettings = IVPSFSettings, # the camera shared by the star field and every body's PSF quad
@@ -191,6 +190,7 @@ var program_nodes: Dictionary[StringName, Variant] = {
 	GraphicsManager = IVGraphicsManager, # applies antialiasing user settings
 	GraphicsRescue = IVGraphicsRescue, # removed unless enable_graphics_rescue
 	FarwarpManager = IVFarwarpManager, # keeps distant objects renderable
+	BodyProximityMonitor = IVBodyProximityMonitor, # sleeps bodies too far away to show
 	SunOcclusionManager = IVSunOcclusionManager, # analytic eclipse & ring shadows
 	ExposureManager = IVExposureManager, # physical light; removed unless enable_physical_light
 	ScreenshotManager = IVScreenshotManager, # off-screen render to PNG at a set size

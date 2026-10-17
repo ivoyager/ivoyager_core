@@ -31,7 +31,7 @@ extends RefCounted
 ## If this manager is removed, all lazy models will be instantiated during
 ## solar system build.[br][br]
 ##
-## See also [IVSleepManager] for reduction of IVBody._process() calls where not
+## See also [IVBodyProximityMonitor] for reduction of IVBody._process() calls where not
 ## needed.
 
 

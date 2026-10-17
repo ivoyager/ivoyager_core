@@ -119,6 +119,7 @@ moves under them). Two kinds of code do not, and both are ordered explicitly:
 | Process priority | Who | What it does / reads |
 |---|---|---|
 | 0 (tree order) | `IVBody` instances, `IVDynamicLight`, `IVCamera` | Bodies set their local positions from f64 orbital math; the camera moves and applies the shift. Tree order means the star's subtree (its top light included) processes *before* the camera's parent chain. |
+| +99 | `IVBodyProximityMonitor` | Reads the moved camera and sleeps or wakes bodies, placing a woken one at once so the +100 consumers see it this frame. |
 | +100 | `IVFarwarpManager`, `IVSunOcclusionManager` | Read the settled, post-shift camera and body globals; publish this frame's `iv_farwarp_start`, per-body `farwarp_position`, occluder uniforms and ambient feed. |
 | +101 | `IVBodyPositionVisual` | The one `top_level` node in the stock tree places itself from `farwarp_position` set at +100. |
 
@@ -469,7 +470,9 @@ best `MAX_OCCLUDERS` (6) fill the uniform slots. Clearance rather than an angula
 deliberately: an angular score carries a parallax term that blows up as a candidate gets
 close, so a nearby moon whose shadow is nowhere near the disc could starve the slot a
 genuinely transiting distant occluder needs. Candidate lists are built once per receiver
-and cached for the session (see TODO for the constraint this encodes).
+and cached for the session (see TODO for the constraint this encodes). A sleeping candidate
+is skipped, here and in the camera-point fraction: its position is stale, and a body that
+may sleep is past its own sub-pixel cull (*Culling, visibility and lifecycle*).
 
 **The math, in two regimes plus a stretch.** The visible fraction of the sun's disc past
 one occluder is the exact two-circle lens overlap in the planar small-angle
@@ -618,7 +621,7 @@ Four properties make it safe:
   the reason this is opt-in rather than automatic. The transition itself is free, because
   Godot's `directional_shadow_fade_start` (0.8) has already faded to nothing whatever is
   crossing the boundary.
-- **A hidden participant is skipped.** A body the distance cull or `IVSleepManager` has
+- **A hidden participant is skipped.** A body the distance cull or sleep has
   hidden draws into no map and reads none, and `is_visible_in_tree()` says so at the moment
   the light asks — so a slept spacecraft cannot hold the near light open.
 
@@ -694,13 +697,23 @@ shadow maps*.
 the hundreds of small outer moons) build no `IVBodyVisual` until the camera visits them
 or a closely associated lazy body (`IVLazyModelInitializer`, on `camera_tree_changed`).
 The occlusion manager's lazy material discovery exists for exactly this. Once built, a
-visual persists for the session. `IVSleepManager` additionally sleeps far-from-camera
-body processing.
+visual persists for the session.
+
+**Sleep cannot be seen.** A `can_sleep` body (every moon, by default) stops processing and
+hides only while the camera is too far away for anything it carries to show: past its HUD
+reach under the policy below, past its shells' distance cull, and never while it draws a PSF
+point, which can show from any distance. `IVBodyProximityMonitor` measures that from the
+body's parent with hysteresis, and holds awake the body the camera hangs from, an
+`IVCamera`'s target and their ancestors; no body sleeps while a descendant is awake. Every
+consumer that skips a hidden or sleeping body relies on that guarantee. The derivation is
+[IVBody_REDESIGN_v0.3.md](IVBody_REDESIGN_v0.3.md) §9.4.
 
 **HUD visibility policy.** Each body maintains `huds_visible` for its symbol, label and
 orbit line: hidden when too close (`_min_hud_dist`, the `hide_hud_when_close` setting)
 and when not **visually separate** — closer than its own orbit size times a multiplier —
-so moon HUDs collapse away as the camera pulls back from their system. HUD symbol and
+so moon HUDs collapse away as the camera pulls back from their system. Orbit size alone
+decides that reach, so a gas giant's irregular moons, whose orbits are wide, show from the
+inner planets. HUD symbol and
 name render at `HUD_RENDER_PRIORITY` (20), above the highest shell priority, because
 transparent surfaces sort by priority before depth and a HUD at 0 blends under its
 planet's cloud deck.
@@ -1411,8 +1424,8 @@ this is the spatial one.
     from α Cen — frustum-culls from the next system; the catalog field must drop in-scene
     stars (build-time, by a catalog id column in `stars.tsv`) or the visited star draws
     twice; `camera_tree_changed` carries one star and is the funnel every consumer subscribes
-    to; and `IVSleepManager` sleeps and hides the sleepable bodies outside the camera's
-    planetary system, so a second system's planets stay awake while its moons do not.
+    to; and sleep goes by distance, so a second system's moons sleep but its planets, which
+    cannot, process every frame.
 - **The display scale is unverified in a browser.** *Pixel spaces* was verified on Windows
   only; the web path (devicePixelRatio, re-read every frame for zoom) has not been run in an
   export, and neither has the macOS and Wayland `dpi_changed` path.

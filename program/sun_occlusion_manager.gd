@@ -489,6 +489,8 @@ func _select_occluders(body: IVBody, body_position: Vector3, sun_direction: Vect
 	_keeper_bodies.clear()
 	_keeper_scores.clear()
 	for candidate: IVBody in candidates:
+		if candidate.is_sleeping():
+			continue # its position is stale, and its shadow too small to show
 		var offset := candidate.global_position - body_position
 		var dist := offset.length()
 		var candidate_radius := candidate.get_equatorial_radius()
@@ -583,7 +585,7 @@ func _update_camera_fraction() -> void:
 			sun_angular_radius)
 	for satellite_name: StringName in star_orbiter.satellites:
 		var satellite := star_orbiter.satellites[satellite_name]
-		if satellite.mean_radius < MIN_OCCLUDER_RADIUS:
+		if satellite.mean_radius < MIN_OCCLUDER_RADIUS or satellite.is_sleeping():
 			continue
 		fraction *= _get_point_spheroid_fraction(satellite, camera_position, sun_direction,
 				sun_angular_radius)
