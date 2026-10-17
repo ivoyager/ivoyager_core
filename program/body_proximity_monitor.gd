@@ -38,8 +38,9 @@ extends Node
 ##
 ## Processes at priority +99, after the camera has moved and before the +100 managers
 ## that read the bodies it wakes. Required: without it no HUD shows and nothing can be
-## hovered. Only this node should call [method IVBody.set_sleeping] and
-## [method IVBody.set_huds_visible].
+## hovered. To keep every body awake, set [member IVCoreSettings.apply_body_sleep] false
+## rather than removing this node. Only this node should call [method IVBody.set_sleeping]
+## and [method IVBody.set_huds_visible].
 
 
 const CAN_SLEEP := IVBody.BodyFlags.BODYFLAGS_CAN_SLEEP
@@ -49,6 +50,7 @@ const STAR := IVBody.BodyFlags.BODYFLAGS_STAR
 ## wakes. Above 1.0, so a camera at the boundary cannot toggle a body every frame.
 var sleep_distance_ratio := 1.5
 
+var _applies_sleep: bool = IVCoreSettings.apply_body_sleep
 var _world_controller: IVWorldController
 var _body_huds_state: IVBodyHUDsState
 var _hides_huds_when_close := false
@@ -176,7 +178,7 @@ func _rebuild() -> void:
 			if !satellite.orbit_changed.is_connected(_on_orbit_changed):
 				satellite.orbit_changed.connect(_on_orbit_changed)
 				satellite.parent_changed.connect(_on_parent_changed)
-			if !(satellite.flags & CAN_SLEEP):
+			if !_applies_sleep or !(satellite.flags & CAN_SLEEP):
 				continue
 			var wake_distance := _get_wake_distance(satellite)
 			if is_inf(wake_distance):

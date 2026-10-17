@@ -1088,7 +1088,8 @@ body still holds `huds_visible` and its signal, set through `set_huds_visible()`
 HUD visuals listen there; v0.3 moves that state to the HUD side (§9.2). The rest of the
 body-side interface is v0.2's and does not change: `BODYFLAGS_CAN_SLEEP`, `set_sleeping()`,
 `is_sleeping()`, `sleep_changed`, and position queries valid while sleeping (already guaranteed
-by positioner semantics).
+by positioner semantics). Removing the node can no longer turn sleep off, since its other jobs
+are required, so `IVCoreSettings.apply_body_sleep` does.
 
 #### Why the camera-parenting trigger goes
 

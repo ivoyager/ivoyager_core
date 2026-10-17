@@ -753,6 +753,7 @@ timekeeper set the start time; `simulator_started` releases the clock.
 | `IVOrbit` | `replacement_subclass`; `CHANGED_THRESHOLD` (constant) | Subclass substitution; evolution-signal hysteresis (0.005). |
 | `IVTrajectory` | `GAP_SKIP_KM`, `GAP_WARN_AU`, `OPEN_TERMINAL_LOOKAHEAD_YEARS` (constants) | Gap-fix thresholds and the open-end Lambert horizon. |
 | `IVBodyProximityMonitor` | `sleep_distance_ratio` | How much farther than its wake distance an awake body must be before it sleeps (1.5). |
+| `IVCoreSettings` | `apply_body_sleep` | Whether bodies sleep at all; off keeps every body awake while the monitor goes on with HUDs and mouse targets. |
 | `small_bodies_groups.tsv` | `mag_cutoff`, `skip` | Per-group population limit; omit a group. |
 
 ## TODO

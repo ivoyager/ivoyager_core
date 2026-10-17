@@ -178,6 +178,11 @@ var max_camera_distance := 5e3 * IVUnits.AU
 ## Radius multiplier used to set [member GeometryInstance3D.visibility_range_end]
 ## in [IVBodyVisual] and [IVRings].
 var radius_multiplier_visibility_range_end := 4000.0
+## Enables body sleep: [IVBodyProximityMonitor] stops processing and hides a body
+## flagged [code]sleep[/code] in its table while nothing it carries could show. False
+## keeps every body awake, while the monitor goes on setting HUD visibility and mouse
+## targets. Read once at startup, so set it in a preinitializer.
+var apply_body_sleep := true
 ## Enables "farwarp" compression: beyond a camera-relative start distance (see
 ## [member farwarp_start_ratio]), body model spaces, HUD position symbols, and
 ## line/point shaders are re-rendered along the camera ray at logarithmically

@@ -707,8 +707,9 @@ visual persists for the session.
 for every body each frame: whether it is **physically visible** (it draws a disc, inside its
 shells' distance cull, or a PSF point, which can show from any distance), whether it is
 **visually separate** from its parent, and whether its **HUDs show** (the policy below, then
-the per-group switches and Hide All in `IVBodyHUDsState`). A `can_sleep` body (every moon, by
-default) stops processing and hides while it is neither visible nor showing a HUD element,
+the per-group switches and Hide All in `IVBodyHUDsState`). Unless
+`IVCoreSettings.apply_body_sleep` is off, a `can_sleep` body (every moon, by default) stops
+processing and hides while it is neither visible nor showing a HUD element,
 judged conservatively from its parent with hysteresis, so its sleep cannot be seen; every
 consumer that skips a hidden or sleeping body relies on that. The body the camera hangs from,
 an `IVCamera`'s target and their ancestors stay awake, and no body sleeps while a descendant
