@@ -604,27 +604,27 @@ a hidden body (*Culling, visibility and lifecycle* in [VISUAL_MODEL.md](VISUAL_M
 derived in §9.4 of [IVBody_REDESIGN_v0.3.md](IVBody_REDESIGN_v0.3.md)). A sleeping moon would not
 have drawn: with every moon awake a frame submits the same draw calls and objects, and its GPU time
 is unchanged within the noise, so what sleep saves is main-thread CPU time. Measured on 2026-10-17
-(ivoyager_core b716d97) in release exports at each path's fitted defaults (*Main-thread CPU time*,
-below), against every moon held awake:
+in release exports at each path's fitted defaults (*Main-thread CPU time*, below), against every
+moon held awake:
 
 | View | Moons awake, asleep / all | Intel, ANGLE: CPU saved | GTX, Vulkan: CPU saved | GTX frame, asleep / all awake |
 |---|---|---:|---:|---:|
-| Earth at 3 radii (`VIEW_HOME`) | 112 / 177 | 2.9 ms | 2.2 ms | 5.7 / 7.6 ms |
-| Jupiter at 200 radii (`VIEW_MEDIUM`) | 116 / 177 | 1.7 | 2.8 | 6.7 / 9.3 |
-| Saturn at 1.2 au (`VIEW_FAR`) | 115 / 177 | 1.7 | 2.6 | 5.6 / 8.4 |
-| Whole system (`VIEW_SYSTEM`) | 16 / 177 | 2.2 | 3.6 | 4.8 / 7.7 |
+| Earth at 3 radii (`VIEW_HOME`) | 112 / 177 | 0.7 ms | 0.9 ms | 5.6 / 6.3 ms |
+| Jupiter at 200 radii (`VIEW_MEDIUM`) | 116 / 177 | 0.4 | 0.8 | 5.9 / 6.8 |
+| Saturn at 1.2 au (`VIEW_FAR`) | 115 / 177 | 0.4 | 1.2 | 5.7 / 7.2 |
+| Whole system (`VIEW_SYSTEM`) | 16 / 177 | 0.9 | 1.1 | 5.0 / 5.6 |
 
-- **The saving reaches the frame only where the CPU limits it.** Through ANGLE the Intel is
-  GPU-bound at 21-26 ms and its frame interval does not move; the GTX's frame is the CPU's, and all
-  moons awake lengthen it by 30-60 %.
-- **Most of the saving, 64-86 % of it, is `IVSunOcclusionManager`.** It feeds every awake body whose
-  shells are visible in the tree, and a shell past its distance cull (`visibility_range_end`) still
-  is, so with every moon awake it feeds about 48 moons the renderer then culls, each testing its
-  planet and siblings as occluders (TODO). Only the moons whose models are built count: the 112 with lazy
-  models had none here, and each one a session builds joins them. A moon's own `_process` costs
-  3-4 µs, and the farwarp, exposure and monitor loops about 2 µs more.
+- **An awake moon nobody can see costs 6-14 µs a frame**: 3-4 µs in its own `_process`, the rest in
+  the farwarp, exposure, occlusion and monitor loops. The saving reaches the frame only where the
+  CPU limits it. Through ANGLE the Intel is GPU-bound at 21-26 ms and its frame interval does not
+  move; the GTX's frame is the CPU's, and all moons awake lengthen it by 11-26 %.
+- **`IVSunOcclusionManager` feeds only the shells the renderer draws**, and that is what keeps an
+  awake moon this cheap. Until it skipped a body whose shells are all past their distance cull
+  (b716d97 fed them), every moon awake meant feeding about 48 such moons, each testing its planet
+  and siblings as occluders: 1.3-2.1 ms of a frame on either path. Under sleep the skip saves at
+  most 0.16 ms (Jupiter).
 - **The monitor costs 0.13-0.27 ms a frame**, under 1 % of an Intel frame through ANGLE: 11-15 µs
-  for the bodies it holds awake, 5-7 µs for the banded sleep sweep, and the rest the per-body pass
+  for the bodies it holds awake, 5-8 µs for the banded sleep sweep, and the rest the per-body pass
   that sets HUD visibility and pushes mouse targets. About 0.1 ms of that pass is the 23 bodies that
   never sleep, and each awake moon adds about 1 µs, so banding the pass by distance as the sweep is
   banded could save at most about 0.1 ms.
@@ -635,18 +635,19 @@ their HUDs keep 45-99 moons awake that would sleep with moon HUDs off:
 
 | View | Moons kept awake | Draw calls added, ANGLE / Forward+ | Intel, ANGLE: frame | GTX: render CPU / GPU |
 |---|---:|---|---:|---|
-| Earth at 3 radii | 96 | 206 / 294 | +1.9 ms | +0.37 / +0.54 ms |
-| Jupiter at 200 radii | 45 | 198 / 288 | +1.8 | +0.32 / +0.62 |
-| Saturn at 1.2 au | 99 | 158 / 238 | +1.6 | +0.28 / +0.38 |
+| Earth at 3 radii | 96 | 206 / 294 | +1.9 ms | +0.37 / +0.61 ms |
+| Jupiter at 200 radii | 45 | 198 / 288 | +1.7 | +0.38 / +0.64 |
+| Saturn at 1.2 au | 99 | 158 / 238 | +1.8 | +0.34 / +0.35 |
 | Whole system | 0 | 0 | 0 | 0 |
 
 Through ANGLE that is about 8 % of the frame, with the render CPU up 1.1-2.0 ms; waking the moons
-adds 0.2-0.8 ms of script time. Halving the multiplier would leave about 40 % fewer moons separable
+costs 0.2-0.7 ms of script time. Halving the multiplier would leave about 40 % fewer moons separable
 from Earth.
 
 **Against v0.2's rule**, which slept every moon outside the camera's planet system, a frame at Earth
-costs 1.9 ms more through ANGLE and 0.9 ms more on the GTX, nearly all of it moon HUDs v0.2 never
-drew. At Saturn the CPU time is 0.5 ms less, since that rule woke all 61 of Saturn's moons.
+costs 1.9 ms more through ANGLE and 1.0 ms more on the GTX, nearly all of it moon HUDs v0.2 never
+drew. At Jupiter, Saturn and the whole system the two rules cost within 0.5 ms of each other
+through ANGLE.
 
 
 ## Levers not offered
@@ -1272,10 +1273,6 @@ scripts, not yet in the tools submodule.
   and Full and Reduced keep it (*Glow*). Skipping the pass while nothing in view exceeds the glow
   threshold would be an automatic saving, like the exposure skips. It needs the frame's brightest
   source, which the exposure metering may already know.
-- **Feed only the shells the renderer draws** (*Proximity sleep*). `IVSunOcclusionManager` feeds an
-  awake body whose shells are past their distance cull, which is most of what sleep saves. Gated on
-  the monitor's physical-visibility fact, every moon awake would cost 0.3-1.3 ms of CPU more than
-  sleep rather than 1.7-3.6 ms, and sleep's margins could be generous.
 - **The moon HUDs take about 8 % of an Intel frame through ANGLE**, some 200 draw calls of names and
   orbit lines (*Proximity sleep*). Fewer, larger draws per group is the lever; not investigated.
 - **Sunspot level of detail by disc size** (*Levers not offered*).

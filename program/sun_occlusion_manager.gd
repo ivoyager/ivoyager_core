@@ -388,10 +388,11 @@ func _feed_body(body: IVBody, materials: Array, meshes: Array) -> void:
 		_feed_ring_material(body, ring_material, sun_direction, sun_angular_radius,
 				sun_light_energy)
 
-	# A body handed off to its point hides every shell, and nothing reads a hidden shell's
-	# uniforms. The shells' gate runs at priority 0, before this, so a shell shown this frame
-	# is fed before it draws.
-	if !_is_any_visible(meshes):
+	# Nothing reads the uniforms of a shell the renderer skips: one hidden, as every shell of
+	# a body handed off to its point is, or one past its distance cull, which hides nothing
+	# and so must be tested here. The shells' gate runs at priority 0, before this, so a shell
+	# shown this frame is fed before it draws.
+	if !_is_any_drawn(body, meshes):
 		return
 	var occluder_count := 0
 	var occluder_data_a := PackedVector4Array()
@@ -434,11 +435,27 @@ func _feed_body(body: IVBody, materials: Array, meshes: Array) -> void:
 			material.set_shader_parameter(&"ring_texture_outer", rings.texture_outer_radius)
 
 
-func _is_any_visible(meshes: Array) -> bool:
+# The engine measures a visibility range from the camera to the centre of the instance's
+# bounds, which for a shell is its body's position; a shell takes that cull only while it
+# holds no farwarp box (Farwarp in VISUAL_MODEL.md).
+func _is_any_drawn(body: IVBody, meshes: Array) -> bool:
+	var camera_distance := -1.0 # measured once, for the first shell shown
 	for mesh_instance: MeshInstance3D in meshes:
-		if mesh_instance.is_visible_in_tree():
+		if !mesh_instance.is_visible_in_tree():
+			continue
+		var range_end := mesh_instance.visibility_range_end
+		if range_end <= 0.0 or !_camera or _has_farwarp_box(body):
+			return true
+		if camera_distance < 0.0:
+			camera_distance = _camera.global_position.distance_to(body.global_position)
+		if camera_distance <= range_end + mesh_instance.visibility_range_end_margin:
 			return true
 	return false
+
+
+func _has_farwarp_box(body: IVBody) -> bool:
+	var body_visual := body.body_visual as IVBodyVisual
+	return !body_visual or body_visual.has_farwarp_box() # as IVShellsModel assumes without one
 
 
 # Feeds the ringed body's own rings material: the body itself is the dominant
