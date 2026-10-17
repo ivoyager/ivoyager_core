@@ -25,8 +25,8 @@ sections after it cite them rather than restate them.
 - `characteristics` is renamed `attributes`.
 - The body must be able to answer its own surface geometry (radius at any coordinate) without
   reaching into its visual representation.
-- The sleep system will be rebuilt on proximity detection (separate effort); this design must
-  not bake camera-parenting assumptions into `IVBody`.
+- The sleep system is rebuilt on proximity detection (§9.4, landing in v0.2 ahead of this
+  redesign); this design must not bake camera-parenting assumptions into `IVBody`.
 
 
 ## 1. What a "body" is in v0.3
@@ -390,10 +390,11 @@ all — which is exactly what the sleep rebuild needs to be free to change (§9.
 #### To settle during implementation
 
 - **Sleep.** A sleeping body's stale placement stays valid today because the tree carries it;
-  anchor-relative, stale means visibly lagging whenever the anchor moves. Placement is cheap
-  (one subtraction from a positioner query valid at any time), so the likely answer is that
-  sleep stops gating placement and gates only the expensive work. Ties to the proximity rebuild
-  (§15). An anchor itself must never sleep: it is the frame.
+  anchor-relative, stale means visibly lagging whenever the anchor moves. The answer expected
+  here was that sleep stops gating placement. §9.4 settles it the other way: a body sleeps only
+  when nothing it carries could show, so it can stay hidden and unplaced — provided no body
+  sleeps while a descendant is awake, since a child's f64 sum reads its parent's absolute
+  translation. An anchor itself never sleeps: it is the frame, and §9.4 pins it.
 - **Anchor ordering.** `anchor_absolute_f64` must exist before any body is placed. §6's "valid
   at any `time`" positioner contract makes that a query at the top of the frame rather than a
   one-frame lag — one more consumer of *Any time is as cheap as now*.
@@ -597,7 +598,8 @@ signal positioner_changed(positioner: IVPositioner, is_intrinsic: bool, precessi
 signal parent_changed(new_parent: IVBody)            # → IVPathVisual; selection/nav GUI
 signal rotation_changed(is_intrinsic: bool)          # typo `rotation_chaged` fixed;
 		# no listener in v0.2 — kept for network sync (§15) and for GUI reading tilts/period
-signal sleep_changed(is_sleeping: bool)              # → proximity monitor, lazy visuals (§9.4)
+signal sleep_changed(is_sleeping: bool)              # → visual and HUD nodes, which stop with
+		#   the body (§9.4); set by IVBodyProximityMonitor
 signal within_lifespan_changed(is_within_lifespan: bool)  # → nav_button.gd; the only GUI-
 		# connected body signal in v0.2, and it stays
 # REMOVED: huds_visibility_changed — a display decision, and the one signal that was
@@ -976,8 +978,9 @@ layers, preview staging) with these changes:
 - **Local-shadow-caster self-management.** The camera-distance check that
   `IVBody.update_farwarp()` performed moves into the visual's own per-frame update.
 - Lazy init flow is unchanged in shape (`body.body_visual` null until needed;
-  `IVLazyModelInitializer` or successor triggers creation) but the trigger will be revisited
-  with the proximity rebuild, since "camera visits" is currently defined by camera parenting.
+  `IVLazyModelInitializer` or successor triggers creation). Its trigger, "camera visits", is
+  currently defined by camera parenting; when revisited it becomes intent first with a
+  proximity backstop (§9.4).
 - `add_child_to_body_visual()` (rings attachment) and `make_body_visual()` (icon/preview
   staging) remain body methods.
 
@@ -1030,12 +1033,26 @@ settings listener + `min_hud_dist_*` statics; `farwarp_position` + `update_farwa
 ### 9.2 HUD visibility policy
 
 The show/hide-by-distance policy — hide when too close, hide when not visually separate from
-the parent, the rule and its rationale in [VISUAL_MODEL.md](VISUAL_MODEL.md) *Culling,
-visibility and lifecycle* → "HUD visibility policy" — becomes a HUD-side helper. Proposed home:
-a static on `IVBodyHUDsState` (already the per-group HUD visibility authority), taking the body
-and a camera distance. `IVBodyPositionVisual` and `IVPathVisual` apply it in their own frame
-updates. If the camera-distance service (§9.4) exists, they read the distance from it;
-otherwise each computes it (trivial math).
+the parent, hide when the camera is outside the parent's system (below); the first two rules
+and their rationale are in [VISUAL_MODEL.md](VISUAL_MODEL.md) *Culling, visibility and
+lifecycle* → "HUD visibility policy" — becomes a HUD-side helper. Proposed home: a static on
+`IVBodyHUDsState` (already the per-group HUD visibility authority), taking the body and a
+camera distance. `IVBodyPositionVisual` and `IVPathVisual` apply it in their own frame
+updates, reading the camera distance from §9.4's monitor: the same distance sleep reads, which
+is what keeps sleep from hiding a HUD this policy would show.
+
+**The foreign-system cutoff** is new, and lands in v0.2 with §9.4's proximity sleep, joining
+the check in `IVBody._process` until it moves out with the rest. A body's HUDs show only while
+the camera is within `max_hud_dist_hill_sphere_multiplier` (proposed name, beside v0.2's
+`min_hud_dist_*` statics) times its parent's Hill sphere of the parent. A star's Hill sphere is
+INF, so planets and heliocentric craft are unaffected. Visual separation alone cannot do this
+job: moon names and orbits are on by default (`visual_groups.tsv`), and at a
+`min_visual_separation_multiplier` of 100 an irregular moon counts as separate from far outside
+its system — 111 of the tables' 177 moons do at 4 au, 59 of them Jupiter's. v0.2 hides them
+only by sleeping them; once sleep cannot be seen (§9.4), the cutoff has to be a HUD rule. A starting multiplier of 3–5 sits under every neighbouring system's closest approach in
+the tables: nearest is Jupiter seen from Ceres, at ~5.5 of Jupiter's Hill radii, then Saturn
+from Jupiter at ~8.6 (radial lower bounds, ignoring inclination and phase). Mouse targets keep
+the visual-separation gate alone.
 
 ### 9.3 Farwarp
 
@@ -1052,21 +1069,134 @@ farwarp position reduces to scaling the camera-to-body difference of two such ve
 `g(d)/d` — the "never derive this by offsetting true-scale positions" hazard becomes
 unrepresentable rather than merely documented.
 
-### 9.4 Mouse targets and the camera-distance service
+### 9.4 The proximity monitor: sleep, mouse targets and camera distance
 
 Someone must still feed `IVWorldController.update_world_target()` per body per frame. Rather
 than each body pushing (v0.2), a single per-frame service iterates live bodies and computes
-camera distance, visual separation, mouse-target registration — and this is the same loop the
-**proximity-based sleep rebuild** needs. Proposal: one new program node (working name
-`IVBodyProximityMonitor`) that owns the camera↔body distance sweep and serves:
+camera distance, visual separation, mouse-target registration — and this is the same loop
+proximity sleep needs. One program node, `IVBodyProximityMonitor`, owns the camera↔body
+distance sweep and serves:
 
-1. proximity sleep decisions (replacing `IVSleepManager`'s camera-parenting trigger),
-2. mouse-target push to `IVWorldController`,
-3. cached per-body camera distance for HUD policy (§9.2) and lazy-visual triggering (§8.2).
+1. sleep decisions, replacing `IVSleepManager`'s camera-parenting trigger,
+2. the mouse-target push to `IVWorldController`,
+3. a cached per-body camera distance for HUD policy (§9.2) and lazy visuals (§8.2).
 
-Its design belongs to the sleep-rebuild effort; for this redesign the only requirement is that
-`IVBody` exposes what it needs (position queries valid while sleeping — already guaranteed by
-positioner semantics — plus `set_sleeping()` / `sleep_changed`).
+**The three are one service, not three (Q4).** Speed is the lesser reason. Sleep is safe only
+if it cannot be seen (below), and it cannot be seen only if it reads the same distance and the
+same multipliers as the HUD policy that decides what could show. Two loops computing them apart
+would drift, and the drift would be a moon popping in.
+
+**It is built ahead of this redesign.** The sleep consumer lands in v0.2 as the replacement for
+`IVSleepManager`; mouse targets and the distance cache move in with v0.3, when they leave
+`IVBody._process` (§5.3). The body-side interface is v0.2's and does not change:
+`BODYFLAGS_CAN_SLEEP`, `set_sleeping()`, `is_sleeping()`, `sleep_changed`, and position
+queries valid while sleeping (already guaranteed by positioner semantics).
+
+#### Why the camera-parenting trigger goes
+
+v0.2 sleeps every `can_sleep` body (every moon: `sleep` defaults TRUE in `moons.tsv`, and no
+spacecraft opts in) outside the camera's star-orbiter system, re-deciding on
+`IVGlobal.camera_tree_changed`. Sleep turns processing off and hides the body, which takes it
+out of the farwarp, exposure and dynamic-light loops and stops its PSF quad. Found by reading
+the code, not yet run:
+
+- **The trigger fires only at a camera handoff.** A body that changes parent under the camera
+  emits nothing, so follow New Horizons into its Pluto segment, or Juno into Jupiter capture,
+  and the moons there stay asleep. This reaches every `camera_tree_changed` consumer, not only
+  sleep, and is fixed apart from this design.
+- **It fires halfway through a flight**, at the handoff, rather than where the camera is.
+- **Asleep is not unseen.** A sleeping Galilean moon draws no point of light from Earth, yet
+  shadows Jupiter from its frozen position: `IVSunOcclusionManager`'s candidate list reads
+  `global_position` with no sleep check.
+- **A project's camera never wakes anything.** `system_tree_ready` sleeps every moon, and a
+  camera that is not an `IVCamera` never emits the signal that would wake one (§2.5).
+- **Sleep has been doing a HUD job.** It is the only thing keeping other systems' moon HUDs off
+  screen; §9.2's foreign-system cutoff is where that job goes.
+
+#### The rule: sleep cannot be seen
+
+A body sleeps only when nothing it carries could show. That is
+[PHYSICAL_MODEL.md](PHYSICAL_MODEL.md)'s "process economy, not state" made literal, and it
+means the criterion is not a tunable of its own: it is derived from the rules that already
+decide what draws, plus a hysteresis margin. Hiding a sleeping body is then correct by
+construction.
+
+**Wake distance.** Per body, the larger of:
+
+- its **HUD reach**, the farthest its HUDs can show under §9.2: apoapsis ×
+  `min_visual_separation_multiplier`, capped by the foreign-system cutoff;
+- its **shell reach**, mean radius × `radius_multiplier_visibility_range_end`
+  ([VISUAL_MODEL.md](VISUAL_MODEL.md) *Culling, visibility and lifecycle*). Among the tables'
+  moons only Charon's exceeds its HUD reach.
+
+Both are measured from the parent, plus the body's apoapsis: a sleeping body's own position is
+stale, and querying it costs the orbit solve sleep exists to skip. A body sleeps again at
+1.5–2× its wake distance, so the boundary cannot flicker and a body is awake before it can be
+seen.
+
+**Per body, not per system.** A per-system test has to use the outermost satellite, and
+Jupiter's (S/2003 J 2) keeps its HUD reach out to ~27 au: all 67 moons would wake from
+anywhere among the planets. A per-parent early-out — skip a system while the camera is beyond
+the largest wake distance among its satellites — keeps most frames to one comparison per
+system.
+
+**No body sleeps while a descendant is awake.** Its stale position would misplace the child —
+through the tree in v0.2, through §5.3's f64 sum in v0.3. Wake distances propagate up the tree.
+
+**Left out on purpose:**
+
+- *Points of light and shadows.* A bright moon shows as a PSF point, and shadows its primary,
+  far beyond its HUD reach. Rather than derive that distance — it is an exposure question
+  ([PHOTOMETRIC_MODEL.md](PHOTOMETRIC_MODEL.md)) — such moons take `sleep` FALSE in
+  `moons.tsv`, initially the 16 planetary-mass moons. Whether any other moon's point survives
+  its primary's exposure past its wake distance is checked at implementation; the column is
+  the knob. `IVSunOcclusionManager` skips sleeping candidates rather than read their stale
+  positions; a moon that may sleep is one past its own sub-pixel cull.
+- *The user's HUD group toggles.* Ignored, so a toggle never wakes or sleeps a crowd and sleep
+  stays a function of geometry.
+
+#### Where it runs, and what holds a body awake
+
+The monitor is a program node that runs after the camera has moved
+([VISUAL_MODEL.md](VISUAL_MODEL.md) *Origin shifting and the frame order*) and reads the camera
+from the viewport, so any `Camera3D` drives it — an `IVCamera` or a project's own (§2.5). A
+body it wakes is placed in the same frame, so an instant camera move (a view restore, an
+Assistant `move_camera`) cannot show one stale frame.
+
+Some bodies stay awake whatever their distance, held in a pinned set:
+
+- **The camera's destination**, from `IVCamera.move_started` to the next move. `IVCamera` flies
+  toward `_to_node3d.global_position`, which is stale while the target sleeps; v0.2 wakes it at
+  the halfway handoff, but under proximity it would wake late in the flight and the endpoint
+  would jump in view. A project with its own camera pins its target the same way.
+- **The frame anchor** under §2.4, which is the frame and must never sleep.
+
+What sleep does to the body stays v0.2's: processing off, hidden, mouse target and HUDs
+dropped. In v0.3 most of that work leaves the body for visual and HUD nodes that process
+themselves (§5.3, §8.2), and they connect to `sleep_changed` to stop with it — otherwise sleep
+would save only the placement.
+
+#### Lazy visuals, measurement, and the documents
+
+**Lazy visuals keep their own trigger.** By proximity alone they would load in bursts
+mid-flight: a pass through Jupiter's system initializes dozens of models. When
+`IVLazyModelInitializer` is revisited, intent (the camera's destination and its relatives)
+comes first and proximity, at the shell reach plus a margin, is the backstop that the
+monitor's distance cache serves.
+
+**Measure before tuning the margins.** Nobody has timed what sleep saves. Time all-awake
+against v0.2 on the desktop and on the Intel/ANGLE path standing in for the web — bodies'
+`_process`, the farwarp, occlusion and exposure loops, and the draw cost of the HUDs §9.2's
+cutoff admits — and record it with the other automatic savings in
+[GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md). If all-awake is cheap, the margins can be
+generous.
+
+**When it lands**, the model documents that describe the parenting trigger change with it:
+[PHYSICAL_MODEL.md](PHYSICAL_MODEL.md) *The body tree* ("Sleep and lazy models are process
+economies") and the `IVSleepManager` row of its *Settings summary*;
+[VISUAL_MODEL.md](VISUAL_MODEL.md) *Culling, visibility and lifecycle* (lazy models, and the
+HUD visibility policy gaining §9.2's cutoff), the hidden-participant rule in *Local shadow
+maps*, and the multi-star item in its TODO.
 
 ### 9.5 Orbit-line fragments and display facade
 
@@ -1138,8 +1268,8 @@ delegates; the camera continues to accept any `Node3D` and probe with `has_metho
   `within_lifespan_changed` kept (nav buttons connect to it — the only GUI-connected body
   signal today).
 - `IVGlobal.camera_tree_changed(camera, body, star_orbiter, star)` remains the hub signal (its
-  consumers — sleep, lazy models, exposure, occlusion, dynamic light, path visual — are
-  edited, not broken; the proximity rebuild may later replace some uses).
+  consumers — lazy models, exposure, occlusion, dynamic light, path visual — are edited, not
+  broken; sleep has already left it for §9.4's monitor, and lazy models will follow).
 - `global_position` is **anchor-relative**, not ecliptic (§2.4). Every consumer inside Core wants
   that; a project reading it must know it, and read the f64 state instead when it wants an
   ecliptic coordinate (§2.5).
@@ -1196,8 +1326,8 @@ static func create(
 | `IVBodyFinisher` | same role; appends to `display_nodes`; `has_orbit()` → positioner check |
 | `IVSelectionManager` | unchanged (its duck protocol is the contract; body keeps the entry points) |
 | `IVCamera` | probes unchanged; `origin_shifting` and its `-=` line are deleted by §2.4; it serves as the Planetarium's frame anchor, publishing its own per-frame f64 absolute translation (§2.5: a project supplies one instead) |
-| `IVSleepManager` | replaced by proximity monitor (separate effort, §9.4); interim: works via `top_bodies`/`satellites`/`set_sleeping` unchanged |
-| `IVLazyModelInitializer` | unchanged short-term; trigger revisited with proximity rebuild |
+| `IVSleepManager` | replaced by `IVBodyProximityMonitor` in v0.2, ahead of this redesign (§9.4); the monitor gains mouse targets and the distance cache here |
+| `IVLazyModelInitializer` | unchanged short-term; when revisited, intent first with a proximity backstop (§9.4) |
 | `IVFarwarpManager` | stops per-body pushes; keeps globals/shader params + factor statics; §2.4 drops the +100/+101 ordering it exists to anchor |
 | `IVWorldController` | unchanged; fed by the proximity monitor instead of by bodies |
 | `IVTableBodyBuilder` | becomes component assembler (§12); precision-path tables updated |
@@ -1231,9 +1361,9 @@ v0.3 per the ground rules.
   proposed, or one class with an optional mesh sampler? Proposed: family, for symmetry.
 - **Q3 — Flags pruning.** Retire `BODYFLAGS_TIDALLY_LOCKED`/`AXIS_LOCKED`/tumbler bits in
   favor of rotator typing (proposed), or keep them as cheap informational mirrors?
-- **Q4 — Proximity monitor scope.** Accept the combined camera-distance service (sleep +
-  mouse targets + HUD-distance cache) or keep those three consumers independent? This design
-  only requires that they live outside `IVBody`.
+- **Q4 — Proximity monitor scope.** *Settled 2026-10-17:* one combined camera-distance service
+  (sleep + mouse targets + HUD-distance cache), because sleep is safe only while it reads the
+  same distance as the HUD policy (§9.4).
 - **Q5 — Barycenter orbit linkage.** True binary support needs phase-linked partner orbits
   (same period, opposite longitude, amplitude by mass ratio). Mechanism (an `IVOrbit`
   feature? builder convention? deferred past v0.3?) is undecided; the body model itself is
@@ -1265,7 +1395,8 @@ v0.3 per the ground rules.
 
 ## 15. Deferred / out of scope for v0.3
 
-- Proximity-based sleep + lazy-visual triggering (separate effort; §9.4 defines the seam).
+- Lazy-visual triggering by proximity (§9.4). Proximity sleep itself is designed in §9.4 and
+  lands in v0.2, ahead of this redesign.
 - Network sync (component `changed(is_intrinsic=false)` signals + `IVOrbit.serialize()` are
   the intended hooks; rotators will need the same). The composition of §4 is what makes this
   tractable — the physical slots are exactly the state that must be shared
@@ -1387,3 +1518,10 @@ Compiled from exhaustive sweep of `ui_widgets/`, `ui_components/`, `ui/`,
   row, and Q11/Q12 carry what is undecided. The three model documents were edited in the
   same pass (PHYSICAL_MODEL *Three kinds of project*, VISUAL_MODEL *The render frame anchor
   and local scenes*, PHOTOMETRIC_MODEL *A project's own lighting*).
+- 2026-10-17 — **Proximity sleep designed (§9.4), to land in v0.2 ahead of this redesign.**
+  The rule is that sleep cannot be seen: a body sleeps only when nothing it carries could show,
+  so its wake distance is derived from the HUD and shell-cull rules rather than tuned, and
+  bright moons opt out through the existing `sleep` column. Q4 settled as one combined service,
+  since sleep and HUD policy must read the same distance. On the owner's ruling, the
+  foreign-system cutoff that v0.2's sleep provided by accident becomes a HUD rule (§9.2) rather
+  than staying a side effect of sleep. §2.4's sleep item, §5.1, §8.2, §13 and §15 follow.
