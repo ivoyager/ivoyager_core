@@ -1100,8 +1100,9 @@ reading the code; the old trigger was not run:
 
 - **The trigger fires only at a camera handoff.** A body that changes parent under the camera
   emits nothing, so follow New Horizons into its Pluto segment, or Juno into Jupiter capture,
-  and the moons there stay asleep. This reaches every `camera_tree_changed` consumer, not only
-  sleep, and is left to a separate fix.
+  and the moons there stay asleep. The same gap reached every `camera_tree_changed` consumer;
+  IVCamera now re-emits that signal when an IVBody above it reparents, so only sleep, which
+  this trigger served, is left with it.
 - **It fires halfway through a flight**, at the handoff, rather than where the camera is.
 - **Asleep is not unseen.** A sleeping Galilean moon draws no point of light from Earth, yet
   shadows Jupiter from its frozen position: `IVSunOcclusionManager`'s candidate list reads

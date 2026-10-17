@@ -57,7 +57,8 @@ signal ui_dirty()
 ## (There is no Viewport signal so it is up to the newly active camera to signal.)
 signal current_camera_changed(camera: Camera3D)
 ## This signal should be emitted by any Camera3D class used in the simulator.
-## It tells the simulator where the camera is for graphic and other updating purposes.
+## It tells the simulator where the camera is for graphic and other updating purposes,
+## so emit it again whenever an IVBody above the camera reparents.
 signal camera_tree_changed(camera: Camera3D, parent: Node3D, star_orbiter: Node3D, star: Node3D)
 ## This signal should be emitted by any Camera3D class used in the simulator.
 ## It's used for things like size compensation in [IVBodyPositionVisual].

@@ -185,6 +185,7 @@ var _transform := Transform3D(Basis(), Vector3(0, 0, KM)) # working value
 var _universe: Node3D = IVGlobal.program.Universe
 var _max_dist: float = IVCoreSettings.max_camera_distance
 var _selected_track_flags := flags & CameraFlags.CAMERAFLAGS_ANY_TRACKING # unless disabled
+var _reparent_watched_bodies: Array[IVBody] = [] # IVBody ancestors, camera's body first
 
 # motions / rotations
 var _motion_accumulator := Vector3.ZERO
@@ -525,6 +526,7 @@ func _clear_procedural() -> void:
 	_to_node3d = null
 	_pivot_node3d = null
 	_from_node3d = null
+	_reparent_watched_bodies.clear()
 
 
 func _process_move_to(delta: float) -> void:
@@ -574,7 +576,27 @@ func _signal_tree_changed() -> void:
 		node = node.get_parent()
 	if !body:
 		return
+	_watch_ancestor_reparents(body)
 	IVGlobal.camera_tree_changed.emit(self, body, body.star_orbiter, body.star)
+
+
+func _watch_ancestor_reparents(body: IVBody) -> void:
+	# A trajectory segment switch reparents a body under the camera without a handoff,
+	# changing its star_orbiter (and possibly star) out from under every consumer.
+	for watched_body in _reparent_watched_bodies:
+		watched_body.parent_changed.disconnect(_on_ancestor_parent_changed)
+	_reparent_watched_bodies.clear()
+	var node: Node = body
+	while node:
+		var ancestor := node as IVBody
+		if ancestor:
+			ancestor.parent_changed.connect(_on_ancestor_parent_changed)
+			_reparent_watched_bodies.append(ancestor)
+		node = node.get_parent()
+
+
+func _on_ancestor_parent_changed(_new_parent: IVBody) -> void:
+	_signal_tree_changed()
 
 
 func _interpolate_path(from_transform: Transform3D, to_transform: Transform3D, progress: float

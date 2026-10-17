@@ -19,6 +19,7 @@ Under development using Godot 4.7.2.
 ### Fixed
 * Core's `views.tsv` named its time-direction column `is_reversed` where IVTableViewBuilder reads `reversed_time`, so a default view could not set reversed time.
 * Sleeping moons shadowed their planets from frozen positions, the planetary-mass moons drew no point of light from outside their planet's system, and a followed spacecraft entering a planet's system (New Horizons at Pluto) left that system's moons asleep.
+* A body reparenting under the camera without a handoff (a spacecraft trajectory segment switch) did not emit `IVGlobal.camera_tree_changed`, so camera-point eclipses and IVDynamicLight kept the old star orbiter; IVCamera now re-emits it.
 
 
 ## [v0.2.2] - 2026-10-15
