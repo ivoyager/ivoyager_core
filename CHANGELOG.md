@@ -31,6 +31,7 @@ Under development using Godot 4.7.2.
 * IVOptionsPopup's and IVHotkeysPopup's bottom buttons and IVSymbolPicker's point button had English text that no translation could reach; they use new text keys `BUTTON_RESTORE_DEFAULTS`, `BUTTON_CONFIRM_CHANGES` and `BUTTON_POINT_SYMBOL`.
 * IVTimeSetButton's tooltip showed its text key, `HINT_SET_TIME`, which no CSV had; IVSelectionImage's showed `HINT_SELECTION_IMAGE`.
 * IVHotkeyDialog named the action that already uses a key by its text key (e.g., "LABEL_TOGGLE_PAUSE").
+* IVWikiManager asserted on a language in `table_fields` whose page-title field the project hadn't loaded, and gave no page where the current language lacked a title though `has_page()` promised a fallback. Both now get the `fallback_language_code` page.
 * `TXT_PWA_UPDATE_AVAILABLE` told the user to press 'Continue', a button the web update prompt doesn't have.
 
 
