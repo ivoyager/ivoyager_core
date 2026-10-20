@@ -49,7 +49,8 @@ signal translations_imported()
 ## This is early in [IVCoreInitializer] init before program objects have been
 ## added.
 signal data_tables_postprocessed()
-## Emitted by [IVStateManager] immediately before simulator start. All objects
+## Emitted by [IVStateManager] immediately before simulator start, and by
+## [IVLanguageManager] after the user changes the language. All objects
 ## that signal "something_changed" for UI should signal now. UI that polls
 ## (instead of responding to signals) should update too.
 signal ui_dirty() 

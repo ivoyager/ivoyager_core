@@ -58,6 +58,7 @@ const SCENE := "res://addons/ivoyager_core/ui_widgets/huds_hbox.tscn"
 
 
 var _enable_links := false
+var _link_label: IVLinkLabel
 
 
 ## Creates a new [IVHUDsHBox] instance using specified parameters.
@@ -89,6 +90,11 @@ func _ready() -> void:
 		IVStateManager.core_initialized.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
 
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSLATION_CHANGED and _link_label:
+		_link_label.text = _get_link_bbcode()
+
+
 func _configure_after_core_inited() -> void:
 
 	if IVGlobal.program.has(&"WikiManager"):
@@ -98,9 +104,8 @@ func _configure_after_core_inited() -> void:
 	# label
 	if label_text:
 		if _enable_links and link_label_key:
-			var bbcode := "[url=%s]%s[/url]" % [link_label_key, tr(label_text)]
-			var link_label := IVLinkLabel.create(bbcode)
-			add_child(link_label)
+			_link_label = IVLinkLabel.create(_get_link_bbcode())
+			add_child(_link_label)
 		else:
 			var label := Label.new()
 			label.text = label_text
@@ -125,6 +130,10 @@ func _configure_after_core_inited() -> void:
 	color_picker.tooltip_text = "HINT_COLOR_PICKER"
 	control_block.add_child(color_picker)
 	add_child(control_block)
+
+
+func _get_link_bbcode() -> String:
+	return "[url=%s]%s[/url]" % [link_label_key, tr(label_text)]
 
 
 func _add_checkbox(container: HBoxContainer, hud_type: IVHUDsCheckBox.HUDsType, hint: String) -> void:

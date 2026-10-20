@@ -45,6 +45,13 @@ extends RefCounted
 ## column shows the text of Godot's fallback locale
 ## ([code]internationalization/locale/fallback[/code], "en" by default).[br][br]
 ##
+## The user can change the language at runtime. GUI that holds a text key retranslates
+## itself. GUI that composes its text from translated pieces must rebuild it: on
+## [constant Node.NOTIFICATION_TRANSLATION_CHANGED] if it needs only [method
+## Object.tr], or on [signal IVGlobal.ui_dirty], which this class emits after the
+## change, if it also needs [IVQFormat] or [IVWikiManager], which follow the language
+## only after the notification.[br][br]
+##
 ## We're ready for localization! Please let us know if you can do a
 ## translation at [url]https://github.com/orgs/ivoyager/discussions[/url].
 
@@ -112,3 +119,6 @@ func _settings_listener(setting: StringName, value: Variant) -> void:
 	if setting == &"language":
 		var language_setting: int = value
 		_set_language(language_setting)
+		if IVStateManager.started_or_about_to_start: # else the start emits it
+			# Deferred because IVWikiManager hears this setting after this class.
+			IVGlobal.ui_dirty.emit.call_deferred()
