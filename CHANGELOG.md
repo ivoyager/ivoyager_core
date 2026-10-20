@@ -26,7 +26,11 @@ Under development using Godot 4.7.2.
 * Sleeping moons shadowed their planets from frozen positions, the planetary-mass moons drew no point of light from outside their planet's system, and a followed spacecraft entering a planet's system (New Horizons at Pluto) left that system's moons asleep.
 * A body reparenting under the camera without a handoff (a spacecraft trajectory segment switch) did not emit `IVGlobal.camera_tree_changed`, so camera-point eclipses and IVDynamicLight kept the old star orbiter; IVCamera now re-emits it.
 * GUI text showed raw text keys when the system locale already matched the selected language (e.g., a browser set to plain "en").
-* Changing the language at runtime left IVQFormat's unit names, number names and compass directions in the previous language.
+* Changing the language at runtime left text in the previous language: IVQFormat's unit and number names, IVViewButton's default views, IVHUDsHBox's link labels, and the selection's name, data and date-line "paused" until the next selection or speed change. IVLanguageManager now emits `IVGlobal.ui_dirty` after the change.
+* Mouse-over text for an orbit lowercased a translated word, wrong for a German noun; it uses new text key `TXT_ORBIT_CONSTRUCTOR`, which replaces `LABEL_ORBIT`.
+* IVOptionsPopup's and IVHotkeysPopup's bottom buttons and IVSymbolPicker's point button had English text that no translation could reach; they use new text keys `BUTTON_RESTORE_DEFAULTS`, `BUTTON_CONFIRM_CHANGES` and `BUTTON_POINT_SYMBOL`.
+* IVTimeSetButton's tooltip showed its text key, `HINT_SET_TIME`, which no CSV had; IVSelectionImage's showed `HINT_SELECTION_IMAGE`.
+* IVHotkeyDialog named the action that already uses a key by its text key (e.g., "LABEL_TOGGLE_PAUSE").
 * `TXT_PWA_UPDATE_AVAILABLE` told the user to press 'Continue', a button the web update prompt doesn't have.
 
 

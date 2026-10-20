@@ -54,21 +54,21 @@ alignment = 1
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 8
-text = "Restore Defaults"
+text = "BUTTON_RESTORE_DEFAULTS"
 
 [node name="ConfirmChangesButton" type="Button" parent="VBox/ButtonsBox" unique_id=706765033]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 8
-text = "Confirm Changes"
+text = "BUTTON_CONFIRM_CHANGES"
 
 [node name="CancelButton" type="Button" parent="VBox/ButtonsBox" unique_id=598902988]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 8
-text = "Cancel"
+text = "BUTTON_CANCEL"
 
 [node name="ControlModSpacing" parent="VBox/ButtonsBox" unique_id=1750510193 instance=ExtResource("2_spcng")]
 

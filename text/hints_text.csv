@@ -56,6 +56,7 @@ HINT_SELECTION_IMAGE,Click to center and orient
 HINT_SELECTION_BACK,Select last
 HINT_SELECTION_FORWARD,Select next
 HINT_SELECTION_UP,Select parent object
+HINT_SET_TIME,Set date & time
 HINT_SHADOW_RESOLUTION,"Resolution of shadows cast by spacecraft and other objects\nnear the camera, or Off for none. Higher is sharper, but\nuses more video memory (8192: 256 MB). Eclipse and ring\nshadows are not affected.\n\nGPU cost: LOW for a modern GPU; MODERATE for integrated\ngraphics, and HIGH there at 8192."
 HINT_SHOW_GUI,Show the GUI again
 HINT_SHOW_NAME,Show Name

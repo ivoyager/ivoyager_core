@@ -1904,7 +1904,7 @@ func get_fragment_data(_fragment_type: int) -> Array:
 ## Used for mouse-over identification of this body's orbit visual.
 func get_fragment_text(_data: Array) -> String:
 	# Only FRAGMENT_BODY_ORBIT at this time.
-	return tr(name) + " (" + tr("LABEL_ORBIT").to_lower() + ")"
+	return tr(&"TXT_ORBIT_CONSTRUCTOR") % tr(name)
 
 
 ## Reorder this body's satellites after a satellite major orbit change

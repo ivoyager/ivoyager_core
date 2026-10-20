@@ -226,7 +226,7 @@ func get_fragment_text(data: Array) -> String:
 	var index: int = data[2]
 	var text := names[index]
 	if fragment_type == IVFragmentIdentifier.FRAGMENT_SBG_ORBIT:
-		text += " (" + tr("LABEL_ORBIT").to_lower() + ")"
+		text = tr(&"TXT_ORBIT_CONSTRUCTOR") % text
 	return text
 
 

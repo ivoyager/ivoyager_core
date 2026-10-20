@@ -63,7 +63,7 @@ func build(include_point: bool) -> void:
 	if include_point:
 		_point_button = Button.new()
 		_point_button.toggle_mode = true
-		_point_button.text = "• (point)" # U+2022 dot + label
+		_point_button.text = "BUTTON_POINT_SYMBOL"
 		_point_button.button_group = _button_group
 		_point_button.pressed.connect(_on_point_pressed)
 		vbox.add_child(_point_button)

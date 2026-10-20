@@ -101,7 +101,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	else:
 		var other_action_text := _get_scancode_action_text(scancode_w_mods)
 		
-		_key_label.text = tr(&"TXT_KEY_USED_BY_CONSTRUCTOR") % [key_as_text, other_action_text]
+		_key_label.text = tr(&"TXT_KEY_USED_BY_CONSTRUCTOR") % [key_as_text, tr(other_action_text)]
 		_key_label.set(&"theme_override_colors/font_color", in_use_color)
 		_input_event_key = null
 		_ok_button.disabled = true
