@@ -27,6 +27,7 @@ Under development using Godot 4.7.2.
 * A body reparenting under the camera without a handoff (a spacecraft trajectory segment switch) did not emit `IVGlobal.camera_tree_changed`, so camera-point eclipses and IVDynamicLight kept the old star orbiter; IVCamera now re-emits it.
 * GUI text showed raw text keys when the system locale already matched the selected language (e.g., a browser set to plain "en").
 * Changing the language at runtime left IVQFormat's unit names, number names and compass directions in the previous language.
+* `TXT_PWA_UPDATE_AVAILABLE` told the user to press 'Continue', a button the web update prompt doesn't have.
 
 
 ## [v0.2.2] - 2026-10-15
