@@ -41,9 +41,9 @@ extends Node
 # avoided here to prevent circular reference issues.
 
 
-## Emitted by [IVTranslationImporter] after translations imported. This is early
-## in [IVCoreInitializer] init before program objects have been added. May be
-## useful for boot or splash screen.  
+## Emitted by [IVLanguageManager] after it adds its translations and sets the
+## locale. This is early in [IVCoreInitializer] init before program objects have
+## been added. May be useful for boot or splash screen.
 signal translations_imported()
 ## Emitted by [IVTableInitializer] after data tables have been postprocessed.
 ## This is early in [IVCoreInitializer] init before program objects have been

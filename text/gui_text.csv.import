@@ -13,7 +13,7 @@ dest_files=["res://addons/ivoyager_core/text/gui_text.en.translation"]
 
 [params]
 
-compress=false
+compress=1
 delimiter=0
 unescape_keys=false
 unescape_translations=true

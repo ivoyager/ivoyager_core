@@ -16,11 +16,14 @@ Under development using Godot 4.7.2.
 * Moon HUDs now show wherever their orbits are visually separate, including from other planets' systems, where sleep used to hide them.
 * Body mouse-over: a body's disc or point is hoverable at exactly its drawn size (`IVWorldController.min_click_radius` now 0), its name and symbol wherever they are drawn, and IVWorldController settles one target per frame so a body in front of another can be hovered and a hidden label cannot.
 * IVSunOcclusionManager no longer feeds a body whose shells are all past their distance cull, which the renderer does not draw. See *Proximity sleep* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md).
+* [API breaking] IVTranslationImporter is retired, with `IVStrings.c_unescape_patch()` (write Unicode characters directly in translation CSVs). IVLanguageManager, moved from `program_refcounteds` to first in `IVCoreInitializer.init_refcounteds`, now adds Core's and the Units plugin's translations from its new `translations` list, and a project's own translations listed in project.godot override Core text with the same key. A project that appended to `IVTranslationImporter.translations` lists that file in project.godot instead, and can drop the Units translation from there.
 
 ### Fixed
 * Core's `views.tsv` named its time-direction column `is_reversed` where IVTableViewBuilder reads `reversed_time`, so a default view could not set reversed time.
 * Sleeping moons shadowed their planets from frozen positions, the planetary-mass moons drew no point of light from outside their planet's system, and a followed spacecraft entering a planet's system (New Horizons at Pluto) left that system's moons asleep.
 * A body reparenting under the camera without a handoff (a spacecraft trajectory segment switch) did not emit `IVGlobal.camera_tree_changed`, so camera-point eclipses and IVDynamicLight kept the old star orbiter; IVCamera now re-emits it.
+* GUI text showed raw text keys when the system locale already matched the selected language (e.g., a browser set to plain "en").
+* Changing the language at runtime left IVQFormat's unit names, number names and compass directions in the previous language.
 
 
 ## [v0.2.2] - 2026-10-15
