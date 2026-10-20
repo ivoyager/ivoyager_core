@@ -199,7 +199,7 @@ func _update_hit_rects(show_symbol: bool, show_name: bool) -> void:
 		_symbol_rect = Rect2(Vector2(-0.5, -0.5) * _symbol_size, Vector2(_symbol_size, _symbol_size))
 	if !show_name:
 		return
-	var name_size := _name_label.font.get_string_size(_name_label.text,
+	var name_size := _name_label.font.get_string_size(_name_label.atr(_name_label.text),
 			HORIZONTAL_ALIGNMENT_LEFT, -1.0, _name_font_size)
 	if show_symbol:
 		var name_offset := name_offset_ratio * _symbol_size
