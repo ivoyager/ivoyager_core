@@ -530,7 +530,7 @@ constants define it:
 | `IVRealPlanetOrbit` | additionally the *a / e / i* epoch values and rates, the JPL corrections, the validity span and its own hysteresis values |
 | `IVTrajectory` | `orbits`, `visual_orbits`, `end_remove` (everything else — LCA, segment parents, path — is derived) |
 | `IVSmallBodiesGroup` | identity, secondary body, `max_apoapsis`, names and all four element arrays |
-| `IVComposition` | type and components |
+| `IVComposition` | species and amounts |
 
 Everything not in that table is derived: every `Node3D.position` and transform, the tree
 indexing, paths and LCAs, sleep and lazy state, HUD visibility, farwarp positions, every

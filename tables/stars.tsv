@@ -3,4 +3,4 @@ Type	TABLE_ROW	BOOL	BOOL	BOOL	STRING	ARRAY[STRING]	STRING	BOOL	TABLE_ROW	TABLE_R
 Default		TRUE	TRUE	TRUE				TRUE																																		
 Unit																	deg	deg	ly	km	yr	km/s	km/s	km/s	d	deg	deg	km	km^3/s^2	kg	g/cm^3	km/s			W			yr	K	K	K	
 Prefix/STAR_	ORBIT_								BODY_CLASS_	SURFACE_CLASS_																																
-SUN					Sun		Sun		G_STAR	G_STAR	TRUE	8	5	796354	4143	575	0	0	0	2.7e17	2.3e8	220	370	20	25.05	286.13	63.87	695700	1.32712440042e11	1.9885e30	1.408	617.7	G2V	4.83	3.828e26	0.63	0.0122	4.6e9	1.57e7	5777	~5e6	73.46% Hydrogen, 24.85% Helium, 0.77% Oxygen, 0.29% Carbon, 0.16% Iron, 0.12% Neon, 0.09% Nitrogen, 0.07% Silicon, 0.05% Magnesium, 0.04% Sulphur
+SUN					Sun		Sun		G_STAR	G_STAR	TRUE	8	5	796354	4143	575	0	0	0	2.7e17	2.3e8	220	370	20	25.05	286.13	63.87	695700	1.32712440042e11	1.9885e30	1.408	617.7	G2V	4.83	3.828e26	0.63	0.0122	4.6e9	1.57e7	5777	~5e6	73.46% HYDROGEN, 24.85% HELIUM, 0.77% OXYGEN, 0.29% CARBON, 0.16% IRON, 0.12% NEON, 0.09% NITROGEN, 0.07% SILICON, 0.05% MAGNESIUM, 0.04% SULFUR

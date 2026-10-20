@@ -70,6 +70,7 @@ static var language_codes: Array[String] = ["en"]
 ## Translation files added to [TranslationServer] at init: I, Voyager Core's and
 ## the Units plugin's. Read once, so modify it in a preinitializer.
 static var translations: Array[String] = [
+	"res://addons/ivoyager_core/text/chemicals_text.en.translation",
 	"res://addons/ivoyager_core/text/entities_text.en.translation",
 	"res://addons/ivoyager_core/text/gui_text.en.translation",
 	"res://addons/ivoyager_core/text/hints_text.en.translation",

@@ -1,0 +1,14 @@
+[remap]
+
+importer="ivoyager.tables"
+type="IVTableResource"
+uid="uid://f5ixxm3eopo6"
+path="res://.godot/imported/chemicals.tsv-115d2280d3c4cf13929e1957a8c03156.tres"
+
+[deps]
+
+source_file="res://addons/ivoyager_core/tables/chemicals.tsv"
+dest_files=["res://.godot/imported/chemicals.tsv-115d2280d3c4cf13929e1957a8c03156.tres"]
+
+[params]
+

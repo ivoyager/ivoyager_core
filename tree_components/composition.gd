@@ -20,46 +20,21 @@
 class_name IVComposition
 extends RefCounted
 
-## Base class representing the composition of something, e.g., a planet's
-## atmosphere or a star's photosphere.
+## Composition of a body's atmosphere, trace atmosphere or photosphere, for display.
 ##
-## This object is designed for simple GUI display. It can be subclassed or
-## replaced (it isn't referenced anywhere so it's easy to replace). GUI widget
-## [IVSelectionData] expects an object with method "get_labels_values_display".
-
-enum CompositionType {
-	BY_WEIGHT, 
-	BY_VOLUME,
-}
+## [IVTableCompositionBuilder] builds these from data tables, and [IVSelectionData]
+## shows one row per species. Nothing else references this class, so a project can
+## replace it or remove the builder.
 
 const PERSIST_MODE := IVGlobal.PERSIST_PROCEDURAL
 const PERSIST_PROPERTIES: Array[StringName] = [
-	&"type",
-	&"components",
+	&"species",
+	&"amounts",
 ]
 
 # persisted
-## How [member components] amounts should be interpreted; one of
-## [enum CompositionType].
-var type: int
-## Map of chemical name to amount string ([code]null[/code] if amount unknown).
-var components := {} # chemicals w/ amount string or null
-
-
-
-## Returns parallel [code][label, value][/code] strings for GUI display.
-## [param labels_prefix] is prepended to each label.
-func get_labels_values_display(labels_prefix := "") -> Array[String]:
-	const arrays := preload("uid://bv7xrcpcm24nc")
-	var result := arrays.init_array(2, "", TYPE_STRING) # label, value
-	for key: String in components:
-		var value: Variant = components[key]
-		var optn_newline := "\n" if result[0] else ""
-		match typeof(value):
-			TYPE_NIL:
-				result[0] += optn_newline + labels_prefix + key
-				result[1] += optn_newline + ""
-			TYPE_STRING:
-				result[0] += optn_newline + labels_prefix + key
-				result[1] += optn_newline + value
-	return result
+## Text keys of the chemical species, entities of [code]chemicals.tsv[/code], in table order.
+var species: Array[StringName] = []
+## Amount of each species in [member species]: display text ("78.08%", "~1%"), a text key
+## ([code]TXT_TRACE[/code]), or "" if unknown. Pass each through [method Object.tr].
+var amounts: Array[String] = []

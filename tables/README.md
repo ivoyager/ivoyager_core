@@ -24,6 +24,10 @@ Used only for GUI info display of "Classification". E.g., "Terrestrial Planet", 
 
 Used by [IVWorldEnvironment](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/world_environment.gd) to set CameraAttributrutes parameters.
 
+## chemicals.tsv
+
+Chemical species for display in atmosphere and photosphere compositions. The composition fields of [planets.tsv](#planetstsv), [moons.tsv](#moonstsv) and [stars.tsv](#starstsv) name them without the `CHEM_` prefix; see [IVTableCompositionBuilder](https://github.com/ivoyager/ivoyager_core/blob/master/program/table_composition_builder.gd) for the cell format.
+
 ## dynamic_lights.tsv
 
 Used to create [IVDynamicLight](https://github.com/ivoyager/ivoyager_core/blob/master/tree_nodes/dynamic_light.gd) instances for shadow casting.

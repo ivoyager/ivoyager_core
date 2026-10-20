@@ -17,6 +17,8 @@ Under development using Godot 4.7.2.
 * Body mouse-over: a body's disc or point is hoverable at exactly its drawn size (`IVWorldController.min_click_radius` now 0), its name and symbol wherever they are drawn, and IVWorldController settles one target per frame so a body in front of another can be hovered and a hidden label cannot.
 * IVSunOcclusionManager no longer feeds a body whose shells are all past their distance cull, which the renderer does not draw. See *Proximity sleep* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md).
 * [API breaking] IVTranslationImporter is retired, with `IVStrings.c_unescape_patch()` (write Unicode characters directly in translation CSVs). IVLanguageManager, moved from `program_refcounteds` to first in `IVCoreInitializer.init_refcounteds`, now adds Core's and the Units plugin's translations from its new `translations` list, and a project's own translations listed in project.godot override Core text with the same key. A project that appended to `IVTranslationImporter.translations` lists that file in project.godot instead, and can drop the Units translation from there.
+* [API breaking] [Table breaking] Atmosphere and photosphere compositions name their species by text keys, the entities of new table `chemicals.tsv` with their Wikipedia page titles, so the names translate and link; composition cells in `planets.tsv`, `moons.tsv` and `stars.tsv` use those entity names (`78.08% NITROGEN`). IVComposition holds `species` and `amounts` in place of `type` and `components`, and IVSelectionData shows one row per species. Text key `LABEL_PHOTOSPHERE_COMPOSITON_BY_WEIGHT` is now `LABEL_PHOTOSPHERE_COMPOSITION_BY_MASS`.
+* [API breaking] An IVSelectionData value format Callable can return any number of `[row label, value text]` rows, in place of one `[labels, values]` row.
 
 ### Removed
 * [API breaking] 171 text keys that nothing in Core displays, from `gui_text.csv`, `hints_text.csv` and `long_text.csv`, with their rows in `wiki_extras.tsv`. A project that displayed one adds it to its own translation.
@@ -33,6 +35,7 @@ Under development using Godot 4.7.2.
 * IVTimeSetButton's tooltip showed its text key, `HINT_SET_TIME`, which no CSV had; IVSelectionImage's showed `HINT_SELECTION_IMAGE`.
 * IVHotkeyDialog named the action that already uses a key by its text key (e.g., "LABEL_TOGGLE_PAUSE").
 * IVWikiManager asserted on a language in `table_fields` whose page-title field the project hadn't loaded, and gave no page where the current language lacked a title though `has_page()` promised a fallback. Both now get the `fallback_language_code` page.
+* Composition data: Venus's sulfur dioxide was misspelled, a stray comma split Mars's semiheavy water (HDO) into two species, and Mars's xenon was rounded to 0.1 ppm from NASA's 0.08.
 * `TXT_PWA_UPDATE_AVAILABLE` told the user to press 'Continue', a button the web update prompt doesn't have.
 
 

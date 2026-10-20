@@ -36,11 +36,13 @@ extends VBoxContainer
 ## Each row array has the following elements:[br][br]
 ##
 ## [0] Row label as a StringName, a label Callable that returns a StringName, or
-##     null (null only if value path returns a [labels, values] array.)[br]
+##     null (null only if the value format Callable returns rows; see below.)[br]
 ## [1] Value path relative to current selection. Path items can be methods,
 ##     properties, node children, or dictionary keys. (Evaluation uses [method
 ##     IVTree.get_path_variant].)[br]
-## [2, optional] Value format Callable.[br]
+## [2, optional] Value format Callable. It may return an [code]Array[Array][/code] of
+##     [code][row label, value text][/code] to add that many rows, where an empty
+##     value text does not hide its row.[br]
 ## [3, optional] A row hide Callable.[br][br]
 ##
 ## Rows are hidden if "invalid", which occurs when path can't be resolved or
@@ -140,13 +142,13 @@ var selection_data_content: Dictionary[StringName, Array] = {
 		[&"LABEL_TEMP_AT_10TH_BAR", "characteristics/tenth_bar_t", fixed_unit.bind(&"degC")],
 	] as Array[Array],
 	AtmosphereComposition = [
-		[null, "components/atmosphere", mulitline_labels_values]
+		[null, "components/atmosphere", composition_rows]
 	] as Array[Array],
 	TraceAtmosphereComposition = [
-		[null, "components/trace_atmosphere", mulitline_labels_values]
+		[null, "components/trace_atmosphere", composition_rows]
 	] as Array[Array],
 	PhotosphereComposition = [
-		[null, "components/photosphere", mulitline_labels_values]
+		[null, "components/photosphere", composition_rows]
 	] as Array[Array]
 }
 
@@ -263,14 +265,14 @@ func enum_name(enum_int: int, enum_dict: Dictionary) -> StringName:
 	return enum_dict.find_key(enum_int)
 
 
-func mulitline_labels_values(object: Object) -> Array[String]:
-	# Object must create a data subsection w/ lables & values
-	assert(object.has_method(&"get_labels_values_display"))
-	@warning_ignore("unsafe_method_access")
-	return object.get_labels_values_display() # [labels String, values String]
-
-
 # specific
+
+func composition_rows(composition: IVComposition) -> Array[Array]:
+	var rows: Array[Array] = []
+	for i in composition.species.size():
+		rows.append([composition.species[i], tr(composition.amounts[i])])
+	return rows
+
 
 func axial_tilt_to_orbit(x: float, internal_precision: int) -> String:
 	# "~0°" if axis locked. Adds " (variable)" qualifier to chaotic tumblers.

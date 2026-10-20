@@ -221,10 +221,13 @@ func _update_selection(_dummy := false) -> void:
 			var format: Callable = row_content[2]
 			var formatted_value: Variant = format.call(value)
 			if formatted_value is Array:
-				# Set full row row_content here, not below!
-				var list_array: Array[String] = formatted_value
-				_set_row(grid_row, list_array[0], list_array[1], &"")
-				grid_row += 1
+				# Rows of [row label, value text], set here and not below.
+				var rows: Array[Array] = formatted_value
+				for row in rows:
+					var list_label: StringName = row[0]
+					var list_value_text: String = row[1]
+					_set_row(grid_row, list_label, list_value_text, &"")
+					grid_row += 1
 				content_row += 1
 				continue
 			elif formatted_value is StringName:

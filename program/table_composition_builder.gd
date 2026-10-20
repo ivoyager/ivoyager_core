@@ -21,6 +21,10 @@ class_name IVTableCompositionBuilder
 extends RefCounted
 
 ## Builds [IVComposition] instances from data tables.
+##
+## A composition cell lists species by their [code]chemicals.tsv[/code] entity names,
+## without the table's prefix, each optionally after an amount:
+## "78.08% NITROGEN, ~1% WATER_VAPOR, trace ARGON, HELIUM".
 
 
 var _regex := RegEx.new()
@@ -52,16 +56,16 @@ func add_compositions_from_table(components: Dictionary[StringName, RefCounted],
 
 
 func make_composition_from_string(string: String) -> IVComposition:
-	# "item 0.0%, item2 0.0%"
 	var composition := IVComposition.new()
-	var list := string.split(", ")
-	var dict := {}
-	for item in list:
+	var prefix := IVTableData.get_entity_prefix(&"chemicals")
+	for item in string.split(", "):
 		var item_match := _regex.search(item)
-		var component: String = item_match.strings[2]
-		if item_match.strings[1]:
-			dict[component] = item_match.strings[1]
-		else:
-			dict[component] = null
-	composition.components = dict
+		var species := StringName(prefix + item_match.strings[2])
+		assert(IVTableData.has_entity_name(&"chemicals", species),
+				"'%s' in composition '%s' is not in chemicals.tsv" % [species, string])
+		var amount := item_match.strings[1]
+		if amount == "trace":
+			amount = "TXT_TRACE"
+		composition.species.append(species)
+		composition.amounts.append(amount)
 	return composition
