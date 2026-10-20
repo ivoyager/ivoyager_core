@@ -179,6 +179,12 @@ func _ready() -> void:
 	_update_max_size()
 
 
+func _notification(what: int) -> void:
+	# Key names are composed text, which a Button can't retranslate itself.
+	if what == NOTIFICATION_TRANSLATION_CHANGED and visible and _input_map_manager:
+		_rebuild_content.call_deferred()
+
+
 func _shortcut_input(event: InputEvent) -> void:
 	if (event.is_action_pressed(&"ui_cancel")
 			or IVInputMapManager.is_action_pressed(event, &"toggle_hotkeys", true)):
@@ -268,6 +274,12 @@ func _build_content() -> void:
 	_on_content_built.call_deferred()
 
 
+func _rebuild_content() -> void:
+	_build_content()
+	size = Vector2i.ZERO
+	move_to_center()
+
+
 func _update_max_size() -> void:
 	var view_size := get_parent().get_viewport().get_visible_rect().size
 	max_size = Vector2i(view_size * max_screen_proportion)
@@ -310,7 +322,7 @@ func _build_item(hotkey_text: StringName, action: StringName) -> HBoxContainer:
 	for keycode in scancodes:
 		var key_button := Button.new()
 		action_hbox.add_child(key_button)
-		key_button.text = OS.get_keycode_string(keycode)
+		key_button.text = IVInputMapManager.translate_key_text(OS.get_keycode_string(keycode))
 		key_button.pressed.connect(_hotkey_dialog.open.bind(action, index, hotkey_text,
 				key_button.text, section_content))
 		index += 1

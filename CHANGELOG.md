@@ -29,6 +29,7 @@ Under development using Godot 4.7.2.
 * Changing the language at runtime left text in the previous language: IVQFormat's unit and number names, IVViewButton's default views, IVHUDsHBox's link labels, and the selection's name, data and date-line "paused" until the next selection or speed change. IVLanguageManager now emits `IVGlobal.ui_dirty` after the change.
 * Mouse-over text for an orbit lowercased a translated word, wrong for a German noun; it uses new text key `TXT_ORBIT_CONSTRUCTOR`, which replaces `LABEL_ORBIT`.
 * IVOptionsPopup's and IVHotkeysPopup's bottom buttons and IVSymbolPicker's point button had English text that no translation could reach; they use new text keys `BUTTON_RESTORE_DEFAULTS`, `BUTTON_CONFIRM_CHANGES` and `BUTTON_POINT_SYMBOL`.
+* Key names in IVHotkeysPopup, IVHotkeyDialog and hotkey tooltips came from the engine in English. They now have text keys in new `text/keyboard_text.csv`, which new `IVInputMapManager.key_name_texts` maps them to.
 * IVTimeSetButton's tooltip showed its text key, `HINT_SET_TIME`, which no CSV had; IVSelectionImage's showed `HINT_SELECTION_IMAGE`.
 * IVHotkeyDialog named the action that already uses a key by its text key (e.g., "LABEL_TOGGLE_PAUSE").
 * IVWikiManager asserted on a language in `table_fields` whose page-title field the project hadn't loaded, and gave no page where the current language lacked a title though `has_page()` promised a fallback. Both now get the `fallback_language_code` page.
