@@ -79,7 +79,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if !_scancode_is_valid(scancode_w_mods):
 		return
 	_dialog_label.text = &"LABEL_PRESS_A_KEY_TO_CHANGE"
-	var key_as_text := OS.get_keycode_string(scancode_w_mods)
+	var key_as_text := IVInputMapManager.translate_key_text(OS.get_keycode_string(scancode_w_mods))
 	if _scancode_is_reserved(scancode_w_mods):
 		_key_label.text = tr(&"TXT_KEY_RESERVED_CONSTRUCTOR") % key_as_text
 		_key_label.set(&"theme_override_colors/font_color", in_use_color)
@@ -101,7 +101,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	else:
 		var other_action_text := _get_scancode_action_text(scancode_w_mods)
 		
-		_key_label.text = tr(&"TXT_KEY_USED_BY_CONSTRUCTOR") % [key_as_text, other_action_text]
+		_key_label.text = tr(&"TXT_KEY_USED_BY_CONSTRUCTOR") % [key_as_text, tr(other_action_text)]
 		_key_label.set(&"theme_override_colors/font_color", in_use_color)
 		_input_event_key = null
 		_ok_button.disabled = true

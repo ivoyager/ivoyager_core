@@ -36,18 +36,3 @@ static func get_bit_string(flags: int, bytes := 4) -> String:
 		flags >>= 1
 		index += 1
 	return result
-
-
-## Patch method to handle "\u", which is not handled by Godot's [code]c_unescape()[/code].
-## See Godot issue #38716. Large unicodes are not supported by Godot, so we
-## can't do anything with "\U".
-static func c_unescape_patch(text: String) -> String:
-	var u_esc := text.find("\\u")
-	while u_esc != -1:
-		var esc_str := text.substr(u_esc, 6)
-		var hex_str := esc_str.replace("\\u", "0x")
-		var unicode := hex_str.hex_to_int()
-		var unicode_chr := char(unicode)
-		text = text.replace(esc_str, unicode_chr)
-		u_esc = text.find("\\u")
-	return text

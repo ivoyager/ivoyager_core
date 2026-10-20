@@ -298,6 +298,90 @@ static var action_texts: Dictionary[StringName, StringName] = {
 }
 
 
+## Text keys for the key names that [method OS.get_keycode_string] and [method
+## InputEvent.as_text] give, so a translation can name keys as its keyboards label them.
+## [method translate_key_text] uses it; a key name not here shows as the engine gives it.
+## Core's texts are in [code]text/keyboard_text.csv[/code].
+static var key_name_texts: Dictionary[String, StringName] = {
+	"Alt" : &"KEY_ALT",
+	"Ampersand" : &"KEY_AMPERSAND",
+	"Apostrophe" : &"KEY_APOSTROPHE",
+	"AsciiCircum" : &"KEY_ASCIICIRCUM",
+	"AsciiTilde" : &"KEY_ASCIITILDE",
+	"Asterisk" : &"KEY_ASTERISK",
+	"At" : &"KEY_AT",
+	"BackSlash" : &"KEY_BACKSLASH",
+	"Backspace" : &"KEY_BACKSPACE",
+	"Bar" : &"KEY_BAR",
+	"BraceLeft" : &"KEY_BRACELEFT",
+	"BraceRight" : &"KEY_BRACERIGHT",
+	"BracketLeft" : &"KEY_BRACKETLEFT",
+	"BracketRight" : &"KEY_BRACKETRIGHT",
+	"CapsLock" : &"KEY_CAPSLOCK",
+	"Colon" : &"KEY_COLON",
+	"Comma" : &"KEY_COMMA",
+	"Command" : &"KEY_COMMAND",
+	"Ctrl" : &"KEY_CTRL",
+	"Delete" : &"KEY_DELETE",
+	"Dollar" : &"KEY_DOLLAR",
+	"Down" : &"KEY_DOWN",
+	"End" : &"KEY_END",
+	"Enter" : &"KEY_ENTER",
+	"Equal" : &"KEY_EQUAL",
+	"Escape" : &"KEY_ESCAPE",
+	"Exclam" : &"KEY_EXCLAM",
+	"Greater" : &"KEY_GREATER",
+	"Home" : &"KEY_HOME",
+	"Insert" : &"KEY_INSERT",
+	"Kp 0" : &"KEY_KP_0",
+	"Kp 1" : &"KEY_KP_1",
+	"Kp 2" : &"KEY_KP_2",
+	"Kp 3" : &"KEY_KP_3",
+	"Kp 4" : &"KEY_KP_4",
+	"Kp 5" : &"KEY_KP_5",
+	"Kp 6" : &"KEY_KP_6",
+	"Kp 7" : &"KEY_KP_7",
+	"Kp 8" : &"KEY_KP_8",
+	"Kp 9" : &"KEY_KP_9",
+	"Kp Add" : &"KEY_KP_ADD",
+	"Kp Divide" : &"KEY_KP_DIVIDE",
+	"Kp Enter" : &"KEY_KP_ENTER",
+	"Kp Multiply" : &"KEY_KP_MULTIPLY",
+	"Kp Period" : &"KEY_KP_PERIOD",
+	"Kp Subtract" : &"KEY_KP_SUBTRACT",
+	"Left" : &"KEY_LEFT",
+	"Less" : &"KEY_LESS",
+	"Menu" : &"KEY_MENU",
+	"Meta" : &"KEY_META",
+	"Minus" : &"KEY_MINUS",
+	"NumberSign" : &"KEY_NUMBERSIGN",
+	"NumLock" : &"KEY_NUMLOCK",
+	"Option" : &"KEY_OPTION",
+	"PageDown" : &"KEY_PAGEDOWN",
+	"PageUp" : &"KEY_PAGEUP",
+	"ParenLeft" : &"KEY_PARENLEFT",
+	"ParenRight" : &"KEY_PARENRIGHT",
+	"Pause" : &"KEY_PAUSE",
+	"Percent" : &"KEY_PERCENT",
+	"Period" : &"KEY_PERIOD",
+	"Plus" : &"KEY_PLUS",
+	"Print" : &"KEY_PRINT",
+	"Question" : &"KEY_QUESTION",
+	"QuoteDbl" : &"KEY_QUOTEDBL",
+	"QuoteLeft" : &"KEY_QUOTELEFT",
+	"Right" : &"KEY_RIGHT",
+	"ScrollLock" : &"KEY_SCROLLLOCK",
+	"Semicolon" : &"KEY_SEMICOLON",
+	"Shift" : &"KEY_SHIFT",
+	"Slash" : &"KEY_SLASH",
+	"Space" : &"KEY_SPACE",
+	"Tab" : &"KEY_TAB",
+	"UnderScore" : &"KEY_UNDERSCORE",
+	"Up" : &"KEY_UP",
+	"Windows" : &"KEY_WINDOWS",
+}
+
+
 
 
 ## File name for the input-map cache file.
@@ -520,8 +604,19 @@ static func append_action_key(text: String, action: StringName) -> String:
 		return text
 	for event in InputMap.action_get_events(action):
 		if event is InputEventKey:
-			return "%s (%s)" % [text, event.as_text()]
+			return "%s (%s)" % [text, translate_key_text(event.as_text())]
 	return text
+
+
+## Returns [param key_text], a key or key combination as [method OS.get_keycode_string]
+## gives it ("Ctrl+O"), with each key name translated by [member key_name_texts].
+static func translate_key_text(key_text: String) -> String:
+	var key_names := key_text.split("+")
+	for i in key_names.size():
+		var text_key: StringName = key_name_texts.get(key_names[i], &"")
+		if text_key:
+			key_names[i] = String(TranslationServer.translate(text_key))
+	return "+".join(key_names)
 
 
 ## Returns false, rather than erroring, if [param action] is not in the InputMap.

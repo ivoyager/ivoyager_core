@@ -126,14 +126,14 @@ var preinitializers: Dictionary[StringName, Variant] = {}
 ## themselves from dictionary [member IVGlobal.program] after init (thereby
 ## freeing themselves) if they are no longer needed.
 var init_refcounteds: Dictionary[StringName, Variant] = {
-	TranslationImporter = IVTranslationImporter, # self-removes
+	LanguageManager = IVLanguageManager, # adds translations & sets locale
 	ResourceInitializer = IVResourceInitializer, # self-removes
 	TableInitializer = IVTableInitializer, # self-removes
 	AssetPreloader = IVAssetPreloader,
 }
 ## Include keys from [member init_refcounteds] that need to be instantiated
 ## first and in order.
-var ordered_init_refcounteds: Array[StringName] = [&"TranslationImporter"]
+var ordered_init_refcounteds: Array[StringName] = [&"LanguageManager"]
 
 ## RefCounted "program" classes. IVCoreInitializer instances these after [member
 ## init_refcounteds] and adds to [member IVGlobal.program]. Dictionary values
@@ -157,8 +157,6 @@ var program_refcounteds: Dictionary[StringName, Variant] = {
 	# managers, etc.
 	InputMapManager = IVInputMapManager,
 	ThemeManager = IVThemeManager,
-	SleepManager = IVSleepManager,
-	LanguageManager = IVLanguageManager,
 	LazyModelInitializer = IVLazyModelInitializer,
 	PSFSettings = IVPSFSettings, # the camera shared by the star field and every body's PSF quad
 }
@@ -191,6 +189,7 @@ var program_nodes: Dictionary[StringName, Variant] = {
 	GraphicsManager = IVGraphicsManager, # applies antialiasing user settings
 	GraphicsRescue = IVGraphicsRescue, # removed unless enable_graphics_rescue
 	FarwarpManager = IVFarwarpManager, # keeps distant objects renderable
+	BodyProximityMonitor = IVBodyProximityMonitor, # sleeps bodies too far away to show
 	SunOcclusionManager = IVSunOcclusionManager, # analytic eclipse & ring shadows
 	ExposureManager = IVExposureManager, # physical light; removed unless enable_physical_light
 	ScreenshotManager = IVScreenshotManager, # off-screen render to PNG at a set size
@@ -356,10 +355,9 @@ func _finish() -> void:
 	# right after [signal IVStateManager.core_init_program_objects_instantiated]
 	# emits) so that init coroutines that yield via [code]await
 	# get_tree().process_frame[/code] before erasing themselves from
-	# [member IVGlobal.program] (e.g., [IVTranslationImporter._init]) have
-	# resumed and finished. After this, [IVBodyFinisher] worker threads read
-	# both dicts; any structural mutation by a project plugin from this point
-	# on is a hard error.
+	# [member IVGlobal.program] have resumed and finished. After this,
+	# [IVBodyFinisher] worker threads read both dicts; any structural mutation
+	# by a project plugin from this point on is a hard error.
 	IVGlobal.program.make_read_only()
 	IVGlobal.resources.make_read_only()
 	IVStateManager.core_init_finished.emit()

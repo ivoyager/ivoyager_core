@@ -41,6 +41,7 @@ static var table_base_path := "res://addons/ivoyager_core/tables/%s.tsv"
 static var tables: Dictionary[StringName, String] = {
 	asteroids = table_base_path % "asteroids",
 	body_classes = table_base_path % "body_classes",
+	chemicals = table_base_path % "chemicals",
 	dynamic_lights = table_base_path % "dynamic_lights",
 	omni_lights = table_base_path % "omni_lights",
 	surface_classes = table_base_path % "surface_classes",

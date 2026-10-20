@@ -7,6 +7,38 @@ File format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 See cloning and downloading instructions [here](https://www.ivoyager.dev/developers/).
 
 
+## [v0.2.3] - UNRELEASED
+
+Under development using Godot 4.7.2.
+
+### Changed
+* [API breaking] New IVBodyProximityMonitor replaces IVSleepManager and its `hide_on_sleep`, and takes over HUD visibility and mouse targets from `IVBody._process` (see *Proximity sleep* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)). A `can_sleep` body now sleeps only while it neither draws anything nor shows a HUD the user has switched on; a project driving its own camera holds its target awake with `pin_awake()`. A project that removed `SleepManager` to turn sleep off sets new `IVCoreSettings.apply_body_sleep` false instead; the monitor itself must stay, since without it no HUD shows and nothing can be hovered.
+* Moon HUDs now show wherever their orbits are visually separate, including from other planets' systems, where sleep used to hide them.
+* Body mouse-over: a body's disc or point is hoverable at exactly its drawn size (`IVWorldController.min_click_radius` now 0), its name and symbol wherever they are drawn, and IVWorldController settles one target per frame so a body in front of another can be hovered and a hidden label cannot.
+* IVSunOcclusionManager no longer feeds a body whose shells are all past their distance cull, which the renderer does not draw. See *Proximity sleep* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md).
+* [API breaking] IVTranslationImporter is retired, with `IVStrings.c_unescape_patch()` (write Unicode characters directly in translation CSVs). IVLanguageManager, moved from `program_refcounteds` to first in `IVCoreInitializer.init_refcounteds`, now adds Core's and the Units plugin's translations from its new `translations` list, and a project's own translations listed in project.godot override Core text with the same key. A project that appended to `IVTranslationImporter.translations` lists that file in project.godot instead, and can drop the Units translation from there.
+* [API breaking] [Table breaking] Atmosphere and photosphere compositions name their species by text keys, the entities of new table `chemicals.tsv` with their Wikipedia page titles, so the names translate and link; composition cells in `planets.tsv`, `moons.tsv` and `stars.tsv` use those entity names (`78.08% NITROGEN`). IVComposition holds `species` and `amounts` in place of `type` and `components`, and IVSelectionData shows one row per species. Text key `LABEL_PHOTOSPHERE_COMPOSITON_BY_WEIGHT` is now `LABEL_PHOTOSPHERE_COMPOSITION_BY_MASS`.
+* [API breaking] An IVSelectionData value format Callable can return any number of `[row label, value text]` rows, in place of one `[labels, values]` row.
+
+### Removed
+* [API breaking] 171 text keys that nothing in Core displays, from `gui_text.csv`, `hints_text.csv` and `long_text.csv`, with their rows in `wiki_extras.tsv`. A project that displayed one adds it to its own translation.
+
+### Fixed
+* Core's `views.tsv` named its time-direction column `is_reversed` where IVTableViewBuilder reads `reversed_time`, so a default view could not set reversed time.
+* Sleeping moons shadowed their planets from frozen positions, the planetary-mass moons drew no point of light from outside their planet's system, and a followed spacecraft entering a planet's system (New Horizons at Pluto) left that system's moons asleep.
+* A body reparenting under the camera without a handoff (a spacecraft trajectory segment switch) did not emit `IVGlobal.camera_tree_changed`, so camera-point eclipses and IVDynamicLight kept the old star orbiter; IVCamera now re-emits it.
+* GUI text showed raw text keys when the system locale already matched the selected language (e.g., a browser set to plain "en").
+* Changing the language at runtime left text in the previous language: IVQFormat's unit and number names, IVViewButton's default views, IVHUDsHBox's link labels, and the selection's name, data and date-line "paused" until the next selection or speed change. IVLanguageManager now emits `IVGlobal.ui_dirty` after the change.
+* Mouse-over text for an orbit lowercased a translated word, wrong for a German noun; it uses new text key `TXT_ORBIT_CONSTRUCTOR`, which replaces `LABEL_ORBIT`.
+* IVOptionsPopup's and IVHotkeysPopup's bottom buttons and IVSymbolPicker's point button had English text that no translation could reach; they use new text keys `BUTTON_RESTORE_DEFAULTS`, `BUTTON_CONFIRM_CHANGES` and `BUTTON_POINT_SYMBOL`.
+* Key names in IVHotkeysPopup, IVHotkeyDialog and hotkey tooltips came from the engine in English. They now have text keys in new `text/keyboard_text.csv`, which new `IVInputMapManager.key_name_texts` maps them to.
+* IVTimeSetButton's tooltip showed its text key, `HINT_SET_TIME`, which no CSV had; IVSelectionImage's showed `HINT_SELECTION_IMAGE`.
+* IVHotkeyDialog named the action that already uses a key by its text key (e.g., "LABEL_TOGGLE_PAUSE").
+* IVWikiManager asserted on a language in `table_fields` whose page-title field the project hadn't loaded, and gave no page where the current language lacked a title though `has_page()` promised a fallback. Both now get the `fallback_language_code` page.
+* Composition data: Venus's sulfur dioxide was misspelled, a stray comma split Mars's semiheavy water (HDO) into two species, and Mars's xenon was rounded to 0.1 ppm from NASA's 0.08.
+* `TXT_PWA_UPDATE_AVAILABLE` told the user to press 'Continue', a button the web update prompt doesn't have.
+
+
 ## [v0.2.2] - 2026-10-15
 
 Released using Godot 4.7.2.
@@ -479,6 +511,7 @@ Requires plugin [ivoyager_table_reader](https://github.com/ivoyager/ivoyager_tab
 ##
 I, Voyager projects v0.0.16 and earlier used a different core submodule [ivoyager](https://github.com/ivoyager/ivoyager) (now depreciated); see previous changelog [here](https://github.com/ivoyager/ivoyager/blob/master/CHANGELOG.md).
 
+[v0.2.3]: https://github.com/ivoyager/ivoyager_core/compare/v0.2.2...HEAD
 [v0.2.2]: https://github.com/ivoyager/ivoyager_core/compare/v0.2.1...v0.2.2
 [v0.2.1]: https://github.com/ivoyager/ivoyager_core/compare/v0.2...v0.2.1
 [v0.2]: https://github.com/ivoyager/ivoyager_core/compare/v0.1.2...v0.2

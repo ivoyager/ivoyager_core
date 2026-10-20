@@ -176,12 +176,13 @@ Outside them the body stays in the tree but is invisible, excluded from selectio
 skips its update. This is a physical fact about the body, yet the two values are not in
 `PERSIST_PROPERTIES` (TODO).
 
-**Sleep and lazy models are process economies, not state.** With `IVSleepManager` present,
-`can_sleep` bodies process only while the camera is in their star-orbiter's system; with
-`IVLazyModelInitializer`, `lazy_model` bodies build no visual until visited. Neither
-touches the physical state, and every query stays valid through both, because every
-query re-evaluates from time. Both currently key on camera parenting; the redesign
-plans a proximity service in their place.
+**Sleep and lazy models are process economies, not state.** With `IVBodyProximityMonitor`
+present, `can_sleep` bodies process only while the camera is near enough for something they
+carry to show; with `IVLazyModelInitializer`, `lazy_model` bodies build no visual until
+visited. Neither touches the physical state, and every query stays valid through both,
+because every query re-evaluates from time. Lazy models still key on camera parenting; the
+redesign moves them to intent with a proximity backstop
+([IVBody_REDESIGN_v0.3.md](IVBody_REDESIGN_v0.3.md) §9.4).
 
 **Statics.** `IVBody.replacement_subclass` and `IVOrbit.replacement_subclass` let a project
 substitute a subclass everywhere the builders create one; `IVBody.process_methods` is the
@@ -529,7 +530,7 @@ constants define it:
 | `IVRealPlanetOrbit` | additionally the *a / e / i* epoch values and rates, the JPL corrections, the validity span and its own hysteresis values |
 | `IVTrajectory` | `orbits`, `visual_orbits`, `end_remove` (everything else — LCA, segment parents, path — is derived) |
 | `IVSmallBodiesGroup` | identity, secondary body, `max_apoapsis`, names and all four element arrays |
-| `IVComposition` | type and components |
+| `IVComposition` | species and amounts |
 
 Everything not in that table is derived: every `Node3D.position` and transform, the tree
 indexing, paths and LCAs, sleep and lazy state, HUD visibility, farwarp positions, every
@@ -620,7 +621,7 @@ a rate a row may omit; `use_real_planet_orbits` stays off; the JPL data are just
 delete. Time is owned by the project (`allow_time_setting` and `allow_time_reversal` off,
 `manage_engine_time_scale` on if the game runs on `delta`).
 
-**Multiple systems and multi-star systems.** The tree, the builders and the sleep manager
+**Multiple systems and multi-star systems.** The tree, the builders and the proximity monitor
 handle any number of roots — a body is a root when its row has no orbit — and a star can
 orbit a star, so a hierarchical binary or a companion on a wide orbit is a table edit
 (untested, per `IVBody`'s own header). Two things are not yet supported: a root has no
@@ -751,7 +752,8 @@ timekeeper set the start time; `simulator_started` releases the clock.
 | `IVBody` (statics) | `replacement_subclass`, `process_methods`, `system_mean_radius_multiplier` | Subclass substitution, the attitude-law registry, the system-radius floor. |
 | `IVOrbit` | `replacement_subclass`; `CHANGED_THRESHOLD` (constant) | Subclass substitution; evolution-signal hysteresis (0.005). |
 | `IVTrajectory` | `GAP_SKIP_KM`, `GAP_WARN_AU`, `OPEN_TERMINAL_LOOKAHEAD_YEARS` (constants) | Gap-fix thresholds and the open-end Lambert horizon. |
-| `IVSleepManager` | `hide_on_sleep` | Whether sleeping bodies are also hidden. |
+| `IVBodyProximityMonitor` | `sleep_distance_ratio` | How much farther than its wake distance an awake body must be before it sleeps (1.5). |
+| `IVCoreSettings` | `apply_body_sleep` | Whether bodies sleep at all; off keeps every body awake while the monitor goes on with HUDs and mouse targets. |
 | `small_bodies_groups.tsv` | `mag_cutoff`, `skip` | Per-group population limit; omit a group. |
 
 ## TODO
@@ -788,8 +790,9 @@ Roadmap items consolidated from the class headers (`IVBody`, `IVOrbit`,
   sleeping queries answer correctly for a pointing spacecraft. The v0.3 rotator family
   covers all of these seams.
 - **The v0.3 `IVBody` redesign** itself: positioner / rotator / geometry composition,
-  surface anchors (pads, rovers), fixed positioners, the proximity service replacing
-  camera-parented sleep and lazy triggers, and the body answering its own surface
+  surface anchors (pads, rovers), fixed positioners, the proximity monitor taking over mouse
+  targets and HUD distance from the body (its sleep half landed in v0.2) and the lazy-model
+  trigger, and the body answering its own surface
   geometry — the prerequisite for project-built collisions. It also carries the frame anchor
   (§§2.4–2.5), without which *A game whose action is local* is not buildable at all, and whose
   remaining seams — announcing a foreign camera, owning the active anchor, sharing mouse

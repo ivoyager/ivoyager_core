@@ -35,12 +35,17 @@ extends RefCounted
 ## to [code]true[/code] and add to or modify [member external_url_formats] for
 ## supported languages.[br][br]
 ##
+## Pages follow the user's "language" setting, as [IVLanguageManager] resolves it.
+## Where the current language has no page title, or its field wasn't loaded, the
+## page is the [member fallback_language_code] one.[br][br]
+##
 ## To implement an internal wiki, connect to [signal wiki_requested]. You'll
 ## likely want to create and specify new page title field(s) in your data tables.
 
 
 ## Connect to implement an internal wiki mechanic. (I, Voyager Core emits but
-## does not connect to this signal.)
+## does not connect to this signal.) [param page_title] is the fallback language's
+## where the current language has none.
 signal wiki_requested(page_title: String)
 
 
@@ -59,12 +64,15 @@ var table_fields: Dictionary[StringName, StringName] = {
 var external_url_formats: Dictionary[StringName, String] = {
 	en = "https://en.wikipedia.org/wiki/%s"
 }
-## Fallback if the current language code is not in [member table_fields].
+## Language of the page used where the current language has none. Its field in
+## [member table_fields] must be loaded.
 var fallback_language_code := &"en"
 
 
 var _wiki_page_titles: Dictionary[StringName, String]
 var _external_url_format: String
+var _fallback_page_titles: Dictionary[StringName, String]
+var _fallback_url_format: String
 
 
 
@@ -76,19 +84,23 @@ func _init() -> void:
 ## Returns true if a wiki page title is known for [param entity_name] in the
 ## currently selected language (or the fallback language).
 func has_page(entity_name: StringName) -> bool:
-	return _wiki_page_titles.has(entity_name)
+	return _wiki_page_titles.has(entity_name) or _fallback_page_titles.has(entity_name)
 
 
 ## Emits [signal wiki_requested] for [param entity_name] and, if
 ## [member open_external_page] is enabled, opens the matching external URL via
 ## [method OS.shell_open]. No-op if the entity has no known page title.
 func open_page(entity_name: StringName) -> void:
-	if !_wiki_page_titles.has(entity_name):
+	var page_title: String = _wiki_page_titles.get(entity_name, "")
+	var url_format := _external_url_format
+	if !page_title:
+		page_title = _fallback_page_titles.get(entity_name, "")
+		url_format = _fallback_url_format
+	if !page_title:
 		return
-	var page_title := _wiki_page_titles[entity_name]
 	wiki_requested.emit(page_title)
 	if open_external_page:
-		var url := _external_url_format % page_title
+		var url := url_format % page_title
 		print("Opening external URL: ", url)
 		if windowed_on_external_url:
 			IVGlobal.get_tree().get_root().mode = Window.MODE_WINDOWED
@@ -102,6 +114,10 @@ func _configure() -> void:
 		return
 	var fallback_table_field := table_fields[fallback_language_code]
 	assert(IVTableData.has_wiki_page_titles(fallback_table_field), "Fallback table field not found")
+	_fallback_page_titles = IVTableData.get_wiki_page_titles(fallback_table_field)
+	if open_external_page:
+		assert(external_url_formats.has(fallback_language_code))
+		_fallback_url_format = external_url_formats[fallback_language_code]
 	IVSettingsManager.changed.connect(_settings_listener)
 	_set_language()
 
@@ -109,10 +125,11 @@ func _configure() -> void:
 func _set_language() -> void:
 	var language_setting: int = IVSettingsManager.get_setting(&"language")
 	var code := IVLanguageManager.get_language_code_for_setting(language_setting)
-	if !table_fields.has(code):
-		code = fallback_language_code
-	var table_field := table_fields[code]
-	assert(IVTableData.has_wiki_page_titles(table_field))
+	var table_field: StringName = table_fields.get(code, &"")
+	if code == fallback_language_code or !IVTableData.has_wiki_page_titles(table_field):
+		_wiki_page_titles = _fallback_page_titles
+		_external_url_format = _fallback_url_format
+		return
 	_wiki_page_titles = IVTableData.get_wiki_page_titles(table_field)
 	if !open_external_page:
 		return

@@ -31,4 +31,4 @@ title = "LABEL_TRACE_ATMOSPHERE_COMPOSITION_BY_VOLUME"
 
 [node name="PhotosphereComposition" parent="." instance=ExtResource("2_52mjq")]
 layout_mode = 2
-title = "LABEL_PHOTOSPHERE_COMPOSITON_BY_WEIGHT"
+title = "LABEL_PHOTOSPHERE_COMPOSITION_BY_MASS"

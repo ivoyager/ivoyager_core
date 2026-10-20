@@ -108,6 +108,14 @@ func _ready() -> void:
 		IVStateManager.core_initialized.connect(_configure_after_core_inited, CONNECT_ONE_SHOT)
 
 
+func _notification(what: int) -> void:
+	if what != NOTIFICATION_TRANSLATION_CHANGED:
+		return
+	if !_view_manager or !default_view or _is_edited_default_button:
+		return
+	text = tr(default_view)
+
+
 func _gui_input(event: InputEvent) -> void:
 	# Handle right-click or shift-Enter (edit or delete)
 	var mouse_button_event := event as InputEventMouseButton

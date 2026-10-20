@@ -25,7 +25,6 @@ extends TextureRect
 ##
 ## FIXME: Needs focus state display. Make this an image in a Button like [IVNavButton].
 
-var _hint_extension := "\n\n" + tr(&"HINT_SELECTION_IMAGE")
 var _selection_manager: IVSelectionManager
 
 
@@ -56,5 +55,5 @@ func _on_selection_manager_changed(selection_manager: IVSelectionManager) -> voi
 
 
 func _update_selection(_dummy := false) -> void:
-	tooltip_text = tr(_selection_manager.get_body_name()) + _hint_extension
+	tooltip_text = tr(_selection_manager.get_body_name()) + "\n\n" + tr(&"HINT_SELECTION_IMAGE")
 	texture = _selection_manager.get_texture_2d()

@@ -310,7 +310,7 @@ func _has_local_shadow_work(range_distance: float) -> bool:
 	var has_receiver := false
 	for node3d: Node3D in _local_shadow_layers:
 		if !node3d.is_visible_in_tree():
-			continue # hidden by distance cull or IVSleepManager; it draws nothing
+			continue # hidden (a body asleep or outside its lifespan); it draws nothing
 		var extent_radius: float = _local_shadow_radii[node3d]
 		var distance := (node3d.global_position - camera_global_position).length() - extent_radius
 		if distance > range_distance:

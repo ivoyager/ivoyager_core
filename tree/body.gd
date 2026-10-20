@@ -66,11 +66,10 @@ extends Node3D
 ## the gas giants (but not for inner moons because these can be seen from
 ## nearby).[br][br]
 ##
-## Some bodies (particularly moons and spacecrafts) have
-## [member BodyFlags].BODYFLAGS_CAN_SLEEP set from data table field
-## [param can_sleep]. If [IVSleepManager] is present, these bodies will
-## only [code]_process()[/code] when the camera is at or under the same planet
-## or other star-orbiter.
+## Some bodies (moons, by default) have [member BodyFlags].BODYFLAGS_CAN_SLEEP set
+## from data table field [param sleep]. If [IVBodyProximityMonitor] is present, such a
+## body stops processing and hides while the camera is too far away for anything it
+## carries to show.
 ## Note that [IVBody] API methods such as [method get_position_vector] and
 ## [method get_state_vectors] will provide correct values even if the body is
 ## not currently processing, but [member Node3D.postion] will not. These methods also
@@ -149,7 +148,7 @@ signal rotation_chaged(is_intrinsic: bool)
 ## Emitted when this body's HUD visibility (label, orbit visual, etc.) toggles.
 signal huds_visibility_changed(is_visible: bool)
 ## Emitted when this body's sleep state changes. This is managed by
-## [IVSleepManager], if present.
+## [IVBodyProximityMonitor], if present.
 signal sleep_changed(is_sleeping: bool)
 ## Emitted when [member within_lifespan] toggles as simulator time crosses this
 ## body's [member begin] or [member end]. Never emitted for a body with no
@@ -344,7 +343,8 @@ var rings_psf_flux_factor := 0.0
 ## it over. Meaningless where that factor is zero. Read-only!
 var rings_psf_color_b_v := 0.0
 ## Current visibility state for associated HUD elements, including
-## IVBodyPositionVisual and IVPathVisual. Read-only!
+## IVBodyPositionVisual and IVPathVisual, before the per-group switches in
+## [IVBodyHUDsState]. Set by [IVBodyProximityMonitor]; read-only!
 var huds_visible := false
 ## True while simulator time is within [member begin]/[member end], or always true
 ## if no [member begin] is set. Maintained in [method _process]; see
@@ -365,7 +365,6 @@ var _hill_sphere: float
 # private non-persisted
 var _lazy_model_uninited := false
 var _sleeping := false
-var _min_hud_dist: float
 var _times: Array[float] = IVGlobal.times
 var _world_controller: IVWorldController = IVGlobal.program[&"WorldController"]
 var _process_callable: Callable # bespoke model attitude named by spacecrafts.tsv 'process'
@@ -651,9 +650,7 @@ func _ready() -> void:
 	IVStateManager.system_tree_built.connect(_on_system_tree_built, CONNECT_ONE_SHOT)
 	IVStateManager.simulator_started.connect(_on_simulator_started, CONNECT_ONE_SHOT)
 	IVStateManager.about_to_free_procedural_nodes.connect(_clear_procedural, CONNECT_ONE_SHOT)
-	IVSettingsManager.changed.connect(_settings_listener)
 	_set_resources()
-	_set_min_hud_dist()
 	_stroboscope_rotation = randf() * TAU if _stroboscope_frame_rate else 0.0
 
 	var process_method: StringName = characteristics.get(&"process", &"")
@@ -703,23 +700,6 @@ func _process(delta: float) -> void:
 	
 	if _orbit:
 		position = _orbit.update(time)
-	
-	# Mouse-over target
-	var camera_dist_signed := _world_controller.get_camera_distance_signed(self)
-	var camera_dist := absf(camera_dist_signed)
-	var visually_separate := true
-	if !_trajectory or _trajectory.get_lca() == parent:
-		visually_separate = camera_dist < position.length() * min_visual_separation_multiplier
-	if visually_separate and camera_dist_signed > 0.0:
-		_world_controller.update_world_target(self, camera_dist, mean_radius)
-	else:
-		_world_controller.remove_world_target(self)
-	
-	# set HUDs visibility
-	var show_huds := visually_separate and camera_dist > _min_hud_dist
-	if huds_visible != show_huds:
-		huds_visible = show_huds
-		huds_visibility_changed.emit(show_huds)
 
 	# update model if needed
 	if not body_visual:
@@ -1881,13 +1861,22 @@ func update_farwarp(camera_global_position: Vector3, farwarp_start: float) -> vo
 				> IVFarwarpManager.true_bounds_distance)
 
 
-## Current sleeping state. See [IVSleepManager].
+## Sets [member huds_visible], emitting [signal huds_visibility_changed] on a change.
+## Only [IVBodyProximityMonitor] or appropriate replacement class or code should call this.
+func set_huds_visible(show_huds: bool) -> void:
+	if huds_visible == show_huds:
+		return
+	huds_visible = show_huds
+	huds_visibility_changed.emit(show_huds)
+
+
+## Current sleeping state. See [IVBodyProximityMonitor].
 func is_sleeping() -> bool:
 	return _sleeping
 
 
-## Set sleep state. Only [IVSleepManager] or appropriate replacement class or
-## code should call this.
+## Set sleep state. Only [IVBodyProximityMonitor] or appropriate replacement class or
+## code should call this. A body woken here updates at once, in the calling frame.
 func set_sleeping(sleep: bool, show_hide := true) -> void:
 	const CAN_SLEEP := BodyFlags.BODYFLAGS_CAN_SLEEP
 	if _sleeping == sleep or !(flags & CAN_SLEEP):
@@ -1895,12 +1884,14 @@ func set_sleeping(sleep: bool, show_hide := true) -> void:
 	_sleeping = sleep
 	set_process(not sleep)
 	if show_hide:
-		visible = not sleep
+		visible = not sleep and within_lifespan
 	if sleep:
 		_world_controller.remove_world_target(self)
-		if huds_visible:
-			huds_visible = false
-			huds_visibility_changed.emit(false)
+		set_huds_visible(false)
+	else:
+		# The monitor wakes bodies after this frame's process pass; one left to the next
+		# pass would draw a frame from its stale position.
+		_process(0.0)
 	sleep_changed.emit(sleep)
 
 
@@ -1913,7 +1904,7 @@ func get_fragment_data(_fragment_type: int) -> Array:
 ## Used for mouse-over identification of this body's orbit visual.
 func get_fragment_text(_data: Array) -> String:
 	# Only FRAGMENT_BODY_ORBIT at this time.
-	return tr(name) + " (" + tr("LABEL_ORBIT").to_lower() + ")"
+	return tr(&"TXT_ORBIT_CONSTRUCTOR") % tr(name)
 
 
 ## Reorder this body's satellites after a satellite major orbit change
@@ -2051,15 +2042,6 @@ func _set_resources() -> void:
 	texture_slice_2d = asset_preloader.get_body_texture_slice_2d(name) # usually null
 
 
-func _set_min_hud_dist() -> void:
-	if !IVSettingsManager.get_setting(&"hide_hud_when_close"):
-		_min_hud_dist = 0.0
-		return
-	_min_hud_dist = mean_radius * min_hud_dist_radius_multiplier
-	if flags & BodyFlags.BODYFLAGS_STAR:
-		_min_hud_dist *= min_hud_dist_star_multiplier # star grows at distance
-
-
 func _set_system_radius() -> void:
 	var system_radius := mean_radius * system_mean_radius_multiplier
 	if characteristics.get(&"system_radius", 0.0) > system_radius:
@@ -2144,11 +2126,6 @@ func _add_body_visual() -> void:
 	# model shaders (see [IVFarwarpManager]). IVBody is never rotated, so body_visual.basis stays
 	# the world-oriented model frame.
 	add_child(body_visual)
-
-
-func _settings_listener(setting: StringName, _value: Variant) -> void:
-	if setting == &"hide_hud_when_close":
-		_set_min_hud_dist()
 
 
 # *****************************************************************************

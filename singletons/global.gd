@@ -41,15 +41,16 @@ extends Node
 # avoided here to prevent circular reference issues.
 
 
-## Emitted by [IVTranslationImporter] after translations imported. This is early
-## in [IVCoreInitializer] init before program objects have been added. May be
-## useful for boot or splash screen.  
+## Emitted by [IVLanguageManager] after it adds its translations and sets the
+## locale. This is early in [IVCoreInitializer] init before program objects have
+## been added. May be useful for boot or splash screen.
 signal translations_imported()
 ## Emitted by [IVTableInitializer] after data tables have been postprocessed.
 ## This is early in [IVCoreInitializer] init before program objects have been
 ## added.
 signal data_tables_postprocessed()
-## Emitted by [IVStateManager] immediately before simulator start. All objects
+## Emitted by [IVStateManager] immediately before simulator start, and by
+## [IVLanguageManager] after the user changes the language. All objects
 ## that signal "something_changed" for UI should signal now. UI that polls
 ## (instead of responding to signals) should update too.
 signal ui_dirty() 
@@ -57,7 +58,8 @@ signal ui_dirty()
 ## (There is no Viewport signal so it is up to the newly active camera to signal.)
 signal current_camera_changed(camera: Camera3D)
 ## This signal should be emitted by any Camera3D class used in the simulator.
-## It tells the simulator where the camera is for graphic and other updating purposes.
+## It tells the simulator where the camera is for graphic and other updating purposes,
+## so emit it again whenever an IVBody above the camera reparents.
 signal camera_tree_changed(camera: Camera3D, parent: Node3D, star_orbiter: Node3D, star: Node3D)
 ## This signal should be emitted by any Camera3D class used in the simulator.
 ## It's used for things like size compensation in [IVBodyPositionVisual].

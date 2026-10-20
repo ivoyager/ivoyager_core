@@ -119,8 +119,10 @@ moves under them). Two kinds of code do not, and both are ordered explicitly:
 | Process priority | Who | What it does / reads |
 |---|---|---|
 | 0 (tree order) | `IVBody` instances, `IVDynamicLight`, `IVCamera` | Bodies set their local positions from f64 orbital math; the camera moves and applies the shift. Tree order means the star's subtree (its top light included) processes *before* the camera's parent chain. |
+| +99 | `IVBodyProximityMonitor` | Reads the moved camera; sleeps or wakes bodies, placing a woken one at once so the +100 consumers see it this frame; sets each body's HUD visibility and reports its disc as a mouse target. |
 | +100 | `IVFarwarpManager`, `IVSunOcclusionManager` | Read the settled, post-shift camera and body globals; publish this frame's `iv_farwarp_start`, per-body `farwarp_position`, occluder uniforms and ambient feed. |
-| +101 | `IVBodyPositionVisual` | The one `top_level` node in the stock tree places itself from `farwarp_position` set at +100. |
+| +101 | `IVBodyPositionVisual` | The one `top_level` node in the stock tree places itself from `farwarp_position` set at +100, and reports its drawn name and symbol as mouse targets. |
+| +200 | `IVWorldController` | Settles the frame's mouse target from everything reported before it (*Mouse picking*). |
 
 A `top_level` node opts out of transform inheritance, so it does *not* ride the shift: it
 must be placed after the shift settles, from post-shift values. Placing it from pre-shift
@@ -469,7 +471,9 @@ best `MAX_OCCLUDERS` (6) fill the uniform slots. Clearance rather than an angula
 deliberately: an angular score carries a parallax term that blows up as a candidate gets
 close, so a nearby moon whose shadow is nowhere near the disc could starve the slot a
 genuinely transiting distant occluder needs. Candidate lists are built once per receiver
-and cached for the session (see TODO for the constraint this encodes).
+and cached for the session (see TODO for the constraint this encodes). A sleeping candidate
+is skipped, here and in the camera-point fraction: its position is stale, and a body that
+may sleep is past its own sub-pixel cull (*Culling, visibility and lifecycle*).
 
 **The math, in two regimes plus a stretch.** The visible fraction of the sun's disc past
 one occluder is the exact two-circle lens overlap in the planar small-angle
@@ -618,7 +622,7 @@ Four properties make it safe:
   the reason this is opt-in rather than automatic. The transition itself is free, because
   Godot's `directional_shadow_fade_start` (0.8) has already faded to nothing whatever is
   crossing the boundary.
-- **A hidden participant is skipped.** A body the distance cull or `IVSleepManager` has
+- **A hidden participant is skipped.** A body the distance cull or sleep has
   hidden draws into no map and reads none, and `is_visible_in_tree()` says so at the moment
   the light asks — so a slept spacecraft cannot hold the near light open.
 
@@ -679,7 +683,10 @@ gate measures the on-screen radius at the greater of the live and the capture re
 the handshake the sphere ladder takes, so no viewport drawing the node could have drawn a
 fragment of it. A local shadow caster is exempt: its shadow pass resolves the handoff against
 the shadow map rather than a viewport. `IVSunOcclusionManager` stops feeding a body whose shells
-are all hidden, and because it runs after the gate a shell shown is fed before it draws.
+are all hidden, and because it runs after the gate a shell shown is fed before it draws. It also
+skips a body whose shells are all past their distance cull, which hides nothing, so it repeats the
+engine's test: the distance from the camera to the shell's bounds centre, taken only while the
+shell holds no farwarp box.
 **Rings stop drawing at their own handoff**
 (`IVRings.cull_handed_off`), once the body's point has all of their light: `IVRings` decides
 that fraction at the same greatest render height and hands it to the shader, which discards
@@ -694,13 +701,27 @@ shadow maps*.
 the hundreds of small outer moons) build no `IVBodyVisual` until the camera visits them
 or a closely associated lazy body (`IVLazyModelInitializer`, on `camera_tree_changed`).
 The occlusion manager's lazy material discovery exists for exactly this. Once built, a
-visual persists for the session. `IVSleepManager` additionally sleeps far-from-camera
-body processing.
+visual persists for the session.
 
-**HUD visibility policy.** Each body maintains `huds_visible` for its symbol, label and
-orbit line: hidden when too close (`_min_hud_dist`, the `hide_hud_when_close` setting)
+**What the camera can see of a body.** `IVBodyProximityMonitor` keeps three things apart
+for every body each frame: whether it is **physically visible** (it draws a disc, inside its
+shells' distance cull, or a PSF point, which can show from any distance), whether it is
+**visually separate** from its parent, and whether its **HUDs show** (the policy below, then
+the per-group switches and Hide All in `IVBodyHUDsState`). Unless
+`IVCoreSettings.apply_body_sleep` is off, a `can_sleep` body (every moon, by default) stops
+processing and hides while it is neither visible nor showing a HUD element,
+judged conservatively from its parent with hysteresis, so its sleep cannot be seen; every
+consumer that skips a hidden or sleeping body relies on that. The body the camera hangs from,
+an `IVCamera`'s target and their ancestors stay awake, and no body sleeps while a descendant
+is awake. Mouse picking reads the same three (*Mouse picking*). The derivation is
+[IVBody_REDESIGN_v0.3.md](IVBody_REDESIGN_v0.3.md) §9.4.
+
+**HUD visibility policy.** `IVBodyProximityMonitor` sets each body's `huds_visible` for its
+symbol, label and orbit line: hidden when too close (`_min_hud_dist`, the `hide_hud_when_close` setting)
 and when not **visually separate** — closer than its own orbit size times a multiplier —
-so moon HUDs collapse away as the camera pulls back from their system. HUD symbol and
+so moon HUDs collapse away as the camera pulls back from their system. Orbit size alone
+decides that reach, so a gas giant's irregular moons, whose orbits are wide, show from the
+inner planets. HUD symbol and
 name render at `HUD_RENDER_PRIORITY` (20), above the highest shell priority, because
 transparent surfaces sort by priority before depth and a HUD at 0 blends under its
 planet's cloud deck.
@@ -1035,15 +1056,22 @@ unscaled build's at four poses.
 
 Picking has two halves, split by what is being picked.
 
-**Bodies: CPU screen-space targeting.** Every in-lifespan body pushes itself to
-`IVWorldController` each frame (`update_world_target`) with its camera distance; the
-controller unprojects the *true* global position and keeps the target whose screen
-distance to the mouse is least, within a click radius (`min_click_radius` = 20 logical px,
-enlarged for bodies that resolve larger on screen). Unprojecting true positions is
-correct *because* farwarp preserves screen direction — the projection of where the body
-really is lands on the pixels where it is drawn, beyond the far plane or not. Bodies
-that are not visually separate from their parent (see the HUD policy) withdraw
-themselves, so a click on a distant planet is never stolen by one of its moons.
+**Bodies: CPU screen-space targeting, settled once a frame.** Two kinds of report reach
+`IVWorldController` each frame. `IVBodyProximityMonitor` reports a body's disc or point of
+light (`update_world_target`) while it is physically visible and visually separate from its
+parent, with a hit radius exactly its drawn size: the disc's screen radius, or for a PSF
+point its handoff radius (`IVBody.psf_handoff`). A tiny body is hard to hit in proportion to
+its smallness, and a moon its HUD policy has collapsed into its planet cannot steal the
+planet. `IVBodyPositionVisual` reports its name and symbol (`update_world_target_rect`)
+wherever they are drawn, however small the body. The controller settles the target at +200.
+The disc whose near surface under the cursor is nearest the camera wins, so a body in front
+of another can be hovered. A name or symbol under the cursor beats it unless another body's
+disc hides it — HUDs are depth-tested, a point of light hides nothing, and a body's own disc
+never hides its own HUD, so a body keeps the pixels at its centre — and among those, the one
+whose body is nearest the cursor on screen wins, since overlapping labels are flat overlays
+with no useful depth order. Unprojecting true positions is correct *because* farwarp
+preserves screen direction — the projection of where the body really is lands on the pixels
+where it is drawn, beyond the far plane or not.
 
 **Lines and points: GPU fragment ids.** An orbit line or an asteroid point has no
 Node3D position to unproject — the honest answer to "what is under the mouse" is
@@ -1243,7 +1271,7 @@ this is the spatial one.
 | | `shadow_maps_enabled` (static) | False clears every shadow map, whatever the skip decides. `IVGraphicsManager` sets it from the user's Shadow Resolution option (Off). |
 | `dynamic_lights.tsv` | per-row masks, shadow distances, `apply_sun_occlusion` | The light stack: domains, shadow reach, which rows dim by the camera-point sun fraction. |
 | `IVSunOcclusionManager` | `MAX_OCCLUDERS` / `MIN_OCCLUDER_RADIUS` (constants) | Occluder slots (6, matching the shader array) and the sub-km candidate cutoff. |
-| `IVWorldController` | `min_click_radius` | Body-picking screen radius floor (20 logical px). |
+| `IVWorldController` | `min_click_radius` | Floor on a disc target's hover radius (0 logical px: exactly its drawn size). |
 | `IVFragmentIdentifier` | `fragment_range`, `drop_id_frames`, `drop_id_mouse_movement` | Probe grid half-extent in buffer pixels, times the display scale (9 → 49 sampled pixels at 1×); id retention against flicker. |
 | `IVPathVisual` | `REBASE_*`, `PIN_*` (constants) | Rebase trigger (500 → ~0.3 px), rebake policy, tessellation bounds, pin window sizing. |
 | `IVBodyPositionVisual` | `HUD_RENDER_PRIORITY` (constant) | HUD symbol/name above the shell transparency range. |
@@ -1411,8 +1439,8 @@ this is the spatial one.
     from α Cen — frustum-culls from the next system; the catalog field must drop in-scene
     stars (build-time, by a catalog id column in `stars.tsv`) or the visited star draws
     twice; `camera_tree_changed` carries one star and is the funnel every consumer subscribes
-    to; and `IVSleepManager` sleeps and hides the sleepable bodies outside the camera's
-    planetary system, so a second system's planets stay awake while its moons do not.
+    to; and sleep goes by distance, so a second system's moons sleep but its planets, which
+    cannot, process every frame.
 - **The display scale is unverified in a browser.** *Pixel spaces* was verified on Windows
   only; the web path (devicePixelRatio, re-read every frame for zoom) has not been run in an
   export, and neither has the macOS and Wayland `dpi_changed` path.
