@@ -3,18 +3,9 @@ TXT_GRAPHICS_RESET_AFTER_FAILED_START,"The last start didn't finish, so the grap
 are back to those recommended for this device."
 TXT_GRAPHICS_RESET_REQUESTED,The graphics settings are back to those recommended for this device.
 TXT_GRAPHICS_RESTART_TO_FINISH,Some graphics settings take effect only after a restart.
-TXT_HTML5_LOADING,"Building the solar system and loading graphics...
-
-This may take a while...
-
-
-I, Voyager wants to become an official nonprofit entity!
-
-To help, follow the \'Support Us!\' link on our web page or under the main menu of this app."
 TXT_PBD_LONG,"Pale Blue Dot\n\nEarth as seen by Voyager 1 from a distance of 6.4 billion kilometers.\n\nLook again at that dot. That's here. That's home. That's us. On it everyone you love, everyone you know, everyone you ever heard of, every human being who ever was, lived out their lives. The aggregate of our joy and suffering, thousands of confident religions, ideologies, and economic doctrines, every hunter and forager, every hero and coward, every creator and destroyer of civilization, every king and peasant, every young couple in love, every mother and father, hopeful child, inventor and explorer, every teacher of morals, every corrupt politician, every superstar, every supreme leader, every saint and sinner in the history of our species lived there -- on a mote of dust suspended in a sunbeam.
      --Carl Sagan, 1994"
 TXT_PBD_SHORT,Pale Blue Dot\n\nEarth as seen by Voyager 1 from a distance of 6.4 billion kilometers
-TXT_PBD_HTML5_BOOT,Pale Blue Dot\n\nEarth as seen by Voyager 1 from a distance of 6.4 billion kilometers
 TXT_PWA_UPDATE_AVAILABLE,\n   A Planetarium update is available!   \n\n   Press 'Update' to download and run the new version.   \n   Press 'Continue' to continue using the old version.   \n
 TXT_Q_USE_RECOMMENDED_GRAPHICS,"The simulation is running slowly.
 Switch to the graphics settings recommended for this device?"

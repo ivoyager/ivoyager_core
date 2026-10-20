@@ -18,6 +18,9 @@ Under development using Godot 4.7.2.
 * IVSunOcclusionManager no longer feeds a body whose shells are all past their distance cull, which the renderer does not draw. See *Proximity sleep* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md).
 * [API breaking] IVTranslationImporter is retired, with `IVStrings.c_unescape_patch()` (write Unicode characters directly in translation CSVs). IVLanguageManager, moved from `program_refcounteds` to first in `IVCoreInitializer.init_refcounteds`, now adds Core's and the Units plugin's translations from its new `translations` list, and a project's own translations listed in project.godot override Core text with the same key. A project that appended to `IVTranslationImporter.translations` lists that file in project.godot instead, and can drop the Units translation from there.
 
+### Removed
+* [API breaking] 165 text keys that nothing in Core uses, from `gui_text.csv`, `hints_text.csv` and `long_text.csv`. A project that displayed one adds it to its own translation.
+
 ### Fixed
 * Core's `views.tsv` named its time-direction column `is_reversed` where IVTableViewBuilder reads `reversed_time`, so a default view could not set reversed time.
 * Sleeping moons shadowed their planets from frozen positions, the planetary-mass moons drew no point of light from outside their planet's system, and a followed spacecraft entering a planet's system (New Horizons at Pluto) left that system's moons asleep.
