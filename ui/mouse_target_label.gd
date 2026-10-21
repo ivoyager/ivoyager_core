@@ -29,6 +29,12 @@ extends Label
 ## This is NOT a widget. It can't be added after core init.
 
 
+const AUTOMATION_PROPERTIES: Array[StringName] = [
+	&"text",
+	&"visible",
+]
+
+
 ## A small offest puts the label above the mouse cursor. This is graphically
 ## nice but also helps FragmentIdentifier identify screen fragment shader items
 ## (e.g., asteroid points and orbit lines).

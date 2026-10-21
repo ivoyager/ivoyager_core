@@ -48,6 +48,12 @@ const CameraFlags := IVCamera.CameraFlags
 ## position or rotation parameter unchanged.
 const NULL_VECTOR3 := Vector3(-INF, -INF, -INF)
 
+const AUTOMATION_METHODS: Array[StringName] = [
+	&"move_to",
+	&"move_to_by_name",
+	&"get_camera_view_state",
+]
+
 ## Tells this node where to find an [IVSelectionManager] to listen to.
 ## The named node is expected to have property "selection_manager" with a valid
 ## [IVSelectionManager] and is also expected to be in [member IVGlobal.program]
@@ -295,6 +301,12 @@ func get_camera_view_state() -> Array:
 		_camera.view_position,
 		_camera.view_rotations,
 	]
+
+
+## Whether an automation client may use [param member] now: everything here
+## needs a camera.
+func is_automation_available(_member: StringName) -> bool:
+	return _camera != null
 
 
 # *****************************************************************************

@@ -69,6 +69,35 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"symbol_types",
 ]
 
+const AUTOMATION_METHODS: Array[StringName] = [
+	&"set_huds_hidden",
+	&"is_name_visible",
+	&"is_symbol_visible",
+	&"is_orbit_visible",
+	&"set_name_visibility",
+	&"set_symbol_visibility",
+	&"set_orbit_visibility",
+	&"set_all_names_visibility",
+	&"set_all_symbols_visibility",
+	&"set_all_orbits_visibility",
+	&"set_name_visible_flags",
+	&"set_symbol_visible_flags",
+	&"set_orbit_visible_flags",
+	&"set_default_visibilities",
+	&"hide_all",
+	&"get_color",
+	&"set_color",
+	&"get_symbol_type",
+	&"set_symbol_type",
+]
+const AUTOMATION_PROPERTIES: Array[StringName] = [
+	&"huds_hidden",
+	&"name_visible_flags",
+	&"symbol_visible_flags",
+	&"orbit_visible_flags",
+	&"all_flags",
+]
+
 
 # persisted - read-only!
 ## Bitwise OR of [enum IVBody.BodyFlags] for body groups whose name labels are
@@ -149,6 +178,8 @@ func set_huds_hidden(is_hidden: bool) -> void:
 	huds_hidden_changed.emit(is_hidden)
 
 
+## Hides every body HUD by clearing all visibility flags, and releases
+## [member huds_hidden].
 func hide_all() -> void:
 	set_huds_hidden(false)
 	if !orbit_visible_flags and !name_visible_flags and !symbol_visible_flags:
@@ -159,6 +190,8 @@ func hide_all() -> void:
 	visibility_changed.emit()
 
 
+## Restores each visibility flag set to its default, and releases
+## [member huds_hidden].
 func set_default_visibilities() -> void:
 	set_huds_hidden(false)
 	if (name_visible_flags == default_name_visible_flags
@@ -171,6 +204,8 @@ func set_default_visibilities() -> void:
 	visibility_changed.emit()
 
 
+## Whether names are visible for any of [param body_flags] (a bitwise OR of
+## [enum IVBody.BodyFlags]), or for all of them if [param match_all].
 func is_name_visible(body_flags: int, match_all := false) -> bool:
 	if match_all:
 		body_flags &= all_flags
@@ -178,6 +213,8 @@ func is_name_visible(body_flags: int, match_all := false) -> bool:
 	return bool(body_flags & name_visible_flags) # match any
 
 
+## Whether symbols are visible for any of [param body_flags] (a bitwise OR
+## of [enum IVBody.BodyFlags]), or for all of them if [param match_all].
 func is_symbol_visible(body_flags: int, match_all := false) -> bool:
 	if match_all:
 		body_flags &= all_flags
@@ -185,6 +222,8 @@ func is_symbol_visible(body_flags: int, match_all := false) -> bool:
 	return bool(body_flags & symbol_visible_flags) # match any
 
 
+## Whether orbits are visible for any of [param body_flags] (a bitwise OR of
+## [enum IVBody.BodyFlags]), or for all of them if [param match_all].
 func is_orbit_visible(body_flags: int, match_all := false) -> bool:
 	if match_all:
 		body_flags &= all_flags
@@ -204,6 +243,9 @@ func is_all_orbits_visible() -> bool:
 	return orbit_visible_flags == all_flags
 
 
+## Shows or hides names for [param body_flags], a bitwise OR of
+## [enum IVBody.BodyFlags] groups in [member all_flags], as a HUD checkbox does.
+## Releases [member huds_hidden].
 func set_name_visibility(body_flags: int, is_show: bool) -> void:
 	set_huds_hidden(false)
 	body_flags &= all_flags
@@ -219,6 +261,9 @@ func set_name_visibility(body_flags: int, is_show: bool) -> void:
 		visibility_changed.emit()
 
 
+## Shows or hides symbols for [param body_flags], a bitwise OR of
+## [enum IVBody.BodyFlags] groups in [member all_flags], as a HUD checkbox does.
+## Releases [member huds_hidden].
 func set_symbol_visibility(body_flags: int, is_show: bool) -> void:
 	set_huds_hidden(false)
 	body_flags &= all_flags
@@ -234,6 +279,9 @@ func set_symbol_visibility(body_flags: int, is_show: bool) -> void:
 		visibility_changed.emit()
 
 
+## Shows or hides orbits for [param body_flags], a bitwise OR of
+## [enum IVBody.BodyFlags] groups in [member all_flags], as a HUD checkbox does.
+## Releases [member huds_hidden].
 func set_orbit_visibility(body_flags: int, is_show: bool) -> void:
 	set_huds_hidden(false)
 	body_flags &= all_flags
@@ -249,6 +297,7 @@ func set_orbit_visibility(body_flags: int, is_show: bool) -> void:
 		visibility_changed.emit()
 
 
+## Shows or hides names for every group. Releases [member huds_hidden].
 func set_all_names_visibility(is_show: bool) -> void:
 	set_huds_hidden(false)
 	if is_show:
@@ -262,6 +311,7 @@ func set_all_names_visibility(is_show: bool) -> void:
 	visibility_changed.emit()
 
 
+## Shows or hides symbols for every group. Releases [member huds_hidden].
 func set_all_symbols_visibility(is_show: bool) -> void:
 	set_huds_hidden(false)
 	if is_show:
@@ -275,6 +325,7 @@ func set_all_symbols_visibility(is_show: bool) -> void:
 	visibility_changed.emit()
 
 
+## Shows or hides orbits for every group. Releases [member huds_hidden].
 func set_all_orbits_visibility(is_show: bool) -> void:
 	set_huds_hidden(false)
 	if is_show:
@@ -288,6 +339,8 @@ func set_all_orbits_visibility(is_show: bool) -> void:
 	visibility_changed.emit()
 
 
+## Sets [member name_visible_flags] whole, e.g. to restore a value read
+## earlier. Releases [member huds_hidden].
 func set_name_visible_flags(name_visible_flags_: int) -> void:
 	set_huds_hidden(false)
 	if name_visible_flags == name_visible_flags_:
@@ -296,6 +349,8 @@ func set_name_visible_flags(name_visible_flags_: int) -> void:
 	visibility_changed.emit()
 
 
+## Sets [member symbol_visible_flags] whole, e.g. to restore a value read
+## earlier. Releases [member huds_hidden].
 func set_symbol_visible_flags(symbol_visible_flags_: int) -> void:
 	set_huds_hidden(false)
 	if symbol_visible_flags == symbol_visible_flags_:
@@ -304,6 +359,8 @@ func set_symbol_visible_flags(symbol_visible_flags_: int) -> void:
 	visibility_changed.emit()
 
 
+## Sets [member orbit_visible_flags] whole, e.g. to restore a value read
+## earlier. Releases [member huds_hidden].
 func set_orbit_visible_flags(orbit_visible_flags_: int) -> void:
 	set_huds_hidden(false)
 	if orbit_visible_flags == orbit_visible_flags_:
@@ -328,6 +385,8 @@ func get_default_color(body_flags: int) -> Color:
 	return default_colors.get(body_flags, fallback_color)
 
 
+## Returns the HUD color of [param body_flags]'s groups, or [constant NULL_COLOR]
+## if they differ.
 func get_color(body_flags: int) -> Color:
 	# If >1 bit from all_flags, all must agree or returns NULL_COLOR
 	body_flags &= all_flags
@@ -348,6 +407,7 @@ func get_color(body_flags: int) -> Color:
 	return consensus_color
 
 
+## Sets the HUD color (symbol, name and orbit) of each group in [param body_flags].
 func set_color(body_flags: int, color: Color) -> void:
 	# Can set any number from all_flags.
 	body_flags &= all_flags
@@ -410,6 +470,8 @@ func get_default_symbol_type(body_flags: int) -> int:
 	return default_symbol_types.get(body_flags, fallback_symbol_type)
 
 
+## Returns the symbol-atlas index of [param body_flags]'s groups, or
+## [constant NULL_SYMBOL] if they differ.
 func get_symbol_type(body_flags: int) -> int:
 	# If >1 bit from all_flags, all must agree or returns NULL_SYMBOL
 	body_flags &= all_flags
@@ -430,6 +492,7 @@ func get_symbol_type(body_flags: int) -> int:
 	return consensus_symbol
 
 
+## Sets the symbol-atlas index of each group in [param body_flags].
 func set_symbol_type(body_flags: int, symbol: int) -> void:
 	# Can set any number from all_flags.
 	body_flags &= all_flags

@@ -63,6 +63,22 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"da_d_f_th0",
 ]
 
+const AUTOMATION_KEY: Array[StringName] = [&"name"]
+const AUTOMATION_METHODS: Array[StringName] = [
+	&"get_number",
+	&"get_member_name",
+	&"get_member_position",
+	&"get_primary",
+	&"get_orbit_elements",
+	&"get_mean_anomaly_rate",
+]
+const AUTOMATION_PROPERTIES: Array[StringName] = [
+	&"sbg_alias",
+	&"sbg_class",
+	&"lp_integer",
+	&"max_apoapsis",
+]
+
 
 static var replacement_subclass: Script
 ## Contains all IVSmallBodiesGroup instances currently in the tree.
@@ -70,10 +86,14 @@ static var replacement_subclass: Script
 static var small_bodies_groups: Dictionary[StringName, IVSmallBodiesGroup] = {}
 
 
+## Short name that HUD states and views key the group by.
 var sbg_alias: StringName
+## Kind of small bodies the group holds.
 var sbg_class: SBGClass # SBGClass
 var secondary_body: IVBody # e.g., Jupiter for Trojans; usually null
+## Lagrange point of a Trojan group (4 or 5), or -1.
 var lp_integer := -1 # -1, 4 & 5 are currently supported
+## Largest apoapsis in the group.
 var max_apoapsis := 0.0
 
 var names := PackedStringArray()
@@ -179,8 +199,41 @@ func vprint_load(what: String) -> bool:
 	return true
 
 
+## Number of members.
 func get_number() -> int:
 	return names.size()
+
+
+## Name of member [param index].
+func get_member_name(index: int) -> String:
+	return names[index]
+
+
+## Position of member [param index] at [param time] (now if NAN), relative to
+## [method get_primary], as the points shader computes it from the same
+## elements and precessions. Not for a Lagrange-point group
+## ([member lp_integer] != -1), whose members librate.
+func get_member_position(index: int, time := NAN) -> Vector3:
+	assert(lp_integer == -1, "Lagrange-point members librate; not implemented")
+	if is_nan(time):
+		time = IVGlobal.times[0]
+	var a := a_m0_n[index * 3]
+	var e := e_i_lan_ap[index * 4]
+	var i := e_i_lan_ap[index * 4 + 1]
+	var s := s_g_mag[index * 3]
+	var g := s_g_mag[index * 3 + 1]
+	var lan := fposmod(e_i_lan_ap[index * 4 + 2] + s * time, TAU)
+	var ap := e_i_lan_ap[index * 4 + 3] + (g - s) * time
+	var mean_anomaly := fposmod(a_m0_n[index * 3 + 1] + get_mean_anomaly_rate(index) * time, TAU)
+	var true_anomaly := IVOrbit.get_true_anomaly_from_mean_anomaly_elliptic(e, mean_anomaly)
+	return IVOrbit.get_position_from_elements_at_true_anomaly(a * (1.0 - e * e), e, i, lan, ap,
+			true_anomaly)
+
+
+## The body the group orbits, whose position [method get_member_position] is
+## relative to.
+func get_primary() -> Node3D:
+	return get_parent()
 
 
 func get_unit_circle_transform(index: int) -> Transform3D:

@@ -53,6 +53,11 @@ extends PopupPanel
 ## does if it's open. See [member modal] for the two ways it can work.
 
 
+const AUTOMATION_METHODS: Array[StringName] = [
+	&"get_option_enumeration",
+]
+
+
 ## Stop the simulator while this popup is open. This setting will be overridden
 ## if [member IVCoreSettings.popops_can_stop_sim] == false.
 @export var stop_sim := true
@@ -311,6 +316,23 @@ func add_option(section_name: StringName, option_name: StringName, setting: Stri
 	var section := section_content[section_name]
 	option_index = mini(section.size(), option_index)
 	section.insert(option_index, [option_name, setting])
+
+
+## Returns the names of setting [param setting]'s values by value, as this popup
+## lists them, or an empty dictionary for a setting with no enumeration.
+func get_option_enumeration(setting: StringName) -> Dictionary:
+	if not option_enumerations.has(setting):
+		return {}
+	var source := option_enumerations[setting]
+	var object_key: StringName = source[0]
+	var property: StringName = source[1]
+	var object: Object = IVGlobal.program.get(object_key)
+	if not object:
+		return {}
+	var enumeration: Variant = object.get(property)
+	if typeof(enumeration) != TYPE_DICTIONARY:
+		return {}
+	return enumeration
 	
 
 

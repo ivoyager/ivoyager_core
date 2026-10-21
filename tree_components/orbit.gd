@@ -235,6 +235,36 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"_update_time",
 ]
 
+const AUTOMATION_METHODS: Array[StringName] = [
+	&"get_semi_major_axis_at_time",
+	&"get_eccentricity_at_time",
+	&"get_inclination_at_time",
+	&"get_longitude_ascending_node_at_time",
+	&"get_argument_periapsis_at_time",
+	&"get_period",
+	&"get_period_at_time",
+	&"get_position_vector",
+	&"get_state_vectors",
+	&"get_mean_anomaly",
+	&"get_true_anomaly",
+	&"get_radius",
+	&"is_retrograde",
+	&"get_periapsis",
+	&"get_apoapsis",
+]
+const AUTOMATION_PROPERTIES: Array[StringName] = [
+	&"parent_name",
+	&"reference_plane_type",
+	&"semi_major_axis",
+	&"eccentricity",
+	&"inclination",
+	&"longitude_ascending_node",
+	&"argument_periapsis",
+	&"time_periapsis",
+	&"mean_motion",
+	&"gravitational_parameter",
+]
+
 ## Set this script to generate a subclass in place of IVOrbit in create methods.
 ## Set [code]IVOrbit.replacement_subclass = MyOrbit[/code] for project-wide
 ## replacement.
@@ -1353,6 +1383,8 @@ func get_longitude_ascending_node() -> float:
 	return get_longitude_ascending_node_at_time(_update_time)
 
 
+## Longitude of the ascending node at [param time],
+## including precession.
 func get_longitude_ascending_node_at_time(time: float) -> float:
 	return fposmod(_longitude_ascending_node_at_epoch + _longitude_ascending_node_rate * time, TAU)
 
@@ -1394,6 +1426,7 @@ func get_argument_periapsis() -> float:
 	return get_argument_periapsis_at_time(_update_time)
 
 
+## Argument of periapsis at [param time], including precession.
 func get_argument_periapsis_at_time(time: float) -> float:
 	return fposmod(_argument_periapsis_at_epoch + _argument_periapsis_rate * time, TAU)
 
@@ -1711,6 +1744,7 @@ func get_vernal_referenced_mean_longitude_at_epoch() -> float:
 # Derivable other
 
 
+## Whether the orbit is retrograde (inclination above a right angle).
 func is_retrograde() -> bool:
 	const RIGHT_ANGLE := PI / 2
 	return _inclination > RIGHT_ANGLE
@@ -1722,6 +1756,7 @@ func is_retrograde_at_time(_time: float) -> bool:
 	return _inclination > RIGHT_ANGLE
 
 
+## Periapsis distance.
 func get_periapsis() -> float:
 	return get_periapsis_at_time(_update_time)
 
@@ -1731,6 +1766,7 @@ func get_periapsis_at_time(_time: float) -> float:
 	return _semi_parameter / (1.0 + _eccentricity)
 
 
+## Apoapsis distance; INF for an open orbit.
 func get_apoapsis() -> float:
 	return get_apoapsis_at_time(_update_time)
 
@@ -1742,6 +1778,7 @@ func get_apoapsis_at_time(_time: float) -> float:
 	return INF
 
 
+## Orbital period; INF for an open orbit.
 func get_period() -> float:
 	if _eccentricity < 1.0:
 		return TAU / _mean_motion

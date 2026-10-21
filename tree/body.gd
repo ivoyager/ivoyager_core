@@ -228,6 +228,39 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 # mesh. Only a visual that lies wholly inside IVFarwarpManager.true_bounds_distance drops the box.
 const _SHELLS_REACH_RADII := 2.0
 
+const AUTOMATION_KEY: Array[StringName] = [&"name"]
+const AUTOMATION_METHODS: Array[StringName] = [
+	&"has_orbit",
+	&"get_orbit",
+	&"get_position_vector",
+	&"get_state_vectors",
+	&"get_orbit_semi_major_axis",
+	&"get_orbit_eccentricity",
+	&"get_orbit_inclination",
+	&"is_orbit_retrograde",
+	&"get_mass",
+	&"get_equatorial_radius",
+	&"get_polar_radius",
+	&"get_rotation_period",
+	&"get_axial_tilt_to_orbit",
+	&"get_axial_tilt_to_ecliptic",
+	&"get_latitude_longitude",
+	&"get_hud_name",
+	&"get_characteristic",
+]
+const AUTOMATION_PROPERTIES: Array[StringName] = [
+	&"flags",
+	&"mean_radius",
+	&"gravitational_parameter",
+	&"parent",
+	&"satellites",
+	&"orbit",
+	&"begin",
+	&"end",
+	&"within_lifespan",
+	&"global_position",
+]
+
 
 ## Set this script to generate a subclass in place of IVBody in create methods.
 ## Set [code]IVBody.replacement_subclass = MyBody[/code] for project-wide
@@ -913,6 +946,9 @@ func set_characteristic(key: StringName, value: Variant) -> void:
 	characteristics[key] = value
 
 
+## Returns characteristic [param key], a table value or one derived from it
+## ("mass", "equatorial_radius", "polar_radius", "hud_name", "body_class", ...),
+## or null if the body has none.
 func get_characteristic(key: StringName) -> Variant:
 	match key:
 		&"mass":

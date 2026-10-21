@@ -82,6 +82,14 @@ func _ready() -> void:
 	IVStateManager.about_to_quit.connect(hide)
 
 
+## The main [member selection_manager] by role, "SelectionManager", for an
+## automation client to address.
+func get_automation_objects() -> Dictionary[StringName, Object]:
+	if not selection_manager:
+		return {}
+	return {&"SelectionManager": selection_manager}
+
+
 func _clear_procedural() -> void:
 	if not selection_manager:
 		return

@@ -28,6 +28,19 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"gamesave_views",
 ]
 
+const AUTOMATION_METHODS: Array[StringName] = [
+	&"set_table_view",
+	&"has_table_view",
+	&"set_view",
+	&"has_view",
+	&"get_names_in_collection",
+]
+const AUTOMATION_PROPERTIES: Array[StringName] = [
+	&"table_views",
+	&"cached_views",
+	&"gamesave_views",
+]
+
 
 ## If not &"", set this view on simulator start.
 var set_view_on_start := &"VIEW_HOME"
@@ -200,6 +213,14 @@ func get_names_in_collection(collection_name: String, is_cached: bool) -> Array[
 		if key.ends_with(suffix):
 			group.append(key.trim_suffix(suffix))
 	return group
+
+
+## Whether an automation client may use [param member] now: a view applies only
+## to a started simulator.
+func is_automation_available(member: StringName) -> bool:
+	if member == &"set_table_view" or member == &"set_view":
+		return IVStateManager.started
+	return true
 
 
 
