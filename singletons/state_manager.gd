@@ -253,6 +253,42 @@ const DPRINT := false
 ## calls time to complete so that downstream teardown does not race freeing nodes.
 const PROCEDURAL_NODES_FREEING_DELAY := 5
 
+## The simulator lifecycle as an automation client sees it: the signals that
+## mark core initialized, simulator started, procedural state about to be freed
+## (exit, quit or game load) and quitting, and the method that quits.
+const AUTOMATION_LIFECYCLE: Dictionary[StringName, StringName] = {
+	&"initialized": &"core_initialized",
+	&"started": &"simulator_started",
+	&"stopping": &"about_to_free_procedural_nodes",
+	&"quitting": &"about_to_quit",
+	&"quit": &"quit",
+}
+const AUTOMATION_METHODS: Array[StringName] = [
+	&"start",
+	&"set_user_paused",
+	&"can_user_pause",
+	&"exit",
+	&"quit",
+]
+const AUTOMATION_PROPERTIES: Array[StringName] = [
+	&"paused_tree",
+	&"paused_by_user",
+	&"initialized_core",
+	&"has_assets",
+	&"prestart",
+	&"ok_to_start",
+	&"building_system",
+	&"built_system",
+	&"ready_system",
+	&"started",
+	&"running",
+	&"quitting",
+	&"loading_game",
+	&"loaded_game",
+	&"network_state",
+	&"show_splash_screen",
+]
+
 
 # All read-only!
 
@@ -544,7 +580,8 @@ func start() -> void:
 
 
 ## Exit to splash screen. Set [param force_exit] = true to force exit without
-## confirmation.
+## confirmation. Does nothing until [member ready_system], or if
+## [member IVCoreSettings.disable_exit].
 func exit(force_exit := false, following_server := false) -> void:
 	# 
 	if !ready_system or IVCoreSettings.disable_exit:
@@ -589,7 +626,8 @@ func exit(force_exit := false, following_server := false) -> void:
 
 
 ## Quit the application. Set [param force_quit] = true to force quit without
-## confirmation.
+## confirmation. Does nothing before [member prestart] or [member ready_system],
+## or if [member IVCoreSettings.disable_quit].
 func quit(force_quit := false) -> void:
 	if !(prestart or ready_system) or IVCoreSettings.disable_quit:
 		return
@@ -625,6 +663,21 @@ func quit(force_quit := false) -> void:
 	print("Quitting...")
 	assert(IVDebug.dprint_orphan_nodes())
 	_tree.quit()
+
+
+## Whether an automation client may use [param member] now: each method only
+## when it would do something.
+func is_automation_available(member: StringName) -> bool:
+	match member:
+		&"start":
+			return ok_to_start
+		&"set_user_paused":
+			return started and can_user_pause()
+		&"exit":
+			return ready_system and not IVCoreSettings.disable_exit
+		&"quit":
+			return (prestart or ready_system) and not IVCoreSettings.disable_quit
+	return true
 
 
 # *****************************************************************************
