@@ -12,6 +12,9 @@ See cloning and downloading instructions [here](https://www.ivoyager.dev/develop
 Under development using Godot 4.7.2.
 
 ### Added
+* Automation: Core's singletons, program objects, bodies, orbits, views and HUD states declare what an automation client, such as the Assistant plugin, may read and call, in `AUTOMATION_METHODS`, `AUTOMATION_PROPERTIES` and `AUTOMATION_KEY` constants with gates in `is_automation_available()`. IVStateManager declares the lifecycle in `AUTOMATION_LIFECYCLE`, and IVGlobal names program objects by role in `get_automation_objects()`. The declared members are public API; see the Assistant plugin's SPECIFICATION.md §11.
+* Widgets name themselves through Godot's accessibility properties, repeated ones declare `AUTOMATION_KEY`, and IVSpeedButtons, IVTrackCkbxs, IVTimeSetter and IVFocalLengthControl declare a value interface (`get_automation_value()`, `set_automation_value()`, `get_automation_options()`), with new text keys `LABEL_CAMERA_TRACKING` and `LABEL_FOCAL_LENGTH`.
+* `IVCamera.get_focal_length()`, `IVSmallBodiesGroup.get_member_name()`, `get_member_position()` and `get_primary()`, `IVOptionsPopup.get_option_enumeration()` and `IVViewButton.view_name`.
 * `IVSettingsManager.get_setting_keys()` lists every registered setting.
 
 ### Changed
@@ -22,6 +25,8 @@ Under development using Godot 4.7.2.
 * [API breaking] IVTranslationImporter is retired, with `IVStrings.c_unescape_patch()` (write Unicode characters directly in translation CSVs). IVLanguageManager, moved from `program_refcounteds` to first in `IVCoreInitializer.init_refcounteds`, now adds Core's and the Units plugin's translations from its new `translations` list, and a project's own translations listed in project.godot override Core text with the same key. A project that appended to `IVTranslationImporter.translations` lists that file in project.godot instead, and can drop the Units translation from there.
 * [API breaking] [Table breaking] Atmosphere and photosphere compositions name their species by text keys, the entities of new table `chemicals.tsv` with their Wikipedia page titles, so the names translate and link; composition cells in `planets.tsv`, `moons.tsv` and `stars.tsv` use those entity names (`78.08% NITROGEN`). IVComposition holds `species` and `amounts` in place of `type` and `components`, and IVSelectionData shows one row per species. Text key `LABEL_PHOTOSPHERE_COMPOSITON_BY_WEIGHT` is now `LABEL_PHOTOSPHERE_COMPOSITION_BY_MASS`.
 * [API breaking] An IVSelectionData value format Callable can return any number of `[row label, value text]` rows, in place of one `[labels, values]` row.
+* `IVTimekeeper.set_time_from_date_clock_elements()` and `IVSelectionManager.select_by_name()` return whether they acted, and the former no longer sets a time from an invalid date.
+* `IVSettingsManager.change_setting()` gives a number the setting's own type, int or float.
 
 ### Removed
 * [API breaking] 171 text keys that nothing in Core displays, from `gui_text.csv`, `hints_text.csv` and `long_text.csv`, with their rows in `wiki_extras.tsv`. A project that displayed one adds it to its own translation.
