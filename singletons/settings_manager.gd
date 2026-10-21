@@ -193,6 +193,12 @@ func has_setting(key: StringName) -> bool:
 	return _defaults.has(key)
 
 
+## Returns the key of every registered setting, including those the Options popup
+## doesn't show.
+func get_setting_keys() -> Array[StringName]:
+	return _defaults.keys()
+
+
 ## If calling with [param suppress_caching] = true, call [method cache_now]
 ## after changes.
 func change_setting(key: StringName, value: Variant, suppress_caching := false) -> void:

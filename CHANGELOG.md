@@ -11,6 +11,9 @@ See cloning and downloading instructions [here](https://www.ivoyager.dev/develop
 
 Under development using Godot 4.7.2.
 
+### Added
+* `IVSettingsManager.get_setting_keys()` lists every registered setting.
+
 ### Changed
 * [API breaking] New IVBodyProximityMonitor replaces IVSleepManager and its `hide_on_sleep`, and takes over HUD visibility and mouse targets from `IVBody._process` (see *Proximity sleep* in [GRAPHICS_PROFILING.md](GRAPHICS_PROFILING.md)). A `can_sleep` body now sleeps only while it neither draws anything nor shows a HUD the user has switched on; a project driving its own camera holds its target awake with `pin_awake()`. A project that removed `SleepManager` to turn sleep off sets new `IVCoreSettings.apply_body_sleep` false instead; the monitor itself must stay, since without it no HUD shows and nothing can be hovered.
 * Moon HUDs now show wherever their orbits are visually separate, including from other planets' systems, where sleep used to hide them.
