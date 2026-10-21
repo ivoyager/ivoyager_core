@@ -49,6 +49,8 @@ extends Button
 ## an [IVViewEdit] popup.
 signal edit_requested()
 
+const AUTOMATION_KEY: Array[StringName] = [&"view_name"]
+
 ## Set to view name for default (i.e., table defined) views like "VIEW_HOME".
 ## This is required for buttons added via GUI scene building in the editor.
 ## Always &"" for user-saved (code generated) buttons.
@@ -63,6 +65,10 @@ signal edit_requested()
 ## default button because the deletion won't be persisted.
 @export var deletable := false
 
+
+## Identifies this button's view: [member default_view] for a default button,
+## edited or not, else the name of the user-saved view.
+var view_name: String: get = get_view_name
 
 # Note: ViewManager usage is confusing. To clarify: IVViewEdit does all view
 # saves and removes (because it has the edit info). IVViewButton does all
@@ -129,6 +135,10 @@ func _gui_input(event: InputEvent) -> void:
 			_process_edit_or_delete_input()
 
 
+func get_view_name() -> String:
+	return String(default_view) if default_view else text
+
+
 ## Returns the [IVView] flags this button currently represents.
 func get_view_flags() -> int:
 	return _view_flags
@@ -140,22 +150,22 @@ func is_edited_default_button() -> bool:
 	return _is_edited_default_button
 
 
-## Renames this button to [param view_name] and rebinds its [code]pressed[/code]
+## Renames this button to [param new_view_name] and rebinds its [code]pressed[/code]
 ## signal to load the new view. For default buttons, this also flips into
 ## "edited default" mode.
-func edit(view_name: String, collection_name: String, is_cached: bool) -> void:
+func edit(new_view_name: String, collection_name: String, is_cached: bool) -> void:
 	# editing name only; collection_name & is_cached in case this is a default button
 	if default_view and !_is_edited_default_button:
-		_reconfigure_default_button(view_name, collection_name, is_cached)
+		_reconfigure_default_button(new_view_name, collection_name, is_cached)
 		return
-	_view_flags = _view_manager.get_view_flags(view_name, _collection_name, _is_cached)
-	if text == view_name:
+	_view_flags = _view_manager.get_view_flags(new_view_name, _collection_name, _is_cached)
+	if text == new_view_name:
 		return
-	text = view_name
+	text = new_view_name
 	pressed.disconnect(_view_manager.set_view)
-	assert(_view_manager.has_view(view_name, _collection_name, _is_cached),
+	assert(_view_manager.has_view(new_view_name, _collection_name, _is_cached),
 			"Attempt to edit user-IVViewButton but the new view is missing")
-	pressed.connect(_view_manager.set_view.bind(view_name, _collection_name, _is_cached))
+	pressed.connect(_view_manager.set_view.bind(new_view_name, _collection_name, _is_cached))
 
 
 ## Restores an edited default button back to its table-defined state.
@@ -190,20 +200,20 @@ func _configure_default_button() -> void:
 	pressed.connect(_view_manager.set_table_view.bind(default_view))
 
 
-func _reconfigure_default_button(view_name: String, collection_name: String, is_cached: bool
+func _reconfigure_default_button(new_view_name: String, collection_name: String, is_cached: bool
 		) -> void:
 	# This is still a "default" button. It's just reconfigured until restore_default().
 	assert(default_view)
 	_is_edited_default_button = true
-	text = view_name
+	text = new_view_name
 	_collection_name = collection_name
 	_is_cached = is_cached
-	_view_flags = _view_manager.get_view_flags(view_name, _collection_name, _is_cached)
-	_view_manager.set_view_edited_default(view_name, _collection_name, _is_cached, default_view)
+	_view_flags = _view_manager.get_view_flags(new_view_name, _collection_name, _is_cached)
+	_view_manager.set_view_edited_default(new_view_name, _collection_name, _is_cached, default_view)
 	pressed.disconnect(_view_manager.set_table_view)
-	assert(_view_manager.has_view(view_name, _collection_name, _is_cached),
+	assert(_view_manager.has_view(new_view_name, _collection_name, _is_cached),
 			"Attempt to edit IVViewButton but the new view is missing")
-	pressed.connect(_view_manager.set_view.bind(view_name, _collection_name, _is_cached))
+	pressed.connect(_view_manager.set_view.bind(new_view_name, _collection_name, _is_cached))
 
 
 func _process_edit_or_delete_input() -> void:

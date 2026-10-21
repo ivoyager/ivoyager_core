@@ -102,14 +102,16 @@ func _configure_after_core_inited() -> void:
 				IVTree.get_ancestor_bool(self, &"enable_huds_hbox_links"))
 
 	# label
+	var label: Control
 	if label_text:
 		if _enable_links and link_label_key:
 			_link_label = IVLinkLabel.create(_get_link_bbcode())
-			add_child(_link_label)
+			label = _link_label
 		else:
-			var label := Label.new()
-			label.text = label_text
-			add_child(label)
+			var plain_label := Label.new()
+			plain_label.text = label_text
+			label = plain_label
+		add_child(label)
 
 	# control block (right): visibility checkboxes, then symbol & color pickers
 	var control_block := HBoxContainer.new()
@@ -130,6 +132,13 @@ func _configure_after_core_inited() -> void:
 	color_picker.tooltip_text = "HINT_COLOR_PICKER"
 	control_block.add_child(color_picker)
 	add_child(control_block)
+	# Each control says what it does; the row label says which class it is for.
+	for control in control_block.get_children():
+		if control is BaseButton:
+			var button: BaseButton = control
+			button.accessibility_name = button.tooltip_text
+			if label:
+				button.accessibility_labeled_by_nodes = [button.get_path_to(label)]
 
 
 func _get_link_bbcode() -> String:

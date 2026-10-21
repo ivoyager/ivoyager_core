@@ -51,6 +51,8 @@ var _updating_setter := false
 
 
 func _ready() -> void:
+	if !accessibility_name:
+		accessibility_name = &"HINT_SET_TIME"
 	if IVStateManager.initialized_core:
 		_configure_after_core_inited()
 	else:
@@ -70,6 +72,28 @@ func update_setter_time() -> void:
 	_second.value = _clock[2]
 	_ut_tt_label.text = "  TT" if _timekeeper.terrestrial_time_clock else "  UT"
 	_updating_setter = false
+
+
+## The simulator date and clock, [year, month, day, hour, minute, second], for
+## an automation client. UT or TT as [member IVTimekeeper.terrestrial_time_clock].
+func get_automation_value() -> Array[int]:
+	return [_date[0], _date[1], _date[2], _clock[0], _clock[1], _clock[2]]
+
+
+## Sets the simulator date and clock from [year, month, day, hour, minute,
+## second], as the spin boxes do. Returns false for an invalid date or time.
+func set_automation_value(date_clock: Array[int]) -> bool:
+	if date_clock.size() != 6 or !_timekeeper:
+		return false
+	if (date_clock[3] < 0 or date_clock[3] > 23 or date_clock[4] < 0 or date_clock[4] > 59
+			or date_clock[5] < 0 or date_clock[5] > 59):
+		return false
+	var is_set := _timekeeper.set_time_from_date_clock_elements(date_clock[0], date_clock[1],
+			date_clock[2], date_clock[3], date_clock[4], date_clock[5],
+			_timekeeper.terrestrial_time_clock)
+	if is_set and is_visible_in_tree():
+		update_setter_time()
+	return is_set
 
 
 func _configure_after_core_inited() -> void:

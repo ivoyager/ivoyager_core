@@ -39,6 +39,10 @@ var _speed_manager: IVSpeedManager
 func _ready() -> void:
 	_plus.text = increase_text
 	_minus.text = decrease_text
+	_plus.accessibility_name = _plus.tooltip_text # text is a symbol
+	_minus.accessibility_name = _minus.tooltip_text
+	if !accessibility_name:
+		accessibility_name = &"CKBX_GAME_SPEED"
 	if IVStateManager.initialized_core:
 		_configure_after_core_inited()
 	else:
@@ -50,6 +54,29 @@ func _configure_after_core_inited() -> void:
 	_speed_manager.speed_changed.connect(_update_buttons) # signals on ui_dirty
 	_plus.pressed.connect(_speed_manager.increment_speed)
 	_minus.pressed.connect(_speed_manager.decrement_speed)
+
+
+## The current [member IVSpeedManager.speed_index], for an automation client.
+func get_automation_value() -> int:
+	return _speed_manager.speed_index if _speed_manager else 0
+
+
+## The speed names, in [member IVSpeedManager.speed_index] order.
+func get_automation_options() -> Array[String]:
+	var names: Array[String] = []
+	if _speed_manager:
+		for speed_name in _speed_manager.speed_names:
+			names.append(tr(speed_name))
+	return names
+
+
+## Sets the speed by its index in [method get_automation_options], as the buttons
+## step through it. Returns false for an index out of range.
+func set_automation_value(speed_index: int) -> bool:
+	if !_speed_manager or speed_index < 0 or speed_index >= _speed_manager.speeds.size():
+		return false
+	_speed_manager.change_speed(speed_index)
+	return true
 
 
 func _update_buttons() -> void:

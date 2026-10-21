@@ -30,6 +30,8 @@ extends Button
 ## IVEdgeContainer.cullable_children]). [member input_action] toggles the button
 ## from the keyboard, and the tooltip names its key.
 
+const AUTOMATION_KEY: Array[StringName] = [&"name"]
+
 ## The Control this button shows and hides.
 @export var panel: Control
 ## Action in [IVInputMapManager] that toggles this button; &"" for none.
@@ -44,6 +46,7 @@ extends Button
 
 func _ready() -> void:
 	assert(panel, "IVPanelButton needs a panel")
+	accessibility_controls_nodes = [get_path_to(panel)]
 	toggle_mode = true
 	button_pressed = panel.visible
 	toggled.connect(_on_toggled)

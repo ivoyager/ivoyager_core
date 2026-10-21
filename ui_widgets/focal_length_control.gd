@@ -53,6 +53,10 @@ var _camera: IVCamera
 
 
 func _ready() -> void:
+	if !accessibility_name:
+		accessibility_name = &"LABEL_FOCAL_LENGTH"
+	_plus.accessibility_name = _plus.tooltip_text # text is a symbol
+	_minus.accessibility_name = _minus.tooltip_text
 	IVGlobal.camera_fov_changed.connect(_on_camera_fov_changed)
 	_spinbox.value_changed.connect(_on_spinbox_value_changed)
 	_minus.pressed.connect(_do_big_step.bind(false))
@@ -72,6 +76,27 @@ func _ready() -> void:
 	theme_changed.connect(_fit_spinbox_to_widest_value, CONNECT_DEFERRED)
 	_fit_spinbox_to_widest_value()
 	IVWidgets.connect_ivcamera(self, &"_on_camera_changed")
+
+
+## The camera focal length in millimeters (35 mm equivalent), for an
+## automation client.
+func get_automation_value() -> float:
+	return _spinbox.value
+
+
+## The focal lengths the buttons step through; any value between the first
+## and last may be set.
+func get_automation_options() -> Array[float]:
+	return big_steps
+
+
+## Sets the camera focal length, as the spin box does. Returns false outside
+## the range of [method get_automation_options].
+func set_automation_value(focal_length: float) -> bool:
+	if !_camera or focal_length < big_steps[0] or focal_length > big_steps[-1]:
+		return false
+	_camera.set_focal_length(focal_length)
+	return true
 
 
 func _on_camera_changed(camera: IVCamera) -> void:

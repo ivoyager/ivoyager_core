@@ -27,6 +27,8 @@ extends Button
 ## either [member body_flags] or [member sbg_aliases], not both). Bodies never
 ## show the "point" option; SBGs do.[br][br]
 
+const AUTOMATION_KEY: Array[StringName] = [&"body_flags", &"sbg_aliases"]
+
 @export var popup_corner := Corner.CORNER_TOP_RIGHT
 ## Specify a class of body by [enum IVBody.BodyFlags] (an exclusive flag from
 ## "visual_groups.tsv"). If not 0, [member sbg_aliases] must be empty.

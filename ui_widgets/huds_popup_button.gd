@@ -29,6 +29,7 @@ extends Button
 
 
 func _ready() -> void:
+	accessibility_controls_nodes = [get_path_to(_huds_popup)]
 	toggled.connect(_on_toggled)
 	_huds_popup.visibility_changed.connect(_on_popup_visibility_changed)
 	_huds_popup.size_changed.connect(_on_popup_size_changed)

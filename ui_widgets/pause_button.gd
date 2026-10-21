@@ -37,6 +37,7 @@ extends Button
 
 
 func _ready() -> void:
+	accessibility_name = unpaused_tooltip_text # a toggle: its name stays, its state changes
 	IVStateManager.paused_changed.connect(_update_button) # signals on ui_dirty
 
 

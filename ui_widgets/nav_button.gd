@@ -37,6 +37,8 @@ const SCENE := "res://addons/ivoyager_core/ui_widgets/nav_button.tscn"
 ## Texture modulate applied while the body is outside its lifespan (greyed out).
 const DISABLED_MODULATE := Color(1.0, 1.0, 1.0, 0.3)
 
+const AUTOMATION_KEY: Array[StringName] = [&"body_name"]
+
 ## E.g., "PLANET_EARTH", "MOON_EUROPA", etc.
 @export var body_name: StringName
 ## If true, use [member IVBody.texture_slice_2d] instead of [member
@@ -106,6 +108,7 @@ func _configure_for_system_tree(_dummy := false) -> void:
 		return
 	
 	tooltip_text = _body.name
+	accessibility_name = _body.name
 	if use_texture_slice:
 		_texture_rect.texture = _body.texture_slice_2d
 	else:
