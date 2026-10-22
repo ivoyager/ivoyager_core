@@ -1141,7 +1141,8 @@ the site's shaders change. Firefox may not.
 
 Each path was launched with `--disable-vsync` and a 1920x1080 window at display scale 1
 (`[core_settings] apply_display_scale=false` in the Planetarium's `ivoyager_override2.cfg`), except
-where a table says full screen. A temporary Assistant suite forced the settings, and at each pose:
+where a table says full screen. A temporary probe, called through the Assistant, forced the
+settings, and at each pose:
 
 - **Sim time frozen** at 2026-03-20 12:00 and the sim paused; the 2D GUI and every HUD hidden (the
   Asteroids view keeps the points it shows).
@@ -1194,13 +1195,13 @@ whose peak is its glare wing, that gap is about 3.5 EV. So at a settled exposure
 drawn depends on the exposure the camera *arrived* with. The Moon at 3 radii through ANGLE on the
 Intel takes 14.1 ms on a first visit and 20.4 ms after the camera has been to Titan or Jupiter, at
 the same settled exposure: a difference of five bins, 537,000 stars. The Planetarium's
-`ProbeExposureSuite` pins them with `set_exposure_skips` and reads them back with
+`ExposureProbe` pins them with `set_exposure_skips` and reads them back with
 `get_exposure_skips`. The alternative is to take every build through the same poses in the same
 order.
 
 ### Main-thread CPU time
 
-*Proximity sleep* times script work rather than the GPU. A temporary Assistant suite took over the
+*Proximity sleep* times script work rather than the GPU. A temporary Assistant probe took over the
 process slots of `IVBodyProximityMonitor`, `IVFarwarpManager`, `IVSunOcclusionManager` and
 `IVExposureManager` (same priority, next sibling) to time each one inside the frame, and took the
 process step, every `_process` and the deferred-call flush, from `process_frame` to `frame_pre_draw`.
@@ -1212,7 +1213,7 @@ window was 1920x1080 at display scale 1, the tiers Reduced on the GTX and Low on
 - **The CPU's clock moves a frame's script time by up to 30 % between rounds**, more at Jupiter on
   the GTX, so a difference under about 0.3 ms is read from the in-frame timers, not from the step.
 - **The editor's debug binary spends a quarter to three quarters longer** on the same script work
-  than a release export. The release export ran the suite with `debug_only=false` under
+  than a release export. The release export ran the probe with `debug_only=false` under
   `[assistant]` in `ivoyager_override2.cfg`, written before exporting, since the pck embeds it.
 
 ### Compile time
@@ -1255,7 +1256,7 @@ a u64 specialization key, whose bit order is the `#[specializations]` list in
 the keys; a `StandardMaterial3D` version is one whose file names `metallic_texture_channel`.
 Godot's `--print-fps` detects a stall but misses one under a second and cannot attribute it.
 
-The frame and screenshot suites, the cold-start driver and the atmosphere's entry-point probe (which
+The frame and screenshot probes, the cold-start driver and the atmosphere's entry-point probe (which
 writes the include's outputs as raw floats over a grid of geometries, and times them) are session
 scripts, not yet in the tools submodule.
 

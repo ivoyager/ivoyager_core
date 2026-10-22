@@ -2568,8 +2568,8 @@ lever a capped pass cannot offer is one the shader does not need.
     they replace, and the growth law is a stated representation, not a measurement — the
     physical amplitude is unrenderable at any exposure a star field can use. Candidates at
     0.5x and 2x scale, and gamma 0.20 and 0.40, are rendered and measured; the sweep is
-    reproducible in one app run through the probe suite's `set_psf_settings`. An in-app
-    judgment, at Earth (the largest halo, 102-122 px at 32 codes) as well as at Pluto.
+    reproducible in one app run through the Planetarium's `ExposureProbe.set_psf_settings`.
+    An in-app judgment, at Earth (the largest halo, 102-122 px at 32 codes) as well as at Pluto.
 - **Anchor refinement**: the 20.0 mag/arcsec² anchor is good to a few tenths against
   LMC/SMC levels in the shipped map; a tighter cross-check against published integrated
   photometry is possible.

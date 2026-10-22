@@ -1432,7 +1432,7 @@ this is the spatial one.
     star, so CPU cost goes as stars × receivers × candidates; stars must be admitted as
     occluders of *other* stars' light; and the same selection serves concurrent systems,
     since a star 4 ly away never qualifies. The opt-in (`occluder_data_a` by name) and every
-    feeder of the old uniforms (`IVBody2DCapturer`, `IVShaderWarmup`, the probe suites)
+    feeder of the old uniforms (`IVBody2DCapturer`, `IVShaderWarmup`, the Planetarium's probes)
     follow the interface.
   - **Concurrent systems, the spatial part.** Every always-pass `custom_aabb` is sized to
     `max_camera_distance` about its own body, so a star's PSF quad — what would show the Sun
