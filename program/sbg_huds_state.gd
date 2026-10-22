@@ -55,6 +55,27 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"symbol_types",
 ]
 
+const AUTOMATION_METHODS: Array[StringName] = [
+	&"is_symbols_visible",
+	&"is_orbits_visible",
+	&"change_symbols_visibility",
+	&"change_orbits_visibility",
+	&"get_visible_symbols_groups",
+	&"get_visible_orbits_groups",
+	&"set_visible_symbols_groups",
+	&"set_visible_orbits_groups",
+	&"set_default_visibilities",
+	&"hide_all",
+	&"get_color",
+	&"set_color",
+	&"get_symbol_type",
+	&"set_symbol_type",
+]
+const AUTOMATION_PROPERTIES: Array[StringName] = [
+	&"symbols_visibilities",
+	&"orbits_visibilities",
+]
+
 
 # persisted - read-only!
 ## Indexed by [code]sbg_alias[/code]; missing keys mean false.
@@ -114,6 +135,8 @@ func _on_program_objects_instantiated() -> void:
 
 # visibility
 
+## Hides every small-body group's symbols and orbits, and releases
+## [member IVBodyHUDsState.huds_hidden].
 func hide_all() -> void:
 	_body_huds_state.set_huds_hidden(false)
 	for key: StringName in symbols_visibilities:
@@ -124,6 +147,8 @@ func hide_all() -> void:
 	orbits_visibility_changed.emit()
 
 
+## Restores each group's default visibilities, and releases
+## [member IVBodyHUDsState.huds_hidden].
 func set_default_visibilities() -> void:
 	_body_huds_state.set_huds_hidden(false)
 	if symbols_visibilities != default_symbols_visibilities:
@@ -136,26 +161,34 @@ func set_default_visibilities() -> void:
 		orbits_visibility_changed.emit()
 
 
+## Whether the points (symbols) of the group with [param group] alias are
+## visible.
 func is_symbols_visible(group: StringName) -> bool:
 	return symbols_visibilities.get(group, false)
 
 
+## Shows or hides the points (symbols) of the group with [param group]
+## alias. Releases [member IVBodyHUDsState.huds_hidden].
 func change_symbols_visibility(group: StringName, is_show: bool) -> void:
 	_body_huds_state.set_huds_hidden(false)
 	symbols_visibilities[group] = is_show
 	symbols_visibility_changed.emit()
 
 
+## Whether the orbits of the group with [param group] alias are visible.
 func is_orbits_visible(group: StringName) -> bool:
 	return orbits_visibilities.get(group, false)
 
 
+## Shows or hides the orbits of the group with [param group] alias.
+## Releases [member IVBodyHUDsState.huds_hidden].
 func change_orbits_visibility(group: StringName, is_show: bool) -> void:
 	_body_huds_state.set_huds_hidden(false)
 	orbits_visibilities[group] = is_show
 	orbits_visibility_changed.emit()
 
 
+## Returns the aliases of groups whose points (symbols) are visible.
 func get_visible_symbols_groups() -> Array[StringName]:
 	var array: Array[StringName] = []
 	for key in symbols_visibilities:
@@ -164,6 +197,7 @@ func get_visible_symbols_groups() -> Array[StringName]:
 	return array
 
 
+## Returns the aliases of groups whose orbits are visible.
 func get_visible_orbits_groups() -> Array[StringName]:
 	var array: Array[StringName] = []
 	for key in orbits_visibilities:
@@ -196,6 +230,9 @@ func is_visible_orbits_groups(groups: Array[StringName], all := true) -> bool:
 	return false
 
 
+## Shows or hides the points (symbols) of [param groups] (aliases), as
+## a HUD checkbox does; [param hide_others] hides every other group's. Releases
+## [member IVBodyHUDsState.huds_hidden].
 func set_visible_symbols_groups(groups: Array[StringName], is_show := true, hide_others := false
 		) -> void:
 	_body_huds_state.set_huds_hidden(false)
@@ -206,6 +243,9 @@ func set_visible_symbols_groups(groups: Array[StringName], is_show := true, hide
 	symbols_visibility_changed.emit()
 
 
+## Shows or hides the orbits of [param groups] (aliases), as a HUD
+## checkbox does; [param hide_others] hides every other group's. Releases
+## [member IVBodyHUDsState.huds_hidden].
 func set_visible_orbits_groups(groups: Array[StringName], is_show := true, hide_others := false
 		) -> void:
 	_body_huds_state.set_huds_hidden(false)
@@ -231,6 +271,7 @@ func get_default_color(group: StringName) -> Color:
 	return fallback_color
 
 
+## Returns the HUD color of the group with [param group] alias.
 func get_color(group: StringName) -> Color:
 	if colors.has(group):
 		return colors[group]
@@ -250,6 +291,7 @@ func get_consensus_color(groups: Array[StringName], is_default := false) -> Colo
 	return consensus_color
 
 
+## Sets the HUD color (points and orbits) of the group with [param group] alias.
 func set_color(group: StringName, color: Color) -> void:
 	if colors.has(group):
 		if color == colors[group]:
@@ -304,6 +346,8 @@ func get_default_symbol_type(group: StringName) -> int:
 	return fallback_symbol_type
 
 
+## Returns the symbol-atlas index of the group with [param group] alias, -1 for
+## a plain point.
 func get_symbol_type(group: StringName) -> int:
 	if symbol_types.has(group):
 		return symbol_types[group]
@@ -323,6 +367,8 @@ func get_consensus_symbol_type(groups: Array[StringName], is_default := false) -
 	return consensus_symbol
 
 
+## Sets the symbol-atlas index of the group with [param group] alias, -1 for
+## a plain point.
 func set_symbol_type(group: StringName, symbol: int) -> void:
 	if symbol_types.has(group):
 		if symbol == symbol_types[group]:

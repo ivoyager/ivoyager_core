@@ -60,6 +60,7 @@ func _configure_after_core_inited() -> void:
 	# connections
 	toggled.connect(_on_toggled)
 	var view_edit_popup := _view_collection.get_view_edit_popup()
+	accessibility_controls_nodes = [get_path_to(view_edit_popup)]
 	view_edit_popup.visibility_changed.connect(_on_popup_visibility_changed.bind(view_edit_popup))
 
 

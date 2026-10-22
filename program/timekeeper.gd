@@ -103,6 +103,23 @@ const NULL_INT_ARRAY: Array[int] = []
 const PERSIST_MODE := IVGlobal.PERSIST_PROPERTIES_ONLY
 const PERSIST_PROPERTIES: Array[StringName] = [&"_time"]
 
+const AUTOMATION_METHODS: Array[StringName] = [
+	&"set_time",
+	&"set_time_from_date_clock_elements",
+	&"set_operating_system_time_sync",
+	&"synchronize_with_operating_system",
+	&"get_time_at_date_clock_elements",
+	&"get_julian_date",
+	&"is_valid_gregorian_date",
+]
+const AUTOMATION_PROPERTIES: Array[StringName] = [
+	&"time",
+	&"julian_day_number",
+	&"clock_time",
+	&"terrestrial_time_clock",
+	&"operating_system_time_sync",
+]
+
 
 ## If true, [member clock_time] indicates Terrestrial Time (TT), otherwise,
 ## Universal Time (UT; default). This affects clock GUI display and the exact
@@ -366,6 +383,8 @@ func _notification(what: int) -> void:
 # *****************************************************************************
 # setgets
 
+## Sets [member time] and emits [signal time_set]. Does nothing unless
+## [member IVCoreSettings.allow_time_setting], or on a network client.
 func set_time(new_time: float) -> void:
 	const IS_CLIENT = IVStateManager.NetworkState.IS_CLIENT
 	if not IVCoreSettings.allow_time_setting:
@@ -396,6 +415,9 @@ func set_terrestrial_time_clock(tt_clock: bool) -> void:
 	_process_time() # in case we are paused
 
 
+## Sets [member operating_system_time_sync]. Turning it on unpauses, sets real-time
+## speed and synchronizes [member time] with the operating system clock. Does
+## nothing unless [member IVCoreSettings.allow_time_setting], or on a network client.
 func set_operating_system_time_sync(sync_on: bool) -> void:
 	const IS_CLIENT = IVStateManager.NetworkState.IS_CLIENT
 	if not IVCoreSettings.allow_time_setting:
@@ -532,13 +554,27 @@ func get_time_from_os() -> float:
 	return (utc_sec + utc_leap_seconds + TT_TAI_OFFSET_SECONDS) * SECOND
 
 
-## Convenience wrapper that calls [method get_time_at_date_clock_elements]
-## and then [method set_time].
+## Sets [member time] to a Gregorian date and clock time, UT unless
+## [param tt_clock_time]. Returns false, setting nothing, for an invalid date.
+## See [method set_time] for when this does nothing.
 func set_time_from_date_clock_elements(year: int, month: int, day: int,
-		hour := 12, minute := 0, second := 0, tt_clock_time := false) -> void:
+		hour := 12, minute := 0, second := 0, tt_clock_time := false) -> bool:
+	if not is_valid_gregorian_date(year, month, day):
+		return false
 	var new_time := get_time_at_date_clock_elements(year, month, day, hour, minute, second,
 			tt_clock_time)
 	set_time(new_time)
+	return true
+
+
+## Whether an automation client may use [param member] now: setting time needs
+## [member IVCoreSettings.allow_time_setting] and is never done by a network client.
+func is_automation_available(member: StringName) -> bool:
+	const IS_CLIENT = IVStateManager.NetworkState.IS_CLIENT
+	match member:
+		&"set_time", &"set_time_from_date_clock_elements", &"set_operating_system_time_sync", 				&"synchronize_with_operating_system":
+			return IVCoreSettings.allow_time_setting and _network_state != IS_CLIENT
+	return true
 
 
 

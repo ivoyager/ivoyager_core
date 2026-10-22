@@ -126,6 +126,24 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"_transform",
 ]
 
+const AUTOMATION_METHODS: Array[StringName] = [
+	&"set_focal_length",
+	&"get_focal_length",
+	&"set_field_of_view",
+	&"change_camera_lock",
+	&"set_up_lock",
+]
+const AUTOMATION_PROPERTIES: Array[StringName] = [
+	&"target",
+	&"flags",
+	&"disabled_flags",
+	&"is_camera_lock",
+	&"view_position",
+	&"view_rotations",
+	&"perspective_radius",
+	&"fov",
+]
+
 
 # public persisted - read only except project init
 ## Bitwise OR of [enum CameraFlags] selecting up-lock state and tracking mode.
@@ -467,6 +485,8 @@ static func _is_tracking_disabled(track_flags: int, disabled_flags_: int) -> boo
 	return false
 
 
+## Locks or unlocks "up" to the current reference frame. Locking moves the camera
+## to level it.
 func set_up_lock(is_locked: bool) -> void:
 	# Invokes a move to set, but not to unset.
 	if is_locked == bool(flags & CameraFlags.CAMERAFLAGS_UP_LOCKED):
@@ -479,6 +499,8 @@ func set_up_lock(is_locked: bool) -> void:
 		up_lock_changed.emit(flags, disabled_flags)
 
 
+## Sets zoom as a 35 mm-equivalent focal length in millimeters, as the GUI's
+## focal length control does.
 func set_focal_length(focal_length: float) -> void:
 	const math := preload("uid://csb570a3u1x1k")
 	var field_of_view := math.get_fov_from_focal_length(focal_length)
@@ -486,11 +508,20 @@ func set_focal_length(focal_length: float) -> void:
 	IVGlobal.camera_fov_changed.emit(field_of_view)
 
 
+## Returns zoom as a 35 mm-equivalent focal length in millimeters.
+func get_focal_length() -> float:
+	const math := preload("uid://csb570a3u1x1k")
+	return math.get_focal_length_from_fov(fov)
+
+
+## Sets zoom as a vertical field of view in degrees.
 func set_field_of_view(field_of_view: float) -> void:
 	fov = field_of_view
 	IVGlobal.camera_fov_changed.emit(field_of_view)
 
 
+## Sets [member is_camera_lock], which decides whether a selection change moves
+## the camera.
 func change_camera_lock(new_lock: bool) -> void:
 	if is_camera_lock != new_lock:
 		is_camera_lock = new_lock

@@ -39,6 +39,20 @@ extends Node
 # avoided here to prevent circular reference issues.
 
 
+const AUTOMATION_PROPERTIES: Array[StringName] = [
+	&"wait_for_start",
+	&"disable_pause",
+	&"disable_exit",
+	&"disable_quit",
+	&"allow_time_setting",
+	&"allow_time_reversal",
+	&"start_time_date_clock",
+	&"start_time_is_terrestrial_time",
+	&"home_name",
+	&"body_tables",
+]
+
+
 ## Set false to disable thread use throughout the Core plugin. This
 ## can be helpful for debugging. Some class files also have property
 ## [param use_threads]. In these classes, both this setting and the file

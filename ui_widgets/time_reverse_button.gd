@@ -38,6 +38,7 @@ var _speed_manager: IVSpeedManager
 
 
 func _ready() -> void:
+	accessibility_name = forward_tooltip_text # a toggle: its name stays, its state changes
 	if IVStateManager.initialized_core:
 		_configure_after_core_inited()
 	else:

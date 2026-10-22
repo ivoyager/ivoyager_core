@@ -85,6 +85,23 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"edited_default",
 ]
 
+const AUTOMATION_PROPERTIES: Array[StringName] = [
+	&"flags",
+	&"target_name",
+	&"camera_flags",
+	&"view_position",
+	&"view_rotations",
+	&"name_visible_flags",
+	&"symbol_visible_flags",
+	&"orbit_visible_flags",
+	&"visible_points_groups",
+	&"visible_orbits_groups",
+	&"speed_index",
+	&"user_paused",
+	&"time",
+	&"reversed_time",
+]
+
 
 ## Set this script to generate a subclass in place of IVView in [method create].
 ## A subclass can do this in their _static_init() for project-wide replacement.
@@ -105,16 +122,23 @@ var camera_flags := 0
 var view_position := NULL_VECTOR3
 ## Camera orientation relative to target. See [IVCamera].
 var view_rotations := NULL_VECTOR3
+## [member IVBodyHUDsState.name_visible_flags] the view holds.
 var name_visible_flags := 0
+## [member IVBodyHUDsState.symbol_visible_flags] the view holds.
 var symbol_visible_flags := 0
+## [member IVBodyHUDsState.orbit_visible_flags] the view holds.
 var orbit_visible_flags := 0
+## Aliases of the small-body groups whose points the view shows.
 var visible_points_groups: Array[StringName] = [] # sbg symbol visibility
+## Aliases of the small-body groups whose orbits the view shows.
 var visible_orbits_groups: Array[StringName] = []
 var body_orbit_colors: Dictionary[int, Color] = {} # shared group color; non-default only
 var sbg_points_colors: Dictionary[StringName, Color] = {} # shared group color; non-default only
 var body_symbol_types: Dictionary[int, int] = {} # non-default only
 var sbg_symbol_types: Dictionary[StringName, int] = {} # non-default only
+## [member IVSpeedManager.speed_index] the view holds.
 var speed_index := 0
+## Whether the view holds a user pause.
 var user_paused := false
 ## Requires [member IVCoreSettings.allow_time_setting] == true.
 var time := 0.0

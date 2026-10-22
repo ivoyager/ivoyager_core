@@ -66,6 +66,35 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"_selection_name",
 ]
 
+const AUTOMATION_METHODS: Array[StringName] = [
+	&"select_by_name",
+	&"has_selection",
+	&"get_name",
+	&"get_gui_name",
+	&"get_body",
+	&"get_body_name",
+	&"get_body_flags",
+	&"select_up",
+	&"select_down",
+	&"select_next",
+	&"select_last",
+	&"select_next_star",
+	&"select_last_star",
+	&"select_next_planet",
+	&"select_last_planet",
+	&"select_next_major_moon",
+	&"select_last_major_moon",
+	&"select_next_moon",
+	&"select_last_moon",
+	&"select_next_spacecraft",
+	&"select_last_spacecraft",
+	&"select_history_back",
+	&"select_history_forward",
+]
+const AUTOMATION_PROPERTIES: Array[StringName] = [
+	&"selection",
+]
+
 
 ## Set this script to generate a subclass in place of IVSelectionManager in
 ## [method create]. A subclass can do this in their _static_init() for
@@ -188,13 +217,16 @@ func select(object: Object, suppress_camera_move := false) -> void:
 	selection_changed.emit(suppress_camera_move)
 
 
-func select_by_name(name: StringName, suppress_camera_move := false) -> void:
+## Selects the object named [param name] (e.g. an [IVBody] name), as clicking it
+## does. Returns false, with a warning, if nothing has that name.
+func select_by_name(name: StringName, suppress_camera_move := false) -> bool:
 	for dict in _selection_dictionaries:
 		var object: Object = dict.get(name)
 		if object:
 			select(object, suppress_camera_move)
-			return
+			return true
 	push_warning("Attempted to select non-existent selection name '%s'" % name)
+	return false
 
 
 func get_selection() -> Object:
@@ -206,6 +238,7 @@ func set_selection(object: Object) -> void:
 	_selection_name = get_name()
 
 
+## Whether anything is selected.
 func has_selection() -> bool:
 	return selection != null
 
@@ -214,6 +247,7 @@ func has_selection() -> bool:
 # and has methods consistent for null "skip-over".
 
 
+## Selects the previous selection in history, as the GUI's back button does.
 func select_history_back() -> void:
 	if _history_index < 1:
 		return
@@ -231,6 +265,7 @@ func has_history_back() -> bool:
 	return _history_index > 0
 
 
+## Selects the next selection in history, as the GUI's forward button does.
 func select_history_forward() -> void:
 	if _history_index > _history.size() - 2:
 		return
@@ -637,6 +672,18 @@ func set_selection_and_history(array: Array) -> void:
 	set_selection(object)
 	_history = array[1]
 	_history_index = array[2]
+
+
+## Whether an automation client may use [param member] now: each "select_" step
+## only when its "has_" test says there is somewhere to go.
+func is_automation_available(member: StringName) -> bool:
+	if member == &"select_by_name" or not String(member).begins_with("select_"):
+		return true
+	var test := StringName("has_" + String(member).trim_prefix("select_"))
+	if not has_method(test):
+		return true
+	var is_possible: bool = call(test)
+	return is_possible
 
 
 func _clear_procedural() -> void:

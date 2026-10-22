@@ -31,6 +31,8 @@ enum HUDsType {SYMBOLS, NAMES, ORBITS}
 
 const SCENE := "res://addons/ivoyager_core/ui_widgets/huds_checkbox.tscn"
 
+const AUTOMATION_KEY: Array[StringName] = [&"hud_type", &"body_flags", &"sbg_aliases"]
+
 ## For bodies, one of SYMBOLS, NAMES or ORBITS. For SBGs, SYMBOLS or ORBITS.
 @export var hud_type: HUDsType
 ## Specify a class of body by [enum IVBody.BodyFlags]. In most cases this should

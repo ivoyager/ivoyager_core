@@ -33,6 +33,8 @@ var _selection_manager: IVSelectionManager
 
 
 func _ready() -> void:
+	for button: Button in [_back_buttion, _forward_buttion, _up_buttion]:
+		button.accessibility_name = button.tooltip_text # text is a symbol
 	_back_buttion.pressed.connect(_back)
 	_forward_buttion.pressed.connect(_forward)
 	_up_buttion.pressed.connect(_up)

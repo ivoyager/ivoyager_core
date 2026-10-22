@@ -33,6 +33,7 @@ extends Button
 
 
 func _ready() -> void:
+	accessibility_controls_nodes = [get_path_to(_time_set_popup)]
 	toggled.connect(_on_toggled)
 	_time_set_popup.visibility_changed.connect(_on_visibility_changed)
 	if popup_stylebox_override:

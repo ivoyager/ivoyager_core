@@ -119,6 +119,8 @@ const PERSIST_PROPERTIES_ONLY := PersistMode.PERSIST_PROPERTIES_ONLY
 ## Persist mode for the ivoyager_save plugin. Safe to use if plugin is not present.
 const PERSIST_PROCEDURAL := PersistMode.PERSIST_PROCEDURAL
 
+const AUTOMATION_PROPERTIES: Array[StringName] = [&"times", &"date", &"clock", &"date_aux"]
+
 
 ## [member VisualInstance3D.layers] bit marking a shadow caster for the local
 ## (near/middle) shadow-mapped [IVDynamicLight] instances. Near-domain objects
@@ -215,6 +217,12 @@ func _enter_tree() -> void:
 func _ready() -> void:
 	get_tree().get_root().size_changed.connect(_on_viewport_size_changed)
 	ui_dirty.connect(_on_viewport_size_changed)
+
+
+## The [member program] objects by role ("Timekeeper", "SpeedManager", ...), for an
+## automation client to address. A role outlives a project's replacement class.
+func get_automation_objects() -> Dictionary[StringName, Object]:
+	return program
 
 
 func _on_viewport_size_changed() -> void:

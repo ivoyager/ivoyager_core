@@ -29,6 +29,8 @@ const SCENE := "res://addons/ivoyager_core/ui_widgets/huds_color_picker_button.t
 const NULL_COLOR := Color.BLACK
 
 
+const AUTOMATION_KEY: Array[StringName] = [&"body_flags", &"sbg_aliases"]
+
 ## Specify a class of body by [enum IVBody.BodyFlags]. In most cases this should
 ## be one of the exclusive flags defined in data table "visual_groups.tsv"
 ## field "body_flags" (only these have default colors and visibilities).

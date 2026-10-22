@@ -86,6 +86,20 @@ const RESET_GRAPHICS_ARGUMENT := "--reset-graphics"
 ## other than by quitting, counts as failed; see [member IVCoreSettings.enable_graphics_rescue].
 const START_CHECK_TIME := 10.0
 
+const AUTOMATION_METHODS: Array[StringName] = [
+	&"get_setting_keys",
+	&"has_setting",
+	&"get_setting",
+	&"get_default",
+	&"change_setting",
+	&"restore_default",
+	&"is_default",
+	&"cache_now",
+	&"is_cache_current",
+	&"is_restart_pending",
+	&"is_restart_pending_for",
+]
+
 
 ## Name of the settings cache file.
 var file_name := "settings.ivbinary"
@@ -193,9 +207,21 @@ func has_setting(key: StringName) -> bool:
 	return _defaults.has(key)
 
 
-## If calling with [param suppress_caching] = true, call [method cache_now]
-## after changes.
+## Returns the key of every registered setting, including those the Options popup
+## doesn't show.
+func get_setting_keys() -> Array[StringName]:
+	return _defaults.keys()
+
+
+## Changes setting [param key], as the Options popup does, and writes the
+## settings file unless [param suppress_caching] (then call [method cache_now]
+## after changes). A number takes the setting's own type, int or float.
 func change_setting(key: StringName, value: Variant, suppress_caching := false) -> void:
+	var default_type := typeof(_defaults[key])
+	var value_type := typeof(value)
+	if value_type != default_type and (value_type == TYPE_INT or value_type == TYPE_FLOAT) \
+			and (default_type == TYPE_INT or default_type == TYPE_FLOAT):
+		value = type_convert(value, default_type)
 	_cache_handler.change_current(key, value, suppress_caching)
 
 

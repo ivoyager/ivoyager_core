@@ -49,6 +49,22 @@ const PERSIST_PROPERTIES: Array[StringName] = [
 	&"_reversed_time",
 ]
 
+const AUTOMATION_METHODS: Array[StringName] = [
+	&"change_speed",
+	&"increment_speed",
+	&"decrement_speed",
+	&"set_real_time_speed",
+	&"set_reversed_time",
+	&"get_speed_name",
+]
+const AUTOMATION_PROPERTIES: Array[StringName] = [
+	&"speed_index",
+	&"reversed_time",
+	&"speed_multiplier",
+	&"speeds",
+	&"speed_names",
+]
+
 
 ## Current speed index as defined in [member speeds]. Has setter method but see
 ## also [method change_speed].
@@ -170,6 +186,8 @@ func get_speed_index() -> int:
 	return _speed_index
 
 
+## Sets [member reversed_time]. Does nothing unless
+## [member IVCoreSettings.allow_time_reversal], or on a network client.
 func set_reversed_time(new_reversed_time: bool) -> void:
 	const IS_CLIENT = IVStateManager.NetworkState.IS_CLIENT
 	if _network_state == IS_CLIENT:
@@ -214,10 +232,14 @@ func set_real_time_speed() -> void:
 	change_speed(real_time_speed, false)
 
 
+## Changes to the next faster speed in [member speeds], as the speed-up action does.
+## See [method change_speed].
 func increment_speed(allow_ease_curve := true) -> void:
 	change_speed(_speed_index + 1, allow_ease_curve)
 
 
+## Changes to the next slower speed in [member speeds], as the slow-down action does.
+## See [method change_speed].
 func decrement_speed(allow_ease_curve := true) -> void:
 	change_speed(_speed_index - 1, allow_ease_curve)
 
@@ -240,6 +262,22 @@ func can_decrement_speed() -> bool:
 ## speed_index].
 func get_speed_name() -> StringName:
 	return speed_names[_speed_index] if _speed_index < speed_names.size() else &""
+
+
+## Whether an automation client may use [param member] now: a network client
+## changes no speed, and time reversal needs [member IVCoreSettings.allow_time_reversal].
+func is_automation_available(member: StringName) -> bool:
+	const IS_CLIENT = IVStateManager.NetworkState.IS_CLIENT
+	match member:
+		&"change_speed", &"set_real_time_speed":
+			return _network_state != IS_CLIENT
+		&"increment_speed":
+			return can_increment_speed()
+		&"decrement_speed":
+			return can_decrement_speed()
+		&"set_reversed_time":
+			return _allow_time_reversal and _network_state != IS_CLIENT
+	return true
 	
 
 

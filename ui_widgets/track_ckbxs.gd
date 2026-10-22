@@ -33,6 +33,8 @@ var _camera: IVCamera
 
 
 func _ready() -> void:
+	if !accessibility_name:
+		accessibility_name = &"LABEL_CAMERA_TRACKING"
 	# The group draws radio buttons and keeps a selected one pressed when it is
 	# clicked again.
 	var button_group := ButtonGroup.new()
@@ -45,15 +47,45 @@ func _ready() -> void:
 			[&"tracking_changed", &"_update_buttons"])
 
 
+## The camera's tracking, "ecliptic", "orbit" or "ground", for an automation client.
+func get_automation_value() -> String:
+	for checkbox: CheckBox in [_ecliptic_checkbox, _orbit_checkbox, _ground_checkbox]:
+		if checkbox.button_pressed:
+			return String(checkbox.name).to_lower()
+	return ""
+
+
+## The trackings the camera allows now.
+func get_automation_options() -> Array[String]:
+	var options: Array[String] = []
+	for checkbox: CheckBox in [_ecliptic_checkbox, _orbit_checkbox, _ground_checkbox]:
+		if !checkbox.disabled:
+			options.append(String(checkbox.name).to_lower())
+	return options
+
+
+## Sets the camera's tracking, one of [method get_automation_options], as the
+## checkboxes do. Returns false for any other.
+func set_automation_value(tracking: String) -> bool:
+	if !get_automation_options().has(tracking):
+		return false
+	_set_tracking(StringName(tracking.capitalize()))
+	return true
+
+
 func _on_camera_changed(camera: IVCamera) -> void:
 	_camera = camera
 
 
 func _on_pressed(button: CheckBox) -> void:
+	_set_tracking(button.name)
+
+
+func _set_tracking(checkbox_name: StringName) -> void:
 	const CameraFlags := IVCamera.CameraFlags
 	if !_camera:
 		return
-	match button.name:
+	match checkbox_name:
 		&"Ecliptic":
 			_camera.move_to(null, CameraFlags.CAMERAFLAGS_TRACK_ECLIPTIC)
 		&"Orbit":
