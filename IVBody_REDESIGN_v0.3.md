@@ -1373,8 +1373,8 @@ static func create(
 | `IVShellsModel` (sun mode) / `IVDynamicLight` / `IVRings` | `characteristics` → `attributes` key reads; otherwise unchanged |
 | `selection_data.gd` (+ Planetarium info panel) | path data updated (§10); periapsis/apoapsis label logic moves here |
 | `nav_button.gd` / `nav_buttons_system.gd` | texture methods; `get_mean_radius()` unchanged (facade) |
-| `body_2d_capture` rig / tool suites | `make_body_visual()` / `get_camera_radius()` unchanged; `get_triaxial_size()` → geometry |
-| `ivoyager_assistant` suites | typed reads updated (`mean_radius`, `get_orbit()`, positioner state queries) |
+| `body_2d_capture` rig / tools' icon capture | `make_body_visual()` / `get_camera_radius()` unchanged; `get_triaxial_size()` → geometry |
+| Planetarium's `ExposureProbe`; `ivoyager_assistant` client scripts | typed reads updated (`mean_radius`, `characteristics`); clients follow renamed declared members |
 
 External projects (e.g. Astropolis) migrate on the same map; API breakage is accepted for
 v0.3 per the ground rules.
